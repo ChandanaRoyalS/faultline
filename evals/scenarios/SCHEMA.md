@@ -1,0 +1,19 @@
+# Scenario catalog schema (T1.5 / T1.6)
+
+Every scenario is one YAML file in this directory. The schema is enforced by
+`evalharness.scenario.Scenario` (Pydantic) — `make test` validates every file here.
+
+| Field | Meaning |
+|-------|---------|
+| `id` | stable slug, e.g. `checkout-pool-exhaustion` |
+| `title` | one line, human |
+| `fault_class` | one of: `bad_deploy`, `dependency_latency`, `resource_exhaustion`, `bad_config` (T7.0 adds four more) |
+| `split` | `dev` or `holdout` — **assigned at authoring, before any rehearsal** (T1.6). Holdout artifacts never enter any corpus; headline numbers are holdout-only once the catalog reaches 30+. |
+| `injection` | what the injector does: `target` service, `method`, `params` |
+| `ground_truth` | `root_cause` (prose, the answer key) + `category` |
+| `expected_evidence` | list of evidence the investigation should surface |
+| `expected_remediation_class` | e.g. `rollback`, `restart`, `config_revert`, `scale` |
+| `rehearsed` | `false` until the scenario has been run end-to-end manually (T1.5) |
+
+Rehearsal artifacts land in `evals/scenarios/artifacts/<split>/<id>/` so quarantine is
+mechanical. A scenario's own artifacts are never retrievable while it is scored (T4.1b).

@@ -1,0 +1,35 @@
+# Faultline compose profiles (T0.3).
+#   --profile platform : Faultline's own services (Postgres, Redis, and later the API/worker)
+#   --profile world    : the target environment - OTel demo + Prometheus/Loki/Grafana (T1.1-T1.2)
+#   --profile eval     : eval-harness runs (Phase 4)
+services:
+  postgres:
+    image: postgres:16-alpine
+    profiles: ["platform", "eval"]
+    environment:
+      POSTGRES_USER: faultline
+      POSTGRES_PASSWORD: faultline-dev   # dev only; real secrets via .env
+      POSTGRES_DB: faultline
+    ports: ["5432:5432"]
+    volumes: ["pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U faultline"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    profiles: ["platform", "eval"]
+    ports: ["6379:6379"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # T1.1-T1.3 add here (world profile): OpenTelemetry demo services, Prometheus, Loki,
+  # Grafana, Alertmanager. Deliberately absent until Phase 1 - see the execution plan.
+
+volumes:
+  pgdata:

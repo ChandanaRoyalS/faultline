@@ -1,0 +1,21 @@
+# EXAMPLE scenario - illustrates the schema; not part of the scored catalog.
+id: example-checkout-pool-exhaustion
+title: Checkout service exhausts its database connection pool under load
+fault_class: resource_exhaustion
+split: dev
+injection:
+  target: checkout
+  method: shrink_db_pool
+  params:
+    max_connections: 2
+ground_truth:
+  root_cause: >
+    The checkout service's database connection pool was reduced to 2 connections,
+    causing request queuing, latency amplification, and timeout errors upstream.
+  category: resource_exhaustion
+expected_evidence:
+  - metrics: connection pool saturation at 100% on checkout
+  - logs: timeout acquiring connection errors, first occurrence within 2m of injection
+  - change: no recent deploy (rules out bad_deploy hypothesis)
+expected_remediation_class: config_revert
+rehearsed: false
