@@ -1,0 +1,33 @@
+# T1.2 - ship container logs into Loki, labelled by service.
+#
+# The drop stage implements the filter ADR-0005 promised: the feature-flag
+# service is permanently disabled on this platform, so every log line referring
+# to it is known dead-dependency noise (measured at 17% of all log volume).
+# The filter is deliberately narrow - it matches only that one dependency - and
+# is recorded in the ADR so it is visible rather than mysterious.
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://loki:3100/loki/api/v1/push
+
+scrape_configs:
+  - job_name: docker
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 15s
+    relabel_configs:
+      # /cart-service -> service="cart-service"
+      - source_labels: ["__meta_docker_container_name"]
+        regex: "/(.*)"
+        target_label: "service"
+      - source_labels: ["__meta_docker_container_log_stream"]
+        target_label: "stream"
+    pipeline_stages:
+      - drop:
+          expression: ".*(featureflag|feature-flag|feature_flag).*"
+          drop_counter_reason: dead_dependency_featureflagservice

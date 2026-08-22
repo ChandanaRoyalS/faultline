@@ -1,0 +1,40 @@
+# T1.2 - log storage for the world.
+#
+# The OTel demo ships Prometheus (metrics), Jaeger (traces) and Grafana, but no
+# log store. Faultline's log analyst agent needs one, so we add Loki plus
+# Promtail, which reads container stdout via the Docker socket and ships it.
+#
+# Everything is version-pinned: a demo that behaves differently in month five is
+# not a reproducible environment (see the clean-clone gate condition).
+services:
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+
+  promtail:
+    image: grafana/promtail:2.9.8
+    container_name: promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../compose/promtail-config.yml:/etc/promtail/config.yml:ro
+    depends_on:
+      - loki
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+
+  # Pin Grafana to a predictable port so dashboards and demo links are stable.
+  grafana:
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../compose/grafana-loki-datasource.yml:/etc/grafana/provisioning/datasources/loki.yml:ro

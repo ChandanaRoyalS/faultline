@@ -40,10 +40,12 @@ world/.cloned:
 	git clone --depth 1 --branch $(OTEL_DEMO_VERSION) $(OTEL_DEMO_REPO) world
 	touch world/.cloned
 
-COMPOSE_WORLD := docker compose --progress plain -f docker-compose.yml -f ../compose/world-arm64.override.yml
+COMPOSE_WORLD := docker compose --progress plain -f docker-compose.yml -f ../compose/world-arm64.override.yml -f ../compose/telemetry.yml
 
 world-up: world/.cloned
 	cd world && $(COMPOSE_WORLD) up -d --no-build
+	@cd world && $(COMPOSE_WORLD) stop featureflagservice >/dev/null 2>&1 || true
+	@echo 'world up (feature-flag service intentionally stopped - see ADR-0005)'
 
 world-down:
 	cd world && $(COMPOSE_WORLD) down
