@@ -91,10 +91,18 @@ class DockerCli:
         memory, swap = result.stdout.split()
         return int(memory), int(swap)
 
-    def set_memory_limits(self, container: str, memory: str, memory_swap: str) -> None:
-        self._runner.run(
-            ["docker", "update", "--memory", memory, "--memory-swap", memory_swap, container]
-        )
+    def set_memory_limits(self, container: str, memory: str, memory_swap: str | None) -> None:
+        """Set the memory limit, and the swap ceiling when the container had one.
+
+        memory_swap is omitted when it was 0 (unset): docker rejects a swap limit
+        below the memory limit, so passing a literal 0 back would fail the restore
+        that matters most.
+        """
+        args = ["docker", "update", "--memory", memory]
+        if memory_swap is not None:
+            args += ["--memory-swap", memory_swap]
+        args.append(container)
+        self._runner.run(args)
 
     def build(self, tag: str, context: Path, build_args: Mapping[str, str]) -> None:
         args = ["docker", "build", "--tag", tag]
