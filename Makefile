@@ -31,3 +31,25 @@ down:
 
 eval:
 	@echo "eval harness arrives in Phase 4 (T4.1) - see docs/adr and the execution plan"
+
+# ---- T1.1: the world (OpenTelemetry Demo, pinned) ----
+OTEL_DEMO_VERSION := v1.2.1
+OTEL_DEMO_REPO := https://github.com/open-telemetry/opentelemetry-demo.git
+
+world/.cloned:
+	git clone --depth 1 --branch $(OTEL_DEMO_VERSION) $(OTEL_DEMO_REPO) world
+	touch world/.cloned
+
+COMPOSE_WORLD := docker compose --progress plain -f docker-compose.yml -f ../compose/world-arm64.override.yml
+
+world-up: world/.cloned
+	cd world && $(COMPOSE_WORLD) up -d --no-build
+
+world-down:
+	cd world && $(COMPOSE_WORLD) down
+
+world-ps:
+	cd world && $(COMPOSE_WORLD) ps
+
+world-logs:
+	cd world && $(COMPOSE_WORLD) logs -f --tail=50

@@ -1,0 +1,46 @@
+# T1.1 - ARM/emulation headroom for the OTel demo (pinned v1.2.1).
+#
+# The demo sets tight per-container memory limits tuned for native x86. Under
+# emulation on Apple Silicon the same workloads use more memory and sit at
+# their ceilings. An OOM-killed container is an incident Faultline did not
+# inject, and it would pollute the baseline every eval number depends on.
+# Limits are raised, not removed, so genuine runaway memory is still caught.
+services:
+  adservice:
+    deploy: { resources: { limits: { memory: 700M } } }
+  cartservice:
+    deploy: { resources: { limits: { memory: 400M } } }
+  checkoutservice:
+    deploy: { resources: { limits: { memory: 120M } } }
+  currencyservice:
+    deploy: { resources: { limits: { memory: 100M } } }
+  emailservice:
+    deploy: { resources: { limits: { memory: 250M } } }
+  frauddetectionservice:
+    deploy: { resources: { limits: { memory: 500M } } }
+  frontend:
+    deploy: { resources: { limits: { memory: 500M } } }
+  frontendproxy:
+    deploy: { resources: { limits: { memory: 300M } } }
+  kafka:
+    deploy: { resources: { limits: { memory: 1200M } } }
+  loadgenerator:
+    deploy: { resources: { limits: { memory: 300M } } }
+  paymentservice:
+    deploy: { resources: { limits: { memory: 200M } } }
+  productcatalogservice:
+    deploy: { resources: { limits: { memory: 120M } } }
+  quoteservice:
+    deploy: { resources: { limits: { memory: 120M } } }
+  recommendationservice:
+    deploy: { resources: { limits: { memory: 800M } } }
+  shippingservice:
+    deploy: { resources: { limits: { memory: 120M } } }
+  otelcol:
+    deploy: { resources: { limits: { memory: 300M } } }
+  accountingservice:
+    deploy: { resources: { limits: { memory: 300M } } }
+  # Segfaults under x86 emulation on ARM (Erlang BEAM). Do not restart-loop;
+  # a crash-looping container is constant noise in the baseline. See ADR-0005.
+  featureflagservice:
+    restart: "no"
