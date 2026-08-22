@@ -23,10 +23,14 @@ CATALOG: tuple[FaultDefinition, ...] = (
         fault_class=FaultClass.RESOURCE_EXHAUSTION,
         target="recommendation-service",
         description=(
-            "Shrink the recommendation service's memory limit far below its working set. "
+            "Shrink the recommendation service's memory limit below its working set. "
             "The kernel OOM-kills it, compose restarts it, and the frontend sees the gap."
         ),
-        params={"memory": "64m"},
+        # 48m against a measured steady-state RSS of ~55MiB (800M ceiling). Chosen
+        # below the working set on purpose: a limit that merely removes headroom
+        # produces an OOM kill only when load happens to spike, and a fault that
+        # fires sometimes is worse than no fault at all for an eval scenario.
+        params={"memory": "48m"},
     ),
     FaultDefinition(
         id="flag-service-bad-deploy",

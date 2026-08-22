@@ -53,7 +53,7 @@ def test_list_shows_every_fault_with_its_metadata(
         "cart-redis-misconfig",
     ):
         assert fault_id in out
-    assert "memory=64m" in out
+    assert "memory=48m" in out
     assert "[ACTIVE]" not in out
 
 
@@ -66,7 +66,7 @@ def test_start_prints_what_changed_and_how_to_undo_it(
 
     out = capsys.readouterr().out
     assert "injected recommendation-memory-squeeze (resource_exhaustion)" in out
-    assert "800M -> 64m" in out
+    assert "800M -> 48m" in out
     assert "faultline-inject stop recommendation-memory-squeeze" in out
 
 
