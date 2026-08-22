@@ -1,0 +1,22 @@
+# T1.3 - Faultline's Prometheus config. Replaces the demo's (via --config.file)
+# so we can add rules and Alertmanager without editing the pinned clone.
+# Scrape targets are copied verbatim from the demo's config.
+global:
+  evaluation_interval: 15s
+  scrape_interval: 5s
+
+rule_files:
+  - /etc/prometheus/alert-rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+scrape_configs:
+  - job_name: otel
+    static_configs:
+      - targets: ["otelcol:9464"]
+  - job_name: otel-collector
+    static_configs:
+      - targets: ["otelcol:8888"]

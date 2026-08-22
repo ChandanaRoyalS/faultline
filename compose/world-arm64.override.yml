@@ -40,7 +40,9 @@ services:
     deploy: { resources: { limits: { memory: 300M } } }
   accountingservice:
     deploy: { resources: { limits: { memory: 300M } } }
-  # Segfaults under x86 emulation on ARM (Erlang BEAM). Do not restart-loop;
-  # a crash-looping container is constant noise in the baseline. See ADR-0005.
+  # The real service (Elixir/Erlang) segfaults under emulation and its native
+  # build is blocked upstream. Replaced with a native-arm64 gRPC stub that
+  # implements the same contract - see ADR-0005 and ADR-0006. Built by
+  # `make ffs-stub`; compose runs with --no-build so this image is used as-is.
   featureflagservice:
-    restart: "no"
+    image: faultline/ffs-stub:1

@@ -1,0 +1,15 @@
+# T1.3 - route every alert to Faultline's ingest webhook (built in T2.1).
+# Until then delivery fails visibly, which is correct: a silent alert pipeline
+# is worse than a loudly broken one.
+route:
+  receiver: faultline
+  group_by: ["alertname", "service_name"]
+  group_wait: 10s
+  group_interval: 30s
+  repeat_interval: 1h
+
+receivers:
+  - name: faultline
+    webhook_configs:
+      - url: "http://host.docker.internal:8000/api/v1/alerts"
+        send_resolved: true

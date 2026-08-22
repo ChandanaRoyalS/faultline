@@ -1,0 +1,54 @@
+# T1.3 - alert rules, with thresholds grounded in the measured baseline.
+#
+# Baseline on a healthy world (measured 2026-08-22, after ADR-0006):
+#   error ratio  : 0.000 on every service
+#   p95 latency  : 1.9-9.6ms for most services; checkout 37ms, frontend 42ms
+#
+# Thresholds are therefore set well clear of healthy behaviour but low enough to
+# catch injected faults. They are tuned to THIS environment, not copied from a
+# tutorial - emulation makes latency here unlike a native host.
+groups:
+  - name: faultline-slo
+    interval: 15s
+    rules:
+      - alert: ServiceHighErrorRate
+        expr: |
+          sum by (service_name) (rate(calls_total{status_code="STATUS_CODE_ERROR"}[2m]))
+          /
+          sum by (service_name) (rate(calls_total[2m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          signal: errors
+        annotations:
+          summary: "{{ $labels.service_name }} error rate above 5%"
+          description: "{{ $labels.service_name }} is failing {{ $value | humanizePercentage }} of calls (baseline 0%)."
+
+      - alert: ServiceHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (service_name, le) (rate(latency_bucket[2m]))
+          ) > 250
+        for: 3m
+        labels:
+          severity: warning
+          signal: latency
+        annotations:
+          summary: "{{ $labels.service_name }} p95 latency above 250ms"
+          description: "p95 is {{ $value | printf \"%.0f\" }}ms; healthy baseline is under 50ms."
+
+      - alert: ServiceNoTraffic
+        # Guarded: fires only for services that WERE serving and then stopped.
+        # Without the guard this fires forever on components that never emit
+        # span metrics at all (frontend-proxy), which would poison the baseline.
+        expr: |
+          sum by (service_name) (rate(calls_total[3m])) == 0
+          and
+          sum by (service_name) (rate(calls_total[30m] offset 10m)) > 0
+        for: 3m
+        labels:
+          severity: critical
+          signal: availability
+        annotations:
+          summary: "{{ $labels.service_name }} is serving no traffic"
+          description: "No calls recorded for 3 minutes on a service that normally serves continuously."

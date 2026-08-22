@@ -42,10 +42,11 @@ world/.cloned:
 
 COMPOSE_WORLD := docker compose --progress plain -f docker-compose.yml -f ../compose/world-arm64.override.yml -f ../compose/telemetry.yml
 
-world-up: world/.cloned
+ffs-stub:
+	docker build -t faultline/ffs-stub:1 compose/ffs-stub
+
+world-up: world/.cloned ffs-stub
 	cd world && $(COMPOSE_WORLD) up -d --no-build
-	@cd world && $(COMPOSE_WORLD) stop featureflagservice >/dev/null 2>&1 || true
-	@echo 'world up (feature-flag service intentionally stopped - see ADR-0005)'
 
 world-down:
 	cd world && $(COMPOSE_WORLD) down

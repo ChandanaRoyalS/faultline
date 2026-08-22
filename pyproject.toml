@@ -37,6 +37,11 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
 
+[tool.ruff.lint.per-file-ignores]
+# gRPC servicer methods must match the PascalCase names in the generated base
+# class; renaming them would silently break the contract.
+"compose/ffs-stub/server.py" = ["N802"]
+
 [tool.mypy]
 strict = true
 python_version = "3.12"

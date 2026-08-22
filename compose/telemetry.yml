@@ -38,3 +38,33 @@ services:
       - "3000:3000"
     volumes:
       - ../compose/grafana-loki-datasource.yml:/etc/grafana/provisioning/datasources/loki.yml:ro
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --web.listen-address=:9093
+    volumes:
+      - ../compose/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+
+  # Point Prometheus at our config (rules + Alertmanager) and keep more history:
+  # the demo's 1h retention is too short to investigate an incident after the fact.
+  prometheus:
+    volumes:
+      - ../compose/prometheus/prometheus-config.yaml:/etc/prometheus/faultline-prometheus.yaml:ro
+      - ../compose/prometheus/alert-rules.yml:/etc/prometheus/alert-rules.yml:ro
+    command:
+      - --config.file=/etc/prometheus/faultline-prometheus.yaml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=6h
+      - --web.console.templates=/etc/prometheus/consoles
+      - --web.console.libraries=/etc/prometheus/console_libraries
+      - --web.enable-lifecycle
+      - --web.route-prefix=/
