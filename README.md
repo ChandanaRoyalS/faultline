@@ -42,6 +42,21 @@ uv sync          # install everything
 make check       # lint + types + tests — what CI runs
 ```
 
+### Breaking the world on purpose
+
+With the world up (`make world-up`), the injector applies labelled, reversible faults:
+
+```bash
+uv run faultline-inject list                     # the fault catalog
+uv run faultline-inject start cart-redis-misconfig
+uv run faultline-inject status                   # what is broken right now
+uv run faultline-inject stop --all               # put everything back
+```
+
+Active injections live in `.faultline/`, so `status` and `stop --all` work from any shell.
+Stopping something that is not active is a no-op that succeeds. See
+[ADR-0007](docs/adr/0007-chaos-injector-mechanisms.md) for what each fault class does.
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
