@@ -12,6 +12,7 @@ Two rules hold across all of them:
 
 from __future__ import annotations
 
+import contextlib
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import ClassVar
@@ -20,7 +21,7 @@ import yaml
 from pydantic import BaseModel, ConfigDict
 
 from evalharness.scenario import FaultClass
-from injector.docker import ComposeCli, DockerCli
+from injector.docker import CommandError, ComposeCli, DockerCli
 from injector.models import (
     ComposeServiceRestore,
     FaultDefinition,
@@ -133,7 +134,17 @@ class _ComposeOverrideFault(Fault):
             "services": {definition.target: service_body},
         }
         path.write_text(yaml.safe_dump(document, sort_keys=False))
-        self._compose.recreate(definition.target, overrides=[path])
+        try:
+            self._compose.recreate(definition.target, overrides=[path])
+        except Exception:
+            # A failed recreate returns no restore record, so nothing would ever
+            # clean this up. Put the service back on the world's own definition
+            # and take the override with us - best effort, since the caller needs
+            # to see the original failure, not a second one from the cleanup.
+            with contextlib.suppress(CommandError):
+                self._compose.recreate(definition.target)
+            path.unlink(missing_ok=True)
+            raise
         return path
 
     def restore(self, state: RestoreState) -> list[str]:
