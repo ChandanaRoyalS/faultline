@@ -38,13 +38,18 @@ groups:
           description: "p95 is {{ $value | printf \"%.0f\" }}ms; healthy baseline is under 50ms."
 
       - alert: ServiceNoTraffic
-        # Guarded: fires only for services that WERE serving and then stopped.
-        # Without the guard this fires forever on components that never emit
-        # span metrics at all (frontend-proxy), which would poison the baseline.
+        # Two guards, both learned from false positives on a healthy world:
+        #   1. Fires only for services that WERE serving and then stopped.
+        #   2. Excludes frontend-proxy. It is Envoy - an infrastructure
+        #      component that emits a few spans at startup and none after, so
+        #      "no traffic" is its healthy steady state. Requests do flow
+        #      through it; it simply is not part of the span-metrics pipeline.
+        # An alert that fires on a healthy system trains its reader to ignore
+        # it, and would corrupt every eval scenario built on this baseline.
         expr: |
-          sum by (service_name) (rate(calls_total[3m])) == 0
+          sum by (service_name) (rate(calls_total{service_name!="frontend-proxy"}[3m])) == 0
           and
-          sum by (service_name) (rate(calls_total[30m] offset 10m)) > 0
+          sum by (service_name) (rate(calls_total{service_name!="frontend-proxy"}[30m] offset 10m)) > 0
         for: 3m
         labels:
           severity: critical
