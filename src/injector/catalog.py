@@ -157,6 +157,25 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"memory": "256m"},
         ),
         FaultDefinition(
+            id="frauddetection-memory-squeeze",
+            fault_class=FaultClass.RESOURCE_EXHAUSTION,
+            target="frauddetection-service",
+            description=(
+                "Shrink the fraud detection service's memory limit below its working set. "
+                "It consumes from Kafka and nothing calls it synchronously, so it dies "
+                "without anything upstream noticing - the storefront never changes."
+            ),
+            # 200m against a 500M ceiling and a measured resting usage of 326MiB, so the
+            # limit lands well below the working set rather than merely removing headroom.
+            #
+            # A JVM on purpose. ad-memory-squeeze established that this mechanism kills a
+            # JVM outright and that the restart is slow enough to leave a visible gap;
+            # recommendation-service at 48m proved a fast-restarting Python process is
+            # killed just as often and stays invisible (CATALOG.md). Runtime choice is the
+            # variable that decides whether this mechanism produces a signal at all.
+            params={"memory": "200m"},
+        ),
+        FaultDefinition(
             id="cart-bad-image-tag",
             fault_class=FaultClass.BAD_DEPLOY,
             target="cartservice",

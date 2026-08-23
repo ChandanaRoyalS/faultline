@@ -331,3 +331,52 @@ have been. Mid-catalog that costs a full re-record of everything already capture
 Worth doing immediately **before** the next full re-record, when the bundles are being
 regenerated anyway and the digest change is free. Recorded here so the opportunity is not
 missed and the change is not made casually in between.
+
+## Detection time scales with the target's traffic rate
+
+Measured across nine alerting bundles. Detection time is not a property of the fault alone
+— it depends on how fast the target is being called.
+
+| Scenario | onset to first alert |
+|---|---:|
+| `shipping-wrong-image` | 2m49s |
+| `ad-memory-squeeze` | 3m15s |
+| `product-catalog-flag-failure` | 3m24s |
+| `cart-redis-misconfig` | 3m38s |
+| `cart-dependency-latency` | 3m45s |
+| `productcatalog-dependency-latency` | 3m49s |
+| `cart-bad-image-tag` | 5m01s |
+| `recommendation-memory-squeeze` | 5m26s |
+| **`frauddetection-memory-squeeze`** | **11m15s** |
+
+Eight of the nine land between 2m49s and 5m26s. The ninth takes **more than twice the
+slowest of them**, and the difference is traffic rate: `frauddetectionservice` serves
+**0.099 req/s** against 1–10 req/s for every other target in the catalog.
+
+The mechanism is arithmetic rather than anything about the fault. `ServiceNoTraffic` reads
+`rate(calls_total[3m])` against a 2-minute-windowed baseline and holds for `for: 3m`. Fed
+one call every ten seconds, those windows empty slowly and the for-clause starts late. The
+fault fires immediately; the *rule* takes four minutes longer to agree.
+
+### The consequence: a global timeout misreports sparse services as undetectable
+
+`frauddetection-memory-squeeze` was recorded with `seconds_to_alert: None` and
+`alerts_at_fire: []` — a bundle that reads, at a glance, exactly like
+`currency-cpu-throttle`, which genuinely cannot alert. It is nothing like it. The alert
+fired at +675s; the recorder's 420s wait had already ended.
+
+**A fault on a sparse service is real, detectable, and slow**, and none of those three is
+visible from `alerts_at_fire` alone. Two things follow:
+
+- Scenarios carry `alert_timeout_seconds` where the default is too short. It is a rehearsal
+  hint outside `injection`, so it does not enter `scenario_fingerprint` and is not compared
+  against the injector catalog — two scenarios differing only in how long the world takes
+  to notice are the same experiment.
+- **An empty `alerts_at_fire` is not evidence of silence.** Check `alerts_over_window`,
+  which covers the whole capture: if it is populated, the wait timed out and the bundle is
+  valid. The guard requiring an `INVALID.md` for alert-free bundles now makes that
+  distinction, and the recorder's timeout message says which case it hit.
+
+This also bounds what the detection times above can be used for. They are one sample each
+(see the caveat at the top of this document), and they are a function of load-generator
+behaviour as much as of the fault — a different traffic profile would move all of them.

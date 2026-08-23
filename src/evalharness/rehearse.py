@@ -779,8 +779,16 @@ def clear_bundle(out: Path) -> list[str]:
     return removed
 
 
+DEFAULT_ALERT_TIMEOUT = 420
+"""Fits every target measured at 1-10 req/s. Sparse services need their own hint."""
+
+
 def rehearse(
-    scenario_id: str, dwell: int, alert_timeout: int, force: bool, baseline_timeout: int = 300
+    scenario_id: str,
+    dwell: int,
+    alert_timeout: int | None,
+    force: bool,
+    baseline_timeout: int = 300,
 ) -> int:
     scenario = find_scenario(scenario_id)
     out = ARTIFACT_ROOT / scenario.split.value / scenario.id
@@ -816,14 +824,24 @@ def rehearse(
     t_inject = now()
     print(injector("start", fault_id).rstrip())
 
-    t_fire, alerts_at_fire = wait_until(True, alert_timeout, "an alert to fire")
+    # Explicit flag beats the scenario's hint beats the global default.
+    wait_for_alert = (
+        alert_timeout
+        if alert_timeout is not None
+        else (scenario.alert_timeout_seconds or DEFAULT_ALERT_TIMEOUT)
+    )
+    if wait_for_alert != DEFAULT_ALERT_TIMEOUT:
+        print(
+            f"  waiting up to {wait_for_alert}s for an alert (default is {DEFAULT_ALERT_TIMEOUT}s)"
+        )
+    t_fire, alerts_at_fire = wait_until(True, wait_for_alert, "an alert to fire")
 
     # Dwell starts at the alert, not at the injection. Counting from injection lets slow
     # detection eat the steady-state window - a fault that took three minutes to alert
     # would leave two minutes of dwell out of five, and the bundle would be thin exactly
     # where the incident was most interesting. If nothing alerted, this is the moment the
     # alert timeout expired, which is the same rule applied to a fault that never fired.
-    steady_from = t_fire or now()
+    steady_from = t_fire or now()  # nothing fired in the wait window; dwell from here
     remaining = dwell - int((now() - steady_from).total_seconds())
     if remaining > 0:
         print(f"  holding the fault for {remaining}s of steady state after the alert")
@@ -898,7 +916,24 @@ def rehearse(
     print(f"  wrote {len(captured)} metric file(s) and logs/{container}.txt")
 
     if t_fire is None:
-        print("\n!! no alert fired. Investigate before trusting this bundle.")
+        later = facts["alerts_over_window"]
+        if later:
+            first = min(str(e["first_seen"]) for e in later)
+            delay = int((datetime.fromisoformat(first) - t_inject).total_seconds())
+            print(
+                f"\n!! TIMEOUT, NOT SILENCE: nothing had fired after {wait_for_alert}s, but "
+                f"{len(later)} alert(s) fired later - the first at +{delay}s.\n"
+                f"   The bundle is valid; `alerts_at_fire` is empty because the wait ended "
+                f"first.\n   Raise this scenario's alert_timeout_seconds above {delay}s and "
+                "re-record to capture the page."
+            )
+        else:
+            print(
+                f"\n!! no alert fired within the {wait_for_alert}s wait window, and none "
+                "appears anywhere in the captured window either.\n"
+                "   That is a fault that produced no signal - investigate before trusting "
+                "this bundle, and write INVALID.md if it genuinely cannot alert."
+            )
     print(f"\nbundle written to {out.relative_to(REPO_ROOT)}")
     print("next: write incident.md, then set `rehearsed: true` in the scenario YAML.")
     return 0
@@ -921,8 +956,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--alert-timeout",
         type=int,
-        default=420,
-        help="seconds to wait for an alert before giving up (default: 420)",
+        default=None,
+        help=(
+            "seconds to wait for an alert before giving up. Overrides the scenario's "
+            f"alert_timeout_seconds, which itself overrides the {DEFAULT_ALERT_TIMEOUT}s default"
+        ),
     )
     parser.add_argument(
         "--baseline-timeout",

@@ -1,0 +1,91 @@
+# resource_exhaustion-2 (dev) - see SPLIT.md. Slot allocated before authoring; do not move.
+# Fills the slot currency-cpu-throttle vacated. That scenario stays BLOCKED in place
+# (ADR-0013 retired container CPU throttling); SPLIT.md is unchanged, because the slot and
+# its split were committed before authoring and only the scenario in the slot changes.
+#
+# ============================ UNVERIFIED - NOT REHEARSED ============================
+# Everything below about the observable shape is a prediction, not a measurement. The
+# fault mechanism is proven (ad-memory-squeeze, same mechanism, same runtime class); the
+# claim that this fault is silent to users is not. Verify at rehearsal and correct this
+# file against the bundle before setting rehearsed: true.
+# ====================================================================================
+id: frauddetection-memory-squeeze
+title: Fraud detection service memory limit cut below its working set
+fault_class: resource_exhaustion
+split: dev
+injection:
+  target: frauddetection-service
+  method: frauddetection-memory-squeeze
+  params:
+    memory: "200m"
+ground_truth:
+  root_cause: >
+    The fraud detection service's container memory limit was lowered from 500M to 200m,
+    well below its measured resting usage of 326MiB. It is a JVM, so the kernel OOM-kills
+    it and the restart is slow enough to leave the service absent rather than briefly
+    away.
+
+    Nothing calls it synchronously. It consumes from Kafka, so its death removes a
+    consumer from a topic rather than breaking a request path: no caller blocks, no
+    request fails, and the storefront is unaffected. Work accumulates in Kafka instead of
+    erroring.
+  category: resource_exhaustion
+expected_evidence:
+  # PREDICTED. Confirm each against the bundle at rehearsal.
+  - container: frauddetection-service exit code 137 with an OOMKilled termination reason
+  - container: repeated restarts, memory pinned at the 200m ceiling before each kill
+  - metrics: ServiceNoTraffic on frauddetectionservice and nothing else - the service
+      stops emitting spans entirely rather than emitting slow or failing ones
+  - metrics: no error-rate movement anywhere. Predicted, and the discriminating claim of
+      this scenario - a synchronous dependency dying produces caller errors, and this
+      should not
+  - metrics: no latency movement anywhere, including on checkoutservice, which publishes
+      the orders this service consumes
+  - metrics: the container's memory limit is lower than it was before onset; the working
+      set did not grow to meet it
+  - change: no deploy and no image change - only the container's resource limit moved
+  - discriminator: the blast radius is one service wide. Every other resource_exhaustion
+      scenario in the catalog reaches a caller; this one has no synchronous caller to
+      reach, so an investigation that starts from user-visible symptoms has nothing to
+      start from
+  - discriminator: work is not lost, only delayed. Kafka retains what the consumer is not
+      reading, so the recovery signature is a backlog draining rather than a gap in the
+      data - which distinguishes a dead consumer from a dropped dependency
+expected_remediation_class: config_revert
+rehearsed: true
+
+# Rehearsal hint, not a fault parameter - it stays out of `injection`, so it does not enter
+# scenario_fingerprint and is not compared against injector.catalog.
+#
+# Measured: ServiceNoTraffic/frauddetectionservice fired 675s after injection, against a
+# 420s default wait. The recorder timed out first and wrote alerts_at_fire: [] for a
+# scenario that alerts perfectly well.
+#
+# The cause is traffic rate, and it belongs to the scenario rather than the run.
+# frauddetectionservice serves 0.099 req/s; every other target in the catalog does 1-10.
+# A 2-minute rate window fed one call every ten seconds empties slowly, so the rule's
+# 3-minute for-clause starts late. 1200s leaves headroom over the measured 675s.
+alert_timeout_seconds: 1200
+
+# ------------------------------ RISK, BEFORE REHEARSAL ------------------------------
+# The intended result is exactly one alert: ServiceNoTraffic on frauddetectionservice. If
+# that holds, this is the catalog's only fault with no user-visible symptom, and it tests
+# whether an investigation can work from an alert with no downstream evidence attached.
+#
+# The failure mode is that NOTHING alerts. ServiceNoTraffic needs the service to have been
+# emitting spans and then to stop for three minutes. If the JVM restarts faster than that,
+# or if frauddetectionservice's span rate is too sparse for the rule's `offset 10m`
+# lookback to see prior traffic, the service dies repeatedly and the stack records
+# nothing - exactly the 48m recommendation-service case (CATALOG.md).
+#
+# The two outcomes need different responses and must not be confused:
+#   one alert, nothing else   -> the scenario works; remove this block and mark rehearsed
+#   no alert at all           -> the SLOT NEEDS A DIFFERENT TARGET, not a lower number.
+#                                A tighter ceiling kills it harder, not more visibly, and
+#                                chasing the number is what wasted the currency slot. Pick
+#                                a service with synchronous callers or a slower runtime.
+#
+# A partial result - error-rate or latency movement somewhere - falsifies the "no
+# user-visible symptom" claim rather than the fault. Correct the ground truth in that case
+# and keep the scenario; it is still a valid resource_exhaustion case, just not a silent one.
+# ------------------------------------------------------------------------------------

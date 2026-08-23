@@ -71,6 +71,17 @@ class Scenario(BaseModel):
     expected_evidence: list[dict[str, str]] = Field(min_length=1)
     expected_remediation_class: RemediationClass
     rehearsed: bool = False
+    alert_timeout_seconds: int | None = None
+    """How long the recorder should wait for this scenario's first alert. None = the default.
+
+    A **rehearsal hint**, not a fault parameter. It describes how long the world takes to
+    notice this fault, not what the fault does, so it stays out of `injection` - which
+    keeps it out of `scenario_fingerprint` and out of the YAML/catalog params gate. Two
+    scenarios differing only here are the same experiment.
+
+    Needed because detection time scales with the target's traffic rate: a service at
+    0.099 req/s takes four minutes longer to trip a rule than one at 5 req/s, and a global
+    timeout tuned on the busy ones reports the sparse one as undetectable."""
     blocked: bool = False
     """This scenario cannot be rehearsed and does not occupy its slot.
 

@@ -603,9 +603,16 @@ def test_a_bundle_that_captured_no_alert_is_marked_invalid() -> None:
         manifest = manifest_of(bundle)
         if manifest.get("alerts_at_fire"):
             continue
+        # An empty alerts_at_fire with a populated alerts_over_window is a *timeout*, not
+        # silence: the recorder stopped waiting before the alert arrived. Measured on
+        # frauddetection-memory-squeeze, which alerted at +675s against a 420s wait.
+        # Requiring an INVALID.md there would invalidate a working scenario.
+        if manifest.get("alerts_over_window"):
+            continue
         marker = bundle / "INVALID.md"
         assert marker.is_file(), (
-            f"{bundle.name}: no alert fired ({manifest.get('seconds_to_alert')=}) and there "
+            f"{bundle.name}: no alert fired at any point in the captured window "
+            f"({manifest.get('seconds_to_alert')=}, alerts_over_window empty) and there "
             f"is no INVALID.md beside the capture. Either the fault did not fire - write "
             "INVALID.md saying why - or the scenario is deliberately quiet, in which case "
             "say that there instead. A bundle that captured nothing must not look complete."
