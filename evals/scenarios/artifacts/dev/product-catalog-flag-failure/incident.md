@@ -10,64 +10,88 @@ fix_to_all_clear: 48s
 
 # A feature flag turned on at the flag service makes product catalog fail one product
 
-<!-- NO ABSOLUTE TIMESTAMPS IN THE PROSE. Write "T+3m" or "about four minutes after
-     the page", never "08:02:41". This file is read months later as a past incident,
-     where the hour it happened means nothing - and a re-record would orphan every
-     timestamp written here.
-
-     `recorded_from` in the front matter above is the deliberate exception. It is
-     absolute precisely so that it breaks when the recording changes: it pins this
-     narrative to one recording, and a guard fails if they drift apart. Front matter
-     is written to fail on a re-record; prose is written to survive one. Do not
-     "fix" the inconsistency - see ARTIFACTS.md. -->
-
 ## What was observed
 
-<!-- Write this as the on-call engineer would have experienced it, NOT as someone who
-     knew the answer. No mention of the injector. This text is retrieved later as a past
-     incident, so an answer written from hindsight teaches the agent to cheat. -->
+The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, 3m24s after
+onset. Fifteen seconds later **frontend** and **productcatalogservice** joined it.
 
-**On the page:** ServiceHighErrorRate/loadgenerator
+Three alerts across three services, and the set never grew.
 
-### How the alert set evolved
-
-<!-- Describe the spread in prose too, not just the table: which service went first, what
-     followed it, and how long the gap was. A reader looking this up months later needs
-     the shape of the cascade, not only its final size. -->
-
-The page went out **T+3m24s** after onset. Times below are relative
-to the page.
-
-| When | Alert | Service | Started | Firing for |
-|---|---|---|---|---|
-| **on the page** | ServiceHighErrorRate | loadgenerator | T+6s | 7.8m |
-| later | ServiceHighErrorRate | frontend | T+21s | 7.5m |
-| later | ServiceHighErrorRate | productcatalogservice | T+21s | 7.5m |
-
-The page named 1 service(s). By the time the fault was removed 3 alert(s) had fired - 2 more than the responder saw when they started.
+On the storefront most product pages rendered normally. One did not — it returned an
+error every time, while everything around it worked. Baskets, checkout and payment were
+unaffected.
 
 ## What was checked
 
-<!-- The signals a responder would reach for, in order, including the ones that turned
-     out to be dead ends. Dead ends are valuable - they are what distinguishes a real
-     investigation from a lookup. -->
+**productcatalogservice, which was the obvious place to look.** Unlike most incidents on
+this system, the failing service was named in the alerting and was genuinely returning
+errors from its own code. It was up, serving, and reporting a healthy call rate — the
+errors were a fraction of its traffic, not all of it.
+
+**Which requests were failing.** Not all catalog lookups. One product identifier failed
+consistently; every other lookup succeeded. A partial failure with a stable boundary is
+not resource pressure, not a dependency outage and not a network problem — all of those
+degrade traffic in aggregate rather than singling out one input.
+
+**What changed on productcatalogservice.** Nothing. Image unchanged, environment
+unchanged, configuration unchanged, resource limits unchanged, dependencies healthy.
+This is the dead end, and it is a convincing one, because the service really was
+producing the errors. Everything about it looked correct because everything about it
+*was* correct.
+
+**Its dependencies.** The database and cache were fine and every other consumer of them
+was unaffected.
+
+**The service list.** This is where it turns. productcatalogservice consults a feature
+flag service on each request. That service does not appear in the metrics at all — it
+has no call-rate series, no latency series and no error series, under any spelling of
+its name. There is no dashboard for it, and no alert can fire on it, because nothing
+about it is recorded.
+
+**The flag service's own configuration.** A flag had been enabled that instructs product
+catalog to fail requests for a specific product. The service was doing exactly what it
+was told.
 
 ## Root cause
 
-<!-- One paragraph, plain language. -->
+A feature flag was switched on at the flag service, and productcatalogservice honoured
+it by returning errors for one product. The failing service was working correctly; the
+configuration that made it fail lived somewhere else entirely, in a component with no
+telemetry of any kind.
+
+The errors were real and were attributable to product catalog. The *cause* was not, and
+no amount of investigating product catalog would have found it.
 
 ## Resolution
 
-<!-- What fixed it, and what class of fix that is: rollback / restart / config_revert /
-     scale. Must match the scenario's expected_remediation_class. -->
+The flag was turned off. The next request for that product succeeded. Everything was
+clear **48 seconds** after the fix — by a wide margin the fastest recovery on this
+system, because nothing had to restart, drain or reconnect. A flag flip takes effect on
+the following request.
+
+Class of fix: **config_revert**. Nothing was deployed and there was no version to roll
+back to; one configuration value was wrong and was set back.
 
 ## Detection notes
 
-- Onset to first firing alert: 3m24s
-- Services alerting on the page: 1
-- Services alerting by the end of the fault: 3
-- Alerts that fired only during recovery: 0
-- Steady state held after the page: 7m09s
-- Fix to all-clear: 48s
-- Did the loudest service turn out to be the culprit? <!-- yes / no - this one matters -->
-- Would the page alone have led you to the right service? <!-- yes / no -->
+- Onset to first page: **3m24s**.
+- Services alerting at the page: **1**. Over the whole incident: **3**, across 3 alerts.
+- Alerts that fired only during recovery: **none**.
+- **The service that errors is not the service that is misconfigured.** This is the
+  inverse of a failure where the broken service goes silent. Here the broken-looking
+  service is healthy and correct, and the alerting points at it with complete accuracy
+  and no useful information.
+- **A partial failure with a stable boundary is a configuration signature.** Resource
+  exhaustion, dependency latency and outages all degrade traffic in aggregate. One input
+  failing consistently while every other input succeeds means something is deciding, and
+  something that decides is configured.
+- **The cause was in a component with no telemetry.** Nothing in the metrics stack could
+  have surfaced it — not a dashboard, not an alert, not a trace attribute. The only route
+  to it was knowing that product catalog consults it, and then going to look at
+  something the observability stack does not know exists.
+- **Recovery time is diagnostic in hindsight.** A 48-second all-clear means nothing was
+  restarted or refilled. Faults that require a process to come back take minutes; a fault
+  that clears within one scrape interval was a decision, not a state.
+- Did the loudest service turn out to be the culprit? **No**, but for an unusual reason:
+  the loudest service was loadgenerator as always, and the *second* loudest was the
+  service actually producing the errors — which was still not the cause.
