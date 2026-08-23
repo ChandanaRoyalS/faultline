@@ -55,10 +55,14 @@ def active_injections() -> str:
     return result.stdout.strip()
 
 
+def world_is_quiet(status: str) -> bool:
+    return status.startswith("no active injections")
+
+
 def require_quiet_world(when: str) -> str:
     """A baseline recorded over an injected fault measures the fault, not the baseline."""
     status = active_injections()
-    if not status.startswith("no active injections"):
+    if not world_is_quiet(status):
         raise BaselineError(
             f"{when}: the injector reports active faults, so this is not a baseline.\n{status}"
         )
@@ -128,20 +132,36 @@ def capture(minutes: int, step: int, out_root: Path) -> int:
 
     deadline = time.monotonic() + minutes * 60
     disturbances: list[dict[str, str | list[str]]] = []
+    injections: list[dict[str, str]] = []
     while time.monotonic() < deadline:
         time.sleep(min(60, max(1, deadline - time.monotonic())))
         firing = firing_alerts()
         remaining = max(0, int((deadline - time.monotonic()) / 60))
+
+        # Checked every minute, not only at the start. A fault injected mid-window is
+        # invisible to a start-only check, and the resulting summary reads as quiet-world
+        # behaviour while actually describing an incident. That happened: a rehearsal ran
+        # inside a 45-minute baseline and its alerts were published as the baseline's
+        # "alerts that fired on an unfaulted world". One subprocess a minute is cheap
+        # against 45 minutes of held world.
+        status = active_injections()
+        if not world_is_quiet(status):
+            injections.append({"at": stamp(now()) or "", "status": status})
+            print(f"  [{remaining}m left] !! FAULT INJECTED DURING THE WINDOW", flush=True)
+
         if firing:
             # Recorded, not fatal. An alert on an unfaulted world is exactly the kind of
             # thing this measurement exists to find.
             disturbances.append({"at": stamp(now()) or "", "alerts": firing})
             print(f"  [{remaining}m left] ALERTS FIRING: {', '.join(firing)}", flush=True)
-        else:
+        elif world_is_quiet(status):
             print(f"  [{remaining}m left] quiet", flush=True)
 
     end = now()
-    status_after = require_quiet_world("after measuring")
+    status_after = active_injections()
+    if not world_is_quiet(status_after):
+        injections.append({"at": stamp(end) or "", "status": status_after})
+    valid = not injections
 
     captured: dict[str, dict[str, Any]] = {}
     for name, promql in METRIC_QUERIES.items():
@@ -157,6 +177,10 @@ def capture(minutes: int, step: int, out_root: Path) -> int:
 
     manifest = {
         "kind": "baseline",
+        # False means the numbers below describe a world something was injected into.
+        # They are not a baseline and must not be cited as one.
+        "valid": valid,
+        "injections_during_window": injections,
         "recorded_by": "evalharness.baseline",
         "window": {"start": stamp(start), "end": stamp(end), "minutes": minutes, "step": step},
         "injector_status": status_after,
@@ -168,8 +192,19 @@ def capture(minutes: int, step: int, out_root: Path) -> int:
     }
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
+    invalid_header = [
+        "> # ⚠ INVALID — NOT A BASELINE",
+        ">",
+        "> A fault was injected during this window, so the figures below describe an",
+        "> incident, not the quiet world. They must not be cited as baseline behaviour.",
+        ">",
+        *[f"> - fault active at {i['at']}" for i in injections],
+        "",
+    ]
     report = [
-        f"# Quiet-world baseline — {stamp(start)} to {stamp(end)}",
+        *([] if valid else invalid_header),
+        f"# Quiet-world baseline — {stamp(start)} to {stamp(end)}"
+        + ("" if valid else "  [INVALID]"),
         "",
         f"{minutes} minutes, {step}s step, no fault injected. Load generator running.",
         "",
@@ -198,6 +233,17 @@ def capture(minutes: int, step: int, out_root: Path) -> int:
 
     print(f"\nbaseline written to {out.relative_to(REPO_ROOT)}")
     print(f"  summary: {(out / 'summary.md').relative_to(REPO_ROOT)}")
+    if not valid:
+        # Written anyway: the capture is still useful data, and deleting it would lose
+        # the evidence of what interfered. Labelled, and non-zero, so no script treats it
+        # as a baseline.
+        print(
+            f"\n!! INVALID: a fault was active during {len(injections)} check(s) in this "
+            "window.\n   The capture is kept and labelled, but it is not a baseline. "
+            "Re-run on a quiet world.",
+            file=sys.stderr,
+        )
+        return 1
     return 0
 
 

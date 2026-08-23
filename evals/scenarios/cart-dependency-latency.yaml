@@ -20,6 +20,13 @@ ground_truth:
 expected_evidence:
   - alerts: ServiceHighLatency, with no accompanying error-rate alert - the incident is
       entirely a latency incident
+  # Separation from healthy behaviour is by DURATION, not magnitude. cartservice p95 is
+  # bimodal unfaulted, reaching 353ms for ~105s about once every 29 minutes (ADR-0012).
+  # The fault's ~650ms is the same order as that, so a single latency sample cannot tell
+  # them apart - what distinguishes them is that the fault holds for the whole dwell while
+  # the healthy excursion is under two minutes. The `for: 3m` clause does the work here,
+  # not the 250ms threshold.
+  #
   # Measured at ~650ms against a 1.9ms baseline for a 300ms egress delay. The doubling is
   # expected and worth stating: the delay is paid per packet leaving the container, and a
   # cart operation makes two Redis round-trips, so server-side p95 lands at roughly twice

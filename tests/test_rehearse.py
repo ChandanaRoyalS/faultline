@@ -193,3 +193,44 @@ def test_clearing_a_bundle_that_has_no_narrative_yet_is_fine(tmp_path: Path) -> 
 
     assert rehearse.clear_bundle(bundle) == ["manifest.json"]
     assert bundle.exists() and not list(bundle.iterdir())
+
+
+def test_alerts_that_started_after_the_revert_are_marked_as_recovery() -> None:
+    """The recreate has its own failure modes; they are not the fault's blast radius.
+
+    The real case: emailservice sat at 0% for the whole cart-redis-misconfig incident, then
+    went to a 100% error ratio for ~75s starting 28 seconds after the revert.
+    """
+    from datetime import UTC, datetime
+
+    from evalharness.prom import alert_intervals
+
+    revert = datetime.fromtimestamp(2000, tz=UTC)
+    payload = {
+        "data": {
+            "result": [
+                {
+                    "metric": {"alertname": "ServiceHighErrorRate", "service_name": "frontend"},
+                    "values": [[1900.0, "1"], [1915.0, "1"]],
+                },
+                {
+                    "metric": {"alertname": "ServiceHighErrorRate", "service_name": "emailservice"},
+                    "values": [[2028.0, "1"], [2043.0, "1"]],
+                },
+            ]
+        }
+    }
+
+    by_service = {e["service"]: e for e in alert_intervals(payload, step=15, revert=revert)}
+
+    assert by_service["frontend"]["began_after_revert"] is False, "fired while the fault was live"
+    assert by_service["emailservice"]["began_after_revert"] is True, "fired only during recovery"
+
+
+def test_without_a_revert_the_recovery_flag_is_absent_rather_than_false() -> None:
+    """A baseline capture has no revert; asserting False would claim what the data cannot."""
+    from evalharness.prom import alert_intervals
+
+    payload = alert_series("ServiceHighErrorRate", "frontend", [1000, 1015])
+
+    assert "began_after_revert" not in alert_intervals(payload, step=15)[0]

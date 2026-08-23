@@ -50,12 +50,21 @@ from evalharness.prom import (
     query_range,
     stamp,
 )
+from evalharness.provenance import (
+    BUNDLE_SCHEMA_VERSION,
+    recorder_provenance,
+    scenario_fingerprint,
+    world_provenance,
+)
 from evalharness.scenario import Scenario
 from injector.world import SERVICE_CONTAINERS
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_DIR = REPO_ROOT / "evals" / "scenarios"
 ARTIFACT_ROOT = SCENARIO_DIR / "artifacts"
+
+STUB_IMAGE = "faultline/ffs-stub:1"
+"""The world's flag service (ADR-0006). Its digest is part of what "the same world" means."""
 
 
 class RehearsalError(RuntimeError):
@@ -285,43 +294,69 @@ def alert_evolution(facts: dict[str, Any]) -> str:
     """How the alert set grew, as lines for the narrative.
 
     A flat list of what fired at page time understates the incident: run 3 of
-    cart-redis-misconfig paged on two services and reached ten over the next six minutes,
-    a seven-service ServiceNoTraffic wave arriving once cart stopped serving entirely.
-    Blast radius is what T3.1 scores triage on, so the template has to make the growth
-    visible rather than leave it in a JSON file nobody reads while writing.
+    cart-redis-misconfig paged on two services and reached eleven over the next six
+    minutes, a seven-service ServiceNoTraffic wave arriving once cart stopped serving
+    entirely. Blast radius is what T3.1 scores triage on, so the template has to make the
+    growth visible rather than leave it in a JSON file nobody reads while writing.
+
+    Recovery-phase alerts are listed apart from incident alerts. They fired after the fault
+    was already removed - they are the recreate's doing, not the fault's - and a narrative
+    that folds them in attributes the wrong blast radius.
     """
     at_fire = list(facts.get("alerts_at_fire") or [])
     over_window = list(facts.get("alerts_over_window") or [])
-
-    lines = [
-        "| When | Alert | Service | First seen | Last seen |",
-        "|---|---|---|---|---|",
-    ]
-    paged = set(at_fire)
-    for entry in over_window:
-        label = f"{entry.get('alert')}/{entry.get('service')}"
-        when = "**on the page**" if label in paged else "later"
-        lines.append(
-            f"| {when} | {entry.get('alert')} | {entry.get('service')} | "
-            f"{entry.get('first_seen')} | {entry.get('last_seen')} |"
-        )
     if not over_window:
-        lines = ["_No alerts recorded over the window._"]
+        return "_No alerts recorded over the window._"
 
-    grew = len(over_window) - len(at_fire)
-    growth = (
-        f"\nThe page named {len(at_fire)} service(s). By the end of the incident "
-        f"{len(over_window)} alert(s) had fired - {grew} more than the responder saw when "
-        "they started."
-        if grew > 0
-        else ""
-    )
-    return "\n".join(lines) + "\n" + growth
+    paged = set(at_fire)
+    during = [e for e in over_window if not e.get("began_after_revert")]
+    recovery = [e for e in over_window if e.get("began_after_revert")]
+
+    def table(entries: list[dict[str, Any]], first_column: str) -> list[str]:
+        rows = [
+            f"| {first_column} | Alert | Service | First seen | Last seen |",
+            "|---|---|---|---|---|",
+        ]
+        for e in entries:
+            label = f"{e.get('alert')}/{e.get('service')}"
+            when = "**on the page**" if label in paged else "later"
+            rows.append(
+                f"| {when} | {e.get('alert')} | {e.get('service')} | "
+                f"{e.get('first_seen')} | {e.get('last_seen')} |"
+            )
+        return rows
+
+    lines = table(during, "When")
+    grew = len(during) - len(at_fire)
+    if grew > 0:
+        lines += [
+            "",
+            f"The page named {len(at_fire)} service(s). By the time the fault was removed "
+            f"{len(during)} alert(s) had fired - {grew} more than the responder saw when "
+            "they started.",
+        ]
+
+    if recovery:
+        lines += [
+            "",
+            "#### Fired only after the fix was applied",
+            "",
+            "<!-- These are the recovery, not the incident: the fault was already gone when",
+            "     they started. Recreating a container has its own failure modes. Mention",
+            "     them if they mattered to the responder, but do not count them as the",
+            "     fault's blast radius. -->",
+            "",
+            *table(recovery, "When"),
+        ]
+    return "\n".join(lines)
 
 
 def incident_template(scenario: Scenario, facts: dict[str, Any]) -> str:
     """The narrative the corpus will actually retrieve. Facts pre-filled, judgement left blank."""
     alerts = facts["alerts_at_fire"] or ["(none fired)"]
+    over_window = facts.get("alerts_over_window") or []
+    during = len([e for e in over_window if not e.get("began_after_revert")])
+    recovery = len([e for e in over_window if e.get("began_after_revert")])
     return f"""---
 origin: scenario:{scenario.id}
 split: {scenario.split.value}
@@ -367,7 +402,8 @@ resolved_at: {facts["t_clear"]}
 
 - Time from fault to first firing alert: {facts["seconds_to_alert"]}s
 - Services alerting on the page: {len(alerts)}
-- Services alerting by the end: {len(facts.get("alerts_over_window") or [])}
+- Services alerting by the end of the fault: {during}
+- Alerts that fired only during recovery: {recovery}
 - Steady state held after the page: {facts["seconds_of_steady_state"]}s
 - Did the loudest service turn out to be the culprit? <!-- yes / no - this one matters -->
 - Would the page alone have led you to the right service? <!-- yes / no -->
@@ -379,13 +415,24 @@ def write_bundle(scenario: Scenario, facts: dict[str, Any], out: Path) -> None:
     (out / "logs").mkdir(parents=True, exist_ok=True)
 
     manifest = {
+        # Bump obsoletes every earlier bundle - see ADR-0009 before changing anything here.
+        "bundle_schema_version": BUNDLE_SCHEMA_VERSION,
         "origin": f"scenario:{scenario.id}",
         "scenario_id": scenario.id,
+        # T5.3 renders bundles for the demo and needs something human before it has read
+        # the scenario file.
+        "title": scenario.title,
         "split": scenario.split.value,
         "fault_class": scenario.fault_class.value,
-        "injection": scenario.injection.model_dump(),
+        "injection": scenario.injection.model_dump(mode="json"),
         "expected_remediation_class": scenario.expected_remediation_class.value,
+        # Ties the recording to the exact label it was recorded against. If a scenario's
+        # scored fields change afterwards, this bundle is evidence for a question that is
+        # no longer being asked, and the guards say so instead of scoring it anyway.
+        "scenario_fingerprint": scenario_fingerprint(scenario),
         "recorded_by": "evalharness.rehearse",
+        "recorder": recorder_provenance("evalharness.rehearse", REPO_ROOT),
+        "world": world_provenance(reference_container="cart-service", stub_image=STUB_IMAGE),
         **facts,
     }
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
@@ -432,16 +479,13 @@ def rehearse(
 ) -> int:
     scenario = find_scenario(scenario_id)
     out = ARTIFACT_ROOT / scenario.split.value / scenario.id
-    if out.exists() and any(out.iterdir()):
-        if not force:
-            raise RehearsalError(
-                f"{out.relative_to(REPO_ROOT)} already has contents. Pass --force to re-record."
-            )
-        removed = clear_bundle(out)
-        if removed:
-            print(f"  cleared {len(removed)} stale file(s): {', '.join(removed)}")
-        if (out / HAND_WRITTEN).exists():
-            print(f"  kept {HAND_WRITTEN} - a re-record does not overwrite your writing")
+    # Checked now so a doomed run fails in a second rather than in twenty minutes. The
+    # old bundle is not touched here: clearing happens after every capture has succeeded,
+    # so an interrupted re-record leaves the previous recording intact.
+    if out.exists() and any(out.iterdir()) and not force:
+        raise RehearsalError(
+            f"{out.relative_to(REPO_ROOT)} already has contents. Pass --force to re-record."
+        )
 
     fault_id = scenario.injection.method
     if fault_id not in injector("list"):
@@ -479,15 +523,18 @@ def rehearse(
     window_start = t_inject - timedelta(minutes=5)
     window_end = (t_clear or now()) + timedelta(minutes=2)
 
-    # Metrics first: alerts_over_window is derived from the captured ALERTS series, so
-    # the manifest cannot be written until the series exists.
-    (out / "metrics").mkdir(parents=True, exist_ok=True)
+    # Everything is captured into memory before anything on disk is touched. The previous
+    # bundle stays readable until its replacement is fully in hand: a run killed here -
+    # which is exactly what happened once - would otherwise have deleted a good recording
+    # at minute zero and produced nothing by minute twenty.
     captured: dict[str, dict[str, Any]] = {}
     for name, promql in METRIC_QUERIES.items():
-        series = query_range(promql, window_start, window_end)
-        (out / "metrics" / f"{name}.json").write_text(json.dumps(series, indent=2) + "\n")
-        captured[name] = series
-        print(f"  captured metrics/{name}.json")
+        captured[name] = query_range(promql, window_start, window_end)
+        print(f"  captured {name}")
+
+    container = container_for(scenario.injection.target)
+    captured_logs = loki_logs(container, window_start, window_end)
+    print(f"  captured logs for {container}")
 
     facts: dict[str, Any] = {
         # Evidence that the world was quiet when this started, rather than an assumption.
@@ -501,6 +548,11 @@ def rehearse(
         # window is the difference between a bundle worth seeding the corpus from and one
         # that caught only the transient, and it should be visible in the manifest.
         "seconds_of_steady_state": int((t_revert - steady_from).total_seconds()),
+        # How long the world took to go quiet again. T4.1 budgets consecutive runs off
+        # this, and it is the number that sets the catalog's cycle time (ADR-0009).
+        "seconds_to_settle": (
+            None if t_clear is None else int((t_clear - t_revert).total_seconds())
+        ),
         # Two different facts, both worth keeping. alerts_at_fire is what a responder saw
         # on the page - the information they actually had when they started. Everything
         # that fired afterwards is the blast radius, which is what T3.1 scores triage on,
@@ -513,11 +565,18 @@ def rehearse(
         "window": {"start": stamp(window_start), "end": stamp(window_end)},
     }
 
-    write_bundle(scenario, facts, out)
+    if out.exists() and any(out.iterdir()):
+        removed = clear_bundle(out)
+        if removed:
+            print(f"  replacing {len(removed)} file(s) from the previous recording")
+        if (out / HAND_WRITTEN).exists():
+            print(f"  kept {HAND_WRITTEN} - a re-record does not overwrite your writing")
 
-    container = container_for(scenario.injection.target)
-    (out / "logs" / f"{container}.txt").write_text(loki_logs(container, window_start, window_end))
-    print(f"  captured logs/{container}.txt")
+    write_bundle(scenario, facts, out)
+    for name, series in captured.items():
+        (out / "metrics" / f"{name}.json").write_text(json.dumps(series, indent=2) + "\n")
+    (out / "logs" / f"{container}.txt").write_text(captured_logs)
+    print(f"  wrote {len(captured)} metric file(s) and logs/{container}.txt")
 
     if t_fire is None:
         print("\n!! no alert fired. Investigate before trusting this bundle.")

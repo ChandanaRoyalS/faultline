@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from evalharness.prom import alert_intervals
+from evalharness.provenance import BUNDLE_SCHEMA_VERSION, scenario_fingerprint
 from evalharness.scenario import Scenario, Split
 from injector.world import SERVICE_CONTAINERS
 
@@ -22,7 +23,13 @@ SCENARIO_DIR = REPO_ROOT / "evals" / "scenarios"
 ARTIFACT_ROOT = SCENARIO_DIR / "artifacts"
 
 REQUIRED_MANIFEST_KEYS = {
+    "bundle_schema_version",
     "origin",
+    "title",
+    "scenario_fingerprint",
+    "recorder",
+    "world",
+    "seconds_to_settle",
     "scenario_id",
     "split",
     "fault_class",
@@ -212,7 +219,10 @@ def test_manifest_alerts_agree_with_the_captured_alert_series() -> None:
             continue
 
         rederived = alert_intervals(
-            load_metric(series), step=15, since=datetime.fromisoformat(manifest["t_inject"])
+            load_metric(series),
+            step=15,
+            since=datetime.fromisoformat(manifest["t_inject"]),
+            revert=datetime.fromisoformat(manifest["t_revert"]),
         )
 
         assert manifest["alerts_over_window"] == rederived, (
@@ -310,3 +320,58 @@ def test_no_metric_capture_is_silently_empty() -> None:
                 "genuinely produced no data for this query over the window. Check whether "
                 "the other metric files have data - if they do, the capture failed."
             )
+
+
+def test_every_bundle_declares_the_current_schema_version() -> None:
+    """A mixed-version catalog cannot be compared against itself. See ADR-0009."""
+    for bundle in bundles():
+        found = manifest_of(bundle).get("bundle_schema_version")
+        assert found == BUNDLE_SCHEMA_VERSION, (
+            f"{bundle.name}: bundle_schema_version is {found!r}, current is "
+            f"{BUNDLE_SCHEMA_VERSION}. Re-record it - the guards compare bundles against "
+            "each other, and a catalog recorded by two recorders is not one measurement."
+        )
+
+
+def test_every_bundle_records_what_produced_it_and_against_what() -> None:
+    """Provenance nulls are allowed; missing provenance is not."""
+    for bundle in bundles():
+        manifest = manifest_of(bundle)
+        recorder, world = manifest.get("recorder", {}), manifest.get("world", {})
+
+        assert recorder.get("git_sha"), (
+            f"{bundle.name}: no recorder git_sha. Without it, 'which version wrote this' "
+            "is an inference from which keys happen to be missing."
+        )
+        for field in ("otel_demo_image", "ffs_stub_image_id", "docker_arch"):
+            assert field in world, f"{bundle.name}: world provenance is missing {field}"
+
+
+def test_bundles_agree_about_the_world_they_were_recorded_against() -> None:
+    """The catalog's claim is ten scenarios measured under the same conditions."""
+    seen: dict[str, list[str]] = {}
+    for bundle in bundles():
+        world = manifest_of(bundle).get("world", {})
+        key = f"{world.get('otel_demo_image')} | {world.get('ffs_stub_image_id')}"
+        seen.setdefault(key, []).append(bundle.name)
+
+    assert len(seen) <= 1, (
+        "bundles were recorded against different worlds, so their numbers are not "
+        f"comparable: {json.dumps(seen, indent=2)}"
+    )
+
+
+def test_bundles_match_the_label_they_were_recorded_against() -> None:
+    """A scenario's scored fields changing turns its bundle into evidence for another question."""
+    by_id = {s.id: s for s in scenarios()}
+    for bundle in bundles():
+        scenario = by_id.get(bundle.name)
+        if scenario is None:
+            continue
+        recorded = manifest_of(bundle).get("scenario_fingerprint")
+        assert recorded == scenario_fingerprint(scenario), (
+            f"{bundle.name}: recorded against a different version of the scenario. Its "
+            "injection, fault class, split, ground truth or remediation class has changed "
+            "since. Re-record it, or revert the change. Editing the title or the evidence "
+            "list does not trip this."
+        )

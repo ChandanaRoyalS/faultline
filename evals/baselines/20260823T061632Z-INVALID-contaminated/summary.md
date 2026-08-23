@@ -1,3 +1,9 @@
+> # ⚠ INVALID — NOT A BASELINE
+>
+> A cart-redis-misconfig rehearsal ran 06:38:03Z–06:48:50Z inside this window.
+> Every figure below is contaminated by it. See INVALID.md; use summary-partial.md.
+> Kept for auditability only.
+
 # Quiet-world baseline — 2026-08-23T06:16:32+00:00 to 2026-08-23T07:01:32+00:00
 
 45 minutes, 15s step, no fault injected. Load generator running.

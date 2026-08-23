@@ -98,6 +98,29 @@ Three failure shapes to look for, all of them seen at least once:
 - **The signal exists but not in the captured window.** Widen `--dwell`, or note the
   timing in the item so it is reproducible.
 
+### Also check for alerts the world produced on its own
+
+Look through `alerts_over_window` for **`ServiceHighLatency/cartservice`** that is not part
+of the injected fault. `cartservice` p95 is bimodal — mean 22ms, with excursions to 353ms
+and nothing injected, measured at roughly one per 29 minutes lasting ~105s (ADR-0012).
+
+At ~20 minutes of world time per rehearsal, **roughly six such excursions are expected
+across the nine remaining scenarios.** Most are too short to fire and will never appear.
+One that runs long enough to clear the 180s `for` clause will appear in
+`alerts_over_window` and look exactly like blast radius — a latency alert on a service the
+fault never touched, at a plausible time.
+
+If you find one:
+
+- It is not blast radius. Do not write it into `incident.md` as part of the incident.
+- Check `began_after_revert` first — that flag already separates recovery-phase alerts, and
+  a healthy excursion can land on either side of the revert.
+- Note it in the narrative only if a responder would have been misled by it, which is
+  itself worth recording: a spurious alert during a real incident is a realistic thing for
+  an investigation to have to dismiss.
+- It means the excursion outlasted its measured 105s, which contradicts ADR-0012's single
+  observation. Say so — that ADR is explicit that n=1 and wants confirming.
+
 Corrections already made this way:
 
 | Scenario | Item | What happened |

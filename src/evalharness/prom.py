@@ -127,7 +127,10 @@ def series_points(payload: dict[str, Any]) -> dict[str, list[tuple[float, float]
 
 
 def alert_intervals(
-    payload: dict[str, Any], step: int, since: datetime | None = None
+    payload: dict[str, Any],
+    step: int,
+    since: datetime | None = None,
+    revert: datetime | None = None,
 ) -> list[dict[str, Any]]:
     """Every firing episode in an ALERTS query_range, with when it started and stopped.
 
@@ -147,6 +150,13 @@ def alert_intervals(
     is two episodes, and reporting the span between them as continuous firing hides exactly
     the signature a flapping fault is made of - `flag-service-crashloop` is nothing but
     that shape.
+
+    `revert` marks episodes that began after the fault was removed. Reverting recreates a
+    container, and the recreate produces its own failures: in the cart-redis-misconfig
+    bundle emailservice went to a 100% error ratio for about 75 seconds starting 28 seconds
+    after the revert, having been at 0% for the entire incident. That is signal about the
+    recovery, not about the fault, and counting it as blast radius blames the fault for
+    damage the fix did.
     """
     data = payload.get("data")
     results = data.get("result", []) if isinstance(data, dict) else []
@@ -179,13 +189,18 @@ def alert_intervals(
         episodes.append(episode)
 
         for points in episodes:
-            intervals.append(
-                {
-                    "alert": labels.get("alertname"),
-                    "service": labels.get("service_name"),
-                    "first_seen": stamp(datetime.fromtimestamp(points[0], tz=UTC)),
-                    "last_seen": stamp(datetime.fromtimestamp(points[-1], tz=UTC)),
-                    "minutes_firing": round(len(points) * step / 60, 1),
-                }
-            )
+            began = datetime.fromtimestamp(points[0], tz=UTC)
+            entry: dict[str, Any] = {
+                "alert": labels.get("alertname"),
+                "service": labels.get("service_name"),
+                "first_seen": stamp(began),
+                "last_seen": stamp(datetime.fromtimestamp(points[-1], tz=UTC)),
+                "minutes_firing": round(len(points) * step / 60, 1),
+            }
+            if revert is not None:
+                # Omitted rather than defaulted to False when there is no revert to
+                # compare against - a baseline capture has none, and False would assert
+                # something the data cannot support.
+                entry["began_after_revert"] = began > revert
+            intervals.append(entry)
     return sorted(intervals, key=lambda i: str(i["first_seen"]))
