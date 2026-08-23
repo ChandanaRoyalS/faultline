@@ -8,6 +8,7 @@ but everything that is mechanically checkable is checked.
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any
 
@@ -23,9 +24,12 @@ REQUIRED_MANIFEST_KEYS = {
     "split",
     "fault_class",
     "injection",
+    "baseline_clear_at",
     "t_inject",
     "t_revert",
     "alerts_at_fire",
+    "alerts_over_window",
+    "seconds_of_steady_state",
     "window",
 }
 
@@ -133,9 +137,48 @@ def test_narratives_do_not_leak_the_answer_key() -> None:
         incident = bundle / "incident.md"
         if not incident.is_file():
             continue
-        body = incident.read_text().split("---", 2)[-1].lower()
+        # HTML comments are the template's instructions to the author, and they say
+        # things like "no mention of the injector" - guidance, not narrative, and gone
+        # by the time the scenario is marked rehearsed. Scanning them would fail every
+        # freshly recorded bundle for quoting the rule it exists to enforce.
+        body = re.sub(r"<!--.*?-->", "", incident.read_text(), flags=re.DOTALL)
+        body = body.split("---", 2)[-1].lower()
         leaked = [word for word in banned if word in body]
         assert not leaked, (
             f"{bundle.name}: incident.md mentions {leaked} in its prose. Write it from the "
             "responder's chair - this text is retrieved later as a past incident."
+        )
+
+
+def test_bundles_record_a_usable_steady_state_window() -> None:
+    """A bundle that caught only the transient is not worth seeding a corpus from.
+
+    Recorded rather than inferred, because the first live rehearsal spent 180s of a 300s
+    dwell waiting for the alert and the thinness was invisible in the manifest.
+    """
+    for bundle in bundles():
+        seconds = manifest_of(bundle).get("seconds_of_steady_state")
+        assert isinstance(seconds, int), (
+            f"{bundle.name}: seconds_of_steady_state is {seconds!r}, not an integer"
+        )
+        assert seconds >= 60, (
+            f"{bundle.name}: only {seconds}s of steady state after the alert fired. "
+            "Re-record with a longer --dwell before trusting this bundle."
+        )
+
+
+def test_captured_logs_name_the_container_not_the_compose_service() -> None:
+    """Logs are labelled by container name; targets are often compose service names.
+
+    Getting this wrong produced a valid Loki query that matched nothing, and a log file
+    that said so only in a comment.
+    """
+    from injector.world import SERVICE_CONTAINERS
+
+    for bundle in bundles():
+        target = manifest_of(bundle)["injection"]["target"]
+        expected = SERVICE_CONTAINERS.get(target, target)
+        captured = sorted(p.name for p in (bundle / "logs").glob("*.txt"))
+        assert f"{expected}.txt" in captured, (
+            f"{bundle.name}: expected logs/{expected}.txt for target {target!r}, found {captured}"
         )

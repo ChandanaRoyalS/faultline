@@ -2,9 +2,14 @@
 
 This is not the eval harness. It runs no agent and scores nothing - T4.1 builds that.
 What it does is remove the tedium and the inconsistency from rehearsing ten scenarios by
-hand: it drives the injector through its CLI, watches Prometheus for the alert, waits out
-a steady-state window, reverts, and then captures the metric series and timings that the
-bundle format (ADR-0009) requires.
+hand: it drives the injector through its CLI, watches Prometheus for the alert, holds
+steady state, reverts, and then captures the metric series and timings that the bundle
+format (ADR-0009) requires.
+
+The dwell window starts when the alert fires, not when the fault is injected. Detection
+latency varies by minutes between fault classes, and counting from injection means the
+slowest-alerting faults - the ones whose bundles are most worth having - get the thinnest
+steady-state windows.
 
 The one thing it cannot write for you is `incident.md` - the narrative of what a responder
 would have seen and concluded. That file is the whole point of the bundle, because it is
@@ -18,6 +23,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import subprocess
 import sys
@@ -25,72 +31,34 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from collections.abc import Callable
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from evalharness.prom import (
+    LOKI,
+    METRIC_QUERIES,
+    POLL_SECONDS,
+    QueryError,
+    alert_intervals,
+    firing_alerts,
+    get_json,
+    now,
+    query_range,
+    stamp,
+)
 from evalharness.scenario import Scenario
+from injector.world import SERVICE_CONTAINERS
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_DIR = REPO_ROOT / "evals" / "scenarios"
 ARTIFACT_ROOT = SCENARIO_DIR / "artifacts"
 
-PROMETHEUS = "http://localhost:9090"
-LOKI = "http://localhost:3100"
-
-POLL_SECONDS = 15
-HTTP_TIMEOUT = 20
-
-# Captured over the full incident window. Keys become filenames under metrics/.
-METRIC_QUERIES: dict[str, str] = {
-    "error-ratio": (
-        'sum by(service_name) (rate(calls_total{status_code="STATUS_CODE_ERROR"}[2m]))'
-        " / sum by(service_name) (rate(calls_total[2m]))"
-    ),
-    "call-rate": "sum by(service_name) (rate(calls_total[2m]))",
-    "latency-p95": (
-        "histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))"
-    ),
-    "alerts-firing": 'ALERTS{alertstate="firing"}',
-}
-
 
 class RehearsalError(RuntimeError):
     """Something went wrong that makes the recorded bundle untrustworthy."""
-
-
-def now() -> datetime:
-    return datetime.now(UTC)
-
-
-def stamp(moment: datetime | None) -> str | None:
-    return None if moment is None else moment.isoformat(timespec="seconds")
-
-
-def get_json(base: str, path: str, params: dict[str, str]) -> dict[str, Any]:
-    url = f"{base}{path}?{urllib.parse.urlencode(params)}"
-    with urllib.request.urlopen(url, timeout=HTTP_TIMEOUT) as response:
-        payload: Any = json.loads(response.read().decode())
-    if not isinstance(payload, dict):
-        raise RehearsalError(f"{url} did not return a JSON object")
-    return payload
-
-
-def firing_alerts() -> list[str]:
-    """Alert names currently firing, in the order Prometheus reports them."""
-    payload = get_json(PROMETHEUS, "/api/v1/alerts", {})
-    data = payload.get("data")
-    alerts = data.get("alerts", []) if isinstance(data, dict) else []
-    names: list[str] = []
-    for alert in alerts:
-        if not isinstance(alert, dict) or alert.get("state") != "firing":
-            continue
-        labels = alert.get("labels", {})
-        name = labels.get("alertname") if isinstance(labels, dict) else None
-        service = labels.get("service_name") if isinstance(labels, dict) else None
-        if isinstance(name, str):
-            names.append(f"{name}/{service}" if isinstance(service, str) else name)
-    return names
 
 
 def injector(*args: str) -> str:
@@ -123,39 +91,171 @@ def wait_until(
     return None, firing_alerts()
 
 
-def query_range(query: str, start: datetime, end: datetime, step: int = 15) -> dict[str, Any]:
-    return get_json(
-        PROMETHEUS,
-        "/api/v1/query_range",
-        {
-            "query": query,
-            "start": str(int(start.timestamp())),
-            "end": str(int(end.timestamp())),
-            "step": str(step),
-        },
+def wait_for_clean_baseline(
+    timeout_seconds: int, poll: Callable[[], list[str]] | None = None
+) -> datetime:
+    """Refuse to inject into a world that is already alerting. Returns when it is clean.
+
+    `wait_until` returns the instant its predicate holds, so a rehearsal begun while a
+    previous incident is still clearing sees those stale alerts on its very first poll:
+    `seconds_to_alert` lands near zero and `alerts_at_fire` names another scenario's
+    alerts. Nothing in the resulting bundle looks wrong, which is what makes it dangerous.
+
+    Measured on this world, a `bad_config` fault's alerts keep firing for several minutes
+    after the revert - so recording ten scenarios back to back would corrupt every bundle
+    after the first. Aborting is the right failure: a bundle nobody can tell is bad is
+    worse than a rehearsal that has to be run again.
+    """
+    poll = poll or firing_alerts
+    blocking = poll()
+    if not blocking:
+        return now()
+
+    print(f"  baseline is not clean: {len(blocking)} alert(s) firing - {', '.join(blocking)}")
+    deadline = time.monotonic() + timeout_seconds
+    while time.monotonic() < deadline:
+        time.sleep(POLL_SECONDS)
+        blocking = poll()
+        if not blocking:
+            print("  baseline clear; injecting")
+            return now()
+        print(f"  … still waiting on {', '.join(blocking)}", flush=True)
+
+    raise RehearsalError(
+        f"aborting before injection: {', '.join(blocking)} still firing after "
+        f"{timeout_seconds}s. Injecting now would time this fault's alert against a "
+        "previous incident's and record a bundle whose timings are meaningless. Let the "
+        "world settle, or raise --baseline-timeout."
     )
 
 
-def loki_logs(selector: str, start: datetime, end: datetime, limit: int = 500) -> str:
-    """Best effort. Log collection must never invalidate an otherwise good rehearsal."""
+# Label names to try first, best guess first. Anything Loki actually reports is tried
+# after these, so a promtail config that labels logs some third way still works.
+LOG_LABEL_PREFERENCE = ("service", "container", "container_name", "job", "compose_service")
+
+NETWORK_ERRORS = (urllib.error.URLError, QueryError, RehearsalError, TimeoutError, OSError)
+
+
+@dataclass
+class LogSource:
+    """A Loki selector discovered by asking Loki, plus what was learned on the way."""
+
+    selector: str | None = None
+    label: str | None = None
+    values: list[str] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+
+def container_for(target: str) -> str:
+    """The container name behind a fault target.
+
+    Compose-driven faults name a service (`cartservice`); docker-driven ones already name
+    the container (`cart-service`). Logs are labelled by container either way, so the
+    service names have to be translated or the selector matches nothing at all.
+    """
+    return SERVICE_CONTAINERS.get(target, target)
+
+
+def loki_label_names() -> list[str]:
+    payload = get_json(LOKI, "/loki/api/v1/labels", {})
+    data = payload.get("data")
+    return [v for v in data if isinstance(v, str)] if isinstance(data, list) else []
+
+
+def loki_label_values(label: str) -> list[str]:
+    path = f"/loki/api/v1/label/{urllib.parse.quote(label)}/values"
+    payload = get_json(LOKI, path, {})
+    data = payload.get("data")
+    return sorted(v for v in data if isinstance(v, str)) if isinstance(data, list) else []
+
+
+def discover_log_source(container: str) -> LogSource:
+    """Find a selector that actually matches, by reading Loki's label space.
+
+    The previous version assumed a `container` label and built a regex selector from the
+    scenario's target. Both halves were wrong here - promtail labels by `service`, and the
+    target is often a compose service name - and the failure was silent: a valid query
+    returning zero streams. Asking first costs two HTTP calls and cannot go stale.
+    """
+    try:
+        names = loki_label_names()
+    except NETWORK_ERRORS as exc:
+        return LogSource(notes=[f"# could not read Loki's label names: {exc}"])
+
+    source = LogSource(notes=[f"# loki labels: {', '.join(names) or '(none)'}"])
+    ordered = [n for n in LOG_LABEL_PREFERENCE if n in names]
+    ordered += [n for n in names if n not in LOG_LABEL_PREFERENCE]
+
+    for name in ordered:
+        try:
+            values = loki_label_values(name)
+        except NETWORK_ERRORS as exc:
+            source.notes.append(f"# {name}: could not read values ({exc})")
+            continue
+        if container in values:
+            source.selector = f'{{{name}="{container}"}}'
+            source.label, source.values = name, values
+            return source
+        near = [v for v in values if container in v or v in container]
+        if near:
+            source.selector = f'{{{name}="{near[0]}"}}'
+            source.label, source.values = name, values
+            source.notes.append(
+                f"# no exact {name} value for {container!r}; closest is {near[0]!r}"
+            )
+            return source
+        source.notes.append(f"# {name}: no value matching {container!r} ({len(values)} values)")
+
+    source.notes.append(f"# no Loki label carries a value matching {container!r}")
+    return source
+
+
+def loki_logs(container: str, start: datetime, end: datetime, limit: int = 500) -> str:
+    """Best effort. Log collection must never invalidate an otherwise good rehearsal.
+
+    When it fails it has to fail legibly: the file records the selector that was tried and
+    the label values that exist, so the next person fixes it in one step instead of
+    rediscovering Loki's label space by hand.
+    """
+    source = discover_log_source(container)
+    header = [f"# target container: {container}", *source.notes]
+
+    def with_values(reason: str) -> str:
+        listing = ", ".join(source.values) if source.values else "(none read)"
+        return (
+            "\n".join(
+                [
+                    *header,
+                    f"# {reason}",
+                    f"# values on {source.label or 'the label tried'}: {listing}",
+                    "# fix the selector in evalharness.rehearse, or collect with `docker logs`",
+                ]
+            )
+            + "\n"
+        )
+
+    if source.selector is None:
+        return with_values("no selector matched - nothing captured")
+
+    header.append(f"# selector: {source.selector}")
     try:
         payload = get_json(
             LOKI,
             "/loki/api/v1/query_range",
             {
-                "query": selector,
+                "query": source.selector,
                 "start": str(int(start.timestamp() * 1e9)),
                 "end": str(int(end.timestamp() * 1e9)),
                 "limit": str(limit),
                 "direction": "forward",
             },
         )
-    except (urllib.error.URLError, RehearsalError, TimeoutError) as exc:
-        return f"# log collection failed for {selector}: {exc}\n# collect these by hand\n"
+    except NETWORK_ERRORS as exc:
+        return "\n".join([*header, f"# query failed: {exc}", "# collect these by hand"]) + "\n"
 
     data = payload.get("data")
     streams = data.get("result", []) if isinstance(data, dict) else []
-    lines: list[str] = [f"# selector: {selector}"]
+    lines: list[str] = []
     for stream in streams:
         if not isinstance(stream, dict):
             continue
@@ -163,9 +263,10 @@ def loki_logs(selector: str, start: datetime, end: datetime, limit: int = 500) -
             if isinstance(entry, list) and len(entry) == 2:
                 moment = datetime.fromtimestamp(int(entry[0]) / 1e9, tz=UTC)
                 lines.append(f"{moment.isoformat(timespec='seconds')}  {entry[1]}")
-    if len(lines) == 1:
-        lines.append("# no lines matched - widen the selector or collect by hand")
-    return "\n".join(lines) + "\n"
+
+    if not lines:
+        return with_values("selector is valid but matched no lines in this window")
+    return "\n".join([*header, f"# {len(lines)} lines", "", *lines]) + "\n"
 
 
 def find_scenario(scenario_id: str) -> Scenario:
@@ -177,6 +278,44 @@ def find_scenario(scenario_id: str) -> Scenario:
         if candidate.id == scenario_id:
             return candidate
     raise RehearsalError(f"no scenario with id {scenario_id!r} under {SCENARIO_DIR}")
+
+
+def alert_evolution(facts: dict[str, Any]) -> str:
+    """How the alert set grew, as lines for the narrative.
+
+    A flat list of what fired at page time understates the incident: run 3 of
+    cart-redis-misconfig paged on two services and reached ten over the next six minutes,
+    a seven-service ServiceNoTraffic wave arriving once cart stopped serving entirely.
+    Blast radius is what T3.1 scores triage on, so the template has to make the growth
+    visible rather than leave it in a JSON file nobody reads while writing.
+    """
+    at_fire = list(facts.get("alerts_at_fire") or [])
+    over_window = list(facts.get("alerts_over_window") or [])
+
+    lines = [
+        "| When | Alert | Service | First seen | Last seen |",
+        "|---|---|---|---|---|",
+    ]
+    paged = set(at_fire)
+    for entry in over_window:
+        label = f"{entry.get('alert')}/{entry.get('service')}"
+        when = "**on the page**" if label in paged else "later"
+        lines.append(
+            f"| {when} | {entry.get('alert')} | {entry.get('service')} | "
+            f"{entry.get('first_seen')} | {entry.get('last_seen')} |"
+        )
+    if not over_window:
+        lines = ["_No alerts recorded over the window._"]
+
+    grew = len(over_window) - len(at_fire)
+    growth = (
+        f"\nThe page named {len(at_fire)} service(s). By the end of the incident "
+        f"{len(over_window)} alert(s) had fired - {grew} more than the responder saw when "
+        "they started."
+        if grew > 0
+        else ""
+    )
+    return "\n".join(lines) + "\n" + growth
 
 
 def incident_template(scenario: Scenario, facts: dict[str, Any]) -> str:
@@ -198,7 +337,15 @@ resolved_at: {facts["t_clear"]}
      knew the answer. No mention of the injector. This text is retrieved later as a past
      incident, so an answer written from hindsight teaches the agent to cheat. -->
 
-Alerts that fired: {", ".join(alerts)}
+**On the page:** {", ".join(alerts)}
+
+### How the alert set evolved
+
+<!-- Describe the spread in prose too, not just the table: which service went first, what
+     followed it, and how long the gap was. A reader looking this up months later needs
+     the shape of the cascade, not only its final size. -->
+
+{alert_evolution(facts)}
 
 ## What was checked
 
@@ -218,8 +365,11 @@ Alerts that fired: {", ".join(alerts)}
 ## Detection notes
 
 - Time from fault to first firing alert: {facts["seconds_to_alert"]}s
-- Services that alerted: {len(alerts)}
+- Services alerting on the page: {len(alerts)}
+- Services alerting by the end: {len(facts.get("alerts_over_window") or [])}
+- Steady state held after the page: {facts["seconds_of_steady_state"]}s
 - Did the loudest service turn out to be the culprit? <!-- yes / no - this one matters -->
+- Would the page alone have led you to the right service? <!-- yes / no -->
 """
 
 
@@ -251,7 +401,9 @@ def write_bundle(scenario: Scenario, facts: dict[str, Any], out: Path) -> None:
         incident.write_text(incident_template(scenario, facts))
 
 
-def rehearse(scenario_id: str, dwell: int, alert_timeout: int, force: bool) -> int:
+def rehearse(
+    scenario_id: str, dwell: int, alert_timeout: int, force: bool, baseline_timeout: int = 300
+) -> int:
     scenario = find_scenario(scenario_id)
     out = ARTIFACT_ROOT / scenario.split.value / scenario.id
     if out.exists() and any(out.iterdir()) and not force:
@@ -268,14 +420,23 @@ def rehearse(scenario_id: str, dwell: int, alert_timeout: int, force: bool) -> i
 
     print(f"rehearsing {scenario.id}  [{scenario.split.value}]  fault={fault_id}")
 
+    # Before anything is injected: a dirty baseline invalidates every timing below.
+    baseline_clear_at = wait_for_clean_baseline(baseline_timeout)
+
     t_inject = now()
     print(injector("start", fault_id).rstrip())
 
     t_fire, alerts_at_fire = wait_until(True, alert_timeout, "an alert to fire")
 
-    remaining = dwell - int((now() - t_inject).total_seconds())
+    # Dwell starts at the alert, not at the injection. Counting from injection lets slow
+    # detection eat the steady-state window - a fault that took three minutes to alert
+    # would leave two minutes of dwell out of five, and the bundle would be thin exactly
+    # where the incident was most interesting. If nothing alerted, this is the moment the
+    # alert timeout expired, which is the same rule applied to a fault that never fired.
+    steady_from = t_fire or now()
+    remaining = dwell - int((now() - steady_from).total_seconds())
     if remaining > 0:
-        print(f"  holding the fault for {remaining}s of steady state")
+        print(f"  holding the fault for {remaining}s of steady state after the alert")
         time.sleep(remaining)
 
     t_revert = now()
@@ -286,27 +447,45 @@ def rehearse(scenario_id: str, dwell: int, alert_timeout: int, force: bool) -> i
     window_start = t_inject - timedelta(minutes=5)
     window_end = (t_clear or now()) + timedelta(minutes=2)
 
+    # Metrics first: alerts_over_window is derived from the captured ALERTS series, so
+    # the manifest cannot be written until the series exists.
+    (out / "metrics").mkdir(parents=True, exist_ok=True)
+    captured: dict[str, dict[str, Any]] = {}
+    for name, promql in METRIC_QUERIES.items():
+        series = query_range(promql, window_start, window_end)
+        (out / "metrics" / f"{name}.json").write_text(json.dumps(series, indent=2) + "\n")
+        captured[name] = series
+        print(f"  captured metrics/{name}.json")
+
     facts: dict[str, Any] = {
+        # Evidence that the world was quiet when this started, rather than an assumption.
+        "baseline_clear_at": stamp(baseline_clear_at),
         "t_inject": stamp(t_inject),
         "t_alert_firing": stamp(t_fire),
         "t_revert": stamp(t_revert),
         "t_clear": stamp(t_clear),
         "seconds_to_alert": (None if t_fire is None else int((t_fire - t_inject).total_seconds())),
+        # Recorded rather than left to be inferred from timestamps: a thin steady-state
+        # window is the difference between a bundle worth seeding the corpus from and one
+        # that caught only the transient, and it should be visible in the manifest.
+        "seconds_of_steady_state": int((t_revert - steady_from).total_seconds()),
+        # Two different facts, both worth keeping. alerts_at_fire is what a responder saw
+        # on the page - the information they actually had when they started. Everything
+        # that fired afterwards is the blast radius, which is what T3.1 scores triage on,
+        # and a snapshot taken at page time cannot see it.
         "alerts_at_fire": alerts_at_fire,
+        # since=t_inject: the window opens five minutes early to show the healthy
+        # baseline, and a previous rehearsal still clearing would otherwise have its
+        # alerts counted as this incident's blast radius.
+        "alerts_over_window": alert_intervals(captured["alerts-firing"], step=15, since=t_inject),
         "window": {"start": stamp(window_start), "end": stamp(window_end)},
     }
 
     write_bundle(scenario, facts, out)
 
-    for name, promql in METRIC_QUERIES.items():
-        series = query_range(promql, window_start, window_end)
-        (out / "metrics" / f"{name}.json").write_text(json.dumps(series, indent=2) + "\n")
-        print(f"  captured metrics/{name}.json")
-
-    target = scenario.injection.target
-    selector = f'{{container=~".*{target}.*"}}'
-    (out / "logs" / f"{target}.txt").write_text(loki_logs(selector, window_start, window_end))
-    print(f"  captured logs/{target}.txt")
+    container = container_for(scenario.injection.target)
+    (out / "logs" / f"{container}.txt").write_text(loki_logs(container, window_start, window_end))
+    print(f"  captured logs/{container}.txt")
 
     if t_fire is None:
         print("\n!! no alert fired. Investigate before trusting this bundle.")
@@ -324,7 +503,10 @@ def main(argv: list[str] | None = None) -> int:
         "--dwell",
         type=int,
         default=300,
-        help="seconds to hold the fault before reverting (default: 300)",
+        help=(
+            "seconds to hold the fault after the alert fires, or after --alert-timeout "
+            "expires if none does (default: 300)"
+        ),
     )
     parser.add_argument(
         "--alert-timeout",
@@ -332,11 +514,30 @@ def main(argv: list[str] | None = None) -> int:
         default=420,
         help="seconds to wait for an alert before giving up (default: 420)",
     )
+    parser.add_argument(
+        "--baseline-timeout",
+        type=int,
+        default=300,
+        help=(
+            "seconds to wait for a already-firing alerts to clear before injecting; "
+            "aborts rather than recording against a dirty baseline (default: 300)"
+        ),
+    )
     parser.add_argument("--force", action="store_true", help="overwrite an existing bundle")
     args = parser.parse_args(argv)
+    # Line-buffered: these runs are ten minutes long and are almost always watched
+    # through a redirect, where block buffering makes a working recorder look hung.
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(line_buffering=True)
 
     try:
-        return rehearse(args.scenario_id, args.dwell, args.alert_timeout, args.force)
+        return rehearse(
+            args.scenario_id,
+            args.dwell,
+            args.alert_timeout,
+            args.force,
+            args.baseline_timeout,
+        )
     except RehearsalError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1

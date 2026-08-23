@@ -23,8 +23,12 @@ expected_evidence:
   - traces: failing requests all carry the same product id and succeed for every other
       id, which is the signature of a data-dependent branch rather than of an overloaded
       or broken service
-  - logs: product catalog reports the failure as a deliberate flag-driven path, not as an
-      unexpected exception or a dependency error
+  # Not a log line: product-catalog-service logs only a startup banner at its default
+  # level, so the deliberate-failure signal exists solely on the span. Measured while
+  # narrowing the promtail filter - see ADR-0005.
+  - traces: the failing span carries an error status and an event naming the failure as a
+      deliberate flag-driven path, rather than an unexpected exception or a dependency
+      error surfacing from underneath
   - traces: each failing GetProduct is preceded by a successful GetFlag call to the
       feature flag service - the flag lookup works, and its answer is what changed
   - metrics: product catalog's CPU, memory and latency are all normal; it is failing by

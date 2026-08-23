@@ -63,6 +63,59 @@ Accepted risk: rule 1 is unenforceable by machine. A narrative that leaks the an
 opening paragraph passes every test. The mitigation is that the leak is visible on reading,
 and the bundles are in the repo where a reviewer — or an interviewer — can check.
 
+## Measured on the first live rehearsals (2026-08-23, T1.5)
+
+Three runs of `cart-redis-misconfig` against the live world, which produced four changes to
+the recorder and the numbers below. All of it came from rehearsing one scenario; the other
+nine are unrehearsed and may move these figures.
+
+### Settle time: 2.5–6.5 minutes from revert to all-clear
+
+| Run | Reverted | All clear | Settle |
+|---|---|---|---|
+| 1 | 05:27:30 | 05:30:00 | 2.5 min |
+| 2 | 05:57:00 | 06:03:30 | 6.5 min |
+| 3 | 06:11:37 | 06:15:30 | 3.9 min |
+
+**The floor is the rate window, not the `for` clause.** `ServiceHighErrorRate` reads
+`rate(calls_total[2m])`, so errors from before the revert stay in scope for two more
+minutes; add the 15s evaluation interval and ~2.5 minutes is the best case. Run 1 hit
+almost exactly that. The `for: 2m` guard delays firing, not resolution, and contributes
+nothing here.
+
+**The variable part is a second error wave from the revert itself.** Reverting recreates
+the container, and cartservice crash-loops on `EnsureRedisConnected` while it comes back —
+the captured logs show restarts 42 and 47 seconds apart. Callers keep erroring through
+that, refilling the rate window. That is the difference between run 1's 2.5 minutes and
+run 2's 6.5.
+
+**Series staleness is not a factor**, which is worth stating because it was the obvious
+suspect. `ServiceNoTraffic` cleared within 0–14 seconds of the revert in all three runs.
+
+An earlier reading of "15+ minutes" was wrong: it came from reading Prometheus's `activeAt`
+as the start of the post-revert tail, when it is the moment the alert *condition* first
+became true — during the fault. Recorded because the mistake is easy to repeat.
+
+### Practical cycle time: ~20 minutes per scenario
+
+Inject to first alert ~3 min, dwell 5 min after the alert, settle 3–7 min, plus capture.
+Nine remaining scenarios is roughly three hours of wall clock, and they cannot be
+parallelised: they share one world. `--baseline-timeout` defaults to 300s, comfortably
+above the worst settle observed.
+
+### Alert sets grow, so the manifest records both shapes
+
+Run 3 paged on 2 services and reached 10 over the following six minutes, the second wave
+being seven `ServiceNoTraffic` alerts that fired once cart stopped serving entirely. A
+manifest holding only the page-time snapshot understates that incident fivefold.
+
+`alerts_at_fire` is kept as-is — it is what the responder actually had, and a narrative
+written from anything more is written from hindsight. `alerts_over_window` is added
+alongside it, derived from the captured `alerts-firing.json` rather than from extra
+polling, each entry carrying first-seen and last-seen. The `incident.md` template renders
+the two together and marks which alerts were on the page, because blast radius is what
+T3.1 scores triage on and it is invisible in the snapshot.
+
 Revisit if: T4.1's harness needs fields the manifest does not carry, or the corpus turns
 out to want a different granularity than one document per incident (for example, one per
 hypothesis rather than one per incident).

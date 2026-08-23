@@ -31,8 +31,9 @@ Intel machine. Patching a third party's Erlang build is out of scope.
 2. **Do not run the feature-flag service.** It is set `restart: "no"` and stopped. The
    demo's remaining nineteen services run correctly; the storefront returns HTTP 200 and
    the load generator drives normal traffic.
-3. **Filter its residual error noise at the OTel collector** (implemented in T1.2), matched
-   narrowly to that one dependency's connection errors.
+3. **Filter its residual error noise** (implemented in T1.2), matched narrowly to that one
+   dependency's connection errors. **Superseded — see "The filter is gone" below.** The
+   filter landed in promtail rather than the collector, and it was never narrow.
 
 ## Consequences
 We lose the demo's built-in fault injection, which is driven by feature flags. This costs
@@ -46,6 +47,119 @@ and therefore not a source of false alerts. After filtering, the baseline is cle
 Risk accepted: a collector-level filter can mask real signal. It is scoped to the exact
 error string from the exact dead dependency, and recorded here so it is visible rather
 than mysterious.
+
+> **The two paragraphs above are the 2026-08-22 record and are no longer accurate.** The
+> filter shipped in promtail, not the collector, and it was a bare term match rather than
+> the scoped one described here. It has since been removed. The section below is what is
+> true now; this is left in place because the gap between what an ADR claims and what the
+> code does is the point of the story.
+
+## The filter is gone (2026-08-23, T1.5)
+
+### What it was for
+The real Erlang flag service was permanently down, and its callers logged a connection
+failure on every request: **390 of 2317 lines over 90 seconds, 17% of all log volume**,
+one repeated pattern, constant in normal operation. Filtering it was right at the time.
+
+### Why it no longer applies
+ADR-0006 replaced that service with a native-arm64 stub that answers. The dependency the
+filter was written against does not exist any more, so there is no noise left to remove.
+
+### What was actually shipped, versus what this ADR promised
+This ADR said the filter was "scoped to the exact error string from the exact dead
+dependency." The implementation in `compose/promtail-config.yml` was:
+
+```yaml
+expression: ".*(featureflag|feature-flag|feature_flag).*"
+```
+
+Any line, from any container, containing the term — including a line reporting that the
+flag service is healthy. The code never matched its own stated contract, and nothing
+tested that it did.
+
+### Measured before removing it
+Over 30 minutes across all 20 logging containers:
+
+| | lines |
+|---|---|
+| emitted | 16,510 |
+| matched the drop expression | **24 (0.15%)** |
+
+All 24 came from Loki's own container, logging the `{service="feature-flag-service"}`
+queries run during this investigation. Not one line of demo traffic was being dropped.
+
+**The risk was latent and never realised.** It is tempting to write this up as "an
+over-broad filter blinded three of ten scenarios" — that is what it looked like from a
+line count alone, and it is false. `feature-flag-service` sits at ~1 line/hour because the
+stub prints one startup banner and nothing per request; the filter passed that line
+through untouched. The honest cost of this defect was 0.15% of self-referential noise. The
+honest danger was that the next flag-service scenario to log the word would have vanished
+from its bundle with nothing to say why.
+
+### Decision: deleted, not narrowed
+A narrowed version was written and measured first, requiring both a reference to the flag
+service *and* a connection failure. It was then removed rather than kept, because against
+a dependency that no longer exists it can only ever drop zero — and a no-op filter is a
+rot risk that also advertises that noise is being handled when nothing is. The history
+lives here instead. `compose/promtail-config.yml` now has no `pipeline_stages` at all.
+
+Baseline after removal, lines/hour by service, on an idle world with the load generator
+running — this is the reference for judging whether a future filter is warranted:
+
+| Service | lines/h | | Service | lines/h |
+|---|---:|---|---|---:|
+| `cart-service` | 5,424 | | `accounting-service` | 564 |
+| `kafka` | 5,250 | | `frauddetection-service` | 564 |
+| `otel-col` | 4,524 | | `quoteservice` | 564 |
+| `checkout-service` | 2,256 | | `redis-cart` | 72 |
+| `shipping-service` | 2,256 | | `frontend` | **0** |
+| `recommendation-service` | 1,680 | | `product-catalog-service` | **0** |
+| `currency-service` | 1,668 | | `feature-flag-service` | **0** |
+| `email-service` | 1,128 | | `frontend-proxy` | 0 |
+| `payment-service` | 1,128 | | `load-generator` | 0 |
+| `loki` | 1,044 | | `alertmanager`, `grafana`, `jaeger` | 0 |
+| `ad-service` | 852 | | `postgres`, `prometheus`, `promtail` | 0 |
+
+**Total: ~29,000 lines/h**, 10-minute window, healthy world with the load generator running
+and no fault injected.
+
+Two things this baseline says that matter more than the total.
+
+**Several services log only when something is wrong.** `frontend` measured 6,355 lines in
+30 minutes earlier the same hour and **0** here. The difference is that the earlier window
+overlapped an injected `cart-redis-misconfig`, and every failed request produced a gRPC
+stack trace. One minute after the revert, frontend went silent and stayed silent. So the
+two measurements in this ADR are *not* like-for-like: the 16,510-line figure above includes
+fault traffic, the table here does not. The filter figure (24 dropped) is unaffected either
+way, because all 24 were Loki's own query logs.
+
+That is useful rather than annoying: **log volume is itself a signal.** A service going
+from 0 to thousands of lines/hour is evidence, and a scenario may legitimately cite it.
+
+**Three services are silent even under load**, and a scenario targeting them cannot expect
+log evidence at all:
+
+- `product-catalog-service` — one startup banner in 4.75 hours. Scraped, stream known to
+  Loki, simply never logs per request. Two scenarios target it.
+- `feature-flag-service` — the ffs-stub prints one line per start and nothing per request.
+  It does log on restart, which is what `flag-service-crashloop` depends on.
+- `load-generator`, `frontend-proxy` — quiet by design.
+
+`evals/scenarios/ARTIFACTS.md` turns this into a step: check every `expected_evidence` item
+against the recorded bundle before marking a scenario rehearsed. One item has already been
+corrected this way.
+
+### Standing rule
+**Anything that removes telemetry is an evidence gap by construction, and ships with a
+measurement of what it removes.** Drop stages, collector filters, sampling, log-level
+changes, metric relabelling that discards series — all of it. This project's entire claim
+is that agents can reach a correct conclusion from available evidence, so quietly
+narrowing what is available invalidates the measurement rather than tuning it.
+
+If noise returns, the fix is a scoped filter **plus a test proving what it drops**: a
+fixture of lines it must remove and lines it must keep. Not a term match. Not an
+unmeasured one. A filter nobody can state the cost of is not narrow, whatever its regex
+looks like.
 
 Revisit if: the project moves to x86 hardware (all of this disappears), or a later demo
 release publishes arm64 images for the affected services.

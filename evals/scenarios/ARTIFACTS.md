@@ -75,3 +75,36 @@ meant to be quiet — but it needs a note in `incident.md` saying so deliberatel
 Set `rehearsed: true` in the scenario YAML **only** once `incident.md` is finished. The
 guard tests read that flag: a rehearsed scenario must have a bundle, and a finished
 `incident.md` must have no template comments left in it.
+
+### First, check every expected_evidence item against the bundle
+
+Before flipping the flag, walk the scenario's `expected_evidence` list and confirm the
+bundle actually contains each item. Correct — or move — any item the world does not
+produce.
+
+This is not a formality, and rehearsal is the only point where it is discoverable. The
+scenarios were authored from how the system *should* behave; the bundle is what it
+*does*. An eval that scores an agent against evidence which does not exist measures
+nothing: the agent cannot find it, loses the point, and the score reads as a reasoning
+failure when it is a labelling error.
+
+Three failure shapes to look for, all of them seen at least once:
+
+- **The signal exists, but on a different telemetry type.** Most common by far. Check the
+  traces before deleting an item — a service that records something on a span very often
+  logs nothing at all.
+- **The service is too quiet to produce it.** Several demo services log only a startup
+  banner at their default level. Silence in `logs/` is not evidence of health.
+- **The signal exists but not in the captured window.** Widen `--dwell`, or note the
+  timing in the item so it is reproducible.
+
+Corrections already made this way:
+
+| Scenario | Item | What happened |
+|---|---|---|
+| `product-catalog-flag-failure` | `logs:` the failure is reported as a deliberate flag-driven path | Moved to `traces:`. `product-catalog-service` emitted one line in 4.75 hours — its startup banner. The demo records this failure with `span.SetStatus` and `span.AddEvent` and never logs it, so the item was unobtainable as written. |
+
+Nothing else in the ten scenarios claimed log evidence from a service measured silent.
+`flag-service-crashloop` is the one to re-check at its own rehearsal: it expects a repeated
+startup line, which the stub does emit on every restart, but the restart cadence has never
+been observed.
