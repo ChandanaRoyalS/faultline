@@ -66,6 +66,7 @@ def test_a_dirty_baseline_aborts_before_anything_is_injected(
     monkeypatch.setattr(
         rehearse, "container_memory_usage", lambda: [("kafka", 42.0, "500MiB / 1.172GiB")]
     )
+    monkeypatch.setattr(rehearse, "orphaned_image_references", list)
 
     with pytest.raises(rehearse.RehearsalError, match="aborting before injection"):
         rehearse.rehearse(
@@ -285,6 +286,7 @@ def test_an_already_injected_fault_aborts_before_anything_is_injected(
     monkeypatch.setattr(
         rehearse, "container_memory_usage", lambda: [("kafka", 42.0, "500MiB / 1.172GiB")]
     )
+    monkeypatch.setattr(rehearse, "orphaned_image_references", list)
 
     with pytest.raises(rehearse.RehearsalError) as caught:
         rehearse.rehearse(
@@ -378,6 +380,7 @@ def test_the_memory_gate_stops_a_rehearsal_before_anything_is_injected(
     monkeypatch.setattr(
         rehearse, "container_memory_usage", lambda: [("kafka", 99.3, "1.164GiB / 1.172GiB")]
     )
+    monkeypatch.setattr(rehearse, "orphaned_image_references", list)
 
     with pytest.raises(rehearse.RehearsalError, match="memory limit"):
         rehearse.rehearse(
@@ -386,3 +389,99 @@ def test_the_memory_gate_stops_a_rehearsal_before_anything_is_injected(
 
     assert ("start", "currency-cpu-throttle") not in calls
     assert not list(tmp_path.iterdir()), "an aborted rehearsal must leave no partial bundle"
+
+
+# --- a container running a reclaimed image kills pumba silently ---------------
+
+
+def test_a_coherent_world_passes_the_image_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(rehearse, "orphaned_image_references", list)
+
+    rehearse.require_coherent_images()  # does not raise
+
+
+def test_an_orphaned_image_reference_aborts_and_names_the_container(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The measured case: three rebuilds of the stub tag left the flag service orphaned."""
+    monkeypatch.setattr(
+        rehearse,
+        "orphaned_image_references",
+        lambda: [("feature-flag-service", "sha256:2764ea72cffb58aa6f89db16db4d180ee786530e")],
+    )
+
+    with pytest.raises(rehearse.RehearsalError) as caught:
+        rehearse.require_coherent_images()
+
+    message = str(caught.value)
+    assert "feature-flag-service" in message, "name the container"
+    assert "sha256:2764ea72" in message, "name the orphaned image id"
+    assert "aborting before injection" in message
+
+    # The hint must name the compose SERVICE, not the container it reported, and give the
+    # command that actually works. An earlier version said "make world-up will do it",
+    # which sent a reader into a loop: compose compares the configured image name against
+    # the container's, not the resolved id, so a container on an orphaned sha under a
+    # still-valid tag looks up to date and is never recreated.
+    assert "featureflagservice" in message, "name the compose service, not just the container"
+    assert "--force-recreate --no-deps" in message, "give the command that actually recreates"
+    assert "make world-up` will NOT fix this" in message, "say why the obvious move fails"
+
+
+def test_the_image_gate_stops_a_rehearsal_before_anything_is_injected(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def fake_injector(*args: str) -> str:
+        calls.append(args)
+        return "cart-dependency-latency\n" if args == ("list",) else "no active injections\n"
+
+    monkeypatch.setattr(rehearse, "injector", fake_injector)
+    monkeypatch.setattr(rehearse, "firing_alerts", list)
+    monkeypatch.setattr(rehearse, "ARTIFACT_ROOT", tmp_path)
+    monkeypatch.setattr(
+        rehearse, "orphaned_image_references", lambda: [("feature-flag-service", "sha256:dead")]
+    )
+    # Would pass; the image gate must fire first and never reach it.
+    monkeypatch.setattr(rehearse, "container_memory_usage", lambda: [("kafka", 5.0, "ok")])
+
+    with pytest.raises(rehearse.RehearsalError, match="no longer exists"):
+        rehearse.rehearse(
+            "cart-dependency-latency", dwell=1, alert_timeout=1, force=True, baseline_timeout=1
+        )
+
+    assert ("start", "cart-dependency-latency") not in calls
+    assert not list(tmp_path.iterdir())
+
+
+def test_the_image_gate_runs_before_the_slower_memory_gate(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`docker stats` samples for seconds; image coherence is three fast queries."""
+    order: list[str] = []
+
+    def images() -> list[tuple[str, str]]:
+        order.append("image-gate")
+        return [("feature-flag-service", "sha256:dead")]
+
+    def memory() -> list[tuple[str, float, str]]:
+        order.append("memory-gate")
+        return []
+
+    monkeypatch.setattr(
+        rehearse,
+        "injector",
+        lambda *a: "cart-dependency-latency\n" if a == ("list",) else "no active injections\n",
+    )
+    monkeypatch.setattr(rehearse, "firing_alerts", list)
+    monkeypatch.setattr(rehearse, "ARTIFACT_ROOT", tmp_path)
+    monkeypatch.setattr(rehearse, "orphaned_image_references", images)
+    monkeypatch.setattr(rehearse, "container_memory_usage", memory)
+
+    with pytest.raises(rehearse.RehearsalError):
+        rehearse.rehearse(
+            "cart-dependency-latency", dwell=1, alert_timeout=1, force=True, baseline_timeout=1
+        )
+
+    assert order == ["image-gate"], f"the slower gate ran despite a disqualifying world: {order}"

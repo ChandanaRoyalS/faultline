@@ -8,6 +8,7 @@ import pytest
 import yaml
 
 from evalharness.scenario import FaultClass
+from injector import faults
 from injector.catalog import CATALOG, by_id
 from injector.docker import CommandError, ComposeCli, DockerCli
 from injector.faults import (
@@ -28,6 +29,15 @@ from injector.models import (
 )
 from injector.settings import InjectorSettings
 from tests.fakes import FakeRunner
+
+ALIVE = {"{{.State.Running}}": "true\n"}
+"""FakeRunner stdout making the pumba sidecar look like it survived startup."""
+
+
+@pytest.fixture(autouse=True)
+def instant_sidecar_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The recorder waits 4s for the sidecar to settle; the tests must not."""
+    monkeypatch.setattr(faults, "SIDECAR_SETTLE_SECONDS", 0)
 
 
 @pytest.fixture
@@ -431,7 +441,7 @@ def test_bad_deploy_refuses_a_definition_with_no_image(settings: InjectorSetting
 
 
 def test_latency_runs_pumba_with_a_pinned_tc_image(settings: InjectorSettings) -> None:
-    runner = FakeRunner()
+    runner = FakeRunner(stdout=ALIVE)
     outcome = DependencyLatencyFault(DockerCli(runner), settings).inject(
         definition("cart-dependency-latency")
     )
@@ -453,7 +463,7 @@ def test_latency_runs_pumba_with_a_pinned_tc_image(settings: InjectorSettings) -
 
 
 def test_latency_clears_a_leftover_sidecar_before_starting(settings: InjectorSettings) -> None:
-    runner = FakeRunner()
+    runner = FakeRunner(stdout=ALIVE)
     DependencyLatencyFault(DockerCli(runner), settings).inject(
         definition("cart-dependency-latency")
     )
@@ -482,7 +492,7 @@ def test_latency_restore_is_a_no_op_when_the_sidecar_expired(settings: InjectorS
 
 
 def test_productcatalog_latency_delays_its_own_container(settings: InjectorSettings) -> None:
-    runner = FakeRunner()
+    runner = FakeRunner(stdout=ALIVE)
     DependencyLatencyFault(DockerCli(runner), settings).inject(
         definition("productcatalog-dependency-latency")
     )
@@ -565,3 +575,39 @@ def test_a_handler_refuses_restore_data_from_another_fault_class(
         squeeze(FakeRunner(), settings).restore(
             PumbaRestore(helper_container="faultline-pumba-cart-dependency-latency")
         )
+
+
+def test_a_sidecar_that_dies_on_startup_fails_the_injection(settings: InjectorSettings) -> None:
+    """Measured: pumba died at startup and the fault reported success for thirteen minutes.
+
+    `docker run --detach` returns when the container is created, not when it works. Pumba
+    enumerates every container on the host and exits if one references a missing image
+    (ADR-0007), which happens before it touches its target.
+    """
+    runner = FakeRunner(
+        stdout={"{{.State.Running}}": "false\n", "logs": 'level=fatal msg="no such image"\n'}
+    )
+
+    with pytest.raises(FaultUsageError) as caught:
+        DependencyLatencyFault(DockerCli(runner), settings).inject(
+            definition("cart-dependency-latency")
+        )
+
+    message = str(caught.value)
+    assert "has NOT been injected" in message, "the operator must not think a delay exists"
+    assert "no such image" in message, "the sidecar's own logs are the diagnosis"
+    assert runner.called("rm", "--force", "faultline-pumba-cart-dependency-latency"), (
+        "the dead sidecar must be cleaned up, or the next run's cleanup looks like it "
+        "removed a working one"
+    )
+
+
+def test_a_sidecar_that_survives_is_left_alone(settings: InjectorSettings) -> None:
+    runner = FakeRunner(stdout=ALIVE)
+
+    outcome = DependencyLatencyFault(DockerCli(runner), settings).inject(
+        definition("cart-dependency-latency")
+    )
+
+    assert isinstance(outcome.restore, PumbaRestore)
+    assert not runner.called("logs"), "no need to read logs from a healthy sidecar"

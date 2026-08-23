@@ -12,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from injector import faults
 from injector.cli import main
 from injector.engine import Engine
 from injector.models import MemoryLimitRestore
@@ -28,9 +29,17 @@ def settings(tmp_path: Path) -> InjectorSettings:
     )
 
 
+@pytest.fixture(autouse=True)
+def instant_sidecar_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The injector waits for a detached sidecar to settle; the CLI tests must not."""
+    monkeypatch.setattr(faults, "SIDECAR_SETTLE_SECONDS", 0)
+
+
 @pytest.fixture
 def runner() -> FakeRunner:
-    return FakeRunner(stdout={"inspect": "838860800 -1\n"})
+    # Key order matters: FakeRunner returns the first key that is a substring of the
+    # joined argv, and the sidecar liveness probe is also a `docker inspect`.
+    return FakeRunner(stdout={"{{.State.Running}}": "true\n", "inspect": "838860800 -1\n"})
 
 
 def make_engine(settings: InjectorSettings, runner: FakeRunner, minute: int = 0) -> Engine:

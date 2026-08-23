@@ -6,46 +6,46 @@
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-23T08:49:11+00:00",
-      "last_seen": "2026-08-23T08:57:26+00:00",
-      "minutes_firing": 8.5,
+      "first_seen": "2026-08-23T15:44:13+00:00",
+      "last_seen": "2026-08-23T15:49:58+00:00",
+      "minutes_firing": 6.0,
       "service": "loadgenerator"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-23T08:49:26+00:00",
-      "last_seen": "2026-08-23T08:57:26+00:00",
-      "minutes_firing": 8.2,
+      "first_seen": "2026-08-23T15:44:28+00:00",
+      "last_seen": "2026-08-23T15:49:58+00:00",
+      "minutes_firing": 5.8,
       "service": "frontend"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-08-23T08:51:56+00:00",
-      "last_seen": "2026-08-23T08:56:26+00:00",
-      "minutes_firing": 4.8,
+      "first_seen": "2026-08-23T15:47:13+00:00",
+      "last_seen": "2026-08-23T15:49:43+00:00",
+      "minutes_firing": 2.8,
       "service": "adservice"
     },
     {
       "alert": "ServiceHighLatency",
-      "began_after_revert": true,
-      "first_seen": "2026-08-23T08:54:26+00:00",
-      "last_seen": "2026-08-23T08:54:56+00:00",
-      "minutes_firing": 0.8,
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T15:47:28+00:00",
+      "last_seen": "2026-08-23T15:47:28+00:00",
+      "minutes_firing": 0.2,
       "service": "frontend"
     },
     {
       "alert": "ServiceHighLatency",
-      "began_after_revert": true,
-      "first_seen": "2026-08-23T08:54:26+00:00",
-      "last_seen": "2026-08-23T08:54:56+00:00",
-      "minutes_firing": 0.8,
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T15:47:28+00:00",
+      "last_seen": "2026-08-23T15:47:28+00:00",
+      "minutes_firing": 0.2,
       "service": "loadgenerator"
     }
   ],
-  "baseline_clear_at": "2026-08-23T08:45:41+00:00",
-  "bundle_schema_version": 1,
+  "baseline_clear_at": "2026-08-23T15:40:58+00:00",
+  "bundle_schema_version": 2,
   "expected_remediation_class": "config_revert",
   "fault_class": "resource_exhaustion",
   "injection": {
@@ -58,28 +58,30 @@
   "origin": "scenario:ad-memory-squeeze",
   "recorded_by": "evalharness.rehearse",
   "recorder": {
-    "git_dirty": false,
-    "git_sha": "897996f59853ffb85f8523c871d5e095eed2b4d7",
+    "git_dirty": true,
+    "git_sha": "987eb384fc64f844c784f9b1fa453334e77c0380",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "c56097be739ca910cb2605047af78a2f11ca78cc1b4a6e43e22c20f33a8eff42",
   "scenario_id": "ad-memory-squeeze",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 210,
-  "seconds_to_settle": 211,
+  "seconds_to_alert": 195,
+  "seconds_to_settle": 60,
   "split": "dev",
-  "t_alert_firing": "2026-08-23T08:49:11+00:00",
-  "t_clear": "2026-08-23T08:57:42+00:00",
-  "t_inject": "2026-08-23T08:45:41+00:00",
-  "t_revert": "2026-08-23T08:54:11+00:00",
+  "t_alert_firing": "2026-08-23T15:44:13+00:00",
+  "t_clear": "2026-08-23T15:50:13+00:00",
+  "t_inject": "2026-08-23T15:40:58+00:00",
+  "t_revert": "2026-08-23T15:49:13+00:00",
   "title": "Ad service memory limit cut below the working set its JVM was sized for",
   "window": {
-    "end": "2026-08-23T08:59:42+00:00",
-    "start": "2026-08-23T08:40:41+00:00"
+    "end": "2026-08-23T15:52:13+00:00",
+    "start": "2026-08-23T15:35:58+00:00"
   },
   "world": {
+    "compose_digest": "4a7690c6fdda8c63d1701829f4c1e206a4765c931e864b7c739918c74b91583e",
     "docker_arch": "arm64",
-    "ffs_stub_image_id": "sha256:64ceb58937a3732c15be2d3cf403a74ff16976afb2ec679f0a5573b9001429e3",
+    "ffs_stub_image_id": "sha256:94d38cfafd507d96db40cb08f7ce5f2dee6d57b6283570e63380b2a4296ff026",
+    "ffs_stub_source_digest": "5d06a3668aa0648351e2fdf3751a825732cae403a2cb84dcbe7693bcde92b9db",
     "host_platform": "Darwin/arm64",
     "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice"
   }

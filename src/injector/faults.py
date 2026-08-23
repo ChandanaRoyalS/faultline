@@ -19,6 +19,7 @@ Two rules hold across all of them:
 from __future__ import annotations
 
 import contextlib
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import ClassVar
@@ -363,6 +364,10 @@ class BadConfigFault(_ComposeOverrideFault):
         )
 
 
+SIDECAR_SETTLE_SECONDS = 4
+"""How long to let a detached sidecar live before believing it started."""
+
+
 class DependencyLatencyFault(Fault):
     """Delay a container's network traffic with tc netem, driven by pumba."""
 
@@ -410,6 +415,7 @@ class DependencyLatencyFault(Fault):
                 definition.target,
             ],
         )
+        self._require_sidecar_alive(helper)
         return InjectionOutcome(
             restore=PumbaRestore(helper_container=helper),
             changes=[
@@ -417,6 +423,36 @@ class DependencyLatencyFault(Fault):
                 f"{definition.target} {interface}",
                 f"sidecar {helper} holds the rule; it self-reverts after {duration}",
             ],
+        )
+
+    def _require_sidecar_alive(self, helper: str) -> None:
+        """`docker run --detach` returns as soon as the container is created, not when it works.
+
+        Pumba enumerates every container on the host to find its target and exits if any of
+        them references an image that is no longer present locally (ADR-0007). That happens
+        at startup, before it touches the target, so the sidecar is created, dies within a
+        second, and the injection reports success. Measured: a latency fault ran for
+        thirteen minutes with no netem rule applied, `faultline-inject status` showing it
+        active throughout, and the recorder wrote a bundle of a perfectly healthy world.
+
+        A fault that failed to apply has to fail the injection. Silence here is the most
+        expensive failure the injector can produce, because everything downstream of it
+        looks correct.
+        """
+        time.sleep(SIDECAR_SETTLE_SECONDS)
+        if self._docker.is_running(helper):
+            return
+        logs = self._docker.logs(helper) or "(the sidecar produced no output)"
+        # Take the corpse with us: leaving it would make the next injection's cleanup
+        # look like it removed a working sidecar.
+        self._docker.remove(helper)
+        raise FaultUsageError(
+            f"the pumba sidecar {helper} exited within {SIDECAR_SETTLE_SECONDS}s, so no "
+            "netem rule was applied and no delay exists. The fault has NOT been injected.\n"
+            f"--- {helper} logs ---\n{logs}\n"
+            "Pumba dies at startup if any running container references an image that is no "
+            "longer present locally - check for orphaned image references and recreate the "
+            "affected services."
         )
 
     def restore(self, state: RestoreState) -> list[str]:

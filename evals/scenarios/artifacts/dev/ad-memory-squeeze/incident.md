@@ -2,10 +2,10 @@
 origin: scenario:ad-memory-squeeze
 split: dev
 fault_class: resource_exhaustion
-recorded_from: 2026-08-23T08:45:41+00:00
-onset_to_page: 3m30s
+recorded_from: 2026-08-23T15:40:58+00:00
+onset_to_page: 3m15s
 page_to_fix: 5m00s
-fix_to_all_clear: 3m31s
+fix_to_all_clear: 1m00s
 ---
 
 # Ad service memory limit cut below the working set its JVM was sized for
@@ -20,8 +20,11 @@ The synthetic client was seeing failures and no service was owning them.
 The storefront was mostly usable. Product pages loaded, baskets worked, checkout
 completed. The advertisement panel was missing.
 
-At **T+2m45s**, `ServiceNoTraffic` fired on **adservice** — the first time anything
+At **T+3m00s**, `ServiceNoTraffic` fired on **adservice** — the first time anything
 named a service other than the frontend and its client.
+
+Fifteen seconds after that, two `ServiceHighLatency` alerts appeared on frontend and
+loadgenerator and vanished again within a single evaluation. They lasted one sample.
 
 ## What was checked
 
@@ -36,6 +39,11 @@ healthy service. Read at the time as evidence adservice was fine.
 **Which page elements were failing.** The store worked apart from the ad panel. That
 narrowed it faster than any metric did — frontend's errors were confined to one
 dependency, and the storefront told us which one before the alerting did.
+
+**The two one-sample latency alerts.** They fired in the same evaluation adservice went
+quiet, and they are the moment of transition rather than a condition: frontend's calls
+were hanging against a dying process, and once it was gone they failed immediately
+instead of slowly. A single-sample latency alert is a state change, not a state.
 
 **adservice, once it went quiet.** Zero errors and zero traffic together do not mean a
 healthy idle service on this system; adservice is called on every product page. The
@@ -56,34 +64,31 @@ same wall.
 
 This is why it never appeared in the error metric: a process that is being killed and
 restarted records no calls, and therefore no errored ones. The only evidence of it was
-an *absence* of traffic, and that took nearly three minutes longer to alert than the
+an *absence* of traffic, and that took three minutes longer to alert than the
 downstream errors did.
 
 ## Resolution
 
 The memory limit was restored to its previous value. adservice came back on its next
-restart and the ad panel returned.
-
-**Two new alerts fired fifteen seconds after the fix was applied** —
-`ServiceHighLatency` on frontend and loadgenerator, lasting under a minute. These were
-alarming and meant nothing: the JVM was warming up with a cold heap, and the first
-requests through it were slow. Anyone treating post-fix alerts as evidence the fix had
-failed would have made things worse.
+restart and the ad panel returned. Everything was clear a minute after the fix — the
+fastest recovery of any incident on this system, because nothing had to drain or
+reconnect; a process simply stopped being killed.
 
 Class of fix: **config_revert**. Nothing was deployed and nothing needed rolling back;
 one resource limit was wrong and was put back.
 
 ## Detection notes
 
-- Onset to first page: **3m30s**.
+- Onset to first page: **3m15s**.
 - Services alerting at the page: **1**. Over the whole incident: **3**, across 5 alerts.
-- Alerts that fired only during recovery: **2** — both latency, both on the JVM's cold
-  start, both gone within a minute of appearing.
+- Alerts that fired only during recovery: **none**. Two of the five lasted a single
+  evaluation each and marked the instant the service died rather than any ongoing
+  condition — duration is what separates a signal from a transition.
 - **The page named a service two hops from the fault** and did not name the broken one
-  for another 2m45s. The strongest early signal was not in the alerting at all: the
-  storefront worked except for one panel.
+  for another three minutes. The strongest early signal was not in the alerting at all:
+  the storefront worked except for one panel.
 - Did the loudest service turn out to be the culprit? **No.** loadgenerator alerted
-  longest at 8m30s and is not a service in any meaningful sense.
+  longest at six minutes and is not a service in any meaningful sense.
 - **Blast radius shape was the useful clue.** Only adservice and its single consumer
   were affected. A service on the critical path taking others down with it produces a
   much wider spread; a leaf consumed by one caller produces exactly this. Where the

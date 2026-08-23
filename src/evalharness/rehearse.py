@@ -57,7 +57,8 @@ from evalharness.provenance import (
     world_provenance,
 )
 from evalharness.scenario import Scenario
-from injector.world import SERVICE_CONTAINERS
+from injector.settings import InjectorSettings
+from injector.world import CONTAINER_SERVICES, SERVICE_CONTAINERS
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_DIR = REPO_ROOT / "evals" / "scenarios"
@@ -101,8 +102,77 @@ def wait_until(
     return None, firing_alerts()
 
 
+def orphaned_image_references() -> list[tuple[str, str]]:
+    """(container, image id) for every running container whose image is gone from the host.
+
+    A container keeps running happily on an image that has been retagged out from under it
+    and then reclaimed. Nothing in `docker ps` looks wrong, the service serves normally,
+    and the condition is invisible until something enumerates images - which is exactly
+    what pumba does at startup, and why it dies (ADR-0007).
+    """
+    running = _docker_out(["docker", "ps", "--quiet"])
+    if not running.strip():
+        return []
+    pairs = _docker_out(
+        ["docker", "inspect", "--format", "{{.Name}}\t{{.Image}}", *running.split()]
+    )
+    known = set(
+        _docker_out(["docker", "images", "--all", "--no-trunc", "--format", "{{.ID}}"]).split()
+    )
+    orphans: list[tuple[str, str]] = []
+    for line in pairs.splitlines():
+        name, _, image = line.partition("\t")
+        if image.strip() and image.strip() not in known:
+            orphans.append((name.strip().lstrip("/"), image.strip()))
+    return sorted(orphans)
+
+
+def require_coherent_images() -> None:
+    """Refuse to inject into a world where a container's image no longer exists.
+
+    Measured: three rebuilds of `faultline/ffs-stub:1` in one session left
+    `feature-flag-service` running an image id that had been reclaimed. The next
+    dependency_latency fault injected cleanly, applied nothing, and produced a thirteen
+    minute bundle of a healthy world - because pumba enumerates every container to find
+    its target and exits when one of them cannot be resolved.
+
+    Cheap to check and impossible to notice by eye, which is the whole argument for a gate.
+    """
+    orphans = orphaned_image_references()
+    if not orphans:
+        return
+
+    detail = "\n".join(f"  {name}: image {image} no longer exists" for name, image in orphans)
+    # The gate reports container names; compose needs service names, and they differ in
+    # this world (container `cart-service`, service `cartservice`).
+    services = sorted({CONTAINER_SERVICES.get(name, name) for name, _ in orphans})
+    settings = InjectorSettings()
+    files = " ".join(f"-f {name}" for name in settings.compose_files)
+    fix = f"cd world && docker compose {files} up -d --force-recreate --no-deps " + " ".join(
+        services
+    )
+    raise RehearsalError(
+        f"aborting before injection: {len(orphans)} running container(s) reference an "
+        f"image that has been removed from this host.\n{detail}\n"
+        "pumba enumerates every container at startup and dies when one cannot be resolved, "
+        "so a dependency_latency fault would inject cleanly and apply nothing.\n"
+        f"Fix with an explicit force-recreate:\n  {fix}\n"
+        "`make world-up` will NOT fix this. Compose decides whether to recreate by "
+        "comparing the configured image *name* against the container's, not the resolved "
+        "image id - a container running an orphaned sha under a still-valid tag looks up "
+        "to date, so compose leaves it alone and the gate blocks again."
+    )
+
+
 MEMORY_HEADROOM_PERCENT = 90.0
 """Above this share of its limit, a container is close enough to OOM to spoil a rehearsal."""
+
+
+def _docker_out(args: list[str]) -> str:
+    result = subprocess.run(args, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        raise RehearsalError(f"{' '.join(args[:3])} failed:\n{result.stderr.strip()}")
+    return result.stdout
 
 
 def container_memory_usage() -> list[tuple[str, float, str]]:
@@ -646,11 +716,13 @@ def rehearse(
 
     print(f"rehearsing {scenario.id}  [{scenario.split.value}]  fault={fault_id}")
 
-    # Three gates, in this order, cheapest and most certain first. The injector's state
-    # file is true the instant a fault is applied; container memory is true now; firing
-    # alerts lag reality by minutes. Each catches a different way of starting a rehearsal
-    # in a world that is not fit to measure.
+    # Four gates, cheapest and most certain first. The injector's state file is a local
+    # read and true the instant a fault is applied; image coherence is three fast docker
+    # queries and a yes/no fact; container memory needs `docker stats`, which samples for a
+    # couple of seconds; firing alerts lag reality by minutes and may have to be waited on.
+    # Each catches a different way of starting a rehearsal in a world unfit to measure.
     require_no_active_faults()
+    require_coherent_images()
     require_memory_headroom()
     baseline_clear_at = wait_for_clean_baseline(baseline_timeout)
 

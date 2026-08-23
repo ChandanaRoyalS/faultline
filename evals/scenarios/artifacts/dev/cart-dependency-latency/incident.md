@@ -2,10 +2,10 @@
 origin: scenario:cart-dependency-latency
 split: dev
 fault_class: dependency_latency
-recorded_from: 2026-08-23T08:30:22+00:00
-onset_to_page: 3m30s
+recorded_from: 2026-08-23T15:16:15+00:00
+onset_to_page: 3m45s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m01s
+fix_to_all_clear: 2m16s
 ---
 
 # Cart service network path acquires 300ms of delay
@@ -13,7 +13,7 @@ fix_to_all_clear: 2m01s
 ## What was observed
 
 Four `ServiceHighLatency` alerts fired in the same evaluation: **cartservice**,
-**checkoutservice**, **frontend** and **loadgenerator**. The page arrived 3m30s after
+**checkoutservice**, **frontend** and **loadgenerator**. The page arrived 3m45s after
 things started slowing.
 
 No errors. Not one. Every request succeeded; they simply took longer. The storefront
@@ -61,25 +61,30 @@ An unauthorized container was shaping cartservice's egress traffic, adding 300ms
 delay per packet leaving the container. Cart's own code, image and configuration were
 untouched.
 
-The observed p95 was roughly double the added per-hop delay, because a cart
-operation makes two round trips to Redis and each pays the delay separately. Anyone
-expecting the p95 to rise by 300ms would have doubted a correct measurement.
+The observed p95 was roughly double the added per-hop delay, because a cart operation
+makes two round trips to Redis and each pays the delay separately. Anyone expecting the
+p95 to rise by 300ms would have doubted a correct measurement.
 
 ## Resolution
 
 Recreating the cart container cleared the shaping — the rule is bound to the container
-instance, so a new one comes up on a clean network path. Latency returned to baseline
-within two minutes, which is the metric window emptying rather than a gradual recovery.
+instance, so a new one comes up on a clean network path. Everything was quiet 2m16s
+later, which is the metric window emptying rather than a gradual recovery.
+
+**cartservice was the last thing to clear**, fifteen seconds after its three callers.
+That ordering is the propagation running in reverse: the callers stop being slow as soon
+as cart stops being slow, but cart's own rolling window still holds the tail of the
+delayed requests.
 
 Class of fix: **restart**. Nothing was deployed and no configuration was wrong, so
 there was nothing to roll back or revert; the container simply needed replacing.
 
 ## Detection notes
 
-- Onset to first page: **3m30s**, against a three-minute persistence clause. Detection
+- Onset to first page: **3m45s**, against a three-minute persistence clause. Detection
   is dominated by the clause, not by how long the signal took to appear.
 - Services alerting at the page: **4**. Over the whole incident: **4**. The blast radius
-  never grew.
+  never grew, and all four alerts began in the same evaluation.
 - Alerts that fired only during recovery: **none**.
 - **The culprit was named in the page**, unlike a fault that removes a service entirely
   — a slow service still reports its own latency, so it appears in its own alert.
@@ -89,3 +94,5 @@ there was nothing to roll back or revert; the container simply needed replacing.
 - The signal that mattered was **persistence**. Magnitude alone was ambiguous against
   this service's known behaviour, and any investigation resting on a single latency
   reading would have been guessing.
+- A useful cross-check on the direction of causation: the source cleared **last**. A
+  service that recovers after everything downstream of it is not a victim of them.

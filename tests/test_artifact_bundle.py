@@ -54,6 +54,32 @@ REQUIRED_METRICS = {
 }
 
 
+def is_invalidated(bundle: Path) -> bool:
+    """Whether this bundle carries an INVALID.md."""
+    return (bundle / "INVALID.md").is_file()
+
+
+def valid_bundles() -> list[Path]:
+    """Bundles that make a claim about the world. **Iterate this, not `bundles()`.**
+
+    An invalidated bundle is the record of a failed attempt. It claims nothing, it never
+    enters a corpus, and no number is ever read out of it, so holding it to the standards
+    that make measurements comparable asks the wrong question - and satisfying that
+    question would mean deleting the evidence of why the attempt failed. Two of the
+    invalidated bundles cannot be re-recorded at all: `currency-cpu-throttle`'s mechanism
+    was retired by ADR-0013, and `flag-service-crashloop` targets a service that emits no
+    span metrics.
+
+    Use `bundles()` only for checks that are *about* the record itself rather than about
+    the measurement - whether a manifest exists, or whether a capture with no alerts has
+    been invalidated at all.
+
+    The scoping was originally applied to one guard and omitted from two others. Keeping
+    it in one place is what stops that recurring.
+    """
+    return [b for b in bundles() if not is_invalidated(b)]
+
+
 def scenarios() -> list[Scenario]:
     out: list[Scenario] = []
     for path in sorted(SCENARIO_DIR.rglob("*.yaml")):
@@ -327,7 +353,7 @@ def test_no_metric_capture_is_silently_empty() -> None:
 
 def test_every_bundle_declares_the_current_schema_version() -> None:
     """A mixed-version catalog cannot be compared against itself. See ADR-0009."""
-    for bundle in bundles():
+    for bundle in valid_bundles():
         found = manifest_of(bundle).get("bundle_schema_version")
         assert found == BUNDLE_SCHEMA_VERSION, (
             f"{bundle.name}: bundle_schema_version is {found!r}, current is "
@@ -340,7 +366,7 @@ def test_every_bundle_declares_the_current_schema_version() -> None:
 
 def test_every_bundle_records_what_produced_it_and_against_what() -> None:
     """Provenance nulls are allowed; missing provenance is not."""
-    for bundle in bundles():
+    for bundle in valid_bundles():
         manifest = manifest_of(bundle)
         recorder, world = manifest.get("recorder", {}), manifest.get("world", {})
 
@@ -363,23 +389,17 @@ def test_every_bundle_records_what_produced_it_and_against_what() -> None:
 def test_bundles_agree_about_the_world_they_were_recorded_against() -> None:
     """The catalog's claim is that its scenarios were measured under the same conditions.
 
-    Invalidated bundles are skipped, and this is a scoping decision rather than a
-    loophole. A bundle with an INVALID.md makes no claim about anything: it is the record
-    of a failed attempt, it is never seeded into a corpus, and no number is ever read out
-    of it. Requiring a record of a failure to be consistent with the measurements is
-    asking the wrong question of it - and answering it would mean either re-recording a
-    capture nobody will use, or deleting the evidence of why the attempt failed.
+    Invalidated bundles are skipped via `valid_bundles()`, which carries the reasoning and
+    is shared with the schema-version and provenance guards. It is a scoping decision
+    rather than a loophole.
 
     The guard's actual claim is unweakened: **any two VALID bundles that disagree still
     fail.** If a valid bundle is ever recorded against a different world image, this
     catches it, which is the case that would corrupt a comparison.
     """
     seen: dict[str, list[str]] = {}
-    skipped: list[str] = []
-    for bundle in bundles():
-        if (bundle / "INVALID.md").is_file():
-            skipped.append(bundle.name)
-            continue
+    skipped = [b.name for b in bundles() if is_invalidated(b)]
+    for bundle in valid_bundles():
         world = manifest_of(bundle).get("world", {})
         # Content digests, not the image id. An image id is a build artifact: it changed
         # overnight from identical source when a rebuild re-resolved a pip layer, so

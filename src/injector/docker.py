@@ -140,6 +140,18 @@ class DockerCli:
         )
         return result.returncode == 0
 
+    def is_running(self, name: str) -> bool:
+        """Whether the container exists AND is still up. `container_exists` says only the first."""
+        result = self._runner.run(
+            ["docker", "inspect", "--type", "container", "--format", "{{.State.Running}}", name],
+            check=False,
+        )
+        return result.returncode == 0 and result.stdout.strip() == "true"
+
+    def logs(self, name: str, *, tail: int = 40) -> str:
+        result = self._runner.run(["docker", "logs", "--tail", str(tail), name], check=False)
+        return (result.stdout + result.stderr).strip()
+
     def stop(self, name: str, *, timeout_seconds: int = 30) -> None:
         self._runner.run(["docker", "stop", "--time", str(timeout_seconds), name], check=False)
 
