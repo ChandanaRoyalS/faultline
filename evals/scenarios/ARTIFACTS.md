@@ -38,7 +38,8 @@ This is the file T2.4b seeds the past-incident store from, and it is the file a 
 agent will surface months later when it sees a similar incident. Everything else in the
 bundle is supporting evidence; this is the thing that gets read.
 
-Two rules, and they are the difference between a corpus that teaches and one that cheats:
+Three rules. The first two are the difference between a corpus that teaches and one that
+cheats; the third is what stops the writing being thrown away.
 
 **Write it from the responder's chair, not the author's.** You know the root cause because
 you injected it. The person the corpus is simulating did not. If the narrative opens with
@@ -50,6 +51,23 @@ alert fired, what the dashboard looked like, which service was loudest.
 irrelevant before finding the one that matters. Those wrong turns are the most useful
 thing in the document — they are what makes a retrieved incident a piece of experience
 rather than a lookup table. Delete them and you have written a spoiler.
+
+**No absolute timestamps. Ever.** Write `T+3m`, "about four minutes after the page", "once
+cart stopped serving" — never `08:02:41`. Two reasons, and both are load-bearing:
+
+- *A re-record orphans them.* Wall-clock times belong to one recording. Two bundles needed
+  re-recording in a single evening, and every timestamp written into a narrative would
+  have silently become a reference to an incident that no longer exists — text that still
+  reads as fact. The manifest holds the wall clock and is regenerated with the recording;
+  `incident.md` is preserved across re-records precisely because it is the one file a
+  person wrote, so it must not contain anything a re-record invalidates.
+- *They carry no information anyway.* A retrieved incident is read months later by an agent
+  matching it against a live problem. That it happened at 08:02 on a Saturday tells the
+  reader nothing. That the cascade reached seven services three minutes after the page
+  tells them everything.
+
+The generated template already renders its tables this way — offsets from onset for the
+page, offsets from the page for everything after. Match it in the prose.
 
 Never mention the injector, the scenario id, or the fault class inside the prose.
 

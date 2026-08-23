@@ -101,6 +101,33 @@ def wait_until(
     return None, firing_alerts()
 
 
+def require_no_active_faults() -> str:
+    """Refuse to inject into a world that already has a fault in it.
+
+    The alert baseline gate is not sufficient and cannot be made sufficient. It asks
+    whether anything is *firing*, and a fault injected moments earlier has not alerted
+    yet - detection takes two to three minutes on this world. Two recorders therefore
+    pass each other in that gap: measured, a rehearsal started 99 seconds into another
+    fault's run, saw a quiet world, and recorded its own alert timing, alert set and
+    metric captures against the other incident's cascade. Every number in that bundle
+    belonged to a different fault and nothing in it looked wrong.
+
+    The injector's state file is the authoritative answer and it is true immediately,
+    with no detection delay. `evalharness.baseline` has always checked it; the recorder
+    did not.
+    """
+    status = injector("status").strip()
+    if not status.startswith("no active injections"):
+        raise RehearsalError(
+            "aborting before injection: the injector reports a fault already active, so "
+            "this world already has an incident in it. A bundle recorded now would time "
+            "its own fault against that one.\n"
+            f"{status}\n"
+            "Wait for it to finish, or `faultline-inject stop --all` if it is stranded."
+        )
+    return status
+
+
 def wait_for_clean_baseline(
     timeout_seconds: int, poll: Callable[[], list[str]] | None = None
 ) -> datetime:
@@ -290,6 +317,32 @@ def find_scenario(scenario_id: str) -> Scenario:
     raise RehearsalError(f"no scenario with id {scenario_id!r} under {SCENARIO_DIR}")
 
 
+def offset(moment: str | None, anchor: str | None) -> str:
+    """`moment` as a signed offset from `anchor`, e.g. T+2m46s.
+
+    Negative offsets are kept rather than clamped: an alert that started before the fault
+    did is a fact about the recording, and "T-1m15s" says so where an absolute timestamp
+    would need a reader to subtract.
+    """
+    if moment is None or anchor is None:
+        return "?"
+    delta = int((datetime.fromisoformat(moment) - datetime.fromisoformat(anchor)).total_seconds())
+    sign = "+" if delta >= 0 else "-"
+    minutes, seconds = divmod(abs(delta), 60)
+    if minutes and seconds:
+        return f"T{sign}{minutes}m{seconds:02d}s"
+    return f"T{sign}{minutes}m" if minutes else f"T{sign}{seconds}s"
+
+
+def duration(seconds: Any) -> str:
+    if not isinstance(seconds, int):
+        return "?"
+    minutes, rest = divmod(seconds, 60)
+    if minutes and rest:
+        return f"{minutes}m{rest:02d}s"
+    return f"{minutes}m" if minutes else f"{rest}s"
+
+
 def alert_evolution(facts: dict[str, Any]) -> str:
     """How the alert set grew, as lines for the narrative.
 
@@ -302,31 +355,40 @@ def alert_evolution(facts: dict[str, Any]) -> str:
     Recovery-phase alerts are listed apart from incident alerts. They fired after the fault
     was already removed - they are the recreate's doing, not the fault's - and a narrative
     that folds them in attributes the wrong blast radius.
+
+    Every time here is relative. The page is offset from onset; everything else is offset
+    from the page, because that is when the responder started counting. Wall-clock times
+    belong in the manifest: a retrieved incident's absolute timestamps carry no information,
+    and they are orphaned by every re-record - which has already happened twice.
     """
     at_fire = list(facts.get("alerts_at_fire") or [])
     over_window = list(facts.get("alerts_over_window") or [])
     if not over_window:
         return "_No alerts recorded over the window._"
 
+    onset = facts.get("t_inject")
+    page = facts.get("t_alert_firing") or onset
     paged = set(at_fire)
     during = [e for e in over_window if not e.get("began_after_revert")]
     recovery = [e for e in over_window if e.get("began_after_revert")]
 
-    def table(entries: list[dict[str, Any]], first_column: str) -> list[str]:
-        rows = [
-            f"| {first_column} | Alert | Service | First seen | Last seen |",
-            "|---|---|---|---|---|",
-        ]
+    def table(entries: list[dict[str, Any]]) -> list[str]:
+        rows = ["| When | Alert | Service | Started | Firing for |", "|---|---|---|---|---|"]
         for e in entries:
             label = f"{e.get('alert')}/{e.get('service')}"
             when = "**on the page**" if label in paged else "later"
             rows.append(
                 f"| {when} | {e.get('alert')} | {e.get('service')} | "
-                f"{e.get('first_seen')} | {e.get('last_seen')} |"
+                f"{offset(e.get('first_seen'), page)} | {e.get('minutes_firing')}m |"
             )
         return rows
 
-    lines = table(during, "When")
+    lines = [
+        f"The page went out **{offset(page, onset)}** after onset. Times below are relative",
+        "to the page.",
+        "",
+        *table(during),
+    ]
     grew = len(during) - len(at_fire)
     if grew > 0:
         lines += [
@@ -346,7 +408,7 @@ def alert_evolution(facts: dict[str, Any]) -> str:
             "     them if they mattered to the responder, but do not count them as the",
             "     fault's blast radius. -->",
             "",
-            *table(recovery, "When"),
+            *table(recovery),
         ]
     return "\n".join(lines)
 
@@ -357,15 +419,24 @@ def incident_template(scenario: Scenario, facts: dict[str, Any]) -> str:
     over_window = facts.get("alerts_over_window") or []
     during = len([e for e in over_window if not e.get("began_after_revert")])
     recovery = len([e for e in over_window if e.get("began_after_revert")])
+    to_page = duration(facts.get("seconds_to_alert"))
+    held = duration(facts.get("seconds_of_steady_state"))
+    settled = duration(facts.get("seconds_to_settle"))
     return f"""---
 origin: scenario:{scenario.id}
 split: {scenario.split.value}
 fault_class: {scenario.fault_class.value}
-injected_at: {facts["t_inject"]}
-resolved_at: {facts["t_clear"]}
+onset_to_page: {to_page}
+page_to_fix: {held}
+fix_to_all_clear: {settled}
 ---
 
 # {scenario.title}
+
+<!-- NO ABSOLUTE TIMESTAMPS ANYWHERE IN THIS FILE. Write "T+3m" or "about four minutes
+     after the page", never "08:02:41". The manifest holds the wall clock; this file is
+     read months later as a past incident, where the hour it happened means nothing - and
+     a re-record would orphan every timestamp written here. -->
 
 ## What was observed
 
@@ -400,11 +471,12 @@ resolved_at: {facts["t_clear"]}
 
 ## Detection notes
 
-- Time from fault to first firing alert: {facts["seconds_to_alert"]}s
+- Onset to first firing alert: {to_page}
 - Services alerting on the page: {len(alerts)}
 - Services alerting by the end of the fault: {during}
 - Alerts that fired only during recovery: {recovery}
-- Steady state held after the page: {facts["seconds_of_steady_state"]}s
+- Steady state held after the page: {held}
+- Fix to all-clear: {settled}
 - Did the loudest service turn out to be the culprit? <!-- yes / no - this one matters -->
 - Would the page alone have led you to the right service? <!-- yes / no -->
 """
@@ -496,7 +568,11 @@ def rehearse(
 
     print(f"rehearsing {scenario.id}  [{scenario.split.value}]  fault={fault_id}")
 
-    # Before anything is injected: a dirty baseline invalidates every timing below.
+    # Two gates, in this order, because they answer different questions. The injector's
+    # state file is true the instant a fault is applied; firing alerts lag it by minutes.
+    # Checking only the alerts leaves a window in which two recorders each believe they
+    # have the world to themselves.
+    require_no_active_faults()
     baseline_clear_at = wait_for_clean_baseline(baseline_timeout)
 
     t_inject = now()
@@ -561,7 +637,9 @@ def rehearse(
         # since=t_inject: the window opens five minutes early to show the healthy
         # baseline, and a previous rehearsal still clearing would otherwise have its
         # alerts counted as this incident's blast radius.
-        "alerts_over_window": alert_intervals(captured["alerts-firing"], step=15, since=t_inject),
+        "alerts_over_window": alert_intervals(
+            captured["alerts-firing"], step=15, since=t_inject, revert=t_revert
+        ),
         "window": {"start": stamp(window_start), "end": stamp(window_end)},
     }
 

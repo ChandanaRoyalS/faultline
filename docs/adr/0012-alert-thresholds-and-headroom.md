@@ -67,9 +67,56 @@ because the batch of nine rehearsals starts before that confirmation exists, and
 finding `ServiceHighLatency/cartservice` in a bundle needs to know this is a known
 possibility rather than a discovery.
 
+## Correction (same day): the headroom claim is wrong
+
+The section above rests on one observation over 29 recovered minutes. A rehearsal recorded
+hours later contradicts it, from that bundle's own captured series.
+
+`cartservice` p95 in the five minutes **before** any fault was injected:
+
+```
+07:48:39   380ms      07:52:24   340ms
+07:48:54   320ms      07:52:39   379ms
+07:49:09   100ms      07:52:54   396ms
+07:49:24 …  2-26ms    07:53:09   525ms
+  (quiet ~3 min)      07:53:24   567ms      <- injection at 07:53:39
+```
+
+Three claims above do not survive this:
+
+| Claimed | Measured |
+|---|---|
+| max 353ms | **567ms**, still climbing at injection |
+| one excursion per 29 min | **two in five minutes** |
+| 105s, ~75s of headroom, does not fire | crossed 180s continuous and **fired** at 07:55:39 |
+
+The behaviour is not an occasional excursion. It is **oscillation across the threshold**,
+bursting every few minutes, and it does fire on an unfaulted world. `ServiceHighLatency`
+has no headroom on `cartservice`; it has a false-positive rate nobody has measured.
+
+The decision not to tune the rule stands, and for the same reason — an alert adjusted to
+make rehearsal tidier is not the alert being evaluated. What changes is that this is now a
+known false-positive source rather than a near miss, and two things follow.
+
+**`cart-dependency-latency` loses most of its separation.** The fault produces ~650ms; the
+world reaches 567ms on its own. Magnitude no longer distinguishes them at all, and duration
+distinguishes them less than assumed, because the healthy excursion here lasted long enough
+to fire. That scenario needs re-examining before it is rehearsed - it may not be
+separable from background behaviour on this world.
+
+**A baseline gate that checks firing alerts is not enough.** At injection cart was at 567ms
+with `ServiceHighLatency` pending, 15 seconds from firing, and the recorder's gate saw a
+quiet world because nothing was *firing* yet. The gate should refuse on pending alerts too.
+Not implemented here.
+
+The underlying question - what makes cartservice do this under emulation - is unanswered
+and now worth answering, because it is contaminating an eval scenario rather than merely
+sitting near a threshold.
+
 ## Consequences
 
-**Roughly six healthy excursions are expected across nine rehearsals.** At one per 29
+**Superseded by the correction above — this estimate is too low.** Roughly six healthy
+excursions were expected across nine rehearsals. At one per 29
 minutes and ~20 minutes of world time per scenario, most rehearsals will contain at least
 one. They are short enough not to fire, so most will be invisible — but one that runs long
 enough would appear in `alerts_over_window` looking exactly like blast radius.

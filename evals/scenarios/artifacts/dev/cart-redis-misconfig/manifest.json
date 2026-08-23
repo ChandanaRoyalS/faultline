@@ -1,88 +1,92 @@
 {
   "alerts_at_fire": [
     "ServiceHighErrorRate/frontend",
-    "ServiceHighErrorRate/loadgenerator"
+    "ServiceHighErrorRate/loadgenerator",
+    "ServiceHighErrorRate/checkoutservice"
   ],
   "alerts_over_window": [
     {
       "alert": "ServiceHighErrorRate",
-      "first_seen": "2026-08-23T07:43:23+00:00",
-      "last_seen": "2026-08-23T07:51:23+00:00",
-      "minutes_firing": 8.2,
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T08:19:20+00:00",
+      "last_seen": "2026-08-23T08:26:05+00:00",
+      "minutes_firing": 7.0,
+      "service": "checkoutservice"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T08:19:20+00:00",
+      "last_seen": "2026-08-23T08:26:20+00:00",
+      "minutes_firing": 7.2,
       "service": "frontend"
     },
     {
       "alert": "ServiceHighErrorRate",
-      "first_seen": "2026-08-23T07:43:23+00:00",
-      "last_seen": "2026-08-23T07:51:23+00:00",
-      "minutes_firing": 8.2,
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T08:19:20+00:00",
+      "last_seen": "2026-08-23T08:26:20+00:00",
+      "minutes_firing": 7.2,
       "service": "loadgenerator"
     },
     {
-      "alert": "ServiceHighErrorRate",
-      "first_seen": "2026-08-23T07:43:38+00:00",
-      "last_seen": "2026-08-23T07:50:53+00:00",
-      "minutes_firing": 7.5,
-      "service": "checkoutservice"
-    },
-    {
       "alert": "ServiceNoTraffic",
-      "first_seen": "2026-08-23T07:46:38+00:00",
-      "last_seen": "2026-08-23T07:48:38+00:00",
-      "minutes_firing": 2.2,
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T08:22:50+00:00",
+      "last_seen": "2026-08-23T08:24:35+00:00",
+      "minutes_firing": 2.0,
       "service": "accountingservice"
     },
     {
       "alert": "ServiceNoTraffic",
-      "first_seen": "2026-08-23T07:46:38+00:00",
-      "last_seen": "2026-08-23T07:48:38+00:00",
-      "minutes_firing": 2.2,
-      "service": "currencyservice"
-    },
-    {
-      "alert": "ServiceNoTraffic",
-      "first_seen": "2026-08-23T07:46:38+00:00",
-      "last_seen": "2026-08-23T07:48:38+00:00",
-      "minutes_firing": 2.2,
-      "service": "emailservice"
-    },
-    {
-      "alert": "ServiceNoTraffic",
-      "first_seen": "2026-08-23T07:46:38+00:00",
-      "last_seen": "2026-08-23T07:48:38+00:00",
-      "minutes_firing": 2.2,
-      "service": "frauddetectionservice"
-    },
-    {
-      "alert": "ServiceNoTraffic",
-      "first_seen": "2026-08-23T07:46:38+00:00",
-      "last_seen": "2026-08-23T07:48:38+00:00",
-      "minutes_firing": 2.2,
-      "service": "quoteservice"
-    },
-    {
-      "alert": "ServiceNoTraffic",
-      "first_seen": "2026-08-23T07:46:38+00:00",
-      "last_seen": "2026-08-23T07:48:38+00:00",
-      "minutes_firing": 2.2,
-      "service": "shippingservice"
-    },
-    {
-      "alert": "ServiceNoTraffic",
-      "first_seen": "2026-08-23T07:46:53+00:00",
-      "last_seen": "2026-08-23T07:48:38+00:00",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T08:22:50+00:00",
+      "last_seen": "2026-08-23T08:24:35+00:00",
       "minutes_firing": 2.0,
       "service": "cartservice"
     },
     {
-      "alert": "ServiceHighErrorRate",
-      "first_seen": "2026-08-23T07:50:53+00:00",
-      "last_seen": "2026-08-23T07:51:38+00:00",
-      "minutes_firing": 1.0,
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T08:22:50+00:00",
+      "last_seen": "2026-08-23T08:24:35+00:00",
+      "minutes_firing": 2.0,
+      "service": "currencyservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T08:22:50+00:00",
+      "last_seen": "2026-08-23T08:24:35+00:00",
+      "minutes_firing": 2.0,
       "service": "emailservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T08:22:50+00:00",
+      "last_seen": "2026-08-23T08:24:35+00:00",
+      "minutes_firing": 2.0,
+      "service": "frauddetectionservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T08:22:50+00:00",
+      "last_seen": "2026-08-23T08:24:35+00:00",
+      "minutes_firing": 2.0,
+      "service": "quoteservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T08:22:50+00:00",
+      "last_seen": "2026-08-23T08:24:35+00:00",
+      "minutes_firing": 2.0,
+      "service": "shippingservice"
     }
   ],
-  "baseline_clear_at": "2026-08-23T07:40:38+00:00",
+  "baseline_clear_at": "2026-08-23T08:16:35+00:00",
   "bundle_schema_version": 1,
   "expected_remediation_class": "config_revert",
   "fault_class": "bad_config",
@@ -98,23 +102,23 @@
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "345ddd182de7f7cef07fec2bd309e83fee5bd8ae",
+    "git_sha": "734f3c85638ab065405f6332acaf04738d09e0c8",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "392fc77bf038447c5cb77c2ca5c18cdfad15869ab0d37087251abfc1b6de13b1",
   "scenario_id": "cart-redis-misconfig",
   "seconds_of_steady_state": 300,
   "seconds_to_alert": 166,
-  "seconds_to_settle": 211,
+  "seconds_to_settle": 136,
   "split": "dev",
-  "t_alert_firing": "2026-08-23T07:43:24+00:00",
-  "t_clear": "2026-08-23T07:51:55+00:00",
-  "t_inject": "2026-08-23T07:40:38+00:00",
-  "t_revert": "2026-08-23T07:48:24+00:00",
+  "t_alert_firing": "2026-08-23T08:19:21+00:00",
+  "t_clear": "2026-08-23T08:26:37+00:00",
+  "t_inject": "2026-08-23T08:16:35+00:00",
+  "t_revert": "2026-08-23T08:24:21+00:00",
   "title": "Cart service pointed at the wrong Redis port",
   "window": {
-    "end": "2026-08-23T07:53:55+00:00",
-    "start": "2026-08-23T07:35:38+00:00"
+    "end": "2026-08-23T08:28:37+00:00",
+    "start": "2026-08-23T08:11:35+00:00"
   },
   "world": {
     "docker_arch": "arm64",

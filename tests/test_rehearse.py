@@ -55,7 +55,10 @@ def test_a_dirty_baseline_aborts_before_anything_is_injected(
 
     def fake_injector(*args: str) -> str:
         calls.append(args)
-        return "currency-cpu-throttle\n" if args == ("list",) else ""
+        if args == ("list",):
+            return "currency-cpu-throttle\n"
+        # Nothing injected: this test is about the alert gate, not the solo gate.
+        return "no active injections\n"
 
     monkeypatch.setattr(rehearse, "injector", fake_injector)
     monkeypatch.setattr(rehearse, "firing_alerts", lambda: ["ServiceHighErrorRate/frontend"])
@@ -70,7 +73,9 @@ def test_a_dirty_baseline_aborts_before_anything_is_injected(
         "a fault was injected despite a dirty baseline - the world is now broken and the "
         "recorder does not know it"
     )
-    assert calls == [("list",)], f"expected only the catalog lookup, got {calls}"
+    assert calls == [("list",), ("status",)], (
+        f"expected only the catalog lookup and the solo-gate check, got {calls}"
+    )
     assert not list(tmp_path.iterdir()), "an aborted rehearsal must leave no partial bundle"
 
 
@@ -234,3 +239,82 @@ def test_without_a_revert_the_recovery_flag_is_absent_rather_than_false() -> Non
     payload = alert_series("ServiceHighErrorRate", "frontend", [1000, 1015])
 
     assert "began_after_revert" not in alert_intervals(payload, step=15)[0]
+
+
+# --- two recorders must not share a world ------------------------------------
+
+
+def test_a_world_with_no_active_fault_passes_the_solo_gate(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(rehearse, "injector", lambda *a: "no active injections\n")
+
+    assert rehearse.require_no_active_faults().startswith("no active injections")
+
+
+def test_an_already_injected_fault_aborts_before_anything_is_injected(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The measured failure: a rehearsal started 99s into another fault, before it alerted.
+
+    The alert gate cannot catch this - detection lags injection by minutes - so the world
+    looks quiet to the second recorder and its whole bundle times against the wrong
+    incident.
+    """
+    calls: list[tuple[str, ...]] = []
+    active = (
+        "1 active injection(s)\n\ncart-redis-misconfig\n"
+        "    class  : bad_config\n    target : cartservice\n"
+    )
+
+    def fake_injector(*args: str) -> str:
+        calls.append(args)
+        if args == ("list",):
+            return "cart-dependency-latency\n"
+        if args == ("status",):
+            return active
+        return ""
+
+    monkeypatch.setattr(rehearse, "injector", fake_injector)
+    # Deliberately quiet: the other fault has not alerted yet, which is the whole point.
+    monkeypatch.setattr(rehearse, "firing_alerts", list)
+    monkeypatch.setattr(rehearse, "ARTIFACT_ROOT", tmp_path)
+
+    with pytest.raises(rehearse.RehearsalError) as caught:
+        rehearse.rehearse(
+            "cart-dependency-latency", dwell=1, alert_timeout=1, force=True, baseline_timeout=1
+        )
+
+    assert "cart-redis-misconfig" in str(caught.value), "name the fault that is blocking"
+    assert ("start", "cart-dependency-latency") not in calls, (
+        "a second fault was injected into a world that already had one"
+    )
+    assert not list(tmp_path.iterdir()), "an aborted rehearsal must leave no partial bundle"
+
+
+def test_the_solo_gate_runs_before_the_alert_gate(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Order matters: the injector's state file is true immediately, alerts lag by minutes."""
+    order: list[str] = []
+
+    def fake_injector(*args: str) -> str:
+        if args == ("status",):
+            order.append("solo-gate")
+            return "1 active injection(s)\n\nsomething\n"
+        return "cart-dependency-latency\n"
+
+    def fake_alerts() -> list[str]:
+        order.append("alert-gate")
+        return []
+
+    monkeypatch.setattr(rehearse, "injector", fake_injector)
+    monkeypatch.setattr(rehearse, "firing_alerts", fake_alerts)
+
+    with pytest.raises(rehearse.RehearsalError):
+        rehearse.rehearse(
+            "cart-dependency-latency", dwell=1, alert_timeout=1, force=True, baseline_timeout=1
+        )
+
+    assert order == ["solo-gate"], (
+        f"the alert gate ran despite an active fault: {order}. Checking alerts first wastes "
+        "up to --baseline-timeout waiting on a world that is disqualified already."
+    )

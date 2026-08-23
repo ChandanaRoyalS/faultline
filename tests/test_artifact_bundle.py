@@ -13,7 +13,9 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from evalharness.prom import alert_intervals
+import yaml
+
+from evalharness.prom import PROMETHEUS, alert_intervals, get_json
 from evalharness.provenance import BUNDLE_SCHEMA_VERSION, scenario_fingerprint
 from evalharness.scenario import Scenario, Split
 from injector.world import SERVICE_CONTAINERS
@@ -374,4 +376,87 @@ def test_bundles_match_the_label_they_were_recorded_against() -> None:
             "injection, fault class, split, ground truth or remediation class has changed "
             "since. Re-record it, or revert the change. Editing the title or the evidence "
             "list does not trip this."
+        )
+
+
+# --- a bundle cannot alert faster than its own rule permits ------------------
+
+RULES_FILE = REPO_ROOT / "compose" / "prometheus" / "alert-rules.yml"
+
+
+def parse_for_duration(value: str) -> int:
+    """Prometheus duration to seconds. Only the units the rules actually use."""
+    units = {"s": 1, "m": 60, "h": 3600}
+    match = re.fullmatch(r"(\d+)([smh])", value.strip())
+    assert match, f"unparsable `for` duration {value!r}"
+    return int(match.group(1)) * units[match.group(2)]
+
+
+def alert_for_durations() -> tuple[dict[str, int], str]:
+    """alertname -> `for` seconds, from the live rules if reachable, else the committed file.
+
+    Prometheus is authoritative about what was actually evaluating, so it is preferred. The
+    file is the fallback rather than the primary because a rule can be edited without being
+    reloaded - but the fallback matters: CI has no world, and a guard that only runs on a
+    developer's laptop is half a guard.
+    """
+    try:
+        payload = get_json(PROMETHEUS, "/api/v1/rules", {})
+        data = payload.get("data")
+        groups = data.get("groups", []) if isinstance(data, dict) else []
+        live = {
+            str(rule["name"]): int(float(rule["duration"]))
+            for group in groups
+            for rule in group.get("rules", [])
+            if "name" in rule and rule.get("duration") is not None
+        }
+        if live:
+            return live, "Prometheus /api/v1/rules"
+    except Exception:  # any failure to reach Prometheus falls back to the file
+        pass
+
+    doc = yaml.safe_load(RULES_FILE.read_text())
+    return {
+        str(rule["alert"]): parse_for_duration(str(rule["for"]))
+        for group in doc.get("groups", [])
+        for rule in group.get("rules", [])
+        if "alert" in rule and "for" in rule
+    }, str(RULES_FILE.relative_to(REPO_ROOT))
+
+
+def test_no_bundle_alerts_faster_than_its_own_rule_permits() -> None:
+    """A page that arrives sooner than the rule's `for` clause is not this fault's page.
+
+    Independent of the recorder's solo gate, and catches the same corruption from the other
+    side: the gate prevents two faults sharing a world, this detects the result if
+    prevention is ever bypassed - a stranded state file, an injection made outside the CLI,
+    a rule changed mid-batch.
+
+    The bound is deliberately loose. The true floor is the `for` clause plus the rule's rate
+    window plus an evaluation interval; only the `for` clause is asserted, because it is
+    exact and needs no assumption about which window a rule uses. Anything below it is
+    physically impossible rather than merely suspicious.
+    """
+    durations, source = alert_for_durations()
+
+    for bundle in bundles():
+        manifest = manifest_of(bundle)
+        at_fire = manifest.get("alerts_at_fire") or []
+        seconds = manifest.get("seconds_to_alert")
+        if not at_fire or seconds is None:
+            continue
+
+        name = str(at_fire[0]).split("/")[0]
+        required = durations.get(name)
+        assert required is not None, (
+            f"{bundle.name}: paged on {name!r}, which is not a rule in {source}. Either the "
+            "rules changed since this was recorded, or the bundle names an alert that does "
+            "not exist."
+        )
+        assert seconds >= required, (
+            f"{bundle.name}: paged on {name} {seconds}s after injection, but that rule has "
+            f"`for: {required}s` ({source}). The alert cannot have been caused by this "
+            "fault - its condition was already true before the injection, so this bundle "
+            "was timed against an incident already in progress. Re-record it on a world "
+            "that is genuinely quiet."
         )
