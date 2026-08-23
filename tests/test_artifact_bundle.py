@@ -17,7 +17,7 @@ import yaml
 
 from evalharness.prom import PROMETHEUS, alert_intervals, get_json
 from evalharness.provenance import BUNDLE_SCHEMA_VERSION, scenario_fingerprint
-from evalharness.rehearse import duration
+from evalharness.rehearse import SUPERSEDED, duration, superseded_name
 from evalharness.scenario import Scenario, Split
 from injector.world import SERVICE_CONTAINERS
 
@@ -614,3 +614,39 @@ def test_a_bundle_that_captured_no_alert_is_marked_invalid() -> None:
             f"{bundle.name}: INVALID.md is too short to explain anything. It is the only "
             "record of why this capture is not evidence."
         )
+
+
+# --- archived manifests keep old numbers checkable ---------------------------
+
+
+def test_superseded_manifests_are_parseable_and_correctly_named() -> None:
+    """A re-record replaces manifest.json, so every number cited from it becomes
+    unverifiable unless the outgoing copy is kept.
+
+    Not required to exist: most bundles have never been re-recorded, and several predate
+    the archive entirely. But an archive that is present must be usable - a malformed or
+    misnamed file there is worse than none, because prose will be checked against it.
+    """
+    for bundle in bundles():
+        archive = bundle / SUPERSEDED
+        if not archive.is_dir():
+            continue
+        live = manifest_of(bundle)["t_inject"]
+        for path in sorted(archive.glob("*.json")):
+            try:
+                old = json.loads(path.read_text())
+            except json.JSONDecodeError as exc:
+                raise AssertionError(f"{bundle.name}/{path.name} is not valid JSON: {exc}") from exc
+
+            recorded = old.get("t_inject")
+            assert recorded, f"{bundle.name}/{path.name} has no t_inject"
+            assert path.name == superseded_name(recorded), (
+                f"{bundle.name}/{path.name} is named for a different run than it contains "
+                f"(t_inject {recorded} would be {superseded_name(recorded)}). The filename "
+                "is how a citation is looked up, so it has to match."
+            )
+            assert as_instant(recorded) != as_instant(live), (
+                f"{bundle.name}/{path.name} has the same t_inject as the live manifest. An "
+                "archive entry is a *previous* recording; this one is a duplicate of the "
+                "current bundle and would make two files claim to be the same run."
+            )

@@ -6,6 +6,36 @@ section is written from committed bundles, after rehearsal. Nothing here is a pr
 See `SCHEMA.md` for the file format, `SPLIT.md` for the dev/holdout allocation, and
 `ARTIFACTS.md` for what a rehearsal bundle contains.
 
+## Read every timing in this document as one sample
+
+**Every `seconds_to_alert` in every bundle is a single draw from a distribution nobody has
+characterised.** Treat detection times as observations, never as properties of a scenario.
+
+The only scenario recorded twice is `cart-bad-image-tag`, and its two runs — same world,
+same `compose_digest`, same `ffs_stub_source_digest`, same fault — measured **197s and
+301s**. A spread of 104 seconds, 53% of the smaller value, on one scenario against an
+unchanged world.
+
+That is wider than any between-scenario difference this catalog reports. Every comparison
+of one scenario's onset against another's is therefore reading noise unless it exceeds
+about two minutes, and none of them do.
+
+**The honest limit: n=2 for one scenario, n=1 for every other.** Two samples cannot
+describe a distribution. We do not know its shape, its spread, or whether 104 seconds is
+typical or an outlier — only that it is wide enough to swamp the differences we had been
+reading meaning into. Nothing here supports a claim about detection latency beyond "it
+varies by at least this much".
+
+Two rules follow, for T4.x and anything else downstream:
+
+- **Do not treat a single recorded detection time as a property of a scenario.** It is what
+  happened once.
+- **Do not compare timings across scenarios without stating `n`.** With n=1 on both sides,
+  a difference of under two minutes carries no information.
+
+This applies to the `seconds_of_steady_state` and `seconds_to_settle` figures too, and to
+the settle-time range in ADR-0009, which rests on three observations of one scenario.
+
 ## The cart discrimination pair
 
 `cart-redis-misconfig` (bad_config, dev) and `cart-bad-image-tag` (bad_deploy, dev) were
@@ -17,7 +47,7 @@ are separable only by change history. Both are now rehearsed, so the claim can b
 | | `cart-redis-misconfig` | `cart-bad-image-tag` |
 |---|---|---|
 | injected | 11:49:47 | 16:07:17 |
-| onset to page | **218s** | **197s** |
+| onset to page | **218s** (n=1) | **197s, then 301s** (n=2) |
 | alerts at fire | 3 | 3 |
 | | `ServiceHighErrorRate/checkoutservice` | *identical* |
 | | `ServiceHighErrorRate/frontend` | *identical* |
@@ -33,9 +63,24 @@ paged by either fault receives the same message.
 **The blast radius is identical.** The same seven services go quiet, for the same 2.5
 minutes, in the same order.
 
-**Onset differs by 21 seconds** — 218s against 197s. That is under two scrape intervals and
-well inside the variance already observed across repeated recordings of a single scenario,
-so it discriminates nothing.
+**Onset-to-page does not discriminate these scenarios, and the data now says so directly
+rather than by assertion.**
+
+An earlier version of this section reported 218s against 197s and called the 21-second gap
+small. `cart-bad-image-tag` has since been re-recorded against the same world and measured
+**301s**. Its own two runs therefore span **104 seconds** — five times the difference
+between the two scenarios, and in the opposite direction from the one the first comparison
+suggested.
+
+| | |
+|---|---|
+| between the two scenarios | 21s (218 vs 197) |
+| within `cart-bad-image-tag` alone | **104s** (197 vs 301) |
+
+Within-scenario variance exceeds the between-scenario difference several times over, so
+onset carries no information about which fault was injected. Only the 301s run is still in
+the tree; the 197s figure survives only in this write-up, which is its own reason not to
+build on it.
 
 ### The only difference in the metrics, and why it does not help
 

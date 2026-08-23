@@ -19,6 +19,46 @@ evals/scenarios/artifacts/<split>/<scenario-id>/
 The path is the quarantine (T1.6): `<split>` is the scenario's own split, and the guard
 tests in `tests/test_contamination.py` fail the build if a bundle lands on the wrong side.
 
+## `superseded/` — manifests from earlier recordings
+
+A re-record replaces `manifest.json`, and the previous one is gone. Every number ever cited
+from it then becomes unverifiable, which has happened three times: ADR-0012 quotes a 567ms
+reading from a replaced bundle, the stub image ids that split the catalog's provenance came
+from manifests no longer in the tree, and CATALOG.md's 197s onset for `cart-bad-image-tag`
+survived for a while only as a sentence in that document.
+
+`--force` now copies the outgoing `manifest.json` to `superseded/<t_inject>.json` before
+writing the new one — `20260823T160717Z.json` for a run injected at 16:07:17Z. A few
+kilobytes per re-record buys a permanent record of every measurement the catalog has ever
+made.
+
+**Manifests only.** Metrics and logs are megabytes and are legitimately disposable; the
+manifest is what prose cites. `clear_bundle` preserves `superseded/` alongside
+`incident.md`, so re-recording does not wipe the archive it just added to.
+
+### The archive is not complete, and cannot be
+
+It begins today. Everything recorded before it exists only if a copy happened to be
+committed, so the archive was backfilled from git history — which recovers a predecessor
+only where one was committed before being replaced.
+
+| Bundle | Archived predecessors |
+|---|---|
+| `cart-redis-misconfig` | **4** — 06:03:51, 06:38:03, 07:40:38, 08:16:35 |
+| `ad-memory-squeeze` | 1 — 08:45:41 |
+| `cart-bad-image-tag` | 1 — 16:07:17 (the 197s onset CATALOG.md cites) |
+| `cart-dependency-latency` | 1 — 08:30:22 |
+| `currency-cpu-throttle`, `flag-service-crashloop`, `product-catalog-flag-failure`, `productcatalog-dependency-latency`, `recommendation-memory-squeeze`, `shipping-wrong-image` | **none** |
+
+The six with none have either never been re-recorded or were re-recorded before the
+predecessor was ever committed. **Absence of an entry is not evidence that a bundle was
+never re-recorded** — several were, and their earlier manifests are simply lost. Read the
+table as "what survives", not as a history.
+
+A guard checks that whatever is in `superseded/` parses, is named for the `t_inject` it
+contains, and does not duplicate the live manifest. It does not require the directory to
+exist.
+
 ## Everything under `artifacts/` is a capture, not source
 
 **No tool in this repo may rewrite a file under `evals/scenarios/artifacts/.`** These are

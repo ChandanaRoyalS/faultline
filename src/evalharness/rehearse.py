@@ -713,19 +713,63 @@ def write_bundle(scenario: Scenario, facts: dict[str, Any], out: Path) -> None:
 HAND_WRITTEN = "incident.md"
 """The one file in a bundle a person wrote. A re-record must never be able to destroy it."""
 
+SUPERSEDED = "superseded"
+"""Manifests from earlier recordings of this bundle, kept so their numbers stay checkable."""
+
+PRESERVED = frozenset({HAND_WRITTEN, SUPERSEDED})
+
+
+def superseded_name(t_inject: str) -> str:
+    """`2026-08-23T18:53:53+00:00` -> `20260823T185353Z.json`.
+
+    Compact because colons and pluses in filenames are legal and unpleasant, and because
+    this matches the naming already used under `evals/baselines/`.
+    """
+    return datetime.fromisoformat(t_inject).strftime("%Y%m%dT%H%M%SZ") + ".json"
+
+
+def archive_manifest(out: Path) -> str | None:
+    """Copy the outgoing manifest into `superseded/` before a re-record overwrites it.
+
+    A re-record replaces manifest.json and the previous one is gone, which retroactively
+    makes every number ever quoted from it unverifiable. That has happened three times:
+    ADR-0012 cites a 567ms reading from a replaced bundle, the stub image ids that split
+    the catalog's provenance came from manifests no longer in the tree, and CATALOG.md's
+    197s onset for cart-bad-image-tag now survives only as a sentence in that document.
+
+    Manifests only. Metrics and logs are megabytes and are legitimately disposable; a
+    manifest is a few kilobytes and is the thing prose cites.
+    """
+    live = out / "manifest.json"
+    if not live.is_file():
+        return None
+    try:
+        t_inject = json.loads(live.read_text())["t_inject"]
+    except (json.JSONDecodeError, KeyError, TypeError):
+        return None
+    archive = out / SUPERSEDED
+    archive.mkdir(exist_ok=True)
+    target = archive / superseded_name(t_inject)
+    target.write_bytes(live.read_bytes())
+    return target.name
+
 
 def clear_bundle(out: Path) -> list[str]:
-    """Empty a bundle before re-recording into it, keeping only the hand-written narrative.
+    """Empty a bundle before re-recording into it, keeping the narrative and the archive.
 
     `--force` used to write over the top of whatever was already there, which is not the
     same as replacing it: a file the recorder no longer produces simply survived. That is
     how a log capture taken under the old, wrong Loki selector ended up sitting next to the
     correct one, both plausible, nothing in the bundle saying which was current. A stale
     artifact that looks like evidence is worse than a missing one.
+
+    Two exceptions. `incident.md` is the one file a person wrote. `superseded/` holds the
+    manifests of earlier recordings, and wiping it on every re-record would defeat the
+    point of keeping them.
     """
     removed: list[str] = []
     for entry in sorted(out.iterdir()):
-        if entry.name == HAND_WRITTEN:
+        if entry.name in PRESERVED:
             continue
         if entry.is_dir():
             shutil.rmtree(entry)
@@ -838,6 +882,9 @@ def rehearse(
     }
 
     if out.exists() and any(out.iterdir()):
+        archived = archive_manifest(out)
+        if archived:
+            print(f"  archived the previous manifest to {SUPERSEDED}/{archived}")
         removed = clear_bundle(out)
         if removed:
             print(f"  replacing {len(removed)} file(s) from the previous recording")
