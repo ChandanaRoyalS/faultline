@@ -1,0 +1,34 @@
+# bad_config-1 (dev) - see SPLIT.md. Slot allocated before authoring; do not move.
+id: cart-redis-misconfig
+title: Cart service pointed at the wrong Redis port
+fault_class: bad_config
+split: dev
+injection:
+  target: cartservice
+  method: cart-redis-misconfig
+  params:
+    env_var: "REDIS_ADDR"
+    value: "redis-cart:6380"
+ground_truth:
+  root_cause: >
+    The cart service's REDIS_ADDR was set to redis-cart:6380. The host is right and the
+    port is wrong, so every cart operation fails to reach a Redis that is up and healthy
+    and serving on its real port.
+  category: bad_config
+expected_evidence:
+  - metrics: cartservice error ratio steps up at onset and holds - a plateau, not a
+      degradation, because every attempt fails the same way
+  - logs: connection refused against redis-cart on port 6380, naming both the dependency
+      and the port it could not reach
+  - metrics: Redis itself is up, serving its other client, and shows no error or latency
+      change - the dependency is healthy and only one caller cannot reach it
+  - traces: cart's spans fail at the point of the Redis call; nothing upstream of cart is
+      the origin
+  - container: cartservice was recreated at onset and is running normally otherwise - it
+      is not crashing, restarting, or resource-constrained
+  - change: one environment variable on cartservice differs from the world's declared
+      value, and the change coincides exactly with onset
+  - discriminator: the failure is total and immediate rather than load-dependent, which
+      separates a wrong address from a saturated connection pool or an overloaded Redis
+expected_remediation_class: config_revert
+rehearsed: false

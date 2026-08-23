@@ -1,0 +1,43 @@
+# dependency_latency-1 (dev) - see SPLIT.md. Slot allocated before authoring; do not move.
+id: cart-dependency-latency
+title: Cart service network path acquires 300ms of delay
+fault_class: dependency_latency
+split: dev
+injection:
+  target: cart-service
+  method: cart-dependency-latency
+  params:
+    delay_ms: 300
+    jitter_ms: 0
+    duration: "1h"
+    interface: "eth0"
+ground_truth:
+  root_cause: >
+    A 300ms netem delay was applied to the cart service container's network interface.
+    Every call in and out of cart pays it, so checkout and the storefront slow down while
+    nothing returns an error.
+  category: dependency_latency
+expected_evidence:
+  - alerts: ServiceHighLatency, with no accompanying error-rate alert - the incident is
+      entirely a latency incident
+  - metrics: cartservice p95 rises by roughly the injected delay against a baseline in the
+      single-digit milliseconds, and the increase is a step at onset rather than a ramp
+  - metrics: cart's error ratio stays at zero throughout; requests are slow, not failing
+  - traces: the added time sits in the network gap between caller span start and cart
+      server span start, not inside cart's own handler duration
+  - metrics: callers slow by approximately cart's added latency and no more, which places
+      the origin at cart rather than at something cart depends on
+  - change: no deploy, image change, configuration change, or traffic increase at onset -
+      the latency appears against an otherwise unchanged system
+  - discriminator: cart's own CPU, memory and Redis latency are all normal, ruling out
+      resource exhaustion and a slow dependency underneath cart
+# PROVISIONAL pending rehearsal. `restart` is correct only if recreating the target
+# container durably clears the delay. The delay is held by a pumba sidecar with
+# duration=1h; if that sidecar survives the restart and reapplies netem to the new
+# container, the honest label is `rollback` - an unauthorized container was deployed,
+# and the fix is to remove it.
+# Resolve here, during this scenario's rehearsal: restart the target mid-fault and
+# watch p95. Recovers and stays recovered -> restart. Recovers and degrades again, or
+# never recovers -> rollback, and dependency_latency-2 changes with it.
+expected_remediation_class: restart
+rehearsed: false

@@ -1,0 +1,33 @@
+# resource_exhaustion-2 (dev) - see SPLIT.md. Slot allocated before authoring; do not move.
+id: currency-cpu-throttle
+title: Currency service starved of CPU quota, slowing every priced page
+fault_class: resource_exhaustion
+split: dev
+injection:
+  target: currencyservice
+  method: currency-cpu-throttle
+  params:
+    cpus: "0.05"
+ground_truth:
+  root_cause: >
+    The currency service's CPU quota was cut to 0.05 CPU. It exhausts its slice within
+    most scheduling periods and stalls until the next one, so conversions queue and every
+    page that prices anything slows down, without any request failing.
+  category: resource_exhaustion
+expected_evidence:
+  - alerts: ServiceHighLatency without an error-rate alert
+  - metrics: CPU throttling counters on the currency container rising continuously -
+      throttled periods as a fraction of total periods is the direct measurement, and it
+      distinguishes a quota problem from mere busyness
+  - metrics: currency CPU usage sits flat against its quota rather than fluctuating with
+      load, which is what a ceiling looks like as opposed to a workload
+  - metrics: the container's configured CPU limit is lower than it was before onset
+  - traces: the added time is inside currency's own handler, not in the network gap before
+      it - which separates this from a dependency-latency fault on the same service
+  - metrics: latency scales with request concurrency, since work is queuing behind a fixed
+      slice rather than each request independently taking longer
+  - metrics: currency's memory is unremarkable, and it has no downstream dependency to
+      blame
+  - change: no deploy or code change; the container's resource limit changed
+expected_remediation_class: config_revert
+rehearsed: false

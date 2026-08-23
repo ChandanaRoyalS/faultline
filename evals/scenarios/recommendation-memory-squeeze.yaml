@@ -1,0 +1,33 @@
+# resource_exhaustion-3 (HOLDOUT) - see SPLIT.md. Nothing may be tuned against this scenario.
+id: recommendation-memory-squeeze
+title: Recommendation service memory limit cut below its working set
+fault_class: resource_exhaustion
+split: holdout
+injection:
+  target: recommendation-service
+  method: recommendation-memory-squeeze
+  params:
+    memory: "48m"
+ground_truth:
+  root_cause: >
+    The recommendation service container's memory limit was lowered to 48m, below its
+    steady-state working set. The kernel OOM-kills it repeatedly, the restart policy
+    brings it back, and the storefront loses recommendations during each gap.
+  category: resource_exhaustion
+expected_evidence:
+  - container: recommendation-service exit code 137 with an OOMKilled termination reason
+  - metrics: memory usage pinned at the container limit for the whole window, with no
+      headroom at any sample
+  - container: repeated restarts within minutes of each other, each one following the
+      memory ceiling being reached
+  - metrics: the container's memory limit is lower than it was before onset, and the
+      working set did not grow to meet it - the ceiling came down to the workload
+  - logs: the process produces no error of its own before each termination
+  - metrics: the frontend sees gaps rather than a steady error rate, because the service
+      is available between kills
+  - change: no deploy, image change, or configuration change to the service itself
+  - discriminator: a memory leak would show usage climbing toward the limit over the
+      window; here usage is flat and the limit is what moved, which is the distinction
+      between this and a genuine runaway
+expected_remediation_class: config_revert
+rehearsed: false

@@ -1,0 +1,35 @@
+# resource_exhaustion-1 (dev) - see SPLIT.md. Slot allocated before authoring; do not move.
+id: ad-memory-squeeze
+title: Ad service memory limit cut below the working set its JVM was sized for
+fault_class: resource_exhaustion
+split: dev
+injection:
+  target: ad-service
+  method: ad-memory-squeeze
+  params:
+    memory: "256m"
+ground_truth:
+  root_cause: >
+    The ad service container's memory limit was lowered to 256m, below the working set of
+    a JVM that had already sized its heap against the previous, much larger ceiling. The
+    kernel OOM-kills the container and the restart policy brings it back, so ads
+    disappear from the storefront in bursts while every other service is healthy.
+  category: resource_exhaustion
+expected_evidence:
+  - container: ad-service exit code 137 and an OOMKilled termination reason - the kernel
+      naming the cause directly, which no other fault class produces
+  - metrics: container memory usage pinned at its limit immediately before each kill,
+      with the limit itself lower than it was before onset
+  - container: restart count climbing, each restart preceded by the memory ceiling being
+      reached rather than by any error in the application
+  - logs: no application-level error before the kill - the process is terminated from
+      outside, so its last log line is ordinary work
+  - metrics: the blast radius is confined to the ad panel; checkout, cart and catalog are
+      unaffected, which places this on a leaf service rather than on a shared dependency
+  - change: no deploy and no image change - the container's resource limit changed, and
+      nothing about the code running inside it did
+  - discriminator: the JVM's heap was sized for the old ceiling, so heap usage looks
+      normal from inside the process while the container is being killed from outside;
+      application memory metrics alone will not explain this
+expected_remediation_class: config_revert
+rehearsed: false
