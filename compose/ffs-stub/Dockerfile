@@ -6,5 +6,10 @@ WORKDIR /app
 RUN pip install --no-cache-dir grpcio==1.62.2 grpcio-tools==1.62.2
 COPY demo.proto .
 RUN python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. demo.proto
-COPY server.py .
+# T1.4 builds a faulty variant of this image (:broken) by pointing SERVER at
+# server_broken.py. One Dockerfile and one generated stub keep the healthy and
+# faulty builds identical in everything except the injected regression - so a
+# bad_deploy scenario blames the deploy, not an incidental image difference.
+ARG SERVER=server.py
+COPY ${SERVER} ./server.py
 CMD ["python", "server.py"]
