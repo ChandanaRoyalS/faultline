@@ -351,16 +351,33 @@ def test_every_bundle_records_what_produced_it_and_against_what() -> None:
 
 
 def test_bundles_agree_about_the_world_they_were_recorded_against() -> None:
-    """The catalog's claim is ten scenarios measured under the same conditions."""
+    """The catalog's claim is that its scenarios were measured under the same conditions.
+
+    Invalidated bundles are skipped, and this is a scoping decision rather than a
+    loophole. A bundle with an INVALID.md makes no claim about anything: it is the record
+    of a failed attempt, it is never seeded into a corpus, and no number is ever read out
+    of it. Requiring a record of a failure to be consistent with the measurements is
+    asking the wrong question of it - and answering it would mean either re-recording a
+    capture nobody will use, or deleting the evidence of why the attempt failed.
+
+    The guard's actual claim is unweakened: **any two VALID bundles that disagree still
+    fail.** If a valid bundle is ever recorded against a different world image, this
+    catches it, which is the case that would corrupt a comparison.
+    """
     seen: dict[str, list[str]] = {}
+    skipped: list[str] = []
     for bundle in bundles():
+        if (bundle / "INVALID.md").is_file():
+            skipped.append(bundle.name)
+            continue
         world = manifest_of(bundle).get("world", {})
         key = f"{world.get('otel_demo_image')} | {world.get('ffs_stub_image_id')}"
         seen.setdefault(key, []).append(bundle.name)
 
     assert len(seen) <= 1, (
-        "bundles were recorded against different worlds, so their numbers are not "
+        "valid bundles were recorded against different worlds, so their numbers are not "
         f"comparable: {json.dumps(seen, indent=2)}"
+        + (f"\n(invalidated bundles skipped: {sorted(skipped)})" if skipped else "")
     )
 
 
