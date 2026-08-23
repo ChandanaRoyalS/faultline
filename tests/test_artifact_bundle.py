@@ -331,8 +331,10 @@ def test_every_bundle_declares_the_current_schema_version() -> None:
         found = manifest_of(bundle).get("bundle_schema_version")
         assert found == BUNDLE_SCHEMA_VERSION, (
             f"{bundle.name}: bundle_schema_version is {found!r}, current is "
-            f"{BUNDLE_SCHEMA_VERSION}. Re-record it - the guards compare bundles against "
-            "each other, and a catalog recorded by two recorders is not one measurement."
+            f"{BUNDLE_SCHEMA_VERSION}. This bundle predates the v1 -> v2 bump (ADR-0014) "
+            "and must be re-recorded. Do not backfill the new fields into it: v1 bundles "
+            "were recorded under the old container memory limits, so they describe a "
+            "genuinely different world and a backfilled digest would be a false claim."
         )
 
 
@@ -348,6 +350,14 @@ def test_every_bundle_records_what_produced_it_and_against_what() -> None:
         )
         for field in ("otel_demo_image", "ffs_stub_image_id", "docker_arch"):
             assert field in world, f"{bundle.name}: world provenance is missing {field}"
+        # v2: the two content digests are what actually identify a world, so unlike the
+        # observations above they may not be null.
+        for field in ("compose_digest", "ffs_stub_source_digest"):
+            assert world.get(field), (
+                f"{bundle.name}: world provenance has no {field}. Without it there is no "
+                "way to tell whether this bundle was recorded against the same world as "
+                "any other."
+            )
 
 
 def test_bundles_agree_about_the_world_they_were_recorded_against() -> None:
@@ -371,7 +381,15 @@ def test_bundles_agree_about_the_world_they_were_recorded_against() -> None:
             skipped.append(bundle.name)
             continue
         world = manifest_of(bundle).get("world", {})
-        key = f"{world.get('otel_demo_image')} | {world.get('ffs_stub_image_id')}"
+        # Content digests, not the image id. An image id is a build artifact: it changed
+        # overnight from identical source when a rebuild re-resolved a pip layer, so
+        # comparing it reports differences that are not differences. compose_digest and
+        # ffs_stub_source_digest are reproducible from the repository and move only when
+        # the world's definition moves.
+        key = (
+            f"compose={world.get('compose_digest')} | "
+            f"stub_source={world.get('ffs_stub_source_digest')}"
+        )
         seen.setdefault(key, []).append(bundle.name)
 
     assert len(seen) <= 1, (

@@ -42,8 +42,22 @@ world/.cloned:
 
 COMPOSE_WORLD := docker compose --progress plain -f docker-compose.yml -f ../compose/world-arm64.override.yml -f ../compose/telemetry.yml
 
+# Rebuild the stub only when its source changes. An unconditional build re-resolves the
+# pip layer and produces a new image id from identical code, which silently changes the
+# world between two rehearsals - it did, and it split the catalog's provenance in half.
+# The digest comes from evalharness.provenance so the stamp and the manifest field are
+# computed by one function and cannot drift.
+FFS_STUB_STAMP := .faultline/ffs-stub.digest
+
 ffs-stub:
-	docker build -t faultline/ffs-stub:1 compose/ffs-stub
+	@mkdir -p $(dir $(FFS_STUB_STAMP))
+	@digest=$$(uv run python -c 'from evalharness.provenance import ffs_stub_source_digest; print(ffs_stub_source_digest())'); \
+	if [ "$$digest" = "$$(cat $(FFS_STUB_STAMP) 2>/dev/null)" ] \
+	   && docker image inspect faultline/ffs-stub:1 >/dev/null 2>&1; then \
+		echo "ffs-stub:1 already built from this source ($${digest})"; \
+	else \
+		docker build -t faultline/ffs-stub:1 compose/ffs-stub && printf '%s' "$$digest" > $(FFS_STUB_STAMP); \
+	fi
 
 world-up: world/.cloned ffs-stub
 	cd world && $(COMPOSE_WORLD) up -d --no-build

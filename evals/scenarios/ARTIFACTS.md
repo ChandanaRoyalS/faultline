@@ -138,12 +138,46 @@ Written by the recorder. Required keys:
 | `injection` | target, method, params — exactly what was run |
 | `t_inject`, `t_alert_firing`, `t_revert`, `t_clear` | UTC timestamps |
 | `seconds_to_alert` | detection latency; `null` if no alert fired |
+| `bundle_schema_version` | **2** — see ADR-0014. A v1 bundle fails the guards and must be re-recorded |
+| `world.compose_digest` | sha256 over the three layered compose files, in load order |
+| `world.ffs_stub_source_digest` | sha256 over `compose/ffs-stub/`, sorted by filename |
+| `world.ffs_stub_image_id` | informational only — a build artifact, never compared between bundles |
 | `alerts_at_fire` | what was firing at that moment — the page a responder would have got |
 | `alerts_over_window` | every firing episode across the incident, with first/last seen |
 | `window` | the span the metric captures cover |
 
 A bundle whose `seconds_to_alert` is `null` is not necessarily wrong — some faults are
 meant to be quiet — but it needs a note in `incident.md` saying so deliberately.
+
+### What identifies a world (schema v2)
+
+Two fields answer "was this recorded against the same world as that", and they are the only
+two compared between bundles:
+
+- **`compose_digest`** — sha256 over `world/docker-compose.yml`,
+  `compose/world-arm64.override.yml` and `compose/telemetry.yml`, concatenated in the order
+  compose layers them. Every container's limits, image and environment are in those files,
+  so an edit to any of them is a different world. Raising kafka's memory limit changed the
+  world and no v1 manifest could show it.
+- **`ffs_stub_source_digest`** — sha256 over everything in `compose/ffs-stub/`, sorted by
+  filename. The stub's source, not its image.
+
+**`ffs_stub_image_id` is kept but is informational.** It is a build artifact: it changed
+overnight from unchanged source when `make world-up` rebuilt the image and re-resolved a
+pip layer. Comparing it reported a difference that was not one. `make ffs-stub` now stamps
+the source digest and rebuilds only when it changes, so the image is stable — but the guard
+still does not compare it, because the guard should not depend on that discipline holding.
+
+### The three existing valid bundles are stale by design
+
+`ad-memory-squeeze`, `cart-dependency-latency` and `cart-redis-misconfig` are v1 and now
+fail two guards each. **This is the intended state, not a break to work around.** They are
+queued for re-record.
+
+Do not backfill the new digests into them. Beyond ARTIFACTS.md's rule that captures are
+never rewritten, a backfilled digest would be *false*: those three were recorded under the
+old container memory limits (kafka 1200M, paymentservice 200M, quoteservice 120M), so they
+genuinely describe a different world from the one a digest computed today would name.
 
 ### The two alert fields have different shapes
 
