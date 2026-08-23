@@ -2,6 +2,7 @@
 origin: scenario:cart-dependency-latency
 split: dev
 fault_class: dependency_latency
+recorded_from: 2026-08-23T08:30:22+00:00
 onset_to_page: 3m30s
 page_to_fix: 5m00s
 fix_to_all_clear: 2m01s

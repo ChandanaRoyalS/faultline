@@ -335,12 +335,21 @@ def offset(moment: str | None, anchor: str | None) -> str:
 
 
 def duration(seconds: Any) -> str:
+    """Seconds as `2m46s`. The single formatter for every duration in a bundle.
+
+    Used by the incident.md front matter and by the guard that checks it
+    (tests/test_artifact_bundle.py). One function on purpose: if the template and the
+    check formatted independently they would drift, and the guard would start failing on
+    narratives that are perfectly correct.
+
+    Seconds are always shown once there is a minute, so an exact five minutes is `5m00s`
+    and never `5m`. Two spellings of the same duration is one more thing a comparison can
+    trip over for no reason.
+    """
     if not isinstance(seconds, int):
         return "?"
     minutes, rest = divmod(seconds, 60)
-    if minutes and rest:
-        return f"{minutes}m{rest:02d}s"
-    return f"{minutes}m" if minutes else f"{rest}s"
+    return f"{minutes}m{rest:02d}s" if minutes else f"{rest}s"
 
 
 def alert_evolution(facts: dict[str, Any]) -> str:
@@ -426,6 +435,7 @@ def incident_template(scenario: Scenario, facts: dict[str, Any]) -> str:
 origin: scenario:{scenario.id}
 split: {scenario.split.value}
 fault_class: {scenario.fault_class.value}
+recorded_from: {facts["t_inject"]}
 onset_to_page: {to_page}
 page_to_fix: {held}
 fix_to_all_clear: {settled}
@@ -433,10 +443,16 @@ fix_to_all_clear: {settled}
 
 # {scenario.title}
 
-<!-- NO ABSOLUTE TIMESTAMPS ANYWHERE IN THIS FILE. Write "T+3m" or "about four minutes
-     after the page", never "08:02:41". The manifest holds the wall clock; this file is
-     read months later as a past incident, where the hour it happened means nothing - and
-     a re-record would orphan every timestamp written here. -->
+<!-- NO ABSOLUTE TIMESTAMPS IN THE PROSE. Write "T+3m" or "about four minutes after
+     the page", never "08:02:41". This file is read months later as a past incident,
+     where the hour it happened means nothing - and a re-record would orphan every
+     timestamp written here.
+
+     `recorded_from` in the front matter above is the deliberate exception. It is
+     absolute precisely so that it breaks when the recording changes: it pins this
+     narrative to one recording, and a guard fails if they drift apart. Front matter
+     is written to fail on a re-record; prose is written to survive one. Do not
+     "fix" the inconsistency - see ARTIFACTS.md. -->
 
 ## What was observed
 

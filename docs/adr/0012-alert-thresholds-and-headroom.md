@@ -31,7 +31,7 @@ samples above the 5% threshold. An earlier reading of emailservice at 4.77% was 
 averaging artifact of a contaminated window — its only non-zero samples were an injected
 incident's recovery phase. No change warranted.
 
-## Decision: ServiceHighLatency has ~75s of headroom on cartservice, and stays as it is
+## Decision: ServiceHighLatency has ~75s of headroom on cartservice, and stays as it is [see corrections below]
 
 `cartservice` p95 is **bimodal**: mean 22ms, but with excursions to 353ms and nothing
 injected. One such excursion in 29 minutes, lasting **105 seconds** — against a 180-second
@@ -112,6 +112,83 @@ Not implemented here.
 The underlying question - what makes cartservice do this under emulation - is unanswered
 and now worth answering, because it is contaminating an eval scenario rather than merely
 sitting near a threshold.
+
+## Second correction (2026-08-23, later the same day): the first correction was also wrong
+
+The section above is left in place unedited. Both it and the original claim are wrong, in
+opposite directions, and the record of that is worth more than a clean document.
+
+### 1. The evidence it rests on is no longer in the repository
+
+The correction cites `cartservice` reaching **567ms unfaulted**, quoted from a
+`cart-redis-misconfig` recording. That bundle has since been re-recorded; the committed
+one peaks at **2ms** in its pre-injection window. Nothing in the tree supports 567ms.
+
+The observation was real when made. It is now unverifiable, because a re-record replaced
+the artifact it came from — an ADR citing a bundle by its contents rather than by a
+checksum has no way to notice this. See ADR-0009 on `scenario_fingerprint`: bundles can
+now be tied to labels, but prose citing a bundle still cannot.
+
+### 2. It attributed a fired alert to a cause that was not acting alone
+
+The correction states that a healthy excursion "crossed 180s continuous and fired." It did
+not. The excursion began at **07:52:24**. The fault was injected at **07:53:39** — 75
+seconds in. What crossed the clause was the excursion *plus the injected fault*, and the
+conclusion drawn was that unfaulted behaviour alone was sufficient to fire the alert.
+
+**This is a confounding error**, and naming it plainly matters: a signal was attributed to
+one cause while a second, larger cause was acting on the same service in the same window.
+It is precisely the reasoning failure this benchmark exists to measure — an investigator
+seeing elevated latency and concluding "the world does this on its own" while a fault is
+active is exactly the wrong answer `cart-dependency-latency` is designed to catch. The
+author of the scenario made it while writing the ADR about the scenario.
+
+### 3. Corrected figures, from all committed unfaulted data
+
+Coverage counted by samples (177 × 15s), not by elapsed span:
+
+| | Unfaulted | Under fault |
+|---|---|---|
+| coverage | 44.2 min | 8.5 min |
+| peak p95 | **353ms** | **663ms** |
+| longest run above 250ms | **105s** (58% of the clause) | **600s** (3.3× the clause) |
+
+Sources: 29.2 min from the recovered quiet spans of the invalidated baseline, plus 5.0 min
+of pre-injection window from each of the three committed bundles.
+
+**Separation: 5.7× on duration, 1.9× on magnitude.** No unfaulted excursion in any
+committed data has fired, or come within 75 seconds of firing.
+
+### The decision does not change — and the argument for it is now stronger
+
+The rule is still not tuned. The reason has improved rather than weakened: the first
+correction argued against tuning while claiming the hazard was severe (a firing
+false positive), which is the case where tuning is most tempting. With the hazard
+measured at 58% of the clause and never firing, there is no pressure to tune at all.
+
+That is worth flagging on its own. **This ADR's evidence was wrong in the direction of its
+own conclusion** — it overstated the danger while recommending no action, so the error was
+invisible from the recommendation. An ADR that reaches the right decision from wrong
+evidence is not self-correcting: nothing downstream misbehaves, so nobody looks. It was
+caught only because the numbers were re-derived from committed data on request.
+
+`cart-dependency-latency` is **separable** on present evidence, contrary to the first
+correction's claim that it "loses most of its separation." It should be treated as sound
+unless a longer baseline says otherwise.
+
+### The measurement defect that produced the overstatement
+
+Unfaulted coverage was first reported as 59.2 minutes. It is 44.2. The script computed
+coverage as last-sample-minus-first, which for the baseline series spans the **16-minute
+contaminated gap that had been explicitly excluded from the analysis** — the exclusion was
+applied to the samples and not to the span calculation. Coverage was overstated by 34%
+while the surrounding argument was about whether the sample was too thin to trust.
+
+Same shape as every other defect in this project, and ADR-0009 names the class: a number
+that looks like evidence and is not. It was not a wrong measurement of the world; it was a
+correct measurement of the wrong thing, reported without a unit anyone would question.
+Sample counts are now used instead of spans, because a sample count cannot silently
+include time that was excluded.
 
 ## Consequences
 

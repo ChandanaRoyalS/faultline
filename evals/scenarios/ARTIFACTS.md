@@ -19,6 +19,25 @@ evals/scenarios/artifacts/<split>/<scenario-id>/
 The path is the quarantine (T1.6): `<split>` is the scenario's own split, and the guard
 tests in `tests/test_contamination.py` fail the build if a bundle lands on the wrong side.
 
+## Everything under `artifacts/` is a capture, not source
+
+**No tool in this repo may rewrite a file under `evals/scenarios/artifacts/.`** These are
+logs and metric series pulled straight from the running world; their value is that they are
+exactly what the system produced. A formatter that strips a trailing space from a container
+log, or reflows a metric JSON, makes the committed bundle a rendering of the capture rather
+than the capture — and nothing afterwards can tell the difference.
+
+`.pre-commit-config.yaml` therefore excludes this tree from `trailing-whitespace` and
+`end-of-file-fixer`. The read-only hooks still apply and should stay: `check-yaml`,
+`check-json`, `check-added-large-files` and `detect-private-key` guard the tree without
+touching it.
+
+The one exception is `incident.md`, which is written by hand rather than captured — but it
+lives under the same path and is excluded by the same rule, which costs nothing.
+
+If a capture needs to change, re-record it. Editing one in place produces an artifact that
+claims to be evidence and is not, which is the failure ADR-0009 is built around.
+
 ## Recording one
 
 ```
@@ -52,8 +71,8 @@ irrelevant before finding the one that matters. Those wrong turns are the most u
 thing in the document — they are what makes a retrieved incident a piece of experience
 rather than a lookup table. Delete them and you have written a spoiler.
 
-**No absolute timestamps. Ever.** Write `T+3m`, "about four minutes after the page", "once
-cart stopped serving" — never `08:02:41`. Two reasons, and both are load-bearing:
+**No absolute timestamps in the prose.** Write `T+3m`, "about four minutes after the page",
+"once cart stopped serving" — never `08:02:41`. Two reasons, and both are load-bearing:
 
 - *A re-record orphans them.* Wall-clock times belong to one recording. Two bundles needed
   re-recording in a single evening, and every timestamp written into a narrative would
@@ -69,6 +88,43 @@ cart stopped serving" — never `08:02:41`. Two reasons, and both are load-beari
 The generated template already renders its tables this way — offsets from onset for the
 page, offsets from the page for everything after. Match it in the prose.
 
+### The front matter does the opposite, on purpose
+
+`recorded_from` in the front matter is an **absolute** timestamp, copied verbatim from the
+manifest's `t_inject`. This looks like a contradiction of the rule above. It is the point.
+
+| | written to | so that |
+|---|---|---|
+| prose | **survive** a re-record | a narrative is not silently orphaned by one |
+| `recorded_from` | **fail** on a re-record | a narrative cannot silently outlive one |
+
+A re-record changes `t_inject`. `test_every_narrative_names_the_recording_it_describes`
+compares the two and fails the build the moment they diverge, which is exactly when the
+prose has stopped describing the bundle beside it. Without it a stale narrative sits green
+over facts that no longer hold — that happened, and it was caught by eye rather than by a
+test.
+
+`onset_to_page` is guarded the same way against `seconds_to_alert`. Both the template and
+the guard format durations through `evalharness.rehearse.duration`, one function, so the
+check cannot start failing on narratives that are perfectly correct.
+
+**Do not "fix" the inconsistency.** Removing the absolute timestamp from the front matter
+would remove the only thing tying a narrative to its recording.
+
+### Known limitation: prose outside `incident.md` is unguarded
+
+This closes the gap for narratives only. **ADR prose citing bundle contents is still
+unchecked**, and it has already gone wrong: ADR-0012 quotes a `cartservice` figure of 567ms
+from a `cart-redis-misconfig` recording that has since been replaced, and nothing in the
+repository noticed. The committed bundle now peaks at 2ms in the same window.
+
+There is no `recorded_from` equivalent for a paragraph in `docs/adr/`. A checksum would
+need every citation to name the bundle and the field it came from, which is a bigger change
+than the problem currently justifies. Until then: **an ADR quoting bundle numbers is
+quoting a snapshot, and a re-record can invalidate it silently.** Date such claims and say
+which recording they came from, so a reader can at least tell that the recording has moved
+on.
+
 Never mention the injector, the scenario id, or the fault class inside the prose.
 
 ## manifest.json
@@ -82,11 +138,39 @@ Written by the recorder. Required keys:
 | `injection` | target, method, params — exactly what was run |
 | `t_inject`, `t_alert_firing`, `t_revert`, `t_clear` | UTC timestamps |
 | `seconds_to_alert` | detection latency; `null` if no alert fired |
-| `alerts_at_fire` | every `alertname/service` firing at that moment |
+| `alerts_at_fire` | what was firing at that moment — the page a responder would have got |
+| `alerts_over_window` | every firing episode across the incident, with first/last seen |
 | `window` | the span the metric captures cover |
 
 A bundle whose `seconds_to_alert` is `null` is not necessarily wrong — some faults are
 meant to be quiet — but it needs a note in `incident.md` saying so deliberately.
+
+### The two alert fields have different shapes
+
+This is a wart. `alerts_at_fire` is a flat list of **strings**; `alerts_over_window` is a
+list of **objects**. Reading one as though it were the other raises
+`AttributeError: 'str' object has no attribute 'get'`, which has already caught one
+ad-hoc query.
+
+```python
+paged = {a.split("/")[0] for a in m["alerts_at_fire"]}            # "ServiceHighErrorRate/frontend"
+grew  = {(e["alert"], e["service"]) for e in m["alerts_over_window"]}   # {"alert": ..., "service": ...}
+```
+
+**It is not being fixed, deliberately.** Nothing downstream loses information to it: both
+fields carry the alert name and the service, and every consumer reads one or the other
+rather than merging them. The shapes differ because they were added at different times for
+different questions — `alerts_at_fire` is a snapshot the recorder already had in hand,
+`alerts_over_window` is derived from the captured series and needs per-episode timestamps
+a string cannot hold.
+
+Normalising them would change the manifest shape, which means bumping
+`bundle_schema_version` from 1 to 2, which obsoletes every bundle recorded before the bump.
+At ~20 minutes per scenario, serial because they share one world, that is roughly three
+hours of re-recording to make two field shapes match. ADR-0009 sets the bar for a bump at
+*a field a downstream phase cannot work without and cannot derive from what is captured* —
+cosmetic consistency is explicitly below it. An awkward field shape that works is cheaper
+than three hours.
 
 ## Marking a scenario rehearsed
 

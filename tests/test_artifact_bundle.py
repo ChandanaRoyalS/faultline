@@ -17,6 +17,7 @@ import yaml
 
 from evalharness.prom import PROMETHEUS, alert_intervals, get_json
 from evalharness.provenance import BUNDLE_SCHEMA_VERSION, scenario_fingerprint
+from evalharness.rehearse import duration
 from evalharness.scenario import Scenario, Split
 from injector.world import SERVICE_CONTAINERS
 
@@ -459,4 +460,67 @@ def test_no_bundle_alerts_faster_than_its_own_rule_permits() -> None:
             "fault - its condition was already true before the injection, so this bundle "
             "was timed against an incident already in progress. Re-record it on a world "
             "that is genuinely quiet."
+        )
+
+
+# --- a narrative must belong to the recording it sits beside -----------------
+
+
+def front_matter(bundle: Path) -> dict[str, Any] | None:
+    """The YAML block at the top of incident.md, or None if there is no narrative."""
+    incident = bundle / "incident.md"
+    if not incident.is_file():
+        return None
+    parts = incident.read_text().split("---", 2)
+    if len(parts) < 3:
+        return None
+    loaded = yaml.safe_load(parts[1])
+    return loaded if isinstance(loaded, dict) else None
+
+
+def as_instant(value: Any) -> datetime:
+    return value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
+
+
+def test_every_narrative_names_the_recording_it_describes() -> None:
+    """`recorded_from` pins prose to one recording, and a re-record moves t_inject.
+
+    Deliberately the one absolute timestamp allowed near a narrative. The prose is written
+    in relative time so a re-record cannot orphan it; this field is written in absolute
+    time so a re-record *does* break it. Without it a stale narrative sits green over
+    facts that stopped describing it - which happened, and was caught by eye rather than
+    by a test.
+    """
+    for bundle in bundles():
+        matter = front_matter(bundle)
+        if matter is None:
+            continue
+        recorded = matter.get("recorded_from")
+        assert recorded is not None, (
+            f"{bundle.name}: incident.md front matter has no `recorded_from`, so nothing "
+            "ties this narrative to a recording."
+        )
+        expected = manifest_of(bundle)["t_inject"]
+        # Compared as instants, not strings: YAML turns an unquoted ISO timestamp into a
+        # datetime, so the two sides spell the same moment differently. The question is
+        # whether the narrative belongs to this recording, not how the date was written.
+        assert as_instant(recorded) == as_instant(expected), (
+            f"{bundle.name}: incident.md says it was written from a recording at "
+            f"{recorded}, but the bundle beside it was recorded at {expected}. The "
+            "narrative describes an incident this bundle no longer contains - rewrite it "
+            "against the current recording, or restore the recording it was written from."
+        )
+
+
+def test_narrative_front_matter_durations_match_the_manifest() -> None:
+    """Same formatter on both sides (evalharness.rehearse.duration), so they cannot drift."""
+    for bundle in bundles():
+        matter = front_matter(bundle)
+        if matter is None:
+            continue
+        recorded = matter.get("onset_to_page")
+        expected = duration(manifest_of(bundle).get("seconds_to_alert"))
+        assert str(recorded) == expected, (
+            f"{bundle.name}: front matter says onset_to_page={recorded}, but the manifest's "
+            f"seconds_to_alert formats to {expected}."
         )

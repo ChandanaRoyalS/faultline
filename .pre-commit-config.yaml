@@ -4,8 +4,18 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
+      # Rehearsal bundles are captures, not source. A formatting hook that strips a
+      # trailing space from a container log or reflows a metric JSON makes the committed
+      # bundle something other than what the world produced, and the whole point of the
+      # artifact tree is that it is a faithful record. See evals/scenarios/ARTIFACTS.md.
+      #
+      # Only the rewriting hooks are excluded. check-yaml, check-json,
+      # check-added-large-files and detect-private-key still apply: they read and never
+      # write, and they are exactly the guards this tree should keep.
       - id: trailing-whitespace
+        exclude: ^evals/scenarios/artifacts/
       - id: end-of-file-fixer
+        exclude: ^evals/scenarios/artifacts/
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
