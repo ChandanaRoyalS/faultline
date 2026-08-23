@@ -71,9 +71,9 @@ def test_split_allocation_is_not_exceeded() -> None:
             f"{fault_class}: {dev} dev scenarios authored, {dev_slots} slots allocated. "
             "Splits are committed before authoring (ADR-0008) - do not widen the table."
         )
-        assert (
-            holdout <= holdout_slots
-        ), f"{fault_class}: {holdout} holdout scenarios authored, {holdout_slots} slots allocated."
+        assert holdout <= holdout_slots, (
+            f"{fault_class}: {holdout} holdout scenarios authored, {holdout_slots} slots allocated."
+        )
 
 
 def test_full_classes_match_allocation_exactly() -> None:
