@@ -25,6 +25,7 @@ from __future__ import annotations
 import argparse
 import io
 import json
+import shutil
 import subprocess
 import sys
 import time
@@ -401,15 +402,46 @@ def write_bundle(scenario: Scenario, facts: dict[str, Any], out: Path) -> None:
         incident.write_text(incident_template(scenario, facts))
 
 
+HAND_WRITTEN = "incident.md"
+"""The one file in a bundle a person wrote. A re-record must never be able to destroy it."""
+
+
+def clear_bundle(out: Path) -> list[str]:
+    """Empty a bundle before re-recording into it, keeping only the hand-written narrative.
+
+    `--force` used to write over the top of whatever was already there, which is not the
+    same as replacing it: a file the recorder no longer produces simply survived. That is
+    how a log capture taken under the old, wrong Loki selector ended up sitting next to the
+    correct one, both plausible, nothing in the bundle saying which was current. A stale
+    artifact that looks like evidence is worse than a missing one.
+    """
+    removed: list[str] = []
+    for entry in sorted(out.iterdir()):
+        if entry.name == HAND_WRITTEN:
+            continue
+        if entry.is_dir():
+            shutil.rmtree(entry)
+        else:
+            entry.unlink()
+        removed.append(entry.name)
+    return removed
+
+
 def rehearse(
     scenario_id: str, dwell: int, alert_timeout: int, force: bool, baseline_timeout: int = 300
 ) -> int:
     scenario = find_scenario(scenario_id)
     out = ARTIFACT_ROOT / scenario.split.value / scenario.id
-    if out.exists() and any(out.iterdir()) and not force:
-        raise RehearsalError(
-            f"{out.relative_to(REPO_ROOT)} already has contents. Pass --force to re-record."
-        )
+    if out.exists() and any(out.iterdir()):
+        if not force:
+            raise RehearsalError(
+                f"{out.relative_to(REPO_ROOT)} already has contents. Pass --force to re-record."
+            )
+        removed = clear_bundle(out)
+        if removed:
+            print(f"  cleared {len(removed)} stale file(s): {', '.join(removed)}")
+        if (out / HAND_WRITTEN).exists():
+            print(f"  kept {HAND_WRITTEN} - a re-record does not overwrite your writing")
 
     fault_id = scenario.injection.method
     if fault_id not in injector("list"):

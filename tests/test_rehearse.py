@@ -155,3 +155,41 @@ def test_a_flapping_alert_is_reported_as_separate_episodes() -> None:
     assert len(episodes) == 2, f"expected two firing episodes, got {episodes}"
     assert episodes[0]["minutes_firing"] == 0.8
     assert episodes[0]["last_seen"] != episodes[1]["first_seen"]
+
+
+# --- --force replaces a bundle, it does not merge into one -------------------
+
+
+def test_clearing_a_bundle_removes_stale_artifacts_but_keeps_the_narrative(
+    tmp_path: Path,
+) -> None:
+    """A file the recorder no longer produces must not survive a re-record.
+
+    The real case: a log capture taken under the old, wrong Loki selector sat next to the
+    correct one, both plausible, nothing saying which was current.
+    """
+    bundle = tmp_path / "cart-redis-misconfig"
+    (bundle / "logs").mkdir(parents=True)
+    (bundle / "metrics").mkdir()
+    (bundle / "incident.md").write_text("the narrative a person wrote")
+    (bundle / "manifest.json").write_text("{}")
+    (bundle / "logs" / "cartservice.txt").write_text("# stale, wrong selector")
+    (bundle / "metrics" / "error-ratio.json").write_text("{}")
+
+    removed = rehearse.clear_bundle(bundle)
+
+    assert (bundle / "incident.md").read_text() == "the narrative a person wrote", (
+        "the hand-written narrative is the one file a re-record must never destroy"
+    )
+    assert not (bundle / "logs").exists(), "the stale log capture must be gone"
+    assert not (bundle / "manifest.json").exists()
+    assert sorted(removed) == ["logs", "manifest.json", "metrics"]
+
+
+def test_clearing_a_bundle_that_has_no_narrative_yet_is_fine(tmp_path: Path) -> None:
+    bundle = tmp_path / "never-written-up"
+    bundle.mkdir()
+    (bundle / "manifest.json").write_text("{}")
+
+    assert rehearse.clear_bundle(bundle) == ["manifest.json"]
+    assert bundle.exists() and not list(bundle.iterdir())

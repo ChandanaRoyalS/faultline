@@ -116,6 +116,49 @@ polling, each entry carrying first-seen and last-seen. The `incident.md` templat
 the two together and marks which alerts were on the page, because blast radius is what
 T3.1 scores triage on and it is invisible in the snapshot.
 
+### A stale or empty artifact is worse than a missing one
+
+Four defects reached a recorded bundle during the first rehearsals. Every one of them was
+present, well-formed, and wrong:
+
+| Artifact | What it said | What was true |
+|---|---|---|
+| `logs/cartservice.txt` | "no lines matched - widen the selector" | the label did not exist; the selector was built wrong |
+| `manifest.alerts_at_fire` | 2 services alerting | 11 alerted over the incident |
+| `logs/cartservice.txt` again | sat beside the correct capture after a re-record | `--force` merged instead of replacing |
+| `manifest.seconds_to_alert` | 165s | its own timestamps said 166s |
+
+The pattern is that **a wrong artifact reads as a finding about the world rather than as a
+defect in the tool.** "No lines matched" looks like a quiet service. Two alerts looks like
+a small incident. Neither invites suspicion, and both were believed - the empty log capture
+was reported as evidence that a promtail filter was suppressing logs, which cost an
+investigation and a wrong conclusion before measurement corrected it.
+
+Missing artifacts do not have this property. A bundle with no `logs/` directory is
+obviously incomplete and nobody reasons from it.
+
+**Presence guards cannot catch this class; consistency guards can.** The bundle tests
+therefore check the pieces against *each other*, not against a schema:
+
+- `alerts_over_window` must equal what re-deriving it from `metrics/alerts-firing.json`
+  produces. A manifest that disagrees with its own evidence fails.
+- `seconds_to_alert` must equal `t_alert_firing - t_inject`. This one caught a real
+  one-second disagreement caused by stamping whole seconds while computing durations from
+  full-precision datetimes; `now()` was changed to truncate at the source rather than
+  tolerating slack in the check.
+- The declared window must contain every sample in every metric capture.
+- Exactly one log file, named for the container `SERVICE_CONTAINERS` maps the target to.
+  Two files means a re-record left something behind; a differently-named one means the
+  selector was built from the compose service name.
+- No metric capture may be silently empty.
+
+**Where a guard cannot tell a quiet world from a failed capture, it says so.** An empty
+`alerts-firing.json` is legitimate when a fault fired nothing, so that check consults the
+manifest to disambiguate and only fails when the manifest claims alerts fired. The other
+metric files have no such disambiguator, so their failure message states plainly that the
+result is ambiguous and names what to compare against. An ambiguous guard phrased as a
+certainty is the same defect one level up: a tool output that reads as a finding.
+
 Revisit if: T4.1's harness needs fields the manifest does not carry, or the corpus turns
 out to want a different granularity than one document per incident (for example, one per
 hypothesis rather than one per incident).

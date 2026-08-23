@@ -40,7 +40,15 @@ class QueryError(RuntimeError):
 
 
 def now() -> datetime:
-    return datetime.now(UTC)
+    """Whole seconds, deliberately.
+
+    Every timestamp a bundle records is stamped to the second, and every duration in it is
+    reported in seconds. Keeping sub-second precision here means a duration computed from
+    the raw datetimes can differ by one from the difference of the two stamps beside it -
+    a manifest that disagrees with itself for no reason. Truncating at the source removes
+    the class of mismatch instead of tolerating it in each consumer.
+    """
+    return datetime.now(UTC).replace(microsecond=0)
 
 
 def stamp(moment: datetime | None) -> str | None:

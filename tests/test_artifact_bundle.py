@@ -9,10 +9,13 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from evalharness.prom import alert_intervals
 from evalharness.scenario import Scenario, Split
+from injector.world import SERVICE_CONTAINERS
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCENARIO_DIR = REPO_ROOT / "evals" / "scenarios"
@@ -167,18 +170,143 @@ def test_bundles_record_a_usable_steady_state_window() -> None:
         )
 
 
-def test_captured_logs_name_the_container_not_the_compose_service() -> None:
-    """Logs are labelled by container name; targets are often compose service names.
+# --- consistency guards ------------------------------------------------------
+#
+# The checks above ask whether a file is present. These ask whether the bundle agrees
+# with itself. Three defects shipped tonight that presence guards could not see: a
+# manifest recording 2 alerts when 11 fired, a log capture under a wrong selector that
+# reported "no lines matched", and that same stale capture surviving a re-record beside
+# its replacement. Each was present, well-formed, and wrong. See ADR-0009.
 
-    Getting this wrong produced a valid Loki query that matched nothing, and a log file
-    that said so only in a comment.
-    """
-    from injector.world import SERVICE_CONTAINERS
 
+def metric_files(bundle: Path) -> list[Path]:
+    return sorted((bundle / "metrics").glob("*.json"))
+
+
+def load_metric(path: Path) -> dict[str, Any]:
+    raw: Any = json.loads(path.read_text())
+    assert isinstance(raw, dict), f"{path.name}: not a JSON object"
+    return raw
+
+
+def sample_times(payload: dict[str, Any]) -> list[float]:
+    data = payload.get("data")
+    results = data.get("result", []) if isinstance(data, dict) else []
+    return [
+        float(pair[0])
+        for item in results
+        if isinstance(item, dict)
+        for pair in item.get("values", [])
+        if isinstance(pair, list) and len(pair) == 2
+    ]
+
+
+def test_manifest_alerts_agree_with_the_captured_alert_series() -> None:
+    """A manifest that disagrees with its own evidence is the 2-vs-11 defect."""
+    for bundle in bundles():
+        manifest = manifest_of(bundle)
+        if "alerts_over_window" not in manifest or "t_inject" not in manifest:
+            continue
+        series = bundle / "metrics" / "alerts-firing.json"
+        if not series.is_file():
+            continue
+
+        rederived = alert_intervals(
+            load_metric(series), step=15, since=datetime.fromisoformat(manifest["t_inject"])
+        )
+
+        assert manifest["alerts_over_window"] == rederived, (
+            f"{bundle.name}: manifest alerts_over_window does not match what "
+            "metrics/alerts-firing.json re-derives to. The manifest and its own evidence "
+            "disagree; one of them was written by a different version of the recorder."
+        )
+
+
+def test_seconds_to_alert_matches_the_timestamps_it_summarises() -> None:
+    for bundle in bundles():
+        manifest = manifest_of(bundle)
+        if "seconds_to_alert" not in manifest:
+            continue
+        fired, injected = manifest.get("t_alert_firing"), manifest.get("t_inject")
+
+        if fired is None:
+            assert manifest["seconds_to_alert"] is None, (
+                f"{bundle.name}: seconds_to_alert is set but no alert ever fired"
+            )
+            continue
+
+        expected = int(
+            (datetime.fromisoformat(fired) - datetime.fromisoformat(injected)).total_seconds()
+        )
+        assert manifest["seconds_to_alert"] == expected, (
+            f"{bundle.name}: seconds_to_alert is {manifest['seconds_to_alert']}s but "
+            f"t_alert_firing - t_inject is {expected}s"
+        )
+
+
+def test_the_declared_window_contains_every_captured_sample() -> None:
+    """Timings and captures must describe the same incident, not two overlapping ones."""
+    for bundle in bundles():
+        window = manifest_of(bundle).get("window") or {}
+        if not window.get("start") or not window.get("end"):
+            continue
+        start = datetime.fromisoformat(window["start"]).timestamp()
+        end = datetime.fromisoformat(window["end"]).timestamp()
+
+        for path in metric_files(bundle):
+            times = sample_times(load_metric(path))
+            if not times:
+                continue  # emptiness is the next test's business
+            slack = 15  # one query step; Prometheus aligns samples to step boundaries
+            assert start - slack <= min(times) and max(times) <= end + slack, (
+                f"{bundle.name}/{path.name}: samples span "
+                f"{datetime.fromtimestamp(min(times), tz=UTC):%H:%M:%S}-"
+                f"{datetime.fromtimestamp(max(times), tz=UTC):%H:%M:%S} but the manifest "
+                f"declares {window['start']} to {window['end']}"
+            )
+
+
+def test_exactly_one_log_capture_named_for_the_target_container() -> None:
+    """Two captures, or one named after the compose service, is the stale-artifact defect."""
     for bundle in bundles():
         target = manifest_of(bundle)["injection"]["target"]
         expected = SERVICE_CONTAINERS.get(target, target)
         captured = sorted(p.name for p in (bundle / "logs").glob("*.txt"))
-        assert f"{expected}.txt" in captured, (
-            f"{bundle.name}: expected logs/{expected}.txt for target {target!r}, found {captured}"
+
+        assert captured == [f"{expected}.txt"], (
+            f"{bundle.name}: expected exactly one log capture, logs/{expected}.txt, for "
+            f"target {target!r} - found {captured}. More than one means a re-record left "
+            "a stale capture behind; a differently-named one means the selector was built "
+            "from the compose service name instead of the container name."
         )
+
+
+def test_no_metric_capture_is_silently_empty() -> None:
+    """An empty result set is a capture failure wearing the shape of a successful one."""
+    for bundle in bundles():
+        manifest = manifest_of(bundle)
+        for path in metric_files(bundle):
+            payload = load_metric(path)
+            data = payload.get("data")
+            results = data.get("result", []) if isinstance(data, dict) else []
+            populated = [r for r in results if isinstance(r, dict) and r.get("values")]
+
+            if path.name == "alerts-firing.json":
+                # The only capture that is legitimately empty sometimes: a fault may fire
+                # nothing at all. The manifest is what disambiguates it.
+                fired = manifest.get("t_alert_firing") or manifest.get("alerts_at_fire")
+                if not fired:
+                    continue
+                assert populated, (
+                    f"{bundle.name}: the manifest says alerts fired "
+                    f"({manifest.get('alerts_at_fire')}) but alerts-firing.json is empty. "
+                    "The capture failed - this is not a quiet world."
+                )
+                continue
+
+            assert populated, (
+                f"{bundle.name}/{path.name} contains no series with samples. This is "
+                "AMBIGUOUS and needs a human: either the capture failed, or the world "
+                "genuinely produced no data for this query over the window. Check whether "
+                "the other metric files have data - if they do, the capture failed."
+            )
