@@ -167,9 +167,37 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             ),
             # A plausible hotfix tag against the world's real image name, so the
             # investigator has to notice the tag is wrong rather than that the image
-            # is obviously foreign. No `server` param, so nothing is built: the point
-            # is that this tag resolves nowhere.
-            params={"image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice-hotfix.2"},
+            # is obviously foreign. No `server` param, so nothing is built; expect_start
+            # "no" because the point is that this tag resolves nowhere.
+            params={
+                "image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice-hotfix.2",
+                "expect_start": "no",
+            },
+        ),
+        FaultDefinition(
+            id="shipping-wrong-image",
+            fault_class=FaultClass.BAD_DEPLOY,
+            target="shippingservice",
+            description=(
+                "Deploy the ad service's image into the shipping service's slot. The image "
+                "resolves and the deploy succeeds, so this is a release that shipped - but "
+                "a JVM does not fit a container sized for Rust, and it is OOM-killed "
+                "before it can serve."
+            ),
+            # Measured: the JVM starts, the OTel agent loads, then exit 137 in a restart
+            # loop. shippingservice's ceiling is 120 MiB, sized for a Rust binary; the ad
+            # service is a JVM and needs several times that.
+            #
+            # The image was chosen for exactly that mismatch. A wrong image that merely
+            # served the wrong protocol would look like a config or dependency fault; a
+            # wrong image that is a *heavier runtime than the slot was sized for* fails
+            # with a resource signature - exit 137, OOMKilled, restart loop - which is
+            # indistinguishable from a memory-limit fault and has a different remediation.
+            # That is the point of the scenario. See CATALOG.md.
+            params={
+                "image": "ghcr.io/open-telemetry/demo:v1.2.1-adservice",
+                "expect_start": "yes",
+            },
         ),
         FaultDefinition(
             id="productcatalog-dependency-latency",

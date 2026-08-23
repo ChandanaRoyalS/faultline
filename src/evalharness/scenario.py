@@ -71,6 +71,17 @@ class Scenario(BaseModel):
     expected_evidence: list[dict[str, str]] = Field(min_length=1)
     expected_remediation_class: RemediationClass
     rehearsed: bool = False
+    blocked: bool = False
+    """This scenario cannot be rehearsed and does not occupy its slot.
+
+    Set when a scenario's fault turns out not to be injectable or observable on this world
+    - a retired mechanism, or a target that emits no telemetry. The file is kept so the
+    slot's history is visible, but the allocation guards skip it: a scenario that can never
+    be rehearsed is not filling a slot, and its replacement must be allowed in without
+    widening the table in SPLIT.md.
+
+    A machine-readable field rather than a comment, because the guards have to act on it.
+    The reason belongs in a comment at the top of the file, next to this."""
 
     @classmethod
     def from_yaml(cls, path: Path) -> Scenario:

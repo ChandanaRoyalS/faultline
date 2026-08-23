@@ -289,7 +289,22 @@ class BadDeployFault(_ComposeOverrideFault):
         server = _str_param(definition, "server", "")
         if server:
             return self._deploy_built_image(definition, image, server)
-        return self._deploy_unresolvable_image(definition, image)
+
+        # Declared, not inferred. A bare image swap has two opposite outcomes - the tag
+        # resolves and the container starts (then misbehaves), or it resolves nowhere and
+        # nothing starts - and the injector has to know which to treat as success.
+        # Inferring it from the absence of a `server` param worked while only the second
+        # kind existed and silently mislabels the first.
+        expect_start = _str_param(definition, "expect_start", "")
+        if expect_start not in ("yes", "no"):
+            raise FaultUsageError(
+                f"{definition.id}: a bad_deploy without a `server` param must declare "
+                "expect_start: 'yes' (the image exists, so the container starts and then "
+                "misbehaves) or 'no' (the tag resolves nowhere, so nothing starts)."
+            )
+        if expect_start == "no":
+            return self._deploy_unresolvable_image(definition, image)
+        return self._deploy_existing_image(definition, image)
 
     def _deploy_built_image(
         self, definition: FaultDefinition, image: str, server: str
@@ -303,6 +318,24 @@ class BadDeployFault(_ComposeOverrideFault):
             changes=[
                 f"docker build: {image} from {self._settings.ffs_stub_context} (SERVER={server})",
                 f"compose: {definition.target} recreated on {image}",
+                f"override written to {path}",
+            ],
+        )
+
+    def _deploy_existing_image(self, definition: FaultDefinition, image: str) -> InjectionOutcome:
+        """Swap to an image that exists. The container starts; what it does then is the fault.
+
+        No stop-first and no tolerated failure: this deploy is expected to succeed at the
+        compose level, exactly as a real bad release does. Whatever goes wrong afterwards -
+        wrong protocol, wrong resource profile, a crash loop - is the incident.
+        """
+        path = self._apply_override(definition, {"image": image})
+        return InjectionOutcome(
+            restore=ComposeServiceRestore(service=definition.target, override_file=str(path)),
+            changes=[
+                f"compose: {definition.target} recreated on {image}",
+                "the image resolves, so the deploy itself succeeds - the fault is what the "
+                "container does next",
                 f"override written to {path}",
             ],
         )

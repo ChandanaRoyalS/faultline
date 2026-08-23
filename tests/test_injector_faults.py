@@ -333,20 +333,28 @@ def test_crashloop_restores_the_same_way_as_the_other_image_swaps(
     )
 
 
-def test_the_three_bad_deploys_are_three_different_failures(settings: InjectorSettings) -> None:
-    """The point of having three: same class, same target service twice, three signatures."""
+def test_every_bad_deploy_is_a_different_shape_of_failure(settings: InjectorSettings) -> None:
+    """Same class, four signatures: serves-then-fails, flaps, never starts, starts then dies."""
     bad_deploys = [f for f in CATALOG if f.fault_class is FaultClass.BAD_DEPLOY]
 
     assert {f.id for f in bad_deploys} == {
         "flag-service-bad-deploy",
         "flag-service-crashloop",
         "cart-bad-image-tag",
+        "shipping-wrong-image",
     }
     images = {str(f.params["image"]) for f in bad_deploys}
     assert len(images) == len(bad_deploys), "each has to deploy a distinct image, or two coincide"
+
     built = [f for f in bad_deploys if "server" in f.params]
     assert {str(f.params["server"]) for f in built} == {"server_broken.py", "server_crash.py"}, (
         "the two built variants must come from different sources in the stub context"
+    )
+    # A bare image swap must say which way it is expected to go; inferring it mislabelled
+    # a deploy whose image resolves as one whose image does not.
+    swaps = [f for f in bad_deploys if "server" not in f.params]
+    assert {str(f.params.get("expect_start")) for f in swaps} == {"yes", "no"}, (
+        "the image-swap deploys must declare expect_start, and cover both outcomes"
     )
 
 

@@ -170,3 +170,119 @@ that current alerting cannot see. It needs signals this stack does not yet colle
 container restart counts, exit codes, cgroup memory events — and with them it would make a
 sharp scenario precisely because the metrics say nothing. Recorded here so the observation
 is not lost with the ceiling that produced it.
+
+## The catalog's only cross-class trap
+
+`shipping-wrong-image` (bad_deploy, dev, `bad_deploy-3`) is the one scenario where the
+**symptom class and the remediation class deliberately disagree**. This is a property of
+the scenario, not a labelling error, and it is recorded here so that nobody later
+"corrects" it.
+
+### What it looks like versus what it is
+
+| | |
+|---|---|
+| observable signature | exit 137, OOMKilled, restart loop, memory pinned at the ceiling |
+| the class that signature belongs to | **resource_exhaustion** |
+| `fault_class` | **bad_deploy** |
+| `expected_remediation_class` | **rollback** |
+
+The ad service's image is deployed into the shipping service's slot. The image resolves,
+so the deploy succeeds — nothing fails at release time. But the ad service is a JVM and
+`shippingservice`'s ceiling is 120 MiB, sized for a Rust binary. Measured: the JVM starts,
+the OpenTelemetry agent loads, then exit 137 in a restart loop.
+
+Every container-level signal matches a memory-limit fault exactly. `recommendation-memory-squeeze`
+and `ad-memory-squeeze` produce the same 137, the same OOMKilled reason, the same restarts,
+the same memory at the ceiling.
+
+### What separates them, and why it is only change history
+
+**The memory limit never changed.** `compose/world-arm64.override.yml` is untouched;
+`shippingservice` has the same 120 MiB it always had. What changed is the image reference,
+and therefore the size of the workload inside the ceiling rather than the ceiling itself.
+
+That distinction exists nowhere in the metrics. Both faults present as a service that stops
+serving with a resource-shaped death. Separating them requires reading what changed — the
+same discriminator the cart pair depends on, and the same consequence: **an agent
+restricted to Prometheus cannot classify this correctly.**
+
+The logs do carry one strong tell — a JVM starting and an OTel agent loading, in a service
+whose logs have never contained either — but that is log evidence, not metric evidence, and
+it identifies the wrong image rather than the wrong remediation.
+
+### Why the wrong fix is attractive
+
+**Raising the memory limit would stop the crash loop.** It is the obvious response to
+`137` + `OOMKilled`, it is the correct response to the two genuine memory faults in the
+catalog, and here it produces a *worse* state than the one it replaces: the container would
+start and then serve the ad service's protocol on the shipping service's port. A service
+that is up and answering incorrectly is harder to detect than one that is plainly down, and
+the deploy that caused it stays in place.
+
+This makes the scenario a test of whether an investigation distinguishes *stopping the
+symptom* from *undoing the cause*. Both remediations "work" by the measure of the alert
+clearing.
+
+### Deliberate, and not to be reconciled
+
+The temptation on reading the bundle will be to relabel it `resource_exhaustion` so the
+symptom and the class agree. Doing so would destroy the only cross-class case in the
+catalog and, worse, would assert that raising the limit is the correct fix.
+
+`fault_class: bad_deploy` and `expected_remediation_class: rollback` are both correct and
+are meant to disagree with the symptom. If T4.2 shows agents systematically classifying
+this one as `resource_exhaustion`, that is the finding the scenario exists to produce — not
+evidence that the label is wrong.
+
+## World hazards
+
+Properties of `./world` that affect rehearsal but belong to no scenario.
+
+### kafka grows into whatever memory ceiling it is given
+
+Raised from 1200M to **2g at ~10:40** because it sat at 99.5% of the old limit and the
+rehearsal pre-flight gate refuses to start against a container above 90%. By **~19:30 it
+had reached 90.2% of 2g** — roughly nine hours to consume the new headroom entirely.
+
+**This answers the morning's open question.** When the limit was raised it was unclear
+whether 1200M had been undersized or whether kafka simply grows to fill what it is given;
+a single settled reading looks identical either way, which is why the trajectory was worth
+measuring. It is **unbounded growth**, not undersizing. Note the contrast with
+`paymentservice` and `quoteservice`, both raised the same morning: each settled *below* its
+old ceiling (160MiB of 320M, 77MiB of 200M), which is what a genuinely squeezed container
+looks like. kafka does the opposite.
+
+**Raising the limit again buys hours, not headroom.** At ~9 hours per doubling of the
+excess, another bump defers the gate by less than a working day and makes the eventual
+reset more expensive.
+
+### Operational fix: cycle kafka between rehearsal batches
+
+```
+docker restart kafka
+# wait for it to come back healthy, then:
+docker restart accounting-service frauddetection-service checkout-service
+```
+
+The consumer restarts are not optional. `accounting-service`, `frauddetection-service` and
+`checkout-service` **do not reconnect on their own** after kafka cycles; leaving them alone
+produces a world that looks up and silently is not, which is exactly the state the
+pre-flight gates exist to keep out of a bundle.
+
+Do this **between** batches, never during one — restarting four containers mid-rehearsal
+writes a broad unrelated incident into whatever bundle is recording.
+
+### The fix we are not taking, and why
+
+The real fix is to cap the JVM heap for kafka in `compose/world-arm64.override.yml` so it
+stops growing rather than being periodically reset.
+
+**Not now.** That file is one of the three inputs to `world.compose_digest` (ADR-0014), so
+editing it changes the digest and **invalidates every recorded bundle** — they would no
+longer agree about the world they were recorded against, correctly, because they would not
+have been. Mid-catalog that costs a full re-record of everything already captured.
+
+Worth doing immediately **before** the next full re-record, when the bundles are being
+regenerated anyway and the digest change is free. Recorded here so the opportunity is not
+missed and the change is not made casually in between.
