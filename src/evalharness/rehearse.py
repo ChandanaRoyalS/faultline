@@ -101,6 +101,66 @@ def wait_until(
     return None, firing_alerts()
 
 
+MEMORY_HEADROOM_PERCENT = 90.0
+"""Above this share of its limit, a container is close enough to OOM to spoil a rehearsal."""
+
+
+def container_memory_usage() -> list[tuple[str, float, str]]:
+    """(name, percent of its memory limit, human-readable usage) for every running container.
+
+    Read from `docker stats` rather than from Prometheus: cAdvisor is not scraped in this
+    world, and the recorder needs the answer before it injects rather than two scrapes
+    later.
+    """
+    result = subprocess.run(
+        ["docker", "stats", "--no-stream", "--format", "{{.Name}}\t{{.MemPerc}}\t{{.MemUsage}}"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        raise RehearsalError(
+            f"docker stats failed, so the world cannot be checked:\n{result.stderr}"
+        )
+
+    usage: list[tuple[str, float, str]] = []
+    for line in result.stdout.splitlines():
+        parts = line.split("\t")
+        if len(parts) != 3:
+            continue
+        name, percent, human = parts
+        try:
+            usage.append((name, float(percent.strip().rstrip("%")), human.strip()))
+        except ValueError:
+            continue
+    return usage
+
+
+def require_memory_headroom(threshold: float = MEMORY_HEADROOM_PERCENT) -> list[str]:
+    """Refuse to inject into a world where something is about to OOM on its own.
+
+    Measured before this check existed: `kafka` at 1.164GiB of a 1.172GiB limit (99.3%) and
+    `payment-service` at 191.3 of 200MiB (95.7%). A container that OOMs partway through a
+    rehearsal writes a broad, unrelated incident into the bundle - restarts, a traffic gap,
+    a fan of ServiceNoTraffic alerts - and every one of those reads as the injected fault's
+    blast radius.
+
+    Same reasoning as require_no_active_faults: a rehearsal that begins in a compromised
+    world produces a bundle nobody can trust, and the corruption is invisible afterwards
+    because nothing in the capture says the world was already unhealthy.
+    """
+    hot = [(n, pct, h) for n, pct, h in container_memory_usage() if pct >= threshold]
+    if hot:
+        detail = "\n".join(f"  {n}: {h} ({pct:.1f}% of its limit)" for n, pct, h in sorted(hot))
+        raise RehearsalError(
+            f"aborting before injection: {len(hot)} container(s) are above {threshold:.0f}% of "
+            f"their memory limit and may OOM during this rehearsal.\n{detail}\n"
+            "An OOM mid-run is recorded as if it were part of the injected fault. Give the "
+            "world headroom, or raise the limit in compose/world-arm64.override.yml."
+        )
+    return [f"{n}: {pct:.1f}%" for n, pct, _ in container_memory_usage()]
+
+
 def require_no_active_faults() -> str:
     """Refuse to inject into a world that already has a fault in it.
 
@@ -347,7 +407,9 @@ def duration(seconds: Any) -> str:
     trip over for no reason.
     """
     if not isinstance(seconds, int):
-        return "?"
+        # "n/a", not "?": this lands in incident.md's YAML front matter, and a bare ? is
+        # YAML's complex-key indicator, so it makes the whole block unparseable.
+        return "n/a"
     minutes, rest = divmod(seconds, 60)
     return f"{minutes}m{rest:02d}s" if minutes else f"{rest}s"
 
@@ -584,11 +646,12 @@ def rehearse(
 
     print(f"rehearsing {scenario.id}  [{scenario.split.value}]  fault={fault_id}")
 
-    # Two gates, in this order, because they answer different questions. The injector's
-    # state file is true the instant a fault is applied; firing alerts lag it by minutes.
-    # Checking only the alerts leaves a window in which two recorders each believe they
-    # have the world to themselves.
+    # Three gates, in this order, cheapest and most certain first. The injector's state
+    # file is true the instant a fault is applied; container memory is true now; firing
+    # alerts lag reality by minutes. Each catches a different way of starting a rehearsal
+    # in a world that is not fit to measure.
     require_no_active_faults()
+    require_memory_headroom()
     baseline_clear_at = wait_for_clean_baseline(baseline_timeout)
 
     t_inject = now()

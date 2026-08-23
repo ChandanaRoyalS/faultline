@@ -22,16 +22,27 @@ services:
     deploy: { resources: { limits: { memory: 500M } } }
   frontendproxy:
     deploy: { resources: { limits: { memory: 300M } } }
+  # 1200M sat inside kafka's working set: measured at 1.165GiB of 1.172GiB, 99.5% of the
+  # limit, with nothing injected. The T1.5 rehearsal pre-flight gate refuses to start
+  # against a container above 90%, because one that OOMs mid-run writes a broad spurious
+  # incident into the bundle as though it were the injected fault.
   kafka:
-    deploy: { resources: { limits: { memory: 1200M } } }
+    deploy: { resources: { limits: { memory: 2g } } }
   loadgenerator:
     deploy: { resources: { limits: { memory: 300M } } }
+  # 200M sat inside the working set: measured at 191.5MiB of 200MiB, 95.7%, idle. Raised
+  # for the same reason as kafka - the rehearsal pre-flight gate will not run against it.
   paymentservice:
-    deploy: { resources: { limits: { memory: 200M } } }
+    deploy: { resources: { limits: { memory: 320M } } }
   productcatalogservice:
     deploy: { resources: { limits: { memory: 120M } } }
+  # 120M sat inside the working set: measured at 95.8MiB of 120MiB, 79.8%, idle - the
+  # highest in the world and ten points from the rehearsal pre-flight gate, which refuses
+  # to start against a container above 90%. Raised before it blocks a rehearsal mid-catalog
+  # rather than after. No scenario targets quoteservice, so this limit is not a fault
+  # parameter (unlike adservice 700M and recommendationservice 800M, which must not move).
   quoteservice:
-    deploy: { resources: { limits: { memory: 120M } } }
+    deploy: { resources: { limits: { memory: 200M } } }
   recommendationservice:
     deploy: { resources: { limits: { memory: 800M } } }
   shippingservice:

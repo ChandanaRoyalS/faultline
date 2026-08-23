@@ -63,6 +63,9 @@ def test_a_dirty_baseline_aborts_before_anything_is_injected(
     monkeypatch.setattr(rehearse, "injector", fake_injector)
     monkeypatch.setattr(rehearse, "firing_alerts", lambda: ["ServiceHighErrorRate/frontend"])
     monkeypatch.setattr(rehearse, "ARTIFACT_ROOT", tmp_path)
+    monkeypatch.setattr(
+        rehearse, "container_memory_usage", lambda: [("kafka", 42.0, "500MiB / 1.172GiB")]
+    )
 
     with pytest.raises(rehearse.RehearsalError, match="aborting before injection"):
         rehearse.rehearse(
@@ -279,6 +282,9 @@ def test_an_already_injected_fault_aborts_before_anything_is_injected(
     # Deliberately quiet: the other fault has not alerted yet, which is the whole point.
     monkeypatch.setattr(rehearse, "firing_alerts", list)
     monkeypatch.setattr(rehearse, "ARTIFACT_ROOT", tmp_path)
+    monkeypatch.setattr(
+        rehearse, "container_memory_usage", lambda: [("kafka", 42.0, "500MiB / 1.172GiB")]
+    )
 
     with pytest.raises(rehearse.RehearsalError) as caught:
         rehearse.rehearse(
@@ -318,3 +324,65 @@ def test_the_solo_gate_runs_before_the_alert_gate(monkeypatch: pytest.MonkeyPatc
         f"the alert gate ran despite an active fault: {order}. Checking alerts first wastes "
         "up to --baseline-timeout waiting on a world that is disqualified already."
     )
+
+
+# --- a rehearsal must not start in a world that is about to OOM ---------------
+
+
+def test_a_world_with_memory_headroom_passes(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        rehearse,
+        "container_memory_usage",
+        lambda: [("kafka", 42.0, "500MiB / 1.172GiB"), ("frontend", 11.5, "57MiB / 500MiB")],
+    )
+
+    assert rehearse.require_memory_headroom() == ["kafka: 42.0%", "frontend: 11.5%"]
+
+
+def test_a_container_near_its_memory_limit_aborts_and_is_named(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Measured before this check existed: kafka at 99.3%, payment-service at 95.7%."""
+    monkeypatch.setattr(
+        rehearse,
+        "container_memory_usage",
+        lambda: [
+            ("kafka", 99.3, "1.164GiB / 1.172GiB"),
+            ("payment-service", 95.7, "191.3MiB / 200MiB"),
+            ("frontend", 11.5, "57MiB / 500MiB"),
+        ],
+    )
+
+    with pytest.raises(rehearse.RehearsalError) as caught:
+        rehearse.require_memory_headroom()
+
+    message = str(caught.value)
+    assert "kafka" in message and "1.164GiB / 1.172GiB" in message, "name it and show the usage"
+    assert "payment-service" in message, "every offender, not just the worst"
+    assert "frontend" not in message, "a healthy container is not an offender"
+    assert "aborting before injection" in message
+
+
+def test_the_memory_gate_stops_a_rehearsal_before_anything_is_injected(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    calls: list[tuple[str, ...]] = []
+
+    def fake_injector(*args: str) -> str:
+        calls.append(args)
+        return "currency-cpu-throttle\n" if args == ("list",) else "no active injections\n"
+
+    monkeypatch.setattr(rehearse, "injector", fake_injector)
+    monkeypatch.setattr(rehearse, "firing_alerts", list)
+    monkeypatch.setattr(rehearse, "ARTIFACT_ROOT", tmp_path)
+    monkeypatch.setattr(
+        rehearse, "container_memory_usage", lambda: [("kafka", 99.3, "1.164GiB / 1.172GiB")]
+    )
+
+    with pytest.raises(rehearse.RehearsalError, match="memory limit"):
+        rehearse.rehearse(
+            "currency-cpu-throttle", dwell=1, alert_timeout=1, force=True, baseline_timeout=1
+        )
+
+    assert ("start", "currency-cpu-throttle") not in calls
+    assert not list(tmp_path.iterdir()), "an aborted rehearsal must leave no partial bundle"

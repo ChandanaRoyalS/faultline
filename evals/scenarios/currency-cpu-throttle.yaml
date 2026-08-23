@@ -1,3 +1,19 @@
+# BLOCKED - do not rehearse. See ADR-0013.
+#
+# The 0.05 CPU quota applies correctly and does nothing: currencyservice demands ~0.08%
+# of a core (0.4 req/s at ~2ms each) against a 5% ceiling, roughly 60x headroom. Its
+# recorded bundle captured a healthy world and is marked INVALID.
+#
+# Not a tuning problem. Container CPU throttling is retired as a mechanism for this
+# world: the busiest container in it uses 4.64% of one core, and a probe tight enough
+# to bind (frontend at 0.02 CPU) took the entire world down. Nothing here sits between
+# too idle to throttle and too central to throttle.
+#
+# The file is kept rather than deleted so the slot's history is visible. The
+# resource_exhaustion-2 dev slot NEEDS A NEW OCCUPANT - preferably a memory fault, which
+# is measured to work on this world. SPLIT.md is not to be edited: the slot and its
+# split were committed before authoring (ADR-0008), and only the scenario written into
+# the slot changes.
 # resource_exhaustion-2 (dev) - see SPLIT.md. Slot allocated before authoring; do not move.
 id: currency-cpu-throttle
 title: Currency service starved of CPU quota, slowing every priced page

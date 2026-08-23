@@ -474,7 +474,13 @@ def front_matter(bundle: Path) -> dict[str, Any] | None:
     parts = incident.read_text().split("---", 2)
     if len(parts) < 3:
         return None
-    loaded = yaml.safe_load(parts[1])
+    try:
+        loaded = yaml.safe_load(parts[1])
+    except yaml.YAMLError as exc:
+        raise AssertionError(
+            f"{bundle.name}: incident.md front matter is not valid YAML, so nothing can "
+            f"read it - including the corpus seeder at T2.4b.\n{exc}"
+        ) from exc
     return loaded if isinstance(loaded, dict) else None
 
 
@@ -523,4 +529,33 @@ def test_narrative_front_matter_durations_match_the_manifest() -> None:
         assert str(recorded) == expected, (
             f"{bundle.name}: front matter says onset_to_page={recorded}, but the manifest's "
             f"seconds_to_alert formats to {expected}."
+        )
+
+
+def test_a_bundle_that_captured_no_alert_is_marked_invalid() -> None:
+    """A capture with no alert is a healthy world, and must not look like a rehearsal.
+
+    Some faults are legitimately quiet, so an empty `alerts_at_fire` is not automatically
+    an error - but it is never self-evidently fine either, and the recorder only says so on
+    stdout, which nothing keeps. Requiring an INVALID.md forces the judgement to be written
+    down where the next reader finds it, next to the capture it applies to.
+
+    The real case: currency-cpu-throttle set a quota ~60x above the service's demand. It
+    could not bind, the world stayed healthy, and the bundle sat in the tree complete and
+    well-formed with nothing in it.
+    """
+    for bundle in bundles():
+        manifest = manifest_of(bundle)
+        if manifest.get("alerts_at_fire"):
+            continue
+        marker = bundle / "INVALID.md"
+        assert marker.is_file(), (
+            f"{bundle.name}: no alert fired ({manifest.get('seconds_to_alert')=}) and there "
+            f"is no INVALID.md beside the capture. Either the fault did not fire - write "
+            "INVALID.md saying why - or the scenario is deliberately quiet, in which case "
+            "say that there instead. A bundle that captured nothing must not look complete."
+        )
+        assert marker.stat().st_size > 200, (
+            f"{bundle.name}: INVALID.md is too short to explain anything. It is the only "
+            "record of why this capture is not evidence."
         )
