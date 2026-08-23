@@ -104,6 +104,13 @@ class DockerCli:
         args.append(container)
         self._runner.run(args)
 
+    def nano_cpus(self, container: str) -> int:
+        """Current CPU quota in nano-CPUs; 0 means no quota, i.e. all the cores."""
+        result = self._runner.run(
+            ["docker", "inspect", "--format", "{{.HostConfig.NanoCpus}}", container]
+        )
+        return int(result.stdout.strip())
+
     def build(self, tag: str, context: Path, build_args: Mapping[str, str]) -> None:
         args = ["docker", "build", "--tag", tag]
         for name, value in build_args.items():
@@ -147,6 +154,12 @@ class ComposeCli:
         self._runner = runner
         self._settings = settings
 
+    def _base_args(self) -> list[str]:
+        args = ["docker", "compose"]
+        for compose_file in self._settings.compose_files:
+            args += ["-f", compose_file]
+        return args
+
     def recreate(self, service: str, *, overrides: Sequence[Path] = ()) -> None:
         """Recreate one service, optionally with extra override files layered on top.
 
@@ -155,10 +168,30 @@ class ComposeCli:
         is aimed at one service; restarting its dependencies would inject a second,
         unlabelled incident.
         """
-        args = ["docker", "compose"]
-        for compose_file in self._settings.compose_files:
-            args += ["-f", compose_file]
+        args = self._base_args()
         for override in overrides:
             args += ["-f", str(override)]
         args += ["up", "-d", "--no-build", "--no-deps", "--force-recreate", service]
         self._runner.run(args, cwd=self._settings.world_dir)
+
+    def stop(self, service: str) -> None:
+        """Stop a service's container without removing it.
+
+        An explicitly stopped container is not brought back by its `restart: always`
+        policy, which is what makes a service stay down for the duration of a fault.
+        """
+        self._runner.run([*self._base_args(), "stop", service], cwd=self._settings.world_dir)
+
+    def container_id(self, service: str) -> str | None:
+        """The running container behind a compose service, or None if it is not up.
+
+        Compose services and container names are not the same string in this world
+        (service `cartservice`, container `cart-service`), so a fault that targets a
+        service and needs to inspect its container has to ask compose which one it is
+        rather than guessing at the naming convention.
+        """
+        result = self._runner.run(
+            [*self._base_args(), "ps", "--quiet", service], cwd=self._settings.world_dir
+        )
+        ids = result.stdout.split()
+        return ids[0] if ids else None

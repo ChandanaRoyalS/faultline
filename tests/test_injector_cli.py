@@ -46,14 +46,10 @@ def test_list_shows_every_fault_with_its_metadata(
     assert main(["list"], engine=make_engine(settings, runner)) == 0
 
     out = capsys.readouterr().out
-    for fault_id in (
-        "recommendation-memory-squeeze",
-        "flag-service-bad-deploy",
-        "cart-dependency-latency",
-        "cart-redis-misconfig",
-    ):
-        assert fault_id in out
+    for definition in make_engine(settings, runner).catalog:
+        assert definition.id in out
     assert "memory=48m" in out
+    assert "cpus=0.05" in out
     assert "[ACTIVE]" not in out
 
 

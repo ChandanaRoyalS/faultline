@@ -1,0 +1,40 @@
+# bad_config-2 (dev) - see SPLIT.md. Slot allocated before authoring; do not move.
+id: product-catalog-flag-failure
+title: A feature flag turned on at the flag service makes product catalog fail one product
+fault_class: bad_config
+split: dev
+injection:
+  target: featureflagservice
+  method: product-catalog-flag-failure
+  params:
+    env_var: "FAULTLINE_ENABLED_FLAGS"
+    value: "productCatalogFailure"
+ground_truth:
+  root_cause: >
+    The productCatalogFailure flag was switched on at the feature flag service. Product
+    catalog reads that flag on every GetProduct and returns Internal for one specific
+    product id when it is enabled, so a fraction of catalog traffic fails while the rest
+    is served normally. The misconfiguration is on the flag service; the errors are on
+    product catalog.
+  category: bad_config
+expected_evidence:
+  - metrics: product catalog error ratio rises to a stable, partial fraction of its
+      traffic and stays there - neither total failure nor a rising trend
+  - traces: failing requests all carry the same product id and succeed for every other
+      id, which is the signature of a data-dependent branch rather than of an overloaded
+      or broken service
+  - logs: product catalog reports the failure as a deliberate flag-driven path, not as an
+      unexpected exception or a dependency error
+  - traces: each failing GetProduct is preceded by a successful GetFlag call to the
+      feature flag service - the flag lookup works, and its answer is what changed
+  - metrics: product catalog's CPU, memory and latency are all normal; it is failing by
+      choice, not under strain
+  - container: neither product catalog nor the flag service restarted or was redeployed -
+      the flag service's configuration changed and it was recreated to pick it up
+  - change: the failing service and the changed service are different services, so
+      correlating onset against changes on product catalog alone finds nothing
+  - discriminator: the fix is at the flag service and the symptom is at product catalog -
+      concluding that product catalog needs a rollback would revert code that is behaving
+      exactly as written
+expected_remediation_class: config_revert
+rehearsed: false

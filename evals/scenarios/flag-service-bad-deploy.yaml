@@ -1,0 +1,34 @@
+# bad_deploy-2 (HOLDOUT) - see SPLIT.md. Nothing may be tuned against this scenario.
+id: flag-service-bad-deploy
+title: Feature flag service ships a build whose flag lookups always fail
+fault_class: bad_deploy
+split: holdout
+injection:
+  target: featureflagservice
+  method: flag-service-bad-deploy
+  params:
+    image: "faultline/ffs-stub:broken"
+    server: "server_broken.py"
+ground_truth:
+  root_cause: >
+    A build of featureflagservice was deployed in which GetFlag returns UNAVAILABLE. The
+    service starts, listens, and answers every other method correctly, so it looks healthy
+    from the outside while failing the one call its callers make on the hot path.
+  category: bad_deploy
+expected_evidence:
+  - alerts: ServiceHighErrorRate firing on several services at once, none of which is the
+      service that changed
+  - metrics: error ratio is highest on the most direct caller of the flag service and
+      attenuates with distance from it, which is the shape of a cascade rather than of
+      several independent failures
+  - traces: the error originates in a GetFlag span and propagates upward; the deepest
+      failing span in the trace is the flag lookup, not anything in the callers
+  - logs: callers record UNAVAILABLE from the flag service; the flag service itself logs
+      no errors, because refusing the call is what its code now does
+  - container: featureflagservice is up, has not restarted, and is serving - a health check
+      that only asks whether the process is listening passes throughout
+  - change: the flag service's image changed at onset; no caller changed
+  - discriminator: the alert names the callers and never the culprit, so ranking by alert
+      severity or error rate points away from the answer
+expected_remediation_class: rollback
+rehearsed: false

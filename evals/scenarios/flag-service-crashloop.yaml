@@ -1,0 +1,37 @@
+# bad_deploy-3 (dev) - see SPLIT.md. Slot allocated before authoring; do not move.
+id: flag-service-crashloop
+title: Feature flag service deploy serves correctly, then exits, over and over
+fault_class: bad_deploy
+split: dev
+injection:
+  target: featureflagservice
+  method: flag-service-crashloop
+  params:
+    image: "faultline/ffs-stub:crashloop"
+    server: "server_crash.py"
+ground_truth:
+  root_cause: >
+    A build of featureflagservice was deployed that serves correct responses and then
+    exits non-zero roughly twenty seconds after startup. The world's restart policy brings
+    it back, so the service flaps indefinitely instead of failing outright or staying down.
+  category: bad_deploy
+expected_evidence:
+  # Intermittency is the signal. A single point-in-time sample of any metric here can
+  # legitimately look healthy, which is what makes this one hard.
+  - container: featureflagservice restart count climbing steadily through the window - the
+      single most direct evidence, and the only one that does not average away
+  - metrics: caller error ratio oscillates between near-zero and a spike on a period of
+      tens of seconds, rather than stepping up to a plateau and holding
+  - logs: the flag service logs a fresh startup line repeatedly, each followed by an abrupt
+      exit, with correct request handling in between - no error precedes the exit
+  - traces: failing spans cluster into bursts separated by intervals of entirely healthy
+      traces, rather than being spread evenly across the window
+  - change: the flag service's image changed at onset, and the flapping starts with it
+  - discriminator: whether an alert fires at all depends on where the oscillation lands
+      against the averaging window, so alert state is weak evidence here and absence of an
+      alert must not be read as absence of a fault
+  - discriminator: steady-state error rate is not the signature - a conclusion of
+      "intermittent network trouble" or "flaky dependency" fits the error graph equally
+      well and is ruled out only by the restart count and the deploy
+expected_remediation_class: rollback
+rehearsed: false

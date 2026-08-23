@@ -18,6 +18,7 @@ from injector.faults import FaultUsageError
 from injector.models import (
     ActiveInjection,
     ComposeServiceRestore,
+    CpuQuotaRestore,
     FaultDefinition,
     MemoryLimitRestore,
     PumbaRestore,
@@ -59,6 +60,11 @@ def _describe_restore(state: RestoreState) -> str:
             return f"memory limit {state.memory_bytes}B on {state.container}"
         case ComposeServiceRestore():
             return f"recreate {state.service} without {state.override_file}"
+        case CpuQuotaRestore():
+            return (
+                f"recreate {state.service} without {state.override_file} "
+                f"(cpu quota was {state.nano_cpus}n)"
+            )
         case PumbaRestore():
             return f"stop sidecar {state.helper_container}"
 

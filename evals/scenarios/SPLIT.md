@@ -52,6 +52,10 @@ T7.1 grows the catalog to 30+ and every class gets holdout representation there.
 ## Rules
 
 - `split` is assigned at authoring, before the scenario is rehearsed even once.
+- Slots are filled alphabetically by injector fault id within each class, no exceptions.
+  Which faults enter the catalog at all is a separate, earlier decision, made on diagnostic
+  diversity. The two are kept apart deliberately: slot assignment is the only one of them
+  that can bias the split, so it is the one with no judgement in it. See ADR-0008.
 - Rehearsal artifacts land in `evals/scenarios/artifacts/<split>/<id>/`. Nowhere else.
 - Nothing tuned — prompts, context settings, retrieval config, corpus content — may be
   tuned against a holdout scenario. Not once, not to debug.

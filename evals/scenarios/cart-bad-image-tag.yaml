@@ -1,0 +1,33 @@
+# bad_deploy-1 (dev) - see SPLIT.md. Slot allocated before authoring; do not move.
+id: cart-bad-image-tag
+title: Cart service deployed on an image tag that was never published
+fault_class: bad_deploy
+split: dev
+injection:
+  target: cartservice
+  method: cart-bad-image-tag
+  params:
+    image: "ghcr.io/open-telemetry/demo:v1.2.1-cartservice-hotfix.2"
+ground_truth:
+  root_cause: >
+    A deploy pointed cartservice at image tag
+    ghcr.io/open-telemetry/demo:v1.2.1-cartservice-hotfix.2, which does not exist in the
+    registry. The old container was torn down and the replacement never started, so the
+    cart service is absent rather than unhealthy.
+  category: bad_deploy
+expected_evidence:
+  # The whole difficulty here: the target is silent and its callers are loud.
+  - alerts: ServiceNoTraffic on cartservice - the one alert that names the failing service
+  - metrics: cartservice call rate falls to zero and stays there, rather than its error
+      ratio rising; an erroring service still records calls, an absent one does not
+  - traces: no cartservice server spans anywhere in the window - caller spans terminate at
+      the connection attempt instead of crossing the boundary
+  - container: no running container for cartservice; the image reference cannot be resolved
+      rather than the process being unhealthy or restarting
+  - change: onset aligns with a change to the service's image tag, with no corresponding
+      change in traffic, configuration, or dependency health
+  - discriminator: frontend and checkoutservice error rates are consequences of cart being
+      gone, not the fault - concluding against the loudest caller is the wrong answer, and
+      the absence of cart traffic is what distinguishes them
+expected_remediation_class: rollback
+rehearsed: false
