@@ -94,5 +94,10 @@ there was nothing to roll back or revert; the container simply needed replacing.
 - The signal that mattered was **persistence**. Magnitude alone was ambiguous against
   this service's known behaviour, and any investigation resting on a single latency
   reading would have been guessing.
-- A useful cross-check on the direction of causation: the source cleared **last**. A
-  service that recovers after everything downstream of it is not a victim of them.
+- On clearing order: cart's alert cleared about fifteen seconds after its callers' did.
+  That is an observation about this incident and not a rule — recovery ordering is
+  dominated by how full each service's rolling window happens to be when the fault stops,
+  which has more to do with each service's traffic rate than with which one was the
+  source. A later incident on a different service saw the source clear fourth of five,
+  ahead of the edge services, across a forty-five second spread with no structure to it.
+  Do not read causation from what cleared when.

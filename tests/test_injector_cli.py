@@ -57,7 +57,7 @@ def test_list_shows_every_fault_with_its_metadata(
     out = capsys.readouterr().out
     for definition in make_engine(settings, runner).catalog:
         assert definition.id in out
-    assert "memory=48m" in out
+    assert "memory=32m" in out
     assert "cpus=0.05" in out
     assert "[ACTIVE]" not in out
 
@@ -71,7 +71,7 @@ def test_start_prints_what_changed_and_how_to_undo_it(
 
     out = capsys.readouterr().out
     assert "injected recommendation-memory-squeeze (resource_exhaustion)" in out
-    assert "800M -> 48m" in out
+    assert "800M -> 32m" in out
     assert "faultline-inject stop recommendation-memory-squeeze" in out
 
 

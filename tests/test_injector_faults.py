@@ -96,14 +96,14 @@ def test_memory_squeeze_records_the_limit_it_overwrote(settings: InjectorSetting
         "docker",
         "update",
         "--memory",
-        "48m",
+        "32m",
         "--memory-swap",
-        "48m",
+        "32m",
         "recommendation-service",
     )
     assert isinstance(outcome.restore, MemoryLimitRestore)
     assert outcome.restore.memory_bytes == 838860800
-    assert "800M -> 48m" in outcome.changes[0]
+    assert "800M -> 32m" in outcome.changes[0]
 
 
 def test_memory_restore_puts_the_original_bytes_back(settings: InjectorSettings) -> None:

@@ -57,6 +57,7 @@ from evalharness.provenance import (
     world_provenance,
 )
 from evalharness.scenario import Scenario
+from injector.catalog import by_id as fault_by_id
 from injector.settings import InjectorSettings
 from injector.world import CONTAINER_SERVICES, SERVICE_CONTAINERS
 
@@ -100,6 +101,46 @@ def wait_until(
         time.sleep(POLL_SECONDS)
     print(f"  ! timed out waiting for {label}", flush=True)
     return None, firing_alerts()
+
+
+def require_scenario_matches_catalog(scenario: Scenario) -> None:
+    """Refuse to rehearse a scenario whose YAML disagrees with the fault that will run.
+
+    `make check` already compares the two, but only at check time. Edit the YAML and start
+    a rehearsal immediately and nothing stops you: the injector reads `injector.catalog`
+    and never looks at the scenario file, so the bundle is labelled with one set of
+    parameters and recorded from another. Measured: a memory limit was edited in the YAML
+    and the injector went on using the catalog's value.
+
+    Cheapest gate there is - two dict comparisons, no subprocess - so it runs first.
+    """
+    fault = fault_by_id(scenario.injection.method)
+    if fault is None:
+        raise RehearsalError(
+            f"{scenario.id}: injection.method {scenario.injection.method!r} is not a fault "
+            "in injector.catalog."
+        )
+    mismatches = [
+        (name, declared, actual)
+        for name, declared, actual in (
+            ("target", scenario.injection.target, fault.target),
+            ("params", scenario.injection.params, fault.params),
+            ("fault_class", scenario.fault_class.value, fault.fault_class.value),
+        )
+        if declared != actual
+    ]
+    if mismatches:
+        detail = "\n".join(
+            f"  {name}: the YAML says {declared!r}, the injector will run {actual!r}"
+            for name, declared, actual in mismatches
+        )
+        raise RehearsalError(
+            f"aborting before injection: {scenario.id}'s YAML disagrees with the fault it "
+            f"cites.\n{detail}\n"
+            "injector.catalog is authoritative - the injector never reads the scenario "
+            "file - so this bundle would be labelled with one fault and recorded from "
+            "another. Reconcile them before rehearsing."
+        )
 
 
 def orphaned_image_references() -> list[tuple[str, str]]:
@@ -716,11 +757,13 @@ def rehearse(
 
     print(f"rehearsing {scenario.id}  [{scenario.split.value}]  fault={fault_id}")
 
-    # Four gates, cheapest and most certain first. The injector's state file is a local
-    # read and true the instant a fault is applied; image coherence is three fast docker
+    # Five gates, cheapest and most certain first. The scenario/catalog comparison is two
+    # dict lookups and needs nothing outside this process. The injector's state file is a
+    # local read and true the instant a fault is applied; image coherence is three fast docker
     # queries and a yes/no fact; container memory needs `docker stats`, which samples for a
     # couple of seconds; firing alerts lag reality by minutes and may have to be waited on.
     # Each catches a different way of starting a rehearsal in a world unfit to measure.
+    require_scenario_matches_catalog(scenario)
     require_no_active_faults()
     require_coherent_images()
     require_memory_headroom()

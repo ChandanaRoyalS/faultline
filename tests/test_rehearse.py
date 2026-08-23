@@ -485,3 +485,77 @@ def test_the_image_gate_runs_before_the_slower_memory_gate(
         )
 
     assert order == ["image-gate"], f"the slower gate ran despite a disqualifying world: {order}"
+
+
+# --- the YAML may not disagree with the fault that will actually run ----------
+
+
+def test_a_scenario_matching_its_catalog_entry_passes() -> None:
+    rehearse.require_scenario_matches_catalog(
+        rehearse.find_scenario("recommendation-memory-squeeze")
+    )  # does not raise
+
+
+def test_a_scenario_whose_yaml_drifted_from_the_catalog_aborts(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Measured: a memory limit edited in the YAML while the injector kept its own value.
+
+    `make check` compares the two, but only at check time - edit and rehearse immediately
+    and nothing intervenes, because the injector never reads the scenario file.
+    """
+    scenario = rehearse.find_scenario("recommendation-memory-squeeze")
+    drifted = scenario.model_copy(
+        update={"injection": scenario.injection.model_copy(update={"params": {"memory": "64m"}})}
+    )
+
+    with pytest.raises(rehearse.RehearsalError) as caught:
+        rehearse.require_scenario_matches_catalog(drifted)
+
+    message = str(caught.value)
+    assert "64m" in message and "32m" in message, "show both values"
+    assert "injector.catalog is authoritative" in message, "say which side wins"
+    assert "aborting before injection" in message
+
+
+def test_the_scenario_gate_runs_before_anything_touches_docker(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """It needs no subprocess at all, so a disagreeing scenario must cost nothing to reject."""
+    touched: list[str] = []
+
+    def fake_injector(*args: str) -> str:
+        touched.append("injector")
+        return "recommendation-memory-squeeze\n" if args == ("list",) else "no active injections\n"
+
+    monkeypatch.setattr(rehearse, "injector", fake_injector)
+    monkeypatch.setattr(
+        rehearse, "orphaned_image_references", lambda: touched.append("images") or []
+    )
+    monkeypatch.setattr(rehearse, "container_memory_usage", lambda: touched.append("memory") or [])
+    monkeypatch.setattr(rehearse, "firing_alerts", list)
+    monkeypatch.setattr(rehearse, "ARTIFACT_ROOT", tmp_path)
+
+    real = rehearse.find_scenario
+    monkeypatch.setattr(
+        rehearse,
+        "find_scenario",
+        lambda sid: real(sid).model_copy(
+            update={
+                "injection": real(sid).injection.model_copy(update={"params": {"memory": "1m"}})
+            }
+        ),
+    )
+
+    with pytest.raises(rehearse.RehearsalError, match="disagrees with the fault it cites"):
+        rehearse.rehearse(
+            "recommendation-memory-squeeze",
+            dwell=1,
+            alert_timeout=1,
+            force=True,
+            baseline_timeout=1,
+        )
+
+    assert touched == ["injector"], (
+        f"only the catalog lookup should have run before the scenario gate: {touched}"
+    )

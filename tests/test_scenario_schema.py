@@ -48,20 +48,24 @@ def test_every_scenario_cites_a_real_injector_fault() -> None:
 def test_scenario_injections_match_the_fault_they_cite() -> None:
     """A scenario is a label for what the injector actually does, so it may not paraphrase it.
 
-    Drift here is silent and expensive: the scenario would describe one incident and the
-    rehearsal would record another, and the mismatch surfaces only as an unexplainable
-    scoring result months later.
+    **`injector.catalog` is authoritative.** The injector reads only its own catalog; the
+    YAML copy is documentation. Editing the YAML changes what the scenario *claims* and
+    nothing about what runs, which is drift that produces a bundle labelled one way and
+    recorded another - and surfaces months later as an unexplainable scoring result.
     """
     for scenario in scored_scenarios():
         fault = by_id(scenario.injection.method)
         assert fault is not None
         assert scenario.injection.target == fault.target, (
-            f"{scenario.id}: targets {scenario.injection.target!r}, but fault {fault.id} "
-            f"targets {fault.target!r}"
+            f"{scenario.id}: the YAML targets {scenario.injection.target!r} but the "
+            f"injector targets {fault.target!r}. injector.catalog is authoritative - the "
+            "YAML is documentation, so fix the YAML unless you meant to change the fault."
         )
         assert scenario.injection.params == fault.params, (
-            f"{scenario.id}: params {scenario.injection.params} do not match fault "
-            f"{fault.id} params {fault.params}"
+            f"{scenario.id}: the YAML declares params {scenario.injection.params} but the "
+            f"injector will run {fault.params}. injector.catalog is authoritative - "
+            "editing the YAML changes what the scenario claims and nothing about what "
+            "runs. Fix src/injector/catalog.py if you meant to change the fault."
         )
         assert scenario.fault_class is fault.fault_class, (
             f"{scenario.id}: declared {scenario.fault_class}, but fault {fault.id} is "

@@ -102,3 +102,71 @@ identically is evidence about the agent's *tooling*, not its reasoning.
 It also means the pair is only as good as those tools. If change history is unavailable to
 the agent at T4.x, these two scenarios are not a discrimination test — they are one
 scenario scored twice, and at best an agent can be right about one of them by guessing.
+
+## Detectability is a function of recovery time, not severity
+
+Measured on `recommendation-service` while choosing a ceiling for
+`recommendation-memory-squeeze`. It is a property of this world rather than of the
+scenario, and it is worth more than the scenario is.
+
+### A service dying every 36 seconds, invisible to the entire stack
+
+At a **48m** ceiling the fault fires constantly. Restart count climbed **13 → 18 → 22**
+across two three-minute windows — roughly one OOM kill every 36 seconds — with memory
+pinned at **47.6MiB of 48MiB**.
+
+Across a full 12-minute rehearsal the telemetry recorded:
+
+| | |
+|---|---|
+| call-rate samples during the fault | **49 of 49 present**, none zero, minimum 0.41 req/s |
+| latency-p95 samples | **49 of 49 present** |
+| error ratio | **0.00** at every sample |
+| alerts, any rule, any service | **none** |
+| caller impact (frontend, productcatalogservice) | none measurable |
+
+The only movement anywhere was the target's own p95, from 4.4ms to 13.1ms mean. Against a
+250ms threshold that is 5% of the way to firing.
+
+**A Python process restarts in a second or two.** Against a 15-second scrape interval and a
+2-minute rate window, a gap that short never produces a sample. The service was absent
+dozens of times and the observation stack recorded a continuously healthy service.
+
+### The same mechanism, visible, on a JVM
+
+`ad-memory-squeeze` uses the identical mechanism — `docker update --memory`, a ceiling
+below the working set — on `adservice`, and fired five alerts.
+
+| | `recommendation-service` (Python) | `ad-service` (JVM) |
+|---|---|---|
+| target call rate during fault | min 0.41, **never zero** | min 0.00, **26 of 34 samples zero** |
+| target latency samples during | **49/49 present** | **8/34 present — 26 missing** |
+| caller p95 | frontend 42.3ms, unmoved | frontend **960ms mean, 3564ms peak** |
+| caller error ratio | 0.00 | **0.08 mean, 0.11 peak** — over the 5% rule |
+| alerts | 0 | 5 |
+
+Same fault, comparable kill rate, opposite visibility. The JVM is slow enough to restart
+that its absence lands inside the observation window; the Python service is not.
+
+### The consequence
+
+**Detectability here is a function of recovery time against the observation window, not of
+severity.** A service dying every thirty seconds can be completely invisible to this stack,
+while a less frequent failure on a slower-starting runtime alerts five times. Nothing about
+the fault's seriousness predicts whether it is seen.
+
+Two things follow.
+
+Any scenario tuned by "does it alert?" is implicitly tuning for restart latency. That is
+why `recommendation-memory-squeeze` ships at **32m** rather than 48m: at 32m the container
+is OOM-killed before startup completes, never reaches a serving state, and `docker ps`
+reports `Restarting (137)`. The service is then genuinely absent rather than briefly away.
+The number was chosen to cross a *visibility* boundary, not a severity one, and the catalog
+comment says so.
+
+**The 48m case is a candidate scenario for a later phase**, not a defect. A service being
+OOM-killed every 36 seconds while every dashboard shows green is a real and serious failure
+that current alerting cannot see. It needs signals this stack does not yet collect —
+container restart counts, exit codes, cgroup memory events — and with them it would make a
+sharp scenario precisely because the metrics say nothing. Recorded here so the observation
+is not lost with the ceiling that produced it.

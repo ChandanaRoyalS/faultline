@@ -69,11 +69,17 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
                 "Shrink the recommendation service's memory limit below its working set. "
                 "The kernel OOM-kills it, compose restarts it, and the frontend sees the gap."
             ),
-            # 48m against a measured steady-state RSS of ~55MiB (800M ceiling). Chosen
-            # below the working set on purpose: a limit that merely removes headroom
-            # produces an OOM kill only when load happens to spike, and a fault that
-            # fires sometimes is worse than no fault at all for an eval scenario.
-            params={"memory": "48m"},
+            # 32m, and the reason is recovery time rather than severity. 48m is already
+            # below the ~55MiB steady-state RSS and kills the container about every 36
+            # seconds - but a Python process restarts in a second or two, faster than the
+            # 15s scrape, so a full 12-minute rehearsal produced 49 of 49 samples present,
+            # no gaps, no errors and no alert. The fault fired constantly and was
+            # invisible. 32m is below what the runtime needs to finish starting at all:
+            # the container is OOM-killed before startup completes, never reaches a
+            # serving state, and `docker ps` reports Restarting (137). The service is then
+            # genuinely absent rather than briefly away, which is what makes it
+            # observable. See CATALOG.md for the 48m measurement.
+            params={"memory": "32m"},
         ),
         FaultDefinition(
             id="flag-service-bad-deploy",
