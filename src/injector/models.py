@@ -10,6 +10,7 @@ original memory limit is gone from the world the moment we overwrite it.
 from __future__ import annotations
 
 from datetime import datetime
+from enum import StrEnum
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -20,6 +21,18 @@ from pydantic import BaseModel, ConfigDict, Field
 from evalharness.scenario import FaultClass
 
 ParamValue = str | int | float
+
+
+class TargetKind(StrEnum):
+    """Which of the world's two names for a thing a mechanism addresses.
+
+    They are not interchangeable: service `cartservice` runs in container
+    `cart-service`, and handing either name to the wrong mechanism addresses
+    nothing. See injector.world for the mapping and ADR-0011 for the check.
+    """
+
+    CONTAINER = "container"
+    SERVICE = "service"
 
 
 class FaultDefinition(BaseModel):
@@ -55,6 +68,24 @@ class ComposeServiceRestore(BaseModel):
     override_file: str
 
 
+class CpuQuotaRestore(BaseModel):
+    """Recreate a service without our override, and say what quota it had before.
+
+    Dropping the override is what actually restores the quota - the world's own
+    compose files are the original. The inspected value rides along anyway,
+    because `status` and the incident transcript have to be able to state what
+    the world is being returned to without re-reading a file that, by then, may
+    have been edited under us.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["cpu_quota"] = "cpu_quota"
+    service: str
+    override_file: str
+    nano_cpus: int
+
+
 class PumbaRestore(BaseModel):
     """Stop the pumba sidecar; it reverts its own tc rules on SIGTERM."""
 
@@ -65,7 +96,7 @@ class PumbaRestore(BaseModel):
 
 
 RestoreState = Annotated[
-    MemoryLimitRestore | ComposeServiceRestore | PumbaRestore,
+    MemoryLimitRestore | ComposeServiceRestore | CpuQuotaRestore | PumbaRestore,
     Field(discriminator="kind"),
 ]
 

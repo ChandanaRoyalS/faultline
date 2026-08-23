@@ -96,6 +96,10 @@ build had been retagged and pruned; recreating that service fixed it. Faults inj
 through pumba therefore have a dependency on the whole world being coherent, not just on
 their target.
 
+**Superseded in part by ADR-0010**, which adds a second mechanism to two of these classes
+(CPU quota under `resource_exhaustion`, an unresolvable image tag under `bad_deploy`) and
+seven more definitions. The table above is no longer the whole list.
+
 Revisit if: T7.0's four additional fault classes need a mechanism this structure cannot
 express, or a scenario needs two faults active on one target at once - the state file
 allows it, but nothing has been measured about how their restores interact.
