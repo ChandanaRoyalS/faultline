@@ -559,3 +559,45 @@ def test_the_scenario_gate_runs_before_anything_touches_docker(
     assert touched == ["injector"], (
         f"only the catalog lookup should have run before the scenario gate: {touched}"
     )
+
+
+# --- the archive keeps metrics too, compressed --------------------------------
+
+
+def test_archiving_keeps_the_manifest_and_compressed_metrics(tmp_path: Path) -> None:
+    """Manifest-only archiving lost the metric window an argument later needed."""
+    import gzip
+    import json
+
+    bundle = tmp_path / "some-scenario"
+    (bundle / "metrics").mkdir(parents=True)
+    (bundle / "logs").mkdir()
+    (bundle / "manifest.json").write_text(json.dumps({"t_inject": "2026-08-23T07:52:24+00:00"}))
+    (bundle / "metrics" / "latency-p95.json").write_text('{"data": {"result": [1, 2, 3]}}')
+    (bundle / "metrics" / "call-rate.json").write_text('{"data": {"result": []}}')
+    (bundle / "logs" / "svc.txt").write_text("a log nobody has ever cited")
+
+    name = rehearse.archive_recording(bundle)
+
+    archive = bundle / rehearse.SUPERSEDED / str(name)
+    assert name == "20260823T075224Z", "named for the run it preserves"
+    assert json.loads((archive / "manifest.json").read_text())["t_inject"].startswith("2026-08-23")
+    assert sorted(p.name for p in (archive / "metrics").iterdir()) == [
+        "call-rate.json.gz",
+        "latency-p95.json.gz",
+    ]
+    restored = gzip.decompress((archive / "metrics" / "latency-p95.json.gz").read_bytes())
+    assert json.loads(restored)["data"]["result"] == [1, 2, 3], "must round-trip exactly"
+    assert not (archive / "logs").exists(), "logs are deliberately not archived"
+
+
+def test_clearing_a_bundle_preserves_the_archive(tmp_path: Path) -> None:
+    """A re-record must not wipe the archive it just contributed to."""
+    bundle = tmp_path / "some-scenario"
+    (bundle / rehearse.SUPERSEDED / "20260823T075224Z").mkdir(parents=True)
+    (bundle / "manifest.json").write_text("{}")
+
+    rehearse.clear_bundle(bundle)
+
+    assert (bundle / rehearse.SUPERSEDED / "20260823T075224Z").is_dir()
+    assert not (bundle / "manifest.json").exists()

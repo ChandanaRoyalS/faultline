@@ -91,9 +91,9 @@ build on it.
 | `ServiceHighLatency/frontend` | 0.5m |
 | `ServiceHighLatency/loadgenerator` | 0.2m |
 
-Both are one to two samples long. `cartservice` p95 is known to be bimodal on this world,
-reaching 353ms unfaulted with excursions around 105s (ADR-0012), and these are far shorter
-than that. **Treating them as a discriminator would be reading noise**: they are the right
+Both are one to two samples long. **Treating them as a discriminator would be reading
+noise** — a clean 45-minute baseline puts `cartservice` p95 at a flat 1.9ms with zero
+excursions, so a one-sample blip carries no information: they are the right
 order of magnitude to appear or not appear in either scenario on any given run, and one
 recording of each cannot establish otherwise.
 
@@ -283,6 +283,38 @@ evidence that the label is wrong.
 ## World hazards
 
 Properties of `./world` that affect rehearsal but belong to no scenario.
+
+### cartservice needs about four minutes to settle after being recreated
+
+Measured. `cartservice` p95 decays from **~100ms to 1.9ms over about four minutes** after
+its container is recreated, monotonically:
+
+```
++0.8 min  100.0ms      +1.6 min   30.0ms
++1.1 min   90.0ms      +2.0 min    8.5ms
++1.3 min   50.0ms      +4.0 min    1.9ms  settled
+```
+
+**A p95 sampled inside that window is not a baseline reading.** Anything that recreates the
+container starts the clock: a `bad_config` or `bad_deploy` fault on cartservice, its revert,
+or a `make world-up`.
+
+This is worth stating plainly because getting it wrong cost three rounds of corrections to
+ADR-0012. Readings taken 0.8, 4.0 and 14.2 minutes after cart reverts were written up as
+evidence that the service is bimodal and reaches 353ms unprompted. It is not and it does
+not: the clean 45-minute baseline (`evals/baselines/20260824T033742Z`) measures 181
+consecutive samples at 1.9ms, min and max alike, with `checkoutservice` flat at 35–39ms
+against the 1060ms the contaminated capture reported.
+
+**`productcatalog-dependency-latency`'s pre-injection window contains one of these
+transients.** Its window opens 48 seconds after a `cart-bad-image-tag` revert, so its first
+six samples of `cartservice` run 100 → 30ms before settling. It does not affect that
+scenario — its target is `product-catalog-service` and the transient is on a different
+service — but **its pre-window is not strictly quiet**, and anyone comparing pre-injection
+windows across bundles should know which one that is.
+
+The rehearsal recorder now refuses to start when any container has been up for less than
+five minutes, which is the mechanical version of this note.
 
 ### kafka grows into whatever memory ceiling it is given
 

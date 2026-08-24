@@ -4,18 +4,29 @@ repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.6.0
     hooks:
-      # Rehearsal bundles are captures, not source. A formatting hook that strips a
-      # trailing space from a container log or reflows a metric JSON makes the committed
-      # bundle something other than what the world produced, and the whole point of the
-      # artifact tree is that it is a faithful record. See evals/scenarios/ARTIFACTS.md.
+      # CAPTURED EVIDENCE is never rewritten. The class: anything recorded from the
+      # running world rather than authored by hand - metric JSON, container logs, and the
+      # summaries generated from them. A formatting hook that strips a trailing space or
+      # adds a final newline makes the committed file something other than what the world
+      # produced, and a faithful record is the entire point of these trees.
+      #
+      # Listed by directory because a regex cannot tell a capture from source, and the two
+      # live side by side: evals/scenarios/*.yaml IS authored and must stay formatted, while
+      # evals/scenarios/artifacts/ under it is not. Adding a directory that holds captures
+      # means adding it here. See evals/scenarios/ARTIFACTS.md.
       #
       # Only the rewriting hooks are excluded. check-yaml, check-json,
-      # check-added-large-files and detect-private-key still apply: they read and never
-      # write, and they are exactly the guards this tree should keep.
+      # check-added-large-files and detect-private-key still apply to both trees: they read
+      # and never write, and they are exactly the guards captures should keep.
       - id: trailing-whitespace
-        exclude: ^evals/scenarios/artifacts/
+        exclude: &captured_evidence |
+          (?x)
+          ^evals/ (
+              scenarios/artifacts   # rehearsal bundles
+            | baselines             # quiet-world captures
+          ) /
       - id: end-of-file-fixer
-        exclude: ^evals/scenarios/artifacts/
+        exclude: *captured_evidence
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
