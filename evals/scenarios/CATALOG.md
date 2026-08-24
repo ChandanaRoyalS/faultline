@@ -404,6 +404,31 @@ to arrive at the holdout treating container logs as a dead end.
 **The holdout scenario is the one where the logs contain the answer outright.** It tests
 whether the responder checks anyway.
 
+### Rehearsal made the holdout harder than it was designed to be
+
+`email-wrong-image` has since been rehearsed, and the alert set is narrower than expected.
+**The entire incident produces one alert: `ServiceHighErrorRate` on `checkoutservice`,
+firing 256s after injection and running six minutes.** `emailservice` never appears in the
+alert stream at all — not `ServiceNoTraffic`, not anything.
+
+So the scenario has a second layer nobody designed in. The alerting names a **healthy**
+service, and never names the broken one. Reaching the decisive evidence requires following
+a dependency from the service that alerted to the service that failed, and only then
+reading its logs. An investigation that works from the alert alone lands on
+`checkoutservice`, where there is nothing wrong and nothing to find.
+
+The evidence is still decisive **once reached**. What changed is the cost of reaching it:
+
+| | designed | measured |
+|---|---|---|
+| what alerts | the broken service, plus its callers | **only a caller** |
+| first step | read the alerting service's logs | follow a dependency to a service that never alerted |
+| the logs, once opened | name the cause outright | unchanged — still decisive |
+
+That is a harder scenario, not a weaker one, and it stacks on the trio's original point: an
+investigation that has learned from the dev pair to skip logs must now also work out
+*whose* logs to open, with no alert pointing at them.
+
 This is a deliberate use of the split rather than an accident of authoring. The dev set is
 what anything gets tuned against (ADR-0008), so a heuristic learned there is exactly what
 the holdout should be able to punish. "Skip the logs, they never help on bad deploys" is a
@@ -416,6 +441,23 @@ learned to skip logs, or because it never reads logs at all. Distinguishing thos
 per-class breakdown T4.2 already owes, plus the observation that the same agent found
 `shipping-wrong-image`'s logs uninformative rather than absent.
 
-Note also that `email-wrong-image` is **UNVERIFIED** — probed for five minutes, not
-rehearsed. If its full rehearsal shows the logs are less clear than the probe suggested,
-this section's whole premise weakens and should be rewritten rather than defended.
+### What the pre-rehearsal prediction got wrong
+
+This section and the scenario's ground truth were both written **UNVERIFIED**, from a
+five-minute probe, and said so. The rehearsal checked them. One particular was wrong, and
+it is recorded here rather than quietly corrected — a prediction that was written down,
+tested and partly falsified is worth more in the record than one that was edited to match
+the result.
+
+| Predicted | Measured |
+|---|---|
+| Apache naming `QUOTE_SERVICE_PORT` undefined, exit 1, PHP in a service that has never run it | **held** |
+| `ServiceHighErrorRate` on `checkoutservice` within five minutes | **held** — 256s |
+| `emailservice` stops emitting, and that absence is visible in the alerting | **wrong** — the absence is real in the metrics, but it produces no alert, and `emailservice` never enters the alert stream |
+
+The premise this section was written to defend — that the logs are decisive — survived. The
+supporting assumption about how a responder would be *pointed at* those logs did not, and
+the scenario is harder than it was designed to be as a result.
+
+The remaining caveat stands: this is one rehearsal, and its detection time is one sample
+(see the caveat at the top of this document).

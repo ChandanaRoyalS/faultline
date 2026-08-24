@@ -6,11 +6,9 @@
 # featureflagservice emits no span metrics, so no fault on it can page. SPLIT.md is
 # unchanged - the slot and its split were committed before authoring.
 #
-# ============================ UNVERIFIED - NOT REHEARSED ============================
-# The behaviour below comes from a five-minute probe, not a rehearsal. The mechanism and
-# the failure mode are measured; the full alert set, the timings and the blast radius are
-# not. Correct this file against the bundle before setting rehearsed: true.
-# ====================================================================================
+# Rehearsed and verified against the bundle. The log evidence held exactly. One prediction
+# was falsified: the broken service never appears in the alert stream at all, which makes
+# this scenario harder than it was designed to be. See CATALOG.md.
 id: email-wrong-image
 title: Email service deployed with the quote service's image
 fault_class: bad_deploy
@@ -34,16 +32,23 @@ ground_truth:
     begins failing.
   category: bad_deploy
 expected_evidence:
-  # PROBED, not rehearsed. Confirm each against the bundle.
+  # Measured against the bundle unless a line says otherwise.
+  - logs: Apache failing to configure, naming QUOTE_SERVICE_PORT as undefined. Measured -
+      36 lines of AH00111 reporting config variable ${QUOTE_SERVICE_PORT} as not
+      defined, followed by AH00526 syntax errors on line 5 of /etc/apache2/ports.conf.
+      The cause is stated outright in the container's own output
+  - logs: the running process is Apache, in a service whose logs have never contained it.
+      Measured - 18 Apache lines, repeating as the container restarts
   - container: email-service crash-looping with exit code 1 - an application exit, not a
-      kernel kill, so no OOMKilled reason and no 137
-  - logs: Apache failing to configure, naming QUOTE_SERVICE_PORT as undefined. The cause
-      is stated outright in the container's own output
-  - logs: the running process is PHP and Apache, in a service whose logs have never
-      contained either
-  - metrics: ServiceHighErrorRate on checkoutservice, observed within five minutes of the
-      deploy in the probe
-  - metrics: emailservice stops emitting - absent samples rather than slow or failing ones
+      kernel kill, so no OOMKilled reason and no 137. THE EXIT CODE IS NOT VERIFIABLE FROM
+      THIS BUNDLE; a container exit code never appears in captured logs. What the capture
+      shows is the restart cycle - Apache failing to start, repeatedly. Check the code live
+  - metrics: ServiceHighErrorRate on checkoutservice. Measured - at +256s, running six
+      minutes, and it is the ONLY alert in the entire incident
+  - metrics: emailservice never appears in the alert stream at all. Measured, and the
+      opposite of what was predicted before rehearsal - the service stops emitting spans,
+      but that absence produces no alert of any kind. The alerting names a healthy service
+      and never names the broken one
   - change: the service's image reference changed at onset; nothing else did, and no
       environment variable was edited
   - discriminator: the environment is correct for the service that is supposed to be here
@@ -53,6 +58,10 @@ expected_evidence:
       this in bad_deploy rather than resource_exhaustion, and it is the opposite of
       shipping-wrong-image, where the same class of mistake produces a resource signature
   # Why this scenario is in the holdout, stated plainly.
+  - discriminator: nothing points at emailservice. The only alert is on a healthy
+      service, so reaching the evidence means following a dependency from the service that
+      alerted to the service that failed - an alert-driven investigation lands on
+      checkoutservice, where there is nothing wrong
   - discriminator: the logs contain the answer. This is the only bad_deploy scenario in
       the catalog where they do - cart-bad-image-tag has no container and therefore no
       logs at all, and shipping-wrong-image's logs show a JVM dying on memory, which

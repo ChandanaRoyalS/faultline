@@ -9,6 +9,7 @@ from evalharness.scenario import Scenario, Split, load_catalog
 from injector.catalog import by_id
 
 EXAMPLES = Path(__file__).parent.parent / "evals" / "scenarios" / "examples"
+SCENARIO_DIR = Path(__file__).parent.parent / "evals" / "scenarios"
 
 
 def test_example_scenario_validates() -> None:
@@ -77,4 +78,40 @@ def test_ground_truth_category_matches_the_scenario_fault_class() -> None:
     for scenario in scored_scenarios():
         assert scenario.ground_truth.category is scenario.fault_class, (
             f"{scenario.id}: ground_truth.category and fault_class disagree"
+        )
+
+
+PRE_REHEARSAL_MARKERS = ("UNVERIFIED", "NOT REHEARSED", "PREDICTED", "RISK, BEFORE REHEARSAL")
+"""Text that means "someone still has to check this against a bundle"."""
+
+
+def test_rehearsed_scenarios_carry_no_pre_rehearsal_markers() -> None:
+    """`rehearsed: true` asserts the checking is done, so the instructions to check must go.
+
+    A scenario is written before it is run, with its expected behaviour marked UNVERIFIED
+    and its evidence items marked PREDICTED. Those markers are instructions: confirm each
+    against the bundle, correct what was wrong, then delete the marker. Setting
+    `rehearsed: true` claims that happened.
+
+    Two scenarios reached a commit marked rehearsed while still carrying their banners, and
+    nothing noticed - the flag and the prose contradicted each other and both were valid on
+    their own terms. One of them had a prediction the rehearsal actually falsified, sitting
+    in the file as though it were established.
+
+    Deleting a marker is not the fix on its own: a marker you could not check should stay,
+    with the item reworded to say what the bundle can and cannot show.
+    """
+    for path in sorted(SCENARIO_DIR.rglob("*.yaml")):
+        if "examples" in path.parts or "artifacts" in path.parts:
+            continue
+        scenario = Scenario.from_yaml(path)
+        if not scenario.rehearsed:
+            continue
+        text = path.read_text()
+        found = [m for m in PRE_REHEARSAL_MARKERS if m in text]
+        assert not found, (
+            f"{scenario.id}: rehearsed: true, but the file still contains {found}. Those "
+            "mark predictions nobody has confirmed yet. Check each against the committed "
+            "bundle, correct anything the rehearsal falsified, and remove the marker - or "
+            "leave rehearsed: false until that is done."
         )

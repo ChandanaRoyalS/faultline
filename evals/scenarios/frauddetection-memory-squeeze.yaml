@@ -3,12 +3,9 @@
 # (ADR-0013 retired container CPU throttling); SPLIT.md is unchanged, because the slot and
 # its split were committed before authoring and only the scenario in the slot changes.
 #
-# ============================ UNVERIFIED - NOT REHEARSED ============================
-# Everything below about the observable shape is a prediction, not a measurement. The
-# fault mechanism is proven (ad-memory-squeeze, same mechanism, same runtime class); the
-# claim that this fault is silent to users is not. Verify at rehearsal and correct this
-# file against the bundle before setting rehearsed: true.
-# ====================================================================================
+# Rehearsed and verified against the bundle. The "silent to users" claim held at the alert
+# level and at the error level exactly; two sub-threshold latency movements were measured
+# and are recorded below rather than glossed.
 id: frauddetection-memory-squeeze
 title: Fraud detection service memory limit cut below its working set
 fault_class: resource_exhaustion
@@ -31,16 +28,29 @@ ground_truth:
     erroring.
   category: resource_exhaustion
 expected_evidence:
-  # PREDICTED. Confirm each against the bundle at rehearsal.
-  - container: frauddetection-service exit code 137 with an OOMKilled termination reason
-  - container: repeated restarts, memory pinned at the 200m ceiling before each kill
-  - metrics: ServiceNoTraffic on frauddetectionservice and nothing else - the service
-      stops emitting spans entirely rather than emitting slow or failing ones
-  - metrics: no error-rate movement anywhere. Predicted, and the discriminating claim of
-      this scenario - a synchronous dependency dying produces caller errors, and this
-      should not
-  - metrics: no latency movement anywhere, including on checkoutservice, which publishes
-      the orders this service consumes
+  # Measured against the bundle unless a line says otherwise.
+  - container: frauddetection-service exit code 137 with an OOMKilled termination reason.
+      NOT VERIFIABLE FROM THIS BUNDLE - a container exit code is a kernel event and never
+      appears in the captured logs. Check it live during an investigation
+  - container: repeated restarts, memory pinned at the 200m ceiling before each kill.
+      Same caveat - restart counts are not in the capture
+  - metrics: ServiceNoTraffic on frauddetectionservice and nothing else. Measured - it is
+      the only entry in alerts_over_window for the whole incident, firing at +469s
+  - metrics: frauddetectionservice stops serving. Measured - call rate 0.197 to 0.014
+      req/s, 48 of 56 samples during the fault are exactly zero
+  - metrics: no error-rate movement anywhere. Measured and exact - every service reads
+      0.0000 at every sample, before, during and after. This is the discriminating claim
+      of the scenario - a synchronous dependency dying produces caller errors, and this
+      produces none
+  - metrics: no latency movement above threshold anywhere, and effectively none at all.
+      Measured - every service within 1ms of its baseline mean except shippingservice
+      (15.8 to 21.2ms mean, max 47ms) and a brief emailservice excursion (max 30ms).
+      Both are two orders of magnitude below the 250ms threshold, and neither is
+      established as caused by this fault from a single run
+  - metrics: the storefront is unaffected in the ways that matter - frontend and
+      checkoutservice hold 0.0000 error ratio and flat p95 throughout. Frontend
+      throughput measured lower during the fault (9.33 to 7.63 req/s mean); whether that
+      is fault-related or load-generator variation is not established from one run
   - metrics: the container's memory limit is lower than it was before onset; the working
       set did not grow to meet it
   - change: no deploy and no image change - only the container's resource limit moved
@@ -67,25 +77,13 @@ rehearsed: true
 # 3-minute for-clause starts late. 1200s leaves headroom over the measured 675s.
 alert_timeout_seconds: 1200
 
-# ------------------------------ RISK, BEFORE REHEARSAL ------------------------------
-# The intended result is exactly one alert: ServiceNoTraffic on frauddetectionservice. If
-# that holds, this is the catalog's only fault with no user-visible symptom, and it tests
-# whether an investigation can work from an alert with no downstream evidence attached.
+# ---------------------------- RISK, RESOLVED AT REHEARSAL ----------------------------
+# The risk was that nothing would alert at all, leaving the failure invisible the way the
+# 48m recommendation case was, and requiring a different target rather than a different
+# number. It did alert: ServiceNoTraffic/frauddetectionservice at +469s.
 #
-# The failure mode is that NOTHING alerts. ServiceNoTraffic needs the service to have been
-# emitting spans and then to stop for three minutes. If the JVM restarts faster than that,
-# or if frauddetectionservice's span rate is too sparse for the rule's `offset 10m`
-# lookback to see prior traffic, the service dies repeatedly and the stack records
-# nothing - exactly the 48m recommendation-service case (CATALOG.md).
-#
-# The two outcomes need different responses and must not be confused:
-#   one alert, nothing else   -> the scenario works; remove this block and mark rehearsed
-#   no alert at all           -> the SLOT NEEDS A DIFFERENT TARGET, not a lower number.
-#                                A tighter ceiling kills it harder, not more visibly, and
-#                                chasing the number is what wasted the currency slot. Pick
-#                                a service with synchronous callers or a slower runtime.
-#
-# A partial result - error-rate or latency movement somewhere - falsifies the "no
-# user-visible symptom" claim rather than the fault. Correct the ground truth in that case
-# and keep the scenario; it is still a valid resource_exhaustion case, just not a silent one.
+# It came closer than the alert set suggests. The recorder's 420s default wait expired
+# first, so the first recording wrote alerts_at_fire: [] for a scenario that works. The
+# cause is traffic rate - 0.099 req/s against 1-10 for every other target - and it is why
+# this scenario carries alert_timeout_seconds. See CATALOG.md.
 # ------------------------------------------------------------------------------------
