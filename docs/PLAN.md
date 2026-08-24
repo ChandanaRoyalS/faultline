@@ -76,10 +76,22 @@ correlation is deliberately **not** decided here.
 against), `docs/evidence/t2.1-live-smoke/README.md` (the receiver running live),
 `docs/evidence/gate-1/README.md:19`
 
-### T2.2 / T2.3 — orchestrator
+### T2.2 / T2.3 — orchestrator *(designed, not built)*
 Event consumption, an eleven-state incident machine, agent fan-out. ADR-0001 commits to a
 global investigation concurrency cap with severity-ordered overflow.
-`src/faultline/orchestrator/__init__.py:1`, `docs/adr/0001:9`
+
+**ADR-0016 designs all of it** and closes the "contract not written" marker this entry
+carried: incident correlation (time overlap now, dependency-graph policy deferred to T2.4
+behind a named seam), the eleven states with a trigger on every transition, consumer-group
+ack semantics — an event is processed when its incident state change is durable, not when
+the investigation finishes — and the cap, its severity source, and its overflow order.
+
+Four numbers in it are placeholders with reasons and no measurements (cap 3, settle window
+5m, claim idle timeout 60s, poison threshold 5), to be set from T4.1's first runs. Two of
+its mechanisms cannot be exercised by the eval catalog at all, because
+`require_no_active_faults` means one incident at a time — recorded there, not here.
+`src/faultline/orchestrator/__init__.py:1`, `docs/adr/0016-orchestrator-correlation-state-and-cap.md`,
+`docs/adr/0001:9`, `docs/adr/0015-alert-ingest-identity-and-dedupe.md`
 
 ### T2.4 — context layer
 Service catalog, dependency-graph scoping, retrieval.
@@ -138,8 +150,11 @@ carries `alerts_over_window` with `began_after_revert` rather than only a snapsh
 `docs/adr/0009:117`, `docs/adr/0009:137`, `src/evalharness/rehearse.py:590`
 
 ### T3.5 — state machine
-Part of the orchestrator's eleven-state machine.
-`src/faultline/orchestrator/__init__.py:1`
+Part of the orchestrator's eleven-state machine. The states and their triggers are proposed
+in ADR-0016; the five that depend on agent outcomes (`TRIAGING`, `PLANNING`, `INVESTIGATING`,
+`SYNTHESIZING`, `PROPOSING`) are named there but deliberately not designed, since what each
+agent returns is T3.x's contract.
+`src/faultline/orchestrator/__init__.py:1`, `docs/adr/0016-orchestrator-correlation-state-and-cap.md`
 
 ---
 
