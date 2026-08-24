@@ -1,99 +1,100 @@
 {
   "alerts_at_fire": [
     "ServiceHighErrorRate/frontend",
-    "ServiceHighErrorRate/loadgenerator"
+    "ServiceHighErrorRate/loadgenerator",
+    "ServiceHighErrorRate/checkoutservice"
   ],
   "alerts_over_window": [
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-24T04:47:12+00:00",
-      "last_seen": "2026-08-24T04:54:27+00:00",
+      "first_seen": "2026-08-23T11:53:17+00:00",
+      "last_seen": "2026-08-23T12:00:32+00:00",
       "minutes_firing": 7.5,
+      "service": "checkoutservice"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T11:53:17+00:00",
+      "last_seen": "2026-08-23T12:01:02+00:00",
+      "minutes_firing": 8.0,
       "service": "frontend"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-24T04:47:12+00:00",
-      "last_seen": "2026-08-24T04:54:27+00:00",
-      "minutes_firing": 7.5,
+      "first_seen": "2026-08-23T11:53:17+00:00",
+      "last_seen": "2026-08-23T12:01:02+00:00",
+      "minutes_firing": 8.0,
       "service": "loadgenerator"
     },
     {
-      "alert": "ServiceHighErrorRate",
-      "began_after_revert": false,
-      "first_seen": "2026-08-24T04:47:27+00:00",
-      "last_seen": "2026-08-24T04:54:12+00:00",
-      "minutes_firing": 7.0,
-      "service": "checkoutservice"
-    },
-    {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-08-24T04:50:27+00:00",
-      "last_seen": "2026-08-24T04:52:27+00:00",
-      "minutes_firing": 2.2,
-      "service": "currencyservice"
-    },
-    {
-      "alert": "ServiceNoTraffic",
-      "began_after_revert": false,
-      "first_seen": "2026-08-24T04:50:27+00:00",
-      "last_seen": "2026-08-24T04:52:27+00:00",
-      "minutes_firing": 2.2,
-      "service": "emailservice"
-    },
-    {
-      "alert": "ServiceNoTraffic",
-      "began_after_revert": false,
-      "first_seen": "2026-08-24T04:50:27+00:00",
-      "last_seen": "2026-08-24T04:52:27+00:00",
-      "minutes_firing": 2.2,
-      "service": "quoteservice"
-    },
-    {
-      "alert": "ServiceNoTraffic",
-      "began_after_revert": false,
-      "first_seen": "2026-08-24T04:50:42+00:00",
-      "last_seen": "2026-08-24T04:52:27+00:00",
-      "minutes_firing": 2.0,
+      "first_seen": "2026-08-23T11:56:17+00:00",
+      "last_seen": "2026-08-23T11:58:32+00:00",
+      "minutes_firing": 2.5,
       "service": "accountingservice"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-08-24T04:50:42+00:00",
-      "last_seen": "2026-08-24T04:52:27+00:00",
-      "minutes_firing": 2.0,
+      "first_seen": "2026-08-23T11:56:17+00:00",
+      "last_seen": "2026-08-23T11:58:32+00:00",
+      "minutes_firing": 2.5,
       "service": "cartservice"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-08-24T04:50:42+00:00",
-      "last_seen": "2026-08-24T04:52:27+00:00",
-      "minutes_firing": 2.0,
+      "first_seen": "2026-08-23T11:56:17+00:00",
+      "last_seen": "2026-08-23T11:58:32+00:00",
+      "minutes_firing": 2.5,
+      "service": "currencyservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T11:56:17+00:00",
+      "last_seen": "2026-08-23T11:58:32+00:00",
+      "minutes_firing": 2.5,
+      "service": "emailservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T11:56:17+00:00",
+      "last_seen": "2026-08-23T11:58:32+00:00",
+      "minutes_firing": 2.5,
       "service": "frauddetectionservice"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-08-24T04:50:42+00:00",
-      "last_seen": "2026-08-24T04:52:27+00:00",
-      "minutes_firing": 2.0,
+      "first_seen": "2026-08-23T11:56:17+00:00",
+      "last_seen": "2026-08-23T11:58:32+00:00",
+      "minutes_firing": 2.5,
+      "service": "quoteservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T11:56:17+00:00",
+      "last_seen": "2026-08-23T11:58:32+00:00",
+      "minutes_firing": 2.5,
       "service": "shippingservice"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": true,
-      "first_seen": "2026-08-24T04:54:42+00:00",
-      "last_seen": "2026-08-24T04:54:57+00:00",
-      "minutes_firing": 0.5,
+      "first_seen": "2026-08-23T12:00:47+00:00",
+      "last_seen": "2026-08-23T12:02:32+00:00",
+      "minutes_firing": 2.0,
       "service": "emailservice"
     }
   ],
-  "baseline_clear_at": "2026-08-24T04:44:27+00:00",
+  "baseline_clear_at": "2026-08-23T11:49:47+00:00",
   "bundle_schema_version": 2,
   "expected_remediation_class": "config_revert",
   "fault_class": "bad_config",
@@ -109,23 +110,23 @@
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "15a722d22f4d226906543f3c57fb4229274b0a40",
+    "git_sha": "987eb384fc64f844c784f9b1fa453334e77c0380",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "392fc77bf038447c5cb77c2ca5c18cdfad15869ab0d37087251abfc1b6de13b1",
   "scenario_id": "cart-redis-misconfig",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 165,
-  "seconds_to_settle": 181,
+  "seconds_to_alert": 218,
+  "seconds_to_settle": 270,
   "split": "dev",
-  "t_alert_firing": "2026-08-24T04:47:12+00:00",
-  "t_clear": "2026-08-24T04:55:13+00:00",
-  "t_inject": "2026-08-24T04:44:27+00:00",
-  "t_revert": "2026-08-24T04:52:12+00:00",
+  "t_alert_firing": "2026-08-23T11:53:25+00:00",
+  "t_clear": "2026-08-23T12:02:55+00:00",
+  "t_inject": "2026-08-23T11:49:47+00:00",
+  "t_revert": "2026-08-23T11:58:25+00:00",
   "title": "Cart service pointed at the wrong Redis port",
   "window": {
-    "end": "2026-08-24T04:57:13+00:00",
-    "start": "2026-08-24T04:39:27+00:00"
+    "end": "2026-08-23T12:04:55+00:00",
+    "start": "2026-08-23T11:44:47+00:00"
   },
   "world": {
     "compose_digest": "4a7690c6fdda8c63d1701829f4c1e206a4765c931e864b7c739918c74b91583e",
