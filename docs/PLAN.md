@@ -89,7 +89,9 @@ the investigation finishes — and the cap, its severity source, and its overflo
 Four numbers in it are placeholders with reasons and no measurements (cap 3, settle window
 5m, claim idle timeout 60s, poison threshold 5), to be set from T4.1's first runs. Two of
 its mechanisms cannot be exercised by the eval catalog at all, because
-`require_no_active_faults` means one incident at a time — recorded there, not here.
+`require_no_active_faults` means one incident at a time — recorded there, not here. Its last
+two states depend on the action plane, which has no task number: see "Discovered omissions"
+below.
 `src/faultline/orchestrator/__init__.py:1`, `docs/adr/0016-orchestrator-correlation-state-and-cap.md`,
 `docs/adr/0001:9`, `docs/adr/0015-alert-ingest-identity-and-dedupe.md`
 
@@ -210,6 +212,43 @@ anecdote and will not be headlined as anything else.
 ### T7.2 — external benchmark confirmation
 Confirms the runtime interface ADR-0004 inferred from harness source.
 `docs/adr/0004:48`, `docs/adr/0004:55`
+
+---
+
+## Discovered omissions — described in the repo, absent from this index
+
+Every entry above was reconstructed from a citation that names a task number. This section
+holds the opposite case: something the repo describes, depends on, and never numbers. It is
+here so the gap sits in the index rather than only inside the ADR that tripped over it.
+
+### The action plane / executor — **no task number, contract not written**
+
+`docs/ARCHITECTURE.md:12` places it in the system diagram as the last stage: "action plane
+(separate service, allowlist + approval tokens)". `docs/THREAT-MODEL.md:15` makes it
+load-bearing for the whole security argument — it is the only holder of write credentials,
+it validates actions against an allowlist, and it requires "a single-use, action-bound
+human-approval token", so that "a fully compromised investigation agent cannot execute a
+write, because the tokens it holds cannot". `docs/THREAT-MODEL.md:39` adds that T6.8 has to
+re-harden its public surface and make it unreachable from the internet.
+
+**No task in this file builds it.** The grep that produced this index found no `T<n>`
+citation attached to it anywhere in the tree.
+
+What depends on it: ADR-0016's states 8 and 9 — `AWAITING_APPROVAL` and `EXECUTING` — are
+the last two of the eleven-state incident machine, and both are named there with their
+triggers declared and deliberately not designed, because what an approval token contains is
+this component's contract and not the orchestrator's. The remediation proposer, one of the
+nine agent roles at T3.x, produces the input to it.
+
+**contract not written** — the repo does not say what an action is, what the allowlist
+contains, what the token binds to, who issues or approves it, or whether the executor lives
+in this repository at all.
+
+Note the honest limit of this observation: **this file is a reconstruction, and the real
+execution plan lives outside the repository.** The plan may well number this task. What is
+established is that nothing in the tree cites it, so nobody reading the repository can find
+out — which is the same failure mode this file exists to fix, and the reason it is recorded
+as an omission rather than asserted as a hole in the plan itself.
 
 ---
 
