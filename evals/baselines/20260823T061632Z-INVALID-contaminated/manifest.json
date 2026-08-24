@@ -1,0 +1,461 @@
+{
+  "alerts_during_window": [
+    {
+      "alert": "ServiceHighErrorRate",
+      "first_seen": "2026-08-23T06:40:47+00:00",
+      "last_seen": "2026-08-23T06:48:32+00:00",
+      "minutes_firing": 8.0,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "first_seen": "2026-08-23T06:40:47+00:00",
+      "last_seen": "2026-08-23T06:48:32+00:00",
+      "minutes_firing": 8.0,
+      "service": "loadgenerator"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "first_seen": "2026-08-23T06:41:02+00:00",
+      "last_seen": "2026-08-23T06:48:02+00:00",
+      "minutes_firing": 7.2,
+      "service": "checkoutservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "first_seen": "2026-08-23T06:44:02+00:00",
+      "last_seen": "2026-08-23T06:46:17+00:00",
+      "minutes_firing": 2.5,
+      "service": "accountingservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "first_seen": "2026-08-23T06:44:02+00:00",
+      "last_seen": "2026-08-23T06:46:17+00:00",
+      "minutes_firing": 2.5,
+      "service": "frauddetectionservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "first_seen": "2026-08-23T06:44:02+00:00",
+      "last_seen": "2026-08-23T06:46:17+00:00",
+      "minutes_firing": 2.5,
+      "service": "shippingservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "first_seen": "2026-08-23T06:44:17+00:00",
+      "last_seen": "2026-08-23T06:46:17+00:00",
+      "minutes_firing": 2.2,
+      "service": "cartservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "first_seen": "2026-08-23T06:44:02+00:00",
+      "last_seen": "2026-08-23T06:46:02+00:00",
+      "minutes_firing": 2.2,
+      "service": "currencyservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "first_seen": "2026-08-23T06:44:02+00:00",
+      "last_seen": "2026-08-23T06:46:02+00:00",
+      "minutes_firing": 2.2,
+      "service": "emailservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "first_seen": "2026-08-23T06:44:02+00:00",
+      "last_seen": "2026-08-23T06:46:02+00:00",
+      "minutes_firing": 2.2,
+      "service": "quoteservice"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "first_seen": "2026-08-23T06:48:17+00:00",
+      "last_seen": "2026-08-23T06:48:32+00:00",
+      "minutes_firing": 0.5,
+      "service": "emailservice"
+    }
+  ],
+  "call_rate": {
+    "accountingservice": {
+      "max": 0.25217391304347825,
+      "mean": 0.1274543906292211,
+      "min": 0.0,
+      "p95": 0.20869746693449512,
+      "samples": 181.0
+    },
+    "adservice": {
+      "max": 0.695646124816306,
+      "mean": 0.460047019879155,
+      "min": 0.2956521739130435,
+      "p95": 0.591304347826087,
+      "samples": 181.0
+    },
+    "cartservice": {
+      "max": 4.852173913043479,
+      "mean": 2.6562217577593605,
+      "min": 0.0,
+      "p95": 4.13909444265702,
+      "samples": 181.0
+    },
+    "checkoutservice": {
+      "max": 3.530434782608695,
+      "mean": 1.8005522914352174,
+      "min": 0.3130407561673376,
+      "p95": 2.9043730815050566,
+      "samples": 181.0
+    },
+    "currencyservice": {
+      "max": 0.7652173913043477,
+      "mean": 0.3519527675840464,
+      "min": 0.0,
+      "p95": 0.5999895653988626,
+      "samples": 181.0
+    },
+    "emailservice": {
+      "max": 0.9739130434782608,
+      "mean": 0.5045810119478691,
+      "min": 0.0,
+      "p95": 0.8,
+      "samples": 181.0
+    },
+    "frauddetectionservice": {
+      "max": 0.2608695652173913,
+      "mean": 0.12755048228506224,
+      "min": 0.0,
+      "p95": 0.2086938374448918,
+      "samples": 181.0
+    },
+    "frontend": {
+      "max": 12.373913043478261,
+      "mean": 9.531521851597017,
+      "min": 7.860801210424257,
+      "p95": 10.89555742993539,
+      "samples": 181.0
+    },
+    "frontend-proxy": {
+      "max": 0.0,
+      "mean": 0.0,
+      "min": 0.0,
+      "p95": 0.0,
+      "samples": 181.0
+    },
+    "loadgenerator": {
+      "max": 6.878201059121225,
+      "mean": 5.589315677106683,
+      "min": 4.834782608695652,
+      "p95": 6.1042947452630845,
+      "samples": 181.0
+    },
+    "paymentservice": {
+      "max": 0.5565217391304348,
+      "mean": 0.2727803437867008,
+      "min": 0.017391001895619207,
+      "p95": 0.43478260869565216,
+      "samples": 181.0
+    },
+    "productcatalogservice": {
+      "max": 4.2956521739130435,
+      "mean": 3.131069631667112,
+      "min": 2.1999808697315673,
+      "p95": 3.7130111912070336,
+      "samples": 181.0
+    },
+    "quoteservice": {
+      "max": 0.5043478260869565,
+      "mean": 0.2556773883515851,
+      "min": 0.0,
+      "p95": 0.41739130434782606,
+      "samples": 181.0
+    },
+    "recommendationservice": {
+      "max": 1.391304347826087,
+      "mean": 0.931048701537705,
+      "min": 0.5217391304347826,
+      "p95": 1.2173807184285355,
+      "samples": 181.0
+    },
+    "shippingservice": {
+      "max": 0.7565217391304347,
+      "mean": 0.38193078387353757,
+      "min": 0.0,
+      "p95": 0.6260924008034854,
+      "samples": 181.0
+    }
+  },
+  "disturbances_observed": [
+    {
+      "alerts": [
+        "ServiceHighErrorRate/frontend",
+        "ServiceHighErrorRate/loadgenerator",
+        "ServiceHighErrorRate/checkoutservice"
+      ],
+      "at": "2026-08-23T06:41:32+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighErrorRate/loadgenerator",
+        "ServiceHighErrorRate/checkoutservice",
+        "ServiceHighErrorRate/frontend"
+      ],
+      "at": "2026-08-23T06:42:32+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighErrorRate/frontend",
+        "ServiceHighErrorRate/loadgenerator",
+        "ServiceHighErrorRate/checkoutservice"
+      ],
+      "at": "2026-08-23T06:43:32+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighErrorRate/frontend",
+        "ServiceHighErrorRate/loadgenerator",
+        "ServiceHighErrorRate/checkoutservice",
+        "ServiceNoTraffic/emailservice",
+        "ServiceNoTraffic/shippingservice",
+        "ServiceNoTraffic/frauddetectionservice",
+        "ServiceNoTraffic/accountingservice",
+        "ServiceNoTraffic/cartservice",
+        "ServiceNoTraffic/quoteservice",
+        "ServiceNoTraffic/currencyservice"
+      ],
+      "at": "2026-08-23T06:44:32+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighErrorRate/frontend",
+        "ServiceHighErrorRate/loadgenerator",
+        "ServiceHighErrorRate/checkoutservice",
+        "ServiceNoTraffic/cartservice",
+        "ServiceNoTraffic/quoteservice",
+        "ServiceNoTraffic/currencyservice",
+        "ServiceNoTraffic/emailservice",
+        "ServiceNoTraffic/shippingservice",
+        "ServiceNoTraffic/frauddetectionservice",
+        "ServiceNoTraffic/accountingservice"
+      ],
+      "at": "2026-08-23T06:45:32+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighErrorRate/loadgenerator",
+        "ServiceHighErrorRate/checkoutservice",
+        "ServiceHighErrorRate/frontend"
+      ],
+      "at": "2026-08-23T06:46:32+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighErrorRate/frontend",
+        "ServiceHighErrorRate/loadgenerator",
+        "ServiceHighErrorRate/checkoutservice"
+      ],
+      "at": "2026-08-23T06:47:32+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighErrorRate/frontend",
+        "ServiceHighErrorRate/loadgenerator",
+        "ServiceHighErrorRate/emailservice"
+      ],
+      "at": "2026-08-23T06:48:32+00:00"
+    }
+  ],
+  "error_ratio": {
+    "checkoutservice": {
+      "fraction_over_threshold": 0.20441988950276244,
+      "max": 0.6666666666666667,
+      "mean": 0.10913269603613461,
+      "min": 0.0,
+      "minutes_over_threshold": 9.2,
+      "p95": 0.6666666666666666,
+      "samples": 181.0
+    },
+    "emailservice": {
+      "fraction_over_threshold": 0.0641025641025641,
+      "max": 1.0,
+      "mean": 0.04765567891451995,
+      "min": 0.0,
+      "minutes_over_threshold": 2.5,
+      "p95": 0.36842105263157904,
+      "samples": 156.0
+    },
+    "frontend": {
+      "fraction_over_threshold": 0.22099447513812154,
+      "max": 0.294228949858089,
+      "mean": 0.051762474713276656,
+      "min": 0.0,
+      "minutes_over_threshold": 10.0,
+      "p95": 0.2781655034895314,
+      "samples": 181.0
+    },
+    "loadgenerator": {
+      "fraction_over_threshold": 0.22099447513812154,
+      "max": 0.3117283950617284,
+      "mean": 0.0551947820703968,
+      "min": 0.0,
+      "minutes_over_threshold": 10.0,
+      "p95": 0.289763779527559,
+      "samples": 181.0
+    },
+    "productcatalogservice": {
+      "fraction_over_threshold": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "min": 0.0,
+      "minutes_over_threshold": 0.0,
+      "p95": 0.0,
+      "samples": 181.0
+    },
+    "recommendationservice": {
+      "fraction_over_threshold": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "min": 0.0,
+      "minutes_over_threshold": 0.0,
+      "p95": 0.0,
+      "samples": 181.0
+    }
+  },
+  "injector_status": "no active injections",
+  "kind": "baseline",
+  "latency_p95_ms": {
+    "accountingservice": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.9000000000000001,
+      "mean": 1.9,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9000000000000001,
+      "samples": 155.0
+    },
+    "adservice": {
+      "fraction_over_threshold": 0.0,
+      "max": 3.2499999999999982,
+      "mean": 1.9460879526734545,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9730769230769232,
+      "samples": 181.0
+    },
+    "cartservice": {
+      "fraction_over_threshold": 0.05128205128205128,
+      "max": 359.99999999999994,
+      "mean": 21.858507138072703,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 2.0,
+      "p95": 240.0,
+      "samples": 156.0
+    },
+    "checkoutservice": {
+      "fraction_over_threshold": 0.011049723756906077,
+      "max": 1060.0000000000014,
+      "mean": 40.72794132599178,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.5,
+      "p95": 47.529411764705884,
+      "samples": 181.0
+    },
+    "currencyservice": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.9000000000000001,
+      "mean": 1.9,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9000000000000001,
+      "samples": 156.0
+    },
+    "emailservice": {
+      "fraction_over_threshold": 0.0,
+      "max": 3.4400000000000004,
+      "mean": 1.969033883813243,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 2.1999999999999966,
+      "samples": 156.0
+    },
+    "frauddetectionservice": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.9000000000000001,
+      "mean": 1.9,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9000000000000001,
+      "samples": 155.0
+    },
+    "frontend": {
+      "fraction_over_threshold": 0.0,
+      "max": 53.12499999999617,
+      "mean": 41.821350858150986,
+      "min": 36.51219512195121,
+      "minutes_over_threshold": 0.0,
+      "p95": 43.13333333333331,
+      "samples": 181.0
+    },
+    "loadgenerator": {
+      "fraction_over_threshold": 0.0,
+      "max": 93.05555555555512,
+      "mean": 49.206204332594574,
+      "min": 46.74301675977652,
+      "minutes_over_threshold": 0.0,
+      "p95": 48.39443155452437,
+      "samples": 181.0
+    },
+    "paymentservice": {
+      "fraction_over_threshold": 0.0,
+      "max": 5.9,
+      "mean": 2.8374477222679024,
+      "min": 1.9,
+      "minutes_over_threshold": 0.0,
+      "p95": 5.8,
+      "samples": 181.0
+    },
+    "productcatalogservice": {
+      "fraction_over_threshold": 0.0,
+      "max": 2.763999999999999,
+      "mean": 2.022181233733457,
+      "min": 1.9194871794871793,
+      "minutes_over_threshold": 0.0,
+      "p95": 2.412499999999996,
+      "samples": 181.0
+    },
+    "quoteservice": {
+      "fraction_over_threshold": 0.0,
+      "max": 10.0,
+      "mean": 7.654232768655845,
+      "min": 7.0,
+      "minutes_over_threshold": 0.0,
+      "p95": 7.875,
+      "samples": 156.0
+    },
+    "recommendationservice": {
+      "fraction_over_threshold": 0.0,
+      "max": 5.799999999999997,
+      "mean": 4.1710528741334105,
+      "min": 3.7629629629629626,
+      "minutes_over_threshold": 0.0,
+      "p95": 5.133333333333329,
+      "samples": 181.0
+    },
+    "shippingservice": {
+      "fraction_over_threshold": 0.0,
+      "max": 36.0,
+      "mean": 13.14720838985554,
+      "min": 9.399999999999999,
+      "minutes_over_threshold": 0.0,
+      "p95": 30.49999999999999,
+      "samples": 155.0
+    }
+  },
+  "recorded_by": "evalharness.baseline",
+  "window": {
+    "end": "2026-08-23T07:01:32+00:00",
+    "minutes": 45,
+    "start": "2026-08-23T06:16:32+00:00",
+    "step": 15
+  }
+}

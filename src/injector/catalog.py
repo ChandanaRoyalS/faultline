@@ -69,11 +69,17 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
                 "Shrink the recommendation service's memory limit below its working set. "
                 "The kernel OOM-kills it, compose restarts it, and the frontend sees the gap."
             ),
-            # 48m against a measured steady-state RSS of ~55MiB (800M ceiling). Chosen
-            # below the working set on purpose: a limit that merely removes headroom
-            # produces an OOM kill only when load happens to spike, and a fault that
-            # fires sometimes is worse than no fault at all for an eval scenario.
-            params={"memory": "48m"},
+            # 32m, and the reason is recovery time rather than severity. 48m is already
+            # below the ~55MiB steady-state RSS and kills the container about every 36
+            # seconds - but a Python process restarts in a second or two, faster than the
+            # 15s scrape, so a full 12-minute rehearsal produced 49 of 49 samples present,
+            # no gaps, no errors and no alert. The fault fired constantly and was
+            # invisible. 32m is below what the runtime needs to finish starting at all:
+            # the container is OOM-killed before startup completes, never reaches a
+            # serving state, and `docker ps` reports Restarting (137). The service is then
+            # genuinely absent rather than briefly away, which is what makes it
+            # observable. See CATALOG.md for the 48m measurement.
+            params={"memory": "32m"},
         ),
         FaultDefinition(
             id="flag-service-bad-deploy",
@@ -151,6 +157,25 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"memory": "256m"},
         ),
         FaultDefinition(
+            id="frauddetection-memory-squeeze",
+            fault_class=FaultClass.RESOURCE_EXHAUSTION,
+            target="frauddetection-service",
+            description=(
+                "Shrink the fraud detection service's memory limit below its working set. "
+                "It consumes from Kafka and nothing calls it synchronously, so it dies "
+                "without anything upstream noticing - the storefront never changes."
+            ),
+            # 200m against a 500M ceiling and a measured resting usage of 326MiB, so the
+            # limit lands well below the working set rather than merely removing headroom.
+            #
+            # A JVM on purpose. ad-memory-squeeze established that this mechanism kills a
+            # JVM outright and that the restart is slow enough to leave a visible gap;
+            # recommendation-service at 48m proved a fast-restarting Python process is
+            # killed just as often and stays invisible (CATALOG.md). Runtime choice is the
+            # variable that decides whether this mechanism produces a signal at all.
+            params={"memory": "200m"},
+        ),
+        FaultDefinition(
             id="cart-bad-image-tag",
             fault_class=FaultClass.BAD_DEPLOY,
             target="cartservice",
@@ -161,9 +186,61 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             ),
             # A plausible hotfix tag against the world's real image name, so the
             # investigator has to notice the tag is wrong rather than that the image
-            # is obviously foreign. No `server` param, so nothing is built: the point
-            # is that this tag resolves nowhere.
-            params={"image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice-hotfix.2"},
+            # is obviously foreign. No `server` param, so nothing is built; expect_start
+            # "no" because the point is that this tag resolves nowhere.
+            params={
+                "image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice-hotfix.2",
+                "expect_start": "no",
+            },
+        ),
+        FaultDefinition(
+            id="email-wrong-image",
+            fault_class=FaultClass.BAD_DEPLOY,
+            target="emailservice",
+            description=(
+                "Deploy the quote service's image into the email service's slot. The image "
+                "resolves and the container is created, then Apache cannot configure "
+                "itself because a variable it needs is not in this service's environment, "
+                "and it crash-loops."
+            ),
+            # Probed for five minutes, not a full rehearsal. Measured: the container
+            # starts, Apache fails to configure because QUOTE_SERVICE_PORT is not defined
+            # in emailservice's environment, and it crash-loops with exit 1.
+            # ServiceHighErrorRate fired on checkoutservice within five minutes.
+            #
+            # Exit 1 with a configuration error in the logs, not exit 137 - which is what
+            # separates this from shipping-wrong-image, where the same class of mistake
+            # produces a resource signature that points at the wrong fault class. Here the
+            # logs name the cause outright. See CATALOG.md on the bad_deploy trio.
+            params={
+                "image": "ghcr.io/open-telemetry/demo:v1.2.1-quoteservice",
+                "expect_start": "yes",
+            },
+        ),
+        FaultDefinition(
+            id="shipping-wrong-image",
+            fault_class=FaultClass.BAD_DEPLOY,
+            target="shippingservice",
+            description=(
+                "Deploy the ad service's image into the shipping service's slot. The image "
+                "resolves and the deploy succeeds, so this is a release that shipped - but "
+                "a JVM does not fit a container sized for Rust, and it is OOM-killed "
+                "before it can serve."
+            ),
+            # Measured: the JVM starts, the OTel agent loads, then exit 137 in a restart
+            # loop. shippingservice's ceiling is 120 MiB, sized for a Rust binary; the ad
+            # service is a JVM and needs several times that.
+            #
+            # The image was chosen for exactly that mismatch. A wrong image that merely
+            # served the wrong protocol would look like a config or dependency fault; a
+            # wrong image that is a *heavier runtime than the slot was sized for* fails
+            # with a resource signature - exit 137, OOMKilled, restart loop - which is
+            # indistinguishable from a memory-limit fault and has a different remediation.
+            # That is the point of the scenario. See CATALOG.md.
+            params={
+                "image": "ghcr.io/open-telemetry/demo:v1.2.1-adservice",
+                "expect_start": "yes",
+            },
         ),
         FaultDefinition(
             id="productcatalog-dependency-latency",

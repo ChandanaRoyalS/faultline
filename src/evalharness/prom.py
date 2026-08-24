@@ -1,0 +1,206 @@
+"""Prometheus and Loki access, shared by everything that reads the world (T1.5).
+
+Extracted from evalharness.rehearse when the baseline recorder became a second consumer.
+T4.1's scoring harness will be the third, and all three have to ask the same questions the
+same way - a baseline measured with one query and a scenario scored with a slightly
+different one is not a comparison.
+"""
+
+from __future__ import annotations
+
+import json
+import urllib.parse
+import urllib.request
+from datetime import UTC, datetime
+from itertools import pairwise
+from typing import Any
+
+PROMETHEUS = "http://localhost:9090"
+LOKI = "http://localhost:3100"
+
+POLL_SECONDS = 15
+HTTP_TIMEOUT = 20
+
+# The four series every capture takes. Keys become filenames under metrics/.
+METRIC_QUERIES: dict[str, str] = {
+    "error-ratio": (
+        'sum by(service_name) (rate(calls_total{status_code="STATUS_CODE_ERROR"}[2m]))'
+        " / sum by(service_name) (rate(calls_total[2m]))"
+    ),
+    "call-rate": "sum by(service_name) (rate(calls_total[2m]))",
+    "latency-p95": (
+        "histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))"
+    ),
+    "alerts-firing": 'ALERTS{alertstate="firing"}',
+}
+
+
+class QueryError(RuntimeError):
+    """A telemetry query failed or returned something unusable."""
+
+
+def now() -> datetime:
+    """Whole seconds, deliberately.
+
+    Every timestamp a bundle records is stamped to the second, and every duration in it is
+    reported in seconds. Keeping sub-second precision here means a duration computed from
+    the raw datetimes can differ by one from the difference of the two stamps beside it -
+    a manifest that disagrees with itself for no reason. Truncating at the source removes
+    the class of mismatch instead of tolerating it in each consumer.
+    """
+    return datetime.now(UTC).replace(microsecond=0)
+
+
+def stamp(moment: datetime | None) -> str | None:
+    return None if moment is None else moment.isoformat(timespec="seconds")
+
+
+def get_json(base: str, path: str, params: dict[str, str]) -> dict[str, Any]:
+    url = f"{base}{path}?{urllib.parse.urlencode(params)}"
+    with urllib.request.urlopen(url, timeout=HTTP_TIMEOUT) as response:
+        payload: Any = json.loads(response.read().decode())
+    if not isinstance(payload, dict):
+        raise QueryError(f"{url} did not return a JSON object")
+    return payload
+
+
+def query_range(query: str, start: datetime, end: datetime, step: int = 15) -> dict[str, Any]:
+    return get_json(
+        PROMETHEUS,
+        "/api/v1/query_range",
+        {
+            "query": query,
+            "start": str(int(start.timestamp())),
+            "end": str(int(end.timestamp())),
+            "step": str(step),
+        },
+    )
+
+
+def firing_alerts() -> list[str]:
+    """Alert names currently firing, in the order Prometheus reports them."""
+    payload = get_json(PROMETHEUS, "/api/v1/alerts", {})
+    data = payload.get("data")
+    alerts = data.get("alerts", []) if isinstance(data, dict) else []
+    names: list[str] = []
+    for alert in alerts:
+        if not isinstance(alert, dict) or alert.get("state") != "firing":
+            continue
+        labels = alert.get("labels", {})
+        name = labels.get("alertname") if isinstance(labels, dict) else None
+        service = labels.get("service_name") if isinstance(labels, dict) else None
+        if isinstance(name, str):
+            names.append(f"{name}/{service}" if isinstance(service, str) else name)
+    return names
+
+
+def series_points(payload: dict[str, Any]) -> dict[str, list[tuple[float, float]]]:
+    """A query_range payload as {service_name: [(unix_seconds, value), ...]}.
+
+    NaN and +Inf are dropped rather than carried: a ratio over zero traffic is not a
+    measurement of anything, and averaging it in would understate every statistic.
+    """
+    data = payload.get("data")
+    results = data.get("result", []) if isinstance(data, dict) else []
+    out: dict[str, list[tuple[float, float]]] = {}
+    for item in results:
+        if not isinstance(item, dict):
+            continue
+        labels = item.get("metric", {})
+        name = labels.get("service_name") if isinstance(labels, dict) else None
+        if not isinstance(name, str):
+            continue
+        points: list[tuple[float, float]] = []
+        for pair in item.get("values", []):
+            if not (isinstance(pair, list) and len(pair) == 2):
+                continue
+            try:
+                value = float(pair[1])
+            except (TypeError, ValueError):
+                continue
+            if value != value or value in (float("inf"), float("-inf")):
+                continue
+            points.append((float(pair[0]), value))
+        if points:
+            out.setdefault(name, []).extend(points)
+    return out
+
+
+def alert_intervals(
+    payload: dict[str, Any],
+    step: int,
+    since: datetime | None = None,
+    revert: datetime | None = None,
+) -> list[dict[str, Any]]:
+    """Every firing episode in an ALERTS query_range, with when it started and stopped.
+
+    Derived from a captured series rather than polled, so it costs nothing extra and covers
+    the whole window instead of whatever happened to be firing at one instant. A
+    point-in-time snapshot systematically misses later waves: an incident that pages on two
+    services and grows to ten over six minutes looks five times smaller than it was.
+
+    Two things this has to get right, both found by running it on real captures:
+
+    `since` drops samples from before the fault. A bundle's window opens five minutes early
+    to show the healthy baseline, and if the previous rehearsal is still clearing, its
+    alerts sit in that pre-roll - attributing them to this incident inflates the blast
+    radius with someone else's fault.
+
+    Episodes are split rather than collapsed to min/max. An alert that stops and restarts
+    is two episodes, and reporting the span between them as continuous firing hides exactly
+    the signature a flapping fault is made of - `flag-service-crashloop` is nothing but
+    that shape.
+
+    `revert` marks episodes that began after the fault was removed. Reverting recreates a
+    container, and the recreate produces its own failures: in the cart-redis-misconfig
+    bundle emailservice went to a 100% error ratio for about 75 seconds starting 28 seconds
+    after the revert, having been at 0% for the entire incident. That is signal about the
+    recovery, not about the fault, and counting it as blast radius blames the fault for
+    damage the fix did.
+    """
+    data = payload.get("data")
+    results = data.get("result", []) if isinstance(data, dict) else []
+    floor = None if since is None else since.timestamp()
+    gap = max(2 * step, 60)
+
+    intervals: list[dict[str, Any]] = []
+    for item in results:
+        if not isinstance(item, dict):
+            continue
+        labels = item.get("metric", {})
+        if not isinstance(labels, dict):
+            continue
+        stamps = sorted(
+            float(v[0])
+            for v in item.get("values", [])
+            if isinstance(v, list) and len(v) == 2 and (floor is None or float(v[0]) >= floor)
+        )
+        if not stamps:
+            continue
+
+        episode = [stamps[0]]
+        episodes: list[list[float]] = []
+        for previous, current in pairwise(stamps):
+            if current - previous > gap:
+                episodes.append(episode)
+                episode = [current]
+            else:
+                episode.append(current)
+        episodes.append(episode)
+
+        for points in episodes:
+            began = datetime.fromtimestamp(points[0], tz=UTC)
+            entry: dict[str, Any] = {
+                "alert": labels.get("alertname"),
+                "service": labels.get("service_name"),
+                "first_seen": stamp(began),
+                "last_seen": stamp(datetime.fromtimestamp(points[-1], tz=UTC)),
+                "minutes_firing": round(len(points) * step / 60, 1),
+            }
+            if revert is not None:
+                # Omitted rather than defaulted to False when there is no revert to
+                # compare against - a baseline capture has none, and False would assert
+                # something the data cannot support.
+                entry["began_after_revert"] = began > revert
+            intervals.append(entry)
+    return sorted(intervals, key=lambda i: str(i["first_seen"]))

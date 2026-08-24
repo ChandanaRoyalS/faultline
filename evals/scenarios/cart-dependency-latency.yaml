@@ -20,24 +20,35 @@ ground_truth:
 expected_evidence:
   - alerts: ServiceHighLatency, with no accompanying error-rate alert - the incident is
       entirely a latency incident
-  - metrics: cartservice p95 rises by roughly the injected delay against a baseline in the
-      single-digit milliseconds, and the increase is a step at onset rather than a ramp
+  # Separation from healthy behaviour is by DURATION, not magnitude. cartservice p95 is
+  # bimodal unfaulted, reaching 353ms for ~105s about once every 29 minutes (ADR-0012).
+  # The fault's ~650ms is the same order as that, so a single latency sample cannot tell
+  # them apart - what distinguishes them is that the fault holds for the whole dwell while
+  # the healthy excursion is under two minutes. The `for: 3m` clause does the work here,
+  # not the 250ms threshold.
+  #
+  # Measured at ~650ms against a 1.9ms baseline for a 300ms egress delay. The doubling is
+  # expected and worth stating: the delay is paid per packet leaving the container, and a
+  # cart operation makes two Redis round-trips, so server-side p95 lands at roughly twice
+  # the injected figure. A reader expecting +300ms will think the measurement is wrong.
+  - metrics: cartservice p95 steps from single-digit milliseconds to several hundred at
+      onset - roughly twice the injected per-hop delay, because each cart operation pays
+      it on more than one round trip - and it is a step, not a ramp
   - metrics: cart's error ratio stays at zero throughout; requests are slow, not failing
   - traces: the added time sits in the network gap between caller span start and cart
       server span start, not inside cart's own handler duration
-  - metrics: callers slow by approximately cart's added latency and no more, which places
+  - metrics: callers slow by approximately cart's own increase and no more, which places
       the origin at cart rather than at something cart depends on
   - change: no deploy, image change, configuration change, or traffic increase at onset -
       the latency appears against an otherwise unchanged system
   - discriminator: cart's own CPU, memory and Redis latency are all normal, ruling out
       resource exhaustion and a slow dependency underneath cart
-# PROVISIONAL pending rehearsal. `restart` is correct only if recreating the target
-# container durably clears the delay. The delay is held by a pumba sidecar with
-# duration=1h; if that sidecar survives the restart and reapplies netem to the new
-# container, the honest label is `rollback` - an unauthorized container was deployed,
-# and the fix is to remove it.
-# Resolve here, during this scenario's rehearsal: restart the target mid-fault and
-# watch p95. Recovers and stays recovered -> restart. Recovers and degrades again, or
-# never recovers -> rollback, and dependency_latency-2 changes with it.
+# Measured, not inferred. With one pumba sidecar running throughout, cartservice p95
+# went 1.9ms at baseline -> ~650ms under the fault. After `docker restart cart-service`
+# it decayed 668 -> 600 -> 495 -> 390 -> 3.7 -> 1.9ms over about two minutes - the rate
+# window emptying, not a slow recovery - and stayed at 1.9ms. It did not come back.
+# Pumba binds to the container that existed when it started, so a recreated container
+# is simply not re-shaped. Restarting the target is therefore a real fix and `restart`
+# is the correct label, not a least-bad reading of four options.
 expected_remediation_class: restart
-rehearsed: false
+rehearsed: true

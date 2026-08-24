@@ -1,0 +1,71 @@
+# bad_deploy-2 (HOLDOUT) - see SPLIT.md. Nothing may be tuned against this scenario.
+#
+# Slot placement is the plain alphabetical rule with no exception: within the chosen
+# bad_deploy set, cart-bad-image-tag -> 1, email-wrong-image -> 2, shipping-wrong-image
+# -> 3, and 2 is the holdout. Replaces flag-service-bad-deploy, which is blocked:
+# featureflagservice emits no span metrics, so no fault on it can page. SPLIT.md is
+# unchanged - the slot and its split were committed before authoring.
+#
+# Rehearsed and verified against the bundle. The log evidence held exactly. One prediction
+# was falsified: the broken service never appears in the alert stream at all, which makes
+# this scenario harder than it was designed to be. See CATALOG.md.
+id: email-wrong-image
+title: Email service deployed with the quote service's image
+fault_class: bad_deploy
+split: holdout
+injection:
+  target: emailservice
+  method: email-wrong-image
+  params:
+    image: "ghcr.io/open-telemetry/demo:v1.2.1-quoteservice"
+    expect_start: "yes"
+ground_truth:
+  root_cause: >
+    A deploy put the quote service's image into the email service's slot. The image
+    resolves and the container is created, so the deploy succeeds and nothing fails at
+    release time.
+
+    The quote service is a PHP application served by Apache, and its entrypoint expects
+    QUOTE_SERVICE_PORT. That variable is not defined in emailservice's environment,
+    because emailservice has never needed it. Apache cannot configure itself, the process
+    exits 1, and the container crash-loops. Checkout, which calls email to confirm orders,
+    begins failing.
+  category: bad_deploy
+expected_evidence:
+  # Measured against the bundle unless a line says otherwise.
+  - logs: Apache failing to configure, naming QUOTE_SERVICE_PORT as undefined. Measured -
+      36 lines of AH00111 reporting config variable ${QUOTE_SERVICE_PORT} as not
+      defined, followed by AH00526 syntax errors on line 5 of /etc/apache2/ports.conf.
+      The cause is stated outright in the container's own output
+  - logs: the running process is Apache, in a service whose logs have never contained it.
+      Measured - 18 Apache lines, repeating as the container restarts
+  - container: email-service crash-looping with exit code 1 - an application exit, not a
+      kernel kill, so no OOMKilled reason and no 137. THE EXIT CODE IS NOT VERIFIABLE FROM
+      THIS BUNDLE; a container exit code never appears in captured logs. What the capture
+      shows is the restart cycle - Apache failing to start, repeatedly. Check the code live
+  - metrics: ServiceHighErrorRate on checkoutservice. Measured - at +256s, running six
+      minutes, and it is the ONLY alert in the entire incident
+  - metrics: emailservice never appears in the alert stream at all. Measured, and the
+      opposite of what was predicted before rehearsal - the service stops emitting spans,
+      but that absence produces no alert of any kind. The alerting names a healthy service
+      and never names the broken one
+  - change: the service's image reference changed at onset; nothing else did, and no
+      environment variable was edited
+  - discriminator: the environment is correct for the service that is supposed to be here
+      and wrong for the image that was deployed. Read as a config fault it looks like a
+      missing variable; the variable is missing because the wrong image is asking for it
+  - discriminator: exit 1 with a configuration message, not exit 137. That is what places
+      this in bad_deploy rather than resource_exhaustion, and it is the opposite of
+      shipping-wrong-image, where the same class of mistake produces a resource signature
+  # Why this scenario is in the holdout, stated plainly.
+  - discriminator: nothing points at emailservice. The only alert is on a healthy
+      service, so reaching the evidence means following a dependency from the service that
+      alerted to the service that failed - an alert-driven investigation lands on
+      checkoutservice, where there is nothing wrong
+  - discriminator: the logs contain the answer. This is the only bad_deploy scenario in
+      the catalog where they do - cart-bad-image-tag has no container and therefore no
+      logs at all, and shipping-wrong-image's logs show a JVM dying on memory, which
+      points at the wrong fault class. An investigation that has learned from those two
+      that logs are unhelpful here will skip the one place the answer is written down
+expected_remediation_class: rollback
+rehearsed: true

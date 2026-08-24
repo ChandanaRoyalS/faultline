@@ -1,0 +1,138 @@
+"""What produced a recorded artifact, and against what (T1.5).
+
+A bundle is a measurement, and a measurement without provenance cannot be compared to
+another one. Three questions have to be answerable from the manifest alone, months later,
+without the machine that made it:
+
+* Which recorder wrote this? Three schema changes in one evening meant three bundles that
+  looked fine and disagreed with each other. "Written by a different version" should be a
+  recorded fact, not an inference from a missing key.
+* Which world was it recorded against? The catalog's central claim is that ten scenarios
+  were measured under the same conditions. Without the demo tag, the stub image and the
+  platform, that claim has nothing behind it.
+* Which version of the label? A scenario's scored fields can change after a bundle is
+  recorded, which silently turns the bundle into evidence for a different question.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import platform
+import subprocess
+from pathlib import Path
+from typing import Any
+
+from evalharness.scenario import Scenario
+from injector.settings import InjectorSettings
+
+REPO_ROOT = Path(__file__).resolve().parents[2]
+FFS_STUB_DIR = REPO_ROOT / "compose" / "ffs-stub"
+
+BUNDLE_SCHEMA_VERSION = 2
+"""Bumped only by a change to the manifest's shape. A bump obsoletes every bundle recorded
+before it, because the consistency guards compare like against like. v1 -> v2 added
+`world.compose_digest` and `world.ffs_stub_source_digest`; see ADR-0014 for why that was
+worth breaking ADR-0009's freeze."""
+
+
+def _run(args: list[str], cwd: Path | None = None) -> str | None:
+    """Best effort. Missing provenance is recorded as null, never as a wrong value."""
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, check=False, cwd=cwd)
+    except (OSError, ValueError):
+        return None
+    return result.stdout.strip() or None if result.returncode == 0 else None
+
+
+def recorder_provenance(tool: str, repo_root: Path) -> dict[str, Any]:
+    sha = _run(["git", "rev-parse", "HEAD"], cwd=repo_root)
+    status = _run(["git", "status", "--porcelain"], cwd=repo_root)
+    return {
+        "tool": tool,
+        "git_sha": sha,
+        # A dirty tree means the SHA does not describe the code that ran. Recorded rather
+        # than ignored: a bundle produced from uncommitted work is reproducible only by
+        # whoever had that work, and the manifest should say so.
+        "git_dirty": status is not None and status != "",
+    }
+
+
+def _digest_of(paths: list[Path]) -> str | None:
+    """sha256 over the concatenated bytes of `paths`, in the order given."""
+    digest = hashlib.sha256()
+    for path in paths:
+        if not path.is_file():
+            return None
+        digest.update(path.read_bytes())
+    return digest.hexdigest()
+
+
+def compose_digest(settings: InjectorSettings | None = None) -> str | None:
+    """sha256 over the three layered compose files, in the order compose loads them.
+
+    This is what makes a change to the world visible from inside a bundle. Raising kafka's
+    memory limit altered every container's environment and no manifest could show it: the
+    demo image tag was unchanged, the stub image was unchanged, and the only field that
+    moved was a build artifact that moves on its own. A bundle recorded before that edit
+    and one recorded after describe different worlds and said they described the same one.
+
+    Taken from `InjectorSettings.compose_files` rather than a hardcoded list, so the digest
+    covers exactly the files the injector and the Makefile actually layer.
+    """
+    settings = settings or InjectorSettings()
+    return _digest_of([(settings.world_dir / name).resolve() for name in settings.compose_files])
+
+
+def ffs_stub_source_digest(directory: Path = FFS_STUB_DIR) -> str | None:
+    """sha256 over everything in the stub build context, sorted by filename.
+
+    The source, not the image. `ffs_stub_image_id` changed overnight with no source change
+    at all, because `make world-up` rebuilt the image and re-resolved a pip layer. An image
+    ID answers "was this byte-identical", which is not the question; this answers "was the
+    stub built from the same code", which is.
+    """
+    if not directory.is_dir():
+        return None
+    return _digest_of(sorted((p for p in directory.iterdir() if p.is_file()), key=lambda p: p.name))
+
+
+def world_provenance(reference_container: str, stub_image: str) -> dict[str, Any]:
+    """What world this was recorded against.
+
+    Two content digests and three observations. The digests are the load-bearing part - they
+    are reproducible from the repository and change only when the world's definition does.
+    """
+    return {
+        "compose_digest": compose_digest(),
+        "ffs_stub_source_digest": ffs_stub_source_digest(),
+        "otel_demo_image": _run(
+            ["docker", "inspect", reference_container, "--format", "{{.Config.Image}}"]
+        ),
+        # Informational only, and deliberately not compared between bundles: a rebuild
+        # produces a new id from unchanged source, so disagreement here means nothing.
+        "ffs_stub_image_id": _run(
+            ["docker", "image", "inspect", stub_image, "--format", "{{.Id}}"]
+        ),
+        "docker_arch": _run(["docker", "version", "--format", "{{.Server.Arch}}"]),
+        "host_platform": f"{platform.system()}/{platform.machine()}",
+    }
+
+
+def scenario_fingerprint(scenario: Scenario) -> str:
+    """A hash of the fields a bundle is evidence *for*, not of the whole file.
+
+    Deliberately excludes `title`, `expected_evidence` and every comment: those are edited
+    often - three were corrected the night the catalog was authored - and rewording an
+    evidence item does not make an existing recording wrong. Changing an injection
+    parameter, a fault class, a split or a remediation label does.
+    """
+    scored = {
+        "fault_class": scenario.fault_class.value,
+        "split": scenario.split.value,
+        "injection": scenario.injection.model_dump(mode="json"),
+        "ground_truth": scenario.ground_truth.model_dump(mode="json"),
+        "expected_remediation_class": scenario.expected_remediation_class.value,
+    }
+    payload = json.dumps(scored, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(payload.encode()).hexdigest()

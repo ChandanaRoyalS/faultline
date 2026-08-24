@@ -8,6 +8,7 @@ import pytest
 import yaml
 
 from evalharness.scenario import FaultClass
+from injector import faults
 from injector.catalog import CATALOG, by_id
 from injector.docker import CommandError, ComposeCli, DockerCli
 from injector.faults import (
@@ -28,6 +29,15 @@ from injector.models import (
 )
 from injector.settings import InjectorSettings
 from tests.fakes import FakeRunner
+
+ALIVE = {"{{.State.Running}}": "true\n"}
+"""FakeRunner stdout making the pumba sidecar look like it survived startup."""
+
+
+@pytest.fixture(autouse=True)
+def instant_sidecar_check(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The recorder waits 4s for the sidecar to settle; the tests must not."""
+    monkeypatch.setattr(faults, "SIDECAR_SETTLE_SECONDS", 0)
 
 
 @pytest.fixture
@@ -86,14 +96,14 @@ def test_memory_squeeze_records_the_limit_it_overwrote(settings: InjectorSetting
         "docker",
         "update",
         "--memory",
-        "48m",
+        "32m",
         "--memory-swap",
-        "48m",
+        "32m",
         "recommendation-service",
     )
     assert isinstance(outcome.restore, MemoryLimitRestore)
     assert outcome.restore.memory_bytes == 838860800
-    assert "800M -> 48m" in outcome.changes[0]
+    assert "800M -> 32m" in outcome.changes[0]
 
 
 def test_memory_restore_puts_the_original_bytes_back(settings: InjectorSettings) -> None:
@@ -323,20 +333,30 @@ def test_crashloop_restores_the_same_way_as_the_other_image_swaps(
     )
 
 
-def test_the_three_bad_deploys_are_three_different_failures(settings: InjectorSettings) -> None:
-    """The point of having three: same class, same target service twice, three signatures."""
+def test_every_bad_deploy_is_a_different_shape_of_failure(settings: InjectorSettings) -> None:
+    """Same class, five signatures: serves-then-fails, flaps, never starts, and two that
+    start and then die - one on memory (exit 137) and one on configuration (exit 1)."""
     bad_deploys = [f for f in CATALOG if f.fault_class is FaultClass.BAD_DEPLOY]
 
     assert {f.id for f in bad_deploys} == {
         "flag-service-bad-deploy",
         "flag-service-crashloop",
         "cart-bad-image-tag",
+        "email-wrong-image",
+        "shipping-wrong-image",
     }
     images = {str(f.params["image"]) for f in bad_deploys}
     assert len(images) == len(bad_deploys), "each has to deploy a distinct image, or two coincide"
+
     built = [f for f in bad_deploys if "server" in f.params]
     assert {str(f.params["server"]) for f in built} == {"server_broken.py", "server_crash.py"}, (
         "the two built variants must come from different sources in the stub context"
+    )
+    # A bare image swap must say which way it is expected to go; inferring it mislabelled
+    # a deploy whose image resolves as one whose image does not.
+    swaps = [f for f in bad_deploys if "server" not in f.params]
+    assert {str(f.params.get("expect_start")) for f in swaps} == {"yes", "no"}, (
+        "the image-swap deploys must declare expect_start, and cover both outcomes"
     )
 
 
@@ -431,7 +451,7 @@ def test_bad_deploy_refuses_a_definition_with_no_image(settings: InjectorSetting
 
 
 def test_latency_runs_pumba_with_a_pinned_tc_image(settings: InjectorSettings) -> None:
-    runner = FakeRunner()
+    runner = FakeRunner(stdout=ALIVE)
     outcome = DependencyLatencyFault(DockerCli(runner), settings).inject(
         definition("cart-dependency-latency")
     )
@@ -453,7 +473,7 @@ def test_latency_runs_pumba_with_a_pinned_tc_image(settings: InjectorSettings) -
 
 
 def test_latency_clears_a_leftover_sidecar_before_starting(settings: InjectorSettings) -> None:
-    runner = FakeRunner()
+    runner = FakeRunner(stdout=ALIVE)
     DependencyLatencyFault(DockerCli(runner), settings).inject(
         definition("cart-dependency-latency")
     )
@@ -482,7 +502,7 @@ def test_latency_restore_is_a_no_op_when_the_sidecar_expired(settings: InjectorS
 
 
 def test_productcatalog_latency_delays_its_own_container(settings: InjectorSettings) -> None:
-    runner = FakeRunner()
+    runner = FakeRunner(stdout=ALIVE)
     DependencyLatencyFault(DockerCli(runner), settings).inject(
         definition("productcatalog-dependency-latency")
     )
@@ -565,3 +585,39 @@ def test_a_handler_refuses_restore_data_from_another_fault_class(
         squeeze(FakeRunner(), settings).restore(
             PumbaRestore(helper_container="faultline-pumba-cart-dependency-latency")
         )
+
+
+def test_a_sidecar_that_dies_on_startup_fails_the_injection(settings: InjectorSettings) -> None:
+    """Measured: pumba died at startup and the fault reported success for thirteen minutes.
+
+    `docker run --detach` returns when the container is created, not when it works. Pumba
+    enumerates every container on the host and exits if one references a missing image
+    (ADR-0007), which happens before it touches its target.
+    """
+    runner = FakeRunner(
+        stdout={"{{.State.Running}}": "false\n", "logs": 'level=fatal msg="no such image"\n'}
+    )
+
+    with pytest.raises(FaultUsageError) as caught:
+        DependencyLatencyFault(DockerCli(runner), settings).inject(
+            definition("cart-dependency-latency")
+        )
+
+    message = str(caught.value)
+    assert "has NOT been injected" in message, "the operator must not think a delay exists"
+    assert "no such image" in message, "the sidecar's own logs are the diagnosis"
+    assert runner.called("rm", "--force", "faultline-pumba-cart-dependency-latency"), (
+        "the dead sidecar must be cleaned up, or the next run's cleanup looks like it "
+        "removed a working one"
+    )
+
+
+def test_a_sidecar_that_survives_is_left_alone(settings: InjectorSettings) -> None:
+    runner = FakeRunner(stdout=ALIVE)
+
+    outcome = DependencyLatencyFault(DockerCli(runner), settings).inject(
+        definition("cart-dependency-latency")
+    )
+
+    assert isinstance(outcome.restore, PumbaRestore)
+    assert not runner.called("logs"), "no need to read logs from a healthy sidecar"

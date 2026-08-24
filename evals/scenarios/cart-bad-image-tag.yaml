@@ -8,6 +8,9 @@ injection:
   method: cart-bad-image-tag
   params:
     image: "ghcr.io/open-telemetry/demo:v1.2.1-cartservice-hotfix.2"
+    # The injector needs this stated rather than inferred: a bare image swap either
+    # resolves and starts (then misbehaves) or resolves nowhere. Here it is the latter.
+    expect_start: "no"
 ground_truth:
   root_cause: >
     A deploy pointed cartservice at image tag
@@ -30,4 +33,4 @@ expected_evidence:
       gone, not the fault - concluding against the loudest caller is the wrong answer, and
       the absence of cart traffic is what distinguishes them
 expected_remediation_class: rollback
-rehearsed: false
+rehearsed: true

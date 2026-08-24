@@ -7,27 +7,33 @@ injection:
   target: recommendation-service
   method: recommendation-memory-squeeze
   params:
-    memory: "48m"
+    memory: "32m"
 ground_truth:
   root_cause: >
-    The recommendation service container's memory limit was lowered to 48m, below its
-    steady-state working set. The kernel OOM-kills it repeatedly, the restart policy
-    brings it back, and the storefront loses recommendations during each gap.
+    The recommendation service container's memory limit was lowered to 32m, below what
+    the runtime needs to finish starting. The kernel OOM-kills it before it reaches a
+    serving state, so the restart policy cannot bring it back: it cycles without ever
+    becoming available, and the storefront loses recommendations entirely.
   category: resource_exhaustion
 expected_evidence:
   - container: recommendation-service exit code 137 with an OOMKilled termination reason
-  - metrics: memory usage pinned at the container limit for the whole window, with no
-      headroom at any sample
-  - container: repeated restarts within minutes of each other, each one following the
-      memory ceiling being reached
+  - container: the container never reaches a running state - `docker ps` shows
+      Restarting (137) rather than a service that is up between kills
+  - metrics: memory usage pinned at the container limit, with no headroom at any sample
+  - metrics: the service stops emitting entirely - absent samples and zero call rate,
+      not elevated latency or errors, because nothing ever completes a request
   - metrics: the container's memory limit is lower than it was before onset, and the
       working set did not grow to meet it - the ceiling came down to the workload
   - logs: the process produces no error of its own before each termination
-  - metrics: the frontend sees gaps rather than a steady error rate, because the service
-      is available between kills
   - change: no deploy, image change, or configuration change to the service itself
   - discriminator: a memory leak would show usage climbing toward the limit over the
       window; here usage is flat and the limit is what moved, which is the distinction
       between this and a genuine runaway
+  # Detectability here depends on how long the service takes to come back, not on how
+  # often it dies - see CATALOG.md. At a 48m ceiling this same service is killed every
+  # ~36s and recovers inside one scrape interval, producing no observable signal at all.
+  - discriminator: the absence is continuous, not intermittent. A service that were
+      merely restarting would show gaps between healthy stretches; this one has no
+      healthy stretches to be between
 expected_remediation_class: config_revert
-rehearsed: false
+rehearsed: true

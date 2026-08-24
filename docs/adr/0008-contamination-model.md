@@ -103,24 +103,27 @@ non-enforcement is precisely how this defect returns after being fixed once.
 Hand-authored runbooks (`origin: authored`) are never excluded. They are legitimate
 institutional knowledge, which is exactly what a real on-call engineer would have.
 
-**An ambiguous label is reported as such, not quietly scored.**
-`expected_remediation_class` is drawn from four values — `rollback`, `restart`,
-`config_revert`, `scale` — and the two `dependency_latency` scenarios do not have a clean
-answer among them. An injected netem delay on a container's own interface is not fixed by
-rolling anything back, reverting any configuration, or adding capacity to a dependency that
-is not overloaded. Both are labelled `restart`, on the reading that recreating the container
-is what clears a bad network path. That is the least-bad fit, not a correct answer.
+**An ambiguous label is reported as such — or resolved by measurement.**
+`expected_remediation_class` is drawn from four values: `rollback`, `restart`,
+`config_revert`, `scale`. The two `dependency_latency` scenarios initially had no clean
+answer among them. An injected netem delay is not fixed by rolling anything back, reverting
+configuration, or adding capacity to a dependency that is not overloaded, so both were
+labelled `restart` provisionally and flagged as a least-bad fit rather than a correct one.
 
-T4.2 must therefore report remediation-class accuracy **broken out by fault class**, never
-only in aggregate. If agents systematically miss the remediation class on
-`dependency_latency` and nowhere else, that is a labelling artifact of this ADR's own
-making, and a single aggregate number would present it as an agent failure. The breakdown
-is what makes the two distinguishable, and the cost of not having it is misattributing our
-own labelling problem to the system under test.
+**That has since been settled by measurement, and `restart` is right.** Pumba binds to the
+container present when its sidecar starts, so recreating the target durably clears the
+delay: cartservice p95 went 1.9ms baseline -> ~650ms under fault -> back to 1.9ms after
+`docker restart`, and stayed there with the sidecar still running (ADR-0007). Restarting
+the service genuinely resolves the incident. The provisional marking has been removed from
+both scenarios.
 
-The same applies to any label we later find ourselves arguing about: the response is to
-report the class separately and say why, not to pick a value and hope the ambiguity
-averages out.
+The general rule stands, because the next ambiguous label will not resolve this cleanly:
+T4.2 must report remediation-class accuracy **broken out by fault class**, never only in
+aggregate. If agents systematically miss one class and nowhere else, that may be a labelling
+artifact of our own making, and a single aggregate number would present it as an agent
+failure. The response to a label we find ourselves arguing about is to measure it if we can,
+and otherwise to report the class separately and say why — never to pick a value and hope
+the ambiguity averages out.
 
 **The remediation-class distribution is skewed, and the skew is structural.**
 At n=10 the labels fall out as `config_revert` 5, `rollback` 3, `restart` 2, `scale` 0.
@@ -140,11 +143,10 @@ root-cause accuracy and must not be headlined on its own.** An agent that answer
 alongside root-cause accuracy and alongside the per-class breakdown above, never as a
 standalone figure.
 
-The `dependency_latency` label is provisional pending rehearsal, and either resolution
-leaves a hole: `scale` stays untested if the label remains `restart`, and if rehearsal
-turns it into `rollback` then `restart` is untested as well and `scale` still is. State
-which classes are untested alongside any remediation-class number — the count is two of
-four in one branch and one of four in the other, and it is never zero at n=10.
+The `dependency_latency` label is now measured rather than provisional, so the count of
+untested classes is settled at **one of four: `scale`**. `restart` is exercised by the two
+`dependency_latency` scenarios and is a correct label for them. State the untested class
+alongside any remediation-class number.
 
 **`scale` is exercised by zero scenarios — a known coverage gap.**
 Genuine capacity exhaustion means growing demand past a fixed capacity, which needs

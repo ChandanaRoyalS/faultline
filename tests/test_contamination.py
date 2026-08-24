@@ -44,6 +44,19 @@ def catalog() -> list[Scenario]:
     return [Scenario.from_yaml(p) for p in scenario_paths()]
 
 
+def allocated() -> list[Scenario]:
+    """Scenarios that occupy a slot. **Use this for anything about the allocation.**
+
+    A `blocked: true` scenario cannot be rehearsed or scored, so it is not filling the slot
+    it was written into - its replacement has to be allowed in without widening SPLIT.md,
+    which is fixed. The file stays so the history is visible.
+
+    Use `catalog()` for checks about the files themselves: that they validate, that ids are
+    unique, that artifacts are filed under the right split.
+    """
+    return [s for s in catalog() if not s.blocked]
+
+
 def test_every_scenario_validates() -> None:
     """A malformed scenario is a broken eval case, not a warning."""
     for path in scenario_paths():
@@ -62,7 +75,7 @@ def test_split_allocation_is_not_exceeded() -> None:
     Passes while the catalog is partially authored; the exact-match check below takes
     over once a class is full.
     """
-    scenarios = catalog()
+    scenarios = allocated()
     for fault_class, (dev_slots, holdout_slots) in ALLOCATION.items():
         in_class = [s for s in scenarios if s.fault_class is fault_class]
         dev = sum(1 for s in in_class if s.split is Split.DEV)
@@ -78,7 +91,7 @@ def test_split_allocation_is_not_exceeded() -> None:
 
 def test_full_classes_match_allocation_exactly() -> None:
     """Once a class has all its scenarios, the split breakdown must match the table."""
-    scenarios = catalog()
+    scenarios = allocated()
     for fault_class, (dev_slots, holdout_slots) in ALLOCATION.items():
         in_class = [s for s in scenarios if s.fault_class is fault_class]
         if len(in_class) != dev_slots + holdout_slots:

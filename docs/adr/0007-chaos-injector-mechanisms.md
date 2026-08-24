@@ -96,6 +96,37 @@ build had been retagged and pruned; recreating that service fixed it. Faults inj
 through pumba therefore have a dependency on the whole world being coherent, not just on
 their target.
 
+**A pumba fault goes silently inert if its target container is recreated** (measured
+2026-08-23, T1.5). Pumba binds to the container that existed when the sidecar started. Once
+that container is replaced, netem is not re-applied to its successor, and the sidecar keeps
+running with nothing to shape.
+
+Measured on `cart-dependency-latency`: cartservice p95 ran 1.9ms at baseline and ~650ms
+under the fault. After `docker restart cart-service`, p95 decayed 668 -> 600 -> 495 -> 390
+-> 3.7 -> 1.9ms over roughly two minutes - that is the 2m rate window emptying, not a slow
+recovery - and stayed there. The delay did not return, with the sidecar still running.
+
+This is the useful half: it is what makes `restart` the correct
+`expected_remediation_class` for both `dependency_latency` scenarios, rather than the
+least-bad of four options (ADR-0008).
+
+The dangerous half is that **`faultline-inject status` still reports the fault active**.
+The state file records what was injected, and the sidecar is genuinely still up, so nothing
+in the injector's model is wrong by its own lights - but the world no longer has the fault
+in it. State and world have diverged, and there is no signal anywhere that they have.
+
+Not reachable during a rehearsal: `evalharness.rehearse` never restarts a container, and it
+injects, dwells and reverts without touching the target. It is reachable by a person
+debugging by hand, which is exactly when someone restarts a container to see what happens -
+and they will then be looking at a world they believe is faulted and is not. The failure
+mode is a wrong conclusion, not a broken run.
+
+Not fixed here, deliberately: detecting it means the injector polling container identity
+for the lifetime of every pumba fault, which is a background process this codebase does not
+otherwise have. `stop` remains correct either way - it removes the sidecar, and removing a
+sidecar that is shaping nothing is a no-op that succeeds. Revisit if a scenario ever needs
+a container restart while a latency fault is live.
+
 **Superseded in part by ADR-0010**, which adds a second mechanism to two of these classes
 (CPU quota under `resource_exhaustion`, an unresolvable image tag under `bad_deploy`) and
 seven more definitions. The table above is no longer the whole list.

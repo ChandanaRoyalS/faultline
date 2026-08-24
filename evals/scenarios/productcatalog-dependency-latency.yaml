@@ -30,6 +30,9 @@ expected_evidence:
       attributable to that span in all of them
   - traces: the delay appears in the gap before product catalog's handler begins, not
       inside its handler - the service is not itself doing more work
+  # The multiplier is per-service: cart measured ~2x its injected per-hop delay because a
+  # cart operation makes two Redis round-trips. Product catalog's own round-trip count is
+  # unmeasured, so expect several hundred milliseconds rather than a specific figure.
   - metrics: product catalog's own p95 rises by the same amount for every caller, rather
       than varying by caller, which is what a shared network path looks like
   - metrics: no error-rate increase anywhere; the incident is purely latency
@@ -39,12 +42,8 @@ expected_evidence:
       points at a symptom, and only the shared dependency explains all of them at once
   - discriminator: product catalog's CPU, memory and downstream calls are all normal, so
       the service is not overloaded and is not waiting on anything beneath it
-# PROVISIONAL pending rehearsal, and not decided here. Same mechanism as
-# dependency_latency-1, so the same question applies: `restart` holds only if
-# recreating the container durably clears a delay held by a pumba sidecar running
-# duration=1h, and `rollback` is the honest label if the sidecar reapplies it.
-# The deciding test is run during the rehearsal of cart-dependency-latency. This
-# scenario takes whatever that resolves to - the two must not diverge, since the
-# injected mechanism is identical.
+# Settled by the measurement on cart-dependency-latency: pumba binds to the container
+# that existed when the sidecar started, so recreating the target durably clears the
+# delay and does not re-acquire it. Same mechanism here, same label.
 expected_remediation_class: restart
-rehearsed: false
+rehearsed: true

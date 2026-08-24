@@ -1,0 +1,86 @@
+{
+  "alerts_at_fire": [
+    "ServiceHighLatency/cartservice",
+    "ServiceHighLatency/checkoutservice",
+    "ServiceHighLatency/frontend",
+    "ServiceHighLatency/loadgenerator"
+  ],
+  "alerts_over_window": [
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T15:20:00+00:00",
+      "last_seen": "2026-08-23T15:27:00+00:00",
+      "minutes_firing": 7.2,
+      "service": "cartservice"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T15:20:00+00:00",
+      "last_seen": "2026-08-23T15:26:45+00:00",
+      "minutes_firing": 7.0,
+      "service": "checkoutservice"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T15:20:00+00:00",
+      "last_seen": "2026-08-23T15:26:45+00:00",
+      "minutes_firing": 7.0,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T15:20:00+00:00",
+      "last_seen": "2026-08-23T15:26:45+00:00",
+      "minutes_firing": 7.0,
+      "service": "loadgenerator"
+    }
+  ],
+  "baseline_clear_at": "2026-08-23T15:16:15+00:00",
+  "bundle_schema_version": 2,
+  "expected_remediation_class": "restart",
+  "fault_class": "dependency_latency",
+  "injection": {
+    "method": "cart-dependency-latency",
+    "params": {
+      "delay_ms": 300,
+      "duration": "1h",
+      "interface": "eth0",
+      "jitter_ms": 0
+    },
+    "target": "cart-service"
+  },
+  "origin": "scenario:cart-dependency-latency",
+  "recorded_by": "evalharness.rehearse",
+  "recorder": {
+    "git_dirty": true,
+    "git_sha": "987eb384fc64f844c784f9b1fa453334e77c0380",
+    "tool": "evalharness.rehearse"
+  },
+  "scenario_fingerprint": "c982653939a5c1ff29bf570cf2e5b2760075c7cc0456a7471c22f585f3cb425b",
+  "scenario_id": "cart-dependency-latency",
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": 225,
+  "seconds_to_settle": 136,
+  "split": "dev",
+  "t_alert_firing": "2026-08-23T15:20:00+00:00",
+  "t_clear": "2026-08-23T15:27:16+00:00",
+  "t_inject": "2026-08-23T15:16:15+00:00",
+  "t_revert": "2026-08-23T15:25:00+00:00",
+  "title": "Cart service network path acquires 300ms of delay",
+  "window": {
+    "end": "2026-08-23T15:29:16+00:00",
+    "start": "2026-08-23T15:11:15+00:00"
+  },
+  "world": {
+    "compose_digest": "4a7690c6fdda8c63d1701829f4c1e206a4765c931e864b7c739918c74b91583e",
+    "docker_arch": "arm64",
+    "ffs_stub_image_id": "sha256:94d38cfafd507d96db40cb08f7ce5f2dee6d57b6283570e63380b2a4296ff026",
+    "ffs_stub_source_digest": "5d06a3668aa0648351e2fdf3751a825732cae403a2cb84dcbe7693bcde92b9db",
+    "host_platform": "Darwin/arm64",
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice"
+  }
+}

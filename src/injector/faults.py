@@ -19,6 +19,7 @@ Two rules hold across all of them:
 from __future__ import annotations
 
 import contextlib
+import time
 from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import ClassVar
@@ -288,7 +289,22 @@ class BadDeployFault(_ComposeOverrideFault):
         server = _str_param(definition, "server", "")
         if server:
             return self._deploy_built_image(definition, image, server)
-        return self._deploy_unresolvable_image(definition, image)
+
+        # Declared, not inferred. A bare image swap has two opposite outcomes - the tag
+        # resolves and the container starts (then misbehaves), or it resolves nowhere and
+        # nothing starts - and the injector has to know which to treat as success.
+        # Inferring it from the absence of a `server` param worked while only the second
+        # kind existed and silently mislabels the first.
+        expect_start = _str_param(definition, "expect_start", "")
+        if expect_start not in ("yes", "no"):
+            raise FaultUsageError(
+                f"{definition.id}: a bad_deploy without a `server` param must declare "
+                "expect_start: 'yes' (the image exists, so the container starts and then "
+                "misbehaves) or 'no' (the tag resolves nowhere, so nothing starts)."
+            )
+        if expect_start == "no":
+            return self._deploy_unresolvable_image(definition, image)
+        return self._deploy_existing_image(definition, image)
 
     def _deploy_built_image(
         self, definition: FaultDefinition, image: str, server: str
@@ -302,6 +318,24 @@ class BadDeployFault(_ComposeOverrideFault):
             changes=[
                 f"docker build: {image} from {self._settings.ffs_stub_context} (SERVER={server})",
                 f"compose: {definition.target} recreated on {image}",
+                f"override written to {path}",
+            ],
+        )
+
+    def _deploy_existing_image(self, definition: FaultDefinition, image: str) -> InjectionOutcome:
+        """Swap to an image that exists. The container starts; what it does then is the fault.
+
+        No stop-first and no tolerated failure: this deploy is expected to succeed at the
+        compose level, exactly as a real bad release does. Whatever goes wrong afterwards -
+        wrong protocol, wrong resource profile, a crash loop - is the incident.
+        """
+        path = self._apply_override(definition, {"image": image})
+        return InjectionOutcome(
+            restore=ComposeServiceRestore(service=definition.target, override_file=str(path)),
+            changes=[
+                f"compose: {definition.target} recreated on {image}",
+                "the image resolves, so the deploy itself succeeds - the fault is what the "
+                "container does next",
                 f"override written to {path}",
             ],
         )
@@ -363,6 +397,10 @@ class BadConfigFault(_ComposeOverrideFault):
         )
 
 
+SIDECAR_SETTLE_SECONDS = 4
+"""How long to let a detached sidecar live before believing it started."""
+
+
 class DependencyLatencyFault(Fault):
     """Delay a container's network traffic with tc netem, driven by pumba."""
 
@@ -410,6 +448,7 @@ class DependencyLatencyFault(Fault):
                 definition.target,
             ],
         )
+        self._require_sidecar_alive(helper)
         return InjectionOutcome(
             restore=PumbaRestore(helper_container=helper),
             changes=[
@@ -417,6 +456,36 @@ class DependencyLatencyFault(Fault):
                 f"{definition.target} {interface}",
                 f"sidecar {helper} holds the rule; it self-reverts after {duration}",
             ],
+        )
+
+    def _require_sidecar_alive(self, helper: str) -> None:
+        """`docker run --detach` returns as soon as the container is created, not when it works.
+
+        Pumba enumerates every container on the host to find its target and exits if any of
+        them references an image that is no longer present locally (ADR-0007). That happens
+        at startup, before it touches the target, so the sidecar is created, dies within a
+        second, and the injection reports success. Measured: a latency fault ran for
+        thirteen minutes with no netem rule applied, `faultline-inject status` showing it
+        active throughout, and the recorder wrote a bundle of a perfectly healthy world.
+
+        A fault that failed to apply has to fail the injection. Silence here is the most
+        expensive failure the injector can produce, because everything downstream of it
+        looks correct.
+        """
+        time.sleep(SIDECAR_SETTLE_SECONDS)
+        if self._docker.is_running(helper):
+            return
+        logs = self._docker.logs(helper) or "(the sidecar produced no output)"
+        # Take the corpse with us: leaving it would make the next injection's cleanup
+        # look like it removed a working sidecar.
+        self._docker.remove(helper)
+        raise FaultUsageError(
+            f"the pumba sidecar {helper} exited within {SIDECAR_SETTLE_SECONDS}s, so no "
+            "netem rule was applied and no delay exists. The fault has NOT been injected.\n"
+            f"--- {helper} logs ---\n{logs}\n"
+            "Pumba dies at startup if any running container references an image that is no "
+            "longer present locally - check for orphaned image references and recreate the "
+            "affected services."
         )
 
     def restore(self, state: RestoreState) -> list[str]:

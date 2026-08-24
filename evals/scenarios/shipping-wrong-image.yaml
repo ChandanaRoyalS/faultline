@@ -1,0 +1,54 @@
+# bad_deploy-3 (dev) - see SPLIT.md. Slot allocated before authoring; do not move.
+# Replaces flag-service-crashloop, which is BLOCKED: featureflagservice emits no span
+# metrics, so no fault on it can page. SPLIT.md is unchanged - the slot and its split
+# were fixed before authoring, and only the scenario written into the slot changes.
+id: shipping-wrong-image
+title: Shipping service deployed with the ad service's image
+fault_class: bad_deploy
+split: dev
+injection:
+  target: shippingservice
+  method: shipping-wrong-image
+  params:
+    image: "ghcr.io/open-telemetry/demo:v1.2.1-adservice"
+    expect_start: "yes"
+ground_truth:
+  root_cause: >
+    A deploy put the ad service's image into the shipping service's slot. The image
+    resolves and the deploy succeeds, so nothing fails at release time. The ad service is
+    a JVM and the shipping service's container ceiling is 120 MiB, sized for a Rust
+    binary: the JVM starts, the OpenTelemetry agent loads, and the kernel OOM-kills it
+    before it can serve. It then restarts and does the same thing.
+
+    The observable signature - exit 137, OOMKilled, a restart loop, memory pinned at the
+    ceiling - is the signature of a memory-limit fault. It is not one. The memory limit
+    never changed; the image reference did, and the fix is to put the right image back.
+  category: bad_deploy
+expected_evidence:
+  - container: shipping-service exit code 137 with an OOMKilled termination reason, in a
+      restart loop - the same container-level evidence a memory-limit fault produces
+  - metrics: shippingservice stops serving; absent samples and zero call rate rather than
+      elevated latency or errors, because nothing completes a request
+  - logs: a JVM starting and an OpenTelemetry agent loading, in a service whose logs have
+      never contained either - the strongest single signal, and it is in the logs rather
+      than in any metric
+  - change: the service's image reference changed at onset, from the shipping image to
+      the ad service's
+  - change: the container's memory limit did NOT change - it is the same 120 MiB it has
+      always been, and `compose/world-arm64.override.yml` is untouched
+  - metrics: callers of shipping see it disappear; nothing upstream of the deploy moved
+  # The trap. Symptom class and remediation class disagree here, deliberately, and this
+  # is the only scenario in the catalog where they do. See CATALOG.md.
+  - discriminator: the symptom belongs to resource_exhaustion and the cause belongs to
+      bad_deploy. Everything at the container level - 137, OOMKilled, restarts, memory at
+      the ceiling - matches a memory-limit fault exactly. Only change history separates
+      them - the image moved and the limit did not
+  - discriminator: raising the memory limit WOULD stop the crash loop, which makes it a
+      tempting fix and a wrong one. The container would start and then serve the ad
+      service's protocol on the shipping service's port - a service that is up and
+      answering incorrectly, which is harder to detect than one that is plainly down
+  - discriminator: a real memory-limit fault would show the limit lower than it was
+      before onset. Here the limit is unchanged and the workload inside the container is
+      what grew, which is only visible by comparing the image reference against history
+expected_remediation_class: rollback
+rehearsed: true

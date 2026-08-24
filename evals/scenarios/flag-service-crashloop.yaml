@@ -1,3 +1,18 @@
+# BLOCKED - do not rehearse. See the bundle's INVALID.md.
+#
+# featureflagservice emits no span metrics. Verified against Prometheus: `count by
+# (service_name) (calls_total)` returns 15 services and it is not among them, and neither
+# `calls_total` nor `latency_bucket` has any series for it under any spelling. Two of the
+# three alert rules are scoped by service_name over calls_total, so ServiceNoTraffic and
+# ServiceHighErrorRate cannot evaluate for this service at all - not "did not fire", but
+# cannot. No fault targeting it can page.
+#
+# The cause is the ADR-0006 stub: it reproduces the flag service's gRPC contract and none
+# of its instrumentation. Rehearsed once and produced no alert anywhere in twelve minutes.
+#
+# Kept rather than deleted so the slot's history is visible. bad_deploy-3 is now filled by
+# shipping-wrong-image. SPLIT.md is not to be edited: the slot and its split were
+# committed before authoring (ADR-0008), and only the scenario in the slot changes.
 # bad_deploy-3 (dev) - see SPLIT.md. Slot allocated before authoring; do not move.
 id: flag-service-crashloop
 title: Feature flag service deploy serves correctly, then exits, over and over
@@ -35,3 +50,4 @@ expected_evidence:
       well and is ruled out only by the restart count and the deploy
 expected_remediation_class: rollback
 rehearsed: false
+blocked: true

@@ -111,3 +111,17 @@ def test_a_name_that_is_its_own_container_name_satisfies_both_mechanisms() -> No
     # `kafka` is service and container alike, so neither reading can be wrong.
     check_target(probe(FaultClass.BAD_CONFIG, "kafka"))
     check_target(probe(FaultClass.DEPENDENCY_LATENCY, "kafka"))
+
+
+def test_a_fault_target_resolves_to_the_container_that_carries_its_logs() -> None:
+    """The rehearsal recorder translates targets before querying Loki (evalharness.rehearse).
+
+    Both directions matter: compose-driven faults name a service and must be translated,
+    docker-driven ones already name the container and must pass through untouched.
+    """
+    from evalharness.rehearse import container_for
+
+    assert container_for("cartservice") == "cart-service"
+    assert container_for("featureflagservice") == "feature-flag-service"
+    assert container_for("cart-service") == "cart-service", "already a container name"
+    assert container_for("kafka") == "kafka", "its own opposite"
