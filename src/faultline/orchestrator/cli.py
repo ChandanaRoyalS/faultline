@@ -1,0 +1,107 @@
+"""`faultline-orchestrate` - run the consumer loop against Redis and Postgres (T2.2)."""
+
+from __future__ import annotations
+
+import argparse
+
+from faultline.orchestrator.settings import OrchestratorSettings
+
+
+def parser() -> argparse.ArgumentParser:
+    """Flags override `FAULTLINE_ORCH_*`, which overrides the defaults."""
+    settings = OrchestratorSettings()
+    p = argparse.ArgumentParser(
+        prog="faultline-orchestrate",
+        description=(
+            "Consume alert-episode transitions from the Redis stream, correlate them into "
+            "incidents, and persist the incident machine to Postgres (T2.2, ADR-0016)."
+        ),
+        epilog=(
+            "Placeholders: --max-concurrent, --settle-window all have reasons recorded in "
+            "ADR-0016 and no measurements behind them. Set them from T4.1's runs."
+        ),
+    )
+    p.add_argument("--redis-url", default=settings.redis_url, help="default: %(default)s")
+    p.add_argument("--stream", default=settings.stream, help="default: %(default)s")
+    p.add_argument("--group", default=settings.group, help="default: %(default)s")
+    p.add_argument("--consumer", default=settings.consumer, help="default: %(default)s")
+    p.add_argument("--postgres-dsn", default=settings.postgres_dsn, help="default: %(default)s")
+    p.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=settings.max_concurrent,
+        help="investigation concurrency cap (placeholder; default: %(default)s)",
+    )
+    p.add_argument(
+        "--settle-window",
+        type=int,
+        default=settings.settle_window_seconds,
+        metavar="SECONDS",
+        help=(
+            "how long a resolved incident still accepts a firing "
+            "(placeholder; default: %(default)s)"
+        ),
+    )
+    p.add_argument(
+        "--create-schema",
+        action="store_true",
+        help="create the incident tables if they do not exist, then continue",
+    )
+    p.add_argument(
+        "--once",
+        action="store_true",
+        help="process one batch and exit, instead of looping",
+    )
+    return p
+
+
+def run(argv: list[str] | None = None) -> int:
+    """Entry point. Imports its backends late so `--help` needs no Redis and no Postgres."""
+    args = parser().parse_args(argv)
+
+    from datetime import timedelta
+
+    import psycopg
+    import redis
+
+    from faultline.orchestrator.cap import InvestigationCap
+    from faultline.orchestrator.consumer import ConsumerLoop, RedisEventSource
+    from faultline.orchestrator.core import Orchestrator
+    from faultline.orchestrator.correlation import TimeOverlapPolicy
+    from faultline.orchestrator.store import PostgresIncidentStore
+
+    settings = OrchestratorSettings()
+    client: redis.Redis = redis.from_url(args.redis_url)
+    source = RedisEventSource(
+        client,
+        stream=args.stream,
+        group=args.group,
+        consumer=args.consumer,
+        idle_ms=settings.claim_idle_seconds * 1000,
+        dead_letter_stream=settings.dead_letter_stream,
+    )
+    source.ensure_group()
+
+    store = PostgresIncidentStore(psycopg.connect(args.postgres_dsn))
+    if args.create_schema:
+        store.create_schema()
+
+    settle = timedelta(seconds=args.settle_window)
+    loop = ConsumerLoop(
+        source=source,
+        orchestrator=Orchestrator(
+            store=store,
+            policy=TimeOverlapPolicy(settle),
+            cap=InvestigationCap(args.max_concurrent),
+            settle_window=settle,
+        ),
+        batch=settings.batch_size,
+    )
+
+    if args.once:
+        applied = loop.run_once(block_ms=0)
+        print(f"applied {len(applied)} event(s)")
+        return 0
+    print(f"consuming {args.stream} as {args.group}/{args.consumer}")
+    loop.run_forever(block_ms=settings.block_ms)
+    return 0

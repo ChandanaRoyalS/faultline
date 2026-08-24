@@ -16,11 +16,13 @@ dependencies = [
     "fastapi>=0.115",
     "uvicorn>=0.30",
     "redis>=5.0",
+    "psycopg[binary]>=3.2",  # T2.2: incident persistence, ADR-0016
 ]
 
 [project.scripts]
 faultline-inject = "injector.cli:run"
 faultline-ingest = "faultline.ingest.app:run"
+faultline-orchestrate = "faultline.orchestrator.cli:run"
 
 [dependency-groups]
 dev = [

@@ -173,14 +173,18 @@ of any kind on any delivery. Anything that can reach it can fabricate an inciden
 Validation is the only thing at that boundary today. Recorded in `docs/THREAT-MODEL.md`;
 the defence is T2.6/T6.8's and is deliberately not built here.
 
-**Known bug, not fixed here: `faultline-ingest` ignores `--help` and starts the server.**
-Found during the live smoke. `run()` takes no arguments and hands control straight to
-uvicorn, so every flag - including the one every reader tries first - is swallowed and the
-process binds a port instead of describing itself. Minor, and recorded rather than patched
-because the entry point will want real arguments eventually (`--host`, `--port`, at least
-`--stream`) and bolting on a `--help` special case now would be the wrong shape. Whoever
-adds those adds argument parsing, and this stops being true. Until then a CLI that cannot
-describe itself will surprise someone.
+**Known bug, ~~not fixed here~~ closed at T2.2: `faultline-ingest` ignored `--help` and
+started the server.** Found during the live smoke. `run()` took no arguments and handed
+control straight to uvicorn, so every flag - including the one every reader tries first - was
+swallowed and the process bound a port instead of describing itself. It was recorded rather
+than patched because the entry point would want real arguments eventually (`--host`,
+`--port`, at least `--stream`) and bolting on a `--help` special case would have been the
+wrong shape; the stated condition was "whoever adds those adds argument parsing, and this
+stops being true".
+
+T2.2 added `faultline-orchestrate`, a second CLI with the same need, which is when that
+condition was met. Both now parse arguments, and both `--help` without reaching Redis or
+Postgres - the backends are imported inside `run()`, after parsing.
 
 **Revisit if:** Alertmanager's fingerprint stops being stable across a lifecycle (dedupe
 would silently split every alert in two, so this is worth a guard when the ingest path
