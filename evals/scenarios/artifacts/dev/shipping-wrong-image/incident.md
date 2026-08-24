@@ -31,28 +31,37 @@ worked normally. Checkout failed every time.
 **checkoutservice, named in the page.** Errors on its calls to shipping. Its own
 process was healthy, its configuration unchanged, its other dependencies fine.
 
-**shippingservice.** The container was in a restart loop, **exiting 137 each time** —
-killed by the kernel for exceeding its memory allowance. Restart count climbing, never
-reaching a serving state, never recording a call.
+**shippingservice's logs.** The service was starting and dying, over and over. Fifteen
+attempts inside the fault window, each one exactly three lines long — a JVM banner, a
+class-loading warning, an instrumentation agent announcing its version — and then
+nothing. The gaps between attempts lengthen from five seconds to a minute and stay
+there, which is a supervisor backing off a container that will not stay up.
 
-**And this is where a confident wrong answer is available.** Exit 137, a restart loop,
-a container that cannot stay up: that is the signature of a memory limit set below what
-a service needs. The diagnosis writes itself, the evidence supports it, and the obvious
-fix is to raise the ceiling.
+**And this is where a confident wrong answer is available.** A JVM that dies partway
+through startup, repeatedly, on a lengthening backoff, saying nothing about why, is
+exactly what a memory limit set below what the service needs looks like. The signature is
+identical. The diagnosis writes itself and the obvious fix is to raise the ceiling.
 
-**The memory limit, which had not changed.** Its container ceiling was the same value
-it had been for weeks. Nothing had reduced it. A service does not start exceeding a
-limit it has lived comfortably inside unless something about the service changed.
+**What the process never said.** Not one line explains a failure. That absence is
+itself informative: a process that fails on its own configuration prints the reason,
+because it got far enough to read the configuration and object to it. This one is being
+stopped from outside before it reaches that point — killed, not failing.
 
-**What changed on shippingservice.** Its image reference. A deployment had pointed it
-at a different service's image — one built on a JVM, where the previous image was a
-small native binary. The new image needs several times the memory the old one did, and
-the container ceiling was sized for the old one. The kernel killed it during startup
-every time.
+**The logs from before onset, which is where it breaks open.** Up to 18:29:28 the
+container is emitting Rust — structured request lines from the shipping implementation,
+`ShipOrderRequest`, quote calculations, tracking IDs. From 18:29:33 it emits JVM startup
+banners and nothing else. **The service changed language across the boundary.** No
+resource limit does that. Whatever is running in that container is not the program that
+was running five seconds earlier.
 
-**The five quiet services.** Four of them sit downstream of checkout and went silent
-because checkout had stopped calling them. Only shippingservice was broken, and it
-appears in that list as one name among five.
+**What changed on shippingservice.** Its image reference. A deployment had pointed it at
+a different service's image — one built on a JVM, where the previous image was a small
+native binary. The new image needs several times the memory the old one did, and the
+container ceiling was sized for the old one.
+
+**The memory limit, which had not changed.** Its ceiling was the same value it had been
+for weeks. Nothing had lowered it. A service does not begin exceeding a limit it has
+lived comfortably inside unless something about the service changed.
 
 ## Root cause
 
@@ -62,15 +71,15 @@ container did afterwards. It could not start inside a memory ceiling sized for t
 service that was supposed to be there.
 
 The observable symptom belongs to resource exhaustion. The cause is a deployment, and
-the two are distinguished only by what changed: the image moved, the limit did not.
+the two are separated by what changed: the image moved, the limit did not.
 
 ## Resolution
 
-The image reference was restored. shippingservice came up on the next reconciliation
-and checkout succeeded immediately. The no-traffic alerts cleared as those services
-resumed. A brief `ServiceHighErrorRate` appeared on frontend fifteen seconds *after*
-the fix and lasted half a minute — queued work draining through a path that had been
-failing. Everything was clear at **T+7m01s**.
+The image reference was restored. shippingservice came up on the next reconciliation and
+checkout succeeded immediately. The no-traffic alerts cleared as those services resumed.
+A brief `ServiceHighErrorRate` appeared on frontend fifteen seconds *after* the fix and
+lasted half a minute — queued work draining through a path that had been failing.
+Everything was clear at **T+7m01s**.
 
 Class of fix: **rollback**. A deployment moved the service to the wrong artifact, and
 the fix was to put the previous one back.
@@ -94,11 +103,15 @@ diagnose than a container that cannot start.
 - **frontend and loadgenerator alerted intermittently.** An error ratio that crosses a
   threshold, falls back, and crosses again describes a partial failure — one path broken
   out of several — and is worth reading as such rather than as flapping.
-- **The exit code names a symptom, not a cause.** Exit 137 means the kernel killed the
-  process for memory. It does not say why the process wanted more memory than it used
-  to, and that question has two very different answers: the limit came down, or the
-  thing inside it got bigger. Only the change history separates them.
-- The strongest single question was **"what changed on this service?"** — and the answer
-  was available immediately, in the same place it always is. Any investigation that
-  started from the exit code and stopped there would have shipped a fix that made the
-  system quieter and worse.
+- **A truncated, repeating startup names a symptom, not a cause.** A process stopped
+  before it can explain itself is being killed from outside, and that is all the pattern
+  says. It does not distinguish "the ceiling came down" from "the thing inside it got
+  bigger", and those have opposite fixes.
+- **What separated them was the log content before onset**, not the failure itself. The
+  container was running one language and then another. A service whose runtime changes
+  has been redeployed, whatever else is true — and no resource limit produces that.
+  Where a substituted image happens to share a runtime with the original, this signal
+  would not exist and the change history would be the only route.
+- The strongest single question remained **"what changed on this service?"** Any
+  investigation that stopped at the restart pattern would have shipped a fix that made
+  the system quieter and worse.
