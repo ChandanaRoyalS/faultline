@@ -35,6 +35,20 @@ before it, because the consistency guards compare like against like. v1 -> v2 ad
 `world.compose_digest` and `world.ffs_stub_source_digest`; see ADR-0014 for why that was
 worth breaking ADR-0009's freeze."""
 
+CAPTURE_SET = 2
+"""Which set of captures a bundle holds. Absent means set 1: the original four metric files.
+
+Deliberately **not** a `bundle_schema_version` bump. ADR-0014's bar for a bump is a change
+that makes existing bundles false, and this is not one: the manifest gains an optional
+field, every v2 manifest without it stays valid and correctly describes what it holds, and
+no guard that passed before starts failing. A bump would instead obsolete all ten recorded
+bundles for evidence that cannot be backfilled into them - Prometheus retention is 6h and
+their windows are long gone.
+
+Set 2 adds `metrics/runtime.json`, the target service's own runtime series. See
+`evals/scenarios/ARTIFACTS.md` for why the existing ten are not being re-recorded, and
+`evalharness.prom.runtime_query` for what the capture contains."""
+
 
 def _run(args: list[str], cwd: Path | None = None) -> str | None:
     """Best effort. Missing provenance is recorded as null, never as a wrong value."""

@@ -605,3 +605,33 @@ def test_clearing_a_bundle_preserves_the_archive(tmp_path: Path) -> None:
 
     assert (bundle / rehearse.SUPERSEDED / "20260823T075224Z").is_dir()
     assert not (bundle / "manifest.json").exists()
+
+
+# --- the fifth capture --------------------------------------------------------
+
+
+def test_the_runtime_capture_names_the_compose_service_not_the_container() -> None:
+    """`exported_job` holds the compose service name, and half the targets are containers.
+
+    `ad-memory-squeeze` targets the container `ad-service`; the series are published under
+    `adservice`. Passing the target through unchanged returns a well-formed query that
+    matches nothing, and an empty capture is the one failure mode this evidence cannot
+    survive - its whole meaning is that absence is informative.
+    """
+    query = rehearse.runtime_query(rehearse.canonical_service("ad-service"))
+
+    assert 'exported_job="adservice"' in query
+    assert "ad-service" not in query
+
+
+def test_the_runtime_capture_covers_every_runtime_the_demo_uses() -> None:
+    """JVM, CPython, Go and .NET services all have to land in the same file.
+
+    Prometheus anchors regexes, so `runtime_.*` does not also match `process_runtime_*`.
+    Dropping one pattern silently narrows the capture to whichever runtimes happen to be
+    targeted next.
+    """
+    query = rehearse.runtime_query("cartservice")
+
+    for family in ("process_runtime_", "runtime_", "system_memory_"):
+        assert family in query, f"{family}* would not be captured"

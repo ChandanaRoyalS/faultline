@@ -517,6 +517,42 @@ Worth doing immediately **before** the next full re-record, when the bundles are
 regenerated anyway and the digest change is free. Recorded here so the opportunity is not
 missed and the change is not made casually in between.
 
+### Prometheus keeps 6 hours, and raising it invalidates the catalog
+
+The demo pins `--storage.tsdb.retention.time=1h` (`world/docker-compose.yml:607`).
+`compose/telemetry.yml:66` overrides it to **6h**, with the reason in a comment beside it:
+the demo's hour is too short to investigate an incident after the fact.
+
+**Six hours is the horizon, and it is locked.** `compose/telemetry.yml` is one of the three
+inputs to `world.compose_digest` (ADR-0014), so raising the retention changes the digest and
+**invalidates every recorded bundle** — the same trap as the kafka heap cap above, for the
+same reason, on a different file. The setting that would let us look further back is itself
+the thing that makes looking back at existing bundles impossible.
+
+**This has already cost something once.** When the fifth capture was added, the obvious
+tidy answer was to backfill `runtime.json` into the ten existing bundles rather than leave
+a mixed catalog. It could not be done: the bundles' windows are all from 2026-08-23, the
+Prometheus server started `2026-08-24T08:53Z`, and a query at `cart-dependency-latency`'s
+`t_inject` returns no data. The window was gone before the question was asked. That is what
+settled the decision recorded in `ARTIFACTS.md`, "The capture set changed, and the existing
+ten are not being re-recorded".
+
+**Queued for T7.1: raise retention to 15d**, at the same moment as the kafka heap cap and
+for the same reason — T7.1 re-records the whole catalog against one world, so the digest
+change is free exactly then and expensive at any other time. Two digest-locked changes now
+wait on that re-record; anything else discovered in the meantime should join this list
+rather than be taken early.
+
+**Until then, the practical rule.** Any question of the form *"what did X look like during
+run Y"* has to be answered within **six hours** of the run, or from that run's own captures.
+There is no third option, and the six hours are not a deadline anyone will notice passing.
+
+This is a direct argument for the capture set. A bundle is not a convenience copy of data
+that lives in Prometheus — after six hours it is the **only** record that the run happened
+at all, which is why an under-captured bundle cannot be repaired later and why adding a
+capture is worth doing at the moment the need is identified rather than at the next
+re-record.
+
 ## Detection time scales with the target's traffic rate
 
 Measured across nine alerting bundles. Detection time is not a property of the fault alone

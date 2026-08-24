@@ -34,6 +34,37 @@ METRIC_QUERIES: dict[str, str] = {
     "alerts-firing": 'ALERTS{alertstate="firing"}',
 }
 
+RUNTIME_CAPTURE = "runtime"
+"""Filename stem of the fifth capture. Scenario bundles only - see `runtime_query`."""
+
+RUNTIME_FAMILIES = ("process_runtime_.*", "runtime_.*", "system_memory_.*")
+"""The metric families a service reports about its own process, across the demo's runtimes.
+
+`process_runtime_jvm_*`, `runtime_cpython_*`, `process_runtime_go_*`,
+`process_runtime_dotnet_*` and `system_memory_*`. Prometheus anchors regexes, so
+`runtime_.*` does not also match `process_runtime_*` - all three patterns are needed.
+"""
+
+
+def runtime_query(service: str) -> str:
+    """The target service's own runtime metrics, over the incident window.
+
+    Measured on `ad-memory-squeeze` and `recommendation-memory-squeeze`: these series
+    **vanish** while the process is being killed faster than it can reach a serving state,
+    and that absence is what separates "no traffic because the process is gone" from "no
+    traffic because nobody called it" - a distinction `ServiceNoTraffic` cannot make. See
+    `evals/scenarios/CATALOG.md`, "Runtime metrics reach Prometheus, and their absence is
+    the signal", for the measurements and the boundary conditions.
+
+    **The label is `exported_job`, not `service_name`.** Prometheus renamed the exporter's
+    `job` label because it collided with the scrape job's, so every query in
+    `METRIC_QUERIES` - all of which key on `service_name`, which the span metrics do carry
+    - silently matches nothing here. `service` is the compose service name, which is what
+    `exported_job` holds: use `injector.world.canonical_service` to get there from a fault
+    target, since a target may name either a container or a service.
+    """
+    return f'{{exported_job="{service}", __name__=~"{"|".join(RUNTIME_FAMILIES)}"}}'
+
 
 class QueryError(RuntimeError):
     """A telemetry query failed or returned something unusable."""
