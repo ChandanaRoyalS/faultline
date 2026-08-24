@@ -111,9 +111,30 @@ sixteen events.
 `docs/evidence/t2.2-live-smoke/README.md`, `docs/adr/0001:9`,
 `docs/adr/0015-alert-ingest-identity-and-dedupe.md`
 
-### T2.4 — context layer
+### T2.4 — context layer *(designed, not built)*
 Service catalog, dependency-graph scoping, retrieval.
-`src/faultline/context/__init__.py:1`, `docs/ARCHITECTURE.md:21`
+
+**ADR-0017 designs the first two** against a measured graph
+(`docs/evidence/t2.4-dependency-graph/`, 24h over three injected incidents): the catalog's
+node set and `canonical_service` identity, a committed graph snapshot rather than a runtime
+Jaeger query — with the ADR-0014 lesson applied, so the thing that notices drift compares the
+edge set and never `callCount` — and `DependencyPolicy` at a 2-hop radius.
+
+Three findings from the capture constrain it. ADR-0016's prediction that a graph rule joins
+`emailservice` to the cart incident **holds**. `featureflagservice` has no node at all, so a
+graph policy is structurally blind to it — the same blindness already measured for alerting.
+And the graph **cannot distinguish a synchronous edge from an asynchronous one**: trace
+context propagates through kafka, so `checkoutservice -> frauddetectionservice` is identical
+in every field to `checkoutservice -> emailservice`, while the bundles measure their failure
+semantics as opposite. That distinction is declared out of scope for correlation and in scope
+for blast radius, which makes it T3.1's problem.
+
+Landing this policy is also what makes ADR-0016's concurrency cap reachable — at 2 hops it
+declines 28% of service pairs, so two incidents can be live at once for the first time.
+**Retrieval is not designed here**, and T2.4b's corpus seeding remains a separate contract.
+`src/faultline/context/__init__.py:1`,
+`docs/adr/0017-context-layer-graph-and-dependency-policy.md`,
+`docs/evidence/t2.4-dependency-graph/README.md`, `docs/ARCHITECTURE.md:21`
 
 ### T2.4b — corpus seeding
 Seeds the past-incident store from `evals/scenarios/artifacts/dev/` **only**. The input is

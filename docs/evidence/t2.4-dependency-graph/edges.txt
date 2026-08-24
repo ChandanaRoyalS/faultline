@@ -1,0 +1,30 @@
+jaeger /api/dependencies  endTs=1787574913000  lookback=86400000 (24h)
+captured 2026-08-24T12:35:13Z through http://localhost:8080/jaeger/ui/api/dependencies
+
+ calls  parent                 child                  note
+------  ---------------------- ---------------------- ----------------------------
+  5937  loadgenerator          frontend               ARTIFACT - synthetic client
+  4575  frontend               productcatalogservice  
+  1754  frontend               cartservice            
+   698  checkoutservice        currencyservice        
+   572  checkoutservice        cartservice            
+   572  checkoutservice        shippingservice        
+   463  frontend               adservice              
+   451  checkoutservice        productcatalogservice  
+   444  frontend               recommendationservice  
+   444  recommendationservice  productcatalogservice  
+   330  frontend               checkoutservice        
+   286  checkoutservice        accountingservice      
+   286  checkoutservice        emailservice           
+   286  checkoutservice        frauddetectionservice  
+   286  checkoutservice        paymentservice         
+   286  shippingservice        quoteservice           
+     5  frontend-proxy         jaeger-all-in-one      ARTIFACT - the UI routing itself
+
+17 edges captured, 15 after excluding the two artifacts
+13 nodes: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, frauddetectionservice, frontend, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice
+
+absent, and not because the world was quiet:
+  featureflagservice   emits no spans at all (ADR-0006 stub) - no node, no edges
+  kafka                the broker two of checkoutservice's edges pass through
+  redis-cart           cartservice's datastore

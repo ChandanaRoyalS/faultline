@@ -15,15 +15,23 @@ repos:
       # evals/scenarios/artifacts/ under it is not. Adding a directory that holds captures
       # means adding it here. See evals/scenarios/ARTIFACTS.md.
       #
+      # Three trees now, each added after a hook had already rewritten a capture in it:
+      # bundles, then baselines, then docs/evidence. The cost of listing whole directories
+      # is that the authored files inside them - incident.md, and each evidence README -
+      # stop being formatted too. That is the trade already accepted for incident.md, and
+      # it is the cheap side: an unformatted README is untidy, a rewritten capture is a
+      # record of something the world did not produce.
+      #
       # Only the rewriting hooks are excluded. check-yaml, check-json,
-      # check-added-large-files and detect-private-key still apply to both trees: they read
+      # check-added-large-files and detect-private-key still apply to all three: they read
       # and never write, and they are exactly the guards captures should keep.
       - id: trailing-whitespace
         exclude: &captured_evidence |
           (?x)
-          ^evals/ (
-              scenarios/artifacts   # rehearsal bundles
-            | baselines             # quiet-world captures
+          ^(
+              evals/scenarios/artifacts   # rehearsal bundles
+            | evals/baselines             # quiet-world captures
+            | docs/evidence               # webhook payloads, service logs, psql dumps
           ) /
       - id: end-of-file-fixer
         exclude: *captured_evidence
