@@ -380,3 +380,42 @@ visible from `alerts_at_fire` alone. Two things follow:
 This also bounds what the detection times above can be used for. They are one sample each
 (see the caveat at the top of this document), and they are a function of load-generator
 behaviour as much as of the fault — a different traffic profile would move all of them.
+
+## The bad_deploy trio: absent, misleading, decisive evidence
+
+The three `bad_deploy` scenarios are the same class of mistake — the wrong image in a
+service's slot — and they were chosen so that the container's own logs are worth a
+different amount in each.
+
+| Slot | Scenario | Split | What the logs give you |
+|---|---|---|---|
+| `bad_deploy-1` | `cart-bad-image-tag` | dev | **nothing** — the tag resolves nowhere, no container is ever created, and there is no process to log |
+| `bad_deploy-3` | `shipping-wrong-image` | dev | **the wrong answer** — a JVM dying on memory, exit 137, OOMKilled. Read literally it points at `resource_exhaustion` and at raising the memory limit |
+| `bad_deploy-2` | `email-wrong-image` | **holdout** | **the answer** — Apache naming `QUOTE_SERVICE_PORT` as undefined, exit 1, in a service whose logs have never contained PHP |
+
+### The intent
+
+The two dev scenarios teach that logs are not where the answer lives. One has no logs at
+all; the other has logs that confidently indicate the wrong fault class and a remediation
+that would make things worse. An investigation tuned on the dev split — by prompt, by
+retrieval, or by an agent generalising from past incidents in the corpus — has every reason
+to arrive at the holdout treating container logs as a dead end.
+
+**The holdout scenario is the one where the logs contain the answer outright.** It tests
+whether the responder checks anyway.
+
+This is a deliberate use of the split rather than an accident of authoring. The dev set is
+what anything gets tuned against (ADR-0008), so a heuristic learned there is exactly what
+the holdout should be able to punish. "Skip the logs, they never help on bad deploys" is a
+heuristic the dev pair actively teaches and the holdout inverts.
+
+### What it does not test
+
+It is one scenario, and a failure on it is ambiguous: an agent could miss it because it
+learned to skip logs, or because it never reads logs at all. Distinguishing those needs the
+per-class breakdown T4.2 already owes, plus the observation that the same agent found
+`shipping-wrong-image`'s logs uninformative rather than absent.
+
+Note also that `email-wrong-image` is **UNVERIFIED** — probed for five minutes, not
+rehearsed. If its full rehearsal shows the logs are less clear than the probe suggested,
+this section's whole premise weakens and should be rewritten rather than defended.

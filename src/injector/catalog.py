@@ -194,6 +194,30 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             },
         ),
         FaultDefinition(
+            id="email-wrong-image",
+            fault_class=FaultClass.BAD_DEPLOY,
+            target="emailservice",
+            description=(
+                "Deploy the quote service's image into the email service's slot. The image "
+                "resolves and the container is created, then Apache cannot configure "
+                "itself because a variable it needs is not in this service's environment, "
+                "and it crash-loops."
+            ),
+            # Probed for five minutes, not a full rehearsal. Measured: the container
+            # starts, Apache fails to configure because QUOTE_SERVICE_PORT is not defined
+            # in emailservice's environment, and it crash-loops with exit 1.
+            # ServiceHighErrorRate fired on checkoutservice within five minutes.
+            #
+            # Exit 1 with a configuration error in the logs, not exit 137 - which is what
+            # separates this from shipping-wrong-image, where the same class of mistake
+            # produces a resource signature that points at the wrong fault class. Here the
+            # logs name the cause outright. See CATALOG.md on the bad_deploy trio.
+            params={
+                "image": "ghcr.io/open-telemetry/demo:v1.2.1-quoteservice",
+                "expect_start": "yes",
+            },
+        ),
+        FaultDefinition(
             id="shipping-wrong-image",
             fault_class=FaultClass.BAD_DEPLOY,
             target="shippingservice",

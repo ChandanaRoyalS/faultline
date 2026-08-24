@@ -10,6 +10,7 @@ from __future__ import annotations
 import json
 import re
 from datetime import UTC, datetime
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -656,4 +657,43 @@ def test_superseded_manifests_are_parseable_and_correctly_named() -> None:
                 f"{bundle.name}/{path.name} has the same t_inject as the live manifest. An "
                 "archive entry is a *previous* recording; this one is a duplicate of the "
                 "current bundle and would make two files claim to be the same run."
+            )
+
+
+# --- a capture must be continuous, not merely present ------------------------
+
+MAX_SAMPLE_GAP_SECONDS = 120
+"""Eight scrape intervals. Healthy captures top out at 30s; this catches holes, not jitter."""
+
+
+def test_metric_captures_have_no_holes() -> None:
+    """A gap of hours mid-window is a stopped scraper, not a slow one.
+
+    Measured: a rehearsal ran while the machine suspended. Docker stopped, Prometheus
+    stopped scraping, and all three continuous captures share a 2250-second hole. Every
+    existing guard passed - the manifest is self-consistent, the files are present and
+    well-formed, the window contains every sample. Nothing looked at whether the samples
+    were *continuous*.
+
+    `alerts-firing.json` is excluded: an ALERTS series exists only while something is
+    firing, so gaps between episodes are the normal shape of that capture and mean nothing.
+    Gaps in a single service's series are also fine - a service that dies stops emitting,
+    which is often the fault itself. This looks at the union of sample times across every
+    series in a file, which only goes quiet when collection does.
+    """
+    for bundle in bundles():
+        for path in metric_files(bundle):
+            if path.name == "alerts-firing.json":
+                continue
+            times = sorted(set(sample_times(load_metric(path))))
+            if len(times) < 2:
+                continue
+            gaps = [(b - a, a) for a, b in pairwise(times)]
+            worst, at = max(gaps)
+            assert worst <= MAX_SAMPLE_GAP_SECONDS, (
+                f"{bundle.name}/{path.name}: {worst:.0f}s with no samples from any series, "
+                f"starting {datetime.fromtimestamp(at, tz=UTC):%H:%M:%S}Z. That is a hole in "
+                "the capture, not a slow scrape - the whole collection stopped. The usual "
+                "cause is the machine suspending mid-rehearsal: Docker stops, Prometheus "
+                "stops scraping, and the recorded window keeps advancing. Re-record it."
             )

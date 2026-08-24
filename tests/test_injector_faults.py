@@ -334,13 +334,15 @@ def test_crashloop_restores_the_same_way_as_the_other_image_swaps(
 
 
 def test_every_bad_deploy_is_a_different_shape_of_failure(settings: InjectorSettings) -> None:
-    """Same class, four signatures: serves-then-fails, flaps, never starts, starts then dies."""
+    """Same class, five signatures: serves-then-fails, flaps, never starts, and two that
+    start and then die - one on memory (exit 137) and one on configuration (exit 1)."""
     bad_deploys = [f for f in CATALOG if f.fault_class is FaultClass.BAD_DEPLOY]
 
     assert {f.id for f in bad_deploys} == {
         "flag-service-bad-deploy",
         "flag-service-crashloop",
         "cart-bad-image-tag",
+        "email-wrong-image",
         "shipping-wrong-image",
     }
     images = {str(f.params["image"]) for f in bad_deploys}

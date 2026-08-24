@@ -779,6 +779,59 @@ def clear_bundle(out: Path) -> list[str]:
     return removed
 
 
+CLEAR_TIMEOUT = 600
+"""How long the recorder waits for alerts to clear after a revert."""
+
+
+def require_plausible_timings(
+    facts: dict[str, Any], dwell: int, alert_wait: int, t_inject: datetime, t_end: datetime
+) -> None:
+    """Refuse to write a bundle whose phases took far longer than they were asked to.
+
+    A recorded duration is wall clock, and wall clock keeps running when the machine does
+    not. Measured: a rehearsal requested a 300s dwell and recorded **9325s** because the
+    laptop slept mid-run - Docker suspended, Prometheus stopped scraping, and the capture
+    has a 2.5-hour hole in the middle of it. Every field in that manifest is
+    self-consistent and the bundle looks structurally perfect; it simply describes an
+    incident that nobody observed for most of its recorded length.
+
+    Suspend is the likely cause and it is nobody's first guess, so the message says so.
+    """
+    # Generous on purpose: overshoots of ~130s have been seen on runs whose captures are
+    # intact, and their cause is not understood. The bound is set to catch a suspended
+    # machine, not to police scheduler jitter. Tighten it once that overshoot is explained.
+    tolerance = max(120, dwell // 2)
+    problems: list[str] = []
+
+    measured_dwell = facts.get("seconds_of_steady_state")
+    if isinstance(measured_dwell, int) and measured_dwell > dwell + tolerance:
+        problems.append(
+            f"  steady state ran {measured_dwell}s against a requested {dwell}s "
+            f"(+{measured_dwell - dwell}s)"
+        )
+
+    total = int((t_end - t_inject).total_seconds())
+    budget = alert_wait + dwell + CLEAR_TIMEOUT + tolerance
+    if total > budget:
+        problems.append(
+            f"  the run took {total}s from injection to all-clear, against a budget of "
+            f"{budget}s (alert wait {alert_wait} + dwell {dwell} + clear wait "
+            f"{CLEAR_TIMEOUT} + {tolerance} tolerance)"
+        )
+
+    if problems:
+        raise RehearsalError(
+            "refusing to write this bundle: the run took far longer than it was asked "
+            "to, so the capture almost certainly has a hole in it.\n"
+            + "\n".join(problems)
+            + "\nThe usual cause is the machine suspending mid-run - Docker stops, "
+            "Prometheus stops scraping, and wall clock keeps going. The manifest would "
+            "look structurally valid and describe an incident that was not observed for "
+            "most of its recorded duration. The fault has already been reverted; re-record "
+            "on a machine that will stay awake."
+        )
+
+
 DEFAULT_ALERT_TIMEOUT = 420
 """Fits every target measured at 1-10 req/s. Sparse services need their own hint."""
 
@@ -850,7 +903,7 @@ def rehearse(
     t_revert = now()
     print(injector("stop", fault_id).rstrip())
 
-    t_clear, _ = wait_until(False, 600, "alerts to clear")
+    t_clear, _ = wait_until(False, CLEAR_TIMEOUT, "alerts to clear")
 
     window_start = t_inject - timedelta(minutes=5)
     window_end = (t_clear or now()) + timedelta(minutes=2)
@@ -898,6 +951,9 @@ def rehearse(
         ),
         "window": {"start": stamp(window_start), "end": stamp(window_end)},
     }
+
+    # Before anything is written: a suspended run produces a manifest that looks perfect.
+    require_plausible_timings(facts, dwell, wait_for_alert, t_inject, t_clear or now())
 
     if out.exists() and any(out.iterdir()):
         archived = archive_manifest(out)

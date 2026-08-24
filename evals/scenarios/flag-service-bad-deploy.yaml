@@ -1,3 +1,24 @@
+# BLOCKED - do not rehearse. Same reason as flag-service-crashloop.
+#
+# featureflagservice emits no span metrics. Verified against Prometheus: `count by
+# (service_name) (calls_total)` returns 15 services and it is not among them, and neither
+# `calls_total` nor `latency_bucket` has any series for it under any spelling. Two of the
+# three alert rules are scoped by service_name over calls_total, so ServiceNoTraffic and
+# ServiceHighErrorRate cannot evaluate for this service at all. No fault targeting it can
+# page on its own behalf.
+#
+# This scenario's cascade to recommendationservice and the frontend was real - ADR-0006
+# measured it, and Gate 1 recorded it - so it might still alert through its callers. It is
+# blocked rather than deleted because that is unverified and because the holdout slot
+# cannot wait on it: a holdout scenario that may or may not produce a signal is the worst
+# place in the catalog to carry that risk.
+#
+# The cause is the ADR-0006 stub: it reproduces the flag service's gRPC contract and none
+# of its instrumentation.
+#
+# Kept so the slot's history is visible. bad_deploy-2 is now filled by email-wrong-image.
+# SPLIT.md is not to be edited: the slot and its split were committed before authoring
+# (ADR-0008), and only the scenario in the slot changes.
 # bad_deploy-2 (HOLDOUT) - see SPLIT.md. Nothing may be tuned against this scenario.
 id: flag-service-bad-deploy
 title: Feature flag service ships a build whose flag lookups always fail
@@ -32,3 +53,4 @@ expected_evidence:
       severity or error rate points away from the answer
 expected_remediation_class: rollback
 rehearsed: false
+blocked: true
