@@ -156,6 +156,64 @@ and it is deferred to T7.1. Recording it here rather than leaving it silently un
 one of the four remediation classes is currently untested, so any claim about
 remediation-class accuracy covers three classes, not four, and should say so.
 
+**What the split quarantines is the fault, not the service.** *(Note added after the
+catalog was authored. It changes no decision above and moves no scenario.)*
+
+The split quarantine above says:
+
+> No corpus content, prompt revision, context-engineering change, or retrieval setting may
+> ever be tuned against a holdout scenario. Rehearsal artifacts land in
+> `evals/scenarios/artifacts/<split>/<id>/`, so quarantine is a path property rather than a
+> remembered rule. T2.4b seeds the knowledge stores from the dev split only. T4.1's harness
+> enforces this by checksum and refuses to score a holdout scenario whose artifacts appear
+> in any corpus.
+
+Every clause is about one scenario's artifacts and about tuning. Read exactly, it supports
+one claim, and the split does deliver it: **when a holdout scenario is scored, that fault is
+unseen** — its rehearsal, its answer key, and anything fitted to it are all out of reach.
+
+It does not support the claim a reader may carry away from "held-out": that the **service**
+in the holdout incident is unseen. Nothing above quarantines a service, and nothing above
+says it does — the wording is scoped to artifacts and does not overclaim. But it never
+states the limit either, and the limit is easy to assume away; `SPLIT.md`'s talk of
+"generalisation" is about diagnosis paths across fault classes, not about service novelty.
+So state it plainly: a holdout result is evidence of generalisation to an **unseen fault on
+a possibly familiar service**.
+
+**Measured at n=10: no service is targeted on both sides of the split.** Blocked scenarios
+are excluded, because a scenario that is never rehearsed produces no bundle and so has
+nothing to leak. The comparison is by canonical service identity
+(`injector.world.canonical_service`) rather than by raw target string, because targets do
+not name services consistently: a fault addresses a container (`cart-service`) or a compose
+service (`cartservice`) depending on its mechanism, so a dev scenario on
+`product-catalog-service` and a holdout one on `productcatalogservice` would compare as
+disjoint while sharing a service. Here canonicalisation confirms the raw answer rather than
+extending it — raw comparison finds exactly one collision, `featureflagservice`, whose
+holdout side (`flag-service-bad-deploy`) is blocked and drops out on that ground alone.
+`tests/test_contamination.py` keeps this measured rather than assumed.
+
+**No target-based check can see the case that does cross.**
+`product-catalog-flag-failure` is a dev scenario whose target is `featureflagservice`, but
+whose narrative is almost entirely about `productcatalogservice`: "product catalog error
+ratio rises to a stable, partial fraction of its traffic", "product catalog's CPU, memory
+and latency are all normal", "the fix is at the flag service and the symptom is at product
+catalog". And `productcatalogservice` is the target of the holdout scenario
+`productcatalog-dependency-latency`. What crosses the split here is what the prose
+discusses, not what the target field names, so no check over targets — canonical or
+otherwise — can detect it. Nor could a stricter split rule, since the two scenarios do not
+share a target to be split on.
+
+Whether that is contamination is genuinely open, and it is recorded rather than decided.
+It could help an agent legitimately: the dev incident teaches who calls product catalog and
+what its normal error ratio, CPU and latency look like, which is context, not an answer. It
+could also mislead: the dev incident's cause is a feature flag at a service product catalog
+merely calls, while the holdout incident is a pure-latency fault with no error-rate change
+at all, so an agent anchored on the retrieved incident would go looking at the flag service
+for a fault that is not there. Real responders do retrieve past incidents on the service in
+front of them, which makes same-service retrieval arguably realistic rather than leaky — so
+this is not asserted to be a defect, and nothing is moved on account of it. It is a
+statement of what a holdout number covers, to be made alongside the number.
+
 **Headline policy.** Until the catalog reaches 30+ scenarios, published numbers are
 full-set with the dev/holdout breakdown shown and `n` stated explicitly. A 3-scenario
 holdout is an anecdote and will not be headlined as anything else. Once T7.1 brings the

@@ -13,6 +13,11 @@ this repo does not own and cannot import from - the clone does not exist until
 `make world-up`, and `make check` must pass without it. `tests/test_injector_world
 .py` reads the real compose files and fails on any drift, whenever they are present.
 
+Comparison is the map's other job. Two targets that look nothing alike can be the
+same service, so anything asking *which* service a scenario touches goes through
+`canonical_service` rather than `==` - see its docstring for what raw comparison
+gets wrong.
+
 Services behind a compose profile (the demo's test runners) are left out: they are
 not part of the world `make world-up` starts, so nothing may target them.
 """
@@ -54,3 +59,29 @@ CONTAINER_SERVICES: dict[str, str] = {
 }
 """The reverse. Some names are their own opposite (`kafka`, `frontend`) - that is fine:
 those services can be addressed by either mechanism without ambiguity."""
+
+
+def canonical_service(name: str) -> str:
+    """The single identity behind either of the world's two names for a service.
+
+    Comparing `target` strings directly is unsafe. Which scheme a target uses is decided
+    by the fault's mechanism, not by the service: `cart-dependency-latency` reaches the
+    container and targets `cart-service`, `cart-redis-misconfig` goes through compose and
+    targets `cartservice`, and those are the same service. `"cart-service" ==
+    "cartservice"` is `False`, so a check asking "do these two scenarios touch the same
+    service" by comparing raw targets answers *no* for every pair that crosses the naming
+    schemes - silently, and in the direction that reports a contamination check as clean.
+
+    The compose service name is the canonical form: it is the name the world's own
+    `docker-compose.yml` keys on, and it is the one every service has, whereas
+    `container_name` is only usually declared.
+
+    An unknown name is returned unchanged. This is an identity function, not a validator -
+    `injector.catalog.check_target` is the validator, and it runs at import.
+    """
+    return CONTAINER_SERVICES.get(name, name)
+
+
+def same_service(left: str, right: str) -> bool:
+    """Whether two target names address the same service, whichever scheme each uses."""
+    return canonical_service(left) == canonical_service(right)

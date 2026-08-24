@@ -14,6 +14,7 @@ from pathlib import Path
 import pytest
 
 from evalharness.scenario import FaultClass, Scenario, Split
+from injector.world import SERVICE_CONTAINERS, canonical_service
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCENARIO_DIR = REPO_ROOT / "evals" / "scenarios"
@@ -137,6 +138,78 @@ def test_rehearsed_scenarios_have_artifacts() -> None:
             f"{scenario.id} is marked rehearsed but {expected.relative_to(REPO_ROOT)} "
             "does not exist."
         )
+
+
+# Services targeted on both sides of the split, by canonical identity, blocked scenarios
+# excluded. Measured empty at n=10 - see the test below for what that does and does not
+# mean. An entry here is not automatically a defect (ADR-0008, "the split quarantines the
+# fault, not the service"), so this is a record of what has been looked at, not a list of
+# things to fix.
+CROSS_SPLIT_SERVICES: set[str] = set()
+
+
+def targets_by_split() -> dict[Split, dict[str, list[str]]]:
+    """canonical service -> scenario ids, per split, over the scenarios that fill a slot.
+
+    Blocked scenarios are excluded because they are never rehearsed: they produce no
+    bundle, so nothing of theirs can reach a corpus and they cannot contaminate anything.
+    """
+    grouped: dict[Split, dict[str, list[str]]] = {Split.DEV: {}, Split.HOLDOUT: {}}
+    for scenario in allocated():
+        service = canonical_service(scenario.injection.target)
+        grouped[scenario.split].setdefault(service, []).append(scenario.id)
+    return grouped
+
+
+def test_canonical_identity_is_load_bearing_for_the_overlap_check() -> None:
+    """Guard against the overlap check below quietly degrading into a raw string compare.
+
+    The catalog uses both naming schemes, because a fault's target follows its mechanism.
+    If it ever used only one, `canonical_service` would be an identity function over these
+    targets and the check below would keep passing while measuring nothing.
+    """
+    targets = {s.injection.target for s in allocated()}
+    container_named = {t for t in targets if t not in SERVICE_CONTAINERS}
+    service_named = targets - container_named
+    assert container_named and service_named, (
+        f"every allocated target now uses one naming scheme ({sorted(targets)}), so "
+        "canonicalising them changes nothing and the cross-split overlap check no longer "
+        "proves anything a raw comparison would not."
+    )
+
+
+def test_cross_split_service_overlap_is_the_recorded_set() -> None:
+    """Which services are targeted on both sides of the split, by canonical identity.
+
+    Raw target comparison cannot answer this. `cart-dependency-latency` targets
+    `cart-service` and `cart-redis-misconfig` targets `cartservice`; a dev scenario on
+    `product-catalog-service` and a holdout one on `productcatalogservice` would report no
+    overlap while sharing a service. So the comparison is made on canonical identity.
+
+    At n=10 the answer is none: no service is targeted on both sides once blocked
+    scenarios are dropped. Canonical identity confirms the raw result rather than adding
+    to it - raw comparison finds one collision, `featureflagservice`, and its holdout side
+    (`flag-service-bad-deploy`) is blocked, so it produces no bundle and drops out here too.
+
+    A failure means the catalog changed, not that the catalog is wrong. Same-service
+    retrieval across the split is a limit of what the split measures, recorded in ADR-0008
+    and deliberately not treated as a breach: decide what it means, then record it in
+    `CROSS_SPLIT_SERVICES`.
+    """
+    grouped = targets_by_split()
+    shared = set(grouped[Split.DEV]) & set(grouped[Split.HOLDOUT])
+    assert shared == CROSS_SPLIT_SERVICES, (
+        "services targeted on both sides of the split changed.\n"
+        + "\n".join(
+            f"  {service}: dev {sorted(grouped[Split.DEV].get(service, []))}, "
+            f"holdout {sorted(grouped[Split.HOLDOUT].get(service, []))}"
+            for service in sorted(shared | CROSS_SPLIT_SERVICES)
+        )
+        + f"\n(recorded: {sorted(CROSS_SPLIT_SERVICES)})\n"
+        "The split quarantines faults and artifacts, not services - see ADR-0008. This is "
+        "a measurement, so update the recorded set once you have decided what the change "
+        "means. Do not move a scenario to make it pass: SPLIT.md is fixed."
+    )
 
 
 def test_split_doc_matches_allocation() -> None:
