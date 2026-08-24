@@ -76,24 +76,40 @@ correlation is deliberately **not** decided here.
 against), `docs/evidence/t2.1-live-smoke/README.md` (the receiver running live),
 `docs/evidence/gate-1/README.md:19`
 
-### T2.2 / T2.3 — orchestrator *(designed, not built)*
+### T2.2 — orchestrator *(built)* / T2.3 — agent fan-out
 Event consumption, an eleven-state incident machine, agent fan-out. ADR-0001 commits to a
 global investigation concurrency cap with severity-ordered overflow.
 
+**T2.2 is built:** the consumer loop, correlation behind a `CorrelationPolicy` seam
+(`TimeOverlapPolicy` now, `DependencyPolicy` at T2.4), the eleven-state machine with an
+enforced transition table, the cap, and incident persistence to Postgres. The states that
+need T3.x and the action plane are present and stubbed, and calling one says which task owns
+its contract. **T2.3 is not**, and cannot be until T3.x exists.
+
 **ADR-0016 designs all of it** and closes the "contract not written" marker this entry
-carried: incident correlation (time overlap now, dependency-graph policy deferred to T2.4
-behind a named seam), the eleven states with a trigger on every transition, consumer-group
-ack semantics — an event is processed when its incident state change is durable, not when
-the investigation finishes — and the cap, its severity source, and its overflow order.
+carried: incident correlation, the eleven states with a trigger on every transition,
+consumer-group ack semantics — an event is processed when its incident state change is
+durable, not when the investigation finishes — and the cap, its severity source, and its
+overflow order.
+
+Two of its claims were corrected in place when it was implemented, both marked there rather
+than edited over: the cap is unreachable **by construction** rather than merely untested,
+because `TimeOverlapPolicy` joins any firing to any live incident so nothing can ever count
+to two; and an incident closes on the last resolution rather than after the settle window
+elapses, which leaves reopening as the window's only job.
 
 Four numbers in it are placeholders with reasons and no measurements (cap 3, settle window
-5m, claim idle timeout 60s, poison threshold 5), to be set from T4.1's first runs. Two of
-its mechanisms cannot be exercised by the eval catalog at all, because
-`require_no_active_faults` means one incident at a time — recorded there, not here. Its last
+5m, claim idle timeout 60s, poison threshold 5), to be set from T4.1's first runs. Its last
 two states depend on the action plane, which has no task number: see "Discovered omissions"
 below.
-`src/faultline/orchestrator/__init__.py:1`, `docs/adr/0016-orchestrator-correlation-state-and-cap.md`,
-`docs/adr/0001:9`, `docs/adr/0015-alert-ingest-identity-and-dedupe.md`
+
+`docs/evidence/t2.2-live-smoke/` records the first live run: a backlog drained unprompted
+against data that was never a fixture, a crash on the first empty read that no fixture-driven
+test could have produced, and a clean recovery with no event loss and no duplicates across
+sixteen events.
+`src/faultline/orchestrator/`, `docs/adr/0016-orchestrator-correlation-state-and-cap.md`,
+`docs/evidence/t2.2-live-smoke/README.md`, `docs/adr/0001:9`,
+`docs/adr/0015-alert-ingest-identity-and-dedupe.md`
 
 ### T2.4 — context layer
 Service catalog, dependency-graph scoping, retrieval.

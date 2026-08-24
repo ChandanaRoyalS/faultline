@@ -1,0 +1,60 @@
+consuming faultline:alerts as orchestrator/orchestrator-1
+Traceback (most recent call last):
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/_parsers/socket.py", line 64, in _read_from_socket
+    data = sock.recv(socket_read_size)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TimeoutError: timed out
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/chandana/dev/faultline/.venv/bin/faultline-orchestrate", line 10, in <module>
+    sys.exit(run())
+             ^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/orchestrator/cli.py", line 106, in run
+    loop.run_forever(block_ms=settings.block_ms)
+  File "/Users/chandana/dev/faultline/src/faultline/orchestrator/consumer.py", line 156, in run_forever
+    self.run_once(block_ms)
+  File "/Users/chandana/dev/faultline/src/faultline/orchestrator/consumer.py", line 148, in run_once
+    *self._source.read(self._batch, block_ms),
+     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/orchestrator/consumer.py", line 69, in read
+    response: Any = self._client.xreadgroup(
+                    ^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/commands/core.py", line 8067, in xreadgroup
+    response = self.execute_command("XREADGROUP", *pieces, **options)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/client.py", line 867, in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/client.py", line 889, in _execute_command
+    result = conn.retry.call_with_retry(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/retry.py", line 132, in call_with_retry
+    raise error
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/retry.py", line 120, in call_with_retry
+    return do()
+           ^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/client.py", line 890, in <lambda>
+    lambda: self._send_command_parse_response(
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/client.py", line 819, in _send_command_parse_response
+    return self.parse_response(conn, command_name, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/client.py", line 935, in parse_response
+    response = connection.read_response()
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/connection.py", line 1407, in read_response
+    response = self._parser.read_response(
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/_parsers/resp3.py", line 40, in read_response
+    result = self._read_response(
+             ^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/_parsers/resp3.py", line 65, in _read_response
+    raw = self._buffer.readline(timeout=timeout)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/_parsers/socket.py", line 117, in readline
+    self._read_from_socket(timeout=timeout)
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/redis/_parsers/socket.py", line 77, in _read_from_socket
+    raise TimeoutError("Timeout reading from socket")
+redis.exceptions.TimeoutError: Timeout reading from socket
