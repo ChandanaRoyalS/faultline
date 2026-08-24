@@ -487,35 +487,84 @@ looks like. kafka does the opposite.
 excess, another bump defers the gate by less than a working day and makes the eventual
 reset more expensive.
 
-### Operational fix: cycle kafka between rehearsal batches
+### otel-col does the same, and the gate caught it
+
+Measured: after roughly a day up, `otel-col` sat at **291.7MiB of its 300MiB limit** —
+97.2%, over the pre-flight gate's 90% threshold — and a rehearsal was refused on it before
+anything was injected. Same shape as kafka: unbounded growth into whatever ceiling it is
+given, invisible in any single reading, and it surfaces as a blocked rehearsal rather than
+as anything that looks like a memory problem.
+
+**The fix used was a cycle, not a limit raise.** `docker restart otel-col`, and the gate
+passes. Raising the 300M at `compose/world-arm64.override.yml:51` would be the tempting
+one-line answer and is now unavailable: that file is a `compose_digest` input, so editing
+it invalidates every recorded bundle (ADR-0014). The limit that is too small is locked by
+the same mechanism as the heap cap that would stop the growth.
+
+**This one matters more than kafka's,** because `otel-col` is the path every metric and
+every trace takes. Where a kafka OOM writes a spurious incident into the bundle, a collector
+OOM would write a *hole* — a world that stopped producing telemetry rather than a service
+that stopped serving. That consequence is reasoned, not measured: the gate has never let it
+happen, which is the gate working. `test_metric_captures_have_no_holes` is what would catch
+it after the fact, at the cost of the run.
+
+### Operational fix: cycle kafka and otel-col between rehearsal batches
+
+**Before a batch, check both ceilings and cycle whichever is near one.** Neither is a
+scheduled chore — they are two containers that grow without bound, and both are
+digest-locked until T7.1, so cycling is the only lever available.
 
 ```
+docker stats --no-stream --format '{{.Name}}\t{{.MemPerc}}' kafka otel-col
+
+# kafka, if it is near its ceiling:
 docker restart kafka
 # wait for it to come back healthy, then:
 docker restart accounting-service frauddetection-service checkout-service
+
+# otel-col, if it is near its ceiling:
+docker restart otel-col
 ```
 
 The consumer restarts are not optional. `accounting-service`, `frauddetection-service` and
 `checkout-service` **do not reconnect on their own** after kafka cycles; leaving them alone
 produces a world that looks up and silently is not, which is exactly the state the
-pre-flight gates exist to keep out of a bundle.
+pre-flight gates exist to keep out of a bundle. `otel-col` needs no such follow-up — the
+SDKs reconnect — but it is the one to check first, because everything a bundle records
+passes through it.
 
-Do this **between** batches, never during one — restarting four containers mid-rehearsal
-writes a broad unrelated incident into whatever bundle is recording.
+Do this **between** batches, never during one — restarting these containers mid-rehearsal
+writes a broad unrelated incident, or a telemetry hole, into whatever bundle is recording.
 
-### The fix we are not taking, and why
+### The fixes we are not taking, and why
 
-The real fix is to cap the JVM heap for kafka in `compose/world-arm64.override.yml` so it
-stops growing rather than being periodically reset.
+The real fixes are both edits to `compose/world-arm64.override.yml`: cap the JVM heap for
+kafka so it stops growing rather than being periodically reset, and raise `otel-col`'s
+300M so a day of uptime does not trip the pre-flight gate.
 
-**Not now.** That file is one of the three inputs to `world.compose_digest` (ADR-0014), so
-editing it changes the digest and **invalidates every recorded bundle** — they would no
-longer agree about the world they were recorded against, correctly, because they would not
-have been. Mid-catalog that costs a full re-record of everything already captured.
+**Not now, and not either of them.** That file is one of the three inputs to
+`world.compose_digest` (ADR-0014), so editing it changes the digest and **invalidates every
+recorded bundle** — they would no longer agree about the world they were recorded against,
+correctly, because they would not have been. Mid-catalog that costs a full re-record of
+everything already captured, and the cost is the same whether the edit is one line or two.
 
-Worth doing immediately **before** the next full re-record, when the bundles are being
-regenerated anyway and the digest change is free. Recorded here so the opportunity is not
-missed and the change is not made casually in between.
+Both are worth doing immediately **before** the next full re-record, when the bundles are
+being regenerated anyway and the digest change is free. Recorded here so the opportunity is
+not missed and neither change is made casually in between.
+
+**The queue for T7.1, in one place** — every change that is right, cheap, and locked until
+the catalog is re-recorded against one world:
+
+| Change | File | Why it is locked |
+|---|---|---|
+| cap kafka's JVM heap | `compose/world-arm64.override.yml` | `compose_digest` input |
+| raise `otel-col`'s 300M limit | `compose/world-arm64.override.yml:51` | `compose_digest` input |
+| raise Prometheus retention to 15d | `compose/telemetry.yml:66` | `compose_digest` input |
+
+Note the trap in the first two: the pre-flight gate's own message suggests raising the
+limit in `compose/world-arm64.override.yml`, which is the advice that was correct when it
+was written and is now the one action that invalidates the catalog. Cycle the container
+instead.
 
 ### Prometheus keeps 6 hours, and raising it invalidates the catalog
 
@@ -538,9 +587,10 @@ settled the decision recorded in `ARTIFACTS.md`, "The capture set changed, and t
 ten are not being re-recorded".
 
 **Queued for T7.1: raise retention to 15d**, at the same moment as the kafka heap cap and
-for the same reason — T7.1 re-records the whole catalog against one world, so the digest
-change is free exactly then and expensive at any other time. Two digest-locked changes now
-wait on that re-record; anything else discovered in the meantime should join this list
+the `otel-col` limit, and for the same reason — T7.1 re-records the whole catalog against
+one world, so the digest change is free exactly then and expensive at any other time. Three
+digest-locked changes now wait on that re-record, listed together under "The fixes we are
+not taking, and why"; anything else discovered in the meantime should join that table
 rather than be taken early.
 
 **Until then, the practical rule.** Any question of the form *"what did X look like during

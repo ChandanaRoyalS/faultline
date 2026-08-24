@@ -301,6 +301,34 @@ def load_metric(path: Path) -> dict[str, Any]:
     return raw
 
 
+ERROR_RATIO = "error-ratio.json"
+
+CONTINUOUS_CAPTURES = ("call-rate.json", "latency-p95.json")
+"""Captures that have samples whenever collection is running at all.
+
+Both are sums over every service's spans, so they go quiet only when the pipeline does -
+which is what makes them usable as the reference for whether a gap elsewhere was an
+outage. `error-ratio` is not one of them: it can be empty in a perfectly healthy world.
+"""
+
+
+def collection_sample_times(bundle: Path) -> list[float]:
+    """Every instant this bundle proves telemetry was still arriving."""
+    return sorted(
+        {
+            t
+            for name in CONTINUOUS_CAPTURES
+            for t in sample_times(load_metric(bundle / "metrics" / name))
+        }
+    )
+
+
+def collection_was_live(live: list[float], gap: tuple[float, float, float]) -> bool:
+    """Whether anything was still being sampled strictly inside this gap."""
+    _, start, end = gap
+    return any(start < t < end for t in live)
+
+
 def sample_times(payload: dict[str, Any]) -> list[float]:
     data = payload.get("data")
     results = data.get("result", []) if isinstance(data, dict) else []
@@ -768,6 +796,23 @@ MAX_SAMPLE_GAP_SECONDS = 120
 """Eight scrape intervals. Healthy captures top out at 30s; this catches holes, not jitter."""
 
 
+def test_the_error_ratio_cross_check_still_reports_a_real_outage() -> None:
+    """The cross-check must narrow the guard, not disable it for the file.
+
+    Both directions, because the failure mode of a fix like this is that it quietly
+    accepts everything: a quiet world is forgiven only because something else kept
+    sampling, and an actual collection stop is still a hole.
+    """
+    gap = (225.0, 1000.0, 1225.0)
+
+    # Something was still being sampled throughout: the world had no errors.
+    assert collection_was_live([990.0, 1015.0, 1100.0, 1215.0, 1240.0], gap)
+
+    # Nothing was sampled inside it: collection stopped, and this is a hole.
+    assert not collection_was_live([990.0, 1000.0, 1225.0, 1240.0], gap)
+    assert not collection_was_live([], gap)
+
+
 def test_metric_captures_have_no_holes() -> None:
     """A gap of hours mid-window is a stopped scraper, not a slow one.
 
@@ -790,17 +835,37 @@ def test_metric_captures_have_no_holes() -> None:
     length of the fault. That silence is the evidence this capture exists to record, so a
     hole here is a finding rather than a defect (CATALOG.md, "Runtime metrics reach
     Prometheus, and their absence is the signal").
+
+    **`error-ratio.json` is cross-checked rather than excluded.** Its numerator selects
+    only `STATUS_CODE_ERROR` series, so a stretch during which nothing anywhere is failing
+    produces no samples at all - a healthy world, not a stopped one. Measured on the
+    `ad-memory-squeeze` re-record of 2026-08-24: a 225s gap from 10:01:43Z, running from
+    90 seconds into the window to 15 seconds after injection, which is exactly the quiet
+    stretch before the fault bit. `call-rate` and `latency-p95` are continuous across the
+    same window, so collection plainly never stopped.
+
+    Excluding the file outright would be the easy fix and would blind the guard to a real
+    outage in it. Instead a gap here counts only when the continuous captures gap there
+    too: if anything was still being sampled while error-ratio was silent, the silence was
+    the world having no errors. This is the same union argument the rest of the guard
+    rests on, applied across files instead of across series - which is what it takes for a
+    capture whose emptiness is meaningful.
     """
     exempt = {"alerts-firing.json", f"{RUNTIME_CAPTURE}.json"}
     for bundle in bundles():
+        live = collection_sample_times(bundle)
         for path in metric_files(bundle):
             if path.name in exempt:
                 continue
             times = sorted(set(sample_times(load_metric(path))))
             if len(times) < 2:
                 continue
-            gaps = [(b - a, a) for a, b in pairwise(times)]
-            worst, at = max(gaps)
+            gaps = [(b - a, a, b) for a, b in pairwise(times)]
+            if path.name == ERROR_RATIO:
+                gaps = [g for g in gaps if not collection_was_live(live, g)]
+            if not gaps:
+                continue
+            worst, at, _ = max(gaps)
             assert worst <= MAX_SAMPLE_GAP_SECONDS, (
                 f"{bundle.name}/{path.name}: {worst:.0f}s with no samples from any series, "
                 f"starting {datetime.fromtimestamp(at, tz=UTC):%H:%M:%S}Z. That is a hole in "

@@ -339,15 +339,33 @@ def require_memory_headroom(threshold: float = MEMORY_HEADROOM_PERCENT) -> list[
     Same reasoning as require_no_active_faults: a rehearsal that begins in a compromised
     world produces a bundle nobody can trust, and the corruption is invisible afterwards
     because nothing in the capture says the world was already unhealthy.
+
+    **The remedy this used to suggest is now the one that must not be taken.** Raising the
+    limit was right when this gate was written and is not right now: the file holding those
+    limits is an input to `world.compose_digest` (ADR-0014), so editing it invalidates every
+    bundle already recorded. The containers that trip this gate - `kafka` and `otel-col` -
+    grow without bound into whatever ceiling they are given, so a raise buys hours anyway.
+    Cycling is the lever that is actually available until T7.1 re-records the catalog.
     """
     hot = [(n, pct, h) for n, pct, h in container_memory_usage() if pct >= threshold]
     if hot:
         detail = "\n".join(f"  {n}: {h} ({pct:.1f}% of its limit)" for n, pct, h in sorted(hot))
+        cycle = " ".join(sorted(n for n, _, _ in hot))
+        kafka_note = (
+            "\n  kafka needs its consumers restarted too, or they never reconnect:\n"
+            "    docker restart accounting-service frauddetection-service checkout-service"
+            if any(n == "kafka" for n, _, _ in hot)
+            else ""
+        )
         raise RehearsalError(
             f"aborting before injection: {len(hot)} container(s) are above {threshold:.0f}% of "
             f"their memory limit and may OOM during this rehearsal.\n{detail}\n"
-            "An OOM mid-run is recorded as if it were part of the injected fault. Give the "
-            "world headroom, or raise the limit in compose/world-arm64.override.yml."
+            "An OOM mid-run is recorded as if it were part of the injected fault.\n"
+            f"Cycle them, between batches and never during one:\n"
+            f"    docker restart {cycle}{kafka_note}\n"
+            "Do NOT raise the limit: compose/world-arm64.override.yml is a compose_digest "
+            "input, so editing it invalidates every recorded bundle. Limit raises are "
+            "digest-locked until T7.1 - see evals/scenarios/CATALOG.md, world hazards."
         )
     return [f"{n}: {pct:.1f}%" for n, pct, _ in container_memory_usage()]
 
