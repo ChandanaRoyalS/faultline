@@ -67,8 +67,9 @@ def test_a_dirty_baseline_aborts_before_anything_is_injected(
         rehearse, "container_memory_usage", lambda: [("kafka", 42.0, "500MiB / 1.172GiB")]
     )
     monkeypatch.setattr(rehearse, "orphaned_image_references", list)
+    monkeypatch.setattr(rehearse, "container_uptimes", lambda: [("kafka", 9999)])
 
-    with pytest.raises(rehearse.RehearsalError, match="aborting before injection"):
+    with pytest.raises(rehearse.RehearsalError, match="still firing"):
         rehearse.rehearse(
             "currency-cpu-throttle", dwell=1, alert_timeout=1, force=True, baseline_timeout=1
         )
@@ -287,6 +288,7 @@ def test_an_already_injected_fault_aborts_before_anything_is_injected(
         rehearse, "container_memory_usage", lambda: [("kafka", 42.0, "500MiB / 1.172GiB")]
     )
     monkeypatch.setattr(rehearse, "orphaned_image_references", list)
+    monkeypatch.setattr(rehearse, "container_uptimes", lambda: [("kafka", 9999)])
 
     with pytest.raises(rehearse.RehearsalError) as caught:
         rehearse.rehearse(
@@ -381,6 +383,7 @@ def test_the_memory_gate_stops_a_rehearsal_before_anything_is_injected(
         rehearse, "container_memory_usage", lambda: [("kafka", 99.3, "1.164GiB / 1.172GiB")]
     )
     monkeypatch.setattr(rehearse, "orphaned_image_references", list)
+    monkeypatch.setattr(rehearse, "container_uptimes", lambda: [("kafka", 9999)])
 
     with pytest.raises(rehearse.RehearsalError, match="memory limit"):
         rehearse.rehearse(
@@ -396,6 +399,7 @@ def test_the_memory_gate_stops_a_rehearsal_before_anything_is_injected(
 
 def test_a_coherent_world_passes_the_image_gate(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(rehearse, "orphaned_image_references", list)
+    monkeypatch.setattr(rehearse, "container_uptimes", lambda: [("kafka", 9999)])
 
     rehearse.require_coherent_images()  # does not raise
 

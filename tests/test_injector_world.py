@@ -17,7 +17,12 @@ from evalharness.scenario import FaultClass
 from injector.catalog import CATALOG, CatalogError, check_target
 from injector.models import FaultDefinition
 from injector.settings import InjectorSettings
-from injector.world import CONTAINER_SERVICES, SERVICE_CONTAINERS
+from injector.world import (
+    CONTAINER_SERVICES,
+    SERVICE_CONTAINERS,
+    canonical_service,
+    same_service,
+)
 
 
 def compose_files() -> list[Path]:
@@ -55,6 +60,32 @@ def test_the_naming_map_matches_the_compose_files_it_copies() -> None:
 def test_every_service_and_container_name_is_reachable_from_either_side() -> None:
     assert len(CONTAINER_SERVICES) == len(SERVICE_CONTAINERS), (
         "two services sharing a container name would make the reverse lookup lie"
+    )
+
+
+def test_canonical_identity_collapses_the_two_naming_schemes() -> None:
+    """Either name for a service canonicalises to the one the compose files key on."""
+    assert canonical_service("cart-service") == "cartservice"
+    assert canonical_service("cartservice") == "cartservice"
+    assert same_service("cart-service", "cartservice")
+    assert not same_service("cartservice", "shippingservice")
+
+
+def test_canonicalising_is_unambiguous() -> None:
+    """No container name may also be a *different* service's compose name.
+
+    `canonical_service` resolves a name by looking it up as a container and leaving it
+    alone otherwise, so one such collision would silently rewrite one service's identity
+    into another's - and every comparison built on it would agree with the wrong answer.
+    """
+    collisions = {
+        container: service
+        for service, container in SERVICE_CONTAINERS.items()
+        if container in SERVICE_CONTAINERS and container != service
+    }
+    assert not collisions, (
+        f"{collisions} name a container that is also another service's compose name, so "
+        "canonical_service cannot tell which one a target means"
     )
 
 

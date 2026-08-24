@@ -60,7 +60,7 @@ from evalharness.provenance import (
 from evalharness.scenario import Scenario
 from injector.catalog import by_id as fault_by_id
 from injector.settings import InjectorSettings
-from injector.world import CONTAINER_SERVICES, SERVICE_CONTAINERS
+from injector.world import SERVICE_CONTAINERS, canonical_service, same_service
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_DIR = REPO_ROOT / "evals" / "scenarios"
@@ -104,6 +104,26 @@ def wait_until(
     return None, firing_alerts()
 
 
+def _naming_scheme_note(field: str, declared: object, actual: object) -> str:
+    """Say when a target mismatch is the world's two names for one service, not two services.
+
+    Both are still failures - the YAML documents what the injector runs, and the injector's
+    target is bound to its mechanism, so `cartservice` is not interchangeable with
+    `cart-service` in a file that claims to describe it. But they are fixed differently, and
+    telling them apart costs one lookup: a genuinely different target means the scenario
+    cites the wrong fault, while the same service under its other name means someone copied
+    the right fault using the naming scheme the other mechanism wants.
+    """
+    if field != "target" or not isinstance(declared, str) or not isinstance(actual, str):
+        return ""
+    if not same_service(declared, actual):
+        return ""
+    return (
+        " - the world's other name for the same service, so this is a naming-scheme slip "
+        "rather than a different target"
+    )
+
+
 def require_scenario_matches_catalog(scenario: Scenario) -> None:
     """Refuse to rehearse a scenario whose YAML disagrees with the fault that will run.
 
@@ -133,6 +153,7 @@ def require_scenario_matches_catalog(scenario: Scenario) -> None:
     if mismatches:
         detail = "\n".join(
             f"  {name}: the YAML says {declared!r}, the injector will run {actual!r}"
+            + _naming_scheme_note(name, declared, actual)
             for name, declared, actual in mismatches
         )
         raise RehearsalError(
@@ -187,7 +208,7 @@ def require_coherent_images() -> None:
     detail = "\n".join(f"  {name}: image {image} no longer exists" for name, image in orphans)
     # The gate reports container names; compose needs service names, and they differ in
     # this world (container `cart-service`, service `cartservice`).
-    services = sorted({CONTAINER_SERVICES.get(name, name) for name, _ in orphans})
+    services = sorted({canonical_service(name) for name, _ in orphans})
     settings = InjectorSettings()
     files = " ".join(f"-f {name}" for name in settings.compose_files)
     fix = f"cd world && docker compose {files} up -d --force-recreate --no-deps " + " ".join(

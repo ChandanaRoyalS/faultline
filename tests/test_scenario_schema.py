@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from evalharness.scenario import Scenario, Split, load_catalog
 from injector.catalog import by_id
+from injector.world import same_service
 
 EXAMPLES = Path(__file__).parent.parent / "evals" / "scenarios" / "examples"
 SCENARIO_DIR = Path(__file__).parent.parent / "evals" / "scenarios"
@@ -61,6 +62,14 @@ def test_scenario_injections_match_the_fault_they_cite() -> None:
             f"{scenario.id}: the YAML targets {scenario.injection.target!r} but the "
             f"injector targets {fault.target!r}. injector.catalog is authoritative - the "
             "YAML is documentation, so fix the YAML unless you meant to change the fault."
+            + (
+                " These are the world's two names for the same service, so this is a"
+                " naming-scheme slip rather than a different target - but the target is"
+                " bound to the fault's mechanism, so the documentation has to use the name"
+                " the injector uses."
+                if same_service(scenario.injection.target, fault.target)
+                else ""
+            )
         )
         assert scenario.injection.params == fault.params, (
             f"{scenario.id}: the YAML declares params {scenario.injection.params} but the "
