@@ -286,6 +286,89 @@ container restart counts, exit codes, cgroup memory events — and with them it 
 sharp scenario precisely because the metrics say nothing. Recorded here so the observation
 is not lost with the ceiling that produced it.
 
+## Runtime metrics reach Prometheus, and their absence is the signal
+
+Measured on `ad-memory-squeeze` and `recommendation-memory-squeeze` against the live world.
+This was an open question when the section above was written — it assumed the memory
+scenarios' decisive evidence sat entirely outside the agent's reach. Part of it does not.
+
+**Services' own runtime metrics do arrive in Prometheus**, through the OTLP pipeline rather
+than a scrape: `process_runtime_jvm_*`, `runtime_cpython_*`, `process_runtime_go_*`,
+`process_runtime_dotnet_*`. Nothing had to be added to collect them; they were already
+there.
+
+**They are attributable, under a label nobody would guess.** The service label is
+`exported_job`, not `service_name` — Prometheus renamed the exporter's `job` label because
+it collided with the scrape job's. So the selector is:
+
+```promql
+process_runtime_jvm_memory_limit{exported_job="adservice",type="heap"}
+runtime_cpython_memory{exported_job="recommendationservice"}
+```
+
+Anything written against `service_name` — which is what every query in `queries.md` uses,
+because the span metrics do carry it — silently matches nothing on these series.
+
+**Under fault the series do not degrade. They vanish.** Two runtimes, two ceilings, same
+outcome:
+
+| | `ad-memory-squeeze` | `recommendation-memory-squeeze` |
+|---|---|---|
+| runtime, ceiling | JVM, 256m | CPython, 32m |
+| series | `process_runtime_jvm_memory_*{exported_job="adservice"}` | `runtime_cpython_memory{exported_job="recommendationservice"}` |
+| before injection | Eden 47 MiB, Survivor 5 MiB, Tenured 117 MiB, usage 31 MiB | rss 70 MiB, vms 1859 MiB |
+| under fault | **no series at all**, across 330 s | **no series at all**, across 300 s |
+| restart count over that window | 22 → 36 | 0 → 14 |
+
+The restart counts are `docker` readings, not agent-visible ones, and are quoted only to
+establish what the absence means: in both cases the process never survived long enough to
+export.
+
+### The useful consequence
+
+**A service's own runtime series disappearing separates "no traffic because the process is
+gone" from "no traffic because nobody called it."** `ServiceNoTraffic` cannot make that
+distinction — it fires on an absence of calls and says nothing about why. The runtime
+series can, and it is one PromQL query against a tool the agent already has.
+
+That is a real gain for the three `resource_exhaustion` scenarios, whose narratives
+otherwise reason from container state (`RestartCount`, `OOMKilled`, exit 137) that no agent
+tool can reach.
+
+### What it still does not give
+
+**The cgroup ceiling is observable nowhere.** Not in any metric — the runtime series report
+what the runtime asked for and got, never the limit the kernel enforces. Not in logs. And
+`docker update --memory` is not a deploy, so a deploy-only change history cannot see it
+either. The *root cause* of all three scenarios remains unreachable; what became reachable
+is the *symptom*, one level sharper than before.
+
+**It does not separate the memory scenarios from `shipping-wrong-image`.** That JVM dies
+too, so its runtime series vanish the same way. The cross-class trap below is untouched by
+this measurement, and still turns on change history.
+
+**Absence of a series is weaker evidence than presence of one.** A series can also stop
+because the exporter broke, the collector dropped it, or the label changed. It supports
+"this process is not running" and not "this process was OOM-killed."
+
+**The signal is conditional on the process never getting to live.** The series vanish when
+the process cannot reach a serving state; they persist when it is killed just as often but
+recovers fast enough to keep running. Both measurements above are the first case, on two
+different runtimes and two different ceilings — so runtime is not the variable.
+
+The other side of that line is the same service and the same mechanism: the 48m
+`recommendation-service` probe in the section above was OOM-killed roughly every 36 seconds
+and was back inside a second or two, and the whole stack recorded a healthy service —
+49 of 49 call-rate samples present, none zero, no alerts. A process that keeps being killed
+but keeps coming back keeps exporting, and this signal says nothing about it. *(Directly
+measured there: the span metrics and the alert stream. The runtime series were not read in
+that window, so "kept exporting" is an inference from a process that was demonstrably
+serving — sound, but not the same evidence as the two measurements above.)*
+
+So the boundary is not JVM versus Python and not one ceiling versus another. It is whether
+the process gets to live, and the failure that hides from every other signal — frequent
+death with fast recovery — is exactly the one this signal also misses.
+
 ## The catalog's only cross-class trap
 
 `shipping-wrong-image` (bad_deploy, dev, `bad_deploy-3`) is the one scenario where the

@@ -36,19 +36,30 @@ answers.
 **Error rate by service.** frontend and loadgenerator over threshold, everything else
 flat. recommendationservice itself: no errors at all, then no data.
 
-**recommendationservice, once it went quiet.** The container was not running. It was in
-a restart loop, exiting 137 each time — killed by the kernel for exceeding its memory
-allowance. It never reached a serving state, so it never recorded a single call, and it
-appeared healthy right up to the point where it appeared not at all.
+**Whether recommendationservice was idle or gone.** `ServiceNoTraffic` cannot tell those
+apart. Its runtime metrics can: the service publishes its own interpreter memory usage,
+and an idle process keeps publishing. **Those series stopped at onset and did not resume
+until the fix.** A service that has stopped reporting its own memory is not a service
+that is waiting for work.
 
-**What changed on it.** Not the image, not the code, not the environment, not any
-dependency. Its container memory ceiling had been lowered to 32 MiB. Steady-state usage
-is around 55 MiB, and the runtime needs more than the new ceiling merely to finish
-starting — so the process was killed during initialisation, restarted, and killed
-again.
+**recommendationservice's logs, which say nothing at all.** This is the hardest part of
+this incident. There is no error, no traceback, no truncated startup banner — the stream
+simply ends mid-traffic and the next line is a clean startup twelve minutes later, after
+the fix. Nothing was written because nothing got far enough to write it, and because the
+runtime buffers its output and lost whatever was pending when it was killed. **An empty
+log is not evidence of a healthy service; it is evidence that nothing survived long
+enough to speak.**
 
-**Whether anything else was affected.** No. Only recommendationservice and the frontend
-that calls it. Nothing in the product, cart, checkout or payment path moved at all.
+**What that combination rules out.** No errors, no traffic, no logs, no runtime metrics,
+and callers that time out rather than receive failures. Nothing is refusing requests —
+there is nothing there to refuse them. That eliminates every explanation involving the
+service's own behaviour and leaves only explanations about its existence.
+
+**What changed.** Not the image, not the code, not the environment, not any dependency.
+The change history shows one edit: the container's memory ceiling was lowered to 32 MiB.
+Steady-state usage is around 55 MiB, and the runtime needs more than the new ceiling
+merely to finish starting — so the process was killed during initialisation, restarted,
+and killed again, without ever reaching a serving state.
 
 ## Root cause
 
@@ -57,8 +68,8 @@ runtime requires to start. Nothing about the service changed — only the ceilin
 allowed to occupy — and the effect was not degradation but non-existence.
 
 This is why it produced no errors of its own: a process that never finishes starting
-records no calls, and therefore no errored ones. Its only signal was the absence of
-traffic, and that absence arrived a full minute after the downstream errors did.
+records no calls, and therefore no errored ones. Its only signal was absence, and that
+absence arrived a full minute after the downstream errors did.
 
 ## Resolution
 
@@ -85,9 +96,16 @@ one resource limit was wrong and was put back.
   4ms against a 250ms threshold — sixty times of headroom. No amount of slowing down
   can reach the rule. If a fault on this service does not stop it serving, nothing in
   the alerting will ever see it.
+- **This service leaves no logs when it dies**, unlike a runtime that prints a banner on
+  every start. Its silence is total, and the absence of a crash message must not be read
+  as the absence of a crash. What filled that gap was the runtime metrics stopping.
 - **Blast radius shape.** One leaf and one caller, nothing else. A narrow, two-service
   spread points at something with a single consumer; it cannot be produced by anything
   on the critical path.
 - Both an error-rate and a latency alert fired on the same two services. That pairing
   is what waiting on a dead dependency looks like: some requests fail, the rest are
   slow because they waited first.
+- **The signature does not name its cause.** Everything above establishes that the
+  process is gone. Nothing in it says *why* the ceiling and the footprint stopped
+  fitting — only the change history distinguishes a lowered limit from a service that
+  grew.

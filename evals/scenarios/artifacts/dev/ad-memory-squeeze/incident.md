@@ -40,20 +40,26 @@ healthy service. Read at the time as evidence adservice was fine.
 narrowed it faster than any metric did — frontend's errors were confined to one
 dependency, and the storefront told us which one before the alerting did.
 
-**The two one-sample latency alerts.** They fired in the same evaluation adservice went
-quiet, and they are the moment of transition rather than a condition: frontend's calls
-were hanging against a dying process, and once it was gone they failed immediately
-instead of slowly. A single-sample latency alert is a state change, not a state.
+**Whether adservice was idle or absent.** `ServiceNoTraffic` cannot tell those apart:
+both look like a call rate of zero. The runtime metrics can. adservice exports its own
+JVM heap series, and a process that is merely idle keeps exporting them. **Those series
+disappeared entirely at onset and did not return until the fix.** A service that has
+stopped reporting how much heap it is using does not have a heap. That is the moment the
+investigation stopped being about traffic and started being about the process.
 
-**adservice, once it went quiet.** Zero errors and zero traffic together do not mean a
-healthy idle service on this system; adservice is called on every product page. The
-container had restarted twice, exiting 137 each time — killed by the kernel for
-exceeding its memory allowance, not crashing on its own.
+**adservice's logs.** Fifteen startup attempts inside the fault window, each exactly
+three lines — a JVM banner, a class-loading warning, an instrumentation agent announcing
+its version — and then nothing. The gaps between attempts lengthen from three seconds to
+over a minute, which is a supervisor backing off a container that will not stay up. Not
+one line explains why. A process that fails on its own configuration says so, because it
+got far enough to read the configuration; this one is being stopped before it reaches
+that point.
 
-**What changed on adservice.** Not the image, not the environment, not the code. The
-container's memory ceiling had been reduced to 256 MiB. Its steady-state working set is
-around 350 MiB, and the JVM's heap settings were sized against the previous ceiling of
-700 MiB, so the runtime kept trying to grow into memory that no longer existed.
+**What changed.** Not the image, not the environment, not the code, not any dependency.
+The change history shows one edit: the container's memory ceiling was reduced to 256 MiB.
+Steady-state usage is around 350 MiB, and the JVM's heap was sized against the previous
+ceiling of 700 MiB, so the runtime kept trying to grow into memory that no longer
+existed.
 
 ## Root cause
 
@@ -62,10 +68,10 @@ configured for. Nothing about the service changed — only the ceiling it was al
 occupy. The kernel killed it, the orchestrator restarted it, and it grew back into the
 same wall.
 
-This is why it never appeared in the error metric: a process that is being killed and
-restarted records no calls, and therefore no errored ones. The only evidence of it was
-an *absence* of traffic, and that took three minutes longer to alert than the
-downstream errors did.
+This is why it never appeared in the error metric: a process that is killed before it
+finishes starting records no calls, and therefore no errored ones. The only evidence of
+it was an *absence* — of traffic, of logs beyond a truncated banner, and of the runtime
+metrics it publishes about itself.
 
 ## Resolution
 
@@ -89,6 +95,13 @@ one resource limit was wrong and was put back.
   the storefront worked except for one panel.
 - Did the loudest service turn out to be the culprit? **No.** loadgenerator alerted
   longest at six minutes and is not a service in any meaningful sense.
+- **A service's own runtime metrics disappearing is stronger evidence than its traffic
+  disappearing.** An idle service still reports its heap; a dead one reports nothing.
+  That distinction is not available from the alert, which sees a rate of zero either way.
+- **The failure signature does not name its cause.** A repeating truncated startup on a
+  lengthening backoff means the process is being stopped from outside. It does not say
+  whether the ceiling came down or the thing beneath it grew, and those have opposite
+  fixes. Only the change history separates them.
 - **Blast radius shape was the useful clue.** Only adservice and its single consumer
   were affected. A service on the critical path taking others down with it produces a
   much wider spread; a leaf consumed by one caller produces exactly this. Where the
