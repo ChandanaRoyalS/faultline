@@ -127,6 +127,39 @@ preference: (1), with (2) as the check on it — the two measured bundles are a 
 whatever (1) produces, and an implementation that labels the `frauddetection` edge
 synchronous is wrong regardless of what its spans appear to say.
 
+**Marked for decision: the same split, for the synthetic-client edge.** *(Added at
+implementation — this ADR did not anticipate it.)*
+
+Excluding `loadgenerator -> frontend` removes the **node**, because nodes come from edges and
+that was its only one. The service it removes is the one that alerts in almost every captured
+incident: `loadgenerator` appears in the alert set of all three cart injections and of
+`product-catalog-flag-failure`. So the exclusion that is plainly right for blast radius —
+where counting our own synthetic client makes `frontend` the most-depended-on service in the
+world — silently costs correlation its most frequent alerting service.
+
+The candidate resolution mirrors the sync/async split above, and for the same reason: one
+graph, two consumers, different needs.
+
+| Consumer | Wants the edge? | Why |
+|---|---|---|
+| `DependencyPolicy` (correlation) | **Yes** | `loadgenerator` really does call `frontend`, and an alert on it really does belong to the incident that is breaking `frontend`. |
+| Blast-radius reasoning (T3.1) | **No** | It measures who depends on what, and nobody depends on our load generator. |
+
+**Interim behaviour, as built.** The edge stays excluded everywhere and `loadgenerator` is a
+catalog entry with presence `ARTIFACT_ONLY` and its reason recorded — the same treatment
+`featureflagservice` gets, applied to a service that is absent for a different reason.
+Correlation therefore falls back to time overlap for it, so its alerts still join the right
+incident, and the join is recorded as `no_graph_presence` rather than `graph`. Nothing is
+lost and nothing is silent; what is missing is the graph having an opinion.
+
+Measured in `tests/test_context.py`, replaying `product-catalog-flag-failure`'s alert set:
+all three join rules fire in one incident, and the first two joins come from the fallback
+chain because `loadgenerator` opens it. That is the concrete cost, and it is why this is
+marked rather than left as an implementation detail.
+
+`frontendproxy` is in the identical position, for the identical reason, and is handled the
+same way.
+
 ### `DependencyPolicy`
 
 **The rule.** A firing episode joins an incident when its service is within **2 hops**,
@@ -205,14 +238,33 @@ graph does not have it. The honest version of blast radius is therefore blocked 
 query nobody has written, and the alternative — reasoning from the graph as though every edge
 were synchronous — is measurably wrong on two of the fifteen edges we have.
 
+**Join provenance is in-process, and finishing it is scoped to T4.1.** Every correlation
+decision records the rule that made it — `graph`, `no_graph_presence`, or
+`no_judgeable_candidate` — into a `DecisionLog`, which makes the mix enumerable while the
+process lives and not afterwards. **`incidents` has no column for it**, and adding one is an
+orchestrator and schema change rather than a context-layer one.
+
+That is a deliberate stopping point rather than an oversight. The consumer of the rule mix is
+T4.1's reporting: the question it answers is *how often did the graph actually decide, and
+how often did this quietly become time overlap again* — which is a reporting question, asked
+of many runs, not something the orchestrator needs in order to run. So the schema change
+lands with whoever builds that reporting, and the fact is captured now so it is not
+reconstructed later from nothing.
+
+Until then the exposure is exactly one thing: a deployment can fall back on every join and
+nobody looking at the database would see it. The log is the reason that is a gap in
+reporting rather than a gap in evidence.
+
 **A committed snapshot is a thing that can be wrong.** It is pinned and drift-tested, and the
 test skips wherever the world is absent, which is CI. The drift will therefore be caught on a
 developer machine with the world up, or not at all until someone looks. That is the same
 exposure `injector.world` already carries, accepted for the same reason.
 
 **Marked for decision, collected:** whether infrastructure nodes (`kafka`, `redis-cart`) join
-the catalog; how sync/async is obtained, at T3.1; and whether hubs should be non-transitive
-in the hop rule.
+the catalog; how sync/async is obtained, at T3.1; whether hubs should be non-transitive in the
+hop rule; and whether the synthetic-client edge should be kept for correlation and excluded
+only from blast radius — the last of these added at implementation, since building it is what
+showed that dropping the edge drops the node.
 
 **Revisit if:** the world gains instrumentation for the flag service, which would remove the
 blindness rather than work around it; Jaeger gains persistent storage, which would weaken the
