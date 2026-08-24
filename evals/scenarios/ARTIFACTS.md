@@ -165,24 +165,36 @@ exactly what the system produced. A formatter that strips a trailing space from 
 log, or reflows a metric JSON, makes the committed bundle a rendering of the capture rather
 than the capture — and nothing afterwards can tell the difference.
 
-**`evals/baselines/` is under the same rule.** Quiet-world baselines are captures of
-exactly the same kind — raw metric JSON and the summaries generated from it — and they are
-cited in ADRs the same way bundle metrics are. The rule is about captured evidence, not
-about one directory.
+**`evals/baselines/` and `docs/evidence/` are under the same rule.** Quiet-world baselines
+are captures of exactly the same kind — raw metric JSON and the summaries generated from it
+— and `docs/evidence/` holds webhook payloads, service logs and `psql` dumps taken from live
+runs. All three are cited in ADRs the same way bundle metrics are. The rule is about
+captured evidence, not about one directory.
 
-`.pre-commit-config.yaml` therefore excludes both trees from `trailing-whitespace` and
+`.pre-commit-config.yaml` therefore excludes all three trees from `trailing-whitespace` and
 `end-of-file-fixer`, under a single `captured_evidence` pattern shared by the two hooks.
-The read-only hooks still apply to both and should stay: `check-yaml`, `check-json`,
+The read-only hooks still apply and should stay: `check-yaml`, `check-json`,
 `check-added-large-files` and `detect-private-key` guard a capture without touching it.
 
 A regex cannot tell a capture from source, so the pattern lists directories — and the two
 kinds sit side by side, since `evals/scenarios/*.yaml` is authored and must stay formatted
 while `evals/scenarios/artifacts/` beneath it must not be touched. **Any new directory that
-holds recordings has to be added there**, which is how `evals/baselines/` came to be
-rewritten by a hook after the same defect had already been fixed once for bundles.
+holds recordings has to be added there.** That has now been learned three times: once for
+bundles, again when `evals/baselines/` was rewritten by a hook after the same defect had
+already been fixed, and a third time when `docs/evidence/t2.2-live-smoke/final-state.txt`
+was rewritten at commit time.
 
-The one exception is `incident.md`, which is written by hand rather than captured — but it
-lives under the same path and is excluded by the same rule, which costs nothing.
+**That third one is committed in its rewritten form.** The hooks stripped the trailing
+padding from `psql`'s column headers before the exclusion existed. No value changed — only
+whitespace — but the file will not byte-match a fresh `psql` run, and re-recording it would
+mean re-running an injection to reproduce a cosmetic difference. It stays as it is, and
+`docs/evidence/t2.2-live-smoke/README.md` says so at the point where a reader would go
+looking. It is the last file this can happen to.
+
+Authored files that live inside these trees are excluded too — `incident.md`, and each
+evidence directory's `README.md`. That costs a little tidiness and is the right side of the
+trade: an unformatted README is untidy, a rewritten capture is a record of something the
+world did not produce.
 
 If a capture needs to change, re-record it. Editing one in place produces an artifact that
 claims to be evidence and is not, which is the failure ADR-0009 is built around.
