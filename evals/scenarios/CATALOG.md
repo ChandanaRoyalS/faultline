@@ -36,6 +36,24 @@ Two rules follow, for T4.x and anything else downstream:
 This applies to the `seconds_of_steady_state` and `seconds_to_settle` figures too, and to
 the settle-time range in ADR-0009, which rests on three observations of one scenario.
 
+## No guard reads a sentence
+
+`recorded_from` binds a narrative to the recording it describes, and a guard fails if they
+drift apart. That is a check on *which* recording the prose belongs to. **Nothing checks
+whether the prose is true of it.**
+
+Measured: `cart-bad-image-tag`'s narrative asserted there were "no logs, no exit code, no
+restart count" and that checking the logs "returns nothing, because nothing exists to have
+written them". The bundle beside it holds 500 log lines. Every guard passed — the manifest
+is self-consistent, `recorded_from` matches, the front-matter durations match, the captures
+are continuous and complete. The contradiction was found by opening the file and reading
+it.
+
+This is the limit of mechanical verification here, and it is worth stating rather than
+discovering. Guards can check that a number matches its source, that a file is named for
+what it contains, that two artifacts agree. They cannot check that a paragraph describes
+what happened. Narratives are the part of a bundle that has to be read.
+
 ## The cart discrimination pair
 
 `cart-redis-misconfig` (bad_config, dev) and `cart-bad-image-tag` (bad_deploy, dev) were
@@ -78,9 +96,41 @@ suggested.
 | within `cart-bad-image-tag` alone | **104s** (197 vs 301) |
 
 Within-scenario variance exceeds the between-scenario difference several times over, so
-onset carries no information about which fault was injected. Only the 301s run is still in
-the tree; the 197s figure survives only in this write-up, which is its own reason not to
-build on it.
+onset carries no information about which fault was injected.
+
+### Variance is a property of the fault, not of the world
+
+`cart-redis-misconfig` has since been recorded six times, and its detection times are
+almost constant:
+
+| | |
+|---|---|
+| 08-23 06:03:51 | 165s |
+| 08-23 06:38:03 | 166s |
+| 08-23 07:40:38 | 166s |
+| 08-23 08:16:35 | 166s |
+| 08-23 11:49:47 | **218s** |
+| 08-24 04:44:27 | 165s |
+
+**Five of six land within one second of each other.** Against `cart-bad-image-tag`'s
+197s/301s on two runs, that is a materially different variance profile on the same world,
+the same target service and the same alert rule.
+
+This supports reading detection variance as a property of the **fault mechanism**. A wrong
+Redis port fails a startup check deterministically: the container fails at the same point
+in its lifecycle every time, so the error rate crosses the threshold at the same offset. A
+deploy onto an unresolvable tag depends on compose's image resolution and teardown, which
+has no reason to take the same time twice.
+
+**The 218s outlier is unexplained.** It is the 11:49 recording, 52 seconds above a
+five-sample cluster that is otherwise flat to within a second, and nothing distinguishes it
+in the manifests — same world digests, same params, same alert set. It is recorded here
+rather than smoothed away; one unexplained sample in six is exactly the kind of thing that
+looks like noise until it turns out to be a mechanism.
+
+None of this weakens the caveat at the top of this document. It sharpens it: `n` is not
+interchangeable between scenarios, and six samples of one fault say nothing about the
+spread of another.
 
 ### The only difference in the metrics, and why it does not help
 
@@ -125,12 +175,32 @@ at all for the entire 8-minute fault window** (3 lines in-window, all the shutdo
 then a clean start at `16:15:35` on revert — `Application started`, `Successfully connected
 to Redis`. A clean stop followed by silence, not a service failing repeatedly.
 
-**Caveat: that comparison is not available inside the bundles.** `cart-redis-misconfig`'s
-log capture failed — Loki returned HTTP 500 during the recording, and the file says so
-rather than appearing empty. The crash-loop evidence quoted above is from an earlier
-recording of that scenario which has since been replaced. **As committed, the pair's only
-in-bundle discriminator is missing from one half of it.** That is a gap in the evidence,
-not in the scenarios.
+**The discriminator is now in both bundles.** An earlier recording of
+`cart-redis-misconfig` lost its logs to a transient Loki HTTP 500 and captured five
+comment lines saying so; the re-record captured 500. Both halves of the pair now carry
+their log evidence, and the comparison can be made from the committed tree.
+
+What the two captures contain is the sharper form of the point the `bad_deploy` trio
+makes: **the presence, absence and content of logs is itself evidence.**
+
+| | `cart-redis-misconfig` | `cart-bad-image-tag` |
+|---|---|---|
+| container during the fault | exists, crash-looping | **never created** |
+| log lines inside the fault window | the service logging its own failure, repeatedly | **3 of 500** — the shutdown at injection, then nothing |
+| what the logs say | `Wasn't able to connect to redis`, naming the dependency | silence, bracketed by a clean stop and a clean start |
+
+Note the shape of `cart-bad-image-tag`'s capture, because "logs nothing" is not quite
+right and the difference matters. The file holds 500 lines — the capture window opens five
+minutes before injection, so it is full of ordinary traffic — but only **three** fall
+inside the fault window, all of them the container shutting down at `18:53:53`. The next
+line is at `19:04:46`, one second after the revert. A clean stop, eleven minutes of
+nothing, a clean start.
+
+So the two are not "logs versus no logs". They are **a service reporting its own failure
+versus a service that was not running to report anything**, and telling those apart means
+reading where the lines stop rather than counting them. An investigation that greps for
+errors finds them in one bundle and finds nothing in the other — and the nothing is the
+finding.
 
 ### Consequence for T4.x
 
