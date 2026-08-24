@@ -34,6 +34,12 @@ argued otherwise.
 for minutes rather than for a scrape interval or two. Persistence is what separated
 this from noise — the same discriminator that works for latency, applied to absence.
 
+**Whether the service was idle or absent.** This is the check that turns a dismissible
+alert into an incident, and it costs one query. frauddetectionservice publishes its own
+JVM heap series. A service with nothing to do keeps publishing them. **Those series
+stopped at onset and did not return until the fix.** No traffic *and* no runtime metrics
+is not a quiet service; it is no service.
+
 **Why nothing downstream complained.** frauddetectionservice does not sit in the request
 path. It consumes order events from a queue rather than being called by checkout, so
 its callers cannot fail when it stops: there are none. Orders continued to complete
@@ -45,14 +51,15 @@ the alerting measures how much of it is waiting. The one alert that fired was re
 the *only* externally visible consequence of the failure, and it was reporting it as an
 absence of traffic rather than as a backlog.
 
-**The container.** Restarting repeatedly, exiting 137 each time — killed by the kernel
-for exceeding its memory allowance, never reaching a state where it could consume
-anything.
+**The logs.** Eighteen startup attempts inside the fault window, each three lines of JVM
+banner and then nothing, on a lengthening backoff. No line explains a failure — the
+process is being stopped before it can form an opinion about anything.
 
-**What changed on it.** Not the image, not the code, not the environment. Its container
-memory ceiling had been reduced to 200 MiB against a steady-state working set of about
-326 MiB. It is a JVM service, so the heap it was configured for no longer fit inside the
-ceiling it was given, and the kernel killed it during startup every time.
+**What changed.** Not the image, not the code, not the environment. The change history
+shows one edit: the container's memory ceiling was reduced to 200 MiB against a
+steady-state working set of about 326 MiB. It is a JVM service, so the heap it was
+configured for no longer fit inside the ceiling it was given, and the kernel killed it
+during startup every time.
 
 ## Root cause
 
@@ -86,6 +93,10 @@ one resource limit was wrong and was put back.
   first — error rate, latency, storefront behaviour — was clean for the whole incident.
   A responder trusting "customers are fine" as a severity signal would have deprioritised
   this indefinitely.
+- **The cheapest question turns this from noise into an incident.** A sparse service's
+  no-traffic alert is dismissible until you ask whether the process is still there, and
+  its own runtime metrics answer that in one query. Idle services report their heap.
+  Dead ones report nothing.
 - **Absence of downstream symptoms is not evidence of low severity.** A synchronous
   dependency failing loudly stops work from happening. An asynchronous consumer failing
   quietly lets work happen *unprocessed*, which can be worse and is much harder to see.
@@ -93,3 +104,6 @@ one resource limit was wrong and was put back.
 - The signal the alerting does not have is **queue depth**. Traffic to a consumer going
   to zero is a proxy for it, arriving late and saying nothing about how much has piled
   up. The one number that would have described the actual impact was not being collected.
+- **The failure signature does not name its cause.** A repeating truncated startup means
+  something outside the process is stopping it. Whether the ceiling was lowered or the
+  service grew into it is a question only the change history answers.

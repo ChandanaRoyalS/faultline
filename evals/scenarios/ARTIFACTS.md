@@ -19,6 +19,35 @@ evals/scenarios/artifacts/<split>/<scenario-id>/
 The path is the quarantine (T1.6): `<split>` is the scenario's own split, and the guard
 tests in `tests/test_contamination.py` fail the build if a bundle lands on the wrong side.
 
+## The captured metrics are four queries, and they are not always the decisive ones
+
+`metrics/` holds exactly four `query_range` results — error ratio, call rate, p95, and the
+firing-alert series — and `queries.md` records the PromQL behind each. That set was chosen
+to describe an incident's *shape*: what broke, how hard, for how long, and what alerted.
+
+**It does not contain the series that discriminates the three `resource_exhaustion`
+scenarios.** Measured on `ad-memory-squeeze`: a service's own runtime metrics
+(`process_runtime_jvm_*`, `runtime_cpython_*`, and their Go and .NET equivalents) do reach
+Prometheus, and their **disappearance** under fault separates "no traffic because the
+process is gone" from "no traffic because nobody called it" — a distinction no captured
+query can make. See `CATALOG.md`, "Runtime metrics reach Prometheus, and their absence is
+the signal", for the measurement and its limits.
+
+So for a memory scenario, the evidence that most sharply identifies what happened is not in
+its own bundle. The bundle records that traffic stopped; it does not record the reason the
+runtime series could have supplied.
+
+**Recorded as a gap, not fixed here.** Adding a fifth capture is not a local change: it
+would alter what every future bundle contains while all ten existing bundles lack it, so
+bundles would stop being comparable to each other, and the ten would need re-recording to
+close that — against the settle-time and single-sample caveats that make re-recording
+expensive. Note also that these series are keyed on `exported_job`, not the `service_name`
+every existing query uses, so a fifth capture is not a copy of an existing one with the
+metric name swapped.
+
+**T4.2 owns the decision**, because it is the first task that has to score against this
+evidence and can say whether the gap actually costs anything.
+
 ## `superseded/` — manifests from earlier recordings
 
 A re-record replaces `manifest.json`, and the previous one is gone. Every number ever cited

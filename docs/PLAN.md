@@ -91,6 +91,32 @@ Typed tools with scoped read-only credentials and trust-labelled results. Also b
 ADR-0004's runtime contract.
 `src/faultline/tools/__init__.py:1`, `docs/adr/0004:41`, `docs/THREAT-MODEL.md:8`
 
+**Requirement derived from measurement, not a decision taken.** The third tool must be
+**change history, not deploy history** — it has to report resource-limit changes, not only
+releases.
+
+All three `resource_exhaustion` scenarios have a container memory-limit change as their
+root cause, and that change is observable through none of the agent's other tools. Measured
+on `ad-memory-squeeze` against the live world: runtime metrics do reach Prometheus
+(`process_runtime_jvm_*` and friends, keyed on `exported_job`), but under fault the series
+vanish rather than move, and no series anywhere reports the cgroup ceiling. The logs say
+nothing — the process is SIGKILLed and prints no reason. And `docker update --memory` is
+not a deploy, so a change-correlation tool scoped to releases would not see it.
+
+A deploy-only history would therefore miss the root cause of **an entire fault class this
+catalog already contains** — three of ten scenarios at n=10, one of them holdout. It would
+also leave those scenarios scoreable only by guessing, the way `CATALOG.md`'s "Consequence
+for T4.x" describes for the cart pair.
+
+`evals/scenarios/CATALOG.md` ("Runtime metrics reach Prometheus, and their absence is the
+signal"), `evals/scenarios/CATALOG.md:380` ("What separates them, and why it is only change
+history"), `docs/ARCHITECTURE.md:23`
+
+**contract not written** — the repo does not state what a change record contains, what
+range of change it covers beyond deploys, or where the history comes from. This entry
+records what the catalog *requires* of it, which is a constraint on that contract rather
+than the contract itself.
+
 ---
 
 ## Phase 3 — the agents
