@@ -75,8 +75,19 @@ naming an episode no incident holds is recorded and otherwise ignored: ADR-0015 
 those deliberately (a receiver that was down for the firing, or restarted), and inventing an
 incident to close is worse than dropping a close for one that never opened here.
 
-An incident closes when **every episode in it is resolved and the settle window has elapsed
-with no new firing**.
+~~An incident closes when **every episode in it is resolved and the settle window has elapsed
+with no new firing**.~~
+
+**Corrected at implementation (T2.2).** An incident closes when **every episode in it is
+resolved** — and the settle window governs *reopening* rather than closing.
+
+The original wording and the reopen clause below were two routes to the same outcome, and
+building it forced the choice. Closing on the last resolution turns on an observable event
+and needs no timer; the original needs a periodic tick, which makes an incident's closing
+time depend on when that tick happens to run rather than on anything the world did, and puts
+a sweeper in the critical path of every incident's lifecycle. The recovery alert is caught
+either way: under the original by delaying the close past its arrival, under this one by
+reopening. `faultline.orchestrator.core` records the same reasoning at the point of the code.
 
 ### What this does with `emailservice`
 
@@ -179,7 +190,8 @@ contracts, and writing them from this side would be inventing them.
 rather than a checklist:**
 
 - **Alerts resolving.** From any non-terminal state, when every episode in the incident is
-  resolved and the settle window elapses, the incident goes to `RESOLVED`. An investigation
+  resolved ~~and the settle window elapses~~, the incident goes to `RESOLVED` — corrected at
+  implementation, see above: on the last resolution, with no timer. An investigation
   in flight is *not* cancelled — the fault is over, the question of what caused it is not,
   and the eval harness scores exactly that answer.
 - **New alerts joining.** A `firing` event that correlates to an incident already past `OPEN`
@@ -189,7 +201,9 @@ rather than a checklist:**
 
 **A `RESOLVED` incident reopens** — back to its prior state, or to `OPEN` if it never
 started — when a `firing` event correlates into it inside the settle window. This is the
-`emailservice` case if it had arrived a little later.
+`emailservice` case if it had arrived a little later. **After the correction above this is
+the settle window's only job**, which is why the incident carries the state it was in when it
+closed: reopening has to put it back, not restart it.
 
 ### Where the state lives
 
@@ -347,6 +361,26 @@ the benchmark at all**, because the eval world holds one fault at a time by desi
 be exercised for the first time in whatever runs first outside the harness, which is the worst
 place to discover a mistake. Anything that can be pushed into a test rather than a design
 argument should be.
+
+**The cap is unreachable by construction, not merely untested — found at implementation
+(T2.2), and stronger than the paragraph above.** That paragraph blamed the catalog:
+`require_no_active_faults` means one fault at a time, so the queue stays empty in a scored
+run. The reach is wider than the catalog. `TimeOverlapPolicy` joins *any* firing episode to
+*any* live incident, so **at most one incident is ever non-terminal** and nothing in the
+system can count to two. No workload reaches the cap, benchmark or otherwise.
+
+It becomes reachable exactly when a correlation policy can **decline** — which is T2.4's
+`DependencyPolicy`, the first thing that will ever say "this episode does not belong to the
+open incident". **The cap and the graph policy are therefore coupled, and neither this ADR
+nor ADR-0001 said so** until this was built: ADR-0001 committed to the cap in isolation, and
+the sections above treat the two as independent mechanisms that happen to share a task.
+
+Two consequences follow. The severity-ordered overflow ADR-0001 committed to is dead code
+until T2.4, not merely inert — the note above about two severities understated it. And
+`tests/test_orchestrator.py` exercises admission through a policy that always declines, which
+is the shape `DependencyPolicy` will have; that is the only way to test the cap today, and it
+should be read as testing the mechanism rather than the system. The fuller note lives where
+it bites: `src/faultline/orchestrator/cap.py` and `src/faultline/orchestrator/correlation.py`.
 
 **Placeholders, named as such:** the cap (3), the settle window (5m), the claim idle timeout
 (60s), the poison threshold (5 deliveries). Each has a reason and none has a measurement. They

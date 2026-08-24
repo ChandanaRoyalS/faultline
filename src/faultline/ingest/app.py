@@ -14,6 +14,8 @@ task's.
 
 from __future__ import annotations
 
+import argparse
+import os
 from datetime import UTC, datetime
 from functools import lru_cache
 
@@ -64,17 +66,40 @@ def healthz() -> dict[str, str]:
     return {"status": "ok"}
 
 
-def run() -> None:
+def parser() -> argparse.ArgumentParser:
+    """Flags override `FAULTLINE_INGEST_*`, which overrides the defaults."""
+    settings = IngestSettings()
+    p = argparse.ArgumentParser(
+        prog="faultline-ingest",
+        description=(
+            "Receive Alertmanager webhook deliveries, deduplicate them by alert episode, "
+            "and publish alert-episode transitions to the Redis stream (T2.1, ADR-0015)."
+        ),
+        epilog="The receiver has no authentication - see docs/THREAT-MODEL.md, thesis 3.",
+    )
+    p.add_argument("--host", default=settings.host, help="default: %(default)s")
+    p.add_argument("--port", type=int, default=settings.port, help="default: %(default)s")
+    p.add_argument("--redis-url", default=settings.redis_url, help="default: %(default)s")
+    p.add_argument("--stream", default=settings.stream, help="default: %(default)s")
+    return p
+
+
+def run(argv: list[str] | None = None) -> int:
     """`faultline-ingest`. Uvicorn with one worker - dedupe is in Redis, not in memory,
     so more would be safe, but nothing yet needs them.
 
-    **Known bug: this ignores `--help` and every other flag, and starts the server.**
-    Found during the live smoke (`docs/evidence/t2.1-live-smoke/`). It takes no arguments
-    and hands straight to uvicorn, so the process binds a port instead of describing
-    itself. Left as it is deliberately - the fix is argument parsing, not a `--help`
-    special case, and that lands when this needs real flags. See ADR-0015, consequences.
+    Argument parsing landed with T2.2, which needed a CLI of its own: ADR-0015 recorded that
+    this ignored `--help` and started the server, and that the fix was real flags rather than
+    a `--help` special case. Two CLIs with the same need is when that stopped being true.
     """
+    args = parser().parse_args(argv)
     import uvicorn
 
-    settings = IngestSettings()
-    uvicorn.run(app, host=settings.host, port=settings.port)
+    # The route builds its receiver from settings on first use, so the flags have to reach
+    # it that way rather than by being passed down through FastAPI.
+    os.environ["FAULTLINE_INGEST_REDIS_URL"] = args.redis_url
+    os.environ["FAULTLINE_INGEST_STREAM"] = args.stream
+    receiver.cache_clear()
+
+    uvicorn.run(app, host=args.host, port=args.port)
+    return 0

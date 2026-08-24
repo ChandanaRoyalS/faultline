@@ -17,13 +17,21 @@ fails immediately, whether or not a daemon is up.
 Mock the wrapper, not the subprocess: `container_uptimes`, `container_memory_usage`,
 `orphaned_image_references`, `injector` and friends. A test should state what the world
 looks like, not how the code asks.
+
+T2.1 and T2.2 added two more ways out of the process - Redis and Postgres - and the same
+trap with them: both run locally on a development machine, so a test that reaches one would
+pass here and fail in CI. Guarded the same way and for the same reason, below. Substitute at
+the seams the code already has (`EpisodeLog`, `EventStream`, `IncidentStore`, `EventSource`),
+never at the client.
 """
 
 from __future__ import annotations
 
 from typing import Any, NoReturn
 
+import psycopg
 import pytest
+import redis
 
 from evalharness import rehearse
 
@@ -57,3 +65,49 @@ class _NoLiveSubprocess:
 def _no_live_subprocess(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Fail loudly on any live subprocess from the rehearsal module."""
     monkeypatch.setattr(rehearse, "subprocess", _NoLiveSubprocess(request.node.nodeid))
+
+
+def _refuse(test_id: str, what: str, seams: str) -> NoReturn:
+    raise AssertionError(
+        f"{test_id} tried to reach {what}.\n\n"
+        "The suite is hermetic by contract, so this is an unmocked collaborator rather than "
+        f"a missing service - and both Redis and Postgres often run on a development "
+        f"machine, so this would have passed here and failed in CI. Substitute at the seam "
+        f"instead: {seams}."
+    )
+
+
+@pytest.fixture(autouse=True)
+def _no_live_redis(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail loudly on any command sent to a real Redis.
+
+    Patched at `execute_command`, which every redis-py call funnels through, so constructing
+    a client stays free - `redis.from_url` connects lazily and module import must not need a
+    server.
+    """
+
+    def refuse(self: Any, *args: Any, **kwargs: Any) -> NoReturn:
+        command = " ".join(str(a) for a in args[:2])
+        _refuse(
+            request.node.nodeid,
+            f"a real Redis ({command})",
+            "faultline.ingest.dedupe.InMemoryEpisodeLog, "
+            "faultline.ingest.stream.RecordingEventStream, "
+            "faultline.orchestrator.consumer.ReplayEventSource",
+        )
+
+    monkeypatch.setattr(redis.Redis, "execute_command", refuse)
+
+
+@pytest.fixture(autouse=True)
+def _no_live_postgres(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail loudly on any attempt to open a Postgres connection."""
+
+    def refuse(*args: Any, **kwargs: Any) -> NoReturn:
+        _refuse(
+            request.node.nodeid,
+            "a real Postgres (psycopg.connect)",
+            "faultline.orchestrator.store.InMemoryIncidentStore",
+        )
+
+    monkeypatch.setattr(psycopg, "connect", refuse)
