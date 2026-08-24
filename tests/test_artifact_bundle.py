@@ -16,7 +16,7 @@ from typing import Any
 
 import yaml
 
-from evalharness.prom import PROMETHEUS, alert_intervals, get_json
+from evalharness.prom import PROMETHEUS, RUNTIME_CAPTURE, alert_intervals, get_json
 from evalharness.provenance import BUNDLE_SCHEMA_VERSION, scenario_fingerprint
 from evalharness.rehearse import SUPERSEDED, duration, superseded_name
 from evalharness.scenario import Scenario, Split
@@ -53,6 +53,36 @@ REQUIRED_METRICS = {
     "latency-p95.json",
     "alerts-firing.json",
 }
+
+RUNTIME_CAPTURE_FILE = f"{RUNTIME_CAPTURE}.json"
+
+CAPTURE_SETS: dict[int, set[str]] = {
+    1: REQUIRED_METRICS,
+    2: REQUIRED_METRICS | {RUNTIME_CAPTURE_FILE},
+}
+"""What each capture set holds. A bundle with no `capture_set` is set 1.
+
+The catalog is deliberately mixed: the ten bundles recorded before the fifth capture keep
+set 1 and are not being re-recorded, because their windows predate Prometheus's 6h
+retention and cannot be backfilled. `evals/scenarios/ARTIFACTS.md` records that decision.
+`capture_set` is what makes the mix legible instead of silently inconsistent.
+"""
+
+
+def capture_set_of(bundle: Path) -> int:
+    """Which capture set this bundle claims. Absent means the original four files."""
+    declared = manifest_of(bundle).get("capture_set", 1)
+    assert isinstance(declared, int) and declared in CAPTURE_SETS, (
+        f"{bundle.name}: capture_set is {declared!r}, which names no known capture set "
+        f"{sorted(CAPTURE_SETS)}. Add it to CAPTURE_SETS or fix the manifest."
+    )
+    return declared
+
+
+def capture_discrepancy(declared: int, present: set[str]) -> tuple[set[str], set[str]]:
+    """(missing, unaccounted-for) between a declared capture set and what is on disk."""
+    expected = CAPTURE_SETS[declared]
+    return expected - present, present - expected
 
 
 def is_invalidated(bundle: Path) -> bool:
@@ -143,10 +173,55 @@ def test_manifest_split_matches_its_directory() -> None:
 
 
 def test_bundles_carry_the_metric_captures() -> None:
+    """Every bundle holds the captures its declared set promises - no more, no fewer.
+
+    Checked in both directions. A missing file is a failed capture; an extra one means a
+    bundle holds evidence its `capture_set` does not account for, which is the silent
+    inconsistency the field exists to prevent.
+    """
     for bundle in bundles():
+        declared = capture_set_of(bundle)
         present = {p.name for p in (bundle / "metrics").glob("*.json")}
-        missing = REQUIRED_METRICS - present
-        assert not missing, f"{bundle.name}: metrics/ missing {sorted(missing)}"
+        missing, extra = capture_discrepancy(declared, present)
+        assert not missing and not extra, (
+            f"{bundle.name}: capture_set {declared} means metrics/ holds "
+            f"{sorted(CAPTURE_SETS[declared])}; missing {sorted(missing)}, "
+            f"unaccounted for {sorted(extra)}."
+        )
+
+
+def test_the_capture_set_rule_holds_in_both_directions() -> None:
+    """The rule itself, checked without a bundle - no set-2 bundle exists to exercise it yet.
+
+    A guard that has never been seen to fail is an assumption. `capture_set` will not have
+    a real bundle behind it until the next rehearsal, so the mapping is tested directly.
+    """
+    four = set(REQUIRED_METRICS)
+    assert capture_discrepancy(1, four) == (set(), set())
+    assert capture_discrepancy(2, four | {RUNTIME_CAPTURE_FILE}) == (set(), set())
+
+    # Set 2 without the fifth capture: the file it promises is missing.
+    assert capture_discrepancy(2, four) == ({RUNTIME_CAPTURE_FILE}, set())
+    # Set 1 carrying it anyway: evidence the manifest does not account for.
+    assert capture_discrepancy(1, four | {RUNTIME_CAPTURE_FILE}) == (set(), {RUNTIME_CAPTURE_FILE})
+
+
+def test_the_existing_bundles_declare_no_capture_set_and_that_means_set_one() -> None:
+    """The mixed catalog, asserted rather than assumed.
+
+    The ten bundles recorded before the fifth capture are staying as they are (see
+    `ARTIFACTS.md`), so they carry no `capture_set` and must keep passing untouched. If one
+    of them ever grows the field, that was a backfill - which is exactly what the decision
+    ruled out, since their windows are past Prometheus's retention and cannot be recaptured.
+    """
+    for bundle in bundles():
+        if "capture_set" in manifest_of(bundle):
+            continue  # a bundle recorded after the change - fine, and checked above
+        present = {p.name for p in (bundle / "metrics").glob("*.json")}
+        assert capture_set_of(bundle) == 1 and present == REQUIRED_METRICS, (
+            f"{bundle.name} declares no capture_set, so it must hold exactly the original "
+            f"four captures - found {sorted(present)}."
+        )
 
 
 def test_rehearsed_scenarios_have_a_finished_narrative() -> None:
@@ -341,6 +416,24 @@ def test_no_metric_capture_is_silently_empty() -> None:
                     f"{bundle.name}: the manifest says alerts fired "
                     f"({manifest.get('alerts_at_fire')}) but alerts-firing.json is empty. "
                     "The capture failed - this is not a quiet world."
+                )
+                continue
+
+            if path.name == RUNTIME_CAPTURE_FILE:
+                # Same rule, different diagnosis. This capture covers one service, so the
+                # other files having data says nothing about whether this one failed - the
+                # target can legitimately export no runtime series at all. It is still not
+                # allowed to be silently empty: an empty file cannot distinguish "this
+                # service is not instrumented" from "the query matched nothing", and the
+                # whole point of the capture is that its *absence during the fault* means
+                # something. The window opens five minutes before injection, so a healthy
+                # instrumented service always has samples there.
+                assert populated, (
+                    f"{bundle.name}/{path.name} contains no series over the whole window, "
+                    "including the five healthy minutes before injection. Either "
+                    f"{manifest.get('injection', {}).get('target')!r} exports no runtime "
+                    "metrics, or the query is wrong - note the label is `exported_job`, "
+                    "not `service_name`. Needs a human either way."
                 )
                 continue
 
@@ -689,10 +782,19 @@ def test_metric_captures_have_no_holes() -> None:
     Gaps in a single service's series are also fine - a service that dies stops emitting,
     which is often the fault itself. This looks at the union of sample times across every
     series in a file, which only goes quiet when collection does.
+
+    `runtime.json` is excluded for that same reason, one step further on. Every series in
+    it belongs to **one** service, so the union argument does not hold: when that process
+    stops, the whole file goes quiet, and nothing else in the capture disagrees. Measured
+    on `ad-memory-squeeze` and `recommendation-memory-squeeze` - the series vanish for the
+    length of the fault. That silence is the evidence this capture exists to record, so a
+    hole here is a finding rather than a defect (CATALOG.md, "Runtime metrics reach
+    Prometheus, and their absence is the signal").
     """
+    exempt = {"alerts-firing.json", f"{RUNTIME_CAPTURE}.json"}
     for bundle in bundles():
         for path in metric_files(bundle):
-            if path.name == "alerts-firing.json":
+            if path.name in exempt:
                 continue
             times = sorted(set(sample_times(load_metric(path))))
             if len(times) < 2:

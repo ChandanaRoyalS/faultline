@@ -43,16 +43,19 @@ from evalharness.prom import (
     LOKI,
     METRIC_QUERIES,
     POLL_SECONDS,
+    RUNTIME_CAPTURE,
     QueryError,
     alert_intervals,
     firing_alerts,
     get_json,
     now,
     query_range,
+    runtime_query,
     stamp,
 )
 from evalharness.provenance import (
     BUNDLE_SCHEMA_VERSION,
+    CAPTURE_SET,
     recorder_provenance,
     scenario_fingerprint,
     world_provenance,
@@ -748,13 +751,24 @@ fix_to_all_clear: {settled}
 """
 
 
-def write_bundle(scenario: Scenario, facts: dict[str, Any], out: Path) -> None:
+def write_bundle(
+    scenario: Scenario, facts: dict[str, Any], out: Path, queries: dict[str, str]
+) -> None:
     (out / "metrics").mkdir(parents=True, exist_ok=True)
     (out / "logs").mkdir(parents=True, exist_ok=True)
 
     manifest = {
         # Bump obsoletes every earlier bundle - see ADR-0009 before changing anything here.
         "bundle_schema_version": BUNDLE_SCHEMA_VERSION,
+        # Which captures this bundle holds, so a catalog recorded across a change to the
+        # capture set is legible rather than silently inconsistent. Absent means set 1.
+        #
+        # This is NOT a schema bump, deliberately. ADR-0014's bar is a change that makes
+        # existing bundles false; an added optional field makes none of them false, and no
+        # guard that passed before fails now. Bumping instead would obsolete ten bundles
+        # over evidence that cannot be backfilled into them - Prometheus keeps 6h and their
+        # windows are from the day before. See CAPTURE_SET and ARTIFACTS.md.
+        "capture_set": CAPTURE_SET,
         "origin": f"scenario:{scenario.id}",
         "scenario_id": scenario.id,
         # T5.3 renders bundles for the demo and needs something human before it has read
@@ -775,10 +789,10 @@ def write_bundle(scenario: Scenario, facts: dict[str, Any], out: Path) -> None:
     }
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
-    queries = ["# Exact queries behind every file in metrics/. Re-runnable.", ""]
-    for name, promql in METRIC_QUERIES.items():
-        queries += [f"## {name}", "", "```promql", promql, "```", ""]
-    (out / "queries.md").write_text("\n".join(queries))
+    lines = ["# Exact queries behind every file in metrics/. Re-runnable.", ""]
+    for name, promql in queries.items():
+        lines += [f"## {name}", "", "```promql", promql, "```", ""]
+    (out / "queries.md").write_text("\n".join(lines))
 
     incident = out / "incident.md"
     if incident.exists():
@@ -1000,8 +1014,15 @@ def rehearse(
     # bundle stays readable until its replacement is fully in hand: a run killed here -
     # which is exactly what happened once - would otherwise have deleted a good recording
     # at minute zero and produced nothing by minute twenty.
+    #
+    # The fifth capture is scenario-scoped, so the query map is built per run rather than
+    # taken from the module constant: it names the target service under `exported_job`.
+    queries = {
+        **METRIC_QUERIES,
+        RUNTIME_CAPTURE: runtime_query(canonical_service(scenario.injection.target)),
+    }
     captured: dict[str, dict[str, Any]] = {}
-    for name, promql in METRIC_QUERIES.items():
+    for name, promql in queries.items():
         captured[name] = query_range(promql, window_start, window_end)
         print(f"  captured {name}")
 
@@ -1053,7 +1074,7 @@ def rehearse(
         if (out / HAND_WRITTEN).exists():
             print(f"  kept {HAND_WRITTEN} - a re-record does not overwrite your writing")
 
-    write_bundle(scenario, facts, out)
+    write_bundle(scenario, facts, out, queries)
     for name, series in captured.items():
         (out / "metrics" / f"{name}.json").write_text(json.dumps(series, indent=2) + "\n")
     (out / "logs" / f"{container}.txt").write_text(captured_logs)

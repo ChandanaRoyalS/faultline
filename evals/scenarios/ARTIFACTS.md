@@ -11,42 +11,91 @@ evals/scenarios/artifacts/<split>/<scenario-id>/
 │   ├── error-ratio.json   query_range over the incident window
 │   ├── call-rate.json
 │   ├── latency-p95.json
-│   └── alerts-firing.json ALERTS series — when each alert fired and cleared
+│   ├── alerts-firing.json ALERTS series — when each alert fired and cleared
+│   └── runtime.json       the target's own runtime series — capture set 2 only
 └── logs/
     └── <target>.txt       best-effort Loki pull for the injected service
 ```
 
+`manifest.json`'s `capture_set` says which of those files to expect; absent means the four
+above `runtime.json`. The ten bundles recorded before the fifth capture carry no
+`capture_set` and are staying that way — see below.
+
 The path is the quarantine (T1.6): `<split>` is the scenario's own split, and the guard
 tests in `tests/test_contamination.py` fail the build if a bundle lands on the wrong side.
 
-## The captured metrics are four queries, and they are not always the decisive ones
+## The capture set changed, and the existing ten are not being re-recorded
 
-`metrics/` holds exactly four `query_range` results — error ratio, call rate, p95, and the
-firing-alert series — and `queries.md` records the PromQL behind each. That set was chosen
-to describe an incident's *shape*: what broke, how hard, for how long, and what alerted.
+The original four `query_range` results — error ratio, call rate, p95, and the firing-alert
+series — describe an incident's *shape*: what broke, how hard, for how long, and what
+alerted. They do not contain the series that discriminates the three `resource_exhaustion`
+scenarios.
 
-**It does not contain the series that discriminates the three `resource_exhaustion`
-scenarios.** Measured on `ad-memory-squeeze`: a service's own runtime metrics
-(`process_runtime_jvm_*`, `runtime_cpython_*`, and their Go and .NET equivalents) do reach
-Prometheus, and their **disappearance** under fault separates "no traffic because the
-process is gone" from "no traffic because nobody called it" — a distinction no captured
-query can make. See `CATALOG.md`, "Runtime metrics reach Prometheus, and their absence is
-the signal", for the measurement and its limits.
+Measured on `ad-memory-squeeze` and `recommendation-memory-squeeze`: a service's own
+runtime metrics (`process_runtime_jvm_*`, `runtime_cpython_*`, and their Go and .NET
+equivalents) do reach Prometheus, and their **disappearance** under fault separates "no
+traffic because the process is gone" from "no traffic because nobody called it" — a
+distinction no captured query can make, and one `ServiceNoTraffic` cannot make either. See
+`CATALOG.md`, "Runtime metrics reach Prometheus, and their absence is the signal", for the
+measurements and the boundary conditions.
 
-So for a memory scenario, the evidence that most sharply identifies what happened is not in
-its own bundle. The bundle records that traffic stopped; it does not record the reason the
-runtime series could have supplied.
+### The decision
 
-**Recorded as a gap, not fixed here.** Adding a fifth capture is not a local change: it
-would alter what every future bundle contains while all ten existing bundles lack it, so
-bundles would stop being comparable to each other, and the ten would need re-recording to
-close that — against the settle-time and single-sample caveats that make re-recording
-expensive. Note also that these series are keyed on `exported_job`, not the `service_name`
-every existing query uses, so a fifth capture is not a copy of an existing one with the
-metric name swapped.
+**The recorder takes a fifth capture, from the next rehearsal onward.**
+`metrics/runtime.json` holds the target service's runtime series, selected on
+`exported_job` — not `service_name`, which every other query uses and which does not exist
+on these series. `evalharness.prom.runtime_query` is the query; `queries.md` records it in
+each bundle like the other four.
 
-**T4.2 owns the decision**, because it is the first task that has to score against this
-evidence and can say whether the gap actually costs anything.
+**Every bundle names its capture set.** The manifest gains `capture_set`, and its absence
+means the original four. A catalog recorded across this change is then legible rather than
+silently inconsistent: a bundle says what it holds, and `tests/test_artifact_bundle.py`
+checks it in both directions — a set-2 bundle without `runtime.json` fails, and so does a
+set-1 bundle that has one.
+
+**The existing ten stay as they are.** Two reasons, and the second is the load-bearing one:
+
+- Their narratives' runtime-series claims were verified against the live world, not against
+  the bundles, and those measurements are recorded in `CATALOG.md`. The evidence exists; it
+  is one directory over.
+- **Backfilling is impossible, not merely unattractive.** Prometheus retention is 6h and
+  the server started `2026-08-24T08:53Z`. Every recorded window is from 2026-08-23, so the
+  data is gone — verified by querying at `cart-dependency-latency`'s `t_inject` and getting
+  no data back. The only way to give the ten a `runtime.json` is to re-record all ten, which
+  orphans ten hand-written narratives for evidence whose absence is already documented.
+
+  The 6h horizon is itself locked: retention lives in `compose/telemetry.yml`, one of the
+  three `compose_digest` inputs, so raising it invalidates every bundle. It is queued for
+  T7.1's re-record — see `CATALOG.md`, "Prometheus keeps 6 hours, and raising it invalidates
+  the catalog", which is also the general argument for why a bundle's captures are the only
+  durable record of a run.
+
+**This is not the schema-v2 precedent, and the difference is the point.** ADR-0014 bumped
+`bundle_schema_version` and obsoleted every bundle before it, so it is fair to ask why this
+does not.
+
+| | v1 → v2 (ADR-0014) | capture set 1 → 2 |
+|---|---|---|
+| what changed | `world.compose_digest`, `ffs_stub_source_digest` | one more metric file |
+| effect on existing bundles | **made them false** — they claimed a world they could not identify, and one guard compared a field that produced false positives | none: they hold exactly what they say they hold |
+| comparability | the field *is* comparability — without it, two bundles claiming the same world described different ones | additive evidence, with a boundary the manifest states |
+| cost of the alternative | three bundles, ~1h | ten bundles and ten narratives, for data that cannot be recovered anyway |
+
+v2 was load-bearing for comparability itself. This is additive evidence with a documented
+boundary, which is why it is an optional manifest field rather than a version bump — see
+`evalharness.provenance.CAPTURE_SET`.
+
+**T7.1 is the natural uniform re-record.** It grows the catalog past 30, every scenario is
+rehearsed against one world for that, and the mixed set closes itself there without a
+re-record whose only purpose is uniformity.
+
+### What this leaves open for T4.2
+
+The ten set-1 bundles seed the corpus (T2.4b) without a `runtime.json`, so an agent
+learning from past incidents sees the runtime-series argument in `incident.md` prose and
+never in captured evidence. Whether that costs anything is T4.2's to measure — it is the
+first task that scores against this evidence — and it is now a question about a documented
+difference between bundles rather than about a gap nobody wrote down.
 
 ## `superseded/` — manifests from earlier recordings
 
