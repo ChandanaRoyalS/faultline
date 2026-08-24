@@ -10,10 +10,17 @@ dependencies = [
     "pydantic>=2.7",
     "pydantic-settings>=2.2",
     "pyyaml>=6.0",
+    # T2.1. Neither existed before the ingest API: FastAPI because the payload validation
+    # is already Pydantic and this keeps one model doing both jobs, redis-py because
+    # ADR-0001 chose Redis Streams for the bus.
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "redis>=5.0",
 ]
 
 [project.scripts]
 faultline-inject = "injector.cli:run"
+faultline-ingest = "faultline.ingest.app:run"
 
 [dependency-groups]
 dev = [
@@ -23,6 +30,7 @@ dev = [
     "pytest-cov>=5.0",
     "pre-commit>=3.7",
     "types-pyyaml",
+    "httpx2",  # starlette 1.x testclient wants httpx2; drives the app in-process over ASGI
 ]
 
 [build-system]

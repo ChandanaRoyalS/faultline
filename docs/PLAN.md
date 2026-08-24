@@ -65,9 +65,16 @@ Split assigned at authoring, before any rehearsal artifact exists. Enforced by p
 
 ## Phase 2 — ingestion, orchestration, context
 
-### T2.1 — alert ingestion
-Alertmanager webhook receiver, fingerprint dedupe.
-`src/faultline/ingest/__init__.py:1`, `docs/evidence/gate-1/README.md:19`
+### T2.1 — alert ingestion *(built)*
+Alertmanager webhook receiver, fingerprint dedupe. `POST /api/v1/alerts` validates a v4
+delivery, deduplicates on `(fingerprint, startsAt, status)`, and publishes one
+alert-episode transition per new alert onto the `faultline:alerts` Redis stream. Identity,
+the dedupe rule, and the stream event shape T2.2 consumes are all in ADR-0015; incident
+correlation is deliberately **not** decided here.
+`src/faultline/ingest/`, `docs/adr/0015-alert-ingest-identity-and-dedupe.md`,
+`docs/evidence/t2.1-webhook/README.md` (eight captured deliveries the design was measured
+against), `docs/evidence/t2.1-live-smoke/README.md` (the receiver running live),
+`docs/evidence/gate-1/README.md:19`
 
 ### T2.2 / T2.3 — orchestrator
 Event consumption, an eleven-state incident machine, agent fan-out. ADR-0001 commits to a
