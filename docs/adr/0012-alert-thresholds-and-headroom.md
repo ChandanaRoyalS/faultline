@@ -190,6 +190,74 @@ correct measurement of the wrong thing, reported without a unit anyone would que
 Sample counts are now used instead of spans, because a sample count cannot silently
 include time that was excluded.
 
+## Third correction (2026-08-24): cartservice is not bimodal, and never was
+
+The original section and both corrections above are left unedited. All three were
+reasoning about a service that was still warming up.
+
+### The clean baseline
+
+`evals/baselines/20260824T033742Z` — 45 minutes, `valid: true`, zero injections during the
+window, 181 samples:
+
+| Service | min | mean | max | samples over 250ms |
+|---|---:|---:|---:|---:|
+| `cartservice` | **1.9ms** | **1.9ms** | **1.9ms** | **0** |
+| `checkoutservice` | 35.3ms | 37.6ms | 39.5ms | 0 |
+| `frontend` | 40.8ms | 41.9ms | 43.0ms | 0 |
+
+Flat. Not "mostly flat with occasional excursions" — 181 consecutive samples at 1.9ms. The
+INVALID capture reported `checkoutservice` peaking at 1060ms; the clean one never exceeds
+39.5ms.
+
+### Every elevated observation was a post-recreate transient
+
+Each figure this ADR rests on was sampled inside cartservice's recovery from being
+recreated by a cart-targeting fault:
+
+| Observation | Sampled | After a cartservice revert at |
+|---|---|---|
+| INVALID baseline excursion (353ms) | 07:00:02 | 06:45:49 — 14.2 min |
+| the first correction's 567ms reading | 07:52:24 | 07:48:24 — 4.0 min |
+| a 100ms reading in a later bundle | 16:16:22 | 16:15:34 — 0.8 min |
+
+The third is decisive because its whole decay is committed, in
+`productcatalog-dependency-latency`'s pre-injection window:
+
+```
+16:16:22  100.0ms      16:17:07   30.0ms
+16:16:37   90.0ms      16:17:37    8.5ms
+16:16:52   50.0ms      16:19:37    1.9ms   settled, +4.0 min
+```
+
+Monotonic decay to baseline over about four minutes. That is a warm-up transient — the same
+shape as the rate window emptying that ADR-0009 documents — not a service that oscillates.
+
+**The premise was an artifact of mining figures from a capture this repository marks
+INVALID.** The directory is named `-INVALID-contaminated` and carries an `INVALID.md`
+saying not to cite it; a partial summary was derived from its "quiet" spans anyway, and one
+of those spans contained a recovery.
+
+### The decision does not change, and is now trivially correct
+
+`ServiceHighLatency` stays untuned. There is no longer a headroom question to answer,
+because there is no baseline noise to have headroom against: cartservice sits at 1.9ms
+against a 250ms threshold. The first correction's claim that the rule "has a false-positive
+rate nobody has measured" is withdrawn — the rate is zero over 45 clean minutes.
+
+### The limit of this argument
+
+**Only one pre-world-change bundle survives** (`currency-cpu-throttle`, injected 09:46, and
+flat). The container memory limits were raised at ~10:40, so the case that those changes
+were *not* responsible for the difference rests on the transient being visible **after** the
+change — the 16:16 decay above — rather than on a pre/post comparison, which one sample
+cannot support.
+
+The stronger pre-change evidence was lost to a re-record: the 07:52 window showing 567ms
+belonged to a `cart-redis-misconfig` recording that has since been replaced, and the
+superseded archive kept manifests only. That gap is why the archive now keeps compressed
+metric captures too (ARTIFACTS.md).
+
 ## Consequences
 
 **Superseded by the correction above — this estimate is too low.** Roughly six healthy

@@ -27,14 +27,34 @@ reading from a replaced bundle, the stub image ids that split the catalog's prov
 from manifests no longer in the tree, and CATALOG.md's 197s onset for `cart-bad-image-tag`
 survived for a while only as a sentence in that document.
 
-`--force` now copies the outgoing `manifest.json` to `superseded/<t_inject>.json` before
-writing the new one — `20260823T160717Z.json` for a run injected at 16:07:17Z. A few
-kilobytes per re-record buys a permanent record of every measurement the catalog has ever
-made.
+`--force` archives the outgoing recording before writing the new one:
 
-**Manifests only.** Metrics and logs are megabytes and are legitimately disposable; the
-manifest is what prose cites. `clear_bundle` preserves `superseded/` alongside
-`incident.md`, so re-recording does not wipe the archive it just added to.
+```
+superseded/20260823T160717Z/
+├── manifest.json
+└── metrics/
+    ├── error-ratio.json.gz
+    ├── call-rate.json.gz
+    ├── latency-p95.json.gz
+    └── alerts-firing.json.gz
+```
+
+**Manifest plus compressed metrics. Logs are excluded.** The archive kept manifests alone
+at first, on the reasoning that metrics are megabytes and disposable. That cost a real
+argument within a day: settling whether `cartservice` was bimodal needed the metric window
+of a recording that had been replaced, and only the manifest had survived. Numeric JSON
+gzips to roughly a tenth, so a whole capture is on the order of a hundred kilobytes.
+
+Logs stay out because they are the largest capture and the one nothing has ever cited. If
+that changes, revisit it then.
+
+`clear_bundle` preserves `superseded/` alongside `incident.md`, so re-recording does not
+wipe the archive it just added to.
+
+**Two layouts exist.** Predecessors recovered from git history are flat
+`superseded/<t_inject>.json` files — a manifest and nothing else, because a manifest is all
+git had. Anything the recorder archives itself is a directory with metrics beside it. The
+guard accepts both; a flat entry means no metric window survives for that run.
 
 ### The archive is not complete, and cannot be
 
@@ -67,10 +87,21 @@ exactly what the system produced. A formatter that strips a trailing space from 
 log, or reflows a metric JSON, makes the committed bundle a rendering of the capture rather
 than the capture — and nothing afterwards can tell the difference.
 
-`.pre-commit-config.yaml` therefore excludes this tree from `trailing-whitespace` and
-`end-of-file-fixer`. The read-only hooks still apply and should stay: `check-yaml`,
-`check-json`, `check-added-large-files` and `detect-private-key` guard the tree without
-touching it.
+**`evals/baselines/` is under the same rule.** Quiet-world baselines are captures of
+exactly the same kind — raw metric JSON and the summaries generated from it — and they are
+cited in ADRs the same way bundle metrics are. The rule is about captured evidence, not
+about one directory.
+
+`.pre-commit-config.yaml` therefore excludes both trees from `trailing-whitespace` and
+`end-of-file-fixer`, under a single `captured_evidence` pattern shared by the two hooks.
+The read-only hooks still apply to both and should stay: `check-yaml`, `check-json`,
+`check-added-large-files` and `detect-private-key` guard a capture without touching it.
+
+A regex cannot tell a capture from source, so the pattern lists directories — and the two
+kinds sit side by side, since `evals/scenarios/*.yaml` is authored and must stay formatted
+while `evals/scenarios/artifacts/` beneath it must not be touched. **Any new directory that
+holds recordings has to be added there**, which is how `evals/baselines/` came to be
+rewritten by a hook after the same defect had already been fixed once for bundles.
 
 The one exception is `incident.md`, which is written by hand rather than captured — but it
 lives under the same path and is excluded by the same rule, which costs nothing.
@@ -274,28 +305,28 @@ Three failure shapes to look for, all of them seen at least once:
 - **The signal exists but not in the captured window.** Widen `--dwell`, or note the
   timing in the item so it is reproducible.
 
-### Also check for alerts the world produced on its own
+### Also check for signal the world produced on its own
 
-Look through `alerts_over_window` for **`ServiceHighLatency/cartservice`** that is not part
-of the injected fault. `cartservice` p95 is bimodal — mean 22ms, with excursions to 353ms
-and nothing injected, measured at roughly one per 29 minutes lasting ~105s (ADR-0012).
+**Superseded.** This section used to say `cartservice` is bimodal, reaching 353ms unprompted
+about once every 29 minutes, and told you to expect roughly six such excursions across the
+catalog and to discount them as background. That was wrong: every reading behind it was
+taken while the container was still warming up from a recreate. A clean 45-minute baseline
+measures `cartservice` at a flat 1.9ms with zero excursions (ADR-0012, third correction).
 
-At ~20 minutes of world time per rehearsal, **roughly six such excursions are expected
-across the nine remaining scenarios.** Most are too short to fire and will never appear.
-One that runs long enough to clear the 180s `for` clause will appear in
-`alerts_over_window` and look exactly like blast radius — a latency alert on a service the
-fault never touched, at a plausible time.
+What to check instead:
 
-If you find one:
-
-- It is not blast radius. Do not write it into `incident.md` as part of the incident.
-- Check `began_after_revert` first — that flag already separates recovery-phase alerts, and
-  a healthy excursion can land on either side of the revert.
-- Note it in the narrative only if a responder would have been misled by it, which is
-  itself worth recording: a spurious alert during a real incident is a realistic thing for
+- **Warm-up transients.** A recreated container takes about four minutes to settle;
+  `cartservice` decays from ~100ms to 1.9ms over that span. A p95 sampled inside that
+  window is not a baseline reading. The recorder now refuses to start when any container
+  has been up under five minutes, so new bundles should be free of this — but bundles
+  recorded before that gate exists are not, and
+  `productcatalog-dependency-latency`'s pre-injection window contains one.
+- **Alerts on services the fault never touched.** Still worth looking for, and still not
+  blast radius. Check `began_after_revert` first, since that already separates
+  recovery-phase alerts from incident ones.
+- Note either in the narrative only if a responder would have been misled by it, which is
+  itself worth recording: a spurious signal during a real incident is a realistic thing for
   an investigation to have to dismiss.
-- It means the excursion outlasted its measured 105s, which contradicts ADR-0012's single
-  observation. Say so — that ADR is explicit that n=1 and wants confirming.
 
 Corrections already made this way:
 

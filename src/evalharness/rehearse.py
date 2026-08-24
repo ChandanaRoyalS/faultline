@@ -23,6 +23,7 @@ Usage:
 from __future__ import annotations
 
 import argparse
+import gzip
 import io
 import json
 import shutil
@@ -203,6 +204,61 @@ def require_coherent_images() -> None:
         "image id - a container running an orphaned sha under a still-valid tag looks up "
         "to date, so compose leaves it alone and the gate blocks again."
     )
+
+
+MIN_CONTAINER_UPTIME_SECONDS = 300
+"""Below this, a container is still settling and its metrics are not baseline readings."""
+
+
+def container_uptimes() -> list[tuple[str, int]]:
+    """(name, seconds up) for every running container, youngest first."""
+    out = _docker_out(["docker", "ps", "--format", "{{.Names}}"]).split()
+    if not out:
+        return []
+    started = _docker_out(
+        ["docker", "inspect", "--format", "{{.Name}}\t{{.State.StartedAt}}", *out]
+    )
+    ages: list[tuple[str, int]] = []
+    for line in started.splitlines():
+        name, _, ts = line.partition("\t")
+        if not ts.strip():
+            continue
+        try:
+            began = datetime.fromisoformat(ts.strip().replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        ages.append((name.strip().lstrip("/"), int((now() - began).total_seconds())))
+    return sorted(ages, key=lambda pair: pair[1])
+
+
+def require_settled_containers(threshold: int = MIN_CONTAINER_UPTIME_SECONDS) -> None:
+    """Refuse to rehearse against a world that is still warming up.
+
+    A container recreated minutes ago has not reached steady state, and its metrics are
+    not baseline readings. `cartservice` decays from ~100ms to 1.9ms over about four
+    minutes after a recreate; a rehearsal that begins inside that window records the tail
+    of the previous incident as this one's pre-fault baseline.
+
+    That is not hypothetical - it is how `cartservice` came to be described as bimodal and
+    reaching 353ms unprompted across three rounds of corrections to ADR-0012. Every reading
+    behind that claim was taken 0.8 to 14.2 minutes after a cart-targeting fault's revert.
+    A clean baseline measures the service flat at 1.9ms.
+
+    Back-to-back rehearsals are exactly the case this catches: the previous scenario's
+    revert recreates its target, and the next run starts before it has settled.
+    """
+    young = [(n, up) for n, up in container_uptimes() if up < threshold]
+    if young:
+        detail = "\n".join(f"  {n}: up {up}s" for n, up in young)
+        wait = threshold - min(up for _, up in young)
+        raise RehearsalError(
+            f"aborting before injection: {len(young)} container(s) have been up for less "
+            f"than {threshold}s and are still settling.\n{detail}\n"
+            "A service recreated this recently has not reached steady state - cartservice "
+            "takes about four minutes to decay from ~100ms back to 1.9ms - so this "
+            "rehearsal would record the previous incident's tail as its own baseline. "
+            f"Wait about {wait}s and start again."
+        )
 
 
 MEMORY_HEADROOM_PERCENT = 90.0
@@ -728,8 +784,8 @@ def superseded_name(t_inject: str) -> str:
     return datetime.fromisoformat(t_inject).strftime("%Y%m%dT%H%M%SZ") + ".json"
 
 
-def archive_manifest(out: Path) -> str | None:
-    """Copy the outgoing manifest into `superseded/` before a re-record overwrites it.
+def archive_recording(out: Path) -> str | None:
+    """Copy the outgoing manifest AND its metric captures into `superseded/<t_inject>/`.
 
     A re-record replaces manifest.json and the previous one is gone, which retroactively
     makes every number ever quoted from it unverifiable. That has happened three times:
@@ -737,8 +793,14 @@ def archive_manifest(out: Path) -> str | None:
     the catalog's provenance came from manifests no longer in the tree, and CATALOG.md's
     197s onset for cart-bad-image-tag now survives only as a sentence in that document.
 
-    Manifests only. Metrics and logs are megabytes and are legitimately disposable; a
-    manifest is a few kilobytes and is the thing prose cites.
+    Manifests were archived alone at first, on the reasoning that metrics are megabytes and
+    disposable. That cost a real argument: settling whether cartservice was bimodal needed
+    the metric window of a recording that had been replaced, and only the manifest
+    survived. Numeric JSON gzips to roughly a tenth, so the whole capture is on the order of
+    a hundred kilobytes - cheap against losing the ability to check a published figure.
+
+    Logs stay out. They are the largest capture and the one nothing has ever cited; if that
+    changes, revisit it then rather than paying for it now.
     """
     live = out / "manifest.json"
     if not live.is_file():
@@ -747,11 +809,15 @@ def archive_manifest(out: Path) -> str | None:
         t_inject = json.loads(live.read_text())["t_inject"]
     except (json.JSONDecodeError, KeyError, TypeError):
         return None
-    archive = out / SUPERSEDED
-    archive.mkdir(exist_ok=True)
-    target = archive / superseded_name(t_inject)
-    target.write_bytes(live.read_bytes())
-    return target.name
+
+    archive = out / SUPERSEDED / superseded_name(t_inject).removesuffix(".json")
+    (archive / "metrics").mkdir(parents=True, exist_ok=True)
+    (archive / "manifest.json").write_bytes(live.read_bytes())
+    for capture in sorted((out / "metrics").glob("*.json")):
+        (archive / "metrics" / f"{capture.name}.gz").write_bytes(
+            gzip.compress(capture.read_bytes())
+        )
+    return archive.name
 
 
 def clear_bundle(out: Path) -> list[str]:
@@ -862,7 +928,7 @@ def rehearse(
 
     print(f"rehearsing {scenario.id}  [{scenario.split.value}]  fault={fault_id}")
 
-    # Five gates, cheapest and most certain first. The scenario/catalog comparison is two
+    # Six gates, cheapest and most certain first. The scenario/catalog comparison is two
     # dict lookups and needs nothing outside this process. The injector's state file is a
     # local read and true the instant a fault is applied; image coherence is three fast docker
     # queries and a yes/no fact; container memory needs `docker stats`, which samples for a
@@ -871,6 +937,7 @@ def rehearse(
     require_scenario_matches_catalog(scenario)
     require_no_active_faults()
     require_coherent_images()
+    require_settled_containers()
     require_memory_headroom()
     baseline_clear_at = wait_for_clean_baseline(baseline_timeout)
 
@@ -956,9 +1023,9 @@ def rehearse(
     require_plausible_timings(facts, dwell, wait_for_alert, t_inject, t_clear or now())
 
     if out.exists() and any(out.iterdir()):
-        archived = archive_manifest(out)
+        archived = archive_recording(out)
         if archived:
-            print(f"  archived the previous manifest to {SUPERSEDED}/{archived}")
+            print(f"  archived the previous recording to {SUPERSEDED}/{archived}/")
         removed = clear_bundle(out)
         if removed:
             print(f"  replacing {len(removed)} file(s) from the previous recording")

@@ -640,7 +640,11 @@ def test_superseded_manifests_are_parseable_and_correctly_named() -> None:
         if not archive.is_dir():
             continue
         live = manifest_of(bundle)["t_inject"]
-        for path in sorted(archive.glob("*.json")):
+        # Two layouts. Predecessors recovered from git history are flat `<stamp>.json`
+        # manifests - that is all git had. Anything the recorder archives itself is
+        # `<stamp>/manifest.json` with compressed metric captures beside it.
+        entries = [*archive.glob("*.json"), *archive.glob("*/manifest.json")]
+        for path in sorted(entries):
             try:
                 old = json.loads(path.read_text())
             except json.JSONDecodeError as exc:
@@ -648,8 +652,13 @@ def test_superseded_manifests_are_parseable_and_correctly_named() -> None:
 
             recorded = old.get("t_inject")
             assert recorded, f"{bundle.name}/{path.name} has no t_inject"
-            assert path.name == superseded_name(recorded), (
-                f"{bundle.name}/{path.name} is named for a different run than it contains "
+            stamp = (
+                path.name
+                if path.name.endswith(".json") and path.parent == archive
+                else path.parent.name + ".json"
+            )
+            assert stamp == superseded_name(recorded), (
+                f"{bundle.name}/{stamp} is named for a different run than it contains "
                 f"(t_inject {recorded} would be {superseded_name(recorded)}). The filename "
                 "is how a citation is looked up, so it has to match."
             )

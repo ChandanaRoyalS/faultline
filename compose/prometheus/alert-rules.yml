@@ -3,10 +3,11 @@
 # Baseline on a healthy world (2026-08-22, re-measured 2026-08-23 over 29 quiet minutes):
 #   error ratio  : 0.000 on every service, no sample above the 5% threshold
 #   p95 latency  : 1.9-9.6ms for most services; checkout 37ms, frontend 42ms
-#   cartservice  : BIMODAL - mean 22ms, but excursions to 353ms with nothing injected.
-#                  One such excursion in 29 minutes, lasting 105s. It does not fire only
-#                  because the `for: 3m` clause outlasts it, by about 75 seconds.
-#                  See ADR-0012 - the rule is deliberately not tuned around this.
+#   cartservice  : flat 1.9ms - 181 consecutive samples, min and max alike, over a clean
+#                  45-minute baseline (evals/baselines/20260824T033742Z). An earlier note
+#                  here called it bimodal at 353ms; that was measured while the container
+#                  was still warming up from a recreate. See ADR-0012, third correction.
+#                  Do not sample any service within ~4 minutes of its container restarting.
 #
 # Thresholds are therefore set well clear of healthy behaviour but low enough to
 # catch injected faults. They are tuned to THIS environment, not copied from a
@@ -39,7 +40,7 @@ groups:
           signal: latency
         annotations:
           summary: "{{ $labels.service_name }} p95 latency above 250ms"
-          description: "p95 is {{ $value | printf \"%.0f\" }}ms. Healthy baseline is under 50ms for most services, but cartservice is bimodal and reaches 353ms unfaulted for up to ~105s - the 3m `for` clause, not the threshold, is what separates that from a real regression."
+          description: "p95 is {{ $value | printf \"%.0f\" }}ms. Healthy baseline is under 50ms on every service, measured flat over 45 clean minutes. A container recreated in the last few minutes is still warming up and is not a baseline reading."
 
       - alert: ServiceNoTraffic
         # Two guards, both learned from false positives on a healthy world:

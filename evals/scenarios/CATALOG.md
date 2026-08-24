@@ -36,6 +36,24 @@ Two rules follow, for T4.x and anything else downstream:
 This applies to the `seconds_of_steady_state` and `seconds_to_settle` figures too, and to
 the settle-time range in ADR-0009, which rests on three observations of one scenario.
 
+## No guard reads a sentence
+
+`recorded_from` binds a narrative to the recording it describes, and a guard fails if they
+drift apart. That is a check on *which* recording the prose belongs to. **Nothing checks
+whether the prose is true of it.**
+
+Measured: `cart-bad-image-tag`'s narrative asserted there were "no logs, no exit code, no
+restart count" and that checking the logs "returns nothing, because nothing exists to have
+written them". The bundle beside it holds 500 log lines. Every guard passed — the manifest
+is self-consistent, `recorded_from` matches, the front-matter durations match, the captures
+are continuous and complete. The contradiction was found by opening the file and reading
+it.
+
+This is the limit of mechanical verification here, and it is worth stating rather than
+discovering. Guards can check that a number matches its source, that a file is named for
+what it contains, that two artifacts agree. They cannot check that a paragraph describes
+what happened. Narratives are the part of a bundle that has to be read.
+
 ## The cart discrimination pair
 
 `cart-redis-misconfig` (bad_config, dev) and `cart-bad-image-tag` (bad_deploy, dev) were
@@ -78,9 +96,41 @@ suggested.
 | within `cart-bad-image-tag` alone | **104s** (197 vs 301) |
 
 Within-scenario variance exceeds the between-scenario difference several times over, so
-onset carries no information about which fault was injected. Only the 301s run is still in
-the tree; the 197s figure survives only in this write-up, which is its own reason not to
-build on it.
+onset carries no information about which fault was injected.
+
+### Variance is a property of the fault, not of the world
+
+`cart-redis-misconfig` has since been recorded six times, and its detection times are
+almost constant:
+
+| | |
+|---|---|
+| 08-23 06:03:51 | 165s |
+| 08-23 06:38:03 | 166s |
+| 08-23 07:40:38 | 166s |
+| 08-23 08:16:35 | 166s |
+| 08-23 11:49:47 | **218s** |
+| 08-24 04:44:27 | 165s |
+
+**Five of six land within one second of each other.** Against `cart-bad-image-tag`'s
+197s/301s on two runs, that is a materially different variance profile on the same world,
+the same target service and the same alert rule.
+
+This supports reading detection variance as a property of the **fault mechanism**. A wrong
+Redis port fails a startup check deterministically: the container fails at the same point
+in its lifecycle every time, so the error rate crosses the threshold at the same offset. A
+deploy onto an unresolvable tag depends on compose's image resolution and teardown, which
+has no reason to take the same time twice.
+
+**The 218s outlier is unexplained.** It is the 11:49 recording, 52 seconds above a
+five-sample cluster that is otherwise flat to within a second, and nothing distinguishes it
+in the manifests — same world digests, same params, same alert set. It is recorded here
+rather than smoothed away; one unexplained sample in six is exactly the kind of thing that
+looks like noise until it turns out to be a mechanism.
+
+None of this weakens the caveat at the top of this document. It sharpens it: `n` is not
+interchangeable between scenarios, and six samples of one fault say nothing about the
+spread of another.
 
 ### The only difference in the metrics, and why it does not help
 
@@ -91,9 +141,9 @@ build on it.
 | `ServiceHighLatency/frontend` | 0.5m |
 | `ServiceHighLatency/loadgenerator` | 0.2m |
 
-Both are one to two samples long. `cartservice` p95 is known to be bimodal on this world,
-reaching 353ms unfaulted with excursions around 105s (ADR-0012), and these are far shorter
-than that. **Treating them as a discriminator would be reading noise**: they are the right
+Both are one to two samples long. **Treating them as a discriminator would be reading
+noise** — a clean 45-minute baseline puts `cartservice` p95 at a flat 1.9ms with zero
+excursions, so a one-sample blip carries no information: they are the right
 order of magnitude to appear or not appear in either scenario on any given run, and one
 recording of each cannot establish otherwise.
 
@@ -125,12 +175,32 @@ at all for the entire 8-minute fault window** (3 lines in-window, all the shutdo
 then a clean start at `16:15:35` on revert — `Application started`, `Successfully connected
 to Redis`. A clean stop followed by silence, not a service failing repeatedly.
 
-**Caveat: that comparison is not available inside the bundles.** `cart-redis-misconfig`'s
-log capture failed — Loki returned HTTP 500 during the recording, and the file says so
-rather than appearing empty. The crash-loop evidence quoted above is from an earlier
-recording of that scenario which has since been replaced. **As committed, the pair's only
-in-bundle discriminator is missing from one half of it.** That is a gap in the evidence,
-not in the scenarios.
+**The discriminator is now in both bundles.** An earlier recording of
+`cart-redis-misconfig` lost its logs to a transient Loki HTTP 500 and captured five
+comment lines saying so; the re-record captured 500. Both halves of the pair now carry
+their log evidence, and the comparison can be made from the committed tree.
+
+What the two captures contain is the sharper form of the point the `bad_deploy` trio
+makes: **the presence, absence and content of logs is itself evidence.**
+
+| | `cart-redis-misconfig` | `cart-bad-image-tag` |
+|---|---|---|
+| container during the fault | exists, crash-looping | **never created** |
+| log lines inside the fault window | the service logging its own failure, repeatedly | **3 of 500** — the shutdown at injection, then nothing |
+| what the logs say | `Wasn't able to connect to redis`, naming the dependency | silence, bracketed by a clean stop and a clean start |
+
+Note the shape of `cart-bad-image-tag`'s capture, because "logs nothing" is not quite
+right and the difference matters. The file holds 500 lines — the capture window opens five
+minutes before injection, so it is full of ordinary traffic — but only **three** fall
+inside the fault window, all of them the container shutting down at `18:53:53`. The next
+line is at `19:04:46`, one second after the revert. A clean stop, eleven minutes of
+nothing, a clean start.
+
+So the two are not "logs versus no logs". They are **a service reporting its own failure
+versus a service that was not running to report anything**, and telling those apart means
+reading where the lines stop rather than counting them. An investigation that greps for
+errors finds them in one bundle and finds nothing in the other — and the nothing is the
+finding.
 
 ### Consequence for T4.x
 
@@ -283,6 +353,38 @@ evidence that the label is wrong.
 ## World hazards
 
 Properties of `./world` that affect rehearsal but belong to no scenario.
+
+### cartservice needs about four minutes to settle after being recreated
+
+Measured. `cartservice` p95 decays from **~100ms to 1.9ms over about four minutes** after
+its container is recreated, monotonically:
+
+```
++0.8 min  100.0ms      +1.6 min   30.0ms
++1.1 min   90.0ms      +2.0 min    8.5ms
++1.3 min   50.0ms      +4.0 min    1.9ms  settled
+```
+
+**A p95 sampled inside that window is not a baseline reading.** Anything that recreates the
+container starts the clock: a `bad_config` or `bad_deploy` fault on cartservice, its revert,
+or a `make world-up`.
+
+This is worth stating plainly because getting it wrong cost three rounds of corrections to
+ADR-0012. Readings taken 0.8, 4.0 and 14.2 minutes after cart reverts were written up as
+evidence that the service is bimodal and reaches 353ms unprompted. It is not and it does
+not: the clean 45-minute baseline (`evals/baselines/20260824T033742Z`) measures 181
+consecutive samples at 1.9ms, min and max alike, with `checkoutservice` flat at 35–39ms
+against the 1060ms the contaminated capture reported.
+
+**`productcatalog-dependency-latency`'s pre-injection window contains one of these
+transients.** Its window opens 48 seconds after a `cart-bad-image-tag` revert, so its first
+six samples of `cartservice` run 100 → 30ms before settling. It does not affect that
+scenario — its target is `product-catalog-service` and the transient is on a different
+service — but **its pre-window is not strictly quiet**, and anyone comparing pre-injection
+windows across bundles should know which one that is.
+
+The rehearsal recorder now refuses to start when any container has been up for less than
+five minutes, which is the mechanical version of this note.
 
 ### kafka grows into whatever memory ceiling it is given
 

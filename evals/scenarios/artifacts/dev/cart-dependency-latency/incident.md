@@ -24,16 +24,18 @@ to how much of their work went through cart.
 
 ## What was checked
 
-**Whether this was an incident at all.** cartservice is bimodal in normal operation:
-around 2ms most of the time, but it reaches 353ms unprompted, and healthy excursions
-have been measured lasting up to 105 seconds. 650ms is under twice the top of that
-range. On a single sample there is nothing to distinguish this from the world's own
-noise, and the first instinct was to wait for it to pass.
+**Whether the reading was real.** cartservice runs at 2ms. Not approximately 2ms —
+across forty-five minutes of measured quiet operation its minimum, mean and maximum are
+all 2ms, and it has never been observed above 3ms on an undisturbed system. A reading of
+650ms is not an excursion on this service; it is three hundred times its entire
+operating range. There was nothing ambiguous to weigh.
 
-It did not pass. That is the whole discriminator: the alert has a three-minute
-persistence clause, and normal excursions have never survived it. **Duration separated
-this from the baseline, not magnitude** — a point-in-time reading of 650ms proves
-nothing on this service.
+**Whether anything had restarted recently.** This is the one check that could have made
+the reading meaningless, and it is worth doing first. cartservice takes about four
+minutes to settle after being recreated, decaying monotonically from around 100ms back
+to 2ms. A p95 sampled inside that window looks alarming and means nothing. Nothing had
+been deployed or restarted, and the elevation was flat at 650ms rather than decaying, so
+this was not a warm-up.
 
 **The error dashboards.** Clean throughout, which is misleading in both directions. It
 argues against a serious problem, and it rules out most of the usual causes at once —
@@ -41,13 +43,13 @@ nothing is failing, timing out, or retrying.
 
 **Direction of propagation.** frontend, checkout and cart all slowed together, but
 frontend calls checkout and checkout calls cart. The leaf of that chain is where the
-time is being spent; the other two are just waiting. That narrowed it to cart within a
-couple of minutes.
+time is being spent; the other two are waiting on it. That narrowed the search to cart
+within a couple of minutes.
 
 **What changed on cartservice.** Nothing. No deploy, no image change, no environment
 difference, no config edit. Its container specification was byte-identical to the
-previous day's. This is the dead end that cost the most time, because "what changed"
-is the first question and it returned an empty answer.
+previous day's. This is the dead end that cost the most time, because "what changed" is
+the first question and it returned an empty answer.
 
 **Running containers.** A container was attached to cart's network namespace that is
 not part of any service definition — nothing in the compose files creates it. It was
@@ -63,18 +65,13 @@ untouched.
 
 The observed p95 was roughly double the added per-hop delay, because a cart operation
 makes two round trips to Redis and each pays the delay separately. Anyone expecting the
-p95 to rise by 300ms would have doubted a correct measurement.
+p95 to rise by exactly 300ms would have doubted a correct measurement.
 
 ## Resolution
 
 Recreating the cart container cleared the shaping — the rule is bound to the container
 instance, so a new one comes up on a clean network path. Everything was quiet 2m16s
-later, which is the metric window emptying rather than a gradual recovery.
-
-**cartservice was the last thing to clear**, fifteen seconds after its three callers.
-That ordering is the propagation running in reverse: the callers stop being slow as soon
-as cart stops being slow, but cart's own rolling window still holds the tail of the
-delayed requests.
+later.
 
 Class of fix: **restart**. Nothing was deployed and no configuration was wrong, so
 there was nothing to roll back or revert; the container simply needed replacing.
@@ -82,7 +79,8 @@ there was nothing to roll back or revert; the container simply needed replacing.
 ## Detection notes
 
 - Onset to first page: **3m45s**, against a three-minute persistence clause. Detection
-  is dominated by the clause, not by how long the signal took to appear.
+  is dominated by the clause, not by how long the signal took to appear — the underlying
+  measurement crossed the threshold almost immediately.
 - Services alerting at the page: **4**. Over the whole incident: **4**. The blast radius
   never grew, and all four alerts began in the same evaluation.
 - Alerts that fired only during recovery: **none**.
@@ -91,13 +89,16 @@ there was nothing to roll back or revert; the container simply needed replacing.
 - Did the loudest service turn out to be the culprit? **Yes**, and that is worth noting
   precisely because it is unusual. Latency propagates upward through callers, so the
   slowest service in the chain is the source.
-- The signal that mattered was **persistence**. Magnitude alone was ambiguous against
-  this service's known behaviour, and any investigation resting on a single latency
-  reading would have been guessing.
+- **Detection was never the hard part; attribution was.** On a service whose entire
+  operating range is 2ms, the alert is unambiguous the moment it fires. What cost time
+  was that the change had been made below the level any service specification describes,
+  so every question about cart itself came back clean.
+- **A latency reading taken shortly after a restart is not a baseline reading.** cart
+  decays from about 100ms to 2ms over roughly four minutes after being recreated. Any
+  comparison against "normal" must exclude that window, and a responder who samples
+  inside it will conclude the service is far noisier than it is.
 - On clearing order: cart's alert cleared about fifteen seconds after its callers' did.
-  That is an observation about this incident and not a rule — recovery ordering is
-  dominated by how full each service's rolling window happens to be when the fault stops,
-  which has more to do with each service's traffic rate than with which one was the
-  source. A later incident on a different service saw the source clear fourth of five,
-  ahead of the edge services, across a forty-five second spread with no structure to it.
-  Do not read causation from what cleared when.
+  That is an observation about this incident and not a rule — clearing order is
+  dominated by how full each service's rolling window happens to be when the fault
+  stops, which has more to do with traffic rate than with causation. Do not read
+  causation into what cleared when.

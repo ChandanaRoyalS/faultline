@@ -43,9 +43,18 @@ moment, and their rate windows emptied a scrape apart. **Fifteen seconds of sepa
 between groups is scrape granularity, not causal ordering.**
 
 **cartservice container state.** There was no container. Not a restarting one, not a
-crashed one — no cartservice process existed on the host, and therefore no logs, no
-exit code, no restart count. Every diagnostic that begins "check the service's logs"
-returns nothing, because nothing exists to have written them.
+crashed one — no cartservice process existed on the host, and therefore no exit code and
+no restart count.
+
+The logs are the interesting part, and not in the way the phrase "no container" suggests.
+The log stream is intact and entirely ordinary right up to onset, then stops dead with the
+container's own shutdown lines at T+0. For the whole of the fault it produces **nothing** —
+three lines inside the window, all of them that shutdown. The next line arrives one second
+after the fix went in.
+
+So "check the service's logs" does not return nothing. It returns a full history that ends
+mid-sentence at the moment the incident begins, and never resumes. The gap is the evidence,
+and it is only visible if you look at where the lines stop rather than at what they say.
 
 **The orchestrator's output, which is the only place the answer lives.** The deployment
 had been asked for an image tag that does not exist in the registry. The pull failed,
@@ -92,11 +101,14 @@ exist; the fix was to put the previous version back.
   merely downstream of it, and was never singled out by any alert.
 - Did the loudest service turn out to be the culprit? **No.** frontend and loadgenerator
   alerted longest at nine minutes each and neither was broken.
-- **The absence of a container is the strongest evidence available.** A service that
-  keeps dying leaves logs, an exit code and a restart count. A service that was never
-  created leaves none of those, and the silence in the usual places is what points at
-  scheduling rather than at the application. Looking harder at cart's logs would have
-  produced nothing, indefinitely.
+- **The shape of the log stream is the strongest evidence available, and both kinds of
+  failure leave one.** A service that keeps dying produces continuous failure chatter —
+  the same error, over and over, for as long as the incident lasts. A service that was
+  never created produces a clean stop and then silence. Both leave a log file, and both
+  files are full of ordinary traffic from before onset, so counting lines distinguishes
+  nothing. What distinguishes them is **where the lines end and whether anything follows**.
+  Here they end at onset with an orderly shutdown and resume one second after the fix,
+  which is a container that was stopped and never replaced — not one that is failing.
 - **Do not read scrape granularity as causation.** The seven quiet services split into
   two groups fifteen seconds apart, which looks like propagation and is an artifact of
   when each rate window happened to empty.

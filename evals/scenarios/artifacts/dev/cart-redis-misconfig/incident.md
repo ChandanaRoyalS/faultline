@@ -2,28 +2,28 @@
 origin: scenario:cart-redis-misconfig
 split: dev
 fault_class: bad_config
-recorded_from: 2026-08-23T11:49:47+00:00
-onset_to_page: 3m38s
+recorded_from: 2026-08-24T04:44:27+00:00
+onset_to_page: 2m45s
 page_to_fix: 5m00s
-fix_to_all_clear: 4m30s
+fix_to_all_clear: 3m01s
 ---
 
 # Cart service pointed at the wrong Redis port
 
 ## What was observed
 
-The page named three services in the same evaluation: `ServiceHighErrorRate` on
-**frontend**, **loadgenerator** and **checkoutservice**. It arrived 3m38s after the
-first bad request.
+The page named two services: `ServiceHighErrorRate` on **frontend** and
+**loadgenerator**, 2m45s after the first bad request. **checkoutservice** joined fifteen
+seconds later.
 
 On the storefront, product pages rendered normally. Adding anything to a basket failed.
 
-At **T+2m52s** the shape changed. Seven services went quiet simultaneously —
-accountingservice, cartservice, currencyservice, emailservice, frauddetectionservice,
-quoteservice and shippingservice — all raising `ServiceNoTraffic` in one evaluation.
+Then seven services went quiet in two waves fifteen seconds apart —
+currencyservice, emailservice and quoteservice first, at T+3m15s; then
+accountingservice, **cartservice**, frauddetectionservice and shippingservice. All
+`ServiceNoTraffic`.
 
-Eleven alerts across ten services. Nothing in that list pointed at one service more
-than any other.
+Eleven alerts across ten services.
 
 ## What was checked
 
@@ -31,22 +31,29 @@ than any other.
 cartservice showed no errors at all — flat zero, below every healthy service in the
 system. That reading was taken as evidence cart was fine.
 
-**loadgenerator.** Set aside. It is the synthetic client, so its error rate is a mirror
-of whatever the storefront is doing and carries no information about cause. It stayed in
-the alert list for eight minutes and never meant anything.
+**loadgenerator.** Set aside. It is the synthetic client, so its error rate mirrors
+whatever the storefront is doing and carries no information about cause.
 
-**Traces from frontend.** Checkout spans failing on their call to cart. First real
-narrowing, roughly four minutes in.
+**Traces from frontend.** Checkout spans failing on their call to cart. The first real
+narrowing, roughly three minutes in.
 
-**The seven quiet services.** This is where the time went. Seven services going silent
-at once reads as a platform-wide event, and cartservice is one entry in an alphabetical
-list of seven — no more conspicuous than accountingservice. Six of the seven are
-downstream of checkout and went quiet because checkout had stopped calling them; only
-one was the cause. Nothing in the alert distinguishes them.
+**The two waves of silence.** Tempting to read as a failure spreading — one thing
+knocking over another, which knocks over more. It is not. Both waves are the same event
+seen at two evaluation boundaries: those services stopped being called at the same
+moment and their rate windows emptied a scrape apart. **Fifteen seconds between groups
+is scrape granularity, not causal ordering.**
 
-**cartservice container state.** Restarting repeatedly. Its logs show the process
-failing during startup on its Redis connection check, exiting, being restarted, and
-failing again.
+**The seven quiet services.** This is where the time went. Seven going silent at once
+reads as a platform-wide event, and cartservice is one entry in an alphabetical list of
+seven — no more conspicuous than accountingservice. Six of them are downstream of
+checkout and went quiet because checkout had stopped calling them; only one was the
+cause. Nothing in the alerting distinguishes them.
+
+**cartservice container state, and its logs.** The container was restarting repeatedly,
+and unlike a service that was never created it had plenty to say. Its logs run to
+hundreds of lines of the same cycle: the process starts, checks its Redis connection,
+fails that check, exits, and is restarted. The failure message names the address it was
+trying to reach.
 
 **Recent changes to cartservice.** `REDIS_ADDR` set to `redis-cart:6380`. Redis was
 listening on 6379 and healthy throughout — every other consumer of it was unaffected.
@@ -64,35 +71,36 @@ was an absence of data, not an absence of problems.
 
 ## Resolution
 
-`REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart.
-The no-traffic alerts cleared seven seconds after the fix — those services had never
-been broken, only starved.
+`REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and
+the no-traffic alerts cleared fifteen seconds later — those six services had never been
+broken, only starved.
 
-**An alert appeared 2m22s after the fix and stayed for two minutes**: `ServiceHighErrorRate`
-on **emailservice**, a service that had not errored once during the incident itself. It
-is a recovery artifact — checkout resumed and pushed a burst of queued work through a
-service that had been idle for eight minutes. Anyone reading it as the fix having failed,
-or as a second fault emerging, would have started over on a system that was already
-healing. Everything was clear at **T+9m30s**.
+A brief `ServiceHighErrorRate` appeared on **emailservice** after the fix and lasted
+half a minute, on a service that had not errored once during the incident. It is a
+recovery artifact: checkout resumed and pushed queued work through a service that had
+been idle. Everything was clear at **T+8m01s**.
 
 Class of fix: **config_revert**. Nothing had been deployed and there was no version to
 roll back to — one environment value was wrong.
 
 ## Detection notes
 
-- Onset to first page: **3m38s**.
-- Services alerting at the page: **3**. Over the whole incident: **10**, across 11 alerts.
-- Alerts that fired only during recovery: **1** — emailservice, two minutes, on a service
-  that was never part of the failure.
+- Onset to first page: **2m45s**.
+- Services alerting at the page: **2**. Over the whole incident: **10**, across 11
+  alerts.
+- Alerts that fired only during recovery: **1** — emailservice, thirty seconds, on a
+  service that was never part of the failure.
 - **The broken service was indistinguishable from six healthy ones.** cartservice
-  appeared in the same `ServiceNoTraffic` batch as six services that were merely
-  downstream of it. It was never singled out by any alert.
+  appeared in the second wave of `ServiceNoTraffic` alongside three services merely
+  downstream of it, and was never singled out by any alert.
 - Did the loudest service turn out to be the culprit? **No.** frontend and loadgenerator
-  alerted longest at eight minutes each, and neither was broken.
-- Would the page alone have been enough? **No.** It named three services, none of them
+  alerted longest at 7m30s each, and neither was broken.
+- Would the page alone have been enough? **No.** It named two services, neither of them
   cart, and pointed at the edge of the system rather than at its cause.
+- **A restarting container is a talkative one.** The decisive evidence was in cart's own
+  logs, and it existed because the process reached the point of trying and failing. A
+  service that is repeatedly killed, or that was never created at all, leaves nothing to
+  read — so "the logs are empty" and "the logs are damning" are both findings, and the
+  difference between them narrows the cause before anything else does.
 - The most misleading signal was cart's own error rate: a flat zero throughout, read as
   health when it meant absence.
-- The second most misleading was the post-fix alert. **Alert activity after a fix is not
-  evidence the fix failed** — a system resuming work is a system doing work it had
-  queued.
