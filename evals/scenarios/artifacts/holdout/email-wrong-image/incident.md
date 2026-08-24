@@ -30,19 +30,25 @@ unchanged, its resources fine. The errors were on one of its outbound calls.
 hands off to emailservice; that hand-off was returning errors and taking the whole
 checkout down with it.
 
-**emailservice.** The container existed and was in a restart loop, **exiting 1** — not
-killed by the kernel, not out of memory. The process was choosing to stop, which means
-it had something to say about why.
-
-**The logs, which contain the answer in plain text.**
+**emailservice's logs, which contain the answer in plain text.** The service was
+starting and dying repeatedly — eighteen attempts inside the fault window — and unlike a
+process killed from outside, this one printed why every single time:
 
 ```
+== Sinatra has ended his set (crowd applauds)
+[core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
 AH00526: Syntax error on line 5 of /etc/apache2/ports.conf: Port must be specified
-AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
 ```
 
-Two things are wrong with that for a service called email. It is running Apache, and it
-is looking for a configuration variable belonging to an entirely different service.
+Three things are wrong with that for a service called email. It is shutting down a Ruby
+web framework, then starting Apache, and it is looking for a configuration variable
+belonging to an entirely different service.
+
+**What that pattern rules out.** A process that reads its configuration, objects to it,
+and exits has got far enough to explain itself. Nothing external stopped it — no memory
+ceiling, no scheduler, no dependency. It ran, disagreed with what it found, and quit.
+That single distinction eliminates every resource-shaped explanation before any of them
+is investigated.
 
 **What changed on emailservice.** Its image reference. A deployment had pointed it at
 the quote service's image. The container's environment is exactly what emailservice
@@ -56,7 +62,7 @@ cleanly, so the deploy reported success; what failed is what the container did n
 
 **The environment is correct for the service that belongs here and wrong for the image
 that was deployed.** Read from the log line alone this looks like a missing
-configuration variable, and the instinct is to go and add it. The variable is missing
+configuration variable, and the instinct is to go and define it. The variable is missing
 because the wrong thing is asking for it, and defining it would make a service that
 should not be running run slightly further.
 
@@ -79,10 +85,10 @@ fix was to put the previous one back.
   traffic. A container that cannot finish starting records nothing at all, and this one
   did not stay dead long enough in any single window to register as silent either. The
   entire signal was one caller failing.
-- **The exit code narrows the search before the logs do.** Exit 1 is a process deciding
-  to stop; a process killed for resources exits 137. That difference is the whole
-  distinction between reading the logs and not bothering — a resource kill leaves
-  nothing to read, and this did not.
+- **Whether a failing process explains itself is the first thing to establish.** A
+  process that prints a reason chose to stop; a process whose output ends mid-startup
+  with no reason was stopped by something else. Those two have almost disjoint sets of
+  causes, and the logs answer it immediately.
 - **The logs named the cause outright** and cost nothing to check. The trap is not that
   the evidence is hidden; it is that the alerting points at a healthy service and the
   broken one is invisible, so reaching the logs at all requires following the
