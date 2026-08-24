@@ -17,14 +17,23 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import pytest
+import redis
 
 from faultline.ingest.models import AlertEvent, AlertStatus
 from faultline.orchestrator.cap import InvestigationCap
-from faultline.orchestrator.consumer import ConsumerLoop, ReplayEventSource
+from faultline.orchestrator.consumer import (
+    ConsumerLoop,
+    RedisEventSource,
+    ReplayEventSource,
+    SocketTimeoutError,
+    configured_socket_timeout,
+    socket_timeout_for,
+)
 from faultline.orchestrator.core import Orchestrator
 from faultline.orchestrator.correlation import TimeOverlapPolicy
 from faultline.orchestrator.machine import TransitionError, transition
 from faultline.orchestrator.models import Episode, Incident, IncidentState, Severity
+from faultline.orchestrator.settings import OrchestratorSettings
 from faultline.orchestrator.store import InMemoryIncidentStore
 
 DUMP = (
@@ -377,6 +386,75 @@ def test_a_queued_incident_that_resolves_before_starting_says_so() -> None:
 
     assert queued.state is IncidentState.RESOLVED
     assert queued.resolution == "never_started", "visible as a dropped incident, not as noise"
+
+
+# --- the socket must outlive the block ------------------------------------------
+#
+# The one failure the eight-event replay could not have found. A blocking XREADGROUP that
+# returns *nothing* is the only thing that waits long enough to hit the socket timeout, and
+# no fixture-driven test produces an empty stream - a replay source always has an event to
+# hand back. So the invariant is asserted at construction, where it needs no stream at all.
+
+
+def source_with(client: redis.Redis, block_ms: int) -> RedisEventSource:
+    return RedisEventSource(
+        client,
+        stream="faultline:alerts",
+        group="orchestrator",
+        consumer="orchestrator-1",
+        idle_ms=60_000,
+        dead_letter_stream="faultline:alerts:dead",
+        block_ms=block_ms,
+    )
+
+
+def test_connect_sizes_the_socket_to_outlive_its_own_blocking_read() -> None:
+    """The relationship, on the constructor the CLI actually uses."""
+    source = RedisEventSource.connect(
+        "redis://localhost:6379/0",
+        stream="faultline:alerts",
+        group="orchestrator",
+        consumer="orchestrator-1",
+        idle_ms=60_000,
+        dead_letter_stream="faultline:alerts:dead",
+        block_ms=5000,
+    )
+
+    timeout = configured_socket_timeout(source.client)
+
+    assert timeout is not None
+    assert timeout > source.block_ms / 1000.0, "the socket must not give up first"
+    assert timeout == socket_timeout_for(5000)
+
+
+def test_the_default_client_against_the_default_block_is_refused() -> None:
+    """The exact crash, pinned. redis-py 8.1.0 defaults socket_timeout to 5s and this
+    module's block_ms defaults to 5000 - the same instant, so the race was certain rather
+    than close. It reached production because a non-empty read returns immediately."""
+    default_client = redis.from_url("redis://localhost:6379/0")
+
+    with pytest.raises(SocketTimeoutError, match="gives up before the server answers"):
+        source_with(default_client, block_ms=OrchestratorSettings().block_ms)
+
+
+def test_the_shipped_settings_satisfy_the_invariant() -> None:
+    """Changing either number alone breaks this.
+
+    `block_ms` and the socket timeout are derived from one value now, but a future edit that
+    reintroduces a second source for either has to pass through here.
+    """
+    settings = OrchestratorSettings()
+
+    timeout = socket_timeout_for(settings.block_ms)
+
+    assert timeout > settings.block_ms / 1000.0
+    source_with(redis.from_url("redis://x", socket_timeout=timeout), settings.block_ms)
+
+
+def test_an_unbounded_socket_timeout_is_allowed_deliberately() -> None:
+    """`None` means wait forever, which cannot lose this race. Documented, not accidental -
+    the cost is that a dropped connection is noticed late rather than at the timeout."""
+    source_with(redis.from_url("redis://x", socket_timeout=None), block_ms=5000)
 
 
 # --- the machine ---------------------------------------------------------------

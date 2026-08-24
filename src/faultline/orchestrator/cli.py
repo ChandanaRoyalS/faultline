@@ -62,7 +62,6 @@ def run(argv: list[str] | None = None) -> int:
     from datetime import timedelta
 
     import psycopg
-    import redis
 
     from faultline.orchestrator.cap import InvestigationCap
     from faultline.orchestrator.consumer import ConsumerLoop, RedisEventSource
@@ -71,14 +70,16 @@ def run(argv: list[str] | None = None) -> int:
     from faultline.orchestrator.store import PostgresIncidentStore
 
     settings = OrchestratorSettings()
-    client: redis.Redis = redis.from_url(args.redis_url)
-    source = RedisEventSource(
-        client,
+    # `connect` builds the client with a socket timeout sized for `block_ms`. Doing it here
+    # by hand is how the first live smoke crashed - see consumer.py's module docstring.
+    source = RedisEventSource.connect(
+        args.redis_url,
         stream=args.stream,
         group=args.group,
         consumer=args.consumer,
         idle_ms=settings.claim_idle_seconds * 1000,
         dead_letter_stream=settings.dead_letter_stream,
+        block_ms=settings.block_ms,
     )
     source.ensure_group()
 
@@ -99,9 +100,9 @@ def run(argv: list[str] | None = None) -> int:
     )
 
     if args.once:
-        applied = loop.run_once(block_ms=0)
+        applied = loop.run_once(block=False)
         print(f"applied {len(applied)} event(s)")
         return 0
     print(f"consuming {args.stream} as {args.group}/{args.consumer}")
-    loop.run_forever(block_ms=settings.block_ms)
+    loop.run_forever()
     return 0
