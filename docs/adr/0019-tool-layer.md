@@ -24,17 +24,18 @@ T1.5.
 ## The nine investigations are the requirements list
 
 Every rehearsed narrative has a **What was checked** section, written from the responder's
-chair, recording what was actually consulted and in what order. Nine of them are effectively
-nine tool-call traces of successful investigations. Read as requirements rather than as prose:
+chair, recording what was actually consulted and in what order. **Ten** of them are effectively
+ten tool-call traces of successful investigations. Read as requirements rather than as prose:
 
 | Evidence consulted | Narratives | Notes |
 |---|---|---|
-| **Change history** | **9 of 9** | And in **five** the answer is *nothing changed* |
-| Error rate / traffic by service | 7 | `ServiceHighErrorRate`-shaped queries |
-| Container logs | 6 | In **three** the finding is that the logs say nothing |
+| **Change history** | **10 of 10** | And in **four** the load-bearing answer is that something did *not* change |
+| Error rate / traffic by service | 10 | `ServiceHighErrorRate`-shaped queries |
+| Container logs | 7 | In **three** the finding is that the logs say nothing |
 | Traces | 2 | `cart-bad-image-tag`, `cart-redis-misconfig` — the first real narrowing in both |
 | Running containers | 2 | Both `dependency_latency` narratives |
 | Runtime metrics (`exported_job`) | 1 | `recommendation-memory-squeeze` |
+| **Corrected at implementation** | | This table first said *nine*; there are ten rehearsed narratives — seven dev and three holdout — and the negatives count was five rather than four. `tests/test_tools.py` now pins both numbers, so the claim is checked rather than asserted. |
 | The service's dependencies | 2 | Supplied by the context layer (ADR-0017), not by a tool |
 
 Four things fall out of that table and shape everything below.
@@ -44,13 +45,13 @@ investigation, more often than metrics or logs, and it is the *only* evidence ty
 never optional. `CATALOG.md` already says so for the cross-class trap — "what separates them,
 and why it is only change history" — and this generalises it.
 
-**A negative is a result.** In five narratives the load-bearing finding is that nothing
-changed. In three, that the logs are empty. `shipping-wrong-image` turns on **the memory limit
+**A negative is a result.** In four narratives the load-bearing finding is that something did
+not change — three say *nothing changed on this service* outright. In three, that the logs are empty. `shipping-wrong-image` turns on **the memory limit
 having *not* changed** while the image did. A tool that cannot distinguish *no data* from
-*query failed* destroys the evidence in eight of nine investigations, and that distinction is
+*query failed* destroys the evidence in most of the ten investigations, and that distinction is
 therefore a contract term rather than an implementation detail.
 
-**The named tool set does not cover the nine.** Traces and running-container state each
+**The named tool set does not cover the ten.** Traces and running-container state each
 appear twice and neither is PromQL, LogQL, or change history. Addressed in §1.
 
 **One narrative class still reasons from evidence no tool can reach.** Both
@@ -94,7 +95,12 @@ confirmed window, never as an error or a silence.
 
 **Two gaps, marked for decision.**
 
-*Traces.* Two narratives' first real narrowing is a trace query, and `ARCHITECTURE.md` names
+*Traces.* **Decided at implementation (T2.6): yes, four tools.** The measured need stands and
+the recorded preference below held — forcing the longer path measures the tool set rather
+than the agent. `ARCHITECTURE.md`'s row was updated in the same commit; this ADR is the
+decision record. The original reasoning, unchanged:
+
+Two narratives' first real narrowing is a trace query, and `ARCHITECTURE.md` names
 no trace tool. Jaeger is already queried by the context layer (ADR-0017), so the cost is low.
 The options are a fourth tool (`trace_query`), or accepting that those two investigations take
 a longer path through error rates and the dependency graph to the same conclusion. **This is
@@ -204,7 +210,7 @@ The deciding argument is that B cannot answer the question five narratives ask. 
 changed on productcatalogservice"* requires knowing the window was **observed and empty**, and
 a poller can only offer "no diff between the snapshots I happened to take". A negative from a
 poller is not evidence; a negative from an event log with a confirmed window is. Given that a
-negative is the load-bearing finding in five of nine investigations, the source has to be able
+negative is the load-bearing finding in four of ten investigations, the source has to be able
 to produce a trustworthy one.
 
 The coupling cost is real and is mitigated by the boundary below rather than denied: the
@@ -262,10 +268,17 @@ have; a roster is more realistic and is one more thing that could correlate with
 fault in `injector.catalog`. A leak guard that reads the source rather than the output is the
 same mistake as a drift guard that compares `callCount`.
 
-**Marked for decision: where the emitted log is stored.** Postgres beside incidents is the
-obvious answer, and it makes the tool a query rather than a file read. A JSONL file under
-`.faultline/` is simpler and keeps the injector free of a database dependency it does not
-otherwise have. The tool contract is identical either way, which is why this can wait.
+**~~Marked for decision:~~ decided at implementation (T2.6): a `change_records` table in the
+platform Postgres**, beside incidents, written by the injector through a small emitter
+(`injector.changelog`). The product reads a table; the injector's state files stay its own.
+
+The deciding argument was ADR-0004's runtime contract, which requires the agent runtime to be
+packageable as a standalone container receiving its endpoints from configuration. A JSONL file
+under `.faultline/` would have made change history the one tool that needed Faultline's
+filesystem, so the runtime would not have been packageable without it.
+
+The two remaining decisions keep their implemented defaults and stay marked: `actor` is the
+fixed synthetic `platform-automation`, and there is no `docker inspect` backstop.
 
 ### 4. Credentials
 
@@ -288,6 +301,17 @@ assumed by anyone reading thesis 2:
 2. **No tool takes a URL, a host, or a path from an agent.** Endpoints come from configuration
    (ADR-0004's runtime contract requires exactly this), so an agent cannot redirect a tool at
    an endpoint of its choosing.
+
+   *Corrected at implementation.* The first cut of `promql_query` called a `query_range`
+   whose base URL **defaulted** to a module constant, so `ToolSettings.prometheus_url` was
+   accepted and ignored. Both values were `http://localhost:9090`, so nothing failed and
+   nothing showed — a deployment could have configured an endpoint and been answered by
+   whatever was on the local port, which is the runtime contract broken quietly. The fix is
+   not to pass the setting: the default is **removed**, so `base` is required and
+   keyword-only and there is nothing for any caller to inherit. It was the only implicit
+   endpoint in the codebase — every other call site, the eval harness included, already
+   passed one explicitly, which is why the harness never had this defect and why the tool
+   layer inherited it from the one function that did.
 3. **`change_history` is read-only by construction** — the writer is the injector, and the
    tool has no write path to reach.
 
@@ -313,7 +337,7 @@ exception unwinds past the point where that reasoning would happen.
 | `id` | Stable handle. `ARCHITECTURE.md` requires the synthesizer produce a **cited, citation-validated** RCA, so every claim needs something to cite that a validator can resolve. |
 | `trust` | Always `untrusted` from a tool (§2). |
 | `source`, `window` | What was asked, so a negative result names the window it is negative over. |
-| `empty` vs `error` | **Distinct fields.** Eight of nine investigations rest on a negative; conflating them destroys the evidence. |
+| `empty` vs `error` | **Distinct fields.** The negatives above are load-bearing; conflating them destroys the evidence. |
 | `truncated` | A capped result that looks complete is the `logql_query` failure mode — the committed captures hit a 500-line cap and one narrative's argument depends on knowing that. |
 
 **What T3.x may assume.** Tools are idempotent and side-effect free; repeated identical calls
@@ -343,9 +367,22 @@ against change history the way the memory and `bad_deploy` narratives already we
 does not hold, they need the same treatment for a different reason. **Owned by T2.6**, since
 building change history is what will settle it.
 
-**Marked for decision, collected:** whether a `trace_query` tool joins the set (an
-`ARCHITECTURE.md` change); whether `docker inspect` diffing backstops the emitted change log;
-whether `actor` is synthetic, a roster, or absent; and where the change log is stored.
+**Two catalog faults cannot be rendered as a non-leaking change record — found by the guard,
+at implementation.** `flag-service-bad-deploy` and `flag-service-crashloop` deploy stub images
+whose tags name what they do: `faultline/ffs-stub:broken` and `faultline/ffs-stub:crashloop`.
+An honest image-change record has to name the image deployed, and `crashloop` is the answer
+outright. They are pinned rather than exempted — the guard asserts these and only these leak,
+so a third is a failure — and they are tolerable only because both scenarios are **blocked**
+and can never be rehearsed. Renaming the tags edits `compose/ffs-stub/`, which feeds
+`ffs_stub_source_digest`, so it joins the digest-locked queue for T7.1.
+
+A third token is exempted rather than pinned: `FAULTLINE_ENABLED_FLAGS`, the variable
+`product-catalog-flag-failure` changes. It leaks this harness's existence and not the answer,
+and it is likewise digest-locked. One line, visible, with the reason beside it.
+
+**Marked for decision, collected:** whether `docker inspect` diffing backstops the emitted
+change log, and whether `actor` is synthetic, a roster, or absent. *(The trace tool and the
+change-log location were decided at implementation — see above.)*
 
 **Revisit if:** the world gains a real deployment mechanism, which would replace the emitted
 log with an ordinary source and remove the leak boundary entirely; T7.2's SREGym interface

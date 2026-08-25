@@ -159,11 +159,11 @@ own narrative at rank 1 in both arms without `exclude_origin`, and not at all wi
 `docs/evidence/t2.4b-corpus-smoke/README.md`, `docs/adr/0002:8`, `docs/adr/0008:80`,
 `evals/scenarios/ARTIFACTS.md:154`
 
-### T2.6 — tools *(designed, not built)*
+### T2.6 — tools *(built)*
 Typed tools with scoped read-only credentials and trust-labelled results. Also bound by
 ADR-0004's runtime contract.
 
-**ADR-0019 designs the layer** and closes the "contract not written" marker below, taking its
+**ADR-0019 designs the layer, and it is built** — four tools, not three. It closes the "contract not written" marker below, taking its
 requirements from the nine rehearsed narratives' *What was checked* sections — nine tool-call
 traces of successful investigations. Contracts for `promql_query`, `logql_query` and
 `change_history`; a trust envelope whose closing delimiter carries a per-call id, so a log
@@ -180,10 +180,27 @@ detail. **The named tool set does not cover the nine**: traces are the first nar
 two narratives and `ARCHITECTURE.md` names no trace tool. And **a third narrative class still
 reasons from unreachable evidence** — both `dependency_latency` narratives cite running-container
 inspection, the same defect already fixed for `bad_deploy` and for the memory scenarios.
-ADR-0019 predicts change history covers it, since a created container is a change, and leaves
-T2.6 to check.
-`src/faultline/tools/__init__.py:1`, `docs/adr/0019-tool-layer.md`, `docs/adr/0004:41`,
-`docs/THREAT-MODEL.md:8`, `evals/scenarios/CATALOG.md`
+ADR-0019 predicted change history covers it, since a created container is a change; the
+implementation confirms it — a `dependency_latency` injection emits a `container created`
+record naming the network-namespace attachment.
+
+Two of the ADR's four marked decisions were taken at implementation and recorded there: the
+**trace tool ships** (`ARCHITECTURE.md`'s row updated in the same commit) and the change log
+is a **`change_records` table** in the platform Postgres, written by the injector through
+`injector.changelog`. Two more findings came out of building it: the requirements list is
+**ten** narratives rather than nine, and **two catalog faults cannot be rendered without
+leaking** — both flag-service faults deploy stub images whose tags name what they do — pinned
+by the guard and tolerable only because both scenarios are blocked.
+Smoked live on 2026-08-25 (`docs/evidence/t2.6-tools-smoke/`): all four tools against a
+`cart-redis-misconfig` injection, the change record landing in the same second as the inject
+and pairing exactly with its reversal, and the leak check clean on live rendered output. The
+run found one defect no hermetic test had reason to look for — truncation kept the *oldest*
+lines in the window, so a capped log result contained only healthy pre-onset traffic while
+correctly reporting itself truncated. Fixed in the same branch, on both `logql_query` and
+`trace_query`.
+`src/faultline/tools/`, `docs/adr/0019-tool-layer.md`,
+`docs/evidence/t2.6-tools-smoke/README.md`, `docs/adr/0004:41`, `docs/THREAT-MODEL.md:8`,
+`evals/scenarios/CATALOG.md`
 
 **Requirement derived from measurement, not a decision taken** — now designed in ADR-0019.
 The third tool must be **change history, not deploy history** — it has to report resource-limit changes, not only

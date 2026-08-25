@@ -20,7 +20,7 @@ injecting labeled faults and scoring everything.
 | `src/faultline/orchestrator` | event consumption, state machine, fan-out | T2.2–T2.3 |
 | `src/faultline/context` | service catalog, dependency graph, retrieval | T2.4, T6.4 |
 | `src/faultline/agents` | the nine agent roles | T3.x |
-| `src/faultline/tools` | PromQL/LogQL/deploy-history tools, trust-labeled I/O | T2.6, T3.x |
+| `src/faultline/tools` | PromQL/LogQL/trace/change-history tools, trust-labeled I/O | T2.6, T3.x |
 | `src/injector` | reversible fault injection, 4→8 classes | T1.4, T7.0 |
 | `src/evalharness` | scenario runner, scoring, variance protocol, baselines | T4.x |
 

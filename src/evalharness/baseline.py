@@ -27,6 +27,7 @@ from typing import Any
 
 from evalharness.prom import (
     METRIC_QUERIES,
+    PROMETHEUS,
     alert_intervals,
     firing_alerts,
     now,
@@ -165,7 +166,7 @@ def capture(minutes: int, step: int, out_root: Path) -> int:
 
     captured: dict[str, dict[str, Any]] = {}
     for name, promql in METRIC_QUERIES.items():
-        payload = query_range(promql, start, end, step=step)
+        payload = query_range(promql, start, end, step=step, base=PROMETHEUS)
         (out / "metrics" / f"{name}.json").write_text(json.dumps(payload, indent=2) + "\n")
         captured[name] = payload
         print(f"  captured metrics/{name}.json")

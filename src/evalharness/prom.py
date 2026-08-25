@@ -4,22 +4,54 @@ Extracted from evalharness.rehearse when the baseline recorder became a second c
 T4.1's scoring harness will be the third, and all three have to ask the same questions the
 same way - a baseline measured with one query and a scenario scored with a slightly
 different one is not a comparison.
+
+**The transport moved out at T2.6** (ADR-0019). T2.6's tool layer is the fourth consumer and
+could not import this module: ADR-0004 keeps benchmark infrastructure out of the product, so
+the HTTP client lives in `faultline.telemetry` and both sides import it. The names below are
+re-exported so nothing in the harness had to change, and `tests/test_telemetry.py` pins that
+the extraction left every capture query's URL byte-identical.
+
+What stayed here is what belongs to the harness: the fixed capture set, and the runtime
+query built per target service. An agent composes its own PromQL and has no use for either.
 """
 
 from __future__ import annotations
 
-import json
-import urllib.parse
-import urllib.request
 from datetime import UTC, datetime
 from itertools import pairwise
 from typing import Any
 
-PROMETHEUS = "http://localhost:9090"
-LOKI = "http://localhost:3100"
+from faultline.telemetry import (
+    HTTP_TIMEOUT,
+    LOKI,
+    PROMETHEUS,
+    QueryError,
+    get_json,
+    now,
+    query_range,
+    stamp,
+)
+
+__all__ = [
+    "HTTP_TIMEOUT",
+    "LOKI",
+    "METRIC_QUERIES",
+    "POLL_SECONDS",
+    "PROMETHEUS",
+    "RUNTIME_CAPTURE",
+    "RUNTIME_FAMILIES",
+    "QueryError",
+    "alert_intervals",
+    "firing_alerts",
+    "get_json",
+    "now",
+    "query_range",
+    "runtime_query",
+    "series_points",
+    "stamp",
+]
 
 POLL_SECONDS = 15
-HTTP_TIMEOUT = 20
 
 # The four series every capture takes. Keys become filenames under metrics/.
 METRIC_QUERIES: dict[str, str] = {
@@ -64,48 +96,6 @@ def runtime_query(service: str) -> str:
     target, since a target may name either a container or a service.
     """
     return f'{{exported_job="{service}", __name__=~"{"|".join(RUNTIME_FAMILIES)}"}}'
-
-
-class QueryError(RuntimeError):
-    """A telemetry query failed or returned something unusable."""
-
-
-def now() -> datetime:
-    """Whole seconds, deliberately.
-
-    Every timestamp a bundle records is stamped to the second, and every duration in it is
-    reported in seconds. Keeping sub-second precision here means a duration computed from
-    the raw datetimes can differ by one from the difference of the two stamps beside it -
-    a manifest that disagrees with itself for no reason. Truncating at the source removes
-    the class of mismatch instead of tolerating it in each consumer.
-    """
-    return datetime.now(UTC).replace(microsecond=0)
-
-
-def stamp(moment: datetime | None) -> str | None:
-    return None if moment is None else moment.isoformat(timespec="seconds")
-
-
-def get_json(base: str, path: str, params: dict[str, str]) -> dict[str, Any]:
-    url = f"{base}{path}?{urllib.parse.urlencode(params)}"
-    with urllib.request.urlopen(url, timeout=HTTP_TIMEOUT) as response:
-        payload: Any = json.loads(response.read().decode())
-    if not isinstance(payload, dict):
-        raise QueryError(f"{url} did not return a JSON object")
-    return payload
-
-
-def query_range(query: str, start: datetime, end: datetime, step: int = 15) -> dict[str, Any]:
-    return get_json(
-        PROMETHEUS,
-        "/api/v1/query_range",
-        {
-            "query": query,
-            "start": str(int(start.timestamp())),
-            "end": str(int(end.timestamp())),
-            "step": str(step),
-        },
-    )
 
 
 def firing_alerts() -> list[str]:

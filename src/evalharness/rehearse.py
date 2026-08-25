@@ -43,6 +43,7 @@ from evalharness.prom import (
     LOKI,
     METRIC_QUERIES,
     POLL_SECONDS,
+    PROMETHEUS,
     RUNTIME_CAPTURE,
     QueryError,
     alert_intervals,
@@ -1041,7 +1042,7 @@ def rehearse(
     }
     captured: dict[str, dict[str, Any]] = {}
     for name, promql in queries.items():
-        captured[name] = query_range(promql, window_start, window_end)
+        captured[name] = query_range(promql, window_start, window_end, base=PROMETHEUS)
         print(f"  captured {name}")
 
     container = container_for(scenario.injection.target)
