@@ -159,13 +159,34 @@ own narrative at rank 1 in both arms without `exclude_origin`, and not at all wi
 `docs/evidence/t2.4b-corpus-smoke/README.md`, `docs/adr/0002:8`, `docs/adr/0008:80`,
 `evals/scenarios/ARTIFACTS.md:154`
 
-### T2.6 — tools
+### T2.6 — tools *(designed, not built)*
 Typed tools with scoped read-only credentials and trust-labelled results. Also bound by
 ADR-0004's runtime contract.
-`src/faultline/tools/__init__.py:1`, `docs/adr/0004:41`, `docs/THREAT-MODEL.md:8`
 
-**Requirement derived from measurement, not a decision taken.** The third tool must be
-**change history, not deploy history** — it has to report resource-limit changes, not only
+**ADR-0019 designs the layer** and closes the "contract not written" marker below, taking its
+requirements from the nine rehearsed narratives' *What was checked* sections — nine tool-call
+traces of successful investigations. Contracts for `promql_query`, `logql_query` and
+`change_history`; a trust envelope whose closing delimiter carries a per-call id, so a log
+line cannot close a frame it cannot name; `evalharness.prom`'s transport extracted to a shared
+client rather than imported (ADR-0004 forbids the product depending on the harness) or copied
+(the drift its own docstring warns about); and read-only established at the tool surface,
+because Prometheus here runs with `--web.enable-lifecycle` and Loki's push endpoint is open,
+so it cannot come from the server.
+
+Three findings from the requirements list shape it. **Change history appears in 9 of 9
+investigations**, more often than metrics or logs, and in five the load-bearing answer is
+*nothing changed* — so `empty` and `error` are distinct contract terms, not implementation
+detail. **The named tool set does not cover the nine**: traces are the first narrowing step in
+two narratives and `ARCHITECTURE.md` names no trace tool. And **a third narrative class still
+reasons from unreachable evidence** — both `dependency_latency` narratives cite running-container
+inspection, the same defect already fixed for `bad_deploy` and for the memory scenarios.
+ADR-0019 predicts change history covers it, since a created container is a change, and leaves
+T2.6 to check.
+`src/faultline/tools/__init__.py:1`, `docs/adr/0019-tool-layer.md`, `docs/adr/0004:41`,
+`docs/THREAT-MODEL.md:8`, `evals/scenarios/CATALOG.md`
+
+**Requirement derived from measurement, not a decision taken** — now designed in ADR-0019.
+The third tool must be **change history, not deploy history** — it has to report resource-limit changes, not only
 releases.
 
 All three `resource_exhaustion` scenarios have a container memory-limit change as their
