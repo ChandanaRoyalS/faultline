@@ -195,9 +195,38 @@ def test_start_from_skips_the_synthetic_client_even_when_it_alerted_first() -> N
     assert result.start_from == "frontend"
 
 
+def test_the_join_traversal_and_the_blast_radius_traversal_disagree_on_purpose() -> None:
+    """Two traversals, one graph, one radius, different answers - and that is intentional.
+
+    `DependencyPolicy` asks which past incidents are **near** this one and traverses
+    **undirected**, ignoring edge kinds: an async neighbour is still a relation, and the fault
+    did reach it. Triage asks where failure was **measured** to spread and traverses
+    **directed**, honouring kinds.
+
+    So for an `adservice` incident, `cartservice` sits inside the correlation join at two
+    undirected hops and outside the blast radius - it merely shares a caller with `adservice`
+    and nothing propagated to it. Pinned so the disagreement cannot drift into an accident
+    (ADR-0017, addendum 2).
+    """
+    graph = ServiceCatalog.from_snapshot().graph
+    radius = ContextSettings().hop_radius
+
+    undirected = graph.hops("adservice", "cartservice")
+    blast_radius = triage().run(incident_of(("adservice", 0))).services
+
+    assert undirected == 2 and undirected <= radius, "inside the correlation join"
+    assert "cartservice" not in blast_radius, "outside the directed blast radius"
+    assert blast_radius == {"adservice", "frontend"}
+
+
 def test_triage_uses_the_correlation_radius_rather_than_one_of_its_own() -> None:
     """An incident and its blast radius disagreeing about how far apart two services are would
-    make them describe different graphs (ADR-0017)."""
+    make them describe different graphs (ADR-0017).
+
+    The radius is shared and the *evidence* for its value is not: ADR-0017's 19/72/97 coverage
+    was measured over undirected pairs, for correlation. Addendum 2 there records that this does
+    not justify the directed radius, and that T4.1's scoring is what will measure it.
+    """
     settings = ContextSettings()
 
     assert settings.hop_radius == 2

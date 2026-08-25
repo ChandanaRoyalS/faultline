@@ -330,6 +330,13 @@ agent returns is T3.x's contract.
 
 ## Phase 4 — the eval harness
 
+> **Note for T4 scoring.** Triage's `start_from` is an **entry point, not a culprit claim** -
+> the earliest alerting service the graph can reason about, which is where a responder looks
+> first and not what caused the incident (ADR-0020 §6, `src/faultline/agents/triage.py`).
+> **T4 must not score it as culprit accuracy.** Root cause is the synthesizer's output and is
+> scored there; scoring an entry point as a diagnosis would report triage as wrong for doing
+> exactly what it was asked to do.
+
 ### T4.1 — harness runner
 Drives runs from the scenario catalog: **what to inject, how long to wait, how long
 between runs**, reading `injection`, `seconds_to_alert`, `seconds_of_steady_state` and
