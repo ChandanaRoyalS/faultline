@@ -270,7 +270,7 @@ carries both model ids — a judged accuracy number is a function of two models.
 `src/faultline/agents/__init__.py:1`, `docs/adr/0020-agent-layer.md`, `docs/adr/0003:6`,
 `docs/adr/0004:41`, `docs/adr/0009:117`, `docs/adr/0019-tool-layer.md`
 
-### T3.1 — triage scoring *(pre-work done; the blocking measurement is in)*
+### T3.1 — triage *(built)*
 Scores triage, and **blast radius is what it scores on**. This is why the bundle manifest
 carries `alerts_over_window` with `began_after_revert` rather than only a snapshot.
 
@@ -295,7 +295,25 @@ callee there is nothing, and `unmeasured` is a distinct value rather than a defa
 **Any blast-radius figure should quote the five unmeasured edges** — a third of the graph — the
 way every other figure here carries its `n`.
 
-Still to build: the triage role itself, against ADR-0020 §6's output contract.
+**Triage is built** (`src/faultline/agents/triage.py`). It consumes the correlated incident and
+the service catalog, holds no tools, and produces severity, a blast radius as **a set with entry
+times**, and an entry point — not a ranked list and not a culprit.
+
+Traversal is directed, because `edge_kind` is a directed measurement: **upstream** (callee →
+caller) is propagation and is transitive to the correlation radius; **downstream** (caller →
+callee, one step, from alerting services only) names where an error could have come from, which
+is the `email-wrong-image` shape. `async` edges are not crossed in either direction; `unmeasured`
+edges are crossed and **surfaced with the edge and the service that arrived through it**, and
+every output quotes its unmeasured `n`. Services absent from the graph stay in the output with
+their `GraphPresence` rather than being dropped — `loadgenerator` alerted in almost every
+captured incident and would otherwise be reported as unaffected.
+
+Smoked live (`docs/evidence/t3.1-triage-smoke/`): the captured T2.1 deliveries replayed through
+ingest → orchestrator → triage. `frauddetectionservice` is one hop from an alerting
+`checkoutservice` across an edge indistinguishable in the graph, and is correctly **absent** —
+the measured `async` edge. Triage is computed rather than asked: ADR-0020 chose a model for the
+agent layer and is silent on which roles call it, and a scored number that moves when nothing
+changed is not a measurement.
 `docs/adr/0009:117`, `docs/adr/0009:137`, `docs/adr/0020-agent-layer.md`,
 `docs/adr/0017-context-layer-graph-and-dependency-policy.md`,
 `docs/evidence/t3.1-edge-kinds/README.md`, `src/faultline/context/graph.py`,
