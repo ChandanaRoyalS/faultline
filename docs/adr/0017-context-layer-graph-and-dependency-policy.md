@@ -292,6 +292,33 @@ for it. Where evidence exists it is therefore stronger than the preferred source
 been; where no bundle broke a callee there is nothing, and those edges are recorded as
 unmeasured rather than inferred.
 
+**The operational definition, because the field name invites the wrong reading.**
+`edge_kind` records **measured failure propagation, not messaging mechanism.**
+
+- **`sync`** means *a callee failure was observed to propagate to the caller* — the callee was
+  broken or slowed in a recorded bundle and the caller's error ratio or p95 moved with it.
+- **`async`** means *a callee failure was observed not to propagate* — the callee was
+  demonstrably dead for the whole fault and the caller kept serving without errors.
+- **`unmeasured`** means no bundle broke that callee, so nothing was observed either way.
+
+The words are borrowed from the mechanism because they are the words a responder uses, and the
+borrowing is where a reader goes wrong: `sync` here is not a claim that the call is a blocking
+RPC, and `async` is not a claim that a broker is involved. It happens that the one measured
+`async` edge does run over Kafka, which makes the mechanistic reading look confirmed. It is
+not the reason the edge is labelled that way.
+
+**`frontend → recommendationservice` is the case that makes the difference concrete.** It is
+labelled `sync`, and `recommendation-memory-squeeze`'s narrative opens by saying "frontend does
+not fail when recommendations fail" — the frontend renders the page without them. Both are
+true. Mechanistically the frontend degrades rather than depending on the callee; measurably its
+error ratio went 0.013 → 0.077 when recommendations died, enough that `ServiceHighErrorRate`
+fired on `frontend` and `loadgenerator`. Partial propagation is propagation, and for blast
+radius the caller belongs in the radius.
+
+A consumer reading `sync` as "blocking RPC" would exclude that edge and under-report the blast
+radius by a service the alerting itself named. A consumer reading it as this ADR defines it
+gets the right answer. **T3.1 consumes the definition above, not the word.**
+
 **The answer: 9 synchronous, 1 asynchronous, 5 unmeasured**, in
 `docs/evidence/t3.1-edge-kinds/README.md` with the figure behind each one. Both cross-checks
 reproduce — `checkoutservice → emailservice` is sync (caller error 0 → 0.061 as the callee
