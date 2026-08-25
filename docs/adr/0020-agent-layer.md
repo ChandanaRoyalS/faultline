@@ -98,12 +98,26 @@ input side substantially, since the system prompts and tool definitions are iden
 runs. **No measurement exists** — the numbers above are arithmetic on an assumption, in the
 same class as ADR-0016's four placeholders, and T4.1's first sweep replaces them.
 
-### The judge is a separate instance of this decision
+### The judge is a separate setting, and inherits no default
 
 ADR-0008 names judge contamination — "an LLM judge that has seen the label rubric during its own
 prompt tuning" — as the likeliest fifth contamination axis. If T4.2 uses an LLM judge, it
 inherits everything above **and** must not be the same instance, prompt, or tuning lineage as
-the agent under test. Flagged here because the model decision is where it would be missed.
+the agent under test.
+
+**Decided, alongside the model recommendation above:**
+
+- **The judge model is its own configuration setting with no default inherited from the agent
+  under test.** Defaulting it to whatever the agent runs is how the two silently become one
+  model grading its own output, and a default that is usually right is worse than one that must
+  be stated, because nobody reads it.
+- **The lineage rule is checked at eval time by the harness, not assumed here.** ADR-0008's
+  pattern throughout: the harness "asserts the filter actually fired" and marks a run invalid
+  rather than annotating it. A prohibition an ADR states and nothing verifies is the failure
+  mode that ADR names by title. T4.2 owns the check.
+- **Every published figure carries both model ids.** Not just the agent's. A judged accuracy
+  number is a function of two models, and reporting one of them is reporting half the
+  experiment.
 
 ## 2. The nine roles
 
@@ -113,7 +127,7 @@ synthesizer → remediation proposer → scribe.
 | Role | Input | Tools | Produces | Orchestrator state |
 |---|---|---|---|---|
 | **Triage** | the incident's alert episodes, service catalog | none — it reasons over what ingest already gathered | severity, **blast radius** (§6), the service to start from | `TRIAGING` |
-| **Planner** | triage output, dependency graph | none | an ordered plan naming which specialists to dispatch and what each is asked | `PLANNING` |
+| **Planner** | triage output, dependency graph; then specialist findings | none | an ordered plan naming which specialists to dispatch and what each is asked — **and at most one follow-up round** once findings are in | `PLANNING` |
 | **Metrics specialist** | a question, a window | `promql_query` | findings with citations to result ids | `INVESTIGATING` |
 | **Log specialist** | a question, a window, a service | `logql_query` | as above | `INVESTIGATING` |
 | **Change specialist** | a service, a window | `change_history` | as above | `INVESTIGATING` |
@@ -146,9 +160,36 @@ and `ServiceNoTraffic` cannot answer it alone. "Direction of propagation" needs 
 services plus the dependency graph. "The two waves of silence" needs the metrics *and* the
 knowledge that fifteen seconds between groups is scrape granularity rather than causal
 ordering. Under this split those land on the synthesizer, which sees all findings and holds no
-tools. **Marked for decision:** whether the synthesizer gets tool access for follow-up
-questions, or the planner gets a second dispatch round. The first is simpler and blurs the
-role; the second is more machinery and keeps every tool call attributable to a specialist.
+tools.
+
+**Decided: the planner gets a second dispatch round. The synthesizer does not get tools.**
+The simpler option was to arm the synthesizer, and four things rule it out.
+
+**It reopens the path §4 exists to close.** The scribe discipline works because prose is
+generated from validated objects and quotes only by `result_id` against a stored envelope —
+free-form pass-through from tool output into corpus material has nowhere to happen. Putting
+tools on the synthesizer puts raw untrusted envelopes back into the context that writes the
+narrative, which is thesis 1 with a persistence layer, arriving through the role this ADR
+routed it away from.
+
+**What is missing is a question, not a capability.** "Whether the service was idle or absent"
+is an ordinary metrics query and an ordinary logs query, asked together. Both tools already
+exist and both specialists already hold them. The gap is that nobody asked the second question
+after seeing the first answer — which is dispatch, and dispatch is the planner's job.
+
+**The budget stays in three units.** §5 accounts tool calls per specialist and tokens and wall
+clock per investigation. A follow-up round is more dispatches, visible in exactly those units.
+Tools on the synthesizer would need a fourth accounting path for a role the budget currently
+treats as terminal, and a bound nobody accounts is a bound nobody enforces.
+
+**Trajectory persistence is unchanged.** Every tool call stays inside a specialist dispatch, so
+`trajectory_tool_calls` keeps one shape and T5.3 replays one thing.
+
+**Exactly one follow-up round.** A second round that itself surfaces new gaps ends in a verdict
+flagged as incomplete, not a third round. Unbounded re-dispatch is the same non-termination
+risk §5 exists to remove, arriving through the planner instead of through a specialist, and an
+investigation that has asked twice and still has gaps has produced a finding about its own
+evidence that is worth reporting rather than spending more budget on.
 
 **Nothing owns ruling things out, and the narratives say that is the valuable part.**
 `ARTIFACTS.md`: the dead ends "are the most useful thing in the document — they are what makes
@@ -246,6 +287,10 @@ Three bounds, because they fail differently:
 | **Tool calls** | per specialist | hard count; the runtime refuses the call |
 | **Tokens** | per investigation | `task_budget` (advisory, the model paces itself) plus `max_tokens` (enforced) |
 | **Wall clock** | per investigation | the orchestrator's own timer |
+| **Dispatch rounds** | per investigation | fixed at two — the plan and at most one follow-up |
+
+The fourth is the decision above, in budget form: cross-evidence questions are answered by
+dispatching again, and "again" is bounded at once so re-dispatch cannot become a loop.
 
 Wall clock is not redundant. A tool call that hangs consumes no tokens and makes no progress,
 and ADR-0019's tools do not retry internally past one attempt — so a stuck query is a stuck
@@ -319,9 +364,13 @@ decision "at T3.1, which is the first task that needs an answer" — this ADR is
 that it does, and that reasoning from the graph as though every edge were synchronous is
 measurably wrong on two of fifteen edges.
 
-**Marked for decision, collected:** per-role model selection; whether the synthesizer holds
-tools or the planner gets a second dispatch round; and whether trajectory envelopes are stored
-inline or content-addressed.
+**Decided in this ADR:** the model and its provider-agnostic boundary; the judge as a separate
+setting with no inherited default; and cross-evidence work as **one** planner follow-up round
+rather than tools on the synthesizer.
+
+**Marked for decision, collected:** per-role model selection, which T4.2's measured accuracy
+should settle rather than a cost estimate; and whether trajectory envelopes are stored inline or
+content-addressed.
 
 **Placeholders, named as such:** the three budget values, and the cost arithmetic in §1 — which
 is an assumption times a price, not a measurement.

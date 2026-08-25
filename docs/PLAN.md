@@ -256,6 +256,17 @@ tools and the **load does not**: change and metrics are needed by 10 of 10 inves
 logs by 7, traces by 2. And **nothing owns ruling things out**, which `ARTIFACTS.md` says is
 the most valuable content in a narrative — so specialist output carries `ruled_out` beside
 `found`.
+
+Cross-evidence work — the checks that need metrics and logs together — is **one planner
+follow-up round**, not tools on the synthesizer. Arming the synthesizer would put raw untrusted
+envelopes back into the context that writes the narrative, reopening the path the scribe rule
+closes; and what those checks lack is a second question rather than a capability, which is
+dispatch. Bounded at exactly one round: a follow-up that surfaces further gaps ends in a
+flagged verdict, not a third round.
+
+The judge model is a separate setting with **no default inherited from the agent under test**,
+its lineage checked at eval time by the harness rather than assumed, and every published figure
+carries both model ids — a judged accuracy number is a function of two models.
 `src/faultline/agents/__init__.py:1`, `docs/adr/0020-agent-layer.md`, `docs/adr/0003:6`,
 `docs/adr/0004:41`, `docs/adr/0009:117`, `docs/adr/0019-tool-layer.md`
 
