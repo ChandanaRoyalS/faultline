@@ -23,6 +23,12 @@ trap with them: both run locally on a development machine, so a test that reache
 pass here and fail in CI. Guarded the same way and for the same reason, below. Substitute at
 the seams the code already has (`EpisodeLog`, `EventStream`, `IncidentStore`, `EventSource`),
 never at the client.
+
+T3.2 adds the fourth and worst: **the model**. A test that reached it would not merely be
+non-hermetic - it would be slow, non-deterministic, and billed, and it would fail on a machine
+with no key in a way that looks like the test being wrong. `DeterministicModel` is the only
+model the suite ever touches, and the guard below makes that true by construction rather than
+by discipline.
 """
 
 from __future__ import annotations
@@ -34,6 +40,7 @@ import pytest
 import redis
 
 from evalharness import rehearse
+from faultline.agents import model
 
 
 class _NoLiveSubprocess:
@@ -111,3 +118,22 @@ def _no_live_postgres(request: pytest.FixtureRequest, monkeypatch: pytest.Monkey
         )
 
     monkeypatch.setattr(psycopg, "connect", refuse)
+
+
+@pytest.fixture(autouse=True)
+def _no_live_model(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Fail loudly on any attempt to construct or call a real model client.
+
+    Patched on the boundary rather than on the SDK, so it holds whether or not the optional
+    `faultline[agents]` extra is installed - a guard that only fires when a dependency happens
+    to be present is a guard that passes for the wrong reason on a clean machine.
+    """
+
+    def refuse(*args: Any, **kwargs: Any) -> NoReturn:
+        _refuse(
+            request.node.nodeid,
+            "a real language model (faultline.agents.model.AnthropicModel)",
+            "faultline.agents.model.DeterministicModel",
+        )
+
+    monkeypatch.setattr(model, "AnthropicModel", refuse)

@@ -1,0 +1,19 @@
+envelope: 2010 bytes, sha256 17be986c80ca0236bc77752eb8ef1999ad917d7c20abb5bbc99d59ae75fa8cbc
+  opens : <tool_result id="tr_cc701817e51a" tool="logql_query" trust="untrusted" source="loki" empty="fals...
+  closes: </tool_result:tr_cc701817e51a>
+  control chars present: False
+
+agent settings: model=claude-opus-5 judge=(unset) role_models={}
+
+wrote trajectory 08242d2b-acf3-4889-8bf8-800b219db6cf with 3 steps
+read back 3 steps, model=claude-opus-5, role_models={'scribe': 'claude-haiku-4-5'}
+
+BYTE IDENTITY: PASS
+  len  written 2010  read 2010
+  sha256 written 17be986c80ca0236bc77752eb8ef1999ad917d7c20abb5bbc99d59ae75fa8cbc
+  sha256 read    17be986c80ca0236bc77752eb8ef1999ad917d7c20abb5bbc99d59ae75fa8cbc
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig' k=3 returned=['scenario:ad-memory-squeeze#0']
+steps by kind: ['message', 'tool_call', 'retrieval']
+
+OK

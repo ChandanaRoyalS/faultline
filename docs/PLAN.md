@@ -319,6 +319,32 @@ changed is not a measurement.
 `docs/evidence/t3.1-edge-kinds/README.md`, `src/faultline/context/graph.py`,
 `src/evalharness/rehearse.py:590`
 
+### T3.2 — the agent substrate *(built)*
+The provider-agnostic model boundary and trajectory persistence — everything the roles stand on,
+with no roles in it. **Not a task number the plan states**; inferred from ADR-0020's design
+splitting cleanly at this seam, and recorded here so the work has a home. **contract not
+written** — the real plan may number this differently or not at all.
+
+`LanguageModel` is a Protocol with a lazily-imported Anthropic implementation behind
+`faultline[agents]` and a `DeterministicModel` for tests, following the embedder precedent.
+`AgentSettings` (`FAULTLINE_AGENT_*`) carries one default model, `claude-opus-5`, plus an
+optional per-role override map, and **no API-key field at all** — the SDK reads credentials from
+the environment, and a key that never enters this repo's configuration cannot be written to a
+trajectory or printed by a `--help`.
+
+Trajectories persist to four Postgres tables with an in-memory double. The property that drives
+the shape: **replay needs the rendered envelope, not the object**, so the envelope is stored as
+text and never re-rendered, with a `sha256` beside it; and `exclude_origin` is a column on every
+retrieval, which is where T4.1b reads ADR-0008's assertion.
+
+Closes both of ADR-0020's remaining open decisions — per-role selection and envelope storage —
+recorded there. Smoked against live Postgres (`docs/evidence/t3.2-trajectory-smoke/`): a
+trajectory written and read back through a second connection, envelope **byte-identical**, 2010
+bytes, matching sha256, closing nonce intact.
+`src/faultline/agents/model.py`, `src/faultline/agents/settings.py`,
+`src/faultline/agents/trajectory.py`, `docs/adr/0020-agent-layer.md`,
+`docs/evidence/t3.2-trajectory-smoke/README.md`
+
 ### T3.5 — state machine
 Part of the orchestrator's eleven-state machine. The states and their triggers are proposed
 in ADR-0016; the five that depend on agent outcomes (`TRIAGING`, `PLANNING`, `INVESTIGATING`,
