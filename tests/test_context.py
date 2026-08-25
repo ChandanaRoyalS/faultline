@@ -17,7 +17,13 @@ from datetime import UTC, datetime, timedelta
 import pytest
 
 from faultline.context.catalog import GraphPresence, ServiceCatalog
-from faultline.context.graph import ARTIFACT_EDGES, SNAPSHOT, ServiceGraph
+from faultline.context.graph import (
+    ARTIFACT_EDGES,
+    EDGE_KINDS,
+    SNAPSHOT,
+    EdgeKind,
+    ServiceGraph,
+)
 from faultline.context.policy import DecisionLog, DependencyPolicy, JoinRule
 from faultline.context.settings import ContextSettings
 from faultline.ingest.models import AlertEvent, AlertStatus
@@ -176,6 +182,98 @@ def test_the_snapshot_still_matches_the_running_world() -> None:  # pragma: no c
         "the world's dependency graph has moved under the committed snapshot. Re-capture it "
         "and update docs/evidence/t2.4-dependency-graph/ - do not edit the snapshot by hand."
     )
+
+
+# --- edge kinds, measured from the bundles ------------------------------------
+
+
+def test_the_two_cross_checked_edges_are_classified_as_the_incidents_measured_them() -> None:
+    """The two edges whose kinds are established by a whole recorded incident each.
+
+    `email-wrong-image`: `emailservice` died and `checkoutservice`'s error ratio went 0 ->
+    0.061, and the incident's only alert was `ServiceHighErrorRate/checkoutservice`. Checkout
+    was waiting on email.
+
+    `frauddetection-memory-squeeze`: `frauddetectionservice` went from 0.196 to 0.014 req/s -
+    dead for the whole fault - and `checkoutservice`'s error ratio never left zero while its
+    own throughput held. Orders completed; they were not screened. Kafka carries that edge, and
+    trace context propagates through it, which is exactly why the graph cannot see the
+    difference and this table exists.
+    """
+    g = graph()
+
+    assert g.kind_of("checkoutservice", "emailservice") is EdgeKind.SYNC
+    assert g.kind_of("checkoutservice", "frauddetectionservice") is EdgeKind.ASYNC
+
+
+def test_unmeasured_is_a_distinct_value_and_not_a_silent_default_to_sync() -> None:
+    """Five of the fifteen edges have no evidence, and that has to be sayable.
+
+    No bundle ever broke `paymentservice`, `accountingservice`, `currencyservice`,
+    `checkoutservice` or `quoteservice`, so nothing recorded says what their callers do when
+    they fail. Defaulting them to `sync` would turn "we did not measure this" into "we measured
+    this and it blocks", which is the class of error ADR-0014 names about fields that cannot
+    produce a true positive.
+    """
+    g = graph()
+
+    for parent, child in (
+        ("checkoutservice", "paymentservice"),
+        ("checkoutservice", "accountingservice"),
+        ("checkoutservice", "currencyservice"),
+        ("frontend", "checkoutservice"),
+        ("shippingservice", "quoteservice"),
+    ):
+        assert g.kind_of(parent, child) is EdgeKind.UNMEASURED, f"{parent} -> {child}"
+
+    assert EdgeKind.UNMEASURED not in {EdgeKind.SYNC, EdgeKind.ASYNC}
+    assert not any(
+        (parent, child) in EDGE_KINDS for parent, child in (("checkoutservice", "paymentservice"),)
+    ), "an unmeasured edge is absent from the table, not present with a guess"
+
+
+def test_every_edge_carries_a_kind_and_the_counts_are_the_measured_ones() -> None:
+    """Pinned so a table edit is a conscious change, and so the split stays reportable.
+
+    Nine sync, one async, five unmeasured. Anything reporting on blast radius should quote the
+    five - a third of the graph is a guess, and that is the honest state of the evidence.
+    """
+    grouped = graph().edges_by_kind()
+
+    assert {kind: len(edges) for kind, edges in grouped.items()} == {
+        EdgeKind.SYNC: 9,
+        EdgeKind.ASYNC: 1,
+        EdgeKind.UNMEASURED: 5,
+    }
+    assert sum(len(edges) for edges in grouped.values()) == len(graph().edges) == 15
+
+
+def test_the_kinds_table_names_only_edges_that_exist_in_the_snapshot() -> None:
+    """A kind for an edge the graph does not have is a claim about nothing."""
+    present = graph().edge_set
+
+    unknown = sorted(edge for edge in EDGE_KINDS if edge not in present)
+
+    assert not unknown, f"EDGE_KINDS names edges absent from the snapshot: {unknown}"
+
+
+def test_reading_a_kind_does_not_change_how_correlation_behaves() -> None:
+    """This lands as data. The policy is T3.1's to change, and it has not been changed.
+
+    `emailservice` still joins a checkout-adjacent incident at two hops, exactly as before -
+    correlation is call causality by design (ADR-0017), and knowing the edge is synchronous
+    does not alter that.
+    """
+    policy = dependency_policy()
+    ingest, store = orchestrator(policy)
+    start = datetime(2026, 8, 24, 12, tzinfo=UTC)
+    ingest.apply(event("cartservice", start))
+
+    result = ingest.apply(event("emailservice", start + timedelta(minutes=3)))
+
+    assert result.joined
+    assert len(store.incidents) == 1
+    assert policy.log.decisions[-1].hops == 2
 
 
 # --- the catalog ---------------------------------------------------------------

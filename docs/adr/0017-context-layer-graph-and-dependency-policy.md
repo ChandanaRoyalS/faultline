@@ -271,3 +271,41 @@ blindness rather than work around it; Jaeger gains persistent storage, which wou
 argument against querying at runtime; or a second target environment appears, where a 13-node
 hub-and-spoke graph is not the shape being reasoned about and the 2-hop radius has to be
 re-derived rather than inherited.
+
+---
+
+## Addendum — edge kinds measured (2026-08-25)
+
+**The deferred question.** "Edge semantics" above declared sync/async out of scope for
+correlation and in scope for blast-radius reasoning, marked the source for decision "at T3.1,
+which is the first task that needs an answer", and recorded a preference for `span.kind` from
+the underlying traces with the two measured bundles as its check. T3.1 was then blocked on it.
+
+**The method changed, and the preferred source turned out not to exist.** The bundles contain
+no trace data at all — `manifest.json`, `incident.md`, `queries.md`, five metric captures and a
+log capture, and nothing else. The metric captures are span-derived but every query aggregates
+`sum by(service_name)`, so `span.kind` was dropped at capture time and is unrecoverable.
+
+What the bundles do hold is ten incidents in which a named service was broken deliberately, and
+that measures **failure propagation itself** rather than the messaging pattern that stands in
+for it. Where evidence exists it is therefore stronger than the preferred source would have
+been; where no bundle broke a callee there is nothing, and those edges are recorded as
+unmeasured rather than inferred.
+
+**The answer: 9 synchronous, 1 asynchronous, 5 unmeasured**, in
+`docs/evidence/t3.1-edge-kinds/README.md` with the figure behind each one. Both cross-checks
+reproduce — `checkoutservice → emailservice` is sync (caller error 0 → 0.061 as the callee
+died) and `checkoutservice → frauddetectionservice` is async (callee dead for 852s, caller
+error 0 → 0). Those two edges are identical in the snapshot, same parent and both at 286 calls,
+which is the qualitative finding above now carrying numbers on both sides.
+
+**What this does not change.** Nothing about correlation: `DependencyPolicy` still joins on call
+causality, and an async neighbour still belongs in the incident because the fault did reach it.
+The kinds land as data on `Edge` for T3.1 to consume.
+
+**What it leaves open.** Five edges — `checkoutservice` to `currencyservice`,
+`accountingservice` and `paymentservice`, `frontend → checkoutservice`, and
+`shippingservice → quoteservice` — have no bundle that breaks their callee. `accountingservice`
+shares a Kafka consumer group with `frauddetectionservice` and is probably async by the same
+mechanism; it stays unmeasured, because a structural argument is the kind of inference this
+measurement exists to replace. Any blast-radius figure should quote the five.
