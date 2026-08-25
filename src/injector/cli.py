@@ -12,6 +12,7 @@ import sys
 from collections.abc import Sequence
 from datetime import UTC, datetime
 
+from faultline.tools.changelog import ChangeLog
 from injector.docker import CommandError
 from injector.engine import Engine, InjectorError, StopResult
 from injector.faults import FaultUsageError
@@ -146,7 +147,7 @@ def _cmd_stop(engine: Engine, fault_id: str | None, revert_all: bool) -> int:
 
 def main(argv: Sequence[str] | None = None, engine: Engine | None = None) -> int:
     args = build_parser().parse_args(argv)
-    engine = engine if engine is not None else Engine(InjectorSettings())
+    engine = engine if engine is not None else Engine(InjectorSettings(), change_log=_change_log())
 
     try:
         match args.command:
@@ -163,6 +164,27 @@ def main(argv: Sequence[str] | None = None, engine: Engine | None = None) -> int
     except (InjectorError, FaultUsageError, CommandError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return EXIT_ERROR
+
+
+def _change_log() -> ChangeLog | None:
+    """The world's change history, if the platform Postgres is reachable (T2.6, ADR-0019).
+
+    Best effort and quiet about it: an injection must not fail because the change log is
+    down, and `faultline-inject` is used on machines where the platform profile is not up.
+    A missing record surfaces as `change_history` reporting an error, which is the honest
+    answer - the window was not observed.
+    """
+    try:
+        import psycopg
+
+        from faultline.tools.changelog import PostgresChangeLog
+        from faultline.tools.settings import ToolSettings
+
+        log = PostgresChangeLog(psycopg.connect(ToolSettings().postgres_dsn))
+        log.create_schema()
+        return log
+    except Exception:
+        return None
 
 
 def run() -> None:
