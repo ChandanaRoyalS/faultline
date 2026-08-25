@@ -1,0 +1,32 @@
+captured deliveries: 8
+ingest published: 8 events to faultline:t31-smoke
+orchestrator applied: 8 events
+incident d435dbf2-3a0e-4b7d-9080-437507db9bf1  state=resolved  episodes=4
+   frontend             ServiceHighErrorRate   starts 10:34:30
+   loadgenerator        ServiceHighErrorRate   starts 10:34:30
+   checkoutservice      ServiceHighErrorRate   starts 10:34:45
+   emailservice         ServiceHighErrorRate   starts 10:39:30
+
+TRIAGE
+  12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+  severity      : critical
+  start_from    : frontend
+  blast radius  : 12 services (4 alerted, 8 graph-derived)
+  service                  reason            direction         presence         entered   via
+  frontend                 alerted           seed              present          10:34:30  
+  loadgenerator            alerted           seed              artifact_only    10:34:30  
+  checkoutservice          alerted           seed              present          10:34:45  
+  emailservice             alerted           seed              present          10:39:30  
+  accountingservice        unmeasured_edge   candidate_cause   present          -         ('checkoutservice', 'accountingservice')
+  adservice                sync_edge         candidate_cause   present          -         
+  cartservice              sync_edge         candidate_cause   present          -         
+  currencyservice          unmeasured_edge   candidate_cause   present          -         ('checkoutservice', 'currencyservice')
+  paymentservice           unmeasured_edge   candidate_cause   present          -         ('checkoutservice', 'paymentservice')
+  productcatalogservice    sync_edge         candidate_cause   present          -         
+  recommendationservice    sync_edge         candidate_cause   present          -         
+  shippingservice          sync_edge         candidate_cause   present          -         
+  unmeasured edges crossed (4):
+     checkoutservice -> accountingservice
+     checkoutservice -> currencyservice
+     checkoutservice -> paymentservice
+     frontend -> checkoutservice

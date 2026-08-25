@@ -336,3 +336,68 @@ The kinds land as data on `Edge` for T3.1 to consume.
 shares a Kafka consumer group with `frauddetectionservice` and is probably async by the same
 mechanism; it stays unmeasured, because a structural argument is the kind of inference this
 measurement exists to replace. Any blast-radius figure should quote the five.
+
+---
+
+## Addendum 2 — two traversals, and what the hop measurement does and does not justify (2026-08-25)
+
+T3.1's triage is the first consumer of the edge kinds, and building it surfaced a design
+decision that was not written down and a fact about this ADR's own measurement that qualifies
+it. Both are recorded here rather than in the triage module, because both are about the graph.
+
+### Blast-radius traversal is directed, and the direction follows from the definition
+
+Addendum 1 defines `sync` as **a callee failure was observed to propagate to the caller**. That
+is a directed statement, and the traversal was built to match it:
+
+- **Upstream — callee → caller — transitive, to the hop radius.** This is the direction the
+  measurement licenses. If `adservice` dies its caller `frontend` is affected, and a caller of
+  an affected caller is affected too.
+- **Downstream — caller → callee — one step, from alerting services only, and it does not
+  compose.** A different claim: not *this was damaged* but *the error might have come from
+  here*. `email-wrong-image` is why it exists — `checkoutservice` alerted and `emailservice`,
+  the broken one, never alerted at all. It is not followed further because the callee of a
+  candidate is a candidate for a fault nobody has evidence of.
+- **`async` is crossed in neither direction**, and an `unmeasured` edge is crossed in both and
+  reported with the service that arrived through it.
+
+Reading the graph as undirected instead reads the measurement backwards and inflates the
+result: from an `adservice` failure it reaches `cartservice`, which merely shares a caller.
+
+### **The hop measurement in this ADR is undirected, and does not justify the directed radius**
+
+This is the caveat that matters, and it is a correction to how the number above should be read.
+The 19% / 72% / 97% coverage at 1 / 2 / 3 hops was computed over **undirected** pairs, to decide
+how far *correlation* should reach. Triage now uses the same radius for a directed traversal, so
+**"the 2-hop radius stands" no longer means what that measurement measured.** Directed 2-hop
+coverage over these fifteen edges has not been computed, and the undirected figure is an upper
+bound on it, not an estimate of it.
+
+The radius is shared deliberately — an incident and its blast radius disagreeing about how far
+apart two services are would make them describe different graphs — but the *evidence* for 2 was
+gathered for the other question.
+
+**T4.1's scoring is what will measure directed coverage.** Blast radius is scored against each
+bundle's `alerts_over_window` (ADR-0009), so a directed 2-hop traversal that under-reaches shows
+up there as a recall miss on services that alerted and were not predicted. That is the number to
+look at, and it does not exist yet. If it shows under-reach, the fix is a radius derived from
+directed coverage rather than inherited from undirected coverage.
+
+### Two traversal semantics now coexist, and that is intentional
+
+They answer different questions, and the codebase should be read knowing both are present:
+
+| | `DependencyPolicy.match` | `Triage.run` |
+|---|---|---|
+| question | which past incidents are **near** this one | where failure was **measured** to spread |
+| traversal | **undirected**, via `ServiceGraph.hops` | **directed**, per the rules above |
+| edge kinds | ignored — an async neighbour is still a relation | honoured — `async` is not crossed |
+| radius | `ContextSettings.hop_radius` | the same value |
+
+Correlation ignoring edge kinds is Addendum 1's position unchanged: the fault *did* reach an
+async consumer, so joining it to the incident is correct, and only the blast-radius question
+needs the distinction.
+
+The two therefore disagree on purpose, and `tests/test_triage.py` pins one case so the
+disagreement cannot drift into an accident: for an `adservice` incident, `cartservice` is
+**inside** the undirected 2-hop join and **outside** the directed blast radius.

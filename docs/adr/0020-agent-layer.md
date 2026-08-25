@@ -340,6 +340,12 @@ distinction has to survive into the triage contract:** an episode can belong to 
 and not to the blast radius, and a triage output that cannot express both is unscoreable
 against a bundle that records both.
 
+**How the radius is traversed is ADR-0017's, not this ADR's.** Addendum 2 there records that
+blast radius traverses **directed** — upstream transitively for measured propagation, downstream
+one non-composing step from alerting services — while `DependencyPolicy`'s correlation join
+stays undirected, and that ADR-0017's own 19/72/97 hop measurement was computed undirected and
+so does not justify the directed radius. T4.1's scoring is what measures directed coverage.
+
 **Blast radius needs sync/async and cannot have it yet.** ADR-0017 declared the distinction out
 of scope for correlation and in scope for blast-radius reasoning, and left the source undecided
 — `span.kind` from traces preferred, the two measured bundles as its check. **That decision is
