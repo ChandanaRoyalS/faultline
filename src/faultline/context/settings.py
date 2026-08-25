@@ -34,3 +34,19 @@ class ContextSettings(BaseSettings):
     graph-based correlation as precise. Changing this number without re-deriving those
     percentages against the current snapshot is tuning blind.
     """
+
+    postgres_dsn: str = "postgresql://faultline:faultline-dev@localhost:5432/faultline"
+    """The platform profile's `postgres`, which now runs pgvector (ADR-0018)."""
+
+    embedder: str = "sentence-transformers/all-MiniLM-L6-v2"
+    """**Replaceable, and recorded on every chunk so a change is visible in the data.**
+
+    Local rather than an API embedder: a benchmark whose numbers have to be defensible
+    cannot have its retrieval depend on a remote model nobody pins, in a project that pins
+    its world by content digest. ADR-0018 has the trade-off in full. Installed as
+    `faultline[embeddings]` and imported lazily, so `make check` never loads it.
+    """
+
+    retrieval_k: int = 5
+    """How many chunks a retrieval returns. No measurement behind it - T4.2 owns ranking
+    quality, and this corpus holds seven documents."""

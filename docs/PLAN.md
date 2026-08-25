@@ -136,13 +136,28 @@ declines 28% of service pairs, so two incidents can be live at once for the firs
 `docs/adr/0017-context-layer-graph-and-dependency-policy.md`,
 `docs/evidence/t2.4-dependency-graph/README.md`, `docs/ARCHITECTURE.md:21`
 
-### T2.4b — corpus seeding
+### T2.4b — corpus seeding *(built)*
 Seeds the past-incident store from `evals/scenarios/artifacts/dev/` **only**. The input is
 `incident.md` — the hand-written narrative in each bundle.
 `docs/adr/0008:80`, `evals/scenarios/ARTIFACTS.md:127`, `evals/scenarios/SPLIT.md:62`
 
-**contract not written** — the repo does not state how narratives are chunked, embedded,
-or ranked, nor what else besides `incident.md` enters the store.
+**ADR-0018 settles all of it** and closes this entry's "contract not written" marker:
+sections as chunks, a local embedding model behind an `Embedder` Protocol, hybrid retrieval
+fused on ranks, and `exclude_origin` in the query signature from day one so T4.1b passes an
+argument rather than patching a query. The seeder takes the dev directory as its only root —
+not a flag, not a filter over both splits — and refuses a holdout path, a narrative whose
+front matter disagrees with its path, and a bundle marked INVALID.
+
+Measured: the dev tree yields **seven** documents and 35 chunks. Nine bundles carry a
+narrative and two are INVALID, which is where the two missing ones go.
+Seeded live on 2026-08-25 against real pgvector: 7 documents, 35 chunks, 0 holdout chunks,
+and the embedder stamp verified against `vector_dims(embedding)`. The same run is **the first
+live demonstration of ADR-0008's axis-2 exclusion** — a scenario's own symptoms retrieve its
+own narrative at rank 1 in both arms without `exclude_origin`, and not at all with it.
+`faultline-seed` is the entry point.
+`src/faultline/context/`, `docs/adr/0018-past-incident-corpus.md`,
+`docs/evidence/t2.4b-corpus-smoke/README.md`, `docs/adr/0002:8`, `docs/adr/0008:80`,
+`evals/scenarios/ARTIFACTS.md:154`
 
 ### T2.6 — tools
 Typed tools with scoped read-only credentials and trust-labelled results. Also bound by

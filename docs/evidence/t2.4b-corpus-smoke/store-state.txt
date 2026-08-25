@@ -1,0 +1,21 @@
+              document_id               | count 
+----------------------------------------+-------
+ scenario:ad-memory-squeeze             |     5
+ scenario:cart-bad-image-tag            |     5
+ scenario:cart-dependency-latency       |     5
+ scenario:cart-redis-misconfig          |     5
+ scenario:frauddetection-memory-squeeze |     5
+ scenario:product-catalog-flag-failure  |     5
+ scenario:shipping-wrong-image          |     5
+(7 rows)
+
+                embedder                | dimensions | vector_dims 
+----------------------------------------+------------+-------------
+ sentence-transformers/all-MiniLM-L6-v2 |        384 |         384
+(1 row)
+
+ holdout_chunks 
+----------------
+              0
+(1 row)
+
