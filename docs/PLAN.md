@@ -270,7 +270,7 @@ carries both model ids — a judged accuracy number is a function of two models.
 `src/faultline/agents/__init__.py:1`, `docs/adr/0020-agent-layer.md`, `docs/adr/0003:6`,
 `docs/adr/0004:41`, `docs/adr/0009:117`, `docs/adr/0019-tool-layer.md`
 
-### T3.1 — triage scoring *(blocked on a decision ADR-0017 deferred to it)*
+### T3.1 — triage scoring *(pre-work done; the blocking measurement is in)*
 Scores triage, and **blast radius is what it scores on**. This is why the bundle manifest
 carries `alerts_over_window` with `began_after_revert` rather than only a snapshot.
 
@@ -280,11 +280,26 @@ that makes it subtle: `emailservice` fires after the revert in all three capture
 and not to the **blast radius** (ADR-0009 excludes it, correctly). A triage output that cannot
 express both is unscoreable against a bundle that records both.
 
-**Blocked:** blast-radius reasoning needs sync/async edge semantics, which the trace graph
-cannot supply. ADR-0017 marked that decision "at T3.1, which is the first task that needs an
-answer" — it does.
+~~**Blocked:** blast-radius reasoning needs sync/async edge semantics~~ — **unblocked
+2026-08-25.** The kinds are measured and land as data on every `Edge`:
+**9 synchronous, 1 asynchronous, 5 unmeasured** (`docs/evidence/t3.1-edge-kinds/`, ADR-0017's
+addendum). Both cross-checks reproduce — `checkoutservice → emailservice` is sync, caller error
+0 → 0.061 as the callee died; `checkoutservice → frauddetectionservice` is async, callee dead
+for 852s and caller error 0 → 0 throughout. The two are identical in the snapshot, same parent
+and both at 286 calls.
+
+ADR-0017 preferred `span.kind` and **the bundles hold no trace data at all**, so the
+measurement is failure propagation from the ten recorded incidents instead — the property blast
+radius needs rather than a proxy for it, and stronger where it exists. Where no bundle broke a
+callee there is nothing, and `unmeasured` is a distinct value rather than a default to `sync`.
+**Any blast-radius figure should quote the five unmeasured edges** — a third of the graph — the
+way every other figure here carries its `n`.
+
+Still to build: the triage role itself, against ADR-0020 §6's output contract.
 `docs/adr/0009:117`, `docs/adr/0009:137`, `docs/adr/0020-agent-layer.md`,
-`docs/adr/0017-context-layer-graph-and-dependency-policy.md`, `src/evalharness/rehearse.py:590`
+`docs/adr/0017-context-layer-graph-and-dependency-policy.md`,
+`docs/evidence/t3.1-edge-kinds/README.md`, `src/faultline/context/graph.py`,
+`src/evalharness/rehearse.py:590`
 
 ### T3.5 — state machine
 Part of the orchestrator's eleven-state machine. The states and their triggers are proposed

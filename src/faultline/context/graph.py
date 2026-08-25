@@ -16,6 +16,7 @@ from __future__ import annotations
 import json
 from collections import defaultdict, deque
 from dataclasses import dataclass
+from enum import StrEnum
 from pathlib import Path
 
 from injector.world import canonical_service
@@ -51,6 +52,60 @@ a filter nobody sees.
 """
 
 
+class EdgeKind(StrEnum):
+    """Whether a caller blocks on a callee, and therefore whether failure propagates.
+
+    ADR-0017 recorded that the trace graph "records call causality, not failure propagation":
+    an edge says A's work reaches B, never that A waits for B. Measured on 2026-08-25 from the
+    recorded bundles - see `docs/evidence/t3.1-edge-kinds/`.
+    """
+
+    SYNC = "sync"
+    """Caller blocks on callee. The callee failing shows up as caller errors, and the callee
+    slowing shows up as caller latency."""
+
+    ASYNC = "async"
+    """Producer/consumer. The callee can be dead and the caller keeps completing work."""
+
+    UNMEASURED = "unmeasured"
+    """**Not a default and not a synonym for sync.** No bundle broke this callee, so nothing
+    in the recorded evidence says which kind it is. A consumer that treats this as `SYNC` is
+    guessing; one that treats it as `ASYNC` is guessing in the other direction. The point of
+    the value is that it can be counted and reported."""
+
+
+EDGE_KINDS: dict[tuple[str, str], EdgeKind] = {
+    # Measured synchronous: the callee failed or slowed in a recorded bundle, and the caller
+    # showed it. Error figures are the caller's error ratio pre-fault -> in-fault; latency
+    # figures are the caller's p95 multiple.
+    ("frontend", "cartservice"): EdgeKind.SYNC,  # err 0 -> 0.27; p95 43.5x
+    ("checkoutservice", "cartservice"): EdgeKind.SYNC,  # err 0 -> 0.54; p95 66.9x
+    ("frontend", "adservice"): EdgeKind.SYNC,  # err 0 -> 0.069
+    ("frontend", "recommendationservice"): EdgeKind.SYNC,  # err 0.013 -> 0.077
+    ("checkoutservice", "shippingservice"): EdgeKind.SYNC,  # err 0 -> 0.227
+    ("checkoutservice", "emailservice"): EdgeKind.SYNC,  # err 0 -> 0.061 (cross-check)
+    ("frontend", "productcatalogservice"): EdgeKind.SYNC,  # p95 27.7x
+    ("checkoutservice", "productcatalogservice"): EdgeKind.SYNC,  # p95 34.7x
+    ("recommendationservice", "productcatalogservice"): EdgeKind.SYNC,  # p95 91.9x
+    # Measured asynchronous: the callee was dead for the whole fault and the caller's error
+    # ratio never moved. Kafka carries this one, and trace context propagates through it,
+    # which is why the graph cannot see the difference.
+    ("checkoutservice", "frauddetectionservice"): EdgeKind.ASYNC,  # callee 0.196 -> 0.014 req/s,
+    # caller err 0 -> 0 (cross-check)
+}
+"""Edge kinds measured from the recorded bundles, not from `span.kind`.
+
+`span.kind` was ADR-0017's preferred source and **the bundles contain no trace data at all** -
+see `docs/evidence/t3.1-edge-kinds/README.md`. What they do contain is ten incidents in which
+a named service was broken on purpose, which measures the property blast radius actually needs
+rather than a proxy for it.
+
+Any edge absent from this table is `UNMEASURED`. Five of the fifteen are, because no bundle
+ever broke their callee: nothing recorded says what `checkoutservice -> paymentservice` does
+when payment fails.
+"""
+
+
 @dataclass(frozen=True, slots=True)
 class Edge:
     """One directed dependency, with both endpoints already canonicalised."""
@@ -58,6 +113,7 @@ class Edge:
     parent: str
     child: str
     call_count: int
+    kind: EdgeKind = EdgeKind.UNMEASURED
 
 
 class ServiceGraph:
@@ -84,7 +140,16 @@ class ServiceGraph:
             child = canonical_service(entry["child"])
             if (parent, child) in ARTIFACT_EDGES:
                 continue
-            edges.append(Edge(parent=parent, child=child, call_count=int(entry["callCount"])))
+            edges.append(
+                Edge(
+                    parent=parent,
+                    child=child,
+                    call_count=int(entry["callCount"]),
+                    # Absent means unmeasured. Deliberately not `.get(..., SYNC)`: defaulting
+                    # to the common case is how an unmeasured edge becomes an asserted one.
+                    kind=EDGE_KINDS.get((parent, child), EdgeKind.UNMEASURED),
+                )
+            )
         return cls(edges)
 
     @property
@@ -136,3 +201,18 @@ class ServiceGraph:
     def within(self, source: str, target: str, radius: int) -> bool:
         distance = self.hops(source, target)
         return distance is not None and distance <= radius
+
+    def kind_of(self, parent: str, child: str) -> EdgeKind:
+        """The measured kind of one directed edge, or `UNMEASURED` if there is no such edge."""
+        source, target = canonical_service(parent), canonical_service(child)
+        for edge in self.edges:
+            if edge.parent == source and edge.child == target:
+                return edge.kind
+        return EdgeKind.UNMEASURED
+
+    def edges_by_kind(self) -> dict[EdgeKind, list[Edge]]:
+        """Grouped, so a consumer can report how much of the graph it is guessing about."""
+        grouped: dict[EdgeKind, list[Edge]] = {kind: [] for kind in EdgeKind}
+        for edge in self.edges:
+            grouped[edge.kind].append(edge)
+        return grouped
