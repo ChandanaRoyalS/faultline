@@ -232,10 +232,17 @@ Four things it must hold, each because something downstream fails without it:
 - **The model and effort.** Two trajectories from different models are not comparable, and
   nothing else in the record would say so.
 
-**Marked for decision:** whether envelopes are stored inline or content-addressed. A 500-line
-log capture per tool call across a sweep is not small, and the same envelope recurs across
-repeats of one scenario. Inline is simpler and honest; content-addressed is smaller and adds a
-place for a hash to disagree with its content.
+~~**Marked for decision:**~~ **Decided at T3.2: stored inline in Postgres, keyed by
+`result_id`, alongside the other trajectory tables.** One queryable store, consistent with
+`change_records`, and each row is exactly what one call saw.
+
+The size argument stands and is not resolved by this: identical envelopes recur across repeats
+of one scenario and are stored once per call, not once per distinct text. What the row carries
+instead is an `envelope_sha256` beside the text, so the byte-identity claim is checkable at read
+time rather than only in a smoke, and so a later decision to deduplicate has the data to justify
+itself without a migration. Content-addressing was rejected for now on the ADR's own ground -
+"a place for a hash to disagree with its content" - which is a real failure mode when the hash
+*is* the key, and merely a detectable one when it sits beside the text.
 
 ## 4. Untrusted content discipline
 
@@ -374,9 +381,22 @@ measurably wrong on two of fifteen edges.
 setting with no inherited default; and cross-evidence work as **one** planner follow-up round
 rather than tools on the synthesizer.
 
-**Marked for decision, collected:** per-role model selection, which T4.2's measured accuracy
-should settle rather than a cost estimate; and whether trajectory envelopes are stored inline or
-content-addressed.
+**Decided at T3.2, when the substrate was built** — both of the remaining open items:
+
+- **Per-role model selection: one default plus an optional override map.** `AgentSettings`
+  carries a single `model` (`claude-opus-5`) that every role uses, and a `role_models` map that
+  is empty by default. Naming a model per role would make nine decisions where the evidence
+  supports one, and this ADR already recorded that the question should be settled by T4.2's
+  measured accuracy rather than by a cost estimate — an empty map is that position expressed in
+  configuration. **Every published figure reports the effective map, not the default**: a sweep
+  run with a cheaper scribe is not the same experiment as one run without one, and a headline
+  naming only `claude-opus-5` would not show the difference. The trajectory records the map for
+  the same reason. `judge_model` remains its own setting inheriting nothing.
+- **Envelope storage: inline in Postgres, keyed by `result_id`** — see §3, where the reasoning
+  and the residual size question are recorded.
+
+**No open decisions remain in this ADR.** The placeholders below are not decisions; they are
+defaults waiting on a measurement.
 
 **Placeholders, named as such:** the three budget values, and the cost arithmetic in §1 — which
 is an assumption times a price, not a measurement.
