@@ -232,14 +232,48 @@ than the contract itself.
 
 ## Phase 3 — the agents
 
-### T3.x — nine agent roles
+### T3.x — nine agent roles *(designed, not built)*
 Triage, planner, four specialists, synthesizer, proposer, scribe.
-`src/faultline/agents/__init__.py:1`
 
-### T3.1 — triage scoring
+**ADR-0020 designs the layer** against the same ten narratives T2.6 took its requirements
+from, read as a behavioural spec. It closes the largest unwritten contract in the project:
+**ADR-0003 specified the runtime and named no model.** The decision is an API model behind a
+provider-agnostic boundary — `claude-opus-5`, $5/$25 per Mtok — with the boundary required by
+ADR-0004's benchmark routing rather than by preference, and with one honest cost recorded: a
+pinned model id is stable in name and not in behaviour, so every published accuracy figure now
+carries the model id the way every other figure carries `n`.
+
+Also: the nine roles' contracts and which orchestrator state each serves; the trajectory
+record, which is T4.2's scoring input and T5.3's replay source at once and must store the
+rendered envelope rather than the object it came from; the untrusted-content rule for what the
+scribe may quote into an incident record, since that record becomes corpus material and a
+hostile log line copied into it is thesis 1 with a persistence layer; and a three-part budget
+where exhaustion finishes the investigation early with a flagged verdict rather than failing
+it, because a partial diagnosis is scoreable and a `FAILED` incident is not.
+
+Two findings from re-reading the narratives. The four specialists map cleanly onto the four
+tools and the **load does not**: change and metrics are needed by 10 of 10 investigations,
+logs by 7, traces by 2. And **nothing owns ruling things out**, which `ARTIFACTS.md` says is
+the most valuable content in a narrative — so specialist output carries `ruled_out` beside
+`found`.
+`src/faultline/agents/__init__.py:1`, `docs/adr/0020-agent-layer.md`, `docs/adr/0003:6`,
+`docs/adr/0004:41`, `docs/adr/0009:117`, `docs/adr/0019-tool-layer.md`
+
+### T3.1 — triage scoring *(blocked on a decision ADR-0017 deferred to it)*
 Scores triage, and **blast radius is what it scores on**. This is why the bundle manifest
 carries `alerts_over_window` with `began_after_revert` rather than only a snapshot.
-`docs/adr/0009:117`, `docs/adr/0009:137`, `src/evalharness/rehearse.py:590`
+
+ADR-0020 §6 makes the triage output contract the mirror of that scoring, and surfaces the case
+that makes it subtle: `emailservice` fires after the revert in all three captured
+`cart-redis-misconfig` runs, and it belongs to the **incident** (ADR-0016 joins it, correctly)
+and not to the **blast radius** (ADR-0009 excludes it, correctly). A triage output that cannot
+express both is unscoreable against a bundle that records both.
+
+**Blocked:** blast-radius reasoning needs sync/async edge semantics, which the trace graph
+cannot supply. ADR-0017 marked that decision "at T3.1, which is the first task that needs an
+answer" — it does.
+`docs/adr/0009:117`, `docs/adr/0009:137`, `docs/adr/0020-agent-layer.md`,
+`docs/adr/0017-context-layer-graph-and-dependency-policy.md`, `src/evalharness/rehearse.py:590`
 
 ### T3.5 — state machine
 Part of the orchestrator's eleven-state machine. The states and their triggers are proposed
