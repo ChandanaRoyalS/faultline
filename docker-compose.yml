@@ -4,7 +4,18 @@
 #   --profile eval     : eval-harness runs (Phase 4)
 services:
   postgres:
-    image: postgres:16-alpine
+    # pgvector, not plain postgres: ADR-0002 puts the vector store inside the system of
+    # record, and postgres:16-alpine has no `vector` extension to enable (T2.4b, ADR-0018).
+    #
+    # Free to change: this file is NOT one of the three inputs to `world.compose_digest`
+    # (ADR-0014 digests world/docker-compose.yml and the two compose/ world overrides), so
+    # editing it invalidates no recorded bundle.
+    #
+    # Same PG major, different base image - alpine is musl and this is glibc, so an existing
+    # pgdata volume carries a collation mismatch. Recreate it (`docker compose --profile
+    # platform down -v`); the only data in it is the T2.2 smoke's incidents, already captured
+    # in docs/evidence/t2.2-live-smoke/final-state.txt.
+    image: pgvector/pgvector:pg16
     profiles: ["platform", "eval"]
     environment:
       POSTGRES_USER: faultline
