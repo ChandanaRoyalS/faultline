@@ -1,0 +1,43 @@
+{
+  "incident_id": "974d48d7-c7ba-4884-b40d-f36abc3481e1",
+  "trajectory_id": "e33d23d9-a64d-423a-8624-0e859be92ee0",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origin": "scenario:frauddetection-memory-squeeze",
+  "verdict": {
+    "root_cause": "At 08:33:59Z an automated actor (platform-automation) lowered the container memory limit on frauddetection-service to 200m (tr_91f6abb9990d). Within about a minute the service stopped emitting its steady-state Kafka order-consumption lines and entered a sustained crash/restart loop: the JVM/agent startup triple repeats on a near-constant ~62s cadence from 08:35 through at least 08:42, with no application ERROR or exception text at any point, including around the 08:40 alert (tr_48f2dfb41dd7). A process killed by the kernel for exceeding its cgroup limit dies without emitting an application-level error, which matches exactly what the logs show. The absence of any calls_total series \u2014 numerator and denominator both empty \u2014 over 08:30\u201308:45 (tr_6a4a801562db, tr_897542911029) is the metrics-side shadow of the same fact: the container never lives long enough past agent attach to serve traffic or export span metrics. The most probable root cause is a self-inflicted resource-limit reduction that put the ceiling below the JVM's configured/committed footprint, causing repeated kills before application readiness.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_91f6abb9990d",
+      "tr_48f2dfb41dd7",
+      "tr_6a4a801562db",
+      "tr_897542911029"
+    ],
+    "reasoning": "Three independent lines converge on one timeline. (1) Change: exactly one change landed in the window and it is a resource-limit reduction, six minutes before the incident marker; code deploy, feature flag, and dependency bump were each explicitly ruled out from the same change history (tr_91f6abb9990d). (2) Logs: the transition from normal order-consumption output at 08:30 to eight regularly-spaced startup cycles between 08:35 and 08:42 is a restart loop, not a deploy or one-off restart, and the specialist ruled out both a broken log pipeline and a failed agent attach as explanations for the missing error text (tr_48f2dfb41dd7). The failure occurring after agent attach but before any application logging places the kill in the early-heap-growth phase, which is where a too-low memory ceiling bites. (3) Metrics: the empty calls_total denominator rules out the 'healthy service, mild error fraction' reading and is consistent with a process that never reaches serving state (tr_6a4a801562db, tr_897542911029). No single dispatch proves OOM; the confidence rests on the timing coincidence plus the specific signature of silent, periodic death. Remediation is a config revert rather than a rollback because no code artifact changed \u2014 only the ceiling \u2014 and the actor is an automation controller, so the revert may need to be applied at the policy level or it will be re-applied.",
+    "open_questions": [
+      "No container memory telemetry was ever retrieved. container_memory_working_set_bytes, container_spec_memory_limit_bytes, an OOM-kill counter, or a kube-state-metrics restart count would confirm or refute the OOM hypothesis directly; both metrics dispatches ran only an error-ratio query and explicitly left this open (tr_897542911029).",
+      "The prior memory limit is not recorded (tr_91f6abb9990d), so the magnitude of the reduction is unknown and it cannot be shown that 200m is actually below the JVM's configured heap plus overhead. A JAVA_TOOL_OPTIONS / -Xmx value would settle whether 200m is genuinely insufficient.",
+      "Why platform-automation made this change is unknown \u2014 a limit-tuning controller, a policy rollout, or a bad admission-webhook default would each imply different scope. Other services may have received the same reduction; triage covered only frauddetectionservice.",
+      "The empty calls_total series has a second candidate explanation the specialists flagged but did not eliminate: a label/metric-name mismatch or absent spanmetrics pipeline for this service (tr_6a4a801562db). If that is the case, the metrics evidence corroborates nothing and the verdict rests on change timing plus logs alone.",
+      "Downstream impact is unmeasured. Order consumption stopped by 08:35 with a counter at 388; whether Kafka lag, unprocessed orders, or dependent services degraded was not investigated."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. The process ran for a few minutes on the heap it had already committed, grew,\nwas killed by the kernel, an",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m49s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\n**frontend** and **loadgenerator** crossed the error threshol",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

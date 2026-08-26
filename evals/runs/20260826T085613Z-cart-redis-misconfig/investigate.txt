@@ -1,0 +1,29 @@
+incident a4c90c9b-8890-456c-a82d-c3f117f056b8  state triaging  anchor 08:58:45
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: f7de4b28-4f08-4868-b360-966af2a8a95f
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_bb3964ca69a1, tr_1bf968ac3863, tr_02068976ffc6, tr_527612fef3ca, tr_b6e2d4120407, tr_ef9d5034c262, tr_ebef06a5e7f7
+  root cause  : At 08:56:14Z an automated platform pipeline applied an environment/config update to cartservice that newly introduced an explicit Redis backend address using a non-default port (redis-cart:6380 rather than the default 6379) (tr_bb3964ca69a1). Cartservice cannot establish a connection to that endpoint: each start attempt hangs 20-45s, fails, and throws an unhandled exception out of RedisCartStore.InitializeAsync/EnsureRedisConnected at Program.Main, producing a tight crash loop with restarts every ~30-60s, so the process dies before it ever serves cart RPCs (tr_1bf968ac3863). With cartservice absent, frontend's outbound CartService/AddItem calls fail at connection establishment (a frontend tcp.connect span marked error) and checkoutservice's PlaceOrder aborts at its CartService/GetCart child span, while non-cart read paths (productcatalog, recommendation, ad, featureflag) stay clean (tr_02068976ffc6). That explains the intermittent error bursts at frontend (~39% peak) and checkoutservice (~66% peak) confined to POST/cart-touching paths (tr_b6e2d4120407, tr_ef9d5034c262), and the empty cartservice error-ratio series is consistent with a pod that is not up long enough to emit request telemetry rather than a healthy zero (tr_527612fef3ca). No frontend change is implicated (tr_ebef06a5e7f7); cartservice is the origin and the rest of the graph is propagating.
+  OPEN        : It is not established that 6380 is the wrong value versus redis-cart having failed to move to 6380 as intended — nobody queried the Redis instance itself for its listening port or health. If Redis was supposed to be reconfigured too, the correct fix is on the Redis side, not a revert of cartservice.
+  OPEN        : There is a gap between the 08:58:45 onset and the first observed crash-loop lines at 09:00:25; the 08:56-09:00 log interval was not retrieved, so the exact first failure and whether the old pods drained gradually is unmeasured.
+  OPEN        : Whether the same platform-automation change touched other services or other environments is unknown — the changes query covered only frontend and cartservice, not the nine downstream dependencies, and the frontend query window was 15 minutes rather than the requested 90.
+  OPEN        : The cartservice telemetry gap is not fully diagnosed: crash-looping pods and a scrape/label-naming break are both consistent with the empty series, and no pod restart count or replica availability data was returned to distinguish them.
+  OPEN        : Triage flagged 4 unmeasured edges; none were probed. Loadgenerator was never examined on its own terms, though the corpus suggests it merely restates storefront failures.
+  OPEN        : No post-change verification exists: nothing in the evidence confirms that reverting the Redis address restores cartservice startup, so the fix should be treated as a hypothesis to validate on rollout.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T085613Z-cart-redis-misconfig/a4c90c9b-8890-456c-a82d-c3f117f056b8-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T085613Z-cart-redis-misconfig/a4c90c9b-8890-456c-a82d-c3f117f056b8-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 14131.01it/s]

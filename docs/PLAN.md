@@ -707,7 +707,7 @@ Open and reported both ways until settled: **`k` counts chunks, not documents.**
 `docs/adr/0022-evaluation-harness.md`, `docs/adr/0008:96`, `evals/scenarios/SCHEMA.md:21`,
 `docs/adr/0002:19`, `tests/test_artifact_bundle.py:121`
 
-### T4.2 — RCA and remediation scoring *(designed, ADR-0022 §§1-2, 5)*
+### T4.2 — RCA and remediation scoring *(deterministic half built; the judge is still owed)*
 Scores runs against the recorded bundles. Must report remediation-class accuracy **broken
 out by fault class**, never only in aggregate.
 
@@ -734,7 +734,61 @@ entry-point distance and is not scored as culprit accuracy.
 
 The judge decisions from ADR-0020 §1 govern unchanged, and ADR-0022 adds what it is asked:
 root-cause agreement at three levels, dead ends closed, and traps taken - **never the
-`fault_class` label**, which would be ADR-0008's fifth axis by construction.
+`fault_class` label**, which would be ADR-0008's fifth axis by construction. **The judge is not
+built.** What is built is everything deterministic, plus the first dev sweep it will eventually
+be pointed at.
+
+**The leak guard turned out to be two guards.** Its first live refusal took run 3's whole
+narrative over a sentence containing no banned word: `default` contains `fault`, on a scenario
+whose subject is a Redis port that is not the default one. Diagnosed before anything moved -
+`BANNED_VOCABULARY` was built for the **change tool**, whose text is rendered from the injector's
+own model, so any of that vocabulary appearing there is evidence the rendering leaked and a
+substring match is right. The scribe composes prose from validated findings and cannot see that
+model, so the same string proves nothing. Recorded in ADR-0019's leak-boundary section: terms
+that reveal the harness stay banned everywhere (`HARNESS_VOCABULARY`, including the four class
+labels, which are the answer key); ordinary incident vocabulary is banned only where its
+appearance is evidence of leakage (`PROSE_VOCABULARY` - one word, `fault`). The narrative guard
+matches on boundaries, **asymmetrically**: nothing may precede a term, which is what makes
+`default` safe, but inflections may follow one, because a strict tail lets `scenarios` and
+`rehearsed` through. The change-tool guard is byte-for-byte unchanged and its `KNOWN_LEAKING_FAULTS`
+pin still holds.
+
+**`narrative_refused` is a fifth reported-separately category.** Run 3 produced a correct verdict,
+exited 0, and wrote no narrative, and the scored report said nothing about it - so a judge would
+have had nothing to score and no way to tell that from an oversight. Printed at zero like the
+other four. The four categories are also **disjoint** now: a budget-exhaustion flag was being
+counted both as `flagged` and as `budget_exhausted`, which double-counted one run in the sweep.
+
+**The first dev sweep has run** (`evals/runs/SWEEP-2026-08-26.md`): seven scenarios, one scored
+run each, **one pipeline stamp across all seven**, 259,299 tokens and **$2.92** against a $3.85
+budget. Coverage 7/7, zero abstentions.
+
+Two things the per-class table shows that neither aggregate does. **`bad_config` is behaving as a
+default** - returned for five of seven, right on both that are `bad_config` and wrong on all three
+that are not, so 4/7 fault-class accuracy describes a different system than it sounds like. And
+**the 6/7 class-of-fix figure is inflated by label collinearity**: `resource_exhaustion` and
+`bad_config` share `config_revert`, so both resource-exhaustion runs got the fix right *while
+getting the fault class wrong*. Per class: `bad_config` 2/2, `bad_deploy` 2/2,
+`resource_exhaustion` **0/2**, `dependency_latency` 0/1, `scale` no scenario.
+
+Triage over seven: recall mean **0.94**, precision mean **0.56**, 19 unmeasured edges crossed.
+**ADR-0017's under-reach number now exists at n=7** and points at one specific pair -
+`frauddetectionservice` and `quoteservice`, missed on both cart-rooted scenarios and nowhere else.
+
+`cart-dependency-latency` reproduced T3.5's disputed miss **exactly**, on an independent run: same
+two wrong labels, same reasoning shape. One observation was an anecdote; two is a pattern.
+
+> **Decision owed, and deliberately not taken here: the contradiction checker.** Its live ledger
+> is now **0 true positives, 4 false positives**. The two new firings are `?` not being a clause
+> boundary, and the evidence words `image` and `flag` matching inside `image-pull` and `flagged`.
+> ADR-0022 §Consequences: "If a first batch does not improve it, the honest options are to narrow
+> it further or to retire it - and either is a decision with an ADR, not a quiet edit." The first
+> batch has run. Taking the decision inside the sweep that produced its evidence would be that
+> quiet edit.
+
+> **Note for T4.1: no retry on transient API failures.** A 529 on the first model call cost a
+> whole scenario slot - injection, correlation wait, revert, ten minutes - and the sweep continued
+> past it correctly. A sweep is where that costs the most.
 `docs/adr/0022-evaluation-harness.md`, `docs/adr/0008:121`, `docs/adr/0009:12`
 
 ---

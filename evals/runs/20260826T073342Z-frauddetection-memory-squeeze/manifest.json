@@ -1,0 +1,51 @@
+{
+  "run_id": "20260826T073342Z-frauddetection-memory-squeeze",
+  "scenario_id": "frauddetection-memory-squeeze",
+  "split": "dev",
+  "scenario_fingerprint": "8309cd84c4bb1ce6d3965e942c8d37ad85b0a905eb2d3189d8981b0928037ef0",
+  "started_at": "2026-08-26T07:33:42.176745+00:00",
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "ca2fe079350afcf679b434b5ff1bd73b2da479ff",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      1694
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-26T07:33:42.545846+00:00",
+  "reverted_at": "2026-08-26T07:48:43.769038+00:00",
+  "discarded": {
+    "reason": "run failed",
+    "at": "2026-08-26T07:48:43.769346+00:00"
+  }
+}

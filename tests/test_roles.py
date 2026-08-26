@@ -844,3 +844,87 @@ def test_a_rejected_dispatch_reaches_the_investigations_flags() -> None:
     assert [run.service for run in result.runs] == ["cartservice"]
     flag = next(f for f in result.flags if "more than one service" in f)
     assert flag.startswith("planner produced no valid findings")
+
+
+# --- the two leak boundaries (T4.2) -------------------------------------------
+
+from faultline.agents.narrative import leaked_words  # noqa: E402
+
+# Verbatim from trajectory 5b5d82e1-f0df-46da-a903-32edbd57fb4a, run 3's "Open questions"
+# section. It contains no banned word; `default` contains `fault`, and the substring match
+# refused the entire narrative over it.
+RUN3_REFUSED_SENTENCE = (
+    "No prior value was recorded for the Redis address, so it is genuinely unsettled whether "
+    "6380 replaced a working endpoint or was set for the first time over a default."
+)
+
+
+def test_the_sentence_that_cost_run_three_its_narrative_now_renders() -> None:
+    """**The guard's first live refusal**, and the diagnosis is not what the error message said.
+
+    The error read `the narrative mentions ['fault']`. The scribe never wrote `fault`: it wrote
+    `default`, in a sentence about a Redis port, on a scenario whose entire subject is a port
+    that is not the default one. A whole narrative was lost to a substring match on ordinary
+    English (`docs/evidence/t4.1-first-scored-run/`).
+    """
+    assert "fault" not in RUN3_REFUSED_SENTENCE.split(), "the bare word never appears"
+    assert "default" in RUN3_REFUSED_SENTENCE
+
+    assert leaked_words(RUN3_REFUSED_SENTENCE) == []
+
+
+def test_ordinary_incident_english_is_not_a_leak_in_prose_the_agent_composed() -> None:
+    """The scribe writes in its own voice from validated findings and cannot see the injector's
+    model. `fault` there is a responder writing English, not evidence of anything."""
+    for sentence in (
+        "The fault domain was wider than the page suggested.",
+        "A faulty connection to the datastore, not a faulty service.",
+        "Traffic defaulted to the healthy replica.",
+    ):
+        assert leaked_words(sentence) == [], sentence
+
+
+def test_harness_vocabulary_is_still_refused_in_prose() -> None:
+    """The boundary that did not move. These reveal that the incident was manufactured, or hand
+    the reader the classification, and no narrative legitimately needs any of them."""
+    assert leaked_words("this scenario was injected by the injector") == [
+        "inject",
+        "injected",
+        "injector",
+        "scenario",
+    ]
+    assert leaked_words("a chaos experiment using pumba and netem") == ["chaos", "netem", "pumba"]
+    for label in ("bad_deploy", "bad_config", "dependency_latency", "resource_exhaustion"):
+        assert leaked_words(f"the class is {label} here") == [label], label
+
+
+def test_the_class_labels_stay_banned_because_they_are_the_answer_key() -> None:
+    """`ARTIFACTS.md` forbids opening with the diagnosis; naming the class does it in one word.
+    This is the half of the old list that had nothing to do with substring accidents."""
+    assert leaked_words("This was a bad_deploy.") == ["bad_deploy"]
+
+
+def test_word_boundaries_do_not_let_a_real_leak_through() -> None:
+    """Boundary matching is the fix, and it must not become an escape hatch.
+
+    The two ends are not symmetric on purpose: nothing may precede a term (that is what makes
+    `default` safe), but ordinary inflections may follow it (that is what stops `scenarios` and
+    `rehearsed` walking straight through).
+    """
+    assert leaked_words("two scenarios were rehearsed") == ["rehearse", "scenario"]
+    assert leaked_words("(injection)") == ["injection"]
+    assert leaked_words("chaos, then quiet") == ["chaos"]
+
+
+def test_the_change_record_guard_is_unchanged_and_still_substring_matched() -> None:
+    """The other boundary. That text is rendered from the injector's own model, so any of its
+    vocabulary appearing there is evidence the rendering leaked - an over-match costs nothing
+    and a miss costs the experiment. `BANNED_VOCABULARY` keeps `fault` and keeps its semantics.
+    """
+    from faultline.tools.changes import BANNED_VOCABULARY, HARNESS_VOCABULARY, PROSE_VOCABULARY
+
+    assert BANNED_VOCABULARY == HARNESS_VOCABULARY | PROSE_VOCABULARY
+    assert sorted(PROSE_VOCABULARY) == ["fault"], "one word moved, and it is visible"
+    assert "fault" in BANNED_VOCABULARY and "fault" not in HARNESS_VOCABULARY
+    # Substring semantics, as T2.6 built them.
+    assert [w for w in BANNED_VOCABULARY if w in "over a default"] == ["fault"]

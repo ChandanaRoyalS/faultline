@@ -1,0 +1,58 @@
+{
+  "incident_id": "a4c90c9b-8890-456c-a82d-c3f117f056b8",
+  "trajectory_id": "f7de4b28-4f08-4868-b360-966af2a8a95f",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-redis-misconfig",
+  "verdict": {
+    "root_cause": "At 08:56:14Z an automated platform pipeline applied an environment/config update to cartservice that newly introduced an explicit Redis backend address using a non-default port (redis-cart:6380 rather than the default 6379) (tr_bb3964ca69a1). Cartservice cannot establish a connection to that endpoint: each start attempt hangs 20-45s, fails, and throws an unhandled exception out of RedisCartStore.InitializeAsync/EnsureRedisConnected at Program.Main, producing a tight crash loop with restarts every ~30-60s, so the process dies before it ever serves cart RPCs (tr_1bf968ac3863). With cartservice absent, frontend's outbound CartService/AddItem calls fail at connection establishment (a frontend tcp.connect span marked error) and checkoutservice's PlaceOrder aborts at its CartService/GetCart child span, while non-cart read paths (productcatalog, recommendation, ad, featureflag) stay clean (tr_02068976ffc6). That explains the intermittent error bursts at frontend (~39% peak) and checkoutservice (~66% peak) confined to POST/cart-touching paths (tr_b6e2d4120407, tr_ef9d5034c262), and the empty cartservice error-ratio series is consistent with a pod that is not up long enough to emit request telemetry rather than a healthy zero (tr_527612fef3ca). No frontend change is implicated (tr_ebef06a5e7f7); cartservice is the origin and the rest of the graph is propagating.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_bb3964ca69a1",
+      "tr_1bf968ac3863",
+      "tr_02068976ffc6",
+      "tr_527612fef3ca",
+      "tr_b6e2d4120407",
+      "tr_ef9d5034c262",
+      "tr_ebef06a5e7f7"
+    ],
+    "reasoning": "Three independent lines converge. (1) Timing and mechanism: the only recorded change on the only service that is hard-down is a config edit landing 2m31s before the first page, and it sets exactly the parameter that the crash-loop stack trace fails on \u2014 the Redis connection target (tr_bb3964ca69a1, tr_1bf968ac3863). (2) Topology: traces localise every error to the cart edge and to connection establishment, not to application logic downstream, not to latency, and not to frontend itself, with healthy sibling read paths in the same window proving the blast radius is cart-shaped (tr_02068976ffc6). (3) Consistency of the negative signals: frontend has no in-window change to blame (tr_ebef06a5e7f7), and cartservice's missing metric series has an empty denominator, which fits a process that keeps dying at startup rather than a healthy quiet service (tr_527612fef3ca) \u2014 the same trap the cart-bad-image-tag corpus entry records as a misread. The specialists ruled out the competing stories explicitly: latency/timeout cascade and resource saturation (all erroring spans sub-8ms), currency/payment/accounting involvement (no such spans), TLS and auth failure modes (ssl disabled, connect-level failure with long hangs), intermittent-and-self-healing Redis (no successful connect in any cycle), and per-request application bugs (exception is unhandled out of Main). Because the failure is a wrong configured value introduced by automation rather than a code rollout, the corrective action is to revert that environment setting to the previously working Redis endpoint; a restart alone will only re-enter the loop and there is no code release to roll back.",
+    "open_questions": [
+      "It is not established that 6380 is the wrong value versus redis-cart having failed to move to 6380 as intended \u2014 nobody queried the Redis instance itself for its listening port or health. If Redis was supposed to be reconfigured too, the correct fix is on the Redis side, not a revert of cartservice.",
+      "There is a gap between the 08:58:45 onset and the first observed crash-loop lines at 09:00:25; the 08:56-09:00 log interval was not retrieved, so the exact first failure and whether the old pods drained gradually is unmeasured.",
+      "Whether the same platform-automation change touched other services or other environments is unknown \u2014 the changes query covered only frontend and cartservice, not the nine downstream dependencies, and the frontend query window was 15 minutes rather than the requested 90.",
+      "The cartservice telemetry gap is not fully diagnosed: crash-looping pods and a scrape/label-naming break are both consistent with the empty series, and no pod restart count or replica availability data was returned to distinguish them.",
+      "Triage flagged 4 unmeasured edges; none were probed. Loadgenerator was never examined on its own terms, though the corpus suggests it merely restates storefront failures.",
+      "No post-change verification exists: nothing in the evidence confirms that reverting the Redis address restores cartservice startup, so the fix should be treated as a hypothesis to validate on rollout."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired ",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

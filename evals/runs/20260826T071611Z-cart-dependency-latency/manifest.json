@@ -1,0 +1,137 @@
+{
+  "run_id": "20260826T071611Z-cart-dependency-latency",
+  "scenario_id": "cart-dependency-latency",
+  "split": "dev",
+  "scenario_fingerprint": "c982653939a5c1ff29bf570cf2e5b2760075c7cc0456a7471c22f585f3cb425b",
+  "started_at": "2026-08-26T07:16:11.063133+00:00",
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "ca2fe079350afcf679b434b5ff1bd73b2da479ff",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      643
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-26T07:16:11.429874+00:00",
+  "incident_id": "78d0d6bb-9a3b-4d6d-b868-5a3ae6f4049c",
+  "investigate_exit_code": 0,
+  "reverted_at": "2026-08-26T07:25:30.121285+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      1353
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260826T071611Z-cart-dependency-latency",
+    "scenario_id": "cart-dependency-latency",
+    "trajectory_id": "6bcee774-3c1d-47b6-a4ec-a65b5a399429",
+    "runtime_version": "faultline/0.0.1+prompts:59bf438b2a96",
+    "reached_a_class": true,
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.3333333333333333,
+      "matched": [
+        "cartservice",
+        "checkoutservice",
+        "frontend",
+        "loadgenerator"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "accountingservice",
+        "adservice",
+        "currencyservice",
+        "emailservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice",
+        "shippingservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 4,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "dependency_latency",
+      "returned": "bad_config",
+      "correct": false,
+      "abstained": false,
+      "dispute": "ADR-0022 \u00a71.2"
+    },
+    "fix_class": {
+      "truth": "restart",
+      "returned": "config_revert",
+      "correct": false,
+      "abstained": false,
+      "dispute": "ADR-0022 \u00a71.2"
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 29224,
+    "tokens_out": 12942,
+    "cost_usd": 0.4697,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-26T07:28:01.985289+00:00"
+}

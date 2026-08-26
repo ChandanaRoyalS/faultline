@@ -1,0 +1,57 @@
+{
+  "incident_id": "78d0d6bb-9a3b-4d6d-b868-5a3ae6f4049c",
+  "trajectory_id": "6bcee774-3c1d-47b6-a4ec-a65b5a399429",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-dependency-latency",
+  "verdict": {
+    "root_cause": "At 07:16:15 UTC an actor identified as platform-automation attached a traffic-shaping container to cartservice's network namespace, imposing a fixed 300ms zero-jitter egress delay on the primary interface where none existed before (tr_33df3caf2e8f). Every cart request now pays that penalty once per outbound cache round-trip: traces show cartservice's Redis HGET/HMSET client spans each at ~300-305ms with the enclosing RPC exceeding its child by ~1ms, single-op GetCart at ~301ms versus two-op AddItem at ~602ms, and checkoutservice PlaceOrder inflated to ~2.46s composed almost entirely of two cart round-trips (tr_325315286bc8). Nothing is failing \u2014 frontend's error ratio is identically zero across the whole window (tr_89f3a8ef9b9b) and cartservice logs show normal cart handling on both sides of the event (tr_476780184691) \u2014 so the warning-severity alerts on frontend, checkoutservice and loadgenerator are latency propagation from the shaped cart path, not an error-rate event. This is an injected infrastructure network config, not a code deploy or resource exhaustion.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_33df3caf2e8f",
+      "tr_325315286bc8",
+      "tr_89f3a8ef9b9b",
+      "tr_476780184691",
+      "tr_f68ed951fef9"
+    ],
+    "reasoning": "Two independent lines converge. The change record gives a precise mechanism and time: a fixed 300ms, zero-jitter egress delay applied 3.5 minutes before the first alert, with no competing change, no deploy, and no flag flip in the window (tr_33df3caf2e8f). The trace evidence then matches that mechanism's predicted signature exactly rather than merely being consistent with slowness: the penalty is additive and constant (~300ms) rather than proportional, it scales with the count of cache round-trips rather than with request type or payload, it sits in the client spans with negligible callee compute, and unaffected downstream calls in the same traces (productcatalog sub-2ms, shipping ~10-18ms, email ~4-6ms) stay fast (tr_325315286bc8). Alternatives are actively excluded: not errors or timeouts, since frontend error ratio never leaves zero and timeout terminations would surface as error status (tr_89f3a8ef9b9b); not a crash or restart, since logs show steady serving before and after (tr_476780184691); not long-tailed or intermittent, since every sampled span clusters within a few ms of the 300ms floor (tr_325315286bc8). I note the trap the corpus records for this service: cartservice's flat/absent error metrics were previously read as proof cart was healthy. Here the metrics dispatch returned no series at all, including an empty denominator (tr_f68ed951fef9), so it supports neither health nor fault and I have given it no weight beyond flagging the coverage gap. The verdict rests on the change record plus trace decomposition, not on cart's error rate.",
+    "open_questions": [
+      "The caller/callee latency gap is unattributed: checkoutservice observes ~1.21s for a GetCart whose cartservice server span is only ~302ms (tr_325315286bc8). Egress shaping on cart's response path could account for part of it, but the ~900ms residual is not measured and could indicate a second contributor (queueing, connection setup, or shaping applied more broadly than the change record describes).",
+      "Whether the shaping container is scoped only to cartservice. The change record covers cartservice alone (tr_33df3caf2e8f); no other service's change history was queried, so a fleet-wide automation rollout affecting additional namespaces cannot be excluded.",
+      "Why platform-automation applied the shaping \u2014 scheduled chaos experiment, misapplied policy, or unintended reconciliation \u2014 and therefore whether reverting it will be re-applied on the next reconciliation cycle.",
+      "cartservice has no span-derived call metrics in this window at all (tr_f68ed951fef9), so the metric pipeline or service_name label for cartservice is broken independently of this incident and remains unexplained.",
+      "Latency percentiles were never measured for any service; frontend's query carried no histogram or per-peer dimension (tr_89f3a8ef9b9b), so the ~300ms step is confirmed only from sampled traces, not from aggregate percentile data.",
+      "Triage crossed 4 unmeasured edges, and no adservice or recommendationservice spans appear in the sample (tr_325315286bc8); their state is unassessed, as is the blast radius across the remaining services of the 12 flagged.",
+      "cartservice logs around the 07:19:45 alert timestamp fall entirely in the truncated middle of the result (tr_476780184691), so nothing rules out a distinct transient event at that exact moment layered on top of the latency floor."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-bad-image-tag / Resolution: The image reference was restored to the previously deployed tag. cartservice came up on\nthe next reconciliation and the no-traffic alerts cleared eight seconds later \u2014 those\nsix services had never been broken, only starved.\n\nA brief `ServiceHighErrorRate` appeared on **emailservi"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

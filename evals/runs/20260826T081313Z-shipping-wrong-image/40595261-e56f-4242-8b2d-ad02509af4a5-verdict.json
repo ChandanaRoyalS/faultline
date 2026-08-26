@@ -1,0 +1,58 @@
+{
+  "incident_id": "40595261-e56f-4242-8b2d-ad02509af4a5",
+  "trajectory_id": "502b305e-73de-4b4e-a5e1-cd68828aea57",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:shipping-wrong-image",
+  "verdict": {
+    "root_cause": "At 08:13:17Z an automated pipeline (platform-automation) updated shippingservice's image reference to a tag that names a different service, and the prior image value is recorded as absent \u2014 a mistagged/mistargeted rollout rather than a version bump (tr_4eed29ed8cd8). The consequence is visible in shippingservice's own log stream: normal Rust/tonic quote-serving lines stop after 08:06:06, and from 08:13:38 onward the stream contains only JVM/OpenTelemetry Java agent startup banners repeating every ~60-65s with no request-handling lines \u2014 a wrong-runtime container in a restart loop, and an emitter change consistent with a different service's image running under the shippingservice label (tr_af45c73ad1a3). Downstream, every failing checkout trace fails on the same deepest span, checkoutservice's outbound GetQuote to ShippingService, with no shippingservice server span beneath it and ~2-3ms durations, i.e. RPCs rejected at connect time rather than a slow dependency (tr_de43511de1d1), producing the partial (~0.28 peak) error ratio on checkoutservice (tr_e1b79455abe4) as requests land between restart attempts. No change of any kind was recorded on checkoutservice itself (tr_aac7acaa0876), so checkout is a victim, not the origin.",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_4eed29ed8cd8",
+      "tr_af45c73ad1a3",
+      "tr_de43511de1d1",
+      "tr_e1b79455abe4",
+      "tr_aac7acaa0876",
+      "tr_6a7ac5b47690"
+    ],
+    "reasoning": "Three independent lines converge on shippingservice as origin and on a mistagged image as mechanism. (1) Timing and trigger: the only recorded change anywhere in the dispatched set is the shippingservice image update ~2.5 minutes before the incident marker, by automation, with a tag naming a different service (tr_4eed29ed8cd8). (2) Effect at the service: shippingservice stops emitting serving lines and emits only repeated JVM startup banners, and those banners are a different runtime family than the earlier tonic/Rust serving lines \u2014 the log emitter changed at the same time the image changed, which is what running the wrong image looks like (tr_af45c73ad1a3). (3) Effect on the alerting service: traces put the deepest error on checkoutservice's client span to ShippingService/GetQuote with no server span underneath and no latency elongation, exactly the signature of connecting to a process that is not up, and they affirmatively clear cart, product catalog, currency, frontend, and checkout's own logic (tr_de43511de1d1). Checkoutservice's own change stream is empty across onset, ruling out self-inflicted change there (tr_aac7acaa0876). The metrics dispatch on shippingservice returned nothing for numerator or denominator (tr_6a7ac5b47690); the specialist correctly declined to read that as health, and it is at least consistent with a process not staying up long enough to be scraped, though a selector/schema mismatch is the competing explanation and this evidence cannot separate them. The corpus contains a near-identical prior case (cart-bad-image-tag) where a downstream service showed no error metrics and was wrongly cleared \u2014 that pattern is a caution here, not proof, and I am relying on the change record plus the runtime mismatch in logs, not on the empty metric. Remediation follows the mechanism: revert the image reference to the correct shippingservice tag; a restart alone would only re-launch the wrong image.",
+    "open_questions": [
+      "The empty shippingservice metric series (tr_6a7ac5b47690) was never resolved \u2014 it could be a crash-looping process that never gets scraped, or a wrong metric/label schema in the query. Until that is settled there is no quantified error or traffic baseline for shippingservice itself, and no independent metric confirmation of the outage.",
+      "quoteservice alerted at 08:19:15 and was never dispatched on. The shipping logs contain no reference to quoteservice or any upstream (tr_af45c73ad1a3), so whether quoteservice is a second victim, a co-casualty of the same pipeline run, or an independent problem is unknown.",
+      "accountingservice, emailservice, and frauddetectionservice alerted at 08:19:30 and were not investigated. Their relationship to the checkout failure path (likely async order-completion consumers) is inferred, not shown; triage flagged 5 unmeasured edges crossed.",
+      "The exact identity of the wrongly-tagged image was not confirmed \u2014 the change record notes the tag names a different service (tr_4eed29ed8cd8) but which service's image is actually running under the shippingservice label was not verified.",
+      "The prior image value is recorded as absent, so the correct rollback target is not established by this evidence; the last-known-good shippingservice image reference needs to be recovered before reverting.",
+      "Whether the same automation run mistagged other services was not checked. Only checkoutservice and shippingservice change streams were queried, and the checkoutservice query covered only a 15-minute window rather than the intended 60-minute lookback.",
+      "Why checkoutservice's error ratio peaks near 0.28 rather than approaching total failure is not directly demonstrated. The restart-loop-window explanation is plausible but was not confirmed against a per-minute correlation of restart timing and error timing."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

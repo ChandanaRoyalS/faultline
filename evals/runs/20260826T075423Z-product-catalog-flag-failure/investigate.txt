@@ -1,0 +1,30 @@
+incident f0c194c2-8efd-44eb-83c5-44631b7120f7  state triaging  anchor 07:57:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: bdbf0e4f-070d-4506-b416-ab9d493ebbb7
+investigation: 2 round(s), 4 dispatch(es), 13 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_980bdafbad25, tr_13eeae184326, tr_7bc4eaa0c1f7, tr_cc460af77246
+  root cause  : productcatalogservice is deliberately returning gRPC INTERNAL (code 13) responses to a fraction of calls because a 'fail' feature flag is enabled on it. The frontend is the visible victim: its logs show the error status arriving on the gRPC client receive path with detail text naming ProductCatalogService and the enabled fail flag (tr_980bdafbad25), and productcatalogservice's own error ratio is elevated and highly variable (roughly 0.6% to 17% across 31 continuous samples) rather than total (tr_13eeae184326) — the signature of a partial, injected fault on a service that is otherwise up and serving. The alert ordering (loadgenerator and frontend paging together, with frontend errors present from at least 07:54:30) is consistent with an edge-visible symptom of a mid-tier fault rather than a frontend defect. The flag flip itself is not attributed in the change record: both change queries over 07:47:45–08:02:45 returned nothing for productcatalogservice (tr_7bc4eaa0c1f7, tr_cc460af77246), and those queries covered only 15 minutes and only this service, so the enabling event most likely landed before the queried window or lives in a shared/global flag store that was never searched.
+  OPEN        : When and by whom was the fail flag enabled? Neither change query covered the full 60 minutes before onset, and neither searched a shared or global feature-flag store — the flip is unattributed.
+  OPEN        : Was the flag state ever read directly from productcatalogservice or the flag service, or is the entire diagnosis resting on the frontend's log detail text?
+  OPEN        : Why did errors appear in frontend logs from 07:54:30 but pages fire at 07:57:45–07:58:00? The ~3 minute gap between first observed error and alert is unexplained and may indicate the flag was enabled earlier still.
+  OPEN        : What explains the ~30x swing in error ratio (0.6% to 17%)? A percentage-based injection, load correlation, and a partially-rolled-out flag are all consistent and were not distinguished.
+  OPEN        : The triage blast radius names 7 services but only frontend and productcatalogservice were investigated. The other 4 services' involvement — and whether any of them also carry the flag — is unexamined.
+  OPEN        : One unmeasured edge was crossed per triage; it was never identified, so a contributing path between frontend and productcatalogservice (or beyond) remains unobserved.
+  OPEN        : No specialist queried frontend's own change history, so a coincident frontend change cannot be fully excluded even though the log stack places the fault downstream.
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T075423Z-product-catalog-flag-failure/f0c194c2-8efd-44eb-83c5-44631b7120f7-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T075423Z-product-catalog-flag-failure/f0c194c2-8efd-44eb-83c5-44631b7120f7-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10645.97it/s]

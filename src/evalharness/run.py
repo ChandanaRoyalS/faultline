@@ -131,6 +131,27 @@ def open_incidents(dsn: str) -> list[str]:
         return [row[0] for row in cur.fetchall()]
 
 
+def expected_episodes(bundle: dict[str, Any]) -> int:
+    """How many episodes to wait for, read from the bundle rather than assumed.
+
+    **The first sweep discarded a scenario over this.** `min_episodes` was hard-coded to 2, and
+    `frauddetection-memory-squeeze` alerts on exactly one service - `frauddetectionservice`, and
+    nothing downstream, because a sparse service failing quietly pages nobody else. It could
+    never have satisfied the wait, so it timed out at 900s and was recorded as though the world
+    had not reacted. The world reacted exactly as its bundle says it does.
+
+    Two is still right where the blast radius is wider: it is the cheapest signal that the radius
+    is filling rather than that one alert arrived early. So: two, or the whole radius if the
+    radius is smaller than two.
+    """
+    services = {
+        entry.get("service")
+        for entry in bundle.get("alerts_over_window") or ()
+        if entry.get("service")
+    }
+    return min(2, max(1, len(services)))
+
+
 def wait_for_incident(dsn: str, after: datetime, min_episodes: int = 2) -> str:
     """Poll for an incident the orchestrator opened after the injection."""
     import psycopg
@@ -150,8 +171,10 @@ def wait_for_incident(dsn: str, after: datetime, min_episodes: int = 2) -> str:
                     return str(incident_id)
         time.sleep(CORRELATE_POLL_SECONDS)
     raise RunError(
-        f"no incident reached {min_episodes} episodes within {CORRELATE_TIMEOUT_SECONDS}s. "
-        "The fault may not alert on this world - check the bundle's alerts_over_window."
+        f"no incident reached {min_episodes} episode(s) within {CORRELATE_TIMEOUT_SECONDS}s. "
+        "The fault may not alert on this world - check the bundle's alerts_over_window, and "
+        "note that a sparse service can take far longer than a busy one to trip a rule "
+        "(evals/scenarios/CATALOG.md)."
     )
 
 
@@ -237,10 +260,14 @@ def score(
             scenario_id, bundle["expected_remediation_class"], verdict.get("remediation_class")
         ),
         categories=Categories(
-            flagged=tuple(f for f in flags if f not in contradictions),
+            # Disjoint on purpose: a budget-exhaustion flag and a contradiction flag each have
+            # their own category, so leaving them in `flagged` too would count one run twice in
+            # a sweep's category totals. `flagged` is what is left over.
+            flagged=tuple(f for f in flags if f not in contradictions and f != exhausted),
             failed_alone=failed,
             contradictions=contradictions,
             budget_exhausted_reason=exhausted,
+            narrative_refused=artifact.get("narrative_error"),
         ),
         tokens_in=int(facts.get("tokens_in", 0)),
         tokens_out=int(facts.get("tokens_out", 0)),
@@ -358,7 +385,7 @@ def main(argv: list[str] | None = None) -> int:
 
             try:
                 print("waiting for the orchestrator to correlate...")
-                incident_id = wait_for_incident(dsn, injected_at)
+                incident_id = wait_for_incident(dsn, injected_at, expected_episodes(bundle))
                 run.manifest["incident_id"] = incident_id
                 print(f"  settling {SETTLE_AFTER_ALERT_SECONDS}s so the blast radius fills")
                 time.sleep(SETTLE_AFTER_ALERT_SECONDS)

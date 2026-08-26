@@ -1,0 +1,28 @@
+incident 974d48d7-c7ba-4884-b40d-f36abc3481e1  state triaging  anchor 08:40:00
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: e33d23d9-a64d-423a-8624-0e859be92ee0
+investigation: 2 round(s), 4 dispatch(es), 13 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_91f6abb9990d, tr_48f2dfb41dd7, tr_6a4a801562db, tr_897542911029
+  root cause  : At 08:33:59Z an automated actor (platform-automation) lowered the container memory limit on frauddetection-service to 200m (tr_91f6abb9990d). Within about a minute the service stopped emitting its steady-state Kafka order-consumption lines and entered a sustained crash/restart loop: the JVM/agent startup triple repeats on a near-constant ~62s cadence from 08:35 through at least 08:42, with no application ERROR or exception text at any point, including around the 08:40 alert (tr_48f2dfb41dd7). A process killed by the kernel for exceeding its cgroup limit dies without emitting an application-level error, which matches exactly what the logs show. The absence of any calls_total series — numerator and denominator both empty — over 08:30–08:45 (tr_6a4a801562db, tr_897542911029) is the metrics-side shadow of the same fact: the container never lives long enough past agent attach to serve traffic or export span metrics. The most probable root cause is a self-inflicted resource-limit reduction that put the ceiling below the JVM's configured/committed footprint, causing repeated kills before application readiness.
+  OPEN        : No container memory telemetry was ever retrieved. container_memory_working_set_bytes, container_spec_memory_limit_bytes, an OOM-kill counter, or a kube-state-metrics restart count would confirm or refute the OOM hypothesis directly; both metrics dispatches ran only an error-ratio query and explicitly left this open (tr_897542911029).
+  OPEN        : The prior memory limit is not recorded (tr_91f6abb9990d), so the magnitude of the reduction is unknown and it cannot be shown that 200m is actually below the JVM's configured heap plus overhead. A JAVA_TOOL_OPTIONS / -Xmx value would settle whether 200m is genuinely insufficient.
+  OPEN        : Why platform-automation made this change is unknown — a limit-tuning controller, a policy rollout, or a bad admission-webhook default would each imply different scope. Other services may have received the same reduction; triage covered only frauddetectionservice.
+  OPEN        : The empty calls_total series has a second candidate explanation the specialists flagged but did not eliminate: a label/metric-name mismatch or absent spanmetrics pipeline for this service (tr_6a4a801562db). If that is the case, the metrics evidence corroborates nothing and the verdict rests on change timing plus logs alone.
+  OPEN        : Downstream impact is unmeasured. Order consumption stopped by 08:35 with a counter at 388; whether Kafka lag, unprocessed orders, or dependent services degraded was not investigated.
+
+flags: none
+
+retrieval: exclude_origin='scenario:frauddetection-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T083359Z-frauddetection-memory-squeeze/974d48d7-c7ba-4884-b40d-f36abc3481e1-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T083359Z-frauddetection-memory-squeeze/974d48d7-c7ba-4884-b40d-f36abc3481e1-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 17577.24it/s]
