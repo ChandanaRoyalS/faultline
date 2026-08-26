@@ -124,7 +124,10 @@ def run_investigation(
     def advance(step: Callable[[], None]) -> None:
         step()
         states.append(incident.state.value)
-        store.save(incident)
+        # **Narrow write.** `save` upserts episodes from this in-memory copy, which was loaded
+        # before the investigation started - so writing it back overwrote `resolved_at` on
+        # episodes the orchestrator had resolved meanwhile. T4.5's sweep found it the hard way.
+        store.save_investigation_state(incident)
 
     try:
         result = engine.run(incident.id, triage, anchor)

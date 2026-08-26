@@ -1,0 +1,50 @@
+{
+  "incident_id": "29a2e444-07d7-4ea5-a92d-fbffbabb28c1",
+  "trajectory_id": "18b2405e-2bda-4654-a002-c92a78117cf4",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:shipping-wrong-image",
+  "verdict": {
+    "root_cause": "Every complete checkout trace fails at the same edge: checkoutservice's call to ShippingService/GetQuote returns ERROR, propagating up through PlaceOrder to the frontend HTTP POST (tr_89474c9be033). The failing spans are sub-millisecond to a few milliseconds and whole failing requests finish under ~17ms, so this is a fast rejection, not a wait. All sibling dependencies in those same traces (cartservice, productcatalogservice, featureflagservice, currencyservice) are present, fast and unflagged, and checkout never reaches payment, email or the message-bus write \u2014 which explains the initiation-only log pattern after ~12:54 (tr_dc4dd324c0ed) and emailservice's flat-zero error ratio (tr_c0d43c9cb03d); the 12:56:15 alert fan-out is downstream starvation, not independent failure. The failing mechanism sits inside shippingservice or its own quote dependency (quoteservice alerted at 12:56:15), but no dispatch touched either service in any modality, so the mechanism itself \u2014 wrong artifact, wrong config value, or immediate rejection under resource exhaustion \u2014 is unidentified. The two change queries that ran cover only checkoutservice and paymentservice and only from 12:43 (tr_8361564246d9, tr_d2099c6952f8).",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_89474c9be033",
+      "tr_dc4dd324c0ed",
+      "tr_c0d43c9cb03d"
+    ],
+    "reasoning": "Localization is strong, classification is not. The traces put one erroring span on every failing path while showing sibling dependencies healthy in the same traces (tr_89474c9be033); logs corroborate from the other side, with orders initiating through 12:57:52, no error lines, and no completion entries after ~12:54 (tr_dc4dd324c0ed). emailservice still serves traffic with zero errors (tr_c0d43c9cb03d), so its alert reflects absent upstream work. The sub-millisecond failing durations argue directly against dependency_latency. Note that cartservice is cleared by positive trace evidence, not by its empty metric series (tr_9059d8e2b3e8), which was an instrumentation gap \u2014 the retrieved cart incidents are exactly about misreading a flat/absent cart series as health. That leaves bad_deploy, bad_config and resource_exhaustion inside shippingservice with no evidence separating them, since nothing was queried there.",
+    "open_questions": [
+      "What does shippingservice actually return on GetQuote, and why? No logs, traces, metrics or change records exist for shippingservice or quoteservice.",
+      "Were there changes to shippingservice, quoteservice, or shared config/mesh scopes? Only checkoutservice and paymentservice were checked, and only from 12:43.",
+      "Exact onset: logs suggest ~12:54, but the earliest partial trace already shows an ERROR GetQuote, so the failure may predate the queried window."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for "
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

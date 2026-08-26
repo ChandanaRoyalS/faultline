@@ -1,0 +1,55 @@
+{
+  "incident_id": "9c2e30f4-0ad5-42bb-9e69-7476c919d7f4",
+  "trajectory_id": "c6acdc7a-ffdb-49e9-9716-b638ed746f5f",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "Not established. The evidence confirms a real, user-facing, partial degradation \u2014 frontend error ratio is episodic and peaks near 11.7%, and productcatalogservice shows a service-wide error ratio peaking near 12% over the same window (tr_e0e3dd712e99, tr_d3c9667ef640) \u2014 with the shapes and magnitudes similar enough that frontend's errors are plausibly a pass-through of productcatalogservice failures. But nothing in the dispatch set identifies a mechanism. Both log queries against productcatalogservice returned zero lines because the label selector never matched a stream (tr_a75ee398e6ab, tr_2c44f548aaf1), so no error text, failing operation, or named upstream was ever recovered. No latency, CPU, memory, goroutine or request-volume series were returned for either service. adservice \u2014 the unmeasured edge triage flagged \u2014 has no calls_total series at all in this metric source, so it is neither implicated nor cleared (tr_82aea06ceed3). The change log is empty for productcatalogservice, but only for the 15-minute window; the preceding hour was requested and never queried (tr_1540732677d9, tr_da33dc71db5c). What we can say with confidence is narrow: the failure is partial and intermittent rather than total, it is not a crash-loop or telemetry gap, and it is not a change that landed inside the alert window. The causal mechanism \u2014 exhaustion, dependency wait, artifact, or config value \u2014 is unsourced.",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_e0e3dd712e99",
+      "tr_d3c9667ef640",
+      "tr_a75ee398e6ab",
+      "tr_2c44f548aaf1",
+      "tr_82aea06ceed3",
+      "tr_1540732677d9",
+      "tr_da33dc71db5c"
+    ],
+    "reasoning": "Two independent metric dispatches establish that the degradation is real and partial: frontend 0-11.7% error ratio across 58 samples and productcatalogservice 0-12% across 57 samples (tr_e0e3dd712e99, tr_d3c9667ef640). Both series are continuous and untruncated, which rules out a telemetry gap as the explanation, and both return to zero at points, which rules out a flat sustained fault signature and a total outage. The correlated magnitude and shape make productcatalogservice the strongest candidate for the origin of frontend's user-facing errors, but tr_e0e3dd712e99 explicitly carries no dependency dimension \u2014 it aggregates by service_name only \u2014 so no share of frontend errors is actually attributed to productcatalogservice by any evidence in hand. That attribution is inference, not measurement. Assigning a fault class requires a mechanism, and every dispatch that could have supplied one came back empty. The two log dispatches both failed on selector construction, not on service silence; tr_2c44f548aaf1 is explicit that the emptiness carries no information about actual log content, so productcatalogservice cannot be characterized or cleared from logs. The metrics dispatch on productcatalogservice returned no latency, CPU, memory, or goroutine data, which is precisely the data that would separate resource_exhaustion from dependency_latency. The change dispatches rule out a deploy or flag flip inside 12:24-12:39, which weakens bad_deploy and bad_config as in-window triggers, but both dispatches flag the same coverage gap: the 11:34-12:24 interval was never queried, so a change landing 20-60 minutes before onset \u2014 a common lag for memory-pressure or connection-pool faults \u2014 remains entirely unexamined. The ad-memory-squeeze corpus entry is suggestive, since it also pairs a frontend/loadgenerator page with an adservice that is invisible in the RED metric source, and tr_82aea06ceed3 confirms adservice has no calls_total series here. But that entry differs on a material point: in this incident productcatalogservice was itself paged at 12:34, whereas in ad-memory-squeeze no service between loadgenerator and the edge was named. Treating the past incident as the answer would mean importing a mechanism the current evidence never observed. The honest reading is that the blast radius and severity are confirmed while the mechanism is not, and no remediation should be selected until a dispatch returns either resource/latency series for productcatalogservice or log lines under a working selector.",
+    "open_questions": [
+      "What is the correct Loki label value for productcatalogservice? Both the hyphenated and the queried form matched no stream; the unhyphenated form was never actually exercised, and no log line has yet been read for this service.",
+      "Were there any deployments, config changes, or flag flips against productcatalogservice between 11:34 and 12:24? Both change dispatches requested this interval and neither queried it.",
+      "What are productcatalogservice's p99 latency, CPU, memory, and goroutine counts across the window? Without these, resource_exhaustion and dependency_latency cannot be distinguished.",
+      "Do frontend's errors actually attribute to productcatalogservice? No dispatch returned a dependency-dimensioned breakdown; the correlation is inferred from similar magnitude and timing only.",
+      "Is adservice healthy? It has no calls_total series in this metric source at all, so it is unmeasured rather than clean \u2014 a different telemetry source or a direct health check is needed.",
+      "What accounts for the episodic pattern \u2014 errors returning to zero between peaks \u2014 in both services? This is inconsistent with a static wrong value and more suggestive of load-correlated pressure or intermittent upstream slowness, but neither is evidenced.",
+      "Triage named 7 affected services and 1 unmeasured edge; only frontend, productcatalogservice, and adservice were dispatched against. The other four were never examined.",
+      "What is productcatalogservice's absolute request volume? A 12% error ratio on a collapsed denominator means something very different from 12% on normal traffic, and no volume data was returned."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for ",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "cart-redis-misconfig / What was observed: The page named two services: `ServiceHighErrorRate` on **frontend** and\n**loadgenerator**, 2m45s after the first bad request. **checkoutservice** joined fifteen\nseconds later.\n\nOn the storefront, product pages rendered normally. Adding anything to a basket failed.\n\nThen seven ser"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

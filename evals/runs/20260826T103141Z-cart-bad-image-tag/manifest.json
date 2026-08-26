@@ -1,0 +1,49 @@
+{
+  "run_id": "20260826T103141Z-cart-bad-image-tag",
+  "scenario_id": "cart-bad-image-tag",
+  "split": "dev",
+  "scenario_fingerprint": "d4b9a16337b55bfe9feb260c5e6c3173f6cf8b23fec2724198a472bd26481ada",
+  "started_at": "2026-08-26T10:31:41.749063+00:00",
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "a8f8da55e00daf465ff46d829a43bf44d89e31d0",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "ad-service",
+      670
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "discarded": {
+    "reason": "baseline gate refused",
+    "at": "2026-08-26T10:31:42.391916+00:00"
+  }
+}

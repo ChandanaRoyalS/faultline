@@ -1,0 +1,30 @@
+incident 42e87fc7-f0b4-46e0-ae08-013dd3690279  state triaging  anchor 11:23:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: ac90b106-56dd-4dc1-95ff-61caa97a0554
+investigation: 2 round(s), 6 dispatch(es), 17 step(s)
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_2e272a12abcc, tr_4df1c2be82f7, tr_e9172af1c9fa, tr_9629087b16f7, tr_98b777478032, tr_1cbc3a63e9f2
+  root cause  : At 11:20:03Z platform-automation attached a traffic-shaping (netem-style) sidecar to the cart-service network namespace, imposing a fixed 300ms zero-jitter delay on eth0 in both directions. Every network hop that crosses cartservice's interface therefore pays a constant ~300ms toll: the cartservice→Redis round trip inflates its HGET/HMSET spans to ~301-308ms, and the checkoutservice→cartservice RPC pays the delay on request and response outside the server span, leaving ~900ms per call unaccounted on the client/transport side. Two cart calls per PlaceOrder (GetCart and EmptyCart) at ~1215ms each account for essentially all of the ~2.45-2.49s end-to-end checkout latency. Nothing is erroring — frontend's error ratio is flat zero across the window and productcatalogservice's likewise — and cartservice itself keeps serving normal traffic; the incident is purely a latency regression propagating up from a deliberately slowed network path, surfacing as warnings on cartservice, checkoutservice, frontend and loadgenerator.
+  OPEN        : The ~900ms per cart call outside the cartservice server span is attributed to the injected delay on the transport, but no measurement decomposes it — whether it is two 300ms directional applications plus connection setup, or whether a second shaping rule or client-side retry contributes, is unsettled.
+  OPEN        : cartservice returned no series at all from calls_total under the queried label set (tr_1cbc3a63e9f2); this was never re-queried with the service_name/status_code schema that worked for frontend, so cartservice's own request rate, latency percentiles and error ratio remain entirely unmeasured.
+  OPEN        : cartservice log output stops at 11:26:17 while the window runs to 11:28:30 (tr_98b777478032, low confidence). Whether this is pod termination, a logging-pipeline stall, or a query artifact is unresolved and could indicate a second, later event.
+  OPEN        : checkoutservice and loadgenerator alerted at 11:23:45 but neither was measured for error rate; frontend's zero error ratio suggests latency-only, but if those alerts were error-based rather than latency-based, something is unaccounted for.
+  OPEN        : Why platform-automation created the shaping container — scheduled chaos experiment, misfired automation, or a rule intended for a different target — is not established, and that determines whether reverting is sufficient or the automation will re-apply it.
+  OPEN        : Request lines with empty user identifiers around 11:26 are unexplained and were not tied to the latency; they may be unrelated.
+  OPEN        : Four unmeasured edges were crossed by triage and no specialist covered them; whether any service outside the sampled trace path is independently affected is unknown.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T111959Z-cart-dependency-latency/42e87fc7-f0b4-46e0-ae08-013dd3690279-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T111959Z-cart-dependency-latency/42e87fc7-f0b4-46e0-ae08-013dd3690279-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 17588.69it/s]

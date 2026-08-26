@@ -1,0 +1,180 @@
+{
+  "run_id": "20260826T123016Z-product-catalog-flag-failure",
+  "scenario_id": "product-catalog-flag-failure",
+  "split": "dev",
+  "scenario_fingerprint": "78c464d798db218705fbd6f124c501902cbda526703cfc5355dc003ed2a0d645",
+  "started_at": "2026-08-26T12:30:16.653889+00:00",
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "a8f8da55e00daf465ff46d829a43bf44d89e31d0",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "shipping-service",
+      441
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-26T12:30:17.066580+00:00",
+  "incident_id": "9c2e30f4-0ad5-42bb-9e69-7476c919d7f4",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-26T12:39:21.661405+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "feature-flag-service",
+      303
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260826T123016Z-product-catalog-flag-failure",
+    "scenario_id": "product-catalog-flag-failure",
+    "trajectory_id": "c6acdc7a-ffdb-49e9-9716-b638ed746f5f",
+    "runtime_version": "faultline/0.0.1+prompts:53fafe9c12bc",
+    "reached_a_class": false,
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.42857142857142855,
+      "matched": [
+        "frontend",
+        "loadgenerator",
+        "productcatalogservice"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "adservice",
+        "cartservice",
+        "checkoutservice",
+        "recommendationservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 1,
+      "n_alerted": 3,
+      "n_predicted": 7
+    },
+    "fault_class": {
+      "truth": "bad_config",
+      "returned": "unknown",
+      "correct": false,
+      "abstained": true,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "none",
+      "correct": false,
+      "abstained": true,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 18156,
+    "tokens_out": 12781,
+    "cost_usd": 0.4103,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-26T12:44:25.318411+00:00",
+  "judge": {
+    "scenario_id": "product-catalog-flag-failure",
+    "run_id": "20260826T123016Z-product-catalog-flag-failure",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a feature flag at the flag service as the root cause; the agent narrative identifies no mechanism and explicitly states 'No fix class, because no mechanism was identified.'",
+    "dead_ends_closed": [
+      "total outage or crash-loop",
+      "telemetry gap at frontend or productcatalogservice",
+      "change landing in alert window",
+      "false alarm confined downstream"
+    ],
+    "dead_ends_missed": [
+      "feature flag service consulted by productcatalogservice",
+      "partial failure with stable boundary as configuration signature",
+      "untelemetered dependencies"
+    ],
+    "traps": [
+      {
+        "trap": "episodic pattern argues against static wrong config value",
+        "outcome": "took"
+      },
+      {
+        "trap": "correlation of error shape and timing between frontend and productcatalogservice as pass-through story",
+        "outcome": "took"
+      },
+      {
+        "trap": "productcatalogservice itself must be the root cause since it produces the errors",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent narrative correctly avoided the trap that the loudest service is the culprit, but failed to discover the feature flag service entirely\u2014it never investigated productcatalogservice's dependencies or asked what configuration it consulted, which was the only path to the actual root cause. The agent explicitly listed this as future work ('adservice health from some source other than call-count metrics') but missed the flag service entirely.",
+    "tokens_in": 6024,
+    "tokens_out": 385
+  }
+}

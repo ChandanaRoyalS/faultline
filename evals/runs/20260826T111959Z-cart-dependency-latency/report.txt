@@ -1,0 +1,28 @@
+run 20260826T111959Z-cart-dependency-latency   scenario cart-dependency-latency
+trajectory ac90b106-56dd-4dc1-95ff-61caa97a0554   runtime faultline/0.0.1+prompts:53fafe9c12bc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (4/4 alerted services predicted)
+  precision 0.33  (4/12 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): accountingservice, adservice, currencyservice, emailservice, paymentservice, productcatalogservice, recommendationservice, shippingservice
+  unmeasured edges crossed: 4 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  fault class dependency_latency vs dependency_latency - correct
+  fix class   config_revert vs restart - WRONG
+    disputed boundary, ADR-0022 §1.2: The class of fix follows the same fork, and by the same measurement.
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 34970 / out 11821 tokens   $0.4704
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).

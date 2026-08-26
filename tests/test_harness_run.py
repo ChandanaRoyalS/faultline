@@ -272,6 +272,29 @@ SWEEP_400 = (
 )
 
 
+# Verbatim from run 20260826T121554Z - a 529 that landed *after* the run had done work, so the
+# incident was already FAILED and the retry could only ever be refused.
+SWEEP_529_MIDRUN = (
+    "FAILED MID-INVESTIGATION: OverloadedError: Error code: 529 - "
+    "{'type': 'error', 'error': {'type': 'overloaded_error', 'message': 'Overloaded'}}"
+)
+
+
+def test_a_transient_failure_after_work_is_not_retried() -> None:
+    """**T4.5's sweep lost two scenarios to this.** A run that got somewhere and then failed
+    leaves the incident `FAILED`, which ADR-0016 makes terminal - so the retry can only ever be
+    told the incident is not investigable, and it was, twice, at the cost of two world
+    injections and forty minutes.
+
+    Only a failed *start* is retryable, and that is not a policy choice: it is the one case that
+    leaves the incident in `triaging`, untouched.
+    """
+    from evalharness.run import transient_signal
+
+    assert transient_signal(SWEEP_529_MIDRUN) is None, "it did work; the incident is terminal"
+    assert "overloaded_error" in SWEEP_529_MIDRUN, "and it is transient - that is not enough"
+
+
 def test_the_sweeps_529_is_recognised_as_transient() -> None:
     """**The failure that cost a scenario slot.** One 529 on the first model call, and the run
     spent an injection, a correlation wait, a revert and ten minutes to learn the provider was
@@ -358,14 +381,44 @@ def test_exhausting_the_retries_still_discards(tmp_path: Path) -> None:
     assert all(a["transient_signal"] == "overloaded_error" for a in attempts)
 
 
-def test_the_retry_path_touches_nothing_the_stamp_covers() -> None:
-    """**Harness-side only, and this is why the stamp does not move.** `runtime_version` is the
-    package version plus a digest over every role system prompt and every contract schema. Retry
-    lives in `evalharness`, which is neither - so a run made after this change is comparable to
-    the sweep's rows, and the sweep's stamp stays meaningful."""
+SWEEP_1_DIGEST = "59bf438b2a96"
+"""The pipeline every row of `evals/runs/SWEEP-2026-08-26.md` was produced by."""
+
+SWEEP_2_DIGEST = "53fafe9c12bc"
+"""The pipeline after T4.5 added the taxonomy instruction to the synthesizer.
+
+**The stamp moved on purpose, and it moving is the measurement.** T4.3's version of this test
+pinned the first digest and said that if it ever changed, the sweep's rows would be from a
+different experiment than the next run. It changed, deliberately, and they are - which is why
+T4.5 re-ran all seven scenarios rather than comparing against the old numbers.
+"""
+
+
+def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
+    """`runtime_version` is the package version plus a digest over every role system prompt and
+    every contract schema, so it moves when and only when the agent is a different agent.
+
+    Both known values are recorded here. A change that lands on neither is a third pipeline, and
+    any table comparing it to either sweep needs its own re-run.
+    """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == "59bf438b2a96", (
-        "the sweep's stamp. If this fails, a prompt or a contract moved and every row in "
-        "evals/runs/SWEEP-2026-08-26.md is from a different experiment than the next run."
+    assert prompt_digest() == SWEEP_2_DIGEST, (
+        f"expected the taxonomy-instruction pipeline {SWEEP_2_DIGEST}. If a prompt or a contract "
+        f"moved again, neither sweep in evals/runs/ describes the current agent."
     )
+    assert SWEEP_1_DIGEST != SWEEP_2_DIGEST, "the two sweeps are two experiments"
+
+
+def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:
+    """Retry, the gate, the scorer and the judge all live in `evalharness`, which the digest
+    does not read - so a harness fix does not invalidate a sweep, and a prompt change does."""
+    import evalharness.judge
+    import evalharness.run
+    from faultline.agents import stamp
+
+    covered = stamp.prompt_digest.__doc__ or ""
+    assert "roles" in covered and "contracts" in covered
+    assert "evalharness" not in covered
+    assert evalharness.run.__name__.startswith("evalharness")
+    assert evalharness.judge.__name__.startswith("evalharness")

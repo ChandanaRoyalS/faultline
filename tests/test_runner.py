@@ -301,3 +301,42 @@ def test_the_verdict_and_narrative_are_written_as_files(tmp_path: Path) -> None:
     assert payload["states"] == list(report.states)
     assert payload["verdict"]["fault_class"] == "bad_config"
     assert (tmp_path / "out" / f"{incident.id}-narrative.md").read_text().strip()
+
+
+def test_the_runner_does_not_overwrite_episodes_resolved_while_it_worked() -> None:
+    """**The lost update T4.5's sweep found, and which blocked it.**
+
+    An investigation takes minutes. The runner holds the `Incident` it loaded before the run and
+    writes it back at each phase boundary; meanwhile the orchestrator is resolving that
+    incident's episodes in another process. `save` upserts episodes from the caller's in-memory
+    copy, so the runner's stale copy silently overwrote `resolved_at` on episodes that had
+    resolved while it worked - and the incident could then never reach `resolved`, so the
+    baseline gate correctly refused every subsequent scenario.
+
+    Worse, `applied_events` said the resolves *had* been applied, so replaying the delivery was
+    a correct no-op: the record said done and the row said otherwise.
+
+    The runner changes two fields; it must write two fields.
+    """
+    store = InMemoryIncidentStore()
+    incident = incident_in(IncidentState.TRIAGING)
+    store.save(incident)
+
+    # The runner's copy: loaded before the run, and about to go stale.
+    stale = incident_in(IncidentState.TRIAGING)
+    stale.id = incident.id
+
+    # Meanwhile, the orchestrator resolves the episode on the stored incident.
+    resolved_at = datetime(2026, 8, 26, 10, 19, 5, tzinfo=UTC)
+    store.get(incident.id).episodes["e0"].resolved_at = resolved_at  # type: ignore[union-attr]
+
+    engine, _ = engine_over(healthy_model())
+    run_investigation(store, stale, engine, triage_for(stale), ANCHOR)
+
+    kept = store.get(incident.id)
+    assert kept is not None
+    assert kept.episodes["e0"].resolved_at == resolved_at, (
+        "the runner wrote its stale episode back over a resolve that had already landed"
+    )
+    assert kept.state is IncidentState.SYNTHESIZING, "and it did advance the state it owns"
+    assert kept.investigation_id is not None

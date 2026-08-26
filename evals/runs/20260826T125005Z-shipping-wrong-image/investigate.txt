@@ -1,0 +1,26 @@
+incident 29a2e444-07d7-4ea5-a92d-fbffbabb28c1  state triaging  anchor 12:53:00
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 18b2405e-2bda-4654-a002-c92a78117cf4
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_89474c9be033, tr_dc4dd324c0ed, tr_c0d43c9cb03d
+  root cause  : Every complete checkout trace fails at the same edge: checkoutservice's call to ShippingService/GetQuote returns ERROR, propagating up through PlaceOrder to the frontend HTTP POST (tr_89474c9be033). The failing spans are sub-millisecond to a few milliseconds and whole failing requests finish under ~17ms, so this is a fast rejection, not a wait. All sibling dependencies in those same traces (cartservice, productcatalogservice, featureflagservice, currencyservice) are present, fast and unflagged, and checkout never reaches payment, email or the message-bus write — which explains the initiation-only log pattern after ~12:54 (tr_dc4dd324c0ed) and emailservice's flat-zero error ratio (tr_c0d43c9cb03d); the 12:56:15 alert fan-out is downstream starvation, not independent failure. The failing mechanism sits inside shippingservice or its own quote dependency (quoteservice alerted at 12:56:15), but no dispatch touched either service in any modality, so the mechanism itself — wrong artifact, wrong config value, or immediate rejection under resource exhaustion — is unidentified. The two change queries that ran cover only checkoutservice and paymentservice and only from 12:43 (tr_8361564246d9, tr_d2099c6952f8).
+  OPEN        : What does shippingservice actually return on GetQuote, and why? No logs, traces, metrics or change records exist for shippingservice or quoteservice.
+  OPEN        : Were there changes to shippingservice, quoteservice, or shared config/mesh scopes? Only checkoutservice and paymentservice were checked, and only from 12:43.
+  OPEN        : Exact onset: logs suggest ~12:54, but the earliest partial trace already shows an ERROR GetQuote, so the failure may predate the queried window.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T125005Z-shipping-wrong-image/29a2e444-07d7-4ea5-a92d-fbffbabb28c1-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T125005Z-shipping-wrong-image/29a2e444-07d7-4ea5-a92d-fbffbabb28c1-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10899.52it/s]

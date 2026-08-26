@@ -933,3 +933,44 @@ def test_the_change_record_guard_is_unchanged_and_still_substring_matched() -> N
     assert "fault" in BANNED_VOCABULARY and "fault" not in HARNESS_VOCABULARY
     # Substring semantics, as T2.6 built them.
     assert [w for w in BANNED_VOCABULARY if w in "over a default"] == ["fault"]
+
+
+# --- the taxonomy instruction (T4.5) ------------------------------------------
+
+
+def test_the_synthesizer_is_taught_the_taxonomy_and_not_the_answers() -> None:
+    """**Teaching the taxonomy is legitimate; teaching the answers is contamination.**
+
+    The instruction added at T4.5 defines the four classes from what the label set means. It
+    must not name a scenario, a service, or anything else that functions as an answer key -
+    ADR-0008 axis 1 is prompt text fitted to the scenarios, and a prompt that says "a memory cap
+    on adservice is resource_exhaustion" is that axis in one sentence.
+    """
+    from faultline.agents.roles import SYNTHESIZER_SYSTEM
+
+    text = SYNTHESIZER_SYSTEM.lower()
+    for token in (
+        "cart-redis-misconfig",
+        "shipping-wrong-image",
+        "ad-memory-squeeze",
+        "cartservice",
+        "adservice",
+        "shippingservice",
+        "frauddetectionservice",
+        "productcatalogservice",
+        "redis",
+        "pumba",
+        "netem",
+    ):
+        assert token not in text, f"{token} is an answer key, not a definition"
+
+
+def test_the_taxonomy_instruction_defines_all_four_classes_by_mechanism() -> None:
+    """Each class is defined by what the service is doing wrong, not by what act preceded it -
+    which is the distinction the first sweep showed the classifier did not have."""
+    from faultline.agents.roles import SYNTHESIZER_SYSTEM
+
+    for label in ("resource_exhaustion", "dependency_latency", "bad_deploy", "bad_config"):
+        assert f"`{label}`:" in SYNTHESIZER_SYSTEM, label
+    assert "evidence for" in SYNTHESIZER_SYSTEM.lower()
+    assert "never the class itself" in SYNTHESIZER_SYSTEM

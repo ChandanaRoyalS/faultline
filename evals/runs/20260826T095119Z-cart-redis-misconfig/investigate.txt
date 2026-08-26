@@ -1,0 +1,31 @@
+incident 706fd1b8-d8e6-4125-9ff0-14dd211de5d9  state triaging  anchor 09:54:00
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 7ebadf9c-7e03-42d4-af41-c94134c00547
+investigation: 2 round(s), 10 dispatch(es), 25 step(s) BUDGET EXHAUSTED (changes tool calls: 4 of 4 used)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_4f54ca0da4a7, tr_287da123d1d8, tr_84ff3bfd8f4d, tr_663cc5422f32, tr_a75ec76afef0, tr_5238aec71711, tr_9373afe09afe, tr_e8cbbe4269bd, tr_c6b98ef7dd43, tr_8f33eb8fc66f
+  root cause  : At 09:51:20 UTC an automated environment update on cartservice introduced a Redis address variable (previously unset, so the service had been using its baked-in default endpoint) pointing at redis-cart:6380 [tr_4f54ca0da4a7]. cartservice was serving AddItem/GetCart/EmptyCart normally at the start of the window and only later entered a loop of failed connection attempts to that exact host and non-default port, with an unhandled exception thrown from RedisCartStore.InitializeAsync/EnsureRedisConnected in Main — i.e. the process never finishes startup and crash-loops rather than degrading [tr_287da123d1d8]. With cartservice unable to serve, every sampled checkout trace fails identically on checkoutservice's outbound hipstershop.CartService/GetCart span, and that ERROR propagates through checkoutservice PlaceOrder into frontend PlaceOrder and the frontend HTTP POST [tr_84ff3bfd8f4d], which matches the observed checkoutservice error ratio peaking near 67% and frontend near 35% (checkout is only a fraction of frontend traffic) [tr_663cc5422f32, tr_a75ec76afef0]. The failing mechanism is the configuration value itself: the endpoint it names is not one a Redis server answers on, and that wrongness is what breaks every cart read. It is not a deploy (no image/version change anywhere, and the three other change queries were empty) and not latency (all failing spans complete in 1–7ms, and the Redis connect never succeeds at all).
+  OPEN        : Nothing confirmed what port redis-cart actually listens on. If the platform was in the middle of migrating Redis to 6380 and the server side never landed or is itself down, the cartservice value is 'early' rather than 'wrong', and the correct fix is completing/repairing the Redis side, not reverting the client. No dispatch touched redis-cart directly.
+  OPEN        : The change-tool budget (4/4) was exhausted before any query covered 09:30-09:44, so a change on any service in that earlier interval — including a redis-cart change — is unverified. All four change results explicitly flag this gap.
+  OPEN        : Exact onset is unpinned on both sides: the frontend and checkoutservice metric results returned only min/max aggregates, not the per-timestamp series, and the cartservice log query returned only the oldest 8 and newest 32 lines, omitting the 09:51:20 transition. The 09:51:20 -> ~09:54 causal ordering is inferred from the alert times, not directly observed.
+  OPEN        : No latency percentiles were retrieved for frontend, checkoutservice or cartservice. The traces argue strongly against a latency component, but the metric half of that question is unanswered.
+  OPEN        : Why the automation wrote this value is unknown — a pipeline template, a policy rollout, or a partially-applied migration. Without that, a config_revert may simply be re-applied by the same automation.
+  OPEN        : cartservice emits no calls_total series at all for the window [tr_8f33eb8fc66f]. This is consistent with the crash loop but could also be a pre-existing label or scrape problem; it was not resolved, so cartservice's own error/latency behaviour before 09:51:20 rests solely on the eight early log lines.
+  OPEN        : Blast radius was 12 services with 4 unmeasured edges crossed; only 4 services were examined. Whether any impact outside the checkout path shares this cause or is independent was never tested.
+
+=== FLAGGED ===
+  budget exhausted: changes tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T095119Z-cart-redis-misconfig/706fd1b8-d8e6-4125-9ff0-14dd211de5d9-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T095119Z-cart-redis-misconfig/706fd1b8-d8e6-4125-9ff0-14dd211de5d9-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10872.91it/s]

@@ -85,6 +85,25 @@ class IncidentStore(Protocol):
     def save(self, incident: Incident) -> None:
         """Upsert the incident and its episodes. Called before the stream ack, never after."""
 
+    def save_investigation_state(self, incident: Incident) -> None:
+        """Write **only** the fields an investigation changes: state and `investigation_id`.
+
+        **A narrow write, because a wide one loses data.** The investigation runner holds an
+        `Incident` it loaded before the run and writes it back at each phase boundary, and a run
+        takes minutes - during which the orchestrator is resolving episodes on the same incident
+        in another process. `save` upserts episodes from the caller's in-memory copy, so the
+        runner's stale copy silently overwrote `resolved_at` on episodes that had resolved while
+        it worked.
+
+        Found by T4.5's sweep, which it blocked: the incident could never reach `resolved`, and
+        the baseline gate correctly refused every subsequent scenario because a non-terminal
+        incident was sitting in the store. `applied_events` showed the resolves *had* been
+        processed, so idempotency then treated a replayed delivery as a no-op - the record said
+        done and the row said otherwise.
+
+        The runner changes two fields. It should write two fields.
+        """
+
     def get(self, incident_id: str) -> Incident | None: ...
 
     def correlation_candidates(self, resolved_since: datetime) -> list[Incident]:
@@ -113,6 +132,21 @@ class InMemoryIncidentStore:
 
     def save(self, incident: Incident) -> None:
         self.incidents[incident.id] = incident
+
+    def save_investigation_state(self, incident: Incident) -> None:
+        """Copies the two fields onto the stored incident, rather than replacing it.
+
+        The dict would otherwise hand back the caller's object and hide the very aliasing the
+        Postgres store had to be fixed for - a double that cannot reproduce the bug is a double
+        that lets it back in.
+        """
+        stored = self.incidents.get(incident.id)
+        if stored is None:
+            self.incidents[incident.id] = incident
+            return
+        stored.state = incident.state
+        stored.investigation_id = incident.investigation_id
+        stored.state_before_resolution = incident.state_before_resolution
 
     def get(self, incident_id: str) -> Incident | None:
         return self.incidents.get(incident_id)
@@ -166,6 +200,23 @@ class PostgresIncidentStore:
                 "INSERT INTO applied_events (episode_key, status, incident_id, applied_at) "
                 "VALUES (%s, %s, %s, %s) ON CONFLICT DO NOTHING",
                 (episode_key, status, incident_id, applied_at),
+            )
+        self._conn.commit()
+
+    def save_investigation_state(self, incident: Incident) -> None:
+        """Two columns, by id. **Touches no episode row** - see the protocol for why."""
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "UPDATE incidents SET state = %s, state_before_resolution = %s, "
+                "investigation_id = COALESCE(%s, investigation_id) WHERE id = %s",
+                (
+                    incident.state.value,
+                    None
+                    if incident.state_before_resolution is None
+                    else incident.state_before_resolution.value,
+                    incident.investigation_id,
+                    incident.id,
+                ),
             )
         self._conn.commit()
 

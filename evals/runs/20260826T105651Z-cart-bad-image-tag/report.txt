@@ -1,0 +1,28 @@
+run 20260826T105651Z-cart-bad-image-tag   scenario cart-bad-image-tag
+trajectory 5e9c3bc5-74dc-4f11-9990-4b4494093279   runtime faultline/0.0.1+prompts:53fafe9c12bc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (9/9 alerted services predicted)
+  precision 0.64  (9/14 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): adservice, emailservice, paymentservice, productcatalogservice, recommendationservice
+  unmeasured edges crossed: 5 - membership reached through one is not evidence at the same strength
+  excluded as recovery-phase (began_after_revert): emailservice
+
+VERDICT
+  fault class bad_deploy vs bad_deploy - correct
+  fix class   rollback vs rollback - correct
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 52534 / out 15050 tokens   $0.6389
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
