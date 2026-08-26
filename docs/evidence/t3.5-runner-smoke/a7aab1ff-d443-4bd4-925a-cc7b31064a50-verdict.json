@@ -1,0 +1,41 @@
+{
+  "incident_id": "a7aab1ff-d443-4bd4-925a-cc7b31064a50",
+  "trajectory_id": "68ac9a67-8328-4e90-89ed-5c4409821316",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "exclude_origin": "scenario:cart-dependency-latency",
+  "verdict": {
+    "root_cause": "A platform-automation traffic-shaping sidecar re-attached to the cart-service network namespace at 03:39:20Z carrying a fixed 300ms, zero-jitter egress delay on eth0 (it had been detached at 03:35:08Z and was restored ~3.5 minutes before the 03:42:45 alerts). That injected delay is stamped directly on the trace shape: cartservice's server-side GetCart/EmptyCart spans are ~301-305ms and are almost entirely consumed by single Redis operations (HGET ~301-304ms, HMSET ~300-302ms) \u2014 i.e. one 300ms egress hop per Redis call \u2014 while cartservice's own compute is negligible. Because checkoutservice makes two sequential cart calls on every PlaceOrder, the penalty compounds into ~2.42s of the ~2.47s end-to-end checkout latency, which is what pushed frontend, checkoutservice and loadgenerator over their thresholds. This is a latency-only event: no error text appears in cartservice logs and the service was serving a normal read/write mix at the end of the window. Note that the flat/absent cartservice error metrics must not be read as 'cart is healthy' \u2014 the spanmetrics denominator was also empty, so the metric source is unusable, and two past incidents in this corpus record responders being misled by exactly that reading.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_862cd9798521",
+      "tr_9cd3122c33cf",
+      "tr_274ab1322988",
+      "tr_bf15eaa38ba8",
+      "tr_adb11a0d6b19"
+    ],
+    "reasoning": "The changes dispatch (tr_862cd9798521) supplies the only mutation on the timeline before the incident: a 300ms fixed egress delay re-applied to the cart-service network namespace at 03:39:20Z, by platform-automation, still in force at alert time. The traces dispatch (tr_9cd3122c33cf) independently localises the latency to cartservice and, crucially, quantises it: the Redis operations inside cartservice's server spans measure 300-304ms, matching the injected constant almost exactly, while every other dependency is under 20ms and checkoutservice's own logic is ~50ms. Two sequential cart calls per checkout multiply that into the ~2.47s user-visible latency, explaining why the blast radius is frontend/checkout/loadgenerator rather than cart's own error budget. The logs dispatch (tr_274ab1322988) rules out crashes, OOM, timeouts or a partial read/write failure and confirms cart was serving normally at 03:45-03:46, consistent with pure added delay rather than failure. Both metrics dispatches (tr_bf15eaa38ba8, tr_adb11a0d6b19) returned no series at all, numerator and denominator, so they neither support nor contradict an error story \u2014 they are a data gap, and the ruled-out notes in both explicitly warn against reading them as a clean bill of health. Because the trigger is an injected network-shaping configuration rather than a code rollout or a genuinely slow downstream, the fix is to revert that configuration (detach the shaping container / clear the eth0 qdisc), not to roll back or restart cartservice.",
+    "open_questions": [
+      "The ~900ms per-call gap between the checkoutservice client span (~1.21s) and the cartservice server span (~302ms) is roughly 3x the injected 300ms and is not directly accounted for. It may be the same qdisc delaying multiple packets/round-trips (connection setup, gRPC handshake, response) or it may be independent client-side queuing/connection-pool pressure. Nothing dispatched measured this.",
+      "No one confirmed the shaping container is still attached now, or whether the 03:35:08 detach / 03:39:20 re-attach is part of a running chaos experiment with a scheduled end. Whether remediation is 'stop the experiment' or 'manually clear the qdisc' is unsettled.",
+      "cartservice's spanmetrics are entirely absent (empty numerator and denominator over 15 minutes). Whether this is a label/name mismatch, an exporter gap, or cartservice missing from span-metrics generation is unresolved, and it is a separate observability defect that blinded the metrics path in this investigation.",
+      "Redis itself was never inspected directly. The 300ms Redis spans are consistent with delay injected on cart's egress, but no dispatch confirmed Redis-side latency is normal, so a coincident Redis slowdown cannot be formally excluded.",
+      "Triage reported 4 unmeasured edges crossed; none were named or probed. Other consumers of cartservice besides checkoutservice may be affected and were not assessed.",
+      "cartservice log coverage is truncated around the 03:42:45 alert time itself \u2014 the retained lines are 03:32:45-03:32:51 and 03:45:45-03:46:10, so the alert minute is unobserved in logs."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-bad-image-tag / Resolution: The image reference was restored to the previously deployed tag. cartservice came up on\nthe next reconciliation and the no-traffic alerts cleared eight seconds later \u2014 those\nsix services had never been broken, only starved.\n\nA brief `ServiceHighErrorRate` appeared on **emailservi",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

@@ -1,0 +1,39 @@
+$ faultline-investigate --list
+1 investigable incident(s):
+  a7aab1ff-d443-4bd4-925a-cc7b31064a50  triaging       4 episode(s)  warning  cartservice, checkoutservice, frontend, loadgenerator
+
+$ faultline-investigate 00000000-0000-0000-0000-000000000000   # refusal path
+REFUSED: no incident 00000000-0000-0000-0000-000000000000 in the store
+exit=3
+
+$ faultline-investigate 329f8872-213a-4c10-9db1-6c1b74064c87   # the incident T3.5's own smoke failed
+REFUSED: incident 329f8872-213a-4c10-9db1-6c1b74064c87 is in state failed; the machine investigates from triaging only. A failed or resolved incident is terminal in ADR-0016's table. See ADR-0016 and faultline.orchestrator.machine.INVESTIGABLE.
+exit=3
+
+$ faultline-investigate a7aab1ff-d443-4bd4-925a-cc7b31064a50 --exclude-origin cart-dependency-latency --out docs/evidence/t3.5-runner-smoke --max-tool-calls 4 --max-tokens 120000
+incident a7aab1ff-d443-4bd4-925a-cc7b31064a50  state triaging  anchor 03:42:45
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 68ac9a67-8328-4e90-89ed-5c4409821316
+investigation: 2 round(s), 5 dispatch(es), 15 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_862cd9798521, tr_9cd3122c33cf, tr_274ab1322988, tr_bf15eaa38ba8, tr_adb11a0d6b19
+  root cause  : A platform-automation traffic-shaping sidecar re-attached to the cart-service network namespace at 03:39:20Z carrying a fixed 300ms, zero-jitter egress delay on eth0 (it had been detached at 03:35:08Z and was restored ~3.5 minutes before the 03:42:45 alerts). That injected delay is stamped directly on the trace shape: cartservice's server-side GetCart/EmptyCart spans are ~301-305ms and are almost entirely consumed by single Redis operations (HGET ~301-304ms, HMSET ~300-302ms) — i.e. one 300ms egress hop per Redis call — while cartservice's own compute is negligible. Because checkoutservice makes two sequential cart calls on every PlaceOrder, the penalty compounds into ~2.42s of the ~2.47s end-to-end checkout latency, which is what pushed frontend, checkoutservice and loadgenerator over their thresholds. This is a latency-only event: no error text appears in cartservice logs and the service was serving a normal read/write mix at the end of the window. Note that the flat/absent cartservice error metrics must not be read as 'cart is healthy' — the spanmetrics denominator was also empty, so the metric source is unusable, and two past incidents in this corpus record responders being misled by exactly that reading.
+  OPEN        : The ~900ms per-call gap between the checkoutservice client span (~1.21s) and the cartservice server span (~302ms) is roughly 3x the injected 300ms and is not directly accounted for. It may be the same qdisc delaying multiple packets/round-trips (connection setup, gRPC handshake, response) or it may be independent client-side queuing/connection-pool pressure. Nothing dispatched measured this.
+  OPEN        : No one confirmed the shaping container is still attached now, or whether the 03:35:08 detach / 03:39:20 re-attach is part of a running chaos experiment with a scheduled end. Whether remediation is 'stop the experiment' or 'manually clear the qdisc' is unsettled.
+  OPEN        : cartservice's spanmetrics are entirely absent (empty numerator and denominator over 15 minutes). Whether this is a label/name mismatch, an exporter gap, or cartservice missing from span-metrics generation is unresolved, and it is a separate observability defect that blinded the metrics path in this investigation.
+  OPEN        : Redis itself was never inspected directly. The 300ms Redis spans are consistent with delay injected on cart's egress, but no dispatch confirmed Redis-side latency is normal, so a coincident Redis slowdown cannot be formally excluded.
+  OPEN        : Triage reported 4 unmeasured edges crossed; none were named or probed. Other consumers of cartservice besides checkoutservice may be affected and were not assessed.
+  OPEN        : cartservice log coverage is truncated around the 03:42:45 alert time itself — the retained lines are 03:32:45-03:32:51 and 03:45:45-03:46:10, so the alert minute is unobserved in logs.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+wrote docs/evidence/t3.5-runner-smoke/a7aab1ff-d443-4bd4-925a-cc7b31064a50-verdict.json
+wrote docs/evidence/t3.5-runner-smoke/a7aab1ff-d443-4bd4-925a-cc7b31064a50-narrative.md
+exit=0

@@ -349,6 +349,50 @@ so nobody reads a green eval as evidence that the cap works.
 
 ---
 
+## 5. The agent-driven transitions *(added T3.5)*
+
+This ADR named `TRIAGING`, `PLANNING`, `INVESTIGATING`, `SYNTHESIZING` and `PROPOSING` with
+their triggers and deliberately left `record_agent_outcome` a stub, because what an agent
+returns was T3.x's contract and writing it from this side would have been inventing it. T3.x has
+built it. The runner (T3.5) is the component the stub was waiting for, and these are the
+decisions it forced.
+
+**An investigation starts from `TRIAGING` and from nowhere else.** Not a policy choice - the
+table already says it. `PLANNING` is reachable from `TRIAGING` alone, so `TRIAGING` is the only
+door into the agent lifecycle, and `machine.INVESTIGABLE` states that rather than re-deciding it.
+
+**The runner stops at `SYNTHESIZING` and does not enter `PROPOSING`.** `PROPOSING` means a
+remediation proposal exists, and the proposer is the one role of the nine that nothing has
+built. An incident parked in `SYNTHESIZING` says exactly what happened - triage, a plan,
+dispatches, a verdict - and claims nothing about a proposal it does not have. The
+`SYNTHESIZING -> PROPOSING` transition stays in the table, unused.
+
+**A flagged verdict is not a failed incident.** ADR-0020 §5 already said exhaustion produces a
+flagged verdict rather than a `FAILED` incident, because a partial diagnosis is scoreable. The
+state has to agree: a run that exhausted its budget still ends in `SYNTHESIZING`, and the flag
+travels on the verdict and in the exit code, not in the incident's state.
+
+**A run that raises ends `FAILED`, but only if it ran.** Two different things wear the same
+exception:
+
+- *A failed investigation* - it got somewhere, its trajectory holds what it did, and leaving the
+  incident in `PLANNING` would strand it in a state nothing advances and `INVESTIGABLE` refuses.
+  `FAILED`, with the partial trajectory attached.
+- *A failed start* - a missing optional dependency, an unreachable database. Nothing ran and
+  nothing about the incident changed, so its state must not change either.
+
+The distinction was not obvious and was **found the expensive way**: T3.5's first live smoke
+raised `ModuleNotFoundError` before the first model call, the runner moved the incident to
+`FAILED`, and `FAILED` is terminal here - so one absent extra permanently retired a live
+incident that nothing had investigated. `InvestigationFailedError` carries the trajectory so the
+runner can tell the two apart by whether a single step was recorded.
+
+**The trajectory id is a column on the incident.** `investigation_id`, written by the runner and
+upserted with `COALESCE` rather than `EXCLUDED` - the orchestrator saves incidents too and has
+no id to offer, and overwriting with its `NULL` would erase the join on the next alert. Verified
+live: the smoke's incident went `synthesizing -> resolved` when its alerts cleared, and kept its
+investigation id through the orchestrator's own write.
+
 ## Consequences
 
 **Easier.** T2.2 has states, triggers, an ack rule and a queue discipline to build against,
