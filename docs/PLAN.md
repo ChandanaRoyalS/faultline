@@ -430,6 +430,41 @@ is indistinguishable from the fabricated-citation case it exists to catch.
 `src/faultline/agents/investigation.py`, `src/faultline/agents/contracts.py`,
 `docs/adr/0020-agent-layer.md`, `docs/evidence/t3.4-first-investigation/README.md`
 
+### T3.4b — verdict grounding *(built; second live run captured)*
+Two defects T3.4's smoke recorded, diagnosed from the stored trajectory before either was
+touched. **contract not written** - a follow-on to T3.4, same convention.
+
+**The synthesizer's contradiction was context assembly, not attention.**
+`InvestigationResult.findings` keyed on specialist name, so T3.4's three `changes` dispatches
+collapsed to the last - quoteservice, which was empty - and the shippingservice change record
+naming the image swap outright never reached the synthesizer. Its claim that the query had
+never been made was accurate about what it was shown. Every executed dispatch now reaches the
+planner's follow-up brief, the synthesizer's brief and the scribe's brief, labelled with its
+service and carrying its `result_id`, with a one-line-per-dispatch index ahead of the detail.
+
+A deterministic cross-check covers what the assembly fix does not: a verdict claiming a dispatch
+never happened, for a dispatch that did, becomes a **flag carrying the refuting `result_id`**.
+The verdict text is never edited - it is evidence of what the model concluded, and T4.2 has to
+count these rather than have them silently repaired. Its first live firing was a **false
+positive**, caught by reading the run: a comma-joined sentence whose second half said the
+service *was* covered. Fixed and pinned verbatim.
+
+**Log retention is two-ended.** T3.4's specialist reported that shippingservice "emitted nothing"
+for seven minutes; 312 pre-onset lines sat in Loki inside its own query window and the newest-40
+cap dropped every one. The newest majority plus an oldest sample - a fifth of the budget, floored
+at 3 and ceilinged at 8 - with an explicit elision marker and both counts in the envelope. T2.6's
+direction and trace pins are unchanged; its newest-lines pin is amended, intent intact.
+
+The re-run (`docs/evidence/t3.4b-rerun/`) is also the **first variance observation**: the same
+scenario twice, `bad_deploy`/`rollback` the first time and `unknown`/`none` the second, both at
+medium confidence, 48,526 tokens and $0.46. The second run localized the failure to the
+shipping-quote hop and then never dispatched shippingservice, saying so in its own open
+questions. n=2 is an observation, not a rate.
+`docs/adr/0021-verdict-grounding-and-two-ended-truncation.md`,
+`src/faultline/agents/grounding.py`, `src/faultline/agents/roles.py`,
+`src/faultline/tools/tools.py`, `src/faultline/tools/results.py`,
+`docs/evidence/t3.4b-rerun/README.md`
+
 ### T3.5 — state machine
 Part of the orchestrator's eleven-state machine. The states and their triggers are proposed
 in ADR-0016; the five that depend on agent outcomes (`TRIAGING`, `PLANNING`, `INVESTIGATING`,
@@ -455,6 +490,17 @@ agent returns is T3.x's contract.
 > beforehand (checkoutservice and frontend pinned at 15000ms p95, accountingservice at 0.000
 > req/s) and the check that caught it was manual
 > (`docs/evidence/t3.4-first-investigation/README.md`).
+
+> **Note for T4.2.** **Contradiction flags are a distinct class.** A verdict that is wrong about
+> its own evidence - claiming a dispatch never happened when the trajectory holds it - is a
+> different failure from one that ran out of budget, and pooling them would hide the more
+> interesting of the two (T3.4b, `src/faultline/agents/grounding.py`).
+
+> **Note for the dispatch contract.** The planner passed **comma-separated service lists** where
+> one service belongs, and both the dispatch schema and the tool layer accepted it; the resulting
+> PromQL matched no series at all and two of six dispatches were spent on it (T3.4b's re-run,
+> `docs/evidence/t3.4b-rerun/README.md`). Whether `service` is one name or a set is a contract
+> question ADR-0020 does not settle.
 
 ### T4.1 — harness runner
 Drives runs from the scenario catalog: **what to inject, how long to wait, how long

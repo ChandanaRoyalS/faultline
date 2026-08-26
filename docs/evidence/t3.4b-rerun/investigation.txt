@@ -1,0 +1,209 @@
+incident a8ae8f08-42be-49ba-98c5-b3528e3de6bb episodes=7
+   checkoutservice        ServiceHighErrorRate   starts 02:27:00
+   emailservice           ServiceNoTraffic       starts 02:30:00
+   frauddetectionservice  ServiceNoTraffic       starts 02:30:00
+   quoteservice           ServiceNoTraffic       starts 02:30:00
+   shippingservice        ServiceNoTraffic       starts 02:30:00
+   accountingservice      ServiceNoTraffic       starts 02:30:15
+   loadgenerator          ServiceHighErrorRate   starts 02:30:45
+
+TRIAGE: 12 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+INVESTIGATION: 2 round(s), 6 dispatch(es), 17 step(s)
+
+--- PLAN round 1: The 02:27 onset at checkoutservice ahead of a 02:30 fan-out points to a single origin, so I focus change history, metrics, and logs on that service. Traces are held in reserve for the case where the failing dependency stays ambiguous.
+  DISPATCH changes   checkoutservice            What deploys, config, or flag changes landed on checkoutservice or its direct dependencies in the hour before 02:27?
+  DISPATCH metrics   checkoutservice            What are checkoutservice's error rate, latency percentiles, saturation, and per-dependency call failure rates from 02:15 to 02:35?
+  DISPATCH logs      checkoutservice            What error and exception messages appear in checkoutservice logs between 02:20 and 02:32, and which downstream dependency do they name?
+  SKIPPED  traces    Logs plus per-dependency metrics should already identify the failing edge; traces are only worth the cost if those come back ambiguous about which dependency is at fault.
+
+--- PLAN round 2: The findings establish that checkoutservice itself is healthy-but-blocked — accepting orders that never complete, with no local change and no error text — so the open question is purely which downstream call is hanging and why. Traces localize the stall, dependency metrics confirm which service is saturated, and a properly widened change query covers the interval and scope the first round missed.
+  DISPATCH traces    checkoutservice            For checkout requests after 02:28:30 that log an order start but never complete, which downstream span is the last one entered and where does latency accumulate or the trace terminate?
+  DISPATCH metrics   paymentservice, currencyservice, cartservice, productcatalogservice For each of these four checkout dependencies, what are the request latency percentiles and error ratios from 02:15 to 02:35, and which one shows saturation or latency blowup starting near 02:27-02:28?
+  DISPATCH changes   checkoutservice and its direct dependencies (paymentservice, currencyservice, cartservice, productcatalogservice, frontend) Were there any deploys, config edits, or feature-flag changes on checkoutservice or any of its direct dependencies between 01:27 and 02:30?
+  SKIPPED  logs      Checkout's own logs were already read and are silent by design (stall, not error); dependency logs would be a broad fishing expedition, and traces plus per-dependency metrics will name the culprit more directly. If those pin a service, logs on it are the natural next round.
+
+--- CHANGES on checkoutservice (id tr_8deedf529f24, attempts 1, empty=True, truncated=False)
+   FOUND     [high] The change history query for checkoutservice returned no records at all for the queried interval — no deploys, config edits, or feature-flag changes were logged.
+   FOUND     [high] The query covered only 02:17–02:32, a 15-minute window, not the full hour before 02:27 that the question asks about; the interval from roughly 01:27 to 02:17 remains unexamined.
+   FOUND     [medium] The result is scoped to checkoutservice itself; there is no indication it covered direct dependencies, so changes to upstream/downstream services are neither confirmed nor excluded.
+   RULED OUT A deploy or rollout of checkoutservice landed immediately before or during the incident onset and triggered it. - No change record of any kind exists for checkoutservice in the 02:17–02:32 window, so a same-minute or immediately-preceding deploy is not supported for that interval.
+   RULED OUT A feature flag flip or config push on checkoutservice coincided with the 02:27 onset. - Flag and config changes are carried in the same change log, and the log is empty across the onset time, so a coincident flip in that window is excluded.
+   RULED OUT An in-flight change was still rolling out during the incident window and could be rolled back to resolve it. - No active or recent change is recorded in the window, so there is no rollback candidate for checkoutservice here — remediation should not be framed around reverting a deploy.
+
+--- METRICS on checkoutservice (id tr_33efb69359f7, attempts 1, empty=False, truncated=False)
+   FOUND     [high] checkoutservice's span error ratio is elevated during the window, peaking at roughly 28% of calls returning error status, across 61 sampled points (30s resolution over ~15 minutes).
+   FOUND     [medium] The series also reaches zero at its minimum, indicating the error condition is not constant across the whole window — either it begins partway through, is intermittent, or recovers.
+   FOUND     [high] The service is emitting call metrics throughout, so it is up and serving traffic rather than absent from telemetry.
+   RULED OUT checkoutservice is fully down or hard-failing every request (total outage). - The error ratio never approaches 1.0; peak is ~0.28, so the majority of calls succeed throughout the window.
+   RULED OUT checkoutservice is healthy and the user-visible problem lies entirely elsewhere. - A sustained non-zero error ratio peaking near 28% is well above a clean baseline, placing checkoutservice inside the blast radius.
+   RULED OUT checkoutservice stopped reporting / lost its scrape target during the incident. - A continuous 61-point series was returned over the full window with no gaps reported.
+   RULED OUT Errors were constant at a fixed level for the entire window (suggesting a static misconfiguration present before 02:17). - The range spans 0 to 0.28, showing the ratio varies rather than sitting at a constant elevated floor.
+
+--- LOGS on checkoutservice (id tr_04ef8cf2aed4, attempts 2, empty=False, truncated=True)
+   FOUND     [high] The query for checkoutservice logs over 02:17–02:32 returned lines but was truncated: only the oldest 8 (02:17:02–02:17:12) and newest 32 (02:28:36–02:31:56) lines were kept, so roughly 02:17–02:28 is unverified.
+   FOUND     [high] Every returned line is severity info; no error-, warning-, or exception-level entries appear anywhere in the returned portion, and no downstream dependency is named in any failure message.
+   FOUND     [high] In the early part of the window each order shows a full lifecycle: order start, payment success, confirmation email, and a successful queue write with an incrementing offset.
+   FOUND     [medium] In the last ~3.5 minutes (02:28:36 onward) only order-start lines appear — the payment, email-confirmation, and queue-write completion lines that accompanied earlier orders are entirely absent, indicating orders are being accepted but not reaching completion, and stalling silently rather than erroring.
+   FOUND     [high] checkoutservice continues to accept and log new order requests at a steady rate through 02:31:56, with no gap in intake.
+   RULED OUT checkoutservice logs contain explicit error/exception text that names the failing downstream dependency (e.g. payment, email, or currency service), which would identify the culprit directly - All returned lines across both the early and late segments are info severity with no error or exception text and no dependency named in a failure context; the service is failing silently, so log text alone will not identify the dependency.
+   RULED OUT checkoutservice crashed, restarted, or stopped receiving traffic during the window - Order-start lines continue uninterrupted at a regular cadence through the end of the window, with no startup or restart banner.
+   RULED OUT The incident is a request-intake or ingress problem upstream of checkoutservice - Requests are arriving and being logged normally; the break is after order start, between intake and payment/email/queue-write completion.
+   RULED OUT Checkout was healthy and completing orders normally throughout the window - The completion lines present for every early order are absent for all ~32 orders after 02:28:36, so behaviour clearly changed.
+   RULED OUT The message-queue write path is failing loudly with produce errors - No write-failure lines appear; the write step is simply never reached in the late segment, and the last observed offsets incremented cleanly.
+
+--- TRACES on checkoutservice (id tr_74791dcc5b78, attempts 1, empty=False, truncated=True)
+   FOUND     [high] Every failing checkout trace in the window ends at the same point: checkoutservice's call to ShippingService/GetQuote, which is the last child span entered under prepareOrderItemsAndShippingQuoteFromCart and is marked ERROR in all sampled traces.
+   FOUND     [medium] The GetQuote call has no corresponding server-side span from shippingservice in any trace, so the trace terminates at the checkoutservice client span rather than continuing into the shipping backend.
+   FOUND     [high] The error propagates cleanly upward: checkoutservice/PlaceOrder, frontend/grpc PlaceOrder, and frontend/HTTP POST all carry ERROR in the same traces, so the user-visible checkout failure is the same fault surfaced at each tier.
+   FOUND     [high] Latency does not accumulate anywhere: the failing GetQuote spans complete in roughly 0.3-2.4ms and whole PlaceOrder traces finish in about 5-16ms end to end, so these are fast failures, not hangs.
+   FOUND     [high] All upstream dependencies in the order-preparation path succeed and are fast: CartService/GetCart (with its cartservice HGET), ProductCatalogService/GetProduct (including occasional FeatureFlagService/GetFlag children), and CurrencyService/Convert all return without error in sub-millisecond to low-millisecond times.
+   FOUND     [medium] No spans for payment, email, or shipping order placement appear in any trace, consistent with PlaceOrder aborting during quote retrieval before reaching the charge/ship/notify stages.
+   RULED OUT Checkout failures are caused by a slow or timing-out downstream dependency, with latency accumulating somewhere in the call chain. - Failing traces complete in single-digit to low-teens milliseconds and the erroring GetQuote spans are all under about 2.5ms; there is no latency accumulation to explain a timeout.
+   RULED OUT cartservice or its Redis backend (HGET) is the failure point. - GetCart and its cartservice/HGET child appear in every failing trace, complete in well under 3ms, and carry no error status.
+   RULED OUT productcatalogservice (or the FeatureFlagService lookup it makes) is failing or degraded. - GetProduct spans, including those with FeatureFlagService/GetFlag children, resolve normally and without error in the same traces that fail.
+   RULED OUT currencyservice conversion is the culprit. - Convert spans complete with negligible duration and no error in every failing trace, including a trace with four successive conversions.
+   RULED OUT Failure occurs later in checkout, at payment charging, shipping order placement, or confirmation email. - No spans for those stages exist in any trace; the last span entered is always the shipping quote, so execution never reaches them.
+   RULED OUT The problem originates at the frontend or in the gRPC hop into checkoutservice. - Frontend and checkoutservice PlaceOrder spans are error-marked only as inherited parents of the failing GetQuote leaf, and the child work before it succeeds, placing the origin downstream of them.
+   RULED OUT Only a subset of checkouts is affected, e.g. carts with particular item counts. - Traces with one, two, and four item/conversion iterations all terminate identically at the erroring GetQuote.
+
+--- METRICS on paymentservice, currencyservice, cartservice, productcatalogservice (id tr_ac12205653b5, attempts 1, empty=True, truncated=False)
+   FOUND     [high] The error-ratio query returned no matching series over the 15-minute window; the selector used a single label value containing all four service names concatenated, which cannot match any individual service_name label, so the empty result is a query-construction artifact rather than an observation about the services.
+   FOUND     [high] No latency percentile data was retrieved at all — the query only targeted calls_total error ratios, so the latency portion of the question remains entirely unanswered.
+   RULED OUT The empty result means the four checkout dependencies emitted zero errors during 02:15-02:35, so the incident is not error-driven. - The selector matched no series at all, including the denominator of total calls. A genuine zero-error condition would still produce a series with a 0 numerator, so emptiness here reflects a label mismatch, not an absence of errors.
+   RULED OUT The empty result means the services stopped reporting entirely (total outage or metrics pipeline failure) in that window. - A single query with an invalid multi-name label value would return nothing regardless of service health; this result cannot distinguish a scrape gap from a malformed matcher and provides no support for an outage.
+   RULED OUT This result identifies which dependency saturated near 02:27-02:28. - It returned no data points for any service, so it neither implicates nor exonerates paymentservice, currencyservice, cartservice, or productcatalogservice.
+   RULED OUT The calls_total metric or the service_name label does not exist in this Prometheus instance. - Not established — the failure is fully explained by the concatenated label value, so the metric and label schema remain untested and should be re-checked with a proper regex or per-service query before being doubted.
+
+--- CHANGES on checkoutservice and its direct dependencies (paymentservice, currencyservice, cartservice, productcatalogservice, frontend) (id tr_cd8b667857a0, attempts 1, empty=True, truncated=False)
+   FOUND     [high] The change-history query for checkoutservice and its five direct dependencies (paymentservice, currencyservice, cartservice, productcatalogservice, frontend) returned no records at all for the queried window, meaning no deploys, config edits, or feature-flag flips were logged for any of those services in that interval.
+   FOUND     [high] The evidence covers only 02:17–02:32, a 15-minute slice of the 01:27–02:30 period asked about; roughly 50 minutes preceding 02:17 remain unqueried and unaccounted for.
+   RULED OUT A deploy or rollout of checkoutservice itself triggered the incident onset at around 02:17–02:32. - No change record of any kind exists for checkoutservice in that window, so a code push in that interval cannot be the proximate trigger.
+   RULED OUT A dependency-side change — a paymentservice or currencyservice deploy, a cartservice config edit, or a productcatalogservice/frontend feature-flag flip — landed during the incident window and propagated to checkoutservice. - All five direct dependencies were included in the same query and none produced a record, eliminating dependency-side changes in this interval.
+   RULED OUT A feature-flag toggle (a change type that often bypasses deploy pipelines) was flipped mid-incident on this service group. - The change-history source covers flag changes alongside deploys and config edits, and returned empty for the group.
+
+=== RETRIEVAL (exclude_origin='scenario:shipping-wrong-image') ===
+  cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.
+cartservice showed no errors at all — flat zero, below every healthy servi
+  cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.
+cartservice showed no errors at all — flat zero. Read, wrongly, as evidence 
+  ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic
+client; its error rate restates whatever the storefront is failing to do.
+
+**Err
+
+=== VERDICT ===
+  root cause  : The checkout failure localizes to the shipping-quote hop immediately downstream of checkoutservice, not to checkoutservice itself. Every sampled failing trace succeeds through cart, product-catalog and currency work, then terminates at checkoutservice's client span for ShippingService/GetQuote, marked ERROR with no matching shippingservice server span and a duration of only ~0.3-2.4ms — the signature of a refused or rejected call, not a timeout. Logs corroborate the abort point: orders keep arriving through 02:31:56 but payment, email and queue-write completion lines vanish after 02:28:36, with no error text. Why shippingservice/quoteservice is refusing these calls is unestablished: no dispatch examined either service, and the empty change results covered only checkoutservice plus five other dependencies over 02:17-02:32.
+  fault class : unknown
+  fix class   : none
+  confidence  : medium
+  evidence    : ['tr_74791dcc5b78', 'tr_04ef8cf2aed4', 'tr_cd8b667857a0']
+  open        : ['shippingservice and quoteservice were never dispatched — their changes, metrics, logs and restart/OOM state are wholly unexamined.', 'Change history before 02:17 (back to ~01:27) is unqueried for all services.', 'Why the error ratio peaks at ~28% and dips to zero rather than being uniform — partial-window onset, intermittency, or partial routing is unresolved.']
+  contradictions: ['contradiction: the verdict says changes was not queried for checkoutservice, and tr_8deedf529f24 is exactly that query']
+  flags       : ['contradiction: the verdict says changes was not queried for checkoutservice, and tr_8deedf529f24 is exactly that query']
+
+=== NARRATIVE ===
+# Checkout aborts at the shipping-quote hop
+
+## What was visible, in order
+
+The page arrived critical: twelve services in the radius, alerts on checkoutservice, emailservice, frauddetectionservice, quoteservice, shippingservice, accountingservice and the loadgenerator, with five crossed edges carrying no measurements at all. The handed starting point was checkoutservice, and the alert set made it look like the origin. It was not.
+
+First move was to look for something that moved. A change-history query on checkoutservice over the fifteen minutes around onset came back completely empty — no deploys, no config edits, no flag flips. Widened to the five direct dependencies (paymentservice, currencyservice, cartservice, productcatalogservice, frontend), also empty. Useful negatives: there was no rollback candidate, and nobody should have burned the incident hunting a revert. The caveat that survives is coverage — only a fifteen-minute slice was queried; roughly the preceding fifty minutes were never looked at.
+
+Metrics on checkoutservice then showed a real but partial problem: span error ratio peaking near 28% across sixty-one points at thirty-second resolution, touching zero at its minimum. So: not a total outage, most calls succeeded, the service was up and reporting continuously, and the condition was not a flat elevated floor. Why it peaks at 28% and dips to zero — partial-window onset, intermittency, or partial routing — was never resolved.
+
+> Evidence `tr_8deedf529f24`:
+
+```
+<tool_result id="tr_8deedf529f24" tool="change_history" trust="untrusted" source="change-log" empty="true" truncated="false" window="2026-08-26T02:17:00.583000+00:00..2026-08-26T02:32:00.583000+00:00">
+no changes recorded for checkoutservice over this window
+</tool_result:tr_8deedf529f24>
+```
+
+> Evidence `tr_cd8b667857a0`:
+
+```
+<tool_result id="tr_cd8b667857a0" tool="change_history" trust="untrusted" source="change-log" empty="true" truncated="false" window="2026-08-26T02:17:00.583000+00:00..2026-08-26T02:32:00.583000+00:00">
+no changes recorded for checkoutservice and its direct dependencies (paymentservice, currencyservice, cartservice, productcatalogservice, frontend) over this window
+</tool_result:tr_cd8b667857a0>
+```
+
+> Evidence `tr_33efb69359f7`:
+
+```
+<tool_result id="tr_33efb69359f7" tool="promql_query" trust="untrusted" source="prometheus" empty="false" truncated="false" window="2026-08-26T02:17:00.583000+00:00..2026-08-26T02:32:00.583000+00:00">
+query: sum by(service_name) (rate(calls_total{service_name="checkoutservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="checkoutservice"}[2m]))
+1 series
+  {service_name=checkoutservice} min=0 max=0.2821 n=61
+</tool_result:tr_33efb69359f7>
+```
+
+## The dead end worth keeping
+
+An error-ratio query was run against the four checkout dependencies and returned nothing. It is very tempting to read that as "zero errors" or "they stopped reporting." Both readings are wrong. The selector packed all four service names into a single label value, which cannot match any individual service_name label, so it matched no series at all — not even the denominator of total calls. A genuine zero-error condition would still have produced a series with a zero numerator. The empty result is an artifact of query construction and neither implicates nor exonerates any of those four. It also does not cast doubt on the metric or label schema, which remains untested. Separately, no latency percentiles were ever retrieved; that question stayed unanswered.
+
+Logs were the second near-miss. The query was truncated, keeping only the oldest eight and newest thirty-two lines and leaving about eleven minutes in the middle unverified. Every returned line was severity info — no error text, no exception, no dependency named in any failure context. Anyone expecting the logs to name the culprit came away empty. The signal was in absence: early orders showed a full lifecycle (order start, payment success, confirmation email, queue write with incrementing offset), while in the last three and a half minutes only order-start lines remain. Intake never faltered, no restart banner appeared, and no queue produce errors were logged — that step is simply never reached. This is not a crash, not an ingress problem, and not a loud queue failure.
+
+> Evidence `tr_ac12205653b5`:
+
+```
+<tool_result id="tr_ac12205653b5" tool="promql_query" trust="untrusted" source="prometheus" empty="true" truncated="false" window="2026-08-26T02:17:00.583000+00:00..2026-08-26T02:32:00.583000+00:00">
+no series matched 'sum by(service_name) (rate(calls_total{service_name="paymentservice, currencyservice, cartservice, productcatalogservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="paymentservice, currencyservice, cartservice, productcatalogservice"}[2m]))' over this window
+</tool_result:tr_ac12205653b5>
+```
+
+> Evidence `tr_04ef8cf2aed4`:
+
+```
+<tool_result id="tr_04ef8cf2aed4" tool="logql_query" trust="untrusted" source="loki" empty="false" truncated="true" window="2026-08-26T02:17:00.583000+00:00..2026-08-26T02:32:00.583000+00:00" oldest_kept="8" newest_kept="32">
+selector: {service="checkout-service"}
+2026-08-26T02:17:02.273945+00:00  {"message":"[PlaceOrder] user_id=\"397f9b78-a0f4-11f1-86d7-1e4ac5f08d0c\" user_currency=\"USD\"","severity":"info","timestamp":"2026-08-26T02:17:02.273679879Z"}
+2026-08-26T02:17:02.292713+00:00  {"message":"payment went through (transaction_id: 4cca32d0-a95a-4ac7-a71b-e8f0e48e5714)","severity":"info","timestamp":"2026-08-26T02:17:02.292616129Z"}
+2026-08-26T02:17:02.297883+00:00  {"message":"order confirmation email sent to \"mark@example.com\"","severity":"info","timestamp":"2026-08-26T02:17:02.297634379Z"}
+2026-08-26T02:17:02.299025+00:00  {"message":"Successful to write message. offset: 5149","severity":"info","timestamp":"2026-08-26T02:17:02.298919629Z"}
+```
+
+## Where it localizes, and what is still open
+
+Traces resolved it. Every sampled failing checkout ends at the same place: checkoutservice's client span for ShippingService/GetQuote, the last child under prepareOrderItemsAndShippingQuoteFromCart, marked ERROR — with no matching shippingservice server span in any trace. Durations of roughly 0.3–2.4ms, with whole PlaceOrder traces finishing in about 5–16ms, mean nothing accumulates latency anywhere: these are fast refusals or rejections, not hangs or timeouts. Drop every slow-dependency theory on sight.
+
+Everything upstream succeeds in the same failing traces — GetCart with its Redis HGET child, GetProduct including its flag lookups, and Convert — all clean and fast, which clears cart, product catalog and currency individually. No payment, shipping-order or email spans exist at all, matching the log picture: execution aborts during quote retrieval. The ERROR on checkoutservice/PlaceOrder, frontend gRPC and the frontend HTTP POST is inherited from the failing leaf, not a problem at those tiers. Cart size is irrelevant; traces with one, two and four iterations end identically.
+
+Conclusion: the failure localizes to the shipping-quote hop immediately downstream of checkoutservice, not to checkoutservice itself. Confidence medium, no fix class identified, and do not frame remediation as a revert.
+
+Still open, in priority order: shippingservice and quoteservice were never dispatched to — their changes, metrics, logs and restart or memory state are wholly unexamined, and that is where the next responder should start; change history before the queried window, back roughly an hour, is unqueried for every service; and the shape of the error ratio remains unexplained.
+
+> Evidence `tr_74791dcc5b78`:
+
+```
+<tool_result id="tr_74791dcc5b78" tool="trace_query" trust="untrusted" source="jaeger" empty="false" truncated="true" window="2026-08-26T02:17:00.583000+00:00..2026-08-26T02:32:00.583000+00:00">
+service: checkoutservice
+200 spans
+  20ce7061b91d4ba3 checkoutservice/hipstershop.ProductCatalogService/GetProduct 0.8ms
+  20ce7061b91d4ba3 productcatalogservice/hipstershop.ProductCatalogService/GetProduct 0.0ms
+  20ce7061b91d4ba3 checkoutservice/hipstershop.CurrencyService/Convert 1.3ms
+```
+
+> Evidence `tr_04ef8cf2aed4`:
+
+```
+<tool_result id="tr_04ef8cf2aed4" tool="logql_query" trust="untrusted" source="loki" empty="false" truncated="true" window="2026-08-26T02:17:00.583000+00:00..2026-08-26T02:32:00.583000+00:00" oldest_kept="8" newest_kept="32">
+selector: {service="checkout-service"}
+2026-08-26T02:17:02.273945+00:00  {"message":"[PlaceOrder] user_id=\"397f9b78-a0f4-11f1-86d7-1e4ac5f08d0c\" user_currency=\"USD\"","severity":"info","timestamp":"2026-08-26T02:17:02.273679879Z"}
+2026-08-26T02:17:02.292713+00:00  {"message":"payment went through (transaction_id: 4cca32d0-a95a-4ac7-a71b-e8f0e48e5714)","severity":"info","timestamp":"2026-08-26T02:17:02.292616129Z"}
+2026-08-26T02:17:02.297883+00:00  {"message":"order confirmation email sent to \"mark@example.com\"","severity":"info","timestamp":"2026-08-26T02:17:02.297634379Z"}
+2026-08-26T02:17:02.299025+00:00  {"message":"Successful to write message. offset: 5149","severity":"info","timestamp":"2026-08-26T02:17:02.298919629Z"}
+```
+
+
+TOKENS: in=37846 out=10680 total=48526   cost $0.4562
+attempts: [('planner', 2), ('changes', 1), ('metrics', 1), ('logs', 2), ('planner', 1), ('traces', 1), ('metrics', 1), ('changes', 1), ('synthesizer', 2), ('scribe', 2)]
+rows in trajectory_steps        : 17
+rows in trajectory_tool_calls   : 6
+rows in trajectory_retrievals   : 1
+  retrieval row: exclude_origin='scenario:shipping-wrong-image' k=3 returned=['scenario:cart-redis-misconfig', 'scenario:cart-bad-image-tag', 'scenario:ad-memory-squeeze']
+
+  LOG ENVELOPE tr_04ef8cf2aed4: <tool_result id="tr_04ef8cf2aed4" tool="logql_query" trust="untrusted" source="loki" empty="false" truncated="true" window="2026-08-26T02:17:00.583000+00:00..2026-08-26T02:32:00.583000+00:00" oldest_kept="8" newest_kept="32">
+    elision: ... lines between here and the next timestamp were not returned: this result keeps the OLDEST 8 and the NEWEST 32 lines of the window, and nothing in between ...
+trajectory: 6b9715de-f684-4352-9739-bbdeeb3607df
