@@ -1,0 +1,31 @@
+incident 38751599-5fa1-4bc7-976d-18386a1df48a  state triaging  anchor 06:38:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: e58d4943-1359-4a43-9f18-4ffcb7a24d37
+investigation: 1 round(s), 4 dispatch(es), 12 step(s) BUDGET EXHAUSTED (changes tool calls: 4 of 4 used)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : low
+  evidence    : tr_fe201f33fbe1, tr_5539a1f24c7c, tr_a5ce7e052ba4, tr_619f7c3afd5d
+  root cause  : The only recorded change anywhere near onset is a resource_limits update applied by platform-automation to adservice at 06:35:03Z, roughly 3m40s before the 06:38:45 incident timestamp, which introduced a hard 256m memory cap where previously no explicit cap existed (tr_fe201f33fbe1). Change history for frontend, cartservice and productcatalogservice is empty over the queried interval (tr_5539a1f24c7c, tr_a5ce7e052ba4, tr_619f7c3afd5d), so the adservice cap is the sole change-side candidate for the trigger. The most plausible mechanism is that adservice began hitting the newly imposed memory ceiling and started OOM-killing or throttling, and its degradation propagated to frontend and the wider call graph. This is a correlation-only conclusion: no metrics, logs, traces or pod-restart data were gathered, so nothing in the evidence set actually confirms adservice was unhealthy, that it OOMed, or that frontend's failure originated there. The change budget was exhausted on change-history alone (4 of 4), and the empty results for the other three services cover only a ~15-minute window rather than the two hours requested, so an earlier change with delayed effect remains entirely unexamined.
+  OPEN        : Did adservice actually OOM, restart, or throttle after 06:35:03? No pod events, restart counts, or memory-utilization metrics were collected — the entire causal mechanism is unverified.
+  OPEN        : Was adservice's pre-cap steady-state memory footprint above or below 256m? Without this the cap may have been harmless.
+  OPEN        : Why does the blast radius span 7 services and reach critical severity when frontend typically degrades gracefully on ad failures? A shared upstream, a resource-pool-wide automation sweep, or a second unrelated fault could better explain the spread.
+  OPEN        : The change queries covered only ~15 minutes, not the two hours requested. Changes between roughly 04:38 and 06:28 — including any earlier platform-automation rightsizing pass affecting other services — remain completely unexamined.
+  OPEN        : No change history was pulled for the other three services in the 7-service blast radius, or for shared infrastructure; the adservice change may be one instance of a broader automated rightsizing action.
+  OPEN        : The triage note mentions 1 unmeasured edge crossed — which dependency link is unobserved, and could the true propagation path run through it rather than through adservice?
+  OPEN        : What is the direction of causation between the frontend and loadgenerator alerts firing simultaneously at 06:38:45, and does adservice appear in the alert set at all? No alert inventory beyond the two paged services was provided.
+
+=== FLAGGED ===
+  budget exhausted: changes tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T063503Z-ad-memory-squeeze/38751599-5fa1-4bc7-976d-18386a1df48a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T063503Z-ad-memory-squeeze/38751599-5fa1-4bc7-976d-18386a1df48a-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8070.34it/s]

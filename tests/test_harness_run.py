@@ -240,3 +240,17 @@ def test_the_stamp_moves_when_a_prompt_moves() -> None:
     stamp.prompt_digest.cache_clear()
 
     assert before != after
+
+
+def test_the_episode_wait_comes_from_the_bundle_not_a_constant() -> None:
+    """**The first sweep discarded a scenario over this.** `min_episodes` was hard-coded to 2,
+    and `frauddetection-memory-squeeze` alerts on exactly one service - a sparse service failing
+    quietly pages nobody downstream. It could never satisfy the wait, timed out at 900s, and was
+    recorded as though the world had not reacted. It had reacted exactly as its bundle says.
+    """
+    from evalharness.run import expected_episodes
+
+    assert expected_episodes(bundle_for("frauddetection-memory-squeeze")) == 1
+    assert expected_episodes(bundle_for("ad-memory-squeeze")) == 2, "two where the radius is wider"
+    assert expected_episodes(bundle_for("cart-redis-misconfig")) == 2
+    assert expected_episodes({"alerts_over_window": []}) == 1, "never waits for zero"

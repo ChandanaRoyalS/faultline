@@ -1,0 +1,29 @@
+run 20260826T065525Z-cart-bad-image-tag   scenario cart-bad-image-tag
+trajectory 59d0447d-50ac-40fe-9337-bbff2400954e   runtime faultline/0.0.1+prompts:59bf438b2a96
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.78  (7/9 alerted services predicted)
+  precision 0.58  (7/12 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): frauddetectionservice, quoteservice
+  extra  (predicted, not alerted): adservice, emailservice, paymentservice, productcatalogservice, recommendationservice
+  unmeasured edges crossed: 4 - membership reached through one is not evidence at the same strength
+  excluded as recovery-phase (began_after_revert): emailservice
+
+VERDICT
+  fault class bad_deploy vs bad_deploy - correct
+  fix class   rollback vs rollback - correct
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   2  contradiction: the verdict says changes was not queried for cartservice, and tr_d5bfa11b64cf is exactly that query; contradiction: the verdict says changes was not queried for checkoutservice, and tr_429f2fdca15b is exactly that query
+  budget exhausted        no
+  narrative refused       no
+  NOTE: The contradiction check has fired twice live and been wrong both times (0 true positives, 2 false positives). Its one true positive is historical, and the context-assembly fix that shipped beside it removed that verdict's cause (ADR-0022 §2).
+
+COST  in 42074 / out 12746 tokens   $0.5290
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).

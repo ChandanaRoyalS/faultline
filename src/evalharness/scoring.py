@@ -215,11 +215,24 @@ class Categories:
     failed_alone: tuple[str, ...] = ()
     contradictions: tuple[str, ...] = ()
     budget_exhausted_reason: str | None = None
+    narrative_refused: str | None = None
+    """The render refusal, if there was one. **A fifth category, added at T4.2.**
+
+    T4.2's judge scores narratives. Run 3 produced a correct verdict, exited 0, and wrote no
+    narrative at all - the leak guard refused the render - and nothing in the scored report said
+    so. A judge reading that report would have had nothing to score and no way to know that was
+    the reason rather than an oversight. The other four categories describe an investigation that
+    fell short; this one describes an output that does not exist.
+    """
 
     @property
     def any(self) -> bool:
         return bool(
-            self.flagged or self.failed_alone or self.contradictions or self.budget_exhausted_reason
+            self.flagged
+            or self.failed_alone
+            or self.contradictions
+            or self.budget_exhausted_reason
+            or self.narrative_refused
         )
 
     def as_dict(self) -> dict[str, Any]:
@@ -232,6 +245,8 @@ class Categories:
             "n_contradictions": len(self.contradictions),
             "budget_exhausted": self.budget_exhausted_reason is not None,
             "budget_exhausted_reason": self.budget_exhausted_reason,
+            "narrative_refused": self.narrative_refused is not None,
+            "narrative_refused_reason": self.narrative_refused,
         }
 
 
@@ -344,7 +359,14 @@ class ScoredRun:
             f"  contradiction firings   {len(c.contradictions)}"
             + (f"  {'; '.join(c.contradictions)}" if c.contradictions else ""),
             f"  budget exhausted        {c.budget_exhausted_reason or 'no'}",
+            f"  narrative refused       {'yes' if c.narrative_refused else 'no'}",
         ]
+        if c.narrative_refused:
+            lines += [
+                f"    {c.narrative_refused}",
+                "    NOTE: this run produced no narrative. T4.2's judge has nothing to score "
+                "for it, and that is a fact about the run rather than a gap in the judging.",
+            ]
         if c.contradictions:
             lines.append(f"  NOTE: {CONTRADICTION_LEDGER}")
         lines += [

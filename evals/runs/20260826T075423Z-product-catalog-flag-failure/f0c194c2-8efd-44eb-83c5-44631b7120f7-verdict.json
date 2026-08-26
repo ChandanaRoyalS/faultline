@@ -1,0 +1,51 @@
+{
+  "incident_id": "f0c194c2-8efd-44eb-83c5-44631b7120f7",
+  "trajectory_id": "bdbf0e4f-070d-4506-b416-ab9d493ebbb7",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "productcatalogservice is deliberately returning gRPC INTERNAL (code 13) responses to a fraction of calls because a 'fail' feature flag is enabled on it. The frontend is the visible victim: its logs show the error status arriving on the gRPC client receive path with detail text naming ProductCatalogService and the enabled fail flag (tr_980bdafbad25), and productcatalogservice's own error ratio is elevated and highly variable (roughly 0.6% to 17% across 31 continuous samples) rather than total (tr_13eeae184326) \u2014 the signature of a partial, injected fault on a service that is otherwise up and serving. The alert ordering (loadgenerator and frontend paging together, with frontend errors present from at least 07:54:30) is consistent with an edge-visible symptom of a mid-tier fault rather than a frontend defect. The flag flip itself is not attributed in the change record: both change queries over 07:47:45\u201308:02:45 returned nothing for productcatalogservice (tr_7bc4eaa0c1f7, tr_cc460af77246), and those queries covered only 15 minutes and only this service, so the enabling event most likely landed before the queried window or lives in a shared/global flag store that was never searched.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_980bdafbad25",
+      "tr_13eeae184326",
+      "tr_7bc4eaa0c1f7",
+      "tr_cc460af77246"
+    ],
+    "reasoning": "The strongest single piece of evidence is the frontend log detail (tr_980bdafbad25): the error is an application-level INTERNAL status returned by productcatalogservice, with the callee's own message naming the fail feature flag. That simultaneously identifies the faulting service and its mechanism, and rules out the frontend as origin, transport/network failure (would be code 14 or 4), and auth/quota rejection. The metrics (tr_13eeae184326) corroborate the shape: productcatalogservice is up and answering throughout, with a partial error fraction that swings ~30x \u2014 inconsistent with a hard-down service, a scrape gap, or a fixed constant-rate misconfiguration, and consistent with load-correlated or probabilistic fault injection. The two change queries (tr_7bc4eaa0c1f7, tr_cc460af77246) do not contradict this; they only establish that no change is *attributed to productcatalogservice within a 15-minute bracket*, and both specialists explicitly flagged that coverage as narrower than the question. Absence of a record in a too-narrow, wrongly-scoped query is not evidence the flag was not flipped \u2014 it means the flip must be found elsewhere. Because the fault is a configuration/flag state and not code, the corrective action is to disable the flag (config_revert), not a rollback or restart; the change evidence specifically rules out a rollout being available to roll back. Confidence is medium rather than high because the causal claim rests on a log detail string that no independent source has corroborated, and no one has confirmed the flag's current state directly on productcatalogservice or in the flag store.",
+    "open_questions": [
+      "When and by whom was the fail flag enabled? Neither change query covered the full 60 minutes before onset, and neither searched a shared or global feature-flag store \u2014 the flip is unattributed.",
+      "Was the flag state ever read directly from productcatalogservice or the flag service, or is the entire diagnosis resting on the frontend's log detail text?",
+      "Why did errors appear in frontend logs from 07:54:30 but pages fire at 07:57:45\u201307:58:00? The ~3 minute gap between first observed error and alert is unexplained and may indicate the flag was enabled earlier still.",
+      "What explains the ~30x swing in error ratio (0.6% to 17%)? A percentage-based injection, load correlation, and a partially-rolled-out flag are all consistent and were not distinguished.",
+      "The triage blast radius names 7 services but only frontend and productcatalogservice were investigated. The other 4 services' involvement \u2014 and whether any of them also carry the flag \u2014 is unexamined.",
+      "One unmeasured edge was crossed per triage; it was never identified, so a contributing path between frontend and productcatalogservice (or beyond) remains unobserved.",
+      "No specialist queried frontend's own change history, so a coincident frontend change cannot be fully excluded even though the log stack places the fault downstream."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for ",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired "
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

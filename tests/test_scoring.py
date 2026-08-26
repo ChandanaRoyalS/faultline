@@ -201,6 +201,44 @@ def test_zero_observation_categories_are_printed_at_zero() -> None:
     assert "flagged verdicts        0" in report
     assert "contradiction firings   0" in report
     assert "budget exhausted        no" in report
+    assert "narrative refused       no" in report
+
+
+# Verbatim from run 3's verdict artifact.
+RUN3_REFUSAL = (
+    "the narrative mentions ['fault']. This text becomes corpus material at T2.4b, so it is "
+    "written from the responder's chair - what was visible, not what we know because we "
+    "caused it (ADR-0020 section 4, evals/scenarios/ARTIFACTS.md)."
+)
+
+
+def test_a_refused_narrative_is_reported_and_says_the_judge_has_nothing_to_score() -> None:
+    """**The fifth category, added at T4.2.** Run 3 produced a correct verdict, exited 0, and
+    wrote no narrative - and the scored report said nothing about it. T4.2's judge scores
+    narratives; a report that is silent about there being none turns a fact about the run into
+    what looks like a gap in the judging."""
+    categories = Categories(narrative_refused=RUN3_REFUSAL)
+    report = ScoredRun("r", "s", "t", categories=categories).report()
+
+    assert "narrative refused       yes" in report
+    assert "nothing to score" in report
+    assert categories.as_dict()["narrative_refused"] is True
+    assert categories.as_dict()["narrative_refused_reason"] == RUN3_REFUSAL
+
+
+def test_a_refused_narrative_is_not_averaged_into_anything() -> None:
+    """Like the other four: reported beside the headline, never subtracted from it. A run whose
+    narrative was refused still has a verdict, and that verdict still scores."""
+    scored = ScoredRun(
+        "r",
+        "cart-redis-misconfig",
+        "t",
+        fault_class=score_label("cart-redis-misconfig", "bad_config", "bad_config"),
+        categories=Categories(narrative_refused=RUN3_REFUSAL),
+    )
+    assert scored.fault_class is not None and scored.fault_class.correct
+    assert scored.reached_a_class
+    assert scored.as_dict()["categories"]["narrative_refused"] is True
 
 
 def test_the_contradiction_ledger_is_printed_beside_any_firing() -> None:
@@ -223,3 +261,28 @@ def test_budget_exhaustion_names_the_bound_that_bit() -> None:
 def test_the_report_says_n_equals_one() -> None:
     """CLAUDE.md rule 6 travels with the number, not with the reader's memory."""
     assert "n=1" in ScoredRun("r", "s", "t").report()
+
+
+def test_the_four_categories_are_disjoint() -> None:
+    """A run whose budget was exhausted has one flag, and it belongs to exactly one category.
+    Leaving it in `flagged` as well counted `ad-memory-squeeze` twice in the first sweep's
+    totals, which is the failure mode "reported separately" exists to prevent."""
+    from evalharness.run import score
+
+    artifact = {
+        "trajectory_id": "t",
+        "blast_radius": ["adservice"],
+        "unmeasured_edges": 1,
+        "verdict": {"fault_class": "bad_config", "remediation_class": "config_revert"},
+        "flags": ["budget exhausted: changes tool calls: 4 of 4 used"],
+        "failed_dispatches": [],
+    }
+    scored = score("r", "ad-memory-squeeze", bundle("ad-memory-squeeze"), artifact, {}, {})
+    cats = scored.categories
+
+    assert cats.budget_exhausted_reason is not None
+    assert cats.flagged == (), "the budget flag is not also an unattributed flag"
+    assert (
+        len(cats.flagged) + len(cats.contradictions) + (1 if cats.budget_exhausted_reason else 0)
+        == 1
+    )

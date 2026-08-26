@@ -1,0 +1,30 @@
+incident 40595261-e56f-4242-8b2d-ad02509af4a5  state triaging  anchor 08:15:45
+triage: 12 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 502b305e-73de-4b4e-a5e1-cd68828aea57
+investigation: 2 round(s), 6 dispatch(es), 17 step(s)
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : tr_4eed29ed8cd8, tr_af45c73ad1a3, tr_de43511de1d1, tr_e1b79455abe4, tr_aac7acaa0876, tr_6a7ac5b47690
+  root cause  : At 08:13:17Z an automated pipeline (platform-automation) updated shippingservice's image reference to a tag that names a different service, and the prior image value is recorded as absent — a mistagged/mistargeted rollout rather than a version bump (tr_4eed29ed8cd8). The consequence is visible in shippingservice's own log stream: normal Rust/tonic quote-serving lines stop after 08:06:06, and from 08:13:38 onward the stream contains only JVM/OpenTelemetry Java agent startup banners repeating every ~60-65s with no request-handling lines — a wrong-runtime container in a restart loop, and an emitter change consistent with a different service's image running under the shippingservice label (tr_af45c73ad1a3). Downstream, every failing checkout trace fails on the same deepest span, checkoutservice's outbound GetQuote to ShippingService, with no shippingservice server span beneath it and ~2-3ms durations, i.e. RPCs rejected at connect time rather than a slow dependency (tr_de43511de1d1), producing the partial (~0.28 peak) error ratio on checkoutservice (tr_e1b79455abe4) as requests land between restart attempts. No change of any kind was recorded on checkoutservice itself (tr_aac7acaa0876), so checkout is a victim, not the origin.
+  OPEN        : The empty shippingservice metric series (tr_6a7ac5b47690) was never resolved — it could be a crash-looping process that never gets scraped, or a wrong metric/label schema in the query. Until that is settled there is no quantified error or traffic baseline for shippingservice itself, and no independent metric confirmation of the outage.
+  OPEN        : quoteservice alerted at 08:19:15 and was never dispatched on. The shipping logs contain no reference to quoteservice or any upstream (tr_af45c73ad1a3), so whether quoteservice is a second victim, a co-casualty of the same pipeline run, or an independent problem is unknown.
+  OPEN        : accountingservice, emailservice, and frauddetectionservice alerted at 08:19:30 and were not investigated. Their relationship to the checkout failure path (likely async order-completion consumers) is inferred, not shown; triage flagged 5 unmeasured edges crossed.
+  OPEN        : The exact identity of the wrongly-tagged image was not confirmed — the change record notes the tag names a different service (tr_4eed29ed8cd8) but which service's image is actually running under the shippingservice label was not verified.
+  OPEN        : The prior image value is recorded as absent, so the correct rollback target is not established by this evidence; the last-known-good shippingservice image reference needs to be recovered before reverting.
+  OPEN        : Whether the same automation run mistagged other services was not checked. Only checkoutservice and shippingservice change streams were queried, and the checkoutservice query covered only a 15-minute window rather than the intended 60-minute lookback.
+  OPEN        : Why checkoutservice's error ratio peaks near 0.28 rather than approaching total failure is not directly demonstrated. The restart-loop-window explanation is plausible but was not confirmed against a per-minute correlation of restart timing and error timing.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T081313Z-shipping-wrong-image/40595261-e56f-4242-8b2d-ad02509af4a5-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T081313Z-shipping-wrong-image/40595261-e56f-4242-8b2d-ad02509af4a5-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9923.81it/s]

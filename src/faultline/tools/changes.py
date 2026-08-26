@@ -87,13 +87,12 @@ class ChangeRecord(BaseModel):
         }
 
 
-BANNED_VOCABULARY: frozenset[str] = frozenset(
+HARNESS_VOCABULARY: frozenset[str] = frozenset(
     {
         "inject",
         "injected",
         "injection",
         "injector",
-        "fault",
         "faultline",
         "chaos",
         "scenario",
@@ -107,12 +106,49 @@ BANNED_VOCABULARY: frozenset[str] = frozenset(
         "resource_exhaustion",
     }
 )
-"""Words that must not appear in anything an agent can see.
+"""Terms whose appearance **anywhere** an agent can see is a leak, in any context.
 
-Fault-class values and injector vocabulary. `scenario` and `rehearsal` are here because the
-scenario id would carry the harness's existence even without the class - and the id itself is
-banned separately, since ids like `cart-redis-misconfig` are not in this list but *are* the
-answer key. See `tests/test_tools.py`.
+Two kinds, and both reveal something no responder could know. The injector's own vocabulary -
+`inject`, `chaos`, `pumba`, `netem`, `rehearsal` - reveals that the incident was manufactured.
+The four `fault_class` values are the answer key itself, and `ARTIFACTS.md` forbids handing the
+reader the classification for the same reason it forbids opening a narrative with the diagnosis.
+
+`scenario` and `rehearsal` are here because the scenario id would carry the harness's existence
+even without the class - and the id itself is banned separately, since ids like
+`cart-redis-misconfig` are not in this list but *are* the answer key. See `tests/test_tools.py`.
+"""
+
+PROSE_VOCABULARY: frozenset[str] = frozenset({"fault"})
+"""Ordinary incident-response English, banned **only where its appearance is evidence of a leak**
+(T4.2).
+
+`fault` is the one word on the original list that a real narrative legitimately needs. It is
+banned in a *change record* because that text is rendered from the injector's own model, where
+"fault" is the injector's word for what it did - so the string appearing there is evidence the
+rendering leaked. It is not banned in a narrative, because the scribe composes prose from
+validated findings and has no access to the injector's model at all: the same string there is a
+responder writing English.
+
+**Found by the guard's first live refusal**, and the sentence is worth quoting because it
+contains no banned word at all:
+
+> "No prior value was recorded for the Redis address, so it is genuinely unsettled whether 6380
+> replaced a working endpoint or was set for the first time over a default."
+
+The match is a substring one, so `fault` fires on **`default`** - and `faulty`, and
+`defaulting`. That sentence is exemplary responder prose about a Redis port, on a scenario whose
+whole subject is a port that is not the default, and it cost run 3 its entire narrative
+(`docs/evidence/t4.1-first-scored-run/`).
+"""
+
+BANNED_VOCABULARY: frozenset[str] = HARNESS_VOCABULARY | PROSE_VOCABULARY
+"""Everything banned from **machine-derived** agent-visible text - the change tool's rendered
+output surface (ADR-0019).
+
+Unchanged in content and in matching from T2.6: substring matching over text derived from the
+answer key, where an over-match costs nothing and a miss costs the experiment. The narrative
+guard uses `HARNESS_VOCABULARY` with word boundaries instead; see `faultline.agents.narrative`
+and ADR-0019's leak-boundary section for why the two differ.
 """
 
 WORLD_OWNED_TOKENS: frozenset[str] = frozenset({"FAULTLINE_ENABLED_FLAGS"})

@@ -262,6 +262,56 @@ fixed synthetic operator, drawn from a small roster to make change-history *rank
 task, or omitted. Omitting it is safest and loses the "who" that the record shape claims to
 have; a roster is more realistic and is one more thing that could correlate with the answer.
 
+#### Two boundaries, not one *(added T4.2)*
+
+The list above was written for one surface and then reused for a second. They are different
+boundaries, and the first live refusal is what made the difference concrete.
+
+| | **change records** (T2.6, this ADR) | **narratives** (T3.4, ADR-0020 §4) |
+|---|---|---|
+| who wrote the text | the injector, rendered | the scribe, composing prose |
+| can the writer see the answer key? | **yes** - it is derived from it | **no** - only validated findings |
+| what a banned word proves | the rendering leaked | nothing, on its own |
+| matching | substring | word boundary |
+| vocabulary | `BANNED_VOCABULARY` | `HARNESS_VOCABULARY` |
+
+**The decision: terms that reveal the harness are banned in every context; ordinary incident
+vocabulary is banned only where its appearance is evidence of leakage.**
+
+Banned everywhere (`HARNESS_VOCABULARY`): the injector's own words - `inject`, `injected`,
+`injection`, `injector`, `chaos`, `pumba`, `netem`, `rehearsal`, `rehearse`, `scenario`,
+`faultline` - and the four `fault_class` values, which are the answer key itself. Scenario ids
+and world-owned tokens keep their existing separate treatment. A narrative never legitimately
+needs any of these, so the cost of banning them in prose is nil and the cost of allowing one is
+the experiment.
+
+Banned only in machine-derived text (`PROSE_VOCABULARY`): **`fault`**, and it is the only word
+that moved. In a change record the string is evidence, because that text is rendered from a
+model in which "fault" is the injector's word for what it did. In a narrative it is a responder
+writing English.
+
+**Why this was not a judgement call about style.** The guard's first live refusal took run 3's
+entire narrative, and the sentence it refused contains no banned word:
+
+> "No prior value was recorded for the Redis address, so it is genuinely unsettled whether 6380
+> replaced a working endpoint or was set for the first time over a default."
+
+`default` contains `fault`. So does `faulty`, and `defaulting`. That is exemplary responder
+prose about a Redis port, on a scenario whose entire subject is a port that is not the default
+one, and the match was a substring one over a list built for a different surface
+(`docs/evidence/t4.1-first-scored-run/`).
+
+**Matching differs, and asymmetrically.** Over machine-derived text a substring match is right:
+an over-match costs nothing there, and a miss costs the experiment. Over prose it is not, so the
+narrative guard matches on boundaries - but the two ends are not symmetric. Nothing may precede
+a term, which is what makes `default` safe; ordinary inflections may follow one, because a
+strict tail lets `scenarios` and `rehearsed` walk through and both are leaks by any reading.
+
+**What did not change.** `BANNED_VOCABULARY` keeps `fault`, keeps substring matching, and the
+change-tool guard is untouched: `KNOWN_LEAKING_FAULTS` still pins exactly
+`flag-service-bad-deploy` and `flag-service-crashloop` as the only two faults whose records
+leak, and `WORLD_OWNED_TOKENS` still exempts exactly `FAULTLINE_ENABLED_FLAGS`.
+
 **Enforcement is a test, not a review.** `evals/scenarios/` already carries
 `test_narratives_do_not_leak_the_answer_key`; the change tool gets the same guard, greping its
 **rendered output surface** — not its internal model — for the banned vocabulary, over every

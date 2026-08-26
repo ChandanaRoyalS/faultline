@@ -1,0 +1,29 @@
+run 20260826T071611Z-cart-dependency-latency   scenario cart-dependency-latency
+trajectory 6bcee774-3c1d-47b6-a4ec-a65b5a399429   runtime faultline/0.0.1+prompts:59bf438b2a96
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (4/4 alerted services predicted)
+  precision 0.33  (4/12 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): accountingservice, adservice, currencyservice, emailservice, paymentservice, productcatalogservice, recommendationservice, shippingservice
+  unmeasured edges crossed: 4 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  fault class bad_config vs dependency_latency - WRONG
+    disputed boundary, ADR-0022 §1.2: A shaping rule on a container's network namespace reads as either 'a dependency got slow' or 'something was configured wrong'. The tiebreak is which fix works, and that was measured: pumba binds to the container present, so a restart durably clears the delay (1.9ms -> ~650ms -> 1.9ms, sidecar still running) while there is no configuration to revert. Counted as a miss; named so a reader can see how much of a class error rate is this boundary.
+  fix class   config_revert vs restart - WRONG
+    disputed boundary, ADR-0022 §1.2: The class of fix follows the same fork, and by the same measurement.
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 29224 / out 12942 tokens   $0.4697
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).

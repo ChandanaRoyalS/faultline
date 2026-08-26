@@ -1,0 +1,30 @@
+incident 78d0d6bb-9a3b-4d6d-b868-5a3ae6f4049c  state triaging  anchor 07:19:45
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 6bcee774-3c1d-47b6-a4ec-a65b5a399429
+investigation: 2 round(s), 5 dispatch(es), 15 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_33df3caf2e8f, tr_325315286bc8, tr_89f3a8ef9b9b, tr_476780184691, tr_f68ed951fef9
+  root cause  : At 07:16:15 UTC an actor identified as platform-automation attached a traffic-shaping container to cartservice's network namespace, imposing a fixed 300ms zero-jitter egress delay on the primary interface where none existed before (tr_33df3caf2e8f). Every cart request now pays that penalty once per outbound cache round-trip: traces show cartservice's Redis HGET/HMSET client spans each at ~300-305ms with the enclosing RPC exceeding its child by ~1ms, single-op GetCart at ~301ms versus two-op AddItem at ~602ms, and checkoutservice PlaceOrder inflated to ~2.46s composed almost entirely of two cart round-trips (tr_325315286bc8). Nothing is failing — frontend's error ratio is identically zero across the whole window (tr_89f3a8ef9b9b) and cartservice logs show normal cart handling on both sides of the event (tr_476780184691) — so the warning-severity alerts on frontend, checkoutservice and loadgenerator are latency propagation from the shaped cart path, not an error-rate event. This is an injected infrastructure network config, not a code deploy or resource exhaustion.
+  OPEN        : The caller/callee latency gap is unattributed: checkoutservice observes ~1.21s for a GetCart whose cartservice server span is only ~302ms (tr_325315286bc8). Egress shaping on cart's response path could account for part of it, but the ~900ms residual is not measured and could indicate a second contributor (queueing, connection setup, or shaping applied more broadly than the change record describes).
+  OPEN        : Whether the shaping container is scoped only to cartservice. The change record covers cartservice alone (tr_33df3caf2e8f); no other service's change history was queried, so a fleet-wide automation rollout affecting additional namespaces cannot be excluded.
+  OPEN        : Why platform-automation applied the shaping — scheduled chaos experiment, misapplied policy, or unintended reconciliation — and therefore whether reverting it will be re-applied on the next reconciliation cycle.
+  OPEN        : cartservice has no span-derived call metrics in this window at all (tr_f68ed951fef9), so the metric pipeline or service_name label for cartservice is broken independently of this incident and remains unexplained.
+  OPEN        : Latency percentiles were never measured for any service; frontend's query carried no histogram or per-peer dimension (tr_89f3a8ef9b9b), so the ~300ms step is confirmed only from sampled traces, not from aggregate percentile data.
+  OPEN        : Triage crossed 4 unmeasured edges, and no adservice or recommendationservice spans appear in the sample (tr_325315286bc8); their state is unassessed, as is the blast radius across the remaining services of the 12 flagged.
+  OPEN        : cartservice logs around the 07:19:45 alert timestamp fall entirely in the truncated middle of the result (tr_476780184691), so nothing rules out a distinct transient event at that exact moment layered on top of the latency floor.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T071611Z-cart-dependency-latency/78d0d6bb-9a3b-4d6d-b868-5a3ae6f4049c-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T071611Z-cart-dependency-latency/78d0d6bb-9a3b-4d6d-b868-5a3ae6f4049c-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 18127.45it/s]
