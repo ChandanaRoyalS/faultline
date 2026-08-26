@@ -172,6 +172,12 @@ def test_truncated_logs_keep_the_newest_lines_not_the_oldest() -> None:
 
     Newest-first is what a responder needs. Display order stays chronological, because those
     are different questions and this one has to be answered first.
+
+    **Amended by T3.4b, intent intact.** Retention is now two-ended, so the budget's newest
+    majority is still the newest lines and the oldest bulk is still dropped - what changed is
+    that a small oldest *sample* is kept alongside, and the counts below moved with it. The
+    thing this test exists to prevent, a truncated result containing nothing but pre-onset
+    traffic, is still prevented: 7 of the 10 lines are the end of the window.
     """
     tools = Tools(ToolSettings())
     payload = _loki_payload(100, START)
@@ -181,7 +187,9 @@ def test_truncated_logs_keep_the_newest_lines_not_the_oldest() -> None:
 
     assert result.truncated
     assert len(result.lines) == 10
-    assert [entry.line for entry in result.lines] == [f"line {i}" for i in range(90, 100)]
+    assert result.oldest_kept == 3 and result.newest_kept == 7
+    assert [entry.line for entry in result.lines[3:]] == [f"line {i}" for i in range(93, 100)]
+    assert "line 50" not in {entry.line for entry in result.lines}, "the middle is dropped"
     assert result.lines == sorted(result.lines, key=lambda entry: entry.at), "displayed in order"
 
 
@@ -501,3 +509,95 @@ def test_traces_are_needed_by_the_two_narratives_that_justified_the_fourth_tool(
         body = next(ARTIFACTS.glob(f"*/{scenario}/incident.md")).read_text()
         checked = re.search(r"## What was checked(.*?)## Root cause", body, re.DOTALL)
         assert checked and "races" in checked.group(1), f"{scenario} no longer cites traces"
+
+
+# --- two-ended retention, from the real capture (T3.4b) -----------------------
+
+CAPTURE = (
+    Path(__file__).resolve().parents[1]
+    / "evals/scenarios/artifacts/dev/shipping-wrong-image/logs/shipping-service.txt"
+)
+FAULT_WINDOW = (
+    datetime(2026, 8, 23, 18, 24, tzinfo=UTC),
+    datetime(2026, 8, 23, 18, 36, tzinfo=UTC),
+)
+
+
+def _recorded_lines() -> list[tuple[datetime, str]]:
+    """The committed `shipping-wrong-image` capture, oldest first."""
+    rows = []
+    for raw in CAPTURE.read_text().splitlines():
+        if raw.startswith("#") or not raw.strip():
+            continue
+        stamp, _, text = raw.partition("  ")
+        rows.append((datetime.fromisoformat(stamp), text))
+    return sorted(rows)
+
+
+def _replaying_loki(rows: list[tuple[datetime, str]]) -> Any:
+    """A Loki that honours `direction` and `limit` the way the real one does.
+
+    The T2.6 fake ignored both and returned everything, which is why it could not have caught
+    this: the whole defect lives in which lines the server chooses before the client sees any.
+    """
+
+    def get_json(base: str, path: str, params: dict[str, str]) -> dict[str, Any]:
+        start = datetime.fromtimestamp(int(params["start"]) / 1e9, tz=UTC)
+        end = datetime.fromtimestamp(int(params["end"]) / 1e9, tz=UTC)
+        inside = [row for row in rows if start <= row[0] <= end]
+        limit = int(params["limit"])
+        chosen = inside[-limit:] if params["direction"] == "backward" else inside[:limit]
+        return {
+            "data": {
+                "result": [
+                    {"values": [[str(int(at.timestamp() * 1e9)), text] for at, text in chosen]}
+                ]
+            }
+        }
+
+    return get_json
+
+
+def test_the_language_boundary_survives_truncation() -> None:
+    """`incident.md` for this scenario: the container emits Rust up to the boundary and JVM
+    banners after it, and "no resource limit does that" - the one thing separating a bad deploy
+    from a memory ceiling.
+
+    T3.4's live run lost it. 312 pre-onset lines sat inside the specialist's own query window
+    and the newest-40 cap dropped every one, so the specialist reported the service had emitted
+    nothing before onset and the synthesizer carried that forward as missing collection.
+    """
+    start, end = FAULT_WINDOW
+    rows = _recorded_lines()
+    with patch("faultline.telemetry.get_json", _replaying_loki(rows)):
+        result = Tools(ToolSettings()).logql_query("shippingservice", start, end, limit=40)
+
+    assert result.truncated
+    assert result.oldest_kept == 8 and result.newest_kept == 32
+    assert len(result.lines) == 40
+
+    oldest = " ".join(entry.line for entry in result.lines[:8])
+    newest = " ".join(entry.line for entry in result.lines[8:])
+    assert "ShipOrderRequest" in oldest, "the stream before the boundary is the Rust service"
+    assert "javaagent" not in oldest
+    assert "javaagent" in newest, "the stream after it is a JVM that never gets past its banner"
+    assert "ShipOrderRequest" not in newest
+
+    rendered = envelope.render(result)
+    assert 'oldest_kept="8"' in rendered and 'newest_kept="32"' in rendered
+    assert "OLDEST 8" in rendered and "NEWEST 32" in rendered
+    assert rendered.index("ShipOrderRequest") < rendered.index("javaagent")
+
+
+def test_a_window_the_budget_covers_is_not_elided() -> None:
+    """Two-ended retention must not announce an elision that did not happen. A quiet service
+    whose whole window fits inside the cap renders as one contiguous stream, as before."""
+    rows = _recorded_lines()[:12]
+    start, end = FAULT_WINDOW
+    with patch("faultline.telemetry.get_json", _replaying_loki(rows)):
+        result = Tools(ToolSettings()).logql_query("shippingservice", start, end, limit=40)
+
+    assert not result.truncated
+    assert result.oldest_kept == 0 and result.newest_kept == 0
+    assert len(result.lines) == 12
+    assert "not returned" not in envelope.render(result)

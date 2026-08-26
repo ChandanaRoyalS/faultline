@@ -142,9 +142,7 @@ class Planner:
         self._max_tokens = max_tokens
         self._effort = effort
 
-    def plan(
-        self, triage: TriageResult, findings: dict[str, SpecialistFindings] | None = None
-    ) -> Completion:
+    def plan(self, triage: TriageResult, findings: list[SpecialistRun] | None = None) -> Completion:
         """The first plan, or the one follow-up round if findings are supplied."""
         return ask(
             self._model,
@@ -159,7 +157,7 @@ class Planner:
         )
 
     @staticmethod
-    def _brief(triage: TriageResult, findings: dict[str, SpecialistFindings] | None) -> str:
+    def _brief(triage: TriageResult, findings: list[SpecialistRun] | None) -> str:
         alerting = ", ".join(
             f"{m.service} at {m.entered_at:%H:%M:%S}" for m in triage.alerting if m.entered_at
         )
@@ -178,10 +176,12 @@ class Planner:
         ]
         if findings:
             lines.append("\nFindings so far, from the first round:")
-            for name, result in findings.items():
-                found = "; ".join(f.statement for f in result.found) or "nothing"
-                ruled = "; ".join(r.hypothesis for r in result.ruled_out) or "nothing"
-                lines.append(f"  {name}: found {found}. ruled out {ruled}.")
+            for run in findings:
+                found = "; ".join(f.statement for f in run.findings.found) or "nothing"
+                ruled = "; ".join(r.hypothesis for r in run.findings.ruled_out) or "nothing"
+                lines.append(
+                    f"  {run.specialist} on {run.service}: found {found}. ruled out {ruled}."
+                )
             lines.append(
                 "\nThis is the one follow-up round. Dispatch only what the findings above "
                 "leave genuinely open; if nothing is open, dispatch the single cheapest "
@@ -339,7 +339,7 @@ class Synthesizer:
     def synthesise(
         self,
         triage: TriageResult,
-        findings: dict[str, SpecialistFindings],
+        findings: list[SpecialistRun],
         retrieved: list[str],
         flags: list[str],
     ) -> Completion:
@@ -360,7 +360,7 @@ class Synthesizer:
     @staticmethod
     def _brief(
         triage: TriageResult,
-        findings: dict[str, SpecialistFindings],
+        findings: list[SpecialistRun],
         retrieved: list[str],
         flags: list[str],
     ) -> str:
@@ -371,13 +371,27 @@ class Synthesizer:
                 f"{m.service} at {m.entered_at:%H:%M:%S}" for m in triage.alerting if m.entered_at
             ),
             "",
-            "Specialist findings:",
+            # The index comes first and lists every dispatch by (tool, service). T3.4's
+            # synthesizer wrote that shippingservice change history had never been queried
+            # while the query sat in its own trajectory; the run had been dropped upstream,
+            # and the brief it did receive labelled findings by specialist alone, so three
+            # `changes` dispatches over three services were indistinguishable even in
+            # principle. What was queried is now stated before what was found.
+            "Dispatches executed (every one of them, in order):",
         ]
-        for name, result in findings.items():
-            lines.append(f"  [{name}]")
-            for f in result.found:
+        for run in findings:
+            claim = run.findings.found[0].statement if run.findings.found else "nothing found"
+            lines.append(
+                f"  {run.result.id}  {run.specialist:8} {run.service:24} "
+                f"{len(run.findings.found)} found / {len(run.findings.ruled_out)} ruled out"
+                f"  - {claim[:120]}"
+            )
+        lines += ["", "Specialist findings in full:"]
+        for run in findings:
+            lines.append(f"  [{run.specialist} on {run.service}]  ({run.result.id})")
+            for f in run.findings.found:
                 lines.append(f"    FOUND ({f.confidence}) {f.statement}  [{f.result_id}]")
-            for r in result.ruled_out:
+            for r in run.findings.ruled_out:
                 lines.append(f"    RULED OUT {r.hypothesis} - {r.why}  [{r.result_id}]")
         if retrieved:
             lines += ["", "Past incidents retrieved from the corpus (context, not answers):"]
@@ -425,7 +439,7 @@ class Scribe:
         self._effort = effort
 
     def draft(
-        self, triage: TriageResult, findings: dict[str, SpecialistFindings], verdict: Verdict
+        self, triage: TriageResult, findings: list[SpecialistRun], verdict: Verdict
     ) -> Completion:
         lines = [
             f"Blast radius: {triage.summary()}",
@@ -437,11 +451,11 @@ class Scribe:
             "",
             "What each specialist found and ruled out:",
         ]
-        for name, result in findings.items():
-            lines.append(f"  [{name}]")
-            for f in result.found:
+        for run in findings:
+            lines.append(f"  [{run.specialist} on {run.service}]")
+            for f in run.findings.found:
                 lines.append(f"    FOUND {f.statement}  [{f.result_id}]")
-            for r in result.ruled_out:
+            for r in run.findings.ruled_out:
                 lines.append(f"    RULED OUT {r.hypothesis} - {r.why}  [{r.result_id}]")
         return ask(
             self._model,

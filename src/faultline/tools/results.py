@@ -137,18 +137,48 @@ class LogLine(BaseModel):
 
 
 class LogResult(ToolResult):
+    """Log lines for one service, **kept from both ends of the window** (T3.4b).
+
+    `lines` is chronological throughout. When `oldest_kept` is non-zero the first that many
+    entries are the *start* of the window and the rest are its *end*, with everything between
+    them dropped - so the two groups must be labelled, or the agent reads a contiguous stream
+    that never existed. `docs/adr/0021` argues why both ends; this class is where the reader
+    is told which is which.
+    """
+
     tool: Literal["logql_query"] = "logql_query"
     source: Literal["loki"] = "loki"
     selector: str = ""
     lines: list[LogLine] = Field(default_factory=list)
+
+    oldest_kept: int = 0
+    """How many of `lines` come from the start of the window. Zero when nothing was elided."""
+
+    newest_kept: int = 0
+    """How many come from the end of it. Equals `len(lines)` when nothing was elided."""
+
+    def attributes(self) -> dict[str, str]:
+        attributes = super().attributes()
+        if self.oldest_kept:
+            attributes["oldest_kept"] = str(self.oldest_kept)
+            attributes["newest_kept"] = str(self.newest_kept)
+        return attributes
 
     def body(self) -> str:
         if self.error is not None:
             return f"query failed: {self.error}"
         if not self.lines:
             return f"no log lines matched {self.selector} over this window"
-        rendered = [f"{entry.at.isoformat()}  {entry.line}" for entry in self.lines]
-        return "\n".join([f"selector: {self.selector}", *rendered])
+        head = [f"{e.at.isoformat()}  {e.line}" for e in self.lines[: self.oldest_kept]]
+        rest = [f"{e.at.isoformat()}  {e.line}" for e in self.lines[self.oldest_kept :]]
+        if not self.oldest_kept:
+            return "\n".join([f"selector: {self.selector}", *rest])
+        marker = (
+            f"  ... lines between here and the next timestamp were not returned: "
+            f"this result keeps the OLDEST {self.oldest_kept} and the NEWEST "
+            f"{self.newest_kept} lines of the window, and nothing in between ..."
+        )
+        return "\n".join([f"selector: {self.selector}", *head, marker, *rest])
 
 
 class TraceSpan(BaseModel):

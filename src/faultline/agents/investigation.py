@@ -11,12 +11,12 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
+from faultline.agents import grounding
 from faultline.agents import narrative as narrative_renderer
 from faultline.agents.budget import Budget, BudgetState
 from faultline.agents.contracts import (
     DispatchPlan,
     NarrativeDraft,
-    SpecialistFindings,
     SpecialistName,
     Verdict,
 )
@@ -73,11 +73,10 @@ class InvestigationResult:
         flags += [
             f"{name} produced no valid findings: {why}" for name, why in self.failed_dispatches
         ]
-        return flags
+        return flags + self.contradictions
 
-    @property
-    def findings(self) -> dict[str, SpecialistFindings]:
-        return {run.specialist: run.findings for run in self.runs}
+    contradictions: list[str] = field(default_factory=list)
+    """Verdict claims the trajectory refutes. **Flagged, never stripped** - see `grounding`."""
 
     def summary(self) -> str:
         flag = f" BUDGET EXHAUSTED ({self.exhausted_reason})" if self.budget_exhausted else ""
@@ -132,7 +131,7 @@ class Investigation:
         seq = 0
 
         while state.start_round():
-            findings = result.findings if result.runs else None
+            findings = result.runs or None
             completion = self._planner.plan(triage, findings)
             state.spend_tokens(completion.response.input_tokens, completion.response.output_tokens)
             seq += 1
@@ -220,7 +219,7 @@ class Investigation:
 
         try:
             completion = self._synthesizer.synthesise(
-                triage, result.findings, result.retrieved, result.flags
+                triage, result.runs, result.retrieved, result.flags
             )
         except SchemaValidationError as failure:
             state.spend_tokens(failure.response.input_tokens, failure.response.output_tokens)
@@ -228,6 +227,15 @@ class Investigation:
             return seq
         state.spend_tokens(completion.response.input_tokens, completion.response.output_tokens)
         result.verdict = completion.value
+        # Before the step is written, so the recorded flags are the ones the verdict carries.
+        result.contradictions = grounding.contradictions(
+            [
+                completion.value.root_cause,
+                completion.value.reasoning,
+                *completion.value.open_questions,
+            ],
+            result.runs,
+        )
         seq += 1
         trajectory.add(
             TrajectoryStep(
@@ -258,7 +266,7 @@ class Investigation:
         if self._scribe is None or result.verdict is None:
             return seq
         try:
-            completion = self._scribe.draft(triage, result.findings, result.verdict)
+            completion = self._scribe.draft(triage, result.runs, result.verdict)
         except SchemaValidationError as failure:
             state.spend_tokens(failure.response.input_tokens, failure.response.output_tokens)
             result.failed_dispatches.append((Scribe.ROLE, str(failure)))

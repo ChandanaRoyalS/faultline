@@ -633,3 +633,82 @@ def test_the_trajectory_is_persisted_before_the_scribe_resolves_citations() -> N
     assert result.narrative_error is None, result.narrative_error
     assert result.narrative is not None
     assert cited in result.narrative
+
+
+def test_three_dispatches_of_one_specialist_all_reach_the_synthesizer() -> None:
+    """**The T3.4 defect, at its cause.** `InvestigationResult.findings` keyed on specialist
+    name, so a dict comprehension over the runs kept the last one - and T3.4's three `changes`
+    dispatches collapsed to quoteservice, which was empty. The shippingservice change record
+    that named the fault outright never reached the synthesizer at all, and the verdict's claim
+    that it had never been queried was accurate about what it was shown.
+
+    Two rounds, three services, one specialist. All three have to arrive, each labelled with
+    the service it was about - a brief that says `[changes]` three times is a brief in which
+    the question "which service?" has no answer.
+    """
+    round_one = plan_reply(
+        [{"specialist": "changes", "service": "cartservice", "question": "q", "reason": "r"}], []
+    )
+    round_two = plan_reply(
+        [
+            {"specialist": "changes", "service": "frontend", "question": "q", "reason": "r"},
+            {"specialist": "changes", "service": "checkoutservice", "question": "q", "reason": "r"},
+        ],
+        [],
+    )
+    model = ScriptedModel(
+        {
+            "planner": [round_one, round_two],
+            "synthesizer": [VERDICT_REPLY],
+            "scribe": [draft_reply([])],
+        }
+    )
+    engine, _ = full_engine(model, Budget(max_dispatch_rounds=2))
+    result = engine.run("incident-12", triage_of("cartservice"), ANCHOR)
+
+    assert [run.service for run in result.runs] == ["cartservice", "frontend", "checkoutservice"]
+
+    brief = next(call for call in model.calls if call.role == "synthesizer").messages[0]["content"]
+    for service in ("cartservice", "frontend", "checkoutservice"):
+        assert f"changes on {service}" in brief, f"{service}'s dispatch never reached the brief"
+    for run in result.runs:
+        assert run.result.id in brief, "each dispatch is addressable by the id that produced it"
+
+
+def test_the_synthesizer_brief_indexes_every_dispatch_before_the_detail() -> None:
+    """What was queried is stated before what was found, so a verdict cannot reason about the
+    shape of the investigation from a scan of findings alone."""
+    model = ScriptedModel(
+        {"planner": [ONE_DISPATCH], "synthesizer": [VERDICT_REPLY], "scribe": [draft_reply([])]}
+    )
+    engine, _ = full_engine(model, Budget(max_dispatch_rounds=1))
+    engine.run("incident-13", triage_of("cartservice"), ANCHOR)
+
+    brief = next(call for call in model.calls if call.role == "synthesizer").messages[0]["content"]
+    assert brief.index("Dispatches executed") < brief.index("Specialist findings in full")
+
+
+def test_a_verdict_contradicting_its_own_trajectory_is_flagged_on_the_investigation() -> None:
+    """The second line, for the case the assembly fix does not cover. The flag has to reach
+    `result.flags`, because that is what the trajectory records and what T4.2 reads."""
+    denial = json.dumps(
+        {
+            "root_cause": "something went wrong",
+            "fault_class": "unknown",
+            "remediation_class": "none",
+            "confidence": "low",
+            "evidence": [],
+            "reasoning": "No change history has been queried for cartservice at all.",
+            "open_questions": [],
+        }
+    )
+    model = ScriptedModel(
+        {"planner": [ONE_DISPATCH], "synthesizer": [denial], "scribe": [draft_reply([])]}
+    )
+    engine, _ = full_engine(model, Budget(max_dispatch_rounds=1))
+    result = engine.run("incident-14", triage_of("cartservice"), ANCHOR)
+
+    assert result.verdict is not None
+    assert "No change history has been queried" in result.verdict.reasoning, "not stripped"
+    flag = next(f for f in result.flags if f.startswith("contradiction:"))
+    assert result.runs[0].result.id in flag

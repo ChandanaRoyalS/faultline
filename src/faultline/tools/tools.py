@@ -44,6 +44,33 @@ PROMETHEUS_QUERY_RANGE = "/api/v1/query_range"
 LOKI_QUERY_RANGE = "/loki/api/v1/query_range"
 JAEGER_TRACES = "/api/traces"
 
+OLDEST_MIN = 3
+OLDEST_MAX = 8
+
+
+def two_ended_split(cap: int) -> tuple[int, int]:
+    """How many log lines to keep from the start of a window and how many from the end.
+
+    **Both ends, because the two ends answer different questions.** The newest lines say what
+    the service is doing now, which is what T2.6's direction fix was for and is right nearly
+    always. The oldest say what it was doing *before*, and `shipping-wrong-image` turns on
+    exactly that: the container emits Rust up to the boundary and JVM banners after it, and
+    "no resource limit does that" is the only thing separating a bad deploy from a memory
+    ceiling. T3.4's smoke lost it - 312 pre-onset lines sat inside the specialist's own query
+    window and the newest-40 cap dropped every one.
+
+    Sizes: the oldest group is a *sample*, not a second window. A fifth of the budget, floored
+    at 3 and ceilinged at 8, is enough to establish what the stream looked like before - three
+    lines is one JVM startup banner, and eight covers a couple of them - while leaving the
+    overwhelming majority of the budget on the end of the window where the failure is. Below
+    seven lines there is no useful split and the result stays one-ended.
+    """
+    if cap <= OLDEST_MIN * 2:
+        return 0, cap
+    oldest = max(OLDEST_MIN, min(OLDEST_MAX, cap // 5))
+    return oldest, cap - oldest
+
+
 ALLOWED_PATHS = frozenset({PROMETHEUS_QUERY_RANGE, LOKI_QUERY_RANGE, JAEGER_TRACES})
 """Every path this layer can reach. Asserted by test, so adding one is a visible act."""
 
@@ -118,7 +145,9 @@ class Tools:
             return LogResult(selector=selector, window=window, error=refusal, empty=True)
 
         cap = limit or self._settings.max_log_lines
-        try:
+        head, tail = two_ended_split(cap)
+
+        def fetch(direction: str, count: int) -> list[LogLine]:
             payload = telemetry.get_json(
                 self._settings.loki_url,
                 LOKI_QUERY_RANGE,
@@ -126,35 +155,44 @@ class Tools:
                     "query": selector,
                     "start": str(int(start.timestamp() * 1e9)),
                     "end": str(int(end.timestamp() * 1e9)),
-                    "limit": str(cap),
-                    # Backward, so Loki's own cap keeps the NEWEST lines. Found by the T2.6
-                    # smoke: forward returned the oldest 15 lines of a 15-minute window, all
-                    # of them 13 minutes before the injection. The result was correctly
-                    # flagged truncated and investigatively useless - an agent asking what
-                    # happened received healthy pre-onset traffic.
-                    "direction": "backward",
+                    "limit": str(count),
+                    "direction": direction,
                 },
             )
+            found: list[LogLine] = []
+            for stream in payload.get("data", {}).get("result", []):
+                for at_ns, text in stream.get("values", []):
+                    found.append(
+                        LogLine(
+                            at=datetime.fromtimestamp(int(at_ns) / 1e9, tz=start.tzinfo), line=text
+                        )
+                    )
+            return sorted(found, key=lambda entry: entry.at)
+
+        try:
+            # Backward first: Loki's own cap then keeps the NEWEST lines, which is the T2.6
+            # fix and stays right for the common case. The forward query is the T3.4b
+            # addition - see `two_ended_split`.
+            newest = fetch("backward", tail)[-tail:]
+            oldest = fetch("forward", head)[:head] if head else []
         except Exception as exc:
             return LogResult(selector=selector, window=window, error=str(exc), empty=True)
 
-        lines: list[LogLine] = []
-        for stream in payload.get("data", {}).get("result", []):
-            for at_ns, text in stream.get("values", []):
-                lines.append(
-                    LogLine(at=datetime.fromtimestamp(int(at_ns) / 1e9, tz=start.tzinfo), line=text)
-                )
-        # Truncate from the newest end, then display oldest-first. A responder needs the
-        # most recent lines and reads them in order; those are different questions and the
-        # first one has to be answered before the second.
-        lines.sort(key=lambda entry: entry.at, reverse=True)
-        kept = sorted(lines[:cap], key=lambda entry: entry.at)
+        seen = {(entry.at, entry.line) for entry in newest}
+        oldest = [entry for entry in oldest if (entry.at, entry.line) not in seen]
+        # The two ends met, so the window is covered and there is nothing to elide. This is
+        # the ordinary case for a quiet service and it must not render an elision marker.
+        elided = bool(oldest) and len(newest) >= tail
+        if not elided:
+            oldest = []
         return LogResult(
             selector=selector,
             window=window,
-            lines=kept,
-            empty=not lines,
-            truncated=len(lines) >= cap,
+            lines=oldest + newest,
+            empty=not newest and not oldest,
+            truncated=elided or (head == 0 and len(newest) >= tail),
+            oldest_kept=len(oldest) if elided else 0,
+            newest_kept=len(newest) if elided else 0,
         )
 
     # --- traces ---------------------------------------------------------------
