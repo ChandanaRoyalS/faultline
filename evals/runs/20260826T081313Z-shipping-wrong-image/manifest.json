@@ -135,5 +135,45 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-08-26T08:29:53.879058+00:00"
+  "finished_at": "2026-08-26T08:29:53.879058+00:00",
+  "judge": {
+    "scenario_id": "shipping-wrong-image",
+    "run_id": "20260826T081313Z-shipping-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a deployment that pointed shippingservice at a different service's image (adservice instead of the native shipping binary), causing startup failures.",
+    "dead_ends_closed": [
+      "cartservice and Redis backend",
+      "productcatalogservice and featureflagservice",
+      "currencyservice",
+      "timeout theory / latency percentiles",
+      "checkoutservice's own changes",
+      "config or flag flip on checkoutservice"
+    ],
+    "dead_ends_missed": [
+      "whether the same automation run mistargeted other services",
+      "identity of the wrongly-tagged image confirmed",
+      "recovery of last-known-good reference",
+      "quoteservice's relationship to the incident (second victim vs co-casualty vs unrelated)",
+      "the three T+3m45s services (accountingservice, emailservice, frauddetectionservice)"
+    ],
+    "traps": [
+      {
+        "trap": "memory limit exceeded (resource exhaustion causing repeated restarts)",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "raising the memory limit would fix the symptoms",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent narrative arrives at the correct root cause but leaves significantly more investigation incomplete; the recorded narrative emphasizes how the runtime language change (Rust\u2192Java in logs) was the decisive signal that distinguished image substitution from resource exhaustion, a distinction the agent narrative identifies but does not elevate as critical reasoning.",
+    "tokens_in": 5146,
+    "tokens_out": 387
+  }
 }

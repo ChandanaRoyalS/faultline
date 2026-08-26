@@ -130,5 +130,54 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-08-26T06:49:44.947411+00:00"
+  "finished_at": "2026-08-26T06:49:44.947411+00:00",
+  "judge": {
+    "scenario_id": "ad-memory-squeeze",
+    "run_id": "20260826T063503Z-ad-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the memory limit reduction to 256m as causing adservice to run out of memory and be killed, halting the advertisement service.",
+    "dead_ends_closed": [
+      "frontend deploy or rollout",
+      "frontend feature-flag flip or config push",
+      "cartservice deploy or rollout",
+      "productcatalogservice deploy or rollout",
+      "adservice code deploy or image change",
+      "manual operator edit to adservice"
+    ],
+    "dead_ends_missed": [
+      "adservice actually restarted or was killed (left open as unverified)",
+      "adservice memory footprint before the cap (left open)",
+      "why radius reaches seven services and critical severity (left open)",
+      "whether other automated changes touched other services (left open)",
+      "unmeasured edge identification (left open)",
+      "direction of causation between frontend and loadgenerator alerts (left open)"
+    ],
+    "traps": [
+      {
+        "trap": "loadgenerator alerting longest means it is the culprit",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "empty logs indicate a healthy service",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "ServiceNoTraffic alert distinguishes idle from absent",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "the seven-service blast radius indicates the failure is upstream or widespread",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent correctly identified the root cause but with significantly lower confidence and without the observational evidence (runtime metrics cessation, heap series stopping, blast radius narrowness to single consumer) that the recorded narrative used to validate it. The agent appropriately flagged gaps in verification.",
+    "tokens_in": 4837,
+    "tokens_out": 453
+  }
 }

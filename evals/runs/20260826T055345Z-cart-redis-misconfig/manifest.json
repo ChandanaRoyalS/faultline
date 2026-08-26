@@ -136,5 +136,23 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-08-26T06:07:29.260463+00:00"
+  "finished_at": "2026-08-26T06:07:29.260463+00:00",
+  "judge": {
+    "scenario_id": "cart-redis-misconfig",
+    "run_id": "20260826T055345Z-cart-redis-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": false,
+    "not_scored_because": "the run wrote no narrative",
+    "root_cause_agreement": null,
+    "agreement_reason": "",
+    "dead_ends_closed": [],
+    "dead_ends_missed": [],
+    "traps": [],
+    "notes": "",
+    "tokens_in": 0,
+    "tokens_out": 0
+  }
 }

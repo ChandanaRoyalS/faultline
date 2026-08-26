@@ -43,7 +43,15 @@ class AgentSettings(BaseSettings):
     synthesizer needs."""
 
     judge_model: str = ""
-    """**Its own setting, and it inherits nothing** (ADR-0020 §1, decided).
+    """**Superseded at T4.4 and no longer read.** The judge lives in `evalharness` and reads
+    `FAULTLINE_JUDGE_MODEL`; see `evalharness.judge.JudgeSettings`.
+
+    Kept as a record rather than deleted, because the reasoning below is the reasoning the
+    harness's setting inherits. Moving it out of the product's settings object is the stronger
+    form of the same argument: there is now no field here that someone could set while thinking
+    they were configuring the agent.
+
+    **Its own setting, and it inherits nothing** (ADR-0020 §1, decided).
 
     Empty means unset rather than "same as the agent": defaulting it to whatever the agent runs
     is how the two silently become one model grading its own output, which is ADR-0008's

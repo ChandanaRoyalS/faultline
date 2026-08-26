@@ -128,5 +128,45 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-08-26T08:07:33.064361+00:00"
+  "finished_at": "2026-08-26T08:07:33.064361+00:00",
+  "judge": {
+    "scenario_id": "product-catalog-flag-failure",
+    "run_id": "20260826T075423Z-product-catalog-flag-failure",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a feature flag enabled at the flag service that instructs productcatalogservice to fail requests, with the flag configuration living outside the service that produces the errors.",
+    "dead_ends_closed": [
+      "productcatalogservice itself changed",
+      "network or transport problem",
+      "auth, quota, or bad arguments",
+      "self-resolving error",
+      "resource exhaustion or dependency outage"
+    ],
+    "dead_ends_missed": [
+      "which specific product identifier fails consistently",
+      "flag store location and direct state verification",
+      "flag enabling timestamp and actor attribution",
+      "why error ratio swung thirty-fold",
+      "whether other services also carry the flag",
+      "frontend's own change history"
+    ],
+    "traps": [
+      {
+        "trap": "productcatalogservice is broken and needs investigation or rollback",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the cause lives in productcatalogservice's change history or config",
+        "outcome": "took"
+      }
+    ],
+    "notes": "Agent narrative correctly identifies the mechanism but arrives there primarily via frontend logs naming the flag, and explicitly acknowledges it did not verify the flag state directly or search the flag service\u2014relying instead on a single source (callee self-description). Recorded narrative was more definitive because it actually checked the flag service configuration. Agent narrative's medium confidence and extensive open questions section appropriately capture what was not verified.",
+    "tokens_in": 5245,
+    "tokens_out": 382
+  }
 }
