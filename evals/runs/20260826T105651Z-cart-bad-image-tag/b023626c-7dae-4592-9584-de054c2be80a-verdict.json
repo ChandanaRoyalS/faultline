@@ -1,0 +1,62 @@
+{
+  "incident_id": "b023626c-7dae-4592-9584-de054c2be80a",
+  "trajectory_id": "5e9c3bc5-74dc-4f11-9990-4b4494093279",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:cart-bad-image-tag",
+  "verdict": {
+    "root_cause": "At 10:56:52 UTC platform-automation rolled a container image reference update ('hotfix build') onto cartservice (tr_3af8ed6c5618). At that exact timestamp cartservice logged an orderly hosting-lifetime shutdown and then went permanently silent for the rest of the window (tr_01f25c6fd7b2) \u2014 the old pod drained normally, but nothing replaced it: cartservice emits no span-derived call metrics at all afterward, neither error numerator nor total-calls denominator (tr_1f5cc16f56fe). The replacement artifact therefore never came up and served traffic. Downstream, every failing checkout trace terminates at the same hop \u2014 checkoutservice's outbound gRPC call to CartService/GetCart is the deepest ERROR span, with checkout's own self-time sub-millisecond and failures returning in 1.6\u20134.7ms, i.e. fast rejection rather than timeout or saturation (tr_a497885d1803). checkoutservice itself has no change record in the window (tr_efc33298ce71) and logs no exceptions, only PlaceOrder starts with no completion lines (tr_16b890260127), consistent with orders dying at the cart fetch. The running cartservice artifact is not one that can serve; that is the mechanism, and it is what makes checkout, frontend and the ten services alerting at 11:03 fail.",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_3af8ed6c5618",
+      "tr_01f25c6fd7b2",
+      "tr_1f5cc16f56fe",
+      "tr_a497885d1803",
+      "tr_16b890260127",
+      "tr_efc33298ce71",
+      "tr_a5f1b25e3da1",
+      "tr_a0cef6968d62"
+    ],
+    "reasoning": "Three independent signals converge on cartservice as the failing component and on the 10:56:52 image update as the act that produced it. (1) Traces localize the terminal error precisely: the deepest ERROR span is checkout's call to CartService/GetCart, its parent is the only non-ERROR span in the chain, and no payment/shipping/currency span is ever emitted, so the request dies at the cart hop and everything above it is propagation (tr_a497885d1803). (2) Cart logs give the mechanism a timestamp: graceful shutdown at 10:56:52 followed by total silence, with normal sub-second cart operations right up to that instant and no degradation, retry or backing-store error preceding it (tr_01f25c6fd7b2). (3) The change record supplies the trigger at the same minute \u2014 an image reference update by platform-automation, with no config or flag edits recorded (tr_3af8ed6c5618). The absence of any cartservice call-rate series, denominator included, is absence of traffic rather than a low value (tr_1f5cc16f56fe), which is what a replacement pod that never became ready looks like. I classify this bad_deploy rather than bad_config because the failing mechanism is that the artifact now referenced is not one that runs \u2014 an image reference pointed at the wrong or unstartable build \u2014 not a value that is semantically wrong inside a working process. It is not dependency_latency: all spans complete in single-digit milliseconds, explicitly ruling out deadline- or queue-driven failure (tr_a497885d1803). It is not resource_exhaustion: checkout stays alive and serving (tr_16b890260127) and cart's exit was a clean lifetime shutdown, not an OOM or abnormal termination (tr_01f25c6fd7b2). checkoutservice is exonerated as origin by its empty change log (tr_efc33298ce71) and its lack of any error-severity or exception lines (tr_16b890260127). Note the past cart-redis-misconfig incident's trap in reverse: cartservice's flat/absent error metric must not be read as health \u2014 here the denominator is empty too, which is the signature of a service that is gone, and the specialist correctly refused to read health off it. The corrective action is to restore the prior cartservice artifact; a plain restart would only relaunch the same failing image.",
+    "open_questions": [
+      "No container- or orchestrator-level evidence was gathered: whether the new cartservice pod crash-looped, failed image pull, failed readiness, or was never scheduled is unestablished, and with it whether the hotfix image is the wrong artifact or a correct artifact that cannot start in this environment.",
+      "The change record shows a null previous image value, so the actual prior reference is unknown \u2014 a rollback target has not been identified from this evidence.",
+      "The 4.6-minute gap between cart's 10:56:52 shutdown and the 11:01:30 alert onset is unexplained; it may be alert evaluation delay, caller-side connection caching, or a partially-serving replica, and no evidence distinguishes these.",
+      "Cart logs were truncated: roughly 10:51:36\u201310:56:37 was not returned, so a pre-shutdown error (including a Redis/cache or auth failure) confined to that gap would be invisible, leaving the redis-misconfig hypothesis only partially closed.",
+      "checkoutservice's error ratio peaks near 0.67 with a floor of zero (tr_a5f1b25e3da1), while every sampled trace shows the same error chain (tr_a497885d1803); this tension between partial metric failure and total trace failure is unresolved and may indicate sampling bias or a surviving success path.",
+      "paymentservice has no span-derived metrics at all in the window (tr_a0cef6968d62); whether that is simply the absence of traffic downstream of the cart abort, or a separate telemetry problem, was never distinguished.",
+      "All queries covered only 10:51:30\u201311:06:30 rather than the requested 60-minute lookback, so earlier changes to cartservice or to services never dispatched (adservice, productcatalogservice, recommendationservice, currencyservice) are unqueried."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired ",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

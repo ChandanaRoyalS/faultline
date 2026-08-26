@@ -341,8 +341,29 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
+DID_NOT_START = "did not start"
+"""The runner's own marker for a failure before the first trajectory step (T3.5).
+
+**Only a failed start is retryable, and that is not a policy choice - it is what the state
+machine already says.** A run that got somewhere and then failed leaves the incident `FAILED`,
+which ADR-0016 makes terminal, so `faultline-investigate` correctly refuses it on the next
+attempt: the retry can only ever exit 3. A failed start leaves the incident in `triaging`,
+untouched and investigable, which is exactly the case retry was built for.
+
+Measured, not reasoned: T4.5's sweep lost **two** scenarios this way before the distinction was
+drawn. Both took a 529 partway through an investigation, marked the incident `FAILED`, and then
+spent a retry being told the incident was terminal.
+"""
+
+
 def transient_signal(transcript: str) -> str | None:
-    """The transient failure this transcript shows, or `None` if it failed for a real reason."""
+    """The transient failure worth trying again, or `None`.
+
+    Two conditions, both required: the provider failed transiently **and** the run had not yet
+    touched the incident. See `DID_NOT_START`.
+    """
+    if DID_NOT_START not in transcript:
+        return None
     return next((signal for signal in TRANSIENT_SIGNALS if signal in transcript), None)
 
 

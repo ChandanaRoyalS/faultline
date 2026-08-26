@@ -1,0 +1,44 @@
+{
+  "incident_id": "87726658-15d0-4153-bc4d-6012791e67b6",
+  "trajectory_id": "c9d46c4e-204b-4dd5-8cb5-425a426af406",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origin": "scenario:frauddetection-memory-squeeze",
+  "verdict": {
+    "root_cause": "At 11:37:51Z platform-automation lowered frauddetectionservice's container memory limit to 200m (tr_c0737871260d). Within about thirty seconds the log stream stops showing steady Kafka record-consumption lines and becomes nothing but repeating JVM/OTel-agent startup banners on a roughly 60-second cadence from 11:38 through at least 11:45:05, with no shutdown message, exception, or stack trace ever written (tr_eecc67659a16). That signature \u2014 a process that dies mid-run without logging a reason and is immediately re-launched \u2014 is the classic profile of a JVM whose committed heap exceeds a newly reduced cgroup ceiling and is killed by the kernel out-of-band. The service is therefore not serving or consuming anything, which also explains why span-derived calls_total series are entirely absent (numerator and denominator both empty) rather than merely skewed for the whole window (tr_4b7fcbe9d8fe, tr_921cffabf177). The failing mechanism in the world is the process running out of the memory it needs and being terminated for it; the limit edit is how that state was entered, not the mechanism itself.",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_c0737871260d",
+      "tr_eecc67659a16",
+      "tr_4b7fcbe9d8fe",
+      "tr_921cffabf177"
+    ],
+    "reasoning": "Three independent strands line up on timing and mechanism. Changes found exactly one change in the window \u2014 a memory-limit reduction to 200m at 11:37:51Z \u2014 and explicitly ruled out a deploy, a flag flip, and a dependency bump (tr_c0737871260d), which removes bad_deploy from contention. Logs place the transition from healthy consumption to a sustained restart loop at 11:38, immediately after that edit, and rule out both the healthy-through-11:44 hypothesis and the single-restart hypothesis; critically they also establish that the process dies without writing any failure text, pointing the cause outside the application to container exit codes or resource pressure (tr_eecc67659a16). The metric dispatches contribute a negative that is itself corroborating: the whole calls_total series family is missing, not zeroed, consistent with a process that never stays up long enough to export (tr_4b7fcbe9d8fe, tr_921cffabf177). I classify this resource_exhaustion rather than bad_config because the 200m value is not wrong in the sense of naming a wrong address or credential \u2014 the service is failing because it needs more memory than it is allowed and is being killed for exceeding the ceiling. Per the taxonomy, a limit lowered until a process is killed for exceeding it is exhaustion; the edit is how it started. remediation_class is config_revert because restoring the prior limit is the action that actually stops the kill loop \u2014 a restart alone would re-enter the same loop within a minute. Confidence is medium, not high, because the OOM kill is inferred from the log signature and the timing coincidence rather than observed directly: no specialist retrieved container memory, restart, or OOMKilled data, and tr_921cffabf177 explicitly declines to treat that hypothesis as supported either way.",
+    "open_questions": [
+      "No OOMKilled exit code, kill event, or container-restart counter was ever queried, so the kernel-kill mechanism is inferred from the log signature and timing, not confirmed. Pulling container_memory_working_set_bytes, the limit series, and pod restart/termination reason for 11:34-11:49 would settle it.",
+      "The prior memory limit was not recorded in the change log (tr_c0737871260d), so it is unknown how far below the JVM's actual footprint 200m sits, and therefore what value a revert should restore.",
+      "Whether the absent calls_total series is fully explained by the crash loop or partly by a label/metric-name mismatch is unresolved; tr_4b7fcbe9d8fe raised the mismatch possibility and no one enumerated the available service_name label values to rule it out.",
+      "The JVM's own heap configuration (-Xmx / MaxRAMPercentage) was not inspected. If the container was already sized tightly, the same limit might be survivable with a heap adjustment, which changes what the correct fix is.",
+      "Triage scoped this to one service and zero unmeasured edges, but nothing was dispatched on downstream or upstream consumers. Whether the Kafka topic backlog or any dependent service degraded while frauddetectionservice was down is unexamined.",
+      "Why platform-automation issued the limit reduction \u2014 a policy rollout, a quota rebalance, an autoscaler action \u2014 is unknown, which matters for whether a revert will simply be re-applied."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. The process ran for a few minutes on the heap it had already committed, grew,\nwas killed by the kernel, an",
+    "cart-redis-misconfig / What was observed: The page named two services: `ServiceHighErrorRate` on **frontend** and\n**loadgenerator**, 2m45s after the first bad request. **checkoutservice** joined fifteen\nseconds later.\n\nOn the storefront, product pages rendered normally. Adding anything to a basket failed.\n\nThen seven ser",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m49s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\n**frontend** and **loadgenerator** crossed the error threshol"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

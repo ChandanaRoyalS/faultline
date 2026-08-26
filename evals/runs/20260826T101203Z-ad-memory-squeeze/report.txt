@@ -1,0 +1,27 @@
+run 20260826T101203Z-ad-memory-squeeze   scenario ad-memory-squeeze
+trajectory 1f0f1baa-3076-48b6-8021-cfb6a4a8ef9f   runtime faultline/0.0.1+prompts:53fafe9c12bc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (3/3 alerted services predicted)
+  precision 0.43  (3/7 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): cartservice, checkoutservice, productcatalogservice, recommendationservice
+  unmeasured edges crossed: 1 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  fault class unknown vs resource_exhaustion - ABSTAINED (excluded from accuracy; counted in coverage)
+  fix class   none vs config_revert - ABSTAINED (excluded from accuracy; counted in coverage)
+  coverage: abstained
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        budget exhausted: changes tool calls: 4 of 4 used
+  narrative refused       no
+
+COST  in 11974 / out 8679 tokens   $0.2768
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).

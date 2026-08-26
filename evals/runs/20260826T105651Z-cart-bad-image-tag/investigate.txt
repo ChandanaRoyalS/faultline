@@ -1,0 +1,30 @@
+incident b023626c-7dae-4592-9584-de054c2be80a  state triaging  anchor 11:01:30
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 5e9c3bc5-74dc-4f11-9990-4b4494093279
+investigation: 2 round(s), 8 dispatch(es), 21 step(s)
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_3af8ed6c5618, tr_01f25c6fd7b2, tr_1f5cc16f56fe, tr_a497885d1803, tr_16b890260127, tr_efc33298ce71, tr_a5f1b25e3da1, tr_a0cef6968d62
+  root cause  : At 10:56:52 UTC platform-automation rolled a container image reference update ('hotfix build') onto cartservice (tr_3af8ed6c5618). At that exact timestamp cartservice logged an orderly hosting-lifetime shutdown and then went permanently silent for the rest of the window (tr_01f25c6fd7b2) — the old pod drained normally, but nothing replaced it: cartservice emits no span-derived call metrics at all afterward, neither error numerator nor total-calls denominator (tr_1f5cc16f56fe). The replacement artifact therefore never came up and served traffic. Downstream, every failing checkout trace terminates at the same hop — checkoutservice's outbound gRPC call to CartService/GetCart is the deepest ERROR span, with checkout's own self-time sub-millisecond and failures returning in 1.6–4.7ms, i.e. fast rejection rather than timeout or saturation (tr_a497885d1803). checkoutservice itself has no change record in the window (tr_efc33298ce71) and logs no exceptions, only PlaceOrder starts with no completion lines (tr_16b890260127), consistent with orders dying at the cart fetch. The running cartservice artifact is not one that can serve; that is the mechanism, and it is what makes checkout, frontend and the ten services alerting at 11:03 fail.
+  OPEN        : No container- or orchestrator-level evidence was gathered: whether the new cartservice pod crash-looped, failed image pull, failed readiness, or was never scheduled is unestablished, and with it whether the hotfix image is the wrong artifact or a correct artifact that cannot start in this environment.
+  OPEN        : The change record shows a null previous image value, so the actual prior reference is unknown — a rollback target has not been identified from this evidence.
+  OPEN        : The 4.6-minute gap between cart's 10:56:52 shutdown and the 11:01:30 alert onset is unexplained; it may be alert evaluation delay, caller-side connection caching, or a partially-serving replica, and no evidence distinguishes these.
+  OPEN        : Cart logs were truncated: roughly 10:51:36–10:56:37 was not returned, so a pre-shutdown error (including a Redis/cache or auth failure) confined to that gap would be invisible, leaving the redis-misconfig hypothesis only partially closed.
+  OPEN        : checkoutservice's error ratio peaks near 0.67 with a floor of zero (tr_a5f1b25e3da1), while every sampled trace shows the same error chain (tr_a497885d1803); this tension between partial metric failure and total trace failure is unresolved and may indicate sampling bias or a surviving success path.
+  OPEN        : paymentservice has no span-derived metrics at all in the window (tr_a0cef6968d62); whether that is simply the absence of traffic downstream of the cart abort, or a separate telemetry problem, was never distinguished.
+  OPEN        : All queries covered only 10:51:30–11:06:30 rather than the requested 60-minute lookback, so earlier changes to cartservice or to services never dispatched (adservice, productcatalogservice, recommendationservice, currencyservice) are unqueried.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T105651Z-cart-bad-image-tag/b023626c-7dae-4592-9584-de054c2be80a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T105651Z-cart-bad-image-tag/b023626c-7dae-4592-9584-de054c2be80a-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 13534.68it/s]

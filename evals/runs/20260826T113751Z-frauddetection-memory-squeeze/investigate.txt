@@ -1,0 +1,29 @@
+incident 87726658-15d0-4153-bc4d-6012791e67b6  state triaging  anchor 11:44:00
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: c9d46c4e-204b-4dd5-8cb5-425a426af406
+investigation: 2 round(s), 4 dispatch(es), 13 step(s)
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_c0737871260d, tr_eecc67659a16, tr_4b7fcbe9d8fe, tr_921cffabf177
+  root cause  : At 11:37:51Z platform-automation lowered frauddetectionservice's container memory limit to 200m (tr_c0737871260d). Within about thirty seconds the log stream stops showing steady Kafka record-consumption lines and becomes nothing but repeating JVM/OTel-agent startup banners on a roughly 60-second cadence from 11:38 through at least 11:45:05, with no shutdown message, exception, or stack trace ever written (tr_eecc67659a16). That signature — a process that dies mid-run without logging a reason and is immediately re-launched — is the classic profile of a JVM whose committed heap exceeds a newly reduced cgroup ceiling and is killed by the kernel out-of-band. The service is therefore not serving or consuming anything, which also explains why span-derived calls_total series are entirely absent (numerator and denominator both empty) rather than merely skewed for the whole window (tr_4b7fcbe9d8fe, tr_921cffabf177). The failing mechanism in the world is the process running out of the memory it needs and being terminated for it; the limit edit is how that state was entered, not the mechanism itself.
+  OPEN        : No OOMKilled exit code, kill event, or container-restart counter was ever queried, so the kernel-kill mechanism is inferred from the log signature and timing, not confirmed. Pulling container_memory_working_set_bytes, the limit series, and pod restart/termination reason for 11:34-11:49 would settle it.
+  OPEN        : The prior memory limit was not recorded in the change log (tr_c0737871260d), so it is unknown how far below the JVM's actual footprint 200m sits, and therefore what value a revert should restore.
+  OPEN        : Whether the absent calls_total series is fully explained by the crash loop or partly by a label/metric-name mismatch is unresolved; tr_4b7fcbe9d8fe raised the mismatch possibility and no one enumerated the available service_name label values to rule it out.
+  OPEN        : The JVM's own heap configuration (-Xmx / MaxRAMPercentage) was not inspected. If the container was already sized tightly, the same limit might be survivable with a heap adjustment, which changes what the correct fix is.
+  OPEN        : Triage scoped this to one service and zero unmeasured edges, but nothing was dispatched on downstream or upstream consumers. Whether the Kafka topic backlog or any dependent service degraded while frauddetectionservice was down is unexamined.
+  OPEN        : Why platform-automation issued the limit reduction — a policy rollout, a quota rebalance, an autoscaler action — is unknown, which matters for whether a revert will simply be re-applied.
+
+flags: none
+
+retrieval: exclude_origin='scenario:frauddetection-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T113751Z-frauddetection-memory-squeeze/87726658-15d0-4153-bc4d-6012791e67b6-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T113751Z-frauddetection-memory-squeeze/87726658-15d0-4153-bc4d-6012791e67b6-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 12191.02it/s]

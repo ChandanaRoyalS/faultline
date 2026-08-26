@@ -1,0 +1,31 @@
+incident 612ffa84-a4a9-4838-abc4-d3c0a0d33c06  state triaging  anchor 10:15:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 1f0f1baa-3076-48b6-8021-cfb6a4a8ef9f
+investigation: 1 round(s), 4 dispatch(es), 12 step(s) BUDGET EXHAUSTED (changes tool calls: 4 of 4 used)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_0c087f159665, tr_b35840897490, tr_c82e27e94094, tr_f078e2a13eef
+  root cause  : Undetermined. Every one of the four available dispatches was spent on the same question — the change log — for frontend, checkoutservice, cartservice and productcatalogservice, and all four returned empty (tr_0c087f159665, tr_b35840897490, tr_c82e27e94094, tr_f078e2a13eef). That is a real but narrow result: it excludes a deploy, config push or flag flip on any of those four services in the 10 minutes before and 5 minutes after the 10:15:30 onset. It says nothing about what the services are actually doing wrong. No metrics, logs, traces, resource counters or dependency-health signals were examined at all, and the change window itself covered only 15 of the requested 90 minutes, leaving roughly 08:45–10:05 unexamined on all four services (tr_0c087f159665, tr_b35840897490, tr_c82e27e94094, tr_f078e2a13eef). Three of the seven services in the blast radius were never queried for anything, and triage flagged an unmeasured edge that remains unmeasured. With no observation of the failing mechanism — no evidence of saturation, of waiting on a slow dependency, of a wrong artifact, or of a wrong configuration value — assigning a fault class here would be invention, not inference.
+  OPEN        : What is the actual failing mechanism? No metric, log, trace or resource-utilisation evidence was gathered on any service.
+  OPEN        : Did a change land on any of the four services between 08:45 and 10:05, the ~75 minutes of the requested lookback that went unexamined?
+  OPEN        : What are the other three services in the 7-service blast radius, and were any of them changed or degraded? They were never queried.
+  OPEN        : What is on the unmeasured edge triage flagged, and does the failure propagate across it?
+  OPEN        : Which service is the origin? Frontend alerted first, but first-to-alert is not first-to-fail; a downstream dependency of frontend could be the source.
+  OPEN        : Are error rates or latency the dominant symptom? That distinction alone would separate dependency_latency from bad_deploy or resource_exhaustion.
+  OPEN        : Is the running artifact on each service the expected version? Nothing verified deployed image or build identity independently of the change log.
+
+=== FLAGGED ===
+  budget exhausted: changes tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T101203Z-ad-memory-squeeze/612ffa84-a4a9-4838-abc4-d3c0a0d33c06-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T101203Z-ad-memory-squeeze/612ffa84-a4a9-4838-abc4-d3c0a0d33c06-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10231.46it/s]

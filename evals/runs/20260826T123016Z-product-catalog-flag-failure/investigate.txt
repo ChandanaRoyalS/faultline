@@ -1,0 +1,31 @@
+incident 9c2e30f4-0ad5-42bb-9e69-7476c919d7f4  state triaging  anchor 12:34:00
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: c6acdc7a-ffdb-49e9-9716-b638ed746f5f
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_e0e3dd712e99, tr_d3c9667ef640, tr_a75ee398e6ab, tr_2c44f548aaf1, tr_82aea06ceed3, tr_1540732677d9, tr_da33dc71db5c
+  root cause  : Not established. The evidence confirms a real, user-facing, partial degradation — frontend error ratio is episodic and peaks near 11.7%, and productcatalogservice shows a service-wide error ratio peaking near 12% over the same window (tr_e0e3dd712e99, tr_d3c9667ef640) — with the shapes and magnitudes similar enough that frontend's errors are plausibly a pass-through of productcatalogservice failures. But nothing in the dispatch set identifies a mechanism. Both log queries against productcatalogservice returned zero lines because the label selector never matched a stream (tr_a75ee398e6ab, tr_2c44f548aaf1), so no error text, failing operation, or named upstream was ever recovered. No latency, CPU, memory, goroutine or request-volume series were returned for either service. adservice — the unmeasured edge triage flagged — has no calls_total series at all in this metric source, so it is neither implicated nor cleared (tr_82aea06ceed3). The change log is empty for productcatalogservice, but only for the 15-minute window; the preceding hour was requested and never queried (tr_1540732677d9, tr_da33dc71db5c). What we can say with confidence is narrow: the failure is partial and intermittent rather than total, it is not a crash-loop or telemetry gap, and it is not a change that landed inside the alert window. The causal mechanism — exhaustion, dependency wait, artifact, or config value — is unsourced.
+  OPEN        : What is the correct Loki label value for productcatalogservice? Both the hyphenated and the queried form matched no stream; the unhyphenated form was never actually exercised, and no log line has yet been read for this service.
+  OPEN        : Were there any deployments, config changes, or flag flips against productcatalogservice between 11:34 and 12:24? Both change dispatches requested this interval and neither queried it.
+  OPEN        : What are productcatalogservice's p99 latency, CPU, memory, and goroutine counts across the window? Without these, resource_exhaustion and dependency_latency cannot be distinguished.
+  OPEN        : Do frontend's errors actually attribute to productcatalogservice? No dispatch returned a dependency-dimensioned breakdown; the correlation is inferred from similar magnitude and timing only.
+  OPEN        : Is adservice healthy? It has no calls_total series in this metric source at all, so it is unmeasured rather than clean — a different telemetry source or a direct health check is needed.
+  OPEN        : What accounts for the episodic pattern — errors returning to zero between peaks — in both services? This is inconsistent with a static wrong value and more suggestive of load-correlated pressure or intermittent upstream slowness, but neither is evidenced.
+  OPEN        : Triage named 7 affected services and 1 unmeasured edge; only frontend, productcatalogservice, and adservice were dispatched against. The other four were never examined.
+  OPEN        : What is productcatalogservice's absolute request volume? A 12% error ratio on a collapsed denominator means something very different from 12% on normal traffic, and no volume data was returned.
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T123016Z-product-catalog-flag-failure/9c2e30f4-0ad5-42bb-9e69-7476c919d7f4-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T123016Z-product-catalog-flag-failure/9c2e30f4-0ad5-42bb-9e69-7476c919d7f4-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9202.93it/s]

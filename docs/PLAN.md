@@ -778,6 +778,53 @@ Triage over seven: recall mean **0.94**, precision mean **0.56**, 19 unmeasured 
 `cart-dependency-latency` reproduced T3.5's disputed miss **exactly**, on an independent run: same
 two wrong labels, same reasoning shape. One observation was an anecdote; two is a pattern.
 
+### T4.5 — teaching the taxonomy, measured *(built)*
+The experiment T4.3 deferred: **28 lines added to `SYNTHESIZER_SYSTEM`, nothing else in any
+prompt**, then the same seven dev scenarios re-run through the unchanged harness and re-judged
+with the same judge configuration. **contract not written.**
+
+The instruction defines the four classes by **mechanism** - what the service is doing wrong -
+and states that a change record is evidence *for* a class and never the class itself. Derived
+from what the labels mean, not from the scenarios: a test asserts no scenario id, service name or
+other answer key appears in any prompt, because a prompt fitted to these scenarios is ADR-0008
+axis 1 in one sentence.
+
+**The stamp moved, which is the point**: `prompts:59bf438b2a96` -> `prompts:53fafe9c12bc`.
+T4.3's pin fired on the change and now records both, so neither sweep can be mistaken for the
+other.
+
+Results in `evals/runs/SWEEP-2026-08-26-taxonomy.md`, beside sweep 1 throughout.
+
+- **Fault class moved on both target classes.** `dependency_latency` 0/1 -> 1/1;
+  `resource_exhaustion` 0/2 -> 1/1 answered. Both were returned for the first time, and **no run
+  in either sweep answered one of these classes and got it wrong**.
+- **Two previously-correct scenarios regressed - to abstention, not to a wrong answer.**
+  `product-catalog-flag-failure` and `shipping-wrong-image` returned `unknown`. It is not budget
+  exhaustion: one abstention was exhausted, two were not, and one exhausted run did not abstain.
+- **The two-value classifier became a real one.** Sweep 1 returned `bad_config` and `bad_deploy`
+  and never a symptom class; sweep 2 returned all four classes plus `unknown`.
+
+**The classifier stopped being wrong (4/7 -> 4/4 of answered) and started declining (coverage
+7/7 -> 4/7).** Whether that trade is an improvement is not settled by this data, and the file
+says so: two abstentions replaced correct answers, and n is 1 per scenario. Triage was unchanged
+(recall 0.94 -> 0.95, precision 0.56 -> 0.57), which is the closest thing here to a control.
+
+The judge agrees from the prose: **the three `different` verdicts are exactly the three
+abstentions**. That also removes T4.4's largest caveat - the judge had never used a level other
+than `same_mechanism`, so it had not been shown to discriminate. It has now, on exactly the runs
+a separate measurement calls different.
+
+Two defects the sweep found, both fixed, neither touching the stamp. **A lost update**: the
+runner held an incident loaded before the run and `save` upserted its stale episodes over
+`resolved_at` values the orchestrator had written meanwhile, stranding the incident and making
+the gate refuse two scenarios - the runner now uses a narrow write. **Retry meeting terminal
+states**: T4.3's retry fired on a 529 that landed after the run had done work, and a run that
+did work leaves the incident `FAILED`, which is terminal - so the retry could only be refused,
+twice. Retry is now limited to a failed start.
+`src/faultline/agents/roles.py`, `src/faultline/orchestrator/store.py`,
+`src/evalharness/run.py`, `evals/runs/SWEEP-2026-08-26-taxonomy.md`,
+`docs/evidence/t4.5-taxonomy/prompt-addition.md`
+
 ### T4.4 — the judge *(built)*
 Narrative scoring, per ADR-0022 §1.3. **The judge lives in `evalharness` and never in the
 product.** `faultline-judge` reads runs already on disk - no world, no injections - compares each
