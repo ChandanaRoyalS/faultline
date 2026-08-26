@@ -139,3 +139,35 @@ def test_the_first_half_of_that_sentence_still_flags_a_service_that_was_dispatch
     )
     flags = contradictions([claim], runs)
     assert len(flags) == 1 and "tr_f536225dc17d" in flags[0]
+
+
+# Verbatim from trajectory f7afdb76-47cd-45bf-b4fa-52e4be1a7f9d, T3.4c's live run.
+T34C_OPEN_QUESTION = (
+    "No latency percentiles or per-downstream breakdown were retrieved for checkoutservice "
+    "(tr_7d4b93d2d99c), and no change history was gathered for checkoutservice's other five "
+    "dependencies or over the requested two-hour lookback (tr_2e7b4cbd2305)."
+)
+
+
+def test_a_claim_that_cites_the_dispatch_it_qualifies_is_not_a_contradiction() -> None:
+    """**The second live false positive**, from T3.4c's run.
+
+    The metrics query for checkoutservice returned an error ratio and nothing else, so "no
+    latency percentiles were retrieved" is true - and the sentence cites the very result it is
+    describing. A clause carrying the dispatch's own `result_id` is a claim *about* that result,
+    not a denial that it exists, and the id is the cheapest possible signal of the difference.
+    """
+    runs = [
+        FakeRun("metrics", "checkoutservice", FakeResult("tr_7d4b93d2d99c")),
+        FakeRun("changes", "checkoutservice", FakeResult("tr_2e7b4cbd2305")),
+    ]
+    assert contradictions([T34C_OPEN_QUESTION], runs) == []
+
+
+def test_the_same_claim_without_the_citation_still_flags() -> None:
+    """The id is doing the work, not the wording. Strip it and the sentence becomes the claim
+    the check exists to catch."""
+    runs = [FakeRun("metrics", "checkoutservice", FakeResult("tr_7d4b93d2d99c"))]
+    stripped = "No latency percentiles were retrieved for checkoutservice."
+    flags = contradictions([stripped], runs)
+    assert len(flags) == 1 and "tr_7d4b93d2d99c" in flags[0]

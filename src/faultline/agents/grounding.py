@@ -117,6 +117,13 @@ def contradictions(claims: Iterable[str], runs: Iterable[Dispatched]) -> list[st
                 key = f"{run.specialist}/{run.service}"
                 if key in seen:
                     continue
+                if run.result.id in sentence:
+                    # The clause cites the dispatch it is talking about, so it is qualifying
+                    # what that result contained, not denying that it exists. T3.4c's live run:
+                    # "No latency percentiles or per-downstream breakdown were retrieved for
+                    # checkoutservice (tr_7d4b93d2d99c)" is true of a metrics query that
+                    # returned error ratio only, and the id is right there in the sentence.
+                    continue
                 if _names_service(sentence, run.service) and _names_evidence(
                     sentence, run.specialist
                 ):

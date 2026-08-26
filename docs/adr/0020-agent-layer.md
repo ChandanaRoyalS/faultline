@@ -198,6 +198,49 @@ by setting `loadgenerator` aside as the synthetic client; two spend their longes
 a wrong reading of the two silences. A negative finding is a finding, and the specialist output
 contract must carry `ruled_out` alongside `found` or the synthesizer never sees the work.
 
+### The dispatch contract: one service per dispatch *(added T3.4c)*
+
+The table above says the planner produces "an ordered plan naming which specialists to dispatch
+and what each is asked" and never says what a single dispatch addresses. `docs/PLAN.md` carried
+the question. It is settled here, by a defect.
+
+**A dispatch names exactly one service, and that service must be one the catalog knows.**
+
+T3.4b's planner put four names in one `service` field —
+`"paymentservice, currencyservice, cartservice, productcatalogservice"` — and in the same round
+put a sentence in another: `"checkoutservice and its direct dependencies (paymentservice, ...)"`.
+The contract was a bare `str` and accepted both. The tool layer turned the first into a PromQL
+label value that cannot match any `service_name`, so the query matched no series at all — not
+even the denominator of total calls — and the metrics specialist reported an empty result. Two
+of six dispatches were spent asking questions no series could answer, and the shipping and quote
+coverage the planner's own rationale intended never happened.
+
+**This is where ADR-0019 §empty-is-not-error stops.** An empty answer from a well-formed query
+is evidence, and eight of the nine rehearsed narratives turn on one. A selector that *cannot*
+match anything is a contract error at construction time. Its emptiness looks identical to the
+kind that means everything, so accepting it silently converts a malformed request into a
+confident negative finding — the same failure lenient parsing produces, arriving through the
+tool layer instead of through the parser.
+
+A planner wanting three services' metrics makes three dispatches. That is the same principle as
+one tool call per dispatch, already in the table, and it needs no new bound: **the budget's
+dispatch-rounds and per-specialist tool-call limits are the natural governor.** A planner that
+wants breadth pays for it in dispatches, visibly, rather than smuggling it into a string.
+
+Validation runs at plan-parse time against the service catalog, and takes **the same bounded
+re-ask as any other schema failure** (ADR-0003 §): the planner is told which value was wrong,
+which kind of wrong it was, and what the legal values are — once. Either naming scheme is
+accepted, since `cart-service` and `cartservice` are the same service and `canonical_service`
+is what says so; the stored value is normalised to the compose name so everything downstream of
+the plan sees one identity.
+
+A second failure **fails that dispatch alone**. The plan keeps its legal dispatches and drops
+the rest, each drop recorded as a failed dispatch and reaching the verdict's flags by the same
+route a specialist takes when its own output will not validate twice. Three good dispatches and
+one bad one is three dispatches' worth of evidence; throwing the round away to punish the fourth
+costs the investigation more than the fourth was worth. A plan with nothing legal left is still
+a failure of the round — salvage is not leniency.
+
 ## 3. Trajectory persistence
 
 ADR-0003 promises "full trajectory persistence to Postgres" and does not say what a trajectory

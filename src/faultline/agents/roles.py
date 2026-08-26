@@ -9,6 +9,7 @@ confident-looking finding nobody can trace.
 from __future__ import annotations
 
 import json
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from typing import Any
@@ -22,6 +23,8 @@ from faultline.agents.contracts import (
     SpecialistFindings,
     SpecialistName,
     Verdict,
+    partition_dispatch_services,
+    validate_dispatch_services,
 )
 from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
 from faultline.agents.triage import TriageResult
@@ -46,10 +49,15 @@ class SchemaValidationError(RuntimeError):
     ADR did not anticipate).
     """
 
-    def __init__(self, response: ModelResponse, cause: Exception) -> None:
+    def __init__(self, response: ModelResponse, cause: Exception, value: Any = None) -> None:
         super().__init__(f"schema validation failed twice ({cause})")
         self.response = response
         self.cause = cause
+        self.value = value
+        """The parsed object, when the schema was satisfied and a `check` was not.
+
+        A plan that parses cleanly and names one illegal service is not the same failure as a
+        reply that is not JSON, and only the first leaves anything worth salvaging (T3.4c)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -59,10 +67,23 @@ class Completion:
     value: Any
     response: ModelResponse
     attempts: int
+    rejected: tuple[str, ...] = ()
+    """Parts of the reply dropped after the re-ask, each with why. Recorded, never silent."""
 
 
-def ask(model: LanguageModel, request: ModelRequest, schema: type[BaseModel]) -> Completion:
-    """One model call, validated, with one bounded re-ask on a schema failure."""
+def ask(
+    model: LanguageModel,
+    request: ModelRequest,
+    schema: type[BaseModel],
+    check: Callable[[Any], None] | None = None,
+) -> Completion:
+    """One model call, validated, with one bounded re-ask on a schema failure.
+
+    `check` is a semantic validation the schema cannot express - the dispatch contract's "one
+    known service per dispatch" (T3.4c). It runs inside the same try, so a check failure is
+    re-asked exactly once like any other, and its `ValueError` message is what the planner is
+    told. A rule enforced by a second, quieter mechanism is a rule with two failure modes.
+    """
     messages = list(request.messages)
     last: ModelResponse | None = None
     for attempt in (1, 2):
@@ -76,11 +97,15 @@ def ask(model: LanguageModel, request: ModelRequest, schema: type[BaseModel]) ->
             )
         )
         last = response
+        parsed: Any = None
         try:
-            return Completion(_parse(response.text, schema), response, attempt)
+            parsed = _parse(response.text, schema)
+            if check is not None:
+                check(parsed)
+            return Completion(parsed, response, attempt)
         except (ValidationError, ValueError) as exc:
             if attempt == 2:
-                raise SchemaValidationError(response, exc) from exc
+                raise SchemaValidationError(response, exc, parsed) from exc
             # A reply cut off at `max_tokens` is a truncated JSON document, and it arrives here
             # looking like a malformed one. Found on the first live dispatch: a 40-line log
             # envelope produced a findings object longer than the cap, and the re-ask that
@@ -137,24 +162,40 @@ class Planner:
 
     ROLE = "planner"
 
-    def __init__(self, model: LanguageModel, max_tokens: int = 1200, effort: str = "medium"):
+    def __init__(self, model: LanguageModel, max_tokens: int = 3000, effort: str = "medium"):
+        # 3000, matching the specialists. T3.3 raised theirs from 1200 after a truncated reply
+        # arrived looking malformed and killed an investigation; the planner kept the old cap
+        # and hit the same wall in T3.4c's smoke - two attempts, both cut off, the round lost
+        # before any tool ran. Measured at the same time: an untruncated plan for this incident
+        # costs 915 output tokens, so 1200 left 24% of headroom for a five-dispatch plan.
         self._model = model
         self._max_tokens = max_tokens
         self._effort = effort
 
     def plan(self, triage: TriageResult, findings: list[SpecialistRun] | None = None) -> Completion:
-        """The first plan, or the one follow-up round if findings are supplied."""
-        return ask(
-            self._model,
-            ModelRequest(
-                system=PLANNER_SYSTEM,
-                messages=[{"role": "user", "content": self._brief(triage, findings)}],
-                role=self.ROLE,
-                max_tokens=self._max_tokens,
-                effort=self._effort,
-            ),
-            DispatchPlan,
+        """The first plan, or the one follow-up round if findings are supplied.
+
+        A plan that still names an illegal service after the re-ask keeps its legal dispatches
+        and loses the rest, each loss carried on the completion. Only a plan with nothing legal
+        left is a failure of the round.
+        """
+        request = ModelRequest(
+            system=PLANNER_SYSTEM,
+            messages=[{"role": "user", "content": self._brief(triage, findings)}],
+            role=self.ROLE,
+            max_tokens=self._max_tokens,
+            effort=self._effort,
         )
+        try:
+            return ask(self._model, request, DispatchPlan, check=validate_dispatch_services)
+        except SchemaValidationError as failure:
+            plan = failure.value
+            if not isinstance(plan, DispatchPlan):
+                raise
+            rejected = partition_dispatch_services(plan)
+            if not plan.dispatches:
+                raise
+            return Completion(plan, failure.response, 2, tuple(rejected))
 
     @staticmethod
     def _brief(triage: TriageResult, findings: list[SpecialistRun] | None) -> str:
