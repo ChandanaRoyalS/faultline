@@ -1,0 +1,59 @@
+{
+  "incident_id": "1320ea3f-def0-4922-bb85-457e0f93f0e2",
+  "trajectory_id": "9af6a21b-42cb-4c06-8541-90f5cfe0e0c0",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:cart-bad-image-tag",
+  "verdict": {
+    "root_cause": "cartservice was replaced at 19:35:16Z by a platform-automation image-reference update to a hotfix-tagged build, and the replacement workload never came back into service. The running instance logged an orderly hosting-lifetime shutdown at 19:35:15Z and emitted nothing thereafter (tr_45411d2065e7), and cartservice produced no span-derived call metrics at all \u2014 not even an unfiltered denominator \u2014 across the whole 19:29\u201319:45Z window (tr_510fdfde247a), which is the signature of a workload that stopped serving rather than one serving badly. Callers see the consequence: every failing checkout trace is an identical 5-span shape whose deepest ERROR span is checkoutservice's outbound hipstershop.CartService/GetCart, returning in single-digit milliseconds with no slow span anywhere (tr_08259ff1b6d1) \u2014 immediate connection-level rejection against an absent backend, not an error raised inside cartservice. checkoutservice itself has no change record in the window (tr_5ea5f12bf4c3) and its own error ratio rises to roughly two-thirds of calls from a baseline that touches zero inside the window (tr_f7e696dcd6c2), consistent with an onset partway through rather than a chronic condition. The failing mechanism is therefore that the artifact now referenced for cartservice is not one that runs: a bad deploy.",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_a059ea1b67b4",
+      "tr_45411d2065e7",
+      "tr_510fdfde247a",
+      "tr_08259ff1b6d1",
+      "tr_f7e696dcd6c2",
+      "tr_5ea5f12bf4c3"
+    ],
+    "reasoning": "Three independent signals converge on cartservice being absent rather than erroring. (1) The change log records exactly one in-window change on cartservice, an image-reference update at 19:35:16Z (tr_a059ea1b67b4), immediately following the graceful shutdown line at 19:35:15Z in the logs (tr_45411d2065e7) \u2014 the one-second gap is what a rollout-driven SIGTERM looks like. (2) After that point cartservice emits no logs and, critically, no call metrics at all: tr_510fdfde247a establishes the empty result covers the unfiltered denominator, so it is not a status-filter artifact \u2014 the service produced no spans, meaning it served no traffic. (3) From the caller side, tr_08259ff1b6d1 places the deepest ERROR span precisely at the outbound GetCart call while the enclosing checkoutservice work span is not ERROR, and the sub-millisecond-to-few-millisecond durations rule out deadline exceedance; fast failure against a dependency that is emitting nothing is connection refusal, not downstream slowness. That ordering rules out dependency_latency (tr_08259ff1b6d1 explicitly excludes timeout/saturation), excludes checkoutservice-local fault and frontend fault, and excludes a broad multi-dependency event since only one downstream edge appears. bad_config does not fit: no config change or flag flip is recorded for cartservice or its cache backend (tr_a059ea1b67b4), and no wrong value is implicated in the request path. resource_exhaustion is not supported: the termination path was the ordinary informational lifecycle channel with no crash, panic, or stack trace (tr_45411d2065e7). The image reference is configuration in form, but the mechanism is that the artifact now designated for cartservice is not the one that should be running and does not serve \u2014 bad_deploy. The remediation that resolves this is restoring the prior working image, i.e. rollback; a plain restart would only recreate pods from the same bad reference. The 'hotfix' tag invites reading this as remediation of an earlier problem, but the paging sequence starts at 19:39:45Z, over four minutes after the push, so the change precedes the incident it would have to be remediating; tr_a059ea1b67b4 itself rates that intent inference as low confidence. The retrieved shipping-wrong-image incident matches this shape \u2014 a fast page naming checkoutservice one hop from a broken dependency image \u2014 but it is corroborating context, not the finding.",
+    "open_questions": [
+      "No pod- or workload-level evidence was gathered: nobody confirmed whether the hotfix image is crashlooping, stuck on image pull, failing readiness, or scaled to zero. 'The new artifact does not run' is inferred from total metric and log silence, not directly observed.",
+      "The prior image reference is recorded as absent/unknown (tr_a059ea1b67b4), so the rollback target is not established by this evidence and must be recovered from deployment history before acting.",
+      "Why platform-automation pushed a hotfix-tagged build at 19:35:16Z is unexplained. If it was remediating something in the 17:39\u201319:29 period, that earlier condition is entirely uncovered \u2014 tr_5ea5f12bf4c3 flags that the change query spanned only the 15-minute incident window.",
+      "checkoutservice's error ratio peaks near two-thirds rather than 1.0 (tr_f7e696dcd6c2) while traces show no successful PlaceOrder at all (tr_08259ff1b6d1). The surviving successful calls are unidentified \u2014 possibly non-checkout endpoints, possibly a partially surviving cartservice replica \u2014 and only min/max were returned, so the onset timestamp was never read and never correlated against 19:35:16Z.",
+      "The cartservice log result is truncated between roughly 19:29:49Z and 19:35:01Z (tr_45411d2065e7); a degradation ramp or early error signal in that gap cannot be excluded.",
+      "The five direct checkoutservice dependencies (adservice, emailservice, paymentservice, productcatalogservice, recommendationservice) were never queried for changes. Traces abort before reaching them so they cannot be this failure's origin, but the 13-service, 5-unmeasured-edge blast radius is not fully accounted for by the cart edge alone.",
+      "The Redis/cache backend behind cartservice was checked only for change records, not for health or connectivity; if the hotfix image fails on a backend interaction at startup, that dependency would still be part of the causal chain."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired ",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m49s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\n**frontend** and **loadgenerator** crossed the error threshol"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

@@ -1,0 +1,193 @@
+{
+  "run_id": "20260826T201433Z-frauddetection-memory-squeeze",
+  "scenario_id": "frauddetection-memory-squeeze",
+  "split": "dev",
+  "scenario_fingerprint": "8309cd84c4bb1ce6d3965e942c8d37ad85b0a905eb2d3189d8981b0928037ef0",
+  "started_at": "2026-08-26T20:14:33.550050+00:00",
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "e58f0e81348a30de57d298bcda697b65ce06aaac",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      1710
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-26T20:14:33.895437+00:00",
+  "incident_id": "9d34f440-67d3-4959-b3d5-9d3d8ae29c1a",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-26T20:25:12.297506+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "frauddetection-service",
+      320
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260826T201433Z-frauddetection-memory-squeeze",
+    "scenario_id": "frauddetection-memory-squeeze",
+    "trajectory_id": "cd22bb99-deb8-43f3-b543-6e2367bacc51",
+    "runtime_version": "faultline/0.0.1+prompts:53fafe9c12bc",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": true,
+    "triage": {
+      "recall": 1.0,
+      "precision": 1.0,
+      "matched": [
+        "frauddetectionservice"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 0,
+      "n_alerted": 1,
+      "n_predicted": 1
+    },
+    "fault_class": {
+      "truth": "resource_exhaustion",
+      "returned": "resource_exhaustion",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "config_revert",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 17124,
+    "tokens_out": 10901,
+    "cost_usd": 0.3581,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-26T20:31:16.855741+00:00",
+  "judge": {
+    "scenario_id": "frauddetection-memory-squeeze",
+    "run_id": "20260826T201433Z-frauddetection-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: the container memory limit was reduced below the JVM's working set requirements, causing the kernel to kill the process repeatedly during startup.",
+    "dead_ends_closed": [
+      "class-sharing warning as signal",
+      "span-derived call metrics",
+      "image rollout or code deploy",
+      "service change-quiescence"
+    ],
+    "dead_ends_missed": [
+      "container-level resource series (pod limits, working-set bytes, restart counter, exit code)",
+      "prior memory limit value and magnitude of reduction",
+      "JVM heap configuration compatibility with new ceiling",
+      "blast radius and upstream producer backlog effects",
+      "what prompted the automation to resize"
+    ],
+    "traps": [
+      {
+        "trap": "treating a sparse service no-traffic alert as a monitoring artifact",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "assuming no downstream symptom means low severity",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "focusing on application logs for failure explanation",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "interpreting empty span metrics as flat, healthy zero rather than absence of series",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative demonstrates rigorous hypothesis closure and explicitly names traps to avoid, but leaves open several container-level confirmations the recorded narrative obtained, leaving confidence at medium rather than certain.",
+    "tokens_in": 5881,
+    "tokens_out": 381
+  }
+}

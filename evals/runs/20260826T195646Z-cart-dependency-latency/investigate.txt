@@ -1,0 +1,31 @@
+incident f7af8383-1f63-42d7-86f4-d2b645ce6321  state triaging  anchor 20:00:15
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: d64e1c24-bc95-43be-8e60-fd22ed9e39d3
+investigation: 1 round(s), 6 dispatch(es), 16 step(s) BUDGET EXHAUSTED (metrics tool calls: 4 of 4 used)
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_d2898d3ec810, tr_ed4bc125f973, tr_5ba941902e7d, tr_b76e068baf22, tr_12cff8f990c9, tr_9520674725a7
+  root cause  : At 19:56:50 UTC, roughly three and a half minutes before the first alert, platform-automation attached a traffic-shaping container to cartservice's network namespace applying a fixed 300ms delay with zero jitter on eth0 (tr_d2898d3ec810). This puts a uniform latency floor on every network round trip into and out of cartservice. Cartservice itself is not failing: its logs show continuous, normal cart operations with no errors, exceptions, timeouts or connection failures at either end of the window, and it was demonstrably up and serving through ~20:03 (tr_ed4bc125f973). Its own downstream candidates are clean or silent — productcatalogservice error ratio is flat zero across all 61 samples (tr_b76e068baf22), and recommendationservice and shippingservice produced no span-metric series at all, which settles nothing either way (tr_12cff8f990c9, tr_9520674725a7). The alert order — cartservice first at 20:00:15, then loadgenerator, checkoutservice and frontend within 30 seconds — matches callers piling up on a slow cart rather than a cart that is erroring or down. The failing mechanism is waiting on a dependency that was deliberately made slow, not an exhausted resource, a wrong artifact, or a semantically wrong configuration value.
+  OPEN        : No latency percentiles were measured for cartservice or any caller, so the predicted ~300ms-per-hop floor is inferred from the change parameter and never observed. This is the single largest gap and the metrics budget was exhausted before it could be closed.
+  OPEN        : Three services (cartservice, recommendationservice, shippingservice) returned no span-metric series at all with empty denominators. Whether this is a pre-existing telemetry collection or label-naming gap, or a second concurrent fault, is unresolved — and it means any alerting built on calls_total for these services was blind during the window.
+  OPEN        : The cartservice log result was truncated: roughly 19:50:23 to 20:03:20 is unobserved. An error burst confined to that interval, including the alert onset at 20:00:15, would be invisible to this investigation.
+  OPEN        : The last cartservice log line is at 20:03:43, ~90s before the window closes. Whether cart stopped emitting logs or log volume simply ended cannot be distinguished from the evidence gathered.
+  OPEN        : The failure mode at frontend and checkoutservice was never examined directly — no dispatch touched them. Whether they are timing out on cart (predicted) or failing some other way is assumed, not shown.
+  OPEN        : Provenance and intent of the platform-automation change are unknown: whether this is a scheduled chaos experiment that escaped its blast radius, an accidental invocation, or something else. This determines whether removal is safe to perform unilaterally and whether other services carry similar attachments.
+  OPEN        : The empty user identifiers on two get-cart calls (tr_ed4bc125f973) are unexplained and may indicate malformed upstream requests unrelated to the latency injection.
+
+=== FLAGGED ===
+  budget exhausted: metrics tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T195646Z-cart-dependency-latency/f7af8383-1f63-42d7-86f4-d2b645ce6321-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T195646Z-cart-dependency-latency/f7af8383-1f63-42d7-86f4-d2b645ce6321-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11735.03it/s]

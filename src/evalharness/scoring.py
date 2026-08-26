@@ -315,6 +315,15 @@ class ScoredRun:
     cost_usd: float = 0.0
     models: dict[str, str] = field(default_factory=dict)
     runtime_version: str = ""
+    budget: dict[str, Any] = field(default_factory=dict)
+    """The bounds this run was given. **Printed beside the stamp, never folded into it.**
+
+    The stamp answers "which agent is this" - the prompts it was given and the contracts it was
+    held to. The budget answers "how much was it allowed to spend", which is an experiment
+    parameter rather than an identity, and the two comparisons are both wanted: T4.7 exists to
+    compare *the same agent* under different bounds. Folding the budget into the stamp would
+    make that comparison unexpressible and orphan every figure recorded before it.
+    """
 
     @property
     def reached_a_class(self) -> bool:
@@ -328,6 +337,7 @@ class ScoredRun:
             "scenario_id": self.scenario_id,
             "trajectory_id": self.trajectory_id,
             "runtime_version": self.runtime_version,
+            "budget": self.budget,
             "reached_a_class": self.reached_a_class,
             "triage": None if self.triage is None else self.triage.as_dict(),
             "fault_class": None if self.fault_class is None else self.fault_class.as_dict(),
@@ -413,6 +423,7 @@ class ScoredRun:
             "",
             f"COST  in {self.tokens_in} / out {self.tokens_out} tokens   ${self.cost_usd:.4f}",
             f"MODELS {self.models or '{}'}",
+            f"BUDGET {self.budget or '{}'}",
             "",
             "n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).",
         ]

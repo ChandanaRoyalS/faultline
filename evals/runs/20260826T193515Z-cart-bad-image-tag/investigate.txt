@@ -1,0 +1,30 @@
+incident 1320ea3f-def0-4922-bb85-457e0f93f0e2  state triaging  anchor 19:39:45
+triage: 13 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 9af6a21b-42cb-4c06-8541-90f5cfe0e0c0
+investigation: 2 round(s), 6 dispatch(es), 17 step(s)
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_a059ea1b67b4, tr_45411d2065e7, tr_510fdfde247a, tr_08259ff1b6d1, tr_f7e696dcd6c2, tr_5ea5f12bf4c3
+  root cause  : cartservice was replaced at 19:35:16Z by a platform-automation image-reference update to a hotfix-tagged build, and the replacement workload never came back into service. The running instance logged an orderly hosting-lifetime shutdown at 19:35:15Z and emitted nothing thereafter (tr_45411d2065e7), and cartservice produced no span-derived call metrics at all — not even an unfiltered denominator — across the whole 19:29–19:45Z window (tr_510fdfde247a), which is the signature of a workload that stopped serving rather than one serving badly. Callers see the consequence: every failing checkout trace is an identical 5-span shape whose deepest ERROR span is checkoutservice's outbound hipstershop.CartService/GetCart, returning in single-digit milliseconds with no slow span anywhere (tr_08259ff1b6d1) — immediate connection-level rejection against an absent backend, not an error raised inside cartservice. checkoutservice itself has no change record in the window (tr_5ea5f12bf4c3) and its own error ratio rises to roughly two-thirds of calls from a baseline that touches zero inside the window (tr_f7e696dcd6c2), consistent with an onset partway through rather than a chronic condition. The failing mechanism is therefore that the artifact now referenced for cartservice is not one that runs: a bad deploy.
+  OPEN        : No pod- or workload-level evidence was gathered: nobody confirmed whether the hotfix image is crashlooping, stuck on image pull, failing readiness, or scaled to zero. 'The new artifact does not run' is inferred from total metric and log silence, not directly observed.
+  OPEN        : The prior image reference is recorded as absent/unknown (tr_a059ea1b67b4), so the rollback target is not established by this evidence and must be recovered from deployment history before acting.
+  OPEN        : Why platform-automation pushed a hotfix-tagged build at 19:35:16Z is unexplained. If it was remediating something in the 17:39–19:29 period, that earlier condition is entirely uncovered — tr_5ea5f12bf4c3 flags that the change query spanned only the 15-minute incident window.
+  OPEN        : checkoutservice's error ratio peaks near two-thirds rather than 1.0 (tr_f7e696dcd6c2) while traces show no successful PlaceOrder at all (tr_08259ff1b6d1). The surviving successful calls are unidentified — possibly non-checkout endpoints, possibly a partially surviving cartservice replica — and only min/max were returned, so the onset timestamp was never read and never correlated against 19:35:16Z.
+  OPEN        : The cartservice log result is truncated between roughly 19:29:49Z and 19:35:01Z (tr_45411d2065e7); a degradation ramp or early error signal in that gap cannot be excluded.
+  OPEN        : The five direct checkoutservice dependencies (adservice, emailservice, paymentservice, productcatalogservice, recommendationservice) were never queried for changes. Traces abort before reaching them so they cannot be this failure's origin, but the 13-service, 5-unmeasured-edge blast radius is not fully accounted for by the cart edge alone.
+  OPEN        : The Redis/cache backend behind cartservice was checked only for change records, not for health or connectivity; if the hotfix image fails on a backend interaction at startup, that dependency would still be part of the causal chain.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T193515Z-cart-bad-image-tag/1320ea3f-def0-4922-bb85-457e0f93f0e2-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T193515Z-cart-bad-image-tag/1320ea3f-def0-4922-bb85-457e0f93f0e2-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9312.84it/s]

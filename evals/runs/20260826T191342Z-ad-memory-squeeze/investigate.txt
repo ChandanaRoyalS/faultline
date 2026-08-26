@@ -1,0 +1,32 @@
+incident 2941f710-d551-4ce0-8701-e78e474cf001  state triaging  anchor 19:17:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 5efb8dfb-02dd-40f6-941d-c35c5e97ff60
+investigation: 1 round(s), 10 dispatch(es), 24 step(s) BUDGET EXHAUSTED (metrics tool calls: 4 of 4 used)
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_d95e8e8d312c, tr_2e88660c6e62, tr_25f74ed07591, tr_9b64c5ec01ef, tr_7950f38c7d67, tr_8f544a419450, tr_8c39f35328bf, tr_9011fc50e5f0, tr_bbbcaa01b284, tr_6fef91132e90
+  root cause  : The only recorded change anywhere in the blast radius is on adservice: at 19:13:43 UTC platform-automation lowered the ad-service container memory limit to 256m, roughly four minutes before the 19:17:30 onset (tr_d95e8e8d312c). Every other service in the radius — frontend, checkoutservice, productcatalogservice, cartservice, recommendationservice — has an empty change log for the window (tr_7950f38c7d67, tr_8f544a419450, tr_8c39f35328bf, tr_9011fc50e5f0, tr_bbbcaa01b284), and productcatalogservice shows a flat zero error ratio throughout (tr_9b64c5ec01ef), so the failure did not originate downstream in the catalog path. The most consistent reading is that the new 256m ceiling sits below adservice's working set, so the container is being killed and restarted for exceeding it — adservice's span-derived call counters have no series at all in the window, neither error numerator nor total-calls denominator (tr_2e88660c6e62), which is what a container that is repeatedly dying and emitting no completed spans looks like. Frontend degrades partially rather than totally, peaking near 9.9% errors from a clean zero floor inside the window (tr_25f74ed07591), consistent with a non-fatal dependency whose failure only spoils the fraction of requests that touch it. The mechanism now is memory exhaustion against a ceiling, not a wrong artifact and not an application-level misconfiguration; the limit edit is how it started, the killing is what is happening.
+  OPEN        : No direct confirmation of OOMKill or container restarts on adservice — no pod events, container logs, or restart-count metric was retrieved; the memory-exhaustion mechanism is inferred from the missing call-count series (tr_2e88660c6e62) and the timing of tr_d95e8e8d312c.
+  OPEN        : The prior memory limit is not recorded (tr_d95e8e8d312c), so the magnitude of the reduction and whether 256m is genuinely below adservice's working set is unestablished; the correct restored value is unknown.
+  OPEN        : Frontend's ~9.9% error peak is not attributed to any specific downstream call path — the query aggregated by service_name only (tr_25f74ed07591), so it is not proven that the failing fraction is the ad-serving path rather than another dependency.
+  OPEN        : cartservice telemetry is entirely absent, including the denominator (tr_6fef91132e90). Whether cartservice is also degraded, or simply labelled differently in the span metrics, is unresolved — and the same ambiguity weakens the adservice reading.
+  OPEN        : No latency or saturation data was obtained for any service; the metrics budget (4/4) was exhausted, so a dependency_latency contribution has not been affirmatively excluded.
+  OPEN        : All change queries covered only 19:07:30–19:22:30, not the full hour before onset; a change between 18:17 and 19:07 on any service remains unexamined (noted in every change dispatch).
+  OPEN        : Triage reported one unmeasured edge crossed; which edge and whether it hides a seventh service's contribution was never resolved.
+  OPEN        : checkoutservice and recommendationservice have no metric evidence at all — only empty change logs — so their role in the 7-service blast radius is unmeasured.
+
+=== FLAGGED ===
+  budget exhausted: metrics tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T191342Z-ad-memory-squeeze/2941f710-d551-4ce0-8701-e78e474cf001-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T191342Z-ad-memory-squeeze/2941f710-d551-4ce0-8701-e78e474cf001-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9748.91it/s]

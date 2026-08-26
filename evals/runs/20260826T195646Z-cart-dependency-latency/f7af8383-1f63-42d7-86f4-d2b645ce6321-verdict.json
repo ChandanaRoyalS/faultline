@@ -1,0 +1,60 @@
+{
+  "incident_id": "f7af8383-1f63-42d7-86f4-d2b645ce6321",
+  "trajectory_id": "d64e1c24-bc95-43be-8e60-fd22ed9e39d3",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-dependency-latency",
+  "verdict": {
+    "root_cause": "At 19:56:50 UTC, roughly three and a half minutes before the first alert, platform-automation attached a traffic-shaping container to cartservice's network namespace applying a fixed 300ms delay with zero jitter on eth0 (tr_d2898d3ec810). This puts a uniform latency floor on every network round trip into and out of cartservice. Cartservice itself is not failing: its logs show continuous, normal cart operations with no errors, exceptions, timeouts or connection failures at either end of the window, and it was demonstrably up and serving through ~20:03 (tr_ed4bc125f973). Its own downstream candidates are clean or silent \u2014 productcatalogservice error ratio is flat zero across all 61 samples (tr_b76e068baf22), and recommendationservice and shippingservice produced no span-metric series at all, which settles nothing either way (tr_12cff8f990c9, tr_9520674725a7). The alert order \u2014 cartservice first at 20:00:15, then loadgenerator, checkoutservice and frontend within 30 seconds \u2014 matches callers piling up on a slow cart rather than a cart that is erroring or down. The failing mechanism is waiting on a dependency that was deliberately made slow, not an exhausted resource, a wrong artifact, or a semantically wrong configuration value.",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_d2898d3ec810",
+      "tr_ed4bc125f973",
+      "tr_5ba941902e7d",
+      "tr_b76e068baf22",
+      "tr_12cff8f990c9",
+      "tr_9520674725a7"
+    ],
+    "reasoning": "The change record is the only positive signal in the entire investigation and it is unusually specific: a network-layer delay of a known magnitude, applied at the pod namespace level, landing minutes before onset (tr_d2898d3ec810). Everything else is consistent with it and inconsistent with the alternatives. Cartservice logs rule out cart as an erroring or crashed origin and show it serving normally throughout the sampled portions (tr_ed4bc125f973), which excludes bad_deploy and the crash-loop shape seen in the cart-bad-image-tag corpus entry. No deploy, image change, config push, flag flip, or cache-side mutation appears in the window (tr_d2898d3ec810), which is what separates this from the cart-redis-misconfig precedent where a wrong address value was itself the failure. Downstream error ratios are zero where measurable (tr_b76e068baf22), so upstream failures are not being propagated from cart's dependencies as error statuses; they are more consistent with timeouts. Critically, the cartservice metric query returned an empty denominator as well as an empty numerator (tr_5ba941902e7d), so the classic trap in both past incidents \u2014 reading cart's flat-zero/absent error rate as proof cart was healthy \u2014 is explicitly closed here: absence of series is absence of data, not absence of degradation. I classify this as dependency_latency rather than bad_config because the injected delay is not a value that names something wrong; it is a mechanism that inserts wait into the call path, and the callers fail because they wait. Removing the traffic-shaping rule \u2014 reverting that change \u2014 is the fix; no restart, rollback of an artifact, or scaling would address it. Confidence is held at medium, not high, because no latency measurement was ever obtained: the metrics budget was exhausted (4 of 4) before any percentile query ran, so the 300ms floor is inferred from the change parameter rather than observed in the data.",
+    "open_questions": [
+      "No latency percentiles were measured for cartservice or any caller, so the predicted ~300ms-per-hop floor is inferred from the change parameter and never observed. This is the single largest gap and the metrics budget was exhausted before it could be closed.",
+      "Three services (cartservice, recommendationservice, shippingservice) returned no span-metric series at all with empty denominators. Whether this is a pre-existing telemetry collection or label-naming gap, or a second concurrent fault, is unresolved \u2014 and it means any alerting built on calls_total for these services was blind during the window.",
+      "The cartservice log result was truncated: roughly 19:50:23 to 20:03:20 is unobserved. An error burst confined to that interval, including the alert onset at 20:00:15, would be invisible to this investigation.",
+      "The last cartservice log line is at 20:03:43, ~90s before the window closes. Whether cart stopped emitting logs or log volume simply ended cannot be distinguished from the evidence gathered.",
+      "The failure mode at frontend and checkoutservice was never examined directly \u2014 no dispatch touched them. Whether they are timing out on cart (predicted) or failing some other way is assumed, not shown.",
+      "Provenance and intent of the platform-automation change are unknown: whether this is a scheduled chaos experiment that escaped its blast radius, an accidental invocation, or something else. This determines whether removal is safe to perform unilaterally and whether other services carry similar attachments.",
+      "The empty user identifiers on two get-cart calls (tr_ed4bc125f973) are unexplained and may indicate malformed upstream requests unrelated to the latency injection."
+    ]
+  },
+  "flags": [
+    "budget exhausted: metrics tool calls: 4 of 4 used"
+  ],
+  "retrieved": [
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / Resolution: The image reference was restored to the previously deployed tag. cartservice came up on\nthe next reconciliation and the no-traffic alerts cleared eight seconds later \u2014 those\nsix services had never been broken, only starved.\n\nA brief `ServiceHighErrorRate` appeared on **emailservi"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

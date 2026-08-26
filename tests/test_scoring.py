@@ -295,3 +295,27 @@ def test_the_four_categories_are_disjoint() -> None:
         len(cats.flagged) + len(cats.contradictions) + (1 if cats.budget_exhausted_reason else 0)
         == 1
     )
+
+
+def test_the_budget_travels_with_the_figure_and_not_inside_the_stamp() -> None:
+    """**Budget bounds are experiment parameters the stamp does not cover** (T4.7).
+
+    The stamp answers "which agent is this" - the prompts it was given, the contracts it was
+    held to. The budget answers "how much was it allowed to spend". Both matter and they are
+    different questions: T4.7 exists to compare *the same agent* under different bounds, and
+    folding the budget into the stamp would make that comparison unexpressible and orphan every
+    figure recorded before it. So it rides beside the stamp, in the manifest and in the report.
+    """
+    bounds = {
+        "max_tool_calls_per_specialist": 4,
+        "per_specialist_tool_calls": {"changes": 8},
+        "max_tokens": 120_000,
+        "wall_clock_seconds": 600,
+        "max_dispatch_rounds": 2,
+    }
+    scored = ScoredRun("r", "s", "t", runtime_version="faultline/0.0.1+prompts:x", budget=bounds)
+
+    assert scored.as_dict()["budget"] == bounds, "all four bounds, not the two a CLI takes"
+    report = scored.report()
+    assert "BUDGET" in report and "'changes': 8" in report
+    assert "prompts:x" in report, "and the stamp is still there, beside it"

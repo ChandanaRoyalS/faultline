@@ -253,13 +253,19 @@ scores go up.
 
 Drawn from [`docs/PLAN.md`](PLAN.md); each is open and none is answered by anything above.
 
-1. **The budget confound.** Re-run both sweeps with a larger `max_tool_calls_per_specialist` to
-   separate the taxonomy instruction's effect from budget exhaustion. This is the single
-   experiment that would most improve what the tables mean.
-2. **The `changes`-budget question `email-wrong-image` exposed.** It took all three traps the
-   judge identified — the most of any run — on the one scenario whose recorded narrative says the
-   *logs* contain the answer. It spent its entire `changes` budget and never read them. Whether
-   that is a planner-allocation problem or a bound problem is unmeasured.
+1. ~~**The budget confound.**~~ **Run at T4.7** (`evals/runs/SWEEP-2026-08-26-budget.md`):
+   `changes` raised 4 → 8, same stamp, seven dev scenarios. **The answer is mixed and it
+   decomposes** — budget owned one abstention, the instruction owns another, and a third is
+   neither. Starvation was real and is gone (zero runs exhausted `changes`, against two);
+   coverage rose 4/7 → 6/7 with accuracy-of-answered holding at 100%. What remains open is the
+   part it could not settle: `product-catalog-flag-failure` abstains twice with budget to spare,
+   and nothing yet explains why.
+2. **The `changes`-budget question `email-wrong-image` exposed** — **partly answered, and only on
+   dev.** T4.7 showed the mechanism: T3.4c's one-service-per-dispatch multiplied change-history
+   needs by the blast radius, and the target service's record was dispatch five or six of a plan
+   cut off at four. Holdout is not re-run to fix a number, so `email-wrong-image` itself stays
+   unmeasured under the raised bound; whether its three taken traps were starvation or judgement
+   is a question for the next holdout, not this one.
 3. **A second-provider judge.** Every judged figure here carries a lineage violation because this
    repository holds one provider's credentials. This is the cheapest change that would improve
    every judged number, and it needs credentials rather than code.
@@ -271,5 +277,7 @@ Drawn from [`docs/PLAN.md`](PLAN.md); each is open and none is answered by anyth
    recorded in PLAN.md under "Discovered omissions".
 
 Also open and smaller: the freeze manifest's self-referential git sha; whether retrieval `k`
-should count chunks or documents; and whether the holdout `dependency_latency` near-miss should be
-admitted to the dispute register — a decision for an ADR, not for a report.
+should count chunks or documents; whether the holdout `dependency_latency` near-miss should be
+admitted to the dispute register — a decision for an ADR, not for a report; and **the baseline
+gate's blindness to recently-resolved incidents**, which cost T4.7 a scenario when one sitting
+inside the settle window captured the next run's alerts.

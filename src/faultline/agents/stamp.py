@@ -17,6 +17,22 @@ agent; change a contract and it is answering a different question; and either wi
 is exactly the kind of change a version string usually misses. The digest is order-independent
 over a sorted key list so a reordering of the module does not move it.
 
+**Budget bounds are deliberately outside the stamp** (decided T4.7). They are experiment
+parameters, not identity: the stamp answers *which agent is this* - the prompts it was given and
+the contracts it was held to - while a bound answers *how much was it allowed to spend*. Both
+matter, and they are different questions.
+
+Folding bounds in was considered and rejected on two grounds. It would orphan every stamped
+figure recorded before the change, since none of those digests covered a bound. And, decisively,
+it would make the comparison T4.7 exists to run unexpressible: raising one bound and re-running
+is a statement about *the same agent given more room*, and a stamp that moved with the budget
+would call those two different agents and hide the very thing being measured.
+
+The obligation the decision creates is that a bound must never be implicit. The run manifest
+records all four - not the two a CLI happens to take - and the scored report and every sweep
+table print the budget **beside** the stamp. A figure quoted without its bounds is as misleading
+as one quoted without its model, and the fix is that both travel, not that both fuse.
+
 **No git, no subprocess.** ADR-0004 keeps benchmark infrastructure out of the product, and a
 product that shells out to `git` to describe itself does not work from a wheel. The harness
 records the git sha separately in its own run manifest (`evalharness.provenance`), where that

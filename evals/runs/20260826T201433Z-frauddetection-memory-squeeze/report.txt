@@ -1,0 +1,28 @@
+run 20260826T201433Z-frauddetection-memory-squeeze   scenario frauddetection-memory-squeeze
+trajectory cd22bb99-deb8-43f3-b543-6e2367bacc51   runtime faultline/0.0.1+prompts:53fafe9c12bc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (1/1 alerted services predicted)
+  precision 1.00  (1/1 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): none
+  unmeasured edges crossed: 0 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  fault class resource_exhaustion vs resource_exhaustion - correct
+  fix class   config_revert vs config_revert - correct
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 17124 / out 10901 tokens   $0.3581
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'per_specialist_tool_calls': {'changes': 8}, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
