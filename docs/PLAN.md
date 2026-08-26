@@ -778,6 +778,39 @@ Triage over seven: recall mean **0.94**, precision mean **0.56**, 19 unmeasured 
 `cart-dependency-latency` reproduced T3.5's disputed miss **exactly**, on an independent run: same
 two wrong labels, same reasoning shape. One observation was an anecdote; two is a pattern.
 
+### T4.9 — planner allocation, read from the archive *(analysis only; nothing product-side changed)*
+No model calls, no injections. **contract not written.** Every stored investigation, one row each
+(`docs/evidence/t4.9-allocation/README.md`): 39 trajectories, **36 carry a plan**, 33 produced a
+verdict. Thirteen predate the run manifest and their scenario is inferred from the injector's
+`change_records`, marked as such.
+
+The question came from a run pair on `email-wrong-image`: same scenario, same stamp, **12 planned
+round-1 dispatches against 3**.
+
+**Breadth is variable and unevenly so.** Round-1 dispatches range 3 to 13 across the archive. Per
+scenario at n>=2: `frauddetection-memory-squeeze` planned exactly three every time (spread 0);
+`email-wrong-image` planned three and twelve (spread 9). **These are not repeats** - they differ in
+stamp, bound and the day's incident - so every spread is an upper bound on variance, not a
+measurement of it.
+
+**Breadth does not predict outcome.** Narrowest band (3-4, n=20) answered 14/20; widest (9-13,
+n=8) answered 5/8. Every budget exhaustion lives among the wider plans, and planned breadth
+overstates what was queried: 13 planned dispatches yielded 4 distinct services queried.
+
+**What travels with outcome is whether the broken service was asked about at all.** Target planned
+in any round: **22/25 answered**. Never planned: **1/8**. Excluding the three
+`product-catalog-flag-failure` rows whose target `featureflagservice` emits no span metrics and
+therefore cannot be planned: **5 of 5 that never planned the target abstained**. Labelled a
+correlation - a planner reaching the right service may be one that already understood the incident
+- though the mechanism is not mysterious, since a verdict cannot classify evidence nobody gathered.
+
+> **Next candidate experiment, not run here: repeat one scenario several times under one fixed
+> configuration.** The archive contains **no two rows holding scenario, stamp and budget
+> constant**, so run-to-run variance has never been measured and every spread in T4.9 is
+> confounded. Repeats would give the first clean variance figure for planner breadth and would say
+> whether "did the plan include the target" is itself stable or is the thing that varies. It needs
+> no new machinery - only the harness, one scenario, and several passes.
+
 ### T4.7 — the budget confound, separated *(built)*
 The manipulation HOLDOUT-2026-08-26.md left open. **contract not written.**
 
