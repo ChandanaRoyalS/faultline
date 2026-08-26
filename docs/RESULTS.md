@@ -260,12 +260,16 @@ Drawn from [`docs/PLAN.md`](PLAN.md); each is open and none is answered by anyth
    coverage rose 4/7 → 6/7 with accuracy-of-answered holding at 100%. What remains open is the
    part it could not settle: `product-catalog-flag-failure` abstains twice with budget to spare,
    and nothing yet explains why.
-2. **The `changes`-budget question `email-wrong-image` exposed** — **partly answered, and only on
-   dev.** T4.7 showed the mechanism: T3.4c's one-service-per-dispatch multiplied change-history
-   needs by the blast radius, and the target service's record was dispatch five or six of a plan
-   cut off at four. Holdout is not re-run to fix a number, so `email-wrong-image` itself stays
-   unmeasured under the raised bound; whether its three taken traps were starvation or judgement
-   is a question for the next holdout, not this one.
+2. ~~**The `changes`-budget question `email-wrong-image` exposed.**~~ **Answered at T4.8, and the
+   answer was neither hypothesis.** A second holdout entry under the raised bound
+   ([`HOLDOUT-2026-08-26-entry2.md`](../evals/runs/HOLDOUT-2026-08-26-entry2.md), pre-registered,
+   1 of 3 scored) found `email-wrong-image` abstaining again **with `changes` unexhausted** — the
+   registered falsifier. With eight calls available the planner used two and **never asked about
+   `emailservice`**, the service its own traces implicated; entry 1 had planned that dispatch at
+   #5 and been cut off. **Planner allocation, not budget and not the instruction**, at n=1. What
+   remains: **planner breadth varied fourfold between two runs of the same scenario**, which
+   nothing in this repository has measured, and the other two holdout scenarios are still
+   untested under the raised bound.
 3. **A second-provider judge.** Every judged figure here carries a lineage violation because this
    repository holds one provider's credentials. This is the cheapest change that would improve
    every judged number, and it needs credentials rather than code.

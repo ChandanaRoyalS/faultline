@@ -811,6 +811,40 @@ correlation - a planner reaching the right service may be one that already under
 > whether "did the plan include the target" is itself stable or is the thing that varies. It needs
 > no new machinery - only the harness, one scenario, and several passes.
 
+### T4.8 — the holdout, second entry *(protocol answered; entry run, incomplete)*
+**contract not written.**
+
+**The protocol answer is yes**, and ADR-0022 §3.3 did not need stretching. "A holdout run happens
+**once per reported result**" - not once ever; the unit is the reported result, and what is
+forbidden is running holdout repeatedly for the same one. "Changing anything above and re-running
+holdout is a **new experiment** and gets a new manifest" categorises rather than forbids. And the
+guard is visibility, not scarcity: the number of holdout runs is a fact worth being unable to hide.
+
+Four checkable conditions separate a new entry from a re-run in costume: the change is validated
+on dev first; it is justified by a mechanism rather than by the holdout result; **a prediction is
+registered before the run**; and the first entry stands unedited beside the second. The addendum
+also states the leakage it does not pretend away - the holdout report is where the confound was
+first written down, so a signal read off holdout did influence a configuration choice - and adds a
+**numbered ledger** with the note that a third entry needs an argument the addendum does not supply.
+
+**The entry ran 1 of 3.** Two scenarios were discarded to an empty API account before their first
+model call and, per the pre-registration, **were not re-run**. There is no judged column: the judge
+runs on the same account.
+
+The one scored scenario **falsified the registered prediction, in the way it was written to be
+falsifiable**. `email-wrong-image` abstained again **with `changes` unexhausted** - the exact
+condition the pre-registration named as disproving the starvation reading.
+
+And the reason is a **third** cause neither hypothesis named. With eight `changes` calls available
+the planner used **two**, both on `checkoutservice`, and **never asked about `emailservice`** - the
+service its own traces implicated. Entry 1 planned twelve round-1 dispatches including
+`emailservice` at #5 and was cut off by the bound; entry 2 planned three and never reached. **Same
+scenario, same prompts, same stamp, fourfold difference in planner breadth.** Not starvation, not
+the taxonomy instruction: **planner allocation**. n=1.
+
+`docs/adr/0022-evaluation-harness.md`, `evals/runs/HOLDOUT-2026-08-26-entry2.md`,
+`evals/runs/HOLDOUT-2026-08-26-entry2-PREREGISTRATION.md`
+
 ### T4.7 — the budget confound, separated *(built)*
 The manipulation HOLDOUT-2026-08-26.md left open. **contract not written.**
 

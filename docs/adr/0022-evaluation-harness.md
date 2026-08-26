@@ -543,7 +543,7 @@ should be impossible to hide.
 | entry | reported result it belongs to | stamp | `changes` bound | file |
 |---|---|---|---|---|
 | **1** | T4.5's taxonomy-instruction pipeline | `prompts:53fafe9c12bc` | 4 | `HOLDOUT-2026-08-26.md` |
-| **2** | T4.7's raised-bound configuration | `prompts:53fafe9c12bc` | 8 | `HOLDOUT-2026-08-26-entry2.md` |
+| **2** | T4.7's raised-bound configuration | `prompts:53fafe9c12bc` | 8 | `HOLDOUT-2026-08-26-entry2.md` — **1 of 3 scored**, two discarded to an empty API account and **not re-run** |
 
 **A third entry needs an argument this addendum does not supply.** Two entries in one day on a
 three-scenario set is already close to the line, and the next one should have to say why the
