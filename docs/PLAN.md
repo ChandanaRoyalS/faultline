@@ -385,6 +385,51 @@ is re-asked as truncation, and a specialist that fails twice now fails alone.
 `src/faultline/agents/budget.py`, `src/faultline/agents/contracts.py`,
 `docs/adr/0020-agent-layer.md`, `docs/evidence/t3.3-first-dispatch/README.md`
 
+### T3.4 — synthesizer and scribe *(built; first end-to-end investigation run)*
+The two roles that turn findings into a verdict and a narrative, per ADR-0020 §2. **Not a task
+number the plan states** - inferred from the ADR's role table, same convention as T3.2 and T3.3.
+**contract not written.**
+
+The synthesizer holds **no tools**. Its inputs are the triage result, the specialists' findings
+as validated objects, and past-incident retrieval carrying `exclude_origin` - the first live
+consumption of the context layer, and the point where ADR-0008's second axis stops being an
+assertion. Its output is a `Verdict`: root cause, fault class, class of fix, confidence,
+evidence by `result_id`, and open questions. A flagged investigation - budget exhausted, or a
+specialist that failed alone - produces a **flagged verdict, never silence**, because a partial
+diagnosis is scoreable and a missing one is not.
+
+**Marked decision: `exclude_origin` enters through the environment**
+(`FAULTLINE_EVAL_SCENARIO`), not through any product-side field. The *harness* knows which
+scenario is under test; the product does not, and giving it a place to know would be a
+contamination surface rather than a feature. Unset in production, where retrieval sees the whole
+corpus - a distinct path, pinned by a test that says so.
+
+The scribe is **where thesis 1 is cut**. Prose comes from validated objects; any quotation of
+tool output is resolved **by `result_id` against the stored envelope**, never from text the model
+carried in context. A citation the trajectory store does not hold is refused, and the T2.6 leak
+guard (`BANNED_VOCABULARY`, `WORLD_OWNED_TOKENS`) runs over the finished narrative - a leak fails
+the render rather than being reported.
+
+**The first end-to-end investigation has run** (`docs/evidence/t3.4-first-investigation/`).
+Against a real `shipping-wrong-image` injection: 2 rounds, 6 dispatches, 17 steps, 45,015 tokens,
+$0.48, verdict `bad_deploy` / `rollback` at medium confidence - both matching the recorded ground
+truth - and a rendered narrative that passed the leak guard. Retrieval returned three dev past
+incidents with the scenario's own five chunks excluded.
+
+Two findings, recorded as evidence rather than fixed here. The synthesizer **contradicted its own
+trajectory**, reporting that shippingservice change history had never been queried when
+`tr_f536225dc17d` holds it and names the image swap outright. And the log tool's
+truncate-to-newest behaviour (the T2.6 direction fix, right for the common case) **drops the one
+signal that separates this scenario from resource exhaustion** - 312 pre-onset lines that existed
+in Loki inside the specialist's own window and never reached it.
+
+One defect found and fixed: the renderer resolved citations before the trajectory was saved, so
+every real `result_id` was refused - the guard firing correctly on evidence that existed, which
+is indistinguishable from the fabricated-citation case it exists to catch.
+`src/faultline/agents/narrative.py`, `src/faultline/agents/roles.py`,
+`src/faultline/agents/investigation.py`, `src/faultline/agents/contracts.py`,
+`docs/adr/0020-agent-layer.md`, `docs/evidence/t3.4-first-investigation/README.md`
+
 ### T3.5 — state machine
 Part of the orchestrator's eleven-state machine. The states and their triggers are proposed
 in ADR-0016; the five that depend on agent outcomes (`TRIAGING`, `PLANNING`, `INVESTIGATING`,
@@ -402,6 +447,14 @@ agent returns is T3.x's contract.
 > **T4 must not score it as culprit accuracy.** Root cause is the synthesizer's output and is
 > scored there; scoring an entry point as a diagnosis would report triage as wrong for doing
 > exactly what it was asked to do.
+
+> **Note for T4.1.** The live agent path needs a **baseline gate before injection**. The
+> rehearsal recorder (T1.5) refuses to record against a dirty baseline; the agent-run path has
+> no equivalent, so nothing stops an injection landing on an already-degraded world and nothing
+> marks the resulting run as suspect. Found in T3.4's smoke, where the world *was* degraded
+> beforehand (checkoutservice and frontend pinned at 15000ms p95, accountingservice at 0.000
+> req/s) and the check that caught it was manual
+> (`docs/evidence/t3.4-first-investigation/README.md`).
 
 ### T4.1 — harness runner
 Drives runs from the scenario catalog: **what to inject, how long to wait, how long
