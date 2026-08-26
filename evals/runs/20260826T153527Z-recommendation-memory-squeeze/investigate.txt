@@ -1,0 +1,31 @@
+incident 03468048-2674-40de-821d-0da4aaccf33d  state triaging  anchor 15:39:15
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 2431bf36-6c40-4ed8-8951-1da1892a1958
+investigation: 1 round(s), 4 dispatch(es), 12 step(s) BUDGET EXHAUSTED (changes tool calls: 4 of 4 used)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_a8c5ae357b7a, tr_9e9c35f69d4c, tr_022ed207b42c, tr_cff88c07ac47
+  root cause  : Not established. All four available dispatches were change-history queries (frontend, adservice, cartservice, checkoutservice) and every one of them came back empty, so the investigation has ruled out a narrow band of triggers without ever measuring what the services are actually doing wrong. No metric, log, trace, or resource dispatch was executed: there is no evidence about error rates, latency distribution, saturation, restarts, or OOM kills anywhere in the 7-service blast radius. The only positive findings are absences, and each of those absences is itself qualified — the change log was searched over roughly 15:29–15:44 rather than the full hour before onset, so a change landing between ~14:39 and 15:29 is unexamined for all four services, and no change query was run at all for the other three services in the blast radius or at the infrastructure/orchestration layer where limit and quota edits typically live. The retrieved ad-memory-squeeze incident describes a superficially similar shape (loadgenerator and frontend paging, adservice implicated only as an absence, a container memory ceiling lowered beneath the JVM footprint producing OOM kills), and the alert pattern here — loadgenerator at 15:39:15 followed by frontend at 15:39:30 — rhymes with it, but nothing gathered in this investigation tests that hypothesis. Treating it as the answer would be substituting a past responder's observation for present evidence.
+  OPEN        : What is the actual failure signature? No error-rate, latency, or restart data was collected for any of the 7 services in the blast radius.
+  OPEN        : Is any service in the radius being OOM-killed or restarting? Memory-against-limit and container restart counts would directly confirm or kill the ad-memory-squeeze-shaped resource_exhaustion hypothesis.
+  OPEN        : Did a change land for any of the four queried services between ~14:39 and 15:29? Every specialist flagged that the searched window was ~15 minutes, not the requested hour.
+  OPEN        : Were there changes to the three blast-radius services never queried, or at the cluster/orchestration layer? Container limit and quota edits frequently do not appear in per-service change logs — the ad-memory-squeeze precedent turned on exactly such an edit.
+  OPEN        : What is the unmeasured edge that triage flagged as crossed, and does the failure propagate across it?
+  OPEN        : Is frontend the origin or merely the first service whose user-facing errors were visible? loadgenerator alerting 15 seconds earlier suggests it is restating a downstream failure rather than originating one.
+  OPEN        : If the mechanism turns out to be a lowered resource ceiling, the correct remediation is config_revert of the limit rather than rollback of any service artifact — this cannot be decided until the mechanism is measured.
+
+=== FLAGGED ===
+  budget exhausted: changes tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:recommendation-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T153527Z-recommendation-memory-squeeze/03468048-2674-40de-821d-0da4aaccf33d-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T153527Z-recommendation-memory-squeeze/03468048-2674-40de-821d-0da4aaccf33d-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 15833.94it/s]

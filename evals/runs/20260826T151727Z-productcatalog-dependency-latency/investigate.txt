@@ -1,0 +1,30 @@
+incident f1a035ae-57d9-45ae-aed1-fb5540dedb88  state triaging  anchor 15:21:00
+triage: 12 services, severity warning, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 448e5e26-5091-493e-868d-a610045491bd
+investigation: 2 round(s), 8 dispatch(es), 21 step(s)
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_83b838a8a03c, tr_280def5f89e6, tr_2920b63c56f2, tr_fd7f26d347d6, tr_6e6c8fad1536, tr_7a1e277eb041, tr_15483f6e5c7a, tr_bba8cea8dd8d
+  root cause  : At 15:17:32 UTC an automated actor (platform-automation) attached a traffic-shaping container to productcatalogservice's network namespace, applying a fixed 300ms egress delay with no jitter on eth0 where previously there was no shaping (tr_83b838a8a03c). Every call path that traverses productcatalogservice consequently pays a near-constant ~300ms penalty per hop, and callers wait rather than fail. This matches the only positive symptom anyone measured: recommendationservice's intra-request interval between two adjacent log lines on the same trace grew from ~1-2ms at 15:11 to ~300ms at 15:23-15:24, with no error, timeout, or downstream failure logged (tr_280def5f89e6). Error ratios are identically zero across the whole window at both frontend (tr_2920b63c56f2, tr_fd7f26d347d6) and productcatalogservice (tr_6e6c8fad1536, tr_7a1e277eb041), with continuous non-empty series confirming traffic kept flowing — so nothing is failing, things are only slow. No change of any kind was recorded on frontend (tr_15483f6e5c7a) or recommendationservice (tr_bba8cea8dd8d) in the queried window, leaving the shaping attachment as the sole recorded act in the blast radius. The failing mechanism is injected wait time in a dependency call path, not a wrong value being read by application code and not an artifact mismatch.
+  OPEN        : No p50/p95 latency series was ever retrieved for any service (tr_7a1e277eb041, tr_fd7f26d347d6, tr_2920b63c56f2, tr_6e6c8fad1536 all note this) — the 300ms step is inferred from two log lines on the same trace, not measured. A duration histogram on productcatalogservice and frontend spanning 15:17:32 would confirm or break this.
+  OPEN        : The 15:00-15:11 interval was never queried on frontend or recommendationservice (tr_15483f6e5c7a, tr_bba8cea8dd8d), so a change landing before 15:11 whose effects surfaced later is unaddressed.
+  OPEN        : recommendationservice logs are truncated: roughly 15:11-15:23 is unobserved (tr_280def5f89e6), so the onset of the latency growth was not actually witnessed and cannot be pinned to 15:17:32 from the logs alone.
+  OPEN        : Why the alerts fired at 15:21:00 rather than nearer 15:17:32 — the ~3.5min gap is plausible for a rate window but was not verified against the alert rule.
+  OPEN        : Triage names 12 services and 4 unmeasured edges, but only frontend, productcatalogservice and recommendationservice were examined. checkoutservice and productcatalogservice alerted at 15:21:15/15:21:30 and no dispatch covered checkoutservice or the other seven services.
+  OPEN        : Whether the shaping attachment was intentional (a scheduled chaos or resilience experiment with an owner and a stop procedure) or an errant automation run — this changes whether reverting it is safe to do unilaterally.
+  OPEN        : Whether the ~300ms floor alone explains warning-severity impact across 12 services, or whether it is being amplified somewhere (fan-out, serial calls per request) that was not measured.
+
+flags: none
+
+retrieval: exclude_origin='scenario:productcatalog-dependency-latency', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T151727Z-productcatalog-dependency-latency/f1a035ae-57d9-45ae-aed1-fb5540dedb88-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T151727Z-productcatalog-dependency-latency/f1a035ae-57d9-45ae-aed1-fb5540dedb88-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 12962.47it/s]

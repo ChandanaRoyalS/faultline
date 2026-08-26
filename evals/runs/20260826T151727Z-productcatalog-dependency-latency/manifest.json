@@ -1,0 +1,191 @@
+{
+  "run_id": "20260826T151727Z-productcatalog-dependency-latency",
+  "scenario_id": "productcatalog-dependency-latency",
+  "split": "holdout",
+  "scenario_fingerprint": "699b7dffac295a72c284601e6c3914caed3f7ab833292d0f1bb2a3d022179179",
+  "started_at": "2026-08-26T15:17:27.915060+00:00",
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "1edfd04f2d19dc5971f70728c05f8bd5da7a9a88",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "email-service",
+      644
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-26T15:17:28.299893+00:00",
+  "incident_id": "f1a035ae-57d9-45ae-aed1-fb5540dedb88",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-26T15:27:15.842487+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "email-service",
+      1383
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260826T151727Z-productcatalog-dependency-latency",
+    "scenario_id": "productcatalog-dependency-latency",
+    "trajectory_id": "448e5e26-5091-493e-868d-a610045491bd",
+    "runtime_version": "faultline/0.0.1+prompts:53fafe9c12bc",
+    "reached_a_class": true,
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.4166666666666667,
+      "matched": [
+        "checkoutservice",
+        "frontend",
+        "loadgenerator",
+        "productcatalogservice",
+        "recommendationservice"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "accountingservice",
+        "adservice",
+        "cartservice",
+        "currencyservice",
+        "emailservice",
+        "paymentservice",
+        "shippingservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 5,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "dependency_latency",
+      "returned": "dependency_latency",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "restart",
+      "returned": "config_revert",
+      "correct": false,
+      "abstained": false,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 36316,
+    "tokens_out": 14462,
+    "cost_usd": 0.5431,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-26T15:29:47.772012+00:00",
+  "judge": {
+    "scenario_id": "productcatalog-dependency-latency",
+    "run_id": "20260826T151727Z-productcatalog-dependency-latency",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: an unauthorized traffic-shaping container attached to productcatalogservice's network namespace adding 300ms egress delay per packet, with no changes to the service's own code, image, or configuration.",
+    "dead_ends_closed": [
+      "someone shipped something to frontend",
+      "someone shipped something to recommendationservice",
+      "error wave or hard downstream failures",
+      "crash, restart, or drop-out",
+      "retry amplification or circuit-breaker trip"
+    ],
+    "dead_ends_missed": [
+      "whether shaping was a scheduled resilience experiment with an owner",
+      "whether changes landed before T-6m window on frontend or recommendationservice",
+      "whether the 300ms floor alone accounts for warning-severity impact across twelve services without fan-out amplification",
+      "checkoutservice and seven other alerting services were never examined"
+    ],
+    "traps": [
+      {
+        "trap": "three services slow at once implies looking for something all three share (network, collector, host)",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the loudest service (recommendationservice) is the culprit",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "what changed on productcatalogservice application layer",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "clearing order indicates causation",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent narrative reaches the correct root cause but explicitly flags medium confidence and identifies six significant gaps in evidence gathering that the recorded narrative does not mention, including lack of latency histograms, truncated logs, and failure to establish whether the shaping was authorized.",
+    "tokens_in": 8341,
+    "tokens_out": 444
+  }
+}

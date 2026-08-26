@@ -1,0 +1,30 @@
+incident a55b182c-6e6c-4965-8bbf-a3dbdae38aa3  state triaging  anchor 15:02:30
+triage: 9 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 8826df12-f5fe-47e3-a5df-88de7ff64b36
+investigation: 1 round(s), 4 dispatch(es), 12 step(s) BUDGET EXHAUSTED (changes tool calls: 4 of 4 used)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_bb89b8b60376, tr_1adfefef832f, tr_f7b2ba25b9a0, tr_9ee9d491d4c3
+  root cause  : Not established. Every dispatch spent in this investigation was a change-log query, and all four returned empty: checkoutservice, cartservice, productcatalogservice and shippingservice have no recorded deploys, config pushes, rollouts or flag flips in the queried window (tr_bb89b8b60376, tr_1adfefef832f, tr_f7b2ba25b9a0, tr_9ee9d491d4c3). That is a negative result about one causal hypothesis, not a positive finding about a mechanism. No error-rate, latency, saturation, log or trace evidence was collected for any of the nine services in the blast radius, so nothing distinguishes exhaustion, a slow dependency, a bad artifact or a wrong config value. Compounding this, each of the four queries silently executed a 15-minute window (14:52:30–15:07:30Z) instead of the requested hour, so even the change hypothesis is only excluded for the ten minutes before onset — a change landing between 14:02:30 and 14:52:30 with a delayed manifestation remains entirely unchecked. The retrieved past incidents (cart-bad-image-tag, cart-redis-misconfig) both involve cartservice presenting as apparently healthy while starving downstream services, which is a hypothesis worth testing here given cartservice sits in the blast radius — but nothing in the evidence collected confirms or refutes it.
+  OPEN        : What is the actual failure signature? No error-rate, latency percentile, saturation or log evidence was collected for any service, including the alerting checkoutservice.
+  OPEN        : Did any change land between 14:02:30 and 14:52:30? All four queries truncated the requested hour to 15 minutes; a change with delayed onset (leaked resource, slowly filling pool, lazily-pulled image) would be invisible to them.
+  OPEN        : What is happening on the five blast-radius services never dispatched to, and across the four unmeasured edges triage flagged?
+  OPEN        : Is cartservice actually healthy, or healthy-looking? Both retrieved past incidents feature cartservice reading flat-zero error rate while starving downstream callers; the change-log query here says nothing about cart's runtime state and cannot rule that pattern in or out.
+  OPEN        : Is checkoutservice failing because it waited on something, or because it ran out of something? No dependency-timing or resource data exists to separate these.
+  OPEN        : Was the failure triggered at 15:02:30 at all, or is 15:02:30 merely when an alert threshold was crossed on a condition that had been degrading earlier?
+
+=== FLAGGED ===
+  budget exhausted: changes tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:email-wrong-image', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T145855Z-email-wrong-image/a55b182c-6e6c-4965-8bbf-a3dbdae38aa3-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T145855Z-email-wrong-image/a55b182c-6e6c-4965-8bbf-a3dbdae38aa3-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8986.80it/s]
