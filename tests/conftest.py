@@ -137,3 +137,9 @@ def _no_live_model(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPat
         )
 
     monkeypatch.setattr(model, "AnthropicModel", refuse)
+
+    # The judge brings its own client (T4.4), so the guard has to cover it too - otherwise a
+    # test could reach a real provider through the one boundary nobody thought to patch.
+    from evalharness import judge as judge_module
+
+    monkeypatch.setattr(judge_module, "JudgeModel", refuse)

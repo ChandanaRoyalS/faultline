@@ -778,6 +778,47 @@ Triage over seven: recall mean **0.94**, precision mean **0.56**, 19 unmeasured 
 `cart-dependency-latency` reproduced T3.5's disputed miss **exactly**, on an independent run: same
 two wrong labels, same reasoning shape. One observation was an anecdote; two is a pattern.
 
+### T4.4 — the judge *(built)*
+Narrative scoring, per ADR-0022 §1.3. **The judge lives in `evalharness` and never in the
+product.** `faultline-judge` reads runs already on disk - no world, no injections - compares each
+narrative against its scenario's recorded `incident.md`, and writes the answers into the run
+manifest beside the deterministic score. **contract not written**, same convention as T4.1-T4.3.
+
+**No default model, and unset refuses.** ADR-0020 §1's argument taken literally: the obvious
+default is the agent's own model, and taking it silently is how one model comes to grade its own
+output. `AgentSettings.judge_model` is marked superseded and no longer read - keeping the judge's
+configuration out of the product's settings object is the stronger form of "inherits nothing".
+
+**Lineage is checked at eval time, at the vendor-family level.** Marked: reading ADR-0020's "same
+instance, prompt, or tuning lineage" as model-id equality would clear `claude-haiku-4-5` grading
+`claude-opus-5`, which is two models from one lab sharing a pretraining lineage. A violation
+**refuses by default** and must be opted into by name, and then rides on every figure - ADR-0008's
+"invalid rather than annotated" exists to stop a defence failing *silently*, and a violation that
+must be requested and is then stamped is not silent. **This project holds Anthropic credentials
+only, so every available judge is a violation**; the first live judging carries the label rather
+than waiting for a provider this repository cannot test against.
+
+**A contamination defect was caught by the tests before any live call.** Every recorded
+`incident.md` opens with YAML front matter carrying `fault_class` **and**
+`origin: scenario:<id>` - the label ADR-0022 says the judge is never told, and the scenario id
+ADR-0019 bans separately as the answer key. Passing the file verbatim would have contaminated
+every judged figure this project ever produced, invisibly. The front matter is stripped; the prose
+is passed intact.
+
+The seven sweep narratives judged for **$0.27** (`docs/evidence/t4.4-judge/`): **7/7
+`same_mechanism`**, one trap taken, dead ends closed-versus-missed ranging 8/4 down to 4/6.
+Read beside the deterministic 4/7 fault class, **these are the same finding twice**: the judge
+grades mechanism and never sees a label, the scorer grades labels, and together they say the gap
+is taxonomy rather than comprehension - T4.3's conclusion from the verdicts, reached independently
+from the prose by a different model. **7/7 is not a headline**: the judge never used `adjacent` or
+`different`, so it has not been shown to discriminate, and the supportable claim is that it found
+no narrative naming the wrong mechanism.
+
+The run whose narrative the leak guard refused was **reported, not judged, not averaged**, and no
+model call was made for it.
+`src/evalharness/judge.py`, `src/evalharness/judge_cli.py`,
+`docs/evidence/t4.4-judge/README.md`, `evals/runs/SWEEP-2026-08-26.md`
+
 ### T4.3 — the decisions the sweep forced *(built)*
 Three decisions, each recorded where it belongs. **contract not written** - a follow-on to T4.2.
 

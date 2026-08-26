@@ -121,5 +121,51 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-08-26T08:50:33.658174+00:00"
+  "finished_at": "2026-08-26T08:50:33.658174+00:00",
+  "judge": {
+    "scenario_id": "frauddetection-memory-squeeze",
+    "run_id": "20260826T083359Z-frauddetection-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the container memory limit being reduced below the JVM's working set as the root cause, leading to kernel OOM kills and a crash/restart loop.",
+    "dead_ends_closed": [
+      "code deploy or version rollout",
+      "feature flag change",
+      "library or dependency version bump",
+      "upstream shift or external infrastructure event",
+      "logging pipeline failure",
+      "javaagent attachment as blocking step",
+      "idle service under low load"
+    ],
+    "dead_ends_missed": [
+      "prior memory limit value and magnitude of reduction",
+      "whether 200m is genuinely insufficient or some other process is killing it",
+      "why automation made the change (limit-tuning controller vs policy rollout vs bad default)",
+      "whether other services received the same reduction",
+      "downstream impact on order processing and consumer lag",
+      "container memory telemetry (working-set bytes, OOM-kill counter, restart count)"
+    ],
+    "traps": [
+      {
+        "trap": "exception text in logs explaining the failure",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "metrics evidence confirming the memory hypothesis via call-count series",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "logging pipeline broke and swallowed errors",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent narrative correctly identifies the mechanism but crucially leaves unresolved whether 200m is actually insufficient without the prior limit or heap configuration, explicitly noting this gap where the recorded narrative states it with confidence based on the 326 MiB working set figure.",
+    "tokens_in": 6184,
+    "tokens_out": 419
+  }
 }
