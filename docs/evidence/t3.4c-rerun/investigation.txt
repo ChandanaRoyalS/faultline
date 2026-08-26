@@ -1,0 +1,325 @@
+incident 35478be4-ca38-48ef-9246-72cd7cef877e episodes=8
+   checkoutservice        ServiceHighErrorRate   starts 02:57:00
+   accountingservice      ServiceNoTraffic       starts 03:00:00
+   frauddetectionservice  ServiceNoTraffic       starts 03:00:00
+   quoteservice           ServiceNoTraffic       starts 03:00:00
+   emailservice           ServiceNoTraffic       starts 03:00:00
+   shippingservice        ServiceNoTraffic       starts 03:00:00
+   loadgenerator          ServiceHighErrorRate   starts 03:04:30
+   frontend               ServiceHighErrorRate   starts 03:04:45
+
+TRIAGE: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+INVESTIGATION: 2 round(s), 7 dispatch(es), 19 step(s)
+
+--- PLAN round 1: A wide simultaneous fan-out at 03:00 behind a single 02:57 origin points to one shared upstream failure or a deploy, so changes and metrics anchor the investigation on timing and blast radius. Traces are worth the extra dispatch here specifically because five unmeasured edges make the candidate-cause list unreliable and only span data can prove which dependency is on the failing path.
+  DISPATCH changes   checkoutservice            What deployments, config, or flag changes landed for checkoutservice and its direct dependencies (adservice, cartservice, currencyservice, paymentservice, productcatalogservice, recommendationservice) in the two hours before 02:57?
+  DISPATCH metrics   checkoutservice            What are checkoutservice's error rate, latency percentiles, and per-downstream-call failure/duration breakdown from 02:30 to 03:10?
+  DISPATCH metrics   currencyservice            Compare error rate, latency, saturation (CPU/memory/connection pool) and request volume across adservice, cartservice, currencyservice, paymentservice, productcatalogservice and recommendationservice from 02:30 to 03:10 to find which degraded before 02:57.
+  DISPATCH traces    checkoutservice            In failing checkout traces after 02:57, which span is the deepest one that errors or blocks, and does the path traverse currencyservice or paymentservice?
+  SKIPPED  logs      Traces plus per-downstream metric breakdowns should already localize the failing dependency and error class; logs would be a redundant third pass at the same question and can be added later if the cause is identified but its mechanism stays unclear.
+
+--- PLAN round 2: Traces have already narrowed the fault to a single edge — checkoutservice's outbound GetQuote to shippingservice, failing fast with no server-side span — so the remaining questions are all about shippingservice and its quoteservice dependency, which no specialist has examined. I dispatch changes for a trigger, metrics for onset and blast radius, and logs for the actual error text, and skip traces because that evidence type is already saturated.
+  DISPATCH changes   shippingservice            Over a two-hour lookback before 02:57, were there any deployments, config edits, or feature-flag changes on shippingservice or its downstream quoteservice?
+  DISPATCH metrics   shippingservice            What are shippingservice's (and quoteservice's) request rate, error ratio, and latency percentiles across 02:47-03:10, and does the error onset align with 02:57?
+  DISPATCH logs      shippingservice            What error or exception messages does shippingservice (and quoteservice) emit around 02:55-03:05 for GetQuote requests?
+  SKIPPED  traces    The trace round already produced a conclusive, unambiguous error chain terminating at the checkoutservice->shippingservice GetQuote span and ruled out currencyservice, paymentservice, cartservice, and productcatalogservice; further trace sampling would add no new discrimination.
+
+--- CHANGES on checkoutservice (id tr_2e7b4cbd2305, attempts 1, empty=True, truncated=False)
+   FOUND     [high] The change-history query for checkoutservice over the 15-minute window returned no recorded changes at all — no deployments, config edits, or flag flips landed on checkoutservice itself during that interval.
+   FOUND     [high] The evidence covers only checkoutservice and only a 15-minute window, not the requested two-hour lookback and not the six direct dependencies; those remain unqueried rather than clean.
+   RULED OUT A checkoutservice deployment or rollout landed immediately before the incident and triggered it. - No change records exist for checkoutservice inside the queried interval, so a same-window self-deploy is excluded as the trigger.
+   RULED OUT A feature-flag flip or config push on checkoutservice concurrent with the onset explains the behavior change. - The change log covers flag and config mutations alongside deploys and returned empty for this service and interval.
+   RULED OUT The incident can be resolved simply by rolling back the most recent checkoutservice change. - There is no in-window change to roll back, so rollback of checkoutservice is not an available remediation path for this interval.
+
+--- METRICS on checkoutservice (id tr_7d4b93d2d99c, attempts 1, empty=False, truncated=False)
+   FOUND     [high] checkoutservice's error ratio (errored spans over all spans) is non-zero during the 02:47-03:02 window, peaking at roughly 29% of calls, sampled across 61 points.
+   FOUND     [medium] The failure is intermittent rather than sustained: the same series also reaches zero at some points in the window, indicating partial/bursty error behavior rather than a steady failure floor.
+   FOUND     [high] No latency percentile data and no per-downstream-call failure or duration breakdown were returned; only the aggregate error ratio was queried, so those two parts of the question remain unanswered.
+   RULED OUT checkoutservice is fully down or hard-failing every request (total outage). - The error ratio never approaches 1.0; its maximum is about 0.29, so the majority of calls succeeded throughout the window.
+   RULED OUT checkoutservice is healthy and the user-visible problem originates entirely elsewhere. - A ~29% peak error ratio is a clear anomaly at the checkoutservice span level, so checkout is at minimum a participant in the incident.
+   RULED OUT A constant, deterministic fault (e.g. a bad deploy failing 100% of one code path) is at work. - The ratio varies between 0 and 0.29 across 61 samples, which is inconsistent with a flat deterministic failure rate and points to load-, dependency-, or instance-dependent failures.
+   RULED OUT The metrics backend has no data for checkoutservice in this window (missing instrumentation or scrape gap). - The query returned a populated series with 61 points, confirming calls_total is being recorded for this service over the window.
+
+--- METRICS on currencyservice (id tr_3d5cab00fe9e, attempts 1, empty=True, truncated=False)
+   FOUND     [high] The error-ratio query for currencyservice returned no matching series over 02:47–03:02; neither the error-status numerator nor the all-calls denominator produced data, so no call-volume or error telemetry for this service exists in the window.
+   FOUND     [medium] Because the denominator (total calls, unfiltered by status) is also absent, the gap is more consistent with missing/unlabelled instrumentation or a metric-name/label mismatch than with a service that was simply idle-but-healthy — though a total traffic stop cannot be distinguished from this result alone.
+   RULED OUT currencyservice showed a measurable error-rate spike before 02:57 that can be used to place it early in the failure ordering - No series matched for either errored or total calls in the window, so no error ratio exists to spike; currencyservice cannot be ranked on error rate from this metric.
+   RULED OUT currencyservice is exporting healthy call metrics with a low error ratio, confirming it as a clean control against the degraded services - An empty result is not a low ratio — the absence of the denominator means health cannot be affirmed, only that this metric path is unavailable.
+   RULED OUT The comparison across all six services can be done uniformly from calls_total error ratios - At least one service in the comparison set has no calls_total series under this label scheme, so the cross-service comparison has a coverage hole and needs an alternate signal for currencyservice.
+
+--- TRACES on checkoutservice (id tr_1749a639f99a, attempts 1, empty=False, truncated=True)
+   FOUND     [high] In every failing checkout trace in the window, the error chain is identical: frontend HTTP POST -> frontend PlaceOrder -> checkoutservice PlaceOrder -> (non-error) prepareOrderItemsAndShippingQuoteFromCart -> checkoutservice's outbound ShippingService/GetQuote span, which is the deepest span carrying an error status.
+   FOUND     [medium] No server-side shippingservice span appears under the erroring GetQuote client span in any sampled trace, so the failure surfaces at the checkoutservice->shippingservice call boundary rather than inside an instrumented shipping handler.
+   FOUND     [high] The failing path does traverse currencyservice: checkoutservice Convert calls with matching currencyservice server spans appear in the failing traces and complete without error, at sub-2ms durations.
+   FOUND     [high] The failing path does not reach paymentservice; no paymentservice span (nor emailservice/ordering steps after the quote) appears in any trace, consistent with checkout aborting during order preparation before charge.
+   FOUND     [high] Upstream dependencies on the path are healthy: cartservice GetCart and its HGET, and productcatalogservice GetProduct, all complete without error and in under ~4ms in the failing traces.
+   FOUND     [high] The failures are fast, not slow: erroring PlaceOrder spans complete in roughly 5-13ms end to end, with the erroring GetQuote span itself under ~2.5ms.
+   RULED OUT currencyservice is the failing dependency causing checkout errors - Currency Convert spans are present on the failing path with matching server spans and carry no error status; the error appears only on the shipping quote span downstream of them.
+   RULED OUT paymentservice (or a charge/order-placement step) is failing - No paymentservice span exists in any sampled trace; checkout aborts during order-item/shipping-quote preparation, so payment is never invoked.
+   RULED OUT cartservice or its Redis backend is the root cause - GetCart and the underlying HGET complete successfully and quickly in every failing trace.
+   RULED OUT productcatalogservice lookups are erroring or driving the failures - All GetProduct spans in failing traces are error-free and sub-4ms, including the FeatureFlagService lookup.
+   RULED OUT The incident is a latency/timeout problem (e.g. deadline exceeded on a slow dependency) - Failing traces terminate in single-digit milliseconds with the erroring span itself under ~2.5ms, inconsistent with a timeout.
+   RULED OUT The error originates in frontend or checkoutservice's own logic independent of a downstream call - Frontend and checkoutservice PlaceOrder errors are ancestors of the erroring GetQuote span; the deepest error is on the outbound shipping call, so upstream errors are propagation.
+
+--- CHANGES on shippingservice (id tr_44a3bc84c6c0, attempts 1, empty=False, truncated=False)
+   FOUND     [high] A single change is recorded for shippingservice in the queried window: an image reference update applied at 02:53:58 UTC by the platform-automation actor, roughly three minutes before the 02:57 incident timestamp.
+   FOUND     [medium] The prior image reference is recorded as absent/unset while the new reference names an adservice-tagged demo image, which is a suspicious pairing for a shippingservice workload and worth verifying against the intended release artifact.
+   FOUND     [high] The change record was returned for a 15-minute window (02:47-03:02), not the two-hour lookback the question asked about, and it is scoped to shippingservice only.
+   RULED OUT The incident had no proximate change trigger and is purely load- or dependency-driven. - A deployment landed on shippingservice about three minutes before the incident time, so a change-triggered onset remains live and should be the first branch pursued.
+   RULED OUT Config edits or feature-flag toggles on shippingservice immediately preceded the incident. - The change log for 02:47-03:02 returned exactly one entry and it is an image update; no config or flag events appear in that interval.
+   RULED OUT Multiple concurrent changes on shippingservice make attribution ambiguous. - Only one change is recorded in the window, so within this interval there is a single candidate to attribute against.
+
+--- METRICS on shippingservice (id tr_1836bbcbc2e0, attempts 1, empty=True, truncated=False)
+   FOUND     [high] A PromQL query for the shippingservice error ratio (error-status calls over total calls, 2m rate) returned no matching series at all for 02:47-03:02, meaning neither the numerator nor the denominator series existed in that window.
+   FOUND     [high] No request rate, error ratio, or latency percentile values could be established for shippingservice from this evidence; the metric family the query relies on is absent for this service name over the queried window.
+   FOUND     [high] The queried window ends at 03:02 and covers only part of the 02:47-03:10 span asked about, and quoteservice was not queried at all, so the 03:02-03:10 tail and all quoteservice behaviour remain unmeasured.
+   RULED OUT The incident can be characterized from shippingservice RED metrics, e.g. by pointing at an error-ratio step change at 02:57 in call-count telemetry. - The underlying call-count series does not exist for this service over the window, so no ratio, rate, or onset time can be derived from this source; any 02:57 alignment claim must come from traces or logs instead.
+   RULED OUT shippingservice errors were elevated but non-total, i.e. a partial failure visible as a rising ratio against a healthy baseline. - A partial failure would leave the denominator populated with successful calls; the absence of any series means there is no recorded successful-call baseline under this service name to rise against.
+   RULED OUT The problem is purely a latency regression with the metrics pipeline otherwise intact for this service. - An intact pipeline would have produced call-count series regardless of latency; their total absence points to a telemetry gap, a service-name label mismatch, or a fully stopped service rather than a healthy-but-slow one.
+
+--- LOGS on shippingservice (id tr_d9493cdf3ac9, attempts 1, empty=False, truncated=True)
+   FOUND     [high] In the queried window, the shipping-service log stream contains no ERROR/WARN-level application messages, no exception text, and no stack traces at all — the question's premise of explicit error/exception messages for GetQuote is not borne out by these logs.
+   FOUND     [high] Before ~02:48 the stream shows normal, successful GetQuote handling: request received, quote computed and sent, followed by ShipOrder and tracking-ID creation, at INFO level with no failures.
+   FOUND     [high] From ~02:54:27 onward the retained tail contains only JVM/OpenTelemetry-agent process-startup lines (java tool options pickup, VM class-sharing warning, otel javaagent version banner) repeating in a fixed three-line pattern — the signature of a Java process starting over and over.
+   FOUND     [high] The restart cadence is a crash/backoff loop: startups cluster tightly at 02:54:27, 02:54:35, 02:54:46, then space out to 02:55:04, 02:55:34, 02:56:30, and settle into a steady ~65-second interval through 03:01:55.
+   FOUND     [medium] No startup sequence in the tail is followed by an application-ready/serving line or any request handling, implying the Java process dies before or shortly after initialization completes each cycle.
+   FOUND     [medium] No GetQuote request or quote-sent lines appear anywhere after ~02:54 in the retained tail, i.e. quote handling stops being logged at the point the restart loop begins.
+   FOUND     [low] The stream selected by the shipping-service label mixes a Rust-style application log (the earlier GetQuote/ShipOrder lines) with JVM startup output, suggesting the Java component (plausibly quoteservice) is emitting under or is co-located with this label.
+   RULED OUT shippingservice/quoteservice is emitting a specific error or exception message for GetQuote that names the fault (e.g. a timeout, connection refused, or validation failure) which can be read off the logs - The window contains zero error-level or exception lines; failures are manifesting as silent process death and restart, not as logged errors, so no such message exists to extract here.
+   RULED OUT The service is up but degraded — slow, hung, or returning errors while continuing to serve - The repeating JVM startup banners at a regular ~65s cadence show the process is being torn down and re-launched, not running continuously in a degraded state.
+   RULED OUT A single one-off crash or restart around 02:54 that recovered on its own - At least eleven distinct startup sequences span 02:54:27 to 03:01:55 with none reaching a serving state, which is a sustained loop rather than an isolated event.
+   RULED OUT The fault is a gradual degradation with no sharp onset - Healthy INFO-level quote/ship traffic runs cleanly through ~02:48 and the startup loop begins abruptly at ~02:54:27, giving a sharp transition boundary.
+   RULED OUT The crash is an unhandled application exception whose stack trace was logged at exit - Each cycle ends with the otel agent version banner and nothing after it — no throwable, no shutdown message — so the process is dying without writing a Java stack trace to this stream (consistent with an external kill such as OOM or a failed liveness probe).
+
+=== RETRIEVAL (exclude_origin='scenario:shipping-wrong-image') ===
+  cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.
+cartservice showed no errors at all — flat zero, below every healthy servi
+  cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.
+cartservice showed no errors at all — flat zero. Read, wrongly, as evidence 
+  ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic
+client; its error rate restates whatever the storefront is failing to do.
+
+**Err
+
+=== VERDICT ===
+  root cause  : At 02:53:58 UTC a platform-automation image-reference update landed on shippingservice, replacing an unset/absent prior reference with an adservice-tagged demo image (tr_44a3bc84c6c0). The workload that came up under the shippingservice label was therefore the wrong artifact: from 02:54:27 the log tail contains only repeating JVM/OpenTelemetry-agent startup banners with no application-ready or request-handling lines, on a crash/backoff cadence that settles to ~65s and runs through 03:01:55 (tr_d9493cdf3ac9) — a Java process where shipping's normal (Rust-style) GetQuote/ShipOrder logging had been healthy until ~02:48. Because nothing ever reached a serving state, shippingservice emitted no calls_total series at all in the window — numerator and denominator both absent, which rules out a partial or latency-only degradation (tr_1836bbcbc2e0). Downstream, every failing checkout trace terminates identically at checkoutservice's outbound ShippingService/GetQuote client span with no matching server span, in under ~2.5ms — a fast connection-level rejection, not a timeout — while cartservice, productcatalogservice and currencyservice spans on the same path all complete cleanly (tr_1749a639f99a). checkoutservice itself had no in-window deploy, config edit or flag flip (tr_2e7b4cbd2305) and shows a bursty 0–29% error ratio consistent with only the PlaceOrder path failing (tr_7d4b93d2d99c). The checkout, frontend and loadgenerator alerts are propagation of the shipping-quote failure; the accounting/email/fraud/quote alerts sit downstream or adjacent to the same broken order path.
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : ['tr_44a3bc84c6c0', 'tr_d9493cdf3ac9', 'tr_1836bbcbc2e0', 'tr_1749a639f99a', 'tr_7d4b93d2d99c', 'tr_2e7b4cbd2305', 'tr_3d5cab00fe9e']
+  open        : ['The prior image reference is recorded as absent/unset (tr_44a3bc84c6c0), so the correct rollback target artifact is not established by this evidence — the known-good shippingservice image digest must be identified before reverting.', 'Why platform-automation applied an adservice-tagged image to shippingservice is unexplained; until that is known, the same automation could re-apply it after a rollback.', 'quoteservice was never queried despite alerting at 03:00 (tr_1836bbcbc2e0). The log stream under the shippingservice label mixes Rust application output with JVM startup banners (tr_d9493cdf3ac9, low confidence), so it is unsettled whether the crash-looping JVM is the mis-imaged shippingservice pod, a co-located quoteservice, or a label-routing artifact — this affects which workload actually needs the revert.', 'The exact kill mechanism per restart cycle is not established: no stack trace or shutdown message was written, leaving OOM-kill, failed liveness/readiness probe, and immediate startup failure of a wrong-entrypoint binary all open (tr_d9493cdf3ac9).', 'All windows end at 03:02; the 03:02-03:10 tail is unmeasured (tr_1836bbcbc2e0), so whether the crash loop persisted, self-recovered, or worsened after 03:01:55 is unknown, as is whether the incident is still active.', 'currencyservice has no calls_total series under the queried label scheme (tr_3d5cab00fe9e). Traces show its spans healthy on the failing path (tr_1749a639f99a), but the metric gap itself is unexplained and may indicate a broader instrumentation or label problem also affecting the shippingservice metric absence.', "No latency percentiles or per-downstream breakdown were retrieved for checkoutservice (tr_7d4b93d2d99c), and no change history was gathered for checkoutservice's other five dependencies or over the requested two-hour lookback (tr_2e7b4cbd2305) — a second concurrent change outside the 15-minute window cannot be excluded.", 'The accountingservice, emailservice and frauddetectionservice alerts at 03:00 are assumed to be downstream propagation of aborted orders, but no dispatch examined them directly.']
+  contradictions: ['contradiction: the verdict says metrics was not queried for checkoutservice, and tr_7d4b93d2d99c is exactly that query']
+  flags       : ['contradiction: the verdict says metrics was not queried for checkoutservice, and tr_7d4b93d2d99c is exactly that query']
+
+=== NARRATIVE ===
+# Checkout order path halted by a wrong artifact running under the shippingservice label
+
+## What was visible, in order
+
+The page was wide: fourteen services in the blast radius, critical severity, checkoutservice named as origin, eight services alerting. That breadth is misleading — one broken leg of the order path lights up everything on or beside it, plus the load generator driving it.
+
+The first honest signal was checkoutservice's own error ratio: non-zero, bursty, peaking near 29% across 61 sample points and returning to zero in between. Two readings follow. Checkout was not down — most calls succeeded. And the failure was not flat or deterministic, which is the shape you get when a single endpoint is broken and the traffic mix varies.
+
+Traces settled which endpoint. Every failing trace had the same spine: frontend POST, frontend PlaceOrder, checkoutservice PlaceOrder, a clean order-preparation span, then checkoutservice's outbound ShippingService/GetQuote client span carrying the deepest error. No server span ever appeared beneath it. Failing PlaceOrder spans finished in roughly 5–13ms with the erroring GetQuote span under about 2.5ms — a connection-level rejection, not an exceeded deadline. cartservice and its HGET, productcatalogservice GetProduct, and currencyservice Convert were all clean on the same path; payment was never reached.
+
+> Evidence `tr_7d4b93d2d99c`:
+
+```
+<tool_result id="tr_7d4b93d2d99c" tool="promql_query" trust="untrusted" source="prometheus" empty="false" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+query: sum by(service_name) (rate(calls_total{service_name="checkoutservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="checkoutservice"}[2m]))
+1 series
+  {service_name=checkoutservice} min=0 max=0.2941 n=61
+</tool_result:tr_7d4b93d2d99c>
+```
+
+> Evidence `tr_1749a639f99a`:
+
+```
+<tool_result id="tr_1749a639f99a" tool="trace_query" trust="untrusted" source="jaeger" empty="false" truncated="true" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+service: checkoutservice
+200 spans
+  3272a8c6ad583b8b checkoutservice/hipstershop.ProductCatalogService/GetProduct 0.9ms
+  3272a8c6ad583b8b productcatalogservice/hipstershop.ProductCatalogService/GetProduct 0.0ms
+  3272a8c6ad583b8b checkoutservice/hipstershop.CurrencyService/Convert 1.2ms
+```
+
+## The cause
+
+Change history for checkoutservice over the window was completely empty — no deploys, config edits or flag flips. That closed the most tempting branch and pushed attention downstream.
+
+Change history for shippingservice returned exactly one entry: a platform-automation image-reference update at 02:53:58 UTC, minutes before symptoms. The new reference names an adservice-tagged demo image; the prior reference is recorded as absent/unset. The workload that came up under the shippingservice label was the wrong artifact.
+
+Logs confirm it never served. Through roughly 02:48 the stream shows ordinary INFO-level GetQuote and ShipOrder work. From 02:54:27 it contains only a repeating three-line JVM/OpenTelemetry-agent startup banner — restarts clustering at 02:54:27, 02:54:35, 02:54:46, then spacing to a steady ~65s cadence through 03:01:55. At least eleven cycles, none reaching an application-ready line. There are no ERROR or WARN lines, no exceptions, no stack traces anywhere in the window. Metrics corroborate by absence: the shippingservice error-ratio query returned no series at all, numerator and denominator both missing, so there is no successful-call baseline for errors to rise against. Confidence high; fix class is rollback.
+
+> Evidence `tr_2e7b4cbd2305`:
+
+```
+<tool_result id="tr_2e7b4cbd2305" tool="change_history" trust="untrusted" source="change-log" empty="true" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+no changes recorded for checkoutservice over this window
+</tool_result:tr_2e7b4cbd2305>
+```
+
+> Evidence `tr_44a3bc84c6c0`:
+
+```
+<tool_result id="tr_44a3bc84c6c0" tool="change_history" trust="untrusted" source="change-log" empty="false" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+service: shippingservice
+1 changes
+  2026-08-26T02:53:58.124331+00:00  platform-automation  image updated: image reference updated on shippingservice
+      None  ->  ghcr.io/open-telemetry/demo:v1.2.1-adservice
+</tool_result:tr_44a3bc84c6c0>
+```
+
+> Evidence `tr_d9493cdf3ac9`:
+
+```
+<tool_result id="tr_d9493cdf3ac9" tool="logql_query" trust="untrusted" source="loki" empty="false" truncated="true" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00" oldest_kept="8" newest_kept="32">
+selector: {service="shipping-service"}
+2026-08-26T02:47:16.978088+00:00  02:47:16 [INFO] GetQuoteRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-0893af08336afaa8a6ac773a840d5e23-3ac3c4b4ee51211f-01", "baggage": "synthetic_request=true"} }, message: GetQuoteRequest { address: Some(Address { street_address: "1355 Market St", city: "San Francisco", state: "CA", country: "United States", zip_code: "94103" }), items: [CartItem { product_id: "9SIQT8TOJO", quantity: 5 }] }, extensions: Extensions }
+2026-08-26T02:47:16.987407+00:00  02:47:16 [INFO] Sending Quote: 44.50
+2026-08-26T02:47:16.991465+00:00  02:47:16 [INFO] ShipOrderRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-0893af08336afaa8a6ac773a840d5e23-def5b97a5efa3dbe-01", "baggage": "synthetic_request=true"} }, message: ShipOrderRequest { address: Some(Address { street_address: "1355 Market St", city: "San Francisco", state: "CA", country: "United States", zip_code: "94103" }), items: [CartItem { product_id: "9SIQT8TOJO", quantity: 5 }] }, extensions: Extensions }
+2026-08-26T02:47:16.991471+00:00  02:47:16 [INFO] Tracking ID Created: 789cd57a-c7d8-4a88-9b69-960a7dae9362
+```
+
+> Evidence `tr_1836bbcbc2e0`:
+
+```
+<tool_result id="tr_1836bbcbc2e0" tool="promql_query" trust="untrusted" source="prometheus" empty="true" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+no series matched 'sum by(service_name) (rate(calls_total{service_name="shippingservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="shippingservice"}[2m]))' over this window
+</tool_result:tr_1836bbcbc2e0>
+```
+
+## Dead ends worth keeping
+
+A checkoutservice self-deploy. Nothing landed on checkoutservice in the window, so rolling it back is not an available remedy — there is nothing to roll back.
+
+A timeout or slow dependency. Failing traces complete in single-digit milliseconds. Any framing around deadlines or backpressure is off-target, as is any suspicion of cartservice, Redis, productcatalogservice, currencyservice or paymentservice — all clean on the failing path or never invoked.
+
+Grepping shipping's logs for a named failure, and reading its empty metric series as "quiet but fine." The process dies silently between startup banners, so a keyword search returns nothing and can convince you the logs are healthy. Likewise, absence of a ratio is not a low ratio: the denominator is missing too.
+
+> Evidence `tr_2e7b4cbd2305`:
+
+```
+<tool_result id="tr_2e7b4cbd2305" tool="change_history" trust="untrusted" source="change-log" empty="true" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+no changes recorded for checkoutservice over this window
+</tool_result:tr_2e7b4cbd2305>
+```
+
+> Evidence `tr_1749a639f99a`:
+
+```
+<tool_result id="tr_1749a639f99a" tool="trace_query" trust="untrusted" source="jaeger" empty="false" truncated="true" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+service: checkoutservice
+200 spans
+  3272a8c6ad583b8b checkoutservice/hipstershop.ProductCatalogService/GetProduct 0.9ms
+  3272a8c6ad583b8b productcatalogservice/hipstershop.ProductCatalogService/GetProduct 0.0ms
+  3272a8c6ad583b8b checkoutservice/hipstershop.CurrencyService/Convert 1.2ms
+```
+
+> Evidence `tr_d9493cdf3ac9`:
+
+```
+<tool_result id="tr_d9493cdf3ac9" tool="logql_query" trust="untrusted" source="loki" empty="false" truncated="true" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00" oldest_kept="8" newest_kept="32">
+selector: {service="shipping-service"}
+2026-08-26T02:47:16.978088+00:00  02:47:16 [INFO] GetQuoteRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-0893af08336afaa8a6ac773a840d5e23-3ac3c4b4ee51211f-01", "baggage": "synthetic_request=true"} }, message: GetQuoteRequest { address: Some(Address { street_address: "1355 Market St", city: "San Francisco", state: "CA", country: "United States", zip_code: "94103" }), items: [CartItem { product_id: "9SIQT8TOJO", quantity: 5 }] }, extensions: Extensions }
+2026-08-26T02:47:16.987407+00:00  02:47:16 [INFO] Sending Quote: 44.50
+2026-08-26T02:47:16.991465+00:00  02:47:16 [INFO] ShipOrderRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-0893af08336afaa8a6ac773a840d5e23-def5b97a5efa3dbe-01", "baggage": "synthetic_request=true"} }, message: ShipOrderRequest { address: Some(Address { street_address: "1355 Market St", city: "San Francisco", state: "CA", country: "United States", zip_code: "94103" }), items: [CartItem { product_id: "9SIQT8TOJO", quantity: 5 }] }, extensions: Extensions }
+2026-08-26T02:47:16.991471+00:00  02:47:16 [INFO] Tracking ID Created: 789cd57a-c7d8-4a88-9b69-960a7dae9362
+```
+
+> Evidence `tr_1836bbcbc2e0`:
+
+```
+<tool_result id="tr_1836bbcbc2e0" tool="promql_query" trust="untrusted" source="prometheus" empty="true" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+no series matched 'sum by(service_name) (rate(calls_total{service_name="shippingservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="shippingservice"}[2m]))' over this window
+</tool_result:tr_1836bbcbc2e0>
+```
+
+## Open items for the next responder
+
+The rollback target is not established. The prior image reference is recorded as absent/unset, so the known-good shippingservice digest must be identified before reverting. Separately, why platform-automation applied an adservice-tagged image here is unexplained — the same automation could re-apply it after a revert.
+
+Which workload needs the revert is unsettled. The stream under the shippingservice label mixes Rust-style application output with JVM startup banners, so it is unclear whether the crash-looping Java process is the mis-imaged shipping pod, a co-located quoteservice, or a label-routing artifact. This is held at low confidence and it decides the target of the fix. quoteservice was never queried despite alerting. The kill mechanism per cycle is also unknown — no stack trace or shutdown message, leaving an external kill, a failed probe, or immediate startup failure of a wrong-entrypoint binary all open.
+
+Coverage gaps. All windows end at 03:02, so the 03:02–03:10 tail is unmeasured and it is unknown whether the loop persisted or the incident is still live. currencyservice has no calls_total series under the queried label scheme, which may point at a broader instrumentation or labelling problem also explaining shipping's metric absence. No latency percentiles or per-downstream breakdown were pulled for checkoutservice, no change history was gathered for its other five dependencies or over the full two-hour lookback, and the accounting, email and fraud-detection alerts were assumed to be downstream propagation without being examined directly.
+
+> Evidence `tr_44a3bc84c6c0`:
+
+```
+<tool_result id="tr_44a3bc84c6c0" tool="change_history" trust="untrusted" source="change-log" empty="false" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+service: shippingservice
+1 changes
+  2026-08-26T02:53:58.124331+00:00  platform-automation  image updated: image reference updated on shippingservice
+      None  ->  ghcr.io/open-telemetry/demo:v1.2.1-adservice
+</tool_result:tr_44a3bc84c6c0>
+```
+
+> Evidence `tr_d9493cdf3ac9`:
+
+```
+<tool_result id="tr_d9493cdf3ac9" tool="logql_query" trust="untrusted" source="loki" empty="false" truncated="true" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00" oldest_kept="8" newest_kept="32">
+selector: {service="shipping-service"}
+2026-08-26T02:47:16.978088+00:00  02:47:16 [INFO] GetQuoteRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-0893af08336afaa8a6ac773a840d5e23-3ac3c4b4ee51211f-01", "baggage": "synthetic_request=true"} }, message: GetQuoteRequest { address: Some(Address { street_address: "1355 Market St", city: "San Francisco", state: "CA", country: "United States", zip_code: "94103" }), items: [CartItem { product_id: "9SIQT8TOJO", quantity: 5 }] }, extensions: Extensions }
+2026-08-26T02:47:16.987407+00:00  02:47:16 [INFO] Sending Quote: 44.50
+2026-08-26T02:47:16.991465+00:00  02:47:16 [INFO] ShipOrderRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-0893af08336afaa8a6ac773a840d5e23-def5b97a5efa3dbe-01", "baggage": "synthetic_request=true"} }, message: ShipOrderRequest { address: Some(Address { street_address: "1355 Market St", city: "San Francisco", state: "CA", country: "United States", zip_code: "94103" }), items: [CartItem { product_id: "9SIQT8TOJO", quantity: 5 }] }, extensions: Extensions }
+2026-08-26T02:47:16.991471+00:00  02:47:16 [INFO] Tracking ID Created: 789cd57a-c7d8-4a88-9b69-960a7dae9362
+```
+
+> Evidence `tr_1836bbcbc2e0`:
+
+```
+<tool_result id="tr_1836bbcbc2e0" tool="promql_query" trust="untrusted" source="prometheus" empty="true" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+no series matched 'sum by(service_name) (rate(calls_total{service_name="shippingservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="shippingservice"}[2m]))' over this window
+</tool_result:tr_1836bbcbc2e0>
+```
+
+> Evidence `tr_3d5cab00fe9e`:
+
+```
+<tool_result id="tr_3d5cab00fe9e" tool="promql_query" trust="untrusted" source="prometheus" empty="true" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+no series matched 'sum by(service_name) (rate(calls_total{service_name="currencyservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="currencyservice"}[2m]))' over this window
+</tool_result:tr_3d5cab00fe9e>
+```
+
+> Evidence `tr_7d4b93d2d99c`:
+
+```
+<tool_result id="tr_7d4b93d2d99c" tool="promql_query" trust="untrusted" source="prometheus" empty="false" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+query: sum by(service_name) (rate(calls_total{service_name="checkoutservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="checkoutservice"}[2m]))
+1 series
+  {service_name=checkoutservice} min=0 max=0.2941 n=61
+</tool_result:tr_7d4b93d2d99c>
+```
+
+> Evidence `tr_2e7b4cbd2305`:
+
+```
+<tool_result id="tr_2e7b4cbd2305" tool="change_history" trust="untrusted" source="change-log" empty="true" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+no changes recorded for checkoutservice over this window
+</tool_result:tr_2e7b4cbd2305>
+```
+
+
+TOKENS: in=36973 out=15202 total=52175   cost $0.5649
+attempts: [('planner', 1), ('changes', 1), ('metrics', 1), ('metrics', 1), ('traces', 1), ('planner', 1), ('changes', 1), ('metrics', 1), ('logs', 1), ('synthesizer', 1), ('scribe', 2)]
+rows in trajectory_steps        : 19
+rows in trajectory_tool_calls   : 7
+rows in trajectory_retrievals   : 1
+  retrieval row: exclude_origin='scenario:shipping-wrong-image' k=3 returned=['scenario:cart-redis-misconfig', 'scenario:cart-bad-image-tag', 'scenario:ad-memory-squeeze']
+
+  ENVELOPE tr_2e7b4cbd2305 change_history: <tool_result id="tr_2e7b4cbd2305" tool="change_history" trust="untrusted" source="change-log" empty="true" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+
+  ENVELOPE tr_7d4b93d2d99c promql_query: <tool_result id="tr_7d4b93d2d99c" tool="promql_query" trust="untrusted" source="prometheus" empty="false" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+
+  ENVELOPE tr_3d5cab00fe9e promql_query: <tool_result id="tr_3d5cab00fe9e" tool="promql_query" trust="untrusted" source="prometheus" empty="true" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+
+  ENVELOPE tr_1749a639f99a trace_query: <tool_result id="tr_1749a639f99a" tool="trace_query" trust="untrusted" source="jaeger" empty="false" truncated="true" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+
+  ENVELOPE tr_44a3bc84c6c0 change_history: <tool_result id="tr_44a3bc84c6c0" tool="change_history" trust="untrusted" source="change-log" empty="false" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+
+  ENVELOPE tr_1836bbcbc2e0 promql_query: <tool_result id="tr_1836bbcbc2e0" tool="promql_query" trust="untrusted" source="prometheus" empty="true" truncated="false" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00">
+
+  ENVELOPE tr_d9493cdf3ac9 logql_query: <tool_result id="tr_d9493cdf3ac9" tool="logql_query" trust="untrusted" source="loki" empty="false" truncated="true" window="2026-08-26T02:47:00.583000+00:00..2026-08-26T03:02:00.583000+00:00" oldest_kept="8" newest_kept="32">
+    elision: ... lines between here and the next timestamp were not returned: this result keeps the OLDEST 8 and the NEWEST 32 lines of the window, and nothing in between ...
+trajectory: f7afdb76-47cd-45bf-b4fa-52e4be1a7f9d

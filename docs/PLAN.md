@@ -465,6 +465,49 @@ questions. n=2 is an observation, not a rate.
 `src/faultline/tools/tools.py`, `src/faultline/tools/results.py`,
 `docs/evidence/t3.4b-rerun/README.md`
 
+### T3.4c — the dispatch contract *(built; third live run captured)*
+One defect from T3.4b's run and the decision it forced. **contract not written**, same
+convention as T3.4 and T3.4b.
+
+`Dispatch.service` was a bare `str`, so T3.4b's planner put four names in one field and a
+sentence in another. The tool layer turned the first into a PromQL label value that cannot match
+any `service_name` — no series at all, not even a zero denominator — and the specialist reported
+it as an empty result. **This is where ADR-0019's empty-is-not-error principle stops**: an empty
+answer from a well-formed query is evidence, and eight of the nine rehearsed narratives turn on
+one, but a selector that *cannot* match is a contract error at construction time, and its
+emptiness is indistinguishable from the kind that means everything.
+
+A dispatch now names exactly one service the catalog knows, validated at plan-parse time and
+canonicalised in place, so either naming scheme is accepted and everything downstream sees one
+identity. The bounded re-ask names the offending value, which kind of wrong it was, and the
+legal values — once. A second failure **fails that dispatch alone**: the plan keeps its legal
+dispatches, each drop is recorded as a failed dispatch and reaches the verdict's flags, and only
+a plan with nothing legal left fails the round. Salvage is not leniency.
+
+Pinned with the two verbatim strings from T3.4b's stored trajectory. **The validator did not
+fire live** - the third run's planner produced legal single-service names first try in both
+rounds - so only the hermetic pins exercise the re-ask path.
+
+The run also found a second defect and fixed it: **the planner's `max_tokens` was still 1200**
+while the specialists moved to 3000 in T3.3, and the first attempt at this smoke lost the round
+to two truncated plans before any tool ran. Measured directly against the same incident: an
+untruncated plan costs 915 output tokens, so the planner had been running at three-quarters of
+its budget. Raised to 3000.
+
+The third run is the best of the three (`docs/evidence/t3.4c-rerun/`): `bad_deploy`/`rollback` at
+**high** confidence, the change record cited first in its evidence, three dispatches on
+shippingservice, and **the pre-onset language boundary in both the verdict and the narrative** -
+the signal `incident.md` calls decisive, which T3.4 lost to truncation and T3.4b never queried
+for. 52,175 tokens, $0.56. Two of three runs match ground truth; n=3 is three observations.
+
+The contradiction check (T3.4b) has now fired live twice and **both were false positives**, each
+caught by reading the run and each producing a sharper rule - the second, that a clause citing a
+dispatch's own `result_id` is a claim about that result rather than a denial of it. Its only true
+positive remains the historical one. T4.1's first batch is where that record gets a denominator.
+`docs/adr/0020-agent-layer.md`, `src/faultline/agents/contracts.py`,
+`src/faultline/agents/roles.py`, `src/faultline/agents/grounding.py`,
+`docs/evidence/t3.4c-rerun/README.md`
+
 ### T3.5 — the investigation runner, and the state machine it drives *(built)*
 **The plan called this task "state machine" and it is broader than that** - the machine's
 agent-driven transitions are one part of packaging the pipeline as an operational entrypoint.
@@ -532,11 +575,12 @@ incidents in the corpus for why.
 > different failure from one that ran out of budget, and pooling them would hide the more
 > interesting of the two (T3.4b, `src/faultline/agents/grounding.py`).
 
-> **Note for the dispatch contract.** The planner passed **comma-separated service lists** where
-> one service belongs, and both the dispatch schema and the tool layer accepted it; the resulting
-> PromQL matched no series at all and two of six dispatches were spent on it (T3.4b's re-run,
-> `docs/evidence/t3.4b-rerun/README.md`). Whether `service` is one name or a set is a contract
-> question ADR-0020 does not settle.
+> **The dispatch contract, settled by T3.4c.** The planner passed **comma-separated service
+> lists** where one service belongs, and both the dispatch schema and the tool layer accepted
+> it; the resulting PromQL matched no series at all and two of six dispatches were spent on it
+> (T3.4b's re-run, `docs/evidence/t3.4b-rerun/README.md`). **One service per dispatch**, one the
+> catalog knows, validated at plan-parse time with the same bounded re-ask — recorded in
+> ADR-0020 §2, which had left it open.
 
 > **Note for T4.2: the fault-class boundary `cart-dependency-latency` sits on.** A shaping rule
 > attached to a container's network namespace is readable as `dependency_latency` (a dependency

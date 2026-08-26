@@ -202,6 +202,10 @@ class Investigation:
             )
             plan: DispatchPlan = completion.value
             result.plans.append(plan)
+            # Dispatches the planner named illegally and did not correct on its one re-ask.
+            # Recorded as failures rather than dropped quietly, so they reach the verdict's
+            # flags and T4.2's scoring alongside every other kind of incompleteness (T3.4c).
+            result.failed_dispatches += [(Planner.ROLE, why) for why in completion.rejected]
 
             for dispatch in plan.dispatches:
                 if not state.may_call_tool(dispatch.specialist):
