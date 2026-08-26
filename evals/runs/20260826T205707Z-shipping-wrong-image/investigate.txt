@@ -1,0 +1,30 @@
+incident ec44b883-c909-4a67-8858-280715a9c22e  state triaging  anchor 21:00:15
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: ecb141e4-53d4-42da-9cad-9ebadf2405d3
+investigation: 2 round(s), 11 dispatch(es), 27 step(s)
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : tr_db74d42a8009, tr_ac3dce2e2fdb, tr_051f1d738d46, tr_5c1d5fb10f7d, tr_b5ab1a627d41, tr_aa54a9c715cf, tr_c83c036eee47, tr_c96b0fc14826, tr_62bf5cbc327b
+  root cause  : shippingservice is running the wrong artifact. A platform-automation image-reference update at 20:57:11 UTC pointed shippingservice at a demo image tag whose name suffix belongs to adservice (tr_db74d42a8009) — roughly three minutes before the 21:00:15 checkoutservice alert. Log evidence confirms the running process changed character: through ~20:50 the service was handling GetQuote/ShipOrder successfully from a non-JVM binary, and from ~20:57:39 onward the only output is a repeating trio of JVM/OpenTelemetry-Java-agent startup messages recurring every ~60-65s across at least eight cycles — a Java process crash-looping, not the shipping binary (tr_ac3dce2e2fdb). With no healthy shippingservice listener, checkoutservice's ShippingService/GetQuote client calls fail immediately: every failing checkout trace terminates at that one span with no callee-side server span present, at 0.3-2.4ms, inside prepareOrderItemsAndShippingQuoteFromCart and before payment/email steps are reached (tr_051f1d738d46). The error propagates up through PlaceOrder to the frontend, producing the ~27% peak error ratio on checkoutservice (tr_5c1d5fb10f7d) and the frontend/loadgenerator alerts. The absence of any shippingservice error-ratio series (tr_b5ab1a627d41) is consistent with the service emitting no span metrics at all because the intended binary is not running.
+  OPEN        : Every change query covered only 20:50:15-21:05:15; a change landing between 20:00 and 20:50 on any service (including shippingservice) is unqueried and could mean the 20:57:11 update was itself a reaction to something earlier.
+  OPEN        : The prior image reference is recorded as unset/unknown in the change record, so the exact tag to roll back to is not established by this evidence and must be recovered from the deployment history or registry.
+  OPEN        : Why checkoutservice's error ratio peaks at only ~27% rather than approaching 100% — whether non-checkout traffic dilutes the aggregate, whether a partial rollout left some shippingservice replicas healthy, or whether GetQuote is retried successfully on some paths.
+  OPEN        : No shippingservice crash/exception text was recovered explaining why the mis-targeted image fails to start; the log result was truncated and 20:50:23-20:57:39 is entirely unobserved.
+  OPEN        : The cartservice span-metric series is missing for both numerator and denominator (tr_a50874c1e3a1) — unexplained, and unrelated to the shipping fault as far as this evidence shows; it may be an independent instrumentation gap worth its own follow-up.
+  OPEN        : Blast radius named 12 services and 4 unmeasured edges; only 5 services were dispatched on, so downstream effects on paymentservice, emailservice, adservice and others are inferred rather than measured.
+  OPEN        : Whether the platform-automation actor will re-apply the bad image on the next reconciliation — the source of the mis-targeted tag in the automation pipeline is not identified.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T205707Z-shipping-wrong-image/ec44b883-c909-4a67-8858-280715a9c22e-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T205707Z-shipping-wrong-image/ec44b883-c909-4a67-8858-280715a9c22e-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 13425.32it/s]

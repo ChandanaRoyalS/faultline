@@ -1,0 +1,31 @@
+incident 65ebdfee-cab9-411b-b102-5d16cd84bc2e  state triaging  anchor 20:40:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 2b85f488-a7ad-41bd-a180-6cd2861fbc89
+investigation: 2 round(s), 9 dispatch(es), 23 step(s)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_020e4345a61c, tr_1519bf8dc8f3, tr_3e264b463d25, tr_3b027425dc30, tr_31f3bd9d347e, tr_5fa6d0ff2117, tr_83e1ea23919c, tr_f6fb170e42bd, tr_321f127c5f10
+  root cause  : Not established. The evidence supports only a shape, not a mechanism: frontend and productcatalogservice both show partial, non-continuous error elevation inside the 20:30:45–20:45:45 window at closely matching magnitudes (~12.5% frontend, ~12.3–12.7% productcatalogservice), with a zero minimum in both series indicating onset partway through the window rather than a pre-existing baseline (tr_020e4345a61c, tr_1519bf8dc8f3, tr_3e264b463d25). The magnitude agreement and the fact that frontend's aggregate is unattributed by peer (tr_020e4345a61c) are consistent with frontend passing through failures originating at productcatalogservice, but nothing dispatched actually tested that ordering, and nothing dispatched tested any mechanism at productcatalogservice. Every attempt at mechanism came back empty: both log queries used a hyphenated label value that does not match the service's stream and returned zero lines, so no error text, dependency name, config key, or exhausted resource was ever read (tr_3b027425dc30, tr_31f3bd9d347e); no latency, request-rate, CPU, memory, or restart series were retrieved for any service (tr_1519bf8dc8f3, tr_3e264b463d25); and cartservice returned an empty denominator, which is missing telemetry rather than a measured health signal (tr_321f127c5f10). The change log is empty for both frontend and productcatalogservice, but only for the 15 minutes bracketing onset — the requested ~1h45m of earlier lookback was never executed (tr_5fa6d0ff2117, tr_83e1ea23919c, tr_f6fb170e42bd), so a change landing before 20:30:45 whose effect surfaced minutes later is not excluded. I am declining to name a fault class on partial-error-ratio series alone.
+  OPEN        : What are productcatalogservice's actual Loki label conventions? Both log dispatches queried a hyphenated value that matches nothing; the un-hyphenated re-run was requested and never executed, and it is the single most likely source of a named mechanism.
+  OPEN        : Did any change land against productcatalogservice, frontend, or a shared dependency between 18:40 and 20:30? The change log was only read for the final 15 minutes of a two-hour request, and a limit or config edit whose effect surfaces minutes later would sit exactly in the unqueried span.
+  OPEN        : Does productcatalogservice show pod restarts, OOM kills, CPU throttling, or memory growth? No saturation or restart series was ever retrieved, so resource_exhaustion is untested rather than excluded.
+  OPEN        : Does productcatalogservice or frontend show latency elevation alongside the errors? No latency percentiles were pulled, so dependency_latency is untested rather than excluded.
+  OPEN        : Is frontend's error elevation actually attributable to productcatalogservice? The frontend series is an unbroken aggregate with no per-peer breakdown; the matching magnitudes are suggestive but the onset ordering between the two services was never established.
+  OPEN        : Why does cartservice have no request-count series at all? An empty denominator is either a telemetry gap, a label mismatch, or genuinely zero traffic — and a service that stopped receiving traffic during the window would be a significant finding, not a measurement artifact to dismiss.
+  OPEN        : What is the unmeasured edge triage flagged, and which service pair does it span? It was never investigated and could carry the actual fault path.
+  OPEN        : adservice and the remaining services in the 7-service blast radius were never dispatched at all; the investigation covered three of seven.
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T203657Z-product-catalog-flag-failure/65ebdfee-cab9-411b-b102-5d16cd84bc2e-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T203657Z-product-catalog-flag-failure/65ebdfee-cab9-411b-b102-5d16cd84bc2e-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 15169.01it/s]

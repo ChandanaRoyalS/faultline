@@ -974,3 +974,36 @@ def test_the_taxonomy_instruction_defines_all_four_classes_by_mechanism() -> Non
         assert f"`{label}`:" in SYNTHESIZER_SYSTEM, label
     assert "evidence for" in SYNTHESIZER_SYSTEM.lower()
     assert "never the class itself" in SYNTHESIZER_SYSTEM
+
+
+def test_one_specialist_can_be_given_a_larger_bound_than_the_others() -> None:
+    """**T4.7's manipulation.** Every budget-exhausted run in the record exhausted the same
+    bound - `changes` - because T3.4c made a dispatch name one service, multiplying the
+    planner's change-history needs by the blast radius while the bound stayed where it was set
+    for a planner that could ask about several services at once.
+
+    Raising one bound has to be possible without raising the rest, or the manipulation changes
+    two things and measures neither.
+    """
+    from faultline.agents.budget import Budget, BudgetState
+
+    state = BudgetState(
+        Budget(max_tool_calls_per_specialist=4, per_specialist_tool_calls={"changes": 8})
+    )
+    for _ in range(8):
+        assert state.may_call_tool("changes"), "the override applies"
+        state.record_tool_call("changes")
+    assert not state.may_call_tool("changes")
+    assert "changes tool calls: 8 of 8 used" in (state.exhausted_reason or "")
+
+
+def test_a_specialist_without_an_override_keeps_the_default_bound() -> None:
+    from faultline.agents.budget import Budget, BudgetState
+
+    state = BudgetState(
+        Budget(max_tool_calls_per_specialist=4, per_specialist_tool_calls={"changes": 8})
+    )
+    for _ in range(4):
+        state.record_tool_call("metrics")
+    assert not state.may_call_tool("metrics")
+    assert "metrics tool calls: 4 of 4 used" in (state.exhausted_reason or "")

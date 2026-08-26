@@ -87,6 +87,17 @@ def parser() -> argparse.ArgumentParser:
         help="default: %(default)s",
     )
     budget.add_argument(
+        "--max-tool-calls-changes",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "override the tool-call bound for the changes specialist only. T3.4c made a "
+            "dispatch name one service, which multiplied change-history needs by the blast "
+            "radius; default: same as --max-tool-calls"
+        ),
+    )
+    budget.add_argument(
         "--max-rounds",
         type=int,
         default=settings.budget_max_dispatch_rounds,
@@ -187,6 +198,9 @@ def run(argv: list[str] | None = None) -> int:
         model=model,
         budget=Budget(
             max_tool_calls_per_specialist=args.max_tool_calls,
+            per_specialist_tool_calls=(
+                {"changes": args.max_tool_calls_changes} if args.max_tool_calls_changes else {}
+            ),
             max_tokens=args.max_tokens,
             wall_clock_seconds=args.wall_clock,
             max_dispatch_rounds=args.max_rounds,

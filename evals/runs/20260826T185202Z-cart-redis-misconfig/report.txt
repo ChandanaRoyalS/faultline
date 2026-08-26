@@ -1,0 +1,29 @@
+run 20260826T185202Z-cart-redis-misconfig   scenario cart-redis-misconfig
+trajectory ba848885-fda7-4a13-bc42-9a027a64796a   runtime faultline/0.0.1+prompts:53fafe9c12bc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.78  (7/9 alerted services predicted)
+  precision 0.58  (7/12 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): frauddetectionservice, quoteservice
+  extra  (predicted, not alerted): adservice, emailservice, paymentservice, productcatalogservice, recommendationservice
+  unmeasured edges crossed: 4 - membership reached through one is not evidence at the same strength
+  excluded as recovery-phase (began_after_revert): emailservice
+
+VERDICT
+  fault class bad_config vs bad_config - correct
+  fix class   config_revert vs config_revert - correct
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 57218 / out 19494 tokens   $0.7734
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'per_specialist_tool_calls': {'changes': 8}, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).

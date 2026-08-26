@@ -1,0 +1,45 @@
+{
+  "incident_id": "9d34f440-67d3-4959-b3d5-9d3d8ae29c1a",
+  "trajectory_id": "cd22bb99-deb8-43f3-b543-6e2367bacc51",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origin": "scenario:frauddetection-memory-squeeze",
+  "verdict": {
+    "root_cause": "At 20:14:34 UTC an automated platform process (platform-automation) lowered the container memory limit on frauddetection-service to 200m. Within about twelve seconds the service entered a sustained crash/restart loop: normal Kafka consumption logging stops at ~20:11:34 and from ~20:14:46 the log stream is nothing but repeated JVM/container startup sequences on a near-constant ~62s cadence through 20:21:47, with no application exception, stack trace, or ERROR line anywhere. That signature \u2014 JVM boots successfully through JAVA_TOOL_OPTIONS pickup and the OpenTelemetry agent banner, then dies silently before doing any work, over and over \u2014 is the signature of the kernel killing the process for exceeding its memory ceiling rather than of an application fault, a bad artifact, or a slow dependency. Nothing else changed on the service in the window: no deploy, no image change, no flag flip. The failing mechanism is the process being unable to fit in the memory it is allowed to occupy and being terminated for it; the automated limit edit is how that state was entered, not the mechanism itself.",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_31d1c0de5ce5",
+      "tr_2c73ddd81f41",
+      "tr_afd8a69b1f68",
+      "tr_5ab891e1f922"
+    ],
+    "reasoning": "Three independent strands converge. (1) tr_31d1c0de5ce5 establishes a single change on the service in the window \u2014 a memory-limit reduction to 200m at 20:14:34 by an automated actor \u2014 and explicitly rules out deploy, image rollout, flag flip, and change-quiescence, which removes bad_deploy from contention on the change side. (2) tr_2c73ddd81f41 dates the onset of the crash loop to ~20:14:46, twelve seconds after the limit edit, and characterizes it as at least eight startup cycles on a ~62s cadence rather than a one-off restart; it further rules out the process failing before JVM init (the agent banner is reached each cycle) and rules out any logged application error, downstream timeout, or deserialization fault. A process that reaches instrumentation initialization and then vanishes without emitting a single error line is being terminated externally, not throwing. That excludes dependency_latency as the mechanism \u2014 a slow dependency produces timeouts and waiting requests, not silent process death, and there is no such evidence. (3) The absence of the process explains the metric gaps: tr_afd8a69b1f68 and tr_5ab891e1f922 both return no series at all for calls_total, numerator and denominator alike, which is consistent with a service that is not staying alive long enough to emit spans, though both results correctly note that an empty match is absence of series and not a measured zero. Classification: the guidance is that a limit lowered until a process is killed for exceeding it is resource_exhaustion \u2014 the edit is how it started, exhaustion is what is happening. The service is failing now because it cannot fit in its memory ceiling, so restoring the prior limit (config_revert) is the fix that resolves it; a restart alone would only re-enter the loop. Confidence is held at medium rather than high because the OOM mechanism is inferred from timing and log shape and was never directly confirmed: tr_5ab891e1f922 explicitly rules out that any metric evidence supports the working-set/OOMKill chain, because no container memory, limit, or last_terminated_reason series were ever queried.",
+    "open_questions": [
+      "No direct confirmation of OOMKill: kube_pod_container_resource_limits, container_memory_working_set_bytes, and pod last_terminated_reason / exit code 137 were never queried (tr_5ab891e1f922 states the hypothesis is entirely unverified, not supported). The mechanism is inferred from timing plus silent-death log shape.",
+      "The prior memory limit is not recorded (tr_31d1c0de5ce5), so the magnitude of the reduction and whether the JVM heap configuration was ever compatible with 200m cannot be determined.",
+      "The literal value '200m' is a milli-unit suffix, which for a memory quantity would be a fractional byte rather than 200 MiB. If the automation emitted a CPU-style unit into a memory field, the value is malformed rather than merely small \u2014 that would shift the reading toward bad_config. Nothing in the dispatches resolves whether '200m' is the raw spec value or a rendering artifact of the change log.",
+      "Whether calls_total is absent because the service is dead or because frauddetectionservice was never instrumented under that service_name label is unresolved (tr_afd8a69b1f68, tr_5ab891e1f922); an empty result cannot distinguish these, so the crash loop's traffic impact is unquantified.",
+      "The log stream stops entirely at 20:21:47, ~3.5 minutes before window end (tr_2c73ddd81f41, low confidence). Whether the pod entered CrashLoopBackOff, was descheduled, or logging simply failed is unknown \u2014 as is the current state of the service at the time of this verdict.",
+      "Blast radius beyond frauddetectionservice was not investigated. Kafka consumption halted at ~20:11:34; the effect on order/fraud-check backlog and on upstream producers is unmeasured.",
+      "What triggered platform-automation to rightsize this container, and whether the same automation has applied or will apply similar limits to other services, is unexamined \u2014 this bears on recurrence."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. The process ran for a few minutes on the heap it had already committed, grew,\nwas killed by the kernel, an",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m45s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **4**. Over the",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m49s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\n**frontend** and **loadgenerator** crossed the error threshol"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

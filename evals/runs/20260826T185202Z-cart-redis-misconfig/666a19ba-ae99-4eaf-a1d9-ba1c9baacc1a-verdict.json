@@ -1,0 +1,61 @@
+{
+  "incident_id": "666a19ba-ae99-4eaf-a1d9-ba1c9baacc1a",
+  "trajectory_id": "ba848885-fda7-4a13-bc42-9a027a64796a",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-redis-misconfig",
+  "verdict": {
+    "root_cause": "cartservice cannot start because it cannot connect to its Redis backing store. At 18:52:03 UTC an automated actor (platform-automation) rewrote cartservice's Redis endpoint environment variable to point at redis-cart on port 6380 (tr_85fed96453d7). cartservice logs show the process attempting exactly that endpoint \u2014 redis-cart:6380, abortConnect off, TLS off \u2014 hanging ~20-30s per attempt and then dying with an unhandled exception thrown from the Redis store's connection-assurance/initialization path invoked directly from Main, restarting every 30-60s under a supervisor (tr_86887693af88). Because the process dies before it serves anything, cartservice emitted no call/span telemetry at all for the window (tr_91ac3e38a4fe, tr_e6243d067b7e) and every caller sees transport-level failure: frontend logs are uniformly gRPC code 14 UNAVAILABLE with connection-not-established, raised from the gRPC client library rather than application code (tr_d4562c893caf), and frontend traces show every errored path bottoming out at a CartService span, including checkoutservice's PlaceOrder inheriting its error from its own CartService/GetCart child (tr_3ac06548a0e2). The failing mechanism is the configuration value itself: the endpoint names a port the cart store is not accepting connections on, and that wrong value is what breaks every request touching the cart.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_85fed96453d7",
+      "tr_86887693af88",
+      "tr_3ac06548a0e2",
+      "tr_d4562c893caf",
+      "tr_e6243d067b7e",
+      "tr_91ac3e38a4fe",
+      "tr_24583f3db529",
+      "tr_b8f9790f446f",
+      "tr_b835f5876277"
+    ],
+    "reasoning": "Three independent sources converge on cartservice as the origin and on its Redis endpoint as the mechanism. Traces localise the fault precisely: catalog and recommendation spans are error-free inside the same traces whose cart siblings fail, and checkoutservice's own order-preparation work completes cleanly while its error propagates up from a CartService child span, which places the origin downstream of both frontend and checkout (tr_3ac06548a0e2). Frontend logs independently characterise the failure as transport-level \u2014 code 14, connection never established, from the gRPC client path \u2014 not a slow-but-reachable dependency and not a frontend bug (tr_d4562c893caf); the same result explicitly rules out DEADLINE_EXCEEDED and RESOURCE_EXHAUSTED, and the trace evidence rules out latency by showing the errored cart spans are the fastest in the sample. cartservice's own logs then supply the mechanism: a startup-time Redis connect failure naming redis-cart:6380, in a crash loop (tr_86887693af88). The total absence of cartservice call metrics, numerator and denominator alike (tr_91ac3e38a4fe, tr_e6243d067b7e), is exactly what a process that dies before serving produces, and corroborates the crash loop rather than a degraded-but-serving instance. The change log supplies the act: a single config edit at 18:52:03 setting that endpoint to port 6380, against the conventional 6379 (tr_85fed96453d7); no deploy, no image change, no flag flip for cartservice or for frontend, checkoutservice or productcatalogservice (tr_cd5057513981, tr_b37f94d54cb5, tr_5412c29111b0), which excludes bad_deploy. Downstream symptoms fit: checkoutservice admits orders steadily but they stop completing past payment/email/write with no error line of its own (tr_24583f3db529) \u2014 a silent stall consistent with a cart call that never connects \u2014 and frontend degrades partially (~30% peak error ratio, tr_b8f9790f446f) while checkout, which touches cart on every order, degrades far harder (~0.67 peak, tr_b835f5876277). I classify this bad_config rather than dependency_latency because nothing is waiting on a slow dependency: the connection is refused/never established and the errored spans are sub-millisecond. The remediation is to restore the correct Redis endpoint value; a bare restart cannot help, since the supervisor is already restarting the container into the same wrong value.",
+    "open_questions": [
+      "Whether redis-cart is genuinely listening on 6379 and 6380 is simply wrong, or whether Redis was intentionally moved to 6380 and is itself down/unreachable \u2014 no one queried the Redis backing store directly. If the latter, the correct fix is to the store, not the cartservice env var.",
+      "The prior value of the endpoint variable is recorded as absent/unknown (tr_85fed96453d7), so a literal 'revert' has no recorded target; the correct value must be established from service convention or manifests.",
+      "Timing does not fully line up. Frontend shows the identical code-14 signature at ~18:44:52, roughly seven minutes before the 18:52:03 config change, and the cartservice change result explicitly notes symptoms predating 18:52 cannot be attributed to it. Either an earlier change exists in the unqueried 18:30-18:44:45 interval (unexamined for every service), or the crash loop was preceded by a separate cart failure. This is the weakest link in the chain.",
+      "cartservice logs are truncated: healthy at ~18:44, crash-looping from ~18:57, with the 18:45-18:57 transition unobserved. The exact moment cartservice stopped serving \u2014 and whether it aligns with 18:52:03 \u2014 is not established.",
+      "No latency or saturation metrics were retrieved for any service; frontend and checkoutservice metrics are min/max summaries with no per-timestamp values, so onset curves could not be located and correlated against the change timestamp.",
+      "Why frontend peaks at only ~30% errors while cartservice is fully down is unexplained \u2014 presumably catalog-only page loads succeed, but the traffic mix was not quantified.",
+      "Whether any other service shares the same Redis endpoint configuration and was affected by the same automation run was not checked; the blast radius named 12 services and only four were investigated."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for ",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m49s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\n**frontend** and **loadgenerator** crossed the error threshol"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

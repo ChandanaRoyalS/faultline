@@ -1,0 +1,30 @@
+incident 666a19ba-ae99-4eaf-a1d9-ba1c9baacc1a  state triaging  anchor 18:54:45
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: ba848885-fda7-4a13-bc42-9a027a64796a
+investigation: 2 round(s), 12 dispatch(es), 29 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_85fed96453d7, tr_86887693af88, tr_3ac06548a0e2, tr_d4562c893caf, tr_e6243d067b7e, tr_91ac3e38a4fe, tr_24583f3db529, tr_b8f9790f446f, tr_b835f5876277
+  root cause  : cartservice cannot start because it cannot connect to its Redis backing store. At 18:52:03 UTC an automated actor (platform-automation) rewrote cartservice's Redis endpoint environment variable to point at redis-cart on port 6380 (tr_85fed96453d7). cartservice logs show the process attempting exactly that endpoint — redis-cart:6380, abortConnect off, TLS off — hanging ~20-30s per attempt and then dying with an unhandled exception thrown from the Redis store's connection-assurance/initialization path invoked directly from Main, restarting every 30-60s under a supervisor (tr_86887693af88). Because the process dies before it serves anything, cartservice emitted no call/span telemetry at all for the window (tr_91ac3e38a4fe, tr_e6243d067b7e) and every caller sees transport-level failure: frontend logs are uniformly gRPC code 14 UNAVAILABLE with connection-not-established, raised from the gRPC client library rather than application code (tr_d4562c893caf), and frontend traces show every errored path bottoming out at a CartService span, including checkoutservice's PlaceOrder inheriting its error from its own CartService/GetCart child (tr_3ac06548a0e2). The failing mechanism is the configuration value itself: the endpoint names a port the cart store is not accepting connections on, and that wrong value is what breaks every request touching the cart.
+  OPEN        : Whether redis-cart is genuinely listening on 6379 and 6380 is simply wrong, or whether Redis was intentionally moved to 6380 and is itself down/unreachable — no one queried the Redis backing store directly. If the latter, the correct fix is to the store, not the cartservice env var.
+  OPEN        : The prior value of the endpoint variable is recorded as absent/unknown (tr_85fed96453d7), so a literal 'revert' has no recorded target; the correct value must be established from service convention or manifests.
+  OPEN        : Timing does not fully line up. Frontend shows the identical code-14 signature at ~18:44:52, roughly seven minutes before the 18:52:03 config change, and the cartservice change result explicitly notes symptoms predating 18:52 cannot be attributed to it. Either an earlier change exists in the unqueried 18:30-18:44:45 interval (unexamined for every service), or the crash loop was preceded by a separate cart failure. This is the weakest link in the chain.
+  OPEN        : cartservice logs are truncated: healthy at ~18:44, crash-looping from ~18:57, with the 18:45-18:57 transition unobserved. The exact moment cartservice stopped serving — and whether it aligns with 18:52:03 — is not established.
+  OPEN        : No latency or saturation metrics were retrieved for any service; frontend and checkoutservice metrics are min/max summaries with no per-timestamp values, so onset curves could not be located and correlated against the change timestamp.
+  OPEN        : Why frontend peaks at only ~30% errors while cartservice is fully down is unexplained — presumably catalog-only page loads succeed, but the traffic mix was not quantified.
+  OPEN        : Whether any other service shares the same Redis endpoint configuration and was affected by the same automation run was not checked; the blast radius named 12 services and only four were investigated.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T185202Z-cart-redis-misconfig/666a19ba-ae99-4eaf-a1d9-ba1c9baacc1a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T185202Z-cart-redis-misconfig/666a19ba-ae99-4eaf-a1d9-ba1c9baacc1a-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9745.17it/s]

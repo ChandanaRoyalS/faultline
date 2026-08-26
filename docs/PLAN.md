@@ -778,6 +778,56 @@ Triage over seven: recall mean **0.94**, precision mean **0.56**, 19 unmeasured 
 `cart-dependency-latency` reproduced T3.5's disputed miss **exactly**, on an independent run: same
 two wrong labels, same reasoning shape. One observation was an anecdote; two is a pattern.
 
+### T4.7 — the budget confound, separated *(built)*
+The manipulation HOLDOUT-2026-08-26.md left open. **contract not written.**
+
+**First, the instrument.** Budget bounds are experiment parameters the stamp does **not** cover,
+so two runs with the same `prompts:53fafe9c12bc` and different bounds were different experiments
+wearing one stamp. Decision recorded where the stamp's contract lives
+(`faultline/agents/stamp.py`): **bounds stay out of the stamp and travel beside it.** Folding
+them in would orphan every stamped figure and - decisively - make this very comparison
+unexpressible, since raising a bound and re-running is a statement about *the same agent given
+more room*. The obligation that creates: the run manifest now records **all four** bounds rather
+than the two the CLI takes, and the scored report and every sweep table print the budget beside
+the stamp.
+
+**The manipulation**, justified from the stored trajectories rather than picked: every
+budget-exhausted run in the record exhausted the *same* bound, and in three of four the target
+service's change record was dispatch **five or six** of a plan cut off at four. T3.4c made a
+dispatch name one service, which multiplied change-history needs by the blast radius while the
+bound stayed where it had been set for a planner that could ask about several at once. Largest
+observed plan: 6. **`changes` 4 -> 8**, and only `changes`; `Budget` gained per-specialist
+overrides, which does not move the stamp.
+
+**The answer is mixed, and it decomposes** (`evals/runs/SWEEP-2026-08-26-budget.md`). All three
+outcomes the question anticipated occurred, one per scenario:
+
+- **Budget owned `ad-memory-squeeze`**: abstained while exhausted on `changes`, answered
+  **correctly** with the bound raised.
+- **The instruction owns `product-catalog-flag-failure`**: abstained in both sweeps, exhausted on
+  nothing in either. It had budget to spare and declined anyway.
+- **Neither owns `shipping-wrong-image`**: abstained then answered, exhausted in neither run. At
+  n=1 per side, variance and planner re-allocation are indistinguishable.
+
+Starvation was real and is gone: **zero runs exhausted `changes`, against two**. Coverage 4/7 ->
+**6/7**, accuracy-of-answered held at 100% (4/4 -> **6/6**), fix 3/4 -> 5/6, judge
+same_mechanism 4 -> **6**. The bound moved to the next constraint: two runs exhausted `metrics`
+and both still answered. $3.69 + $0.28 judged.
+
+**First variance data at n=2**: four scenarios answered in both sweeps and **all four returned
+the identical class**. Not clean repeat variance - one bound differs - but under the same prompts
+and contracts, no scenario that produced a class produced a different one.
+
+> **Note for T4.1: the gate is blind to recently-resolved incidents.** A stranded incident
+> resolved by hand minutes before the sweep sat inside the orchestrator's 5-minute settle window;
+> the next scenario's alerts reopened it into `OPEN` and every subsequent event joined it, so no
+> `triaging` incident ever appeared and the run was discarded after 900s. The gate refuses on
+> *non-terminal* incidents; a recently-resolved one is invisible to it and captures a new run's
+> alerts just as effectively. Recorded, not fixed.
+`src/faultline/agents/budget.py`, `src/faultline/agents/stamp.py`,
+`src/evalharness/run.py`, `src/evalharness/scoring.py`,
+`evals/runs/SWEEP-2026-08-26-budget.md`
+
 ### T4.6 — the holdout run *(run; the number this project exists to produce)*
 The three runnable holdout scenarios, once each, under ADR-0022 §3.3's protocol.
 **contract not written.**

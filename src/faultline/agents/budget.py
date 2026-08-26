@@ -12,6 +12,7 @@ the partial answer exists, which is the answer T4.2 would have wanted.
 from __future__ import annotations
 
 import time
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 
 
@@ -20,12 +21,35 @@ class Budget:
     """The four bounds. **Placeholders, named as such** - reasons, no measurements (ADR-0020)."""
 
     max_tool_calls_per_specialist: int = 12
+    """The default bound, applied to any specialist without an override below."""
+
+    per_specialist_tool_calls: Mapping[str, int] = field(default_factory=dict)
+    """Per-specialist overrides. **Added at T4.7, and the reason is a measurement.**
+
+    One bound for all four specialists was right when a dispatch could name several services at
+    once. T3.4c made a dispatch name exactly one service - correctly, because a comma-separated
+    list produced a selector that could not match - and that multiplied the planner's
+    change-history needs by the size of the blast radius without anyone moving the bound.
+
+    Read out of the stored trajectories: every budget-exhausted run in the record exhausted the
+    *same* bound, `changes`, and in three of the four the target service's change record was
+    dispatch five or six of a plan the bound cut off at four. The planner was not being
+    profligate; it was being charged per service for a question it used to ask once.
+
+    A mapping rather than four fields because the specialists are `SpecialistName` values and a
+    bound that has to be measured is a bound that will move again.
+    """
+
     max_tokens: int = 150_000
     wall_clock_seconds: int = 600
     max_dispatch_rounds: int = 2
     """The plan and at most one follow-up. **Structural, not prose**: unbounded re-dispatch is
     the non-termination risk this budget exists to remove, arriving through the planner instead
     of through a specialist."""
+
+    def tool_calls_for(self, specialist: str) -> int:
+        """The bound this specialist is held to: its override, or the default."""
+        return self.per_specialist_tool_calls.get(specialist, self.max_tool_calls_per_specialist)
 
 
 @dataclass(slots=True)
@@ -63,11 +87,9 @@ class BudgetState:
 
     def may_call_tool(self, specialist: str) -> bool:
         used = self.tool_calls.get(specialist, 0)
-        if used >= self.budget.max_tool_calls_per_specialist:
-            self._exhaust(
-                f"{specialist} tool calls: {used} of "
-                f"{self.budget.max_tool_calls_per_specialist} used"
-            )
+        allowed = self.budget.tool_calls_for(specialist)
+        if used >= allowed:
+            self._exhaust(f"{specialist} tool calls: {used} of {allowed} used")
             return False
         return self.check()
 

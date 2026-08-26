@@ -331,6 +331,13 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("scenario_id")
     p.add_argument("--postgres-dsn", default=None)
     p.add_argument("--max-tool-calls", type=int, default=4)
+    p.add_argument(
+        "--max-tool-calls-changes",
+        type=int,
+        default=None,
+        metavar="N",
+        help="override the changes specialist's bound only (T4.7)",
+    )
     p.add_argument("--max-tokens", type=int, default=120_000)
     p.add_argument(
         "--holdout",
@@ -381,6 +388,8 @@ def _investigate(incident_id: str, scenario_id: str, out: Path, args: Any) -> tu
         "--max-tokens",
         str(args.max_tokens),
     ]
+    if args.max_tool_calls_changes:
+        cmd += ["--max-tool-calls-changes", str(args.max_tool_calls_changes)]
     if args.postgres_dsn:
         cmd += ["--postgres-dsn", args.postgres_dsn]
     print(f"  $ {' '.join(cmd)}")
@@ -456,9 +465,18 @@ def main(argv: list[str] | None = None) -> int:
                 ["planner", "metrics", "logs", "changes", "traces", "synthesizer", "scribe"]
             ),
             "efforts": {"default": settings.effort, **settings.role_efforts},
+            # All four bounds, not the two the CLI happens to take. **Budget bounds are
+            # experiment parameters the stamp does not cover** (T4.7): two runs with the same
+            # stamp and different bounds are different experiments, so the bounds have to be
+            # recorded in full and printed beside the stamp wherever a figure appears.
             "budget": {
                 "max_tool_calls_per_specialist": args.max_tool_calls,
+                "per_specialist_tool_calls": (
+                    {"changes": args.max_tool_calls_changes} if args.max_tool_calls_changes else {}
+                ),
                 "max_tokens": args.max_tokens,
+                "wall_clock_seconds": settings.budget_wall_clock_seconds,
+                "max_dispatch_rounds": settings.budget_max_dispatch_rounds,
             },
         }
     )
@@ -521,6 +539,7 @@ def main(argv: list[str] | None = None) -> int:
         scored = score(
             run.run_id, args.scenario_id, bundle, artifact, facts, run.manifest["models"]
         )
+        scored.budget = dict(run.manifest["budget"])
         run.manifest["score"] = scored.as_dict()
         run.manifest["finished_at"] = datetime.now(UTC).isoformat()
         run.save_manifest()

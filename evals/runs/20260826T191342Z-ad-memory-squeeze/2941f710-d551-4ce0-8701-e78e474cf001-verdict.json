@@ -1,0 +1,60 @@
+{
+  "incident_id": "2941f710-d551-4ce0-8701-e78e474cf001",
+  "trajectory_id": "5efb8dfb-02dd-40f6-941d-c35c5e97ff60",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "The only recorded change anywhere in the blast radius is on adservice: at 19:13:43 UTC platform-automation lowered the ad-service container memory limit to 256m, roughly four minutes before the 19:17:30 onset (tr_d95e8e8d312c). Every other service in the radius \u2014 frontend, checkoutservice, productcatalogservice, cartservice, recommendationservice \u2014 has an empty change log for the window (tr_7950f38c7d67, tr_8f544a419450, tr_8c39f35328bf, tr_9011fc50e5f0, tr_bbbcaa01b284), and productcatalogservice shows a flat zero error ratio throughout (tr_9b64c5ec01ef), so the failure did not originate downstream in the catalog path. The most consistent reading is that the new 256m ceiling sits below adservice's working set, so the container is being killed and restarted for exceeding it \u2014 adservice's span-derived call counters have no series at all in the window, neither error numerator nor total-calls denominator (tr_2e88660c6e62), which is what a container that is repeatedly dying and emitting no completed spans looks like. Frontend degrades partially rather than totally, peaking near 9.9% errors from a clean zero floor inside the window (tr_25f74ed07591), consistent with a non-fatal dependency whose failure only spoils the fraction of requests that touch it. The mechanism now is memory exhaustion against a ceiling, not a wrong artifact and not an application-level misconfiguration; the limit edit is how it started, the killing is what is happening.",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_d95e8e8d312c",
+      "tr_2e88660c6e62",
+      "tr_25f74ed07591",
+      "tr_9b64c5ec01ef",
+      "tr_7950f38c7d67",
+      "tr_8f544a419450",
+      "tr_8c39f35328bf",
+      "tr_9011fc50e5f0",
+      "tr_bbbcaa01b284",
+      "tr_6fef91132e90"
+    ],
+    "reasoning": "Attribution rests on three legs. (1) Change isolation: five of six services queried have completely empty change logs in the window (tr_7950f38c7d67, tr_8f544a419450, tr_8c39f35328bf, tr_9011fc50e5f0, tr_bbbcaa01b284); exactly one change exists, on adservice, four minutes ahead of onset, and it is a resource-limit reduction rather than a deploy or an application config/flag flip (tr_d95e8e8d312c explicitly rules out image and flag changes). (2) Symptom shape at adservice: the total-calls denominator is missing, not zero-valued (tr_2e88660c6e62), so the service is not merely erroring \u2014 it is not completing recorded work, which fits a container being OOM-killed and restarting rather than a service returning errors under load. (3) Symptom shape at the edge: frontend shows a transition from a zero floor to a ~9.9% peak within the window and is explicitly not a hard outage (tr_25f74ed07591), the signature of a partially-tolerated dependency, while the fully-instrumented catalog path stays at zero errors (tr_9b64c5ec01ef) and so is excluded as origin. I classify this as resource_exhaustion rather than bad_config because the failing mechanism is a process exceeding the memory it is allowed and being terminated for it; the wrong value is the trigger, not the thing breaking each request. Remediation is config_revert \u2014 restoring the prior memory ceiling (or raising it above the real working set) is what stops the kills; a restart alone would re-enter the same loop. Confidence is medium, not high, because the OOM-kill mechanism is inferred from metric absence rather than observed directly: no logs, traces, container-restart counts, or saturation metrics were gathered before the metrics budget was exhausted, and tr_2e88660c6e62 itself flags instrumentation/label mismatch as an equally live explanation for the missing series.",
+    "open_questions": [
+      "No direct confirmation of OOMKill or container restarts on adservice \u2014 no pod events, container logs, or restart-count metric was retrieved; the memory-exhaustion mechanism is inferred from the missing call-count series (tr_2e88660c6e62) and the timing of tr_d95e8e8d312c.",
+      "The prior memory limit is not recorded (tr_d95e8e8d312c), so the magnitude of the reduction and whether 256m is genuinely below adservice's working set is unestablished; the correct restored value is unknown.",
+      "Frontend's ~9.9% error peak is not attributed to any specific downstream call path \u2014 the query aggregated by service_name only (tr_25f74ed07591), so it is not proven that the failing fraction is the ad-serving path rather than another dependency.",
+      "cartservice telemetry is entirely absent, including the denominator (tr_6fef91132e90). Whether cartservice is also degraded, or simply labelled differently in the span metrics, is unresolved \u2014 and the same ambiguity weakens the adservice reading.",
+      "No latency or saturation data was obtained for any service; the metrics budget (4/4) was exhausted, so a dependency_latency contribution has not been affirmatively excluded.",
+      "All change queries covered only 19:07:30\u201319:22:30, not the full hour before onset; a change between 18:17 and 19:07 on any service remains unexamined (noted in every change dispatch).",
+      "Triage reported one unmeasured edge crossed; which edge and whether it hides a seventh service's contribution was never resolved.",
+      "checkoutservice and recommendationservice have no metric evidence at all \u2014 only empty change logs \u2014 so their role in the 7-service blast radius is unmeasured."
+    ]
+  },
+  "flags": [
+    "budget exhausted: metrics tool calls: 4 of 4 used"
+  ],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired ",
+    "product-catalog-flag-failure / What was observed: The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, 3m24s after\nonset. Fifteen seconds later **frontend** and **productcatalogservice** joined it.\n\nThree alerts across three services, and the set never grew.\n\nOn the storefront most product pages rendered nor",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m49s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\n**frontend** and **loadgenerator** crossed the error threshol"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}
