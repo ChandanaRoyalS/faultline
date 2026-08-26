@@ -469,3 +469,94 @@ nearly right would be grading on sympathy; each entry names the ADR section that
   prompt change, so it moves `runtime_version` and needs its own before/after comparison —
   CLAUDE.md's eval-before-opinion rule, applied to the first finding this harness has produced
   that suggests one.
+
+---
+
+## Addendum (T4.8): a second holdout entry, and what separates one from a re-run
+
+**The question.** [`HOLDOUT-2026-08-26.md`](../evals/runs/HOLDOUT-2026-08-26.md) was produced with
+`max_tool_calls_per_specialist: 4`. Both of its abstentions carry the starvation signature T4.7
+dissolved on dev — `changes` exhausted at 4 of 4, with the target service's change record beyond
+the cutoff in the planner's own plan. Does §3.3 permit a **second** holdout entry under the
+raised bound: same stamp, budget declared in advance, run once, published beside the first?
+
+### The answer: yes — and §3.3 already says which thing it is
+
+Three sentences of §3.3 decide it, and none of them needed to be stretched.
+
+**"A holdout run happens once per reported result."** Not *once, ever*. The unit is the reported
+result, and the sentence forbids running holdout repeatedly **for the same result** — which is
+exactly what re-running to improve a number is. T4.7 produced a new reported dev result under a
+new configuration. Under §3.3's own words that result is entitled to its own holdout run, and the
+first entry is not entitled to be refreshed.
+
+**"Changing anything above and re-running holdout is a *new* experiment and gets a new manifest,
+not an updated one."** The budget's four bounds are item four in the freeze table, so changing
+one *is* changing something above — and §3.3 does not forbid that. It **categorises** it. The
+clause exists precisely because the authors expected a frozen item to change one day and wanted
+the result to be a new entry rather than an edit.
+
+**"The number of holdout runs is a fact worth being unable to hide."** The guard is not scarcity;
+it is visibility. A protocol whose defence is that nobody counts is weaker than one whose defence
+is that everybody can.
+
+### The test that separates a new entry from a re-run in costume
+
+"Something changed" cannot be the test — something always changes. Four conditions, all
+checkable, and a second entry qualifies only if it meets all four:
+
+1. **The change is validated on dev before holdout is touched.** T4.7 raised the bound, re-ran
+   seven dev scenarios and published the comparison. Holdout is asked about a change that has
+   already been measured somewhere else.
+2. **The change is justified by a mechanism, not by the holdout result.** The bound of 4 predates
+   T3.4c, which made a dispatch name exactly one service and thereby multiplied change-history
+   needs by the size of the blast radius. That is arithmetic about the dispatch contract, visible
+   in dev sweeps 1 and 2, and true whether or not holdout had ever run.
+3. **A prediction is registered before the run.** This is what makes the entry falsifiable rather
+   than exploratory. An entry whose prediction is written afterwards is a re-run in costume no
+   matter what changed.
+4. **The first entry stands unedited, beside the second.** Never replaced, never revised, and
+   both published together so a reader sees the sequence rather than the best of it.
+
+### The leakage this does not pretend away
+
+Condition 2 is the one under real strain, and the honest account is this: **the holdout result is
+what made the confound salient**. `HOLDOUT-2026-08-26.md` is where "abstention lines up exactly
+with `changes` exhaustion" was first written down, and that observation is a signal read off the
+holdout set which then influenced a configuration choice. Some information flowed the wrong way.
+
+What bounds it: the *mechanism* was visible on dev independently — `ad-memory-squeeze` exhausted
+`changes` at 4 of 4 in both dev sweeps — and the fix was chosen, applied and measured on dev
+before holdout was reconsidered. Holdout corroborated; it did not discover, and it did not select
+the value.
+
+That is a defensible flow, not a clean one, and **each entry spends some of the set's remaining
+value even when the protocol is followed perfectly.** With three scenarios, this set is cheap to
+exhaust. So:
+
+### The ledger, and the limit
+
+**Every holdout entry is numbered and counted in one place**, and each new entry states which
+reported result entitled it. This is the mechanism §3.3 asked for when it said the number of runs
+should be impossible to hide.
+
+| entry | reported result it belongs to | stamp | `changes` bound | file |
+|---|---|---|---|---|
+| **1** | T4.5's taxonomy-instruction pipeline | `prompts:53fafe9c12bc` | 4 | `HOLDOUT-2026-08-26.md` |
+| **2** | T4.7's raised-bound configuration | `prompts:53fafe9c12bc` | 8 | `HOLDOUT-2026-08-26-entry2.md` |
+
+**A third entry needs an argument this addendum does not supply.** Two entries in one day on a
+three-scenario set is already close to the line, and the next one should have to say why the
+answer is not "report entry 1's limitation and stop". The reason a flat *no* was rejected here is
+that it has a cost of its own: a holdout number that can never be refreshed describes a system
+that no longer exists, and the project would be unable to report a holdout figure for its current
+configuration — which is a different way of having no benchmark.
+
+### Consequences
+
+- The budget must be recorded on every scored run, not only in the freeze manifest. Entry 1's
+  `score.budget` is `null`, because the field was added at T4.7 — its bounds are recoverable from
+  `FREEZE-2026-08-26-holdout.json` and that recovery is itself the argument for the field.
+- Entry 2 declares its configuration and its prediction **before** running, in a committed file.
+- Neither entry is a comparison against the other in the sense §3.3 forbids: they differ in a
+  frozen item and are published as two experiments, side by side, with the difference named.

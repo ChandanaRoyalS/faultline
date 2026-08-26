@@ -1,0 +1,59 @@
+{
+  "budget": {
+    "max_dispatch_rounds": 2,
+    "max_tokens": 120000,
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "wall_clock_seconds": 600
+  },
+  "corpus": {
+    "documents": [
+      "scenario:ad-memory-squeeze",
+      "scenario:cart-bad-image-tag",
+      "scenario:cart-dependency-latency",
+      "scenario:cart-redis-misconfig",
+      "scenario:frauddetection-memory-squeeze",
+      "scenario:product-catalog-flag-failure",
+      "scenario:shipping-wrong-image"
+    ],
+    "holdout_chunks": 0,
+    "rows": 35,
+    "sha256": "e4ca493867b454fdab1935f2f06f17004ddd8ee4377ac285e19c553f9eb06bb2"
+  },
+  "frozen_for": "T4.8 holdout entry 2",
+  "judge": {
+    "allow_shared_lineage": true,
+    "model": "claude-haiku-4-5",
+    "prompt_sha256": "244108af996ad2a5138f6632a297941dd26643d806c73dfa9e24bc7d51392b54"
+  },
+  "model_map": {
+    "effort_default": "high",
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    },
+    "role_efforts": {}
+  },
+  "prompts": {
+    "chars": 6093,
+    "constants": [
+      "PLANNER_SYSTEM",
+      "SCRIBE_SYSTEM",
+      "SPECIALIST_SYSTEM",
+      "SYNTHESIZER_SYSTEM"
+    ],
+    "sha256": "197b1f91199ca778bb96bb1998f132585cd8d5d26fd9f5a61ef31d8fba3aeeb8"
+  },
+  "runtime_version": "faultline/0.0.1+prompts:53fafe9c12bc",
+  "tool_layer": {
+    "git_dirty": true,
+    "git_sha": "e58f0e81348a30de57d298bcda697b65ce06aaac"
+  }
+}
