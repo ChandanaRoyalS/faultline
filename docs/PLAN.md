@@ -345,6 +345,34 @@ bytes, matching sha256, closing nonce intact.
 `src/faultline/agents/trajectory.py`, `docs/adr/0020-agent-layer.md`,
 `docs/evidence/t3.2-trajectory-smoke/README.md`
 
+### T3.3 — planner and specialists *(built; first real dispatch not yet run)*
+The planner and the four specialists, per ADR-0020 §2. **Not a task number the plan states** -
+inferred from the ADR's role table, same convention as T3.2. **contract not written.**
+
+The planner holds no tools and produces an ordered dispatch plan naming which specialists to
+send and what each is asked. **A plan is a choice, not a broadcast**: the load table is why the
+role exists - change and metrics were consulted in 10 of 10 rehearsed investigations, logs in 7,
+traces in 2 - so `skipped` is a required field and a plan may dispatch one specialist. The
+one-follow-up-round cap is enforced by the rounds bound on the budget object, not by prose.
+
+Each specialist calls its tool, hands the **rendered envelope** to the model, and returns
+validated `found` **and** `ruled_out` - both required in the schema, because a default of `[]`
+would let a specialist discard the half of its work `ARTIFACTS.md` calls the most useful thing
+in a narrative. Findings cite evidence by `result_id` only; the raw envelope goes to the
+trajectory verbatim and travels no further, which is ADR-0020 §4's leak boundary at the point it
+is first crossed.
+
+All four budget bounds are live from the first dispatch and exhaustion produces the flagged
+verdict rather than an exception - a partial diagnosis is scoreable and a `FAILED` incident is
+not.
+
+**The live dispatch has not run.** `docs/evidence/t3.3-first-dispatch/` records stage 1 failing
+at the credential (`401 invalid x-api-key`) with the world untouched and zero tokens spent - the
+two-stage split isolating auth from everything else, as intended.
+`src/faultline/agents/roles.py`, `src/faultline/agents/investigation.py`,
+`src/faultline/agents/budget.py`, `src/faultline/agents/contracts.py`,
+`docs/adr/0020-agent-layer.md`, `docs/evidence/t3.3-first-dispatch/README.md`
+
 ### T3.5 — state machine
 Part of the orchestrator's eleven-state machine. The states and their triggers are proposed
 in ADR-0016; the five that depend on agent outcomes (`TRIAGING`, `PLANNING`, `INVESTIGATING`,

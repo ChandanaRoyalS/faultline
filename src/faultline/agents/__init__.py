@@ -4,6 +4,15 @@ Triage is built (T3.1); the model boundary and trajectory store are built (T3.2)
 eight roles are not.
 """
 
+from faultline.agents.budget import Budget, BudgetState
+from faultline.agents.contracts import (
+    Dispatch,
+    DispatchPlan,
+    Finding,
+    RuledOut,
+    SpecialistFindings,
+)
+from faultline.agents.investigation import Investigation, InvestigationResult
 from faultline.agents.model import (
     AnthropicModel,
     DeterministicModel,
@@ -11,6 +20,7 @@ from faultline.agents.model import (
     ModelRequest,
     ModelResponse,
 )
+from faultline.agents.roles import Planner, Specialist, build_specialists
 from faultline.agents.settings import AgentSettings
 from faultline.agents.trajectory import (
     InMemoryTrajectoryStore,
@@ -28,14 +38,25 @@ __all__ = [
     "AgentSettings",
     "AnthropicModel",
     "BlastRadiusMember",
+    "Budget",
+    "BudgetState",
     "DeterministicModel",
+    "Dispatch",
+    "DispatchPlan",
     "EntryReason",
+    "Finding",
     "InMemoryTrajectoryStore",
+    "Investigation",
+    "InvestigationResult",
     "LanguageModel",
     "ModelRequest",
     "ModelResponse",
+    "Planner",
     "PostgresTrajectoryStore",
     "RetrievalRecord",
+    "RuledOut",
+    "Specialist",
+    "SpecialistFindings",
     "StepKind",
     "ToolCallRecord",
     "Trajectory",
@@ -43,4 +64,5 @@ __all__ = [
     "TrajectoryStore",
     "Triage",
     "TriageResult",
+    "build_specialists",
 ]
