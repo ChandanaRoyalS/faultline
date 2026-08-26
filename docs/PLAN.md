@@ -552,23 +552,78 @@ incidents in the corpus for why.
 > got two chunks of one document plus one of another - two distinct past incidents, not three.
 > Whether that is what `k` should mean is unexamined.
 
-### T4.1 — harness runner
+> **All of the notes above are now designed against in ADR-0022**, which cites each one. They
+> stay here because a note is where the evidence was first recorded and the ADR is where the
+> position was taken; the two are not the same document.
+
+### T4.1 — harness runner *(designed, ADR-0022)*
 Drives runs from the scenario catalog: **what to inject, how long to wait, how long
 between runs**, reading `injection`, `seconds_to_alert`, `seconds_of_steady_state` and
 `seconds_to_settle` from bundle manifests. Specified to work **through public interfaces
 only**. Computes the retrieval seed at seed time rather than at record time.
-`docs/adr/0009:203`, `docs/adr/0009:35`, `docs/adr/0009:229`, `docs/adr/0008:45`
 
-### T4.1b — run-time self-exclusion
+ADR-0022 §3 adds three things this entry did not list. A **baseline gate that refuses rather
+than warns** - the T1.5 recorder's gate is the model, the agent path has none, and T3.4, T3.4b,
+T3.4c and T3.5 all performed the same check by hand. A **world lock**, because one driver of the
+world has been an instruction to a human since T3.3. And the **`DecisionLog` schema change
+ADR-0017 deferred to "whoever builds that reporting"** - a join-rule column on `incidents`, whose
+consumer is exactly T4.1's question of how often the graph actually decided.
+
+Two pre-existing defects block a first clean run and belong here: `runtime_version` on every
+trajectory says `t3.3`, including T3.5's, and zero-step trajectory rows exist from before T3.5's
+guard (`f7261a74`).
+
+**Only ten of the twelve bundles are runnable.** `currency-cpu-throttle` and
+`flag-service-crashloop` carry an `INVALID.md` and an empty `alerts_over_window`; neither can
+produce an incident, so neither can be investigated. Seven dev plus three holdout.
+`docs/adr/0022-evaluation-harness.md`, `docs/adr/0009:203`, `docs/adr/0009:35`,
+`docs/adr/0009:229`, `docs/adr/0008:45`
+
+### T4.1b — run-time self-exclusion *(designed, ADR-0022 §4)*
 ADR-0008 axis 2. A scenario's own artifacts are never retrievable while it is scored;
 leave-one-out exclusion enforced in the retrieval query itself, filtering on the `origin`
 provenance stamp.
-`docs/adr/0008:96`, `evals/scenarios/SCHEMA.md:21`, `docs/adr/0002:19`, `tests/test_artifact_bundle.py:121`
 
-### T4.2 — RCA and remediation scoring
+Three assertions per scored run, and a failure makes the run **invalid rather than annotated**:
+a retrieval row exists, every row's `exclude_origin` is the scenario under test, and no returned
+`document_id` carries that origin. **All three already hold for all six `trajectory_retrievals`
+rows in the database** - the check is verifiable against existing data before it is written,
+which is what storing the column from T3.2 was for.
+
+Open and reported both ways until settled: **`k` counts chunks, not documents.** T3.5 asked for
+3 and received two chunks of one past incident plus one of another.
+`docs/adr/0022-evaluation-harness.md`, `docs/adr/0008:96`, `evals/scenarios/SCHEMA.md:21`,
+`docs/adr/0002:19`, `tests/test_artifact_bundle.py:121`
+
+### T4.2 — RCA and remediation scoring *(designed, ADR-0022 §§1-2, 5)*
 Scores runs against the recorded bundles. Must report remediation-class accuracy **broken
 out by fault class**, never only in aggregate.
-`docs/adr/0008:121`, `docs/adr/0009:12`
+
+ADR-0022 settles the label ambiguity T3.5 measured: **fault class is scored on which fix
+actually works**, which for `dependency_latency` was measured in ADR-0008 - Pumba binds to the
+container present, so a restart durably clears the delay while there is no configuration to
+revert. The losing reading is not silently wrong: a `class_dispute` register names documented
+near-misses, and disputed misses are counted as misses *and* broken out under the per-class
+table.
+
+**`unknown` is an abstention, not a wrong answer** - excluded from accuracy and reported as
+coverage, with coverage and accuracy never quoted apart. Two of the five stored verdicts are
+`unknown`.
+
+Reported separately and never averaged in: flagged verdicts, specialists that failed alone
+(**currently zero observations** across every stored trajectory), contradiction-checker firings
+(**two live firings, two false positives, zero true positives**), and budget exhaustion with the
+bound that bit named.
+
+Triage is scored on blast-radius recall against `alerts_over_window` with `began_after_revert`
+entries excluded; **recall and precision are reported as a pair and never combined**, because
+ADR-0017's directed-under-reach hypothesis rides on recall alone. `start_from` is reported as
+entry-point distance and is not scored as culprit accuracy.
+
+The judge decisions from ADR-0020 §1 govern unchanged, and ADR-0022 adds what it is asked:
+root-cause agreement at three levels, dead ends closed, and traps taken - **never the
+`fault_class` label**, which would be ADR-0008's fifth axis by construction.
+`docs/adr/0022-evaluation-harness.md`, `docs/adr/0008:121`, `docs/adr/0009:12`
 
 ---
 
