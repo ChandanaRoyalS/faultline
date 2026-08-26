@@ -1,0 +1,60 @@
+{
+  "incident_id": "f1a035ae-57d9-45ae-aed1-fb5540dedb88",
+  "trajectory_id": "448e5e26-5091-493e-868d-a610045491bd",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:productcatalog-dependency-latency",
+  "verdict": {
+    "root_cause": "At 15:17:32 UTC an automated actor (platform-automation) attached a traffic-shaping container to productcatalogservice's network namespace, applying a fixed 300ms egress delay with no jitter on eth0 where previously there was no shaping (tr_83b838a8a03c). Every call path that traverses productcatalogservice consequently pays a near-constant ~300ms penalty per hop, and callers wait rather than fail. This matches the only positive symptom anyone measured: recommendationservice's intra-request interval between two adjacent log lines on the same trace grew from ~1-2ms at 15:11 to ~300ms at 15:23-15:24, with no error, timeout, or downstream failure logged (tr_280def5f89e6). Error ratios are identically zero across the whole window at both frontend (tr_2920b63c56f2, tr_fd7f26d347d6) and productcatalogservice (tr_6e6c8fad1536, tr_7a1e277eb041), with continuous non-empty series confirming traffic kept flowing \u2014 so nothing is failing, things are only slow. No change of any kind was recorded on frontend (tr_15483f6e5c7a) or recommendationservice (tr_bba8cea8dd8d) in the queried window, leaving the shaping attachment as the sole recorded act in the blast radius. The failing mechanism is injected wait time in a dependency call path, not a wrong value being read by application code and not an artifact mismatch.",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_83b838a8a03c",
+      "tr_280def5f89e6",
+      "tr_2920b63c56f2",
+      "tr_fd7f26d347d6",
+      "tr_6e6c8fad1536",
+      "tr_7a1e277eb041",
+      "tr_15483f6e5c7a",
+      "tr_bba8cea8dd8d"
+    ],
+    "reasoning": "Three independent lines converge. (1) A change record places a fixed-300ms, zero-jitter egress delay on productcatalogservice at 15:17:32, and explicitly notes the prior state was no shaping (tr_83b838a8a03c). (2) The only measured degradation anywhere is a latency shift of the same magnitude \u2014 ~300ms \u2014 inside recommendationservice's request path, appearing in the late (15:23-15:24) samples and absent in the early (15:11) samples, with no accompanying error or named downstream failure (tr_280def5f89e6). A fixed shaping delay predicts exactly this: a flat latency floor with no error footprint. (3) Four separate error-ratio queries across two services return zero at every sample point with continuous coverage spanning 15:17:32 (tr_2920b63c56f2, tr_fd7f26d347d6, tr_6e6c8fad1536, tr_7a1e277eb041), which rules out the competing shapes \u2014 error propagation, retry amplification, circuit-breaker trips, crash-restart, degraded-mode fallback, and traffic collapse. That leaves slowness as the only mechanism consistent with a warning-severity page across 12 services with no errors. Classification: the failure is that callers wait on a dependency that became slow, so dependency_latency rather than bad_config \u2014 the shaping is an infrastructure setting, but the delay it inserts into the call path is the mechanism, not a value being misread. Remediation is detaching the traffic-shaping container and restoring the unshaped interface, i.e. reverting the 15:17:32 change; no artifact rollback is indicated because no deploy occurred, and no restart or scaling addresses an externally injected network delay. Confidence is held at medium rather than high because the causal link rests on a change record plus a log-derived timing inference: not one dispatch returned a latency quantile series, so the ~300ms step was never directly measured at any service.",
+    "open_questions": [
+      "No p50/p95 latency series was ever retrieved for any service (tr_7a1e277eb041, tr_fd7f26d347d6, tr_2920b63c56f2, tr_6e6c8fad1536 all note this) \u2014 the 300ms step is inferred from two log lines on the same trace, not measured. A duration histogram on productcatalogservice and frontend spanning 15:17:32 would confirm or break this.",
+      "The 15:00-15:11 interval was never queried on frontend or recommendationservice (tr_15483f6e5c7a, tr_bba8cea8dd8d), so a change landing before 15:11 whose effects surfaced later is unaddressed.",
+      "recommendationservice logs are truncated: roughly 15:11-15:23 is unobserved (tr_280def5f89e6), so the onset of the latency growth was not actually witnessed and cannot be pinned to 15:17:32 from the logs alone.",
+      "Why the alerts fired at 15:21:00 rather than nearer 15:17:32 \u2014 the ~3.5min gap is plausible for a rate window but was not verified against the alert rule.",
+      "Triage names 12 services and 4 unmeasured edges, but only frontend, productcatalogservice and recommendationservice were examined. checkoutservice and productcatalogservice alerted at 15:21:15/15:21:30 and no dispatch covered checkoutservice or the other seven services.",
+      "Whether the shaping attachment was intentional (a scheduled chaos or resilience experiment with an owner and a stop procedure) or an errant automation run \u2014 this changes whether reverting it is safe to do unilaterally.",
+      "Whether the ~300ms floor alone explains warning-severity impact across 12 services, or whether it is being amplified somewhere (fan-out, serial calls per request) that was not measured."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for ",
+    "product-catalog-flag-failure / Root cause: A feature flag was switched on at the flag service, and productcatalogservice honoured\nit by returning errors for one product. The failing service was working correctly; the\nconfiguration that made it fail lived somewhere else entirely, in a component with no\ntelemetry of any kin",
+    "product-catalog-flag-failure / What was checked: **productcatalogservice, which was the obvious place to look.** Unlike most incidents on\nthis system, the failing service was named in the alerting and was genuinely returning\nerrors from its own code. It was up, serving, and reporting a healthy call rate \u2014 the\nerrors were a frac"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

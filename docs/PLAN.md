@@ -778,6 +778,58 @@ Triage over seven: recall mean **0.94**, precision mean **0.56**, 19 unmeasured 
 `cart-dependency-latency` reproduced T3.5's disputed miss **exactly**, on an independent run: same
 two wrong labels, same reasoning shape. One observation was an anecdote; two is a pattern.
 
+### T4.6 — the holdout run *(run; the number this project exists to produce)*
+The three runnable holdout scenarios, once each, under ADR-0022 §3.3's protocol.
+**contract not written.**
+
+**Freeze first, as its own commit before any scenario ran** (`FREEZE-2026-08-26-holdout.json`),
+computed from outside the product because a freeze that asks the thing being frozen whether it
+has changed is not a check. Pipeline `prompts:53fafe9c12bc` - S2, the taxonomy-taught
+synthesizer. Verified after the run: five of six items byte-identical; the sixth,
+`tool_layer.git_sha`, moved by exactly one commit - the freeze commit itself - with no change to
+`src/faultline/`. That is a self-reference flaw in the manifest, **recorded not fixed**, because
+fixing anything mid-holdout is what the freeze forbids.
+
+**The corpus check that the whole quarantine was for**: `holdout_chunks: 0` over 35 rows and 7
+documents, every one dev. These three scenarios had never been run by any agent and no chunk of
+any of them has ever been retrievable.
+
+Results in `evals/runs/HOLDOUT-2026-08-26.md`, with the dev tables beside them clearly labelled
+dev.
+
+| | holdout | dev sweep 2 |
+|---|---|---|
+| fault class, of answered | **1/1** | 4/4 |
+| coverage | **1/3** | 4/7 |
+| class of fix, of answered | **0/1** | 3/4 |
+| triage recall / precision | **1.00** / 0.32 | 0.95 / 0.57 |
+| judge same_mechanism / different | 1 / 2 | 4 / 3 |
+| budget exhausted | 2 of 3 | 2 of 7 |
+
+n is **1 per class and 3 in total**; two of the five labels have no holdout scenario at all.
+Nothing here is a rate.
+
+**The strongest single result**: `dependency_latency` was answered correctly on **both** dev and
+holdout, by a pipeline whose instruction never named either scenario - and it rests on n=1 per
+side.
+
+**Coverage, not accuracy, is where holdout differs.** Everything the agent asserted was right; it
+asserted once. **On holdout the abstentions line up exactly with budget exhaustion** - both
+exhausted `changes tool calls: 4 of 4` - and **on dev they did not**. At n=3 this cannot separate
+"the taxonomy instruction causes abstention" from "the planner spends its changes budget and
+leaves the synthesizer nothing to classify from". That needs a run with a larger per-specialist
+bound and is not answered anywhere in this repository.
+
+`email-wrong-image` **took all three traps the judge identified** - the most of any run - on the
+scenario whose recorded narrative says the logs contain the answer. It spent its whole `changes`
+budget and never read them.
+
+Recorded, not fixed: the last scenario's **recovery check failed** (the documented CATALOG
+degradation). All three gates passed *before* injection, so every measurement was against a
+clean world; the world was repaired afterwards with the documented `docker restart`.
+`evals/runs/HOLDOUT-2026-08-26.md`, `evals/runs/FREEZE-2026-08-26-holdout.json`,
+`src/evalharness/freeze.py`
+
 ### T4.5 — teaching the taxonomy, measured *(built)*
 The experiment T4.3 deferred: **28 lines added to `SYNTHESIZER_SYSTEM`, nothing else in any
 prompt**, then the same seven dev scenarios re-run through the unchanged harness and re-judged

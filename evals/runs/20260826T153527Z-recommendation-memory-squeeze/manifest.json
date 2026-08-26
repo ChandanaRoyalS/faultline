@@ -1,0 +1,192 @@
+{
+  "run_id": "20260826T153527Z-recommendation-memory-squeeze",
+  "scenario_id": "recommendation-memory-squeeze",
+  "split": "holdout",
+  "scenario_fingerprint": "c176c703540bee9dff616233c1674771dcfa924d498c9fe0cddcac673735972b",
+  "started_at": "2026-08-26T15:35:27.975027+00:00",
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "1edfd04f2d19dc5971f70728c05f8bd5da7a9a88",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "email-service",
+      1724
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-26T15:35:28.348529+00:00",
+  "incident_id": "03468048-2674-40de-821d-0da4aaccf33d",
+  "investigate_exit_code": 2,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 2,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-26T15:43:50.536911+00:00",
+  "recovery": {
+    "passed": false,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {
+      "checkoutservice": 15000.0,
+      "frontend": 15000.0,
+      "loadgenerator": 15000.0
+    },
+    "silent_services": [
+      "accountingservice",
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [
+      "accountingservice"
+    ],
+    "services_reporting": 15,
+    "youngest_container": [
+      "kafka",
+      302
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": [
+      "p95 above 1000ms: checkoutservice at 15000ms, frontend at 15000ms, loadgenerator at 15000ms",
+      "serving no traffic: accountingservice (frontend-proxy at zero is the healthy state and is not counted)"
+    ]
+  },
+  "score": {
+    "run_id": "20260826T153527Z-recommendation-memory-squeeze",
+    "scenario_id": "recommendation-memory-squeeze",
+    "trajectory_id": "2431bf36-6c40-4ed8-8951-1da1892a1958",
+    "runtime_version": "faultline/0.0.1+prompts:53fafe9c12bc",
+    "reached_a_class": false,
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.42857142857142855,
+      "matched": [
+        "frontend",
+        "loadgenerator",
+        "recommendationservice"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "adservice",
+        "cartservice",
+        "checkoutservice",
+        "productcatalogservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 1,
+      "n_alerted": 3,
+      "n_predicted": 7
+    },
+    "fault_class": {
+      "truth": "resource_exhaustion",
+      "returned": "unknown",
+      "correct": false,
+      "abstained": true,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "none",
+      "correct": false,
+      "abstained": true,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": true,
+      "budget_exhausted_reason": "budget exhausted: changes tool calls: 4 of 4 used",
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 11901,
+    "tokens_out": 8565,
+    "cost_usd": 0.2736,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-26T15:50:55.552020+00:00",
+  "judge": {
+    "scenario_id": "recommendation-memory-squeeze",
+    "run_id": "20260826T153527Z-recommendation-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a specific mechanism: memory limit lowered below runtime startup requirements, causing process kills. The agent narrative explicitly declines to identify any mechanism, noting the container memory ceiling hypothesis as a tempting prior that was deliberately not adopted due to lack of measurements.",
+    "dead_ends_closed": [
+      "frontend deploy or rollout at onset",
+      "frontend flag flip",
+      "frontend config or environment change",
+      "adservice deploy in searched window",
+      "cartservice deploy in searched window",
+      "checkoutservice deploy in searched window",
+      "in-progress rollback as the disturbance"
+    ],
+    "dead_ends_missed": [
+      "memory ceiling hypothesis (explicitly held open)",
+      "restart counts (held open)",
+      "kill events (held open)",
+      "changes to three unqueried services",
+      "cluster or orchestration layer changes",
+      "unmeasured edge in call graph"
+    ],
+    "traps": [
+      {
+        "trap": "container memory ceiling lowered below footprint",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "frontend or adservice as the root cause (prior incident pattern)",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent narrative is methodologically sound: it identified the memory ceiling hypothesis as a dangerous prior and deliberately refused to adopt it without measurement. However, this refusal to conclude leaves the investigation incomplete relative to what the recorded narrative established through actual evidence gathering (runtime metrics, memory usage data, startup footprint analysis).",
+    "tokens_in": 4698,
+    "tokens_out": 385
+  }
+}
