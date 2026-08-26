@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from typing import Protocol
 
 from faultline.ingest.models import AlertEvent
-from faultline.orchestrator.models import Incident, IncidentState
+from faultline.orchestrator.models import Incident, IncidentState, JoinRule
 
 
 class CorrelationPolicy(Protocol):
@@ -23,6 +23,17 @@ class CorrelationPolicy(Protocol):
 
     def match(self, event: AlertEvent, candidates: list[Incident]) -> Incident | None:
         """The incident to join, or `None` to open a new one."""
+
+    @property
+    def last_rule(self) -> JoinRule:
+        """Which rule decided the most recent `match`. **Read immediately after it.**
+
+        ADR-0017 requires every correlation decision record the rule that made it, and
+        deferred persisting it to T4.1. Returning it alongside the incident would change the
+        signature every caller and test uses; exposing it as the policy's last answer keeps
+        the seam where it was. The orchestrator reads it in the same statement, so there is no
+        window in which it can go stale.
+        """
 
 
 class TimeOverlapPolicy:
@@ -53,17 +64,25 @@ class TimeOverlapPolicy:
 
     def __init__(self, settle_window: timedelta) -> None:
         self._settle = settle_window
+        self._last_rule = JoinRule.NO_CANDIDATE
+
+    @property
+    def last_rule(self) -> JoinRule:
+        return self._last_rule
 
     def match(self, event: AlertEvent, candidates: list[Incident]) -> Incident | None:
         live = [c for c in candidates if not c.is_terminal]
         if live:
             # Most recently active, so a long-quiet incident does not swallow an episode a
             # newer one has a better claim to.
+            self._last_rule = JoinRule.TIME_OVERLAP
             return max(live, key=lambda c: c.last_activity_at or datetime.min)
 
         recently_closed = [c for c in candidates if self._inside_settle_window(c, event)]
         if recently_closed:
+            self._last_rule = JoinRule.TIME_OVERLAP_SETTLE
             return max(recently_closed, key=lambda c: c.resolved_at or datetime.min)
+        self._last_rule = JoinRule.NO_CANDIDATE
         return None
 
     def _inside_settle_window(self, incident: Incident, event: AlertEvent) -> bool:

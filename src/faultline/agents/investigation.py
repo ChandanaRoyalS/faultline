@@ -30,6 +30,7 @@ from faultline.agents.roles import (
     Synthesizer,
     default_window,
 )
+from faultline.agents.stamp import runtime_version
 from faultline.agents.trajectory import (
     RetrievalRecord,
     StepKind,
@@ -146,7 +147,7 @@ class Investigation:
             effort=self._effort,
             started_at=datetime.now(UTC),
             role_models=dict(self._role_models),
-            runtime_version="t3.3",
+            runtime_version=runtime_version(),
         )
         state = BudgetState(self._budget)
         result = InvestigationResult(trajectory=trajectory)

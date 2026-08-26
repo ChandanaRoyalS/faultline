@@ -32,7 +32,13 @@ from faultline.orchestrator.consumer import (
 from faultline.orchestrator.core import Orchestrator
 from faultline.orchestrator.correlation import TimeOverlapPolicy
 from faultline.orchestrator.machine import TransitionError, transition
-from faultline.orchestrator.models import Episode, Incident, IncidentState, Severity
+from faultline.orchestrator.models import (
+    Episode,
+    Incident,
+    IncidentState,
+    JoinRule,
+    Severity,
+)
 from faultline.orchestrator.settings import OrchestratorSettings
 from faultline.orchestrator.store import InMemoryIncidentStore
 
@@ -299,6 +305,9 @@ def test_a_resolved_for_an_episode_no_incident_holds_is_ignored() -> None:
 
 class _AlwaysNew:
     """A correlation policy that never joins. The shape T2.4's will have when it declines."""
+
+    last_rule = JoinRule.NO_CANDIDATE
+    """Every decline opens an incident, and T4.1 records that as a decision like any other."""
 
     def match(self, event: AlertEvent, candidates: list[Incident]) -> Incident | None:
         return None

@@ -1,0 +1,225 @@
+"""The deterministic scorer, pinned against the five stored verdicts (T4.1, ADR-0022).
+
+**The fixtures are real.** Every verdict below was produced by a live investigation and is
+recorded in `docs/evidence/`; every expected score is hand-derivable from the bundle beside it.
+A scorer tested only against invented inputs is a scorer nobody has checked against the thing it
+will actually be pointed at.
+"""
+
+from __future__ import annotations
+
+import json
+from pathlib import Path
+
+import pytest
+
+from evalharness.scoring import (
+    CLASS_DISPUTES,
+    Categories,
+    ScoredRun,
+    dispute_for,
+    score_label,
+    score_triage,
+)
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+
+def bundle(scenario_id: str, split: str = "dev") -> dict:
+    path = REPO_ROOT / "evals/scenarios/artifacts" / split / scenario_id / "manifest.json"
+    return json.loads(path.read_text())
+
+
+# --- the stored verdicts, as fixtures ------------------------------------------
+#
+# scenario, trajectory, fault_class, remediation_class, evidence README.
+STORED = [
+    ("shipping-wrong-image", "4e42184d", "unknown", "none", "t3.4-first-investigation"),
+    ("shipping-wrong-image", "e7739dec", "bad_deploy", "rollback", "t3.4-first-investigation"),
+    ("shipping-wrong-image", "6b9715de", "unknown", "none", "t3.4b-rerun"),
+    ("shipping-wrong-image", "f7afdb76", "bad_deploy", "rollback", "t3.4c-rerun"),
+    ("cart-dependency-latency", "68ac9a67", "bad_config", "config_revert", "t3.5-runner-smoke"),
+]
+
+
+@pytest.mark.parametrize(("scenario", "trajectory", "fault", "fix", "_evidence"), STORED)
+def test_every_stored_verdict_scores_the_way_it_reads(
+    scenario: str, trajectory: str, fault: str, fix: str, _evidence: str
+) -> None:
+    """Hand-derived: two shipping runs are right, two abstained, and the cart run is the
+    disputed miss ADR-0022 §1.2 resolved."""
+    truth = bundle(scenario)
+    fault_score = score_label(scenario, truth["fault_class"], fault)
+    fix_score = score_label(scenario, truth["expected_remediation_class"], fix)
+
+    if fault == "unknown":
+        assert fault_score.abstained and fix_score.abstained
+        assert not fault_score.counts_toward_accuracy, "an abstention leaves the ratio entirely"
+        assert not fault_score.correct
+    elif scenario == "shipping-wrong-image":
+        assert fault_score.correct and fix_score.correct
+    else:
+        assert not fault_score.correct and not fix_score.correct
+        assert fault_score.dispute is not None, "the boundary ADR-0022 named"
+
+
+def test_the_five_stored_verdicts_give_two_correct_two_abstentions_and_one_disputed_miss() -> None:
+    """The whole set at once, because the shape is what a rate would be computed from - and it
+    is a shape nobody should compute a rate from: four of the five are one scenario."""
+    scores = [
+        score_label(scenario, bundle(scenario)["fault_class"], fault)
+        for scenario, _t, fault, _f, _e in STORED
+    ]
+    assert sum(s.correct for s in scores) == 2
+    assert sum(s.abstained for s in scores) == 2
+    assert sum(s.dispute is not None for s in scores) == 1
+    assert sum(s.counts_toward_accuracy for s in scores) == 3, "abstentions are out of the ratio"
+
+    scenarios = {scenario for scenario, *_ in STORED}
+    assert len(scenarios) == 2, "five verdicts over two scenarios - not a benchmark yet"
+
+
+def test_an_abstention_is_not_counted_as_wrong() -> None:
+    """The position ADR-0022 §1.2 takes, at its sharpest: `unknown` and a confident wrong
+    answer must not be the same number."""
+    abstained = score_label("shipping-wrong-image", "bad_deploy", "unknown")
+    wrong = score_label("shipping-wrong-image", "bad_deploy", "bad_config")
+
+    assert abstained.abstained and not abstained.correct
+    assert not wrong.abstained and not wrong.correct
+    assert abstained.counts_toward_accuracy is False
+    assert wrong.counts_toward_accuracy is True
+
+
+def test_none_is_read_as_abstention_for_the_class_of_fix() -> None:
+    """`remediation_class: none` is what the synthesizer pairs with `fault_class: unknown`."""
+    assert score_label("x", "rollback", "none").abstained
+    assert score_label("x", "rollback", None).abstained
+
+
+# --- the dispute register ------------------------------------------------------
+
+
+def test_the_dispute_register_is_enumerated_not_inferred() -> None:
+    """A scorer that decided for itself which misses were nearly right would be grading on
+    sympathy. Every entry names the ADR section that resolved it."""
+    assert CLASS_DISPUTES
+    for entry in CLASS_DISPUTES:
+        assert entry.resolved_by.startswith("ADR-")
+        assert entry.why
+
+
+def test_the_disputed_miss_is_still_a_miss() -> None:
+    """ADR-0022 resolved the boundary against the agent's reading. Naming it is not excusing
+    it - it is counted wrong and reported under its own line."""
+    score = score_label("cart-dependency-latency", "dependency_latency", "bad_config")
+    assert not score.correct
+    assert score.counts_toward_accuracy
+    assert score.dispute is not None
+
+
+def test_a_dispute_only_applies_to_the_pair_it_was_written_for() -> None:
+    """The register is keyed on (scenario, truth, returned). The same wrong class on a
+    different scenario is an ordinary miss."""
+    assert dispute_for("cart-dependency-latency", "dependency_latency", "bad_config") is not None
+    assert dispute_for("shipping-wrong-image", "bad_deploy", "bad_config") is None
+    assert dispute_for("cart-dependency-latency", "dependency_latency", "unknown") is None
+
+
+# --- triage --------------------------------------------------------------------
+
+
+def test_recovery_phase_alerts_are_excluded_from_both_sides() -> None:
+    """ADR-0009: "the blast radius blames the fault for damage the fix did". `frontend` in
+    `shipping-wrong-image` began after the revert and is not part of the answer."""
+    truth = bundle("shipping-wrong-image")
+    after = {a["service"] for a in truth["alerts_over_window"] if a.get("began_after_revert")}
+    assert after == {"frontend"}, "the bundle this test is written against"
+
+    score = score_triage({"checkoutservice"}, truth["alerts_over_window"], unmeasured_edges=5)
+
+    assert "frontend" not in score.alerted
+    assert "frontend" in score.excluded_after_revert
+    assert "frontend" not in score.missed, "not a recall miss - it was not the fault's damage"
+
+
+def test_recall_and_precision_are_both_reported_and_neither_is_combined() -> None:
+    """The T3.5 shape: twelve predicted, four alerted, all four matched. Perfect recall and
+    a precision of a third - two facts an F-score would blur into one."""
+    truth = bundle("cart-dependency-latency")
+    predicted = {
+        "cartservice",
+        "checkoutservice",
+        "frontend",
+        "loadgenerator",
+        "adservice",
+        "currencyservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice",
+        "emailservice",
+        "shippingservice",
+        "quoteservice",
+    }
+    score = score_triage(predicted, truth["alerts_over_window"], unmeasured_edges=4)
+
+    assert score.recall == 1.0
+    assert score.precision == pytest.approx(4 / 12)
+    assert score.missed == frozenset()
+    assert len(score.extra) == 8
+    assert score.unmeasured_edges == 4
+    assert not hasattr(score, "f1"), "there is deliberately no combined figure"
+
+
+def test_a_miss_is_reported_as_the_number_adr_0017_asked_for() -> None:
+    """ "A directed 2-hop traversal that under-reaches shows up there as a recall miss on
+    services that alerted and were not predicted." That is this field."""
+    truth = bundle("cart-dependency-latency")
+    score = score_triage({"cartservice"}, truth["alerts_over_window"], unmeasured_edges=0)
+
+    assert score.missed == frozenset({"checkoutservice", "frontend", "loadgenerator"})
+    assert score.recall == pytest.approx(0.25)
+
+
+def test_an_empty_prediction_gives_no_precision_rather_than_zero() -> None:
+    """0/0 is not 0. A run that predicted nothing has no precision to report, and printing
+    0.00 would assert something the data does not support."""
+    truth = bundle("cart-dependency-latency")
+    score = score_triage(set(), truth["alerts_over_window"], unmeasured_edges=0)
+    assert score.precision is None
+    assert score.recall == 0.0
+
+
+# --- the categories held out ---------------------------------------------------
+
+
+def test_zero_observation_categories_are_printed_at_zero() -> None:
+    """ADR-0022 §2: "a rate that only appears once it is non-zero is a rate nobody
+    calibrated". `failed_alone` has had zero observations across every stored trajectory."""
+    report = ScoredRun("r", "s", "t", categories=Categories()).report()
+    assert "specialists failed alone 0" in report
+    assert "flagged verdicts        0" in report
+    assert "contradiction firings   0" in report
+    assert "budget exhausted        no" in report
+
+
+def test_the_contradiction_ledger_is_printed_beside_any_firing() -> None:
+    """Its live precision is 0/2. A flag reported without that history reads as evidence
+    about an agent, which it is not yet."""
+    categories = Categories(contradictions=("contradiction: metrics was not queried",))
+    report = ScoredRun("r", "s", "t", categories=categories).report()
+    assert "0 true positives, 2 false positives" in report
+
+
+def test_budget_exhaustion_names_the_bound_that_bit() -> None:
+    """ "metrics tool calls: 2 of 2 used" - which bound is the actionable part, and a boolean
+    discards it. Taken from trajectory 4e42184d."""
+    categories = Categories(
+        budget_exhausted_reason="budget exhausted: metrics tool calls: 2 of 2 used"
+    )
+    assert "2 of 2 used" in ScoredRun("r", "s", "t", categories=categories).report()
+
+
+def test_the_report_says_n_equals_one() -> None:
+    """CLAUDE.md rule 6 travels with the number, not with the reader's memory."""
+    assert "n=1" in ScoredRun("r", "s", "t").report()

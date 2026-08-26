@@ -1,0 +1,56 @@
+$ faultline-eval cart-redis-misconfig
+run 20260826T043356Z-cart-redis-misconfig
+baseline gate...
+  clean: 15 services reporting, 0 alerts
+  silent (expected): ['frontend-proxy']   youngest container: ['cart-service', 367]
+  active injections: no active injections   open incidents: []
+injecting cart-redis-misconfig...
+injected cart-redis-misconfig (bad_config) on cartservice
+  - compose: cartservice recreated with REDIS_ADDR=redis-cart:6380
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/cart-redis-misconfig.yml
+revert with: faultline-inject stop cart-redis-misconfig
+waiting for the orchestrator to correlate...
+  incident cae7e558-dc95-413f-b7ee-f0ae88173022
+investigating...
+incident cae7e558-dc95-413f-b7ee-f0ae88173022  state triaging  anchor 04:36:30
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 07991318-2c68-4333-bf99-a42e6d839e50
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+  [full investigation transcript: investigate.txt in the run directory]
+reverting...
+reverted cart-redis-misconfig
+  - compose: cartservice recreated from the base world definition
+  - removed override /Users/chandana/dev/faultline/.faultline/overrides/cart-redis-misconfig.yml
+confirming recovery...
+
+run 20260826T043356Z-cart-redis-misconfig   scenario cart-redis-misconfig
+trajectory 07991318-2c68-4333-bf99-a42e6d839e50   runtime faultline/0.0.1+prompts:69aa6c670318
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.78  (7/9 alerted services predicted)
+  precision 0.58  (7/12 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): frauddetectionservice, quoteservice
+  extra  (predicted, not alerted): adservice, emailservice, paymentservice, productcatalogservice, recommendationservice
+  unmeasured edges crossed: 4 - membership reached through one is not evidence at the same strength
+  excluded as recovery-phase (began_after_revert): emailservice
+
+VERDICT
+  fault class unknown vs bad_config - ABSTAINED (excluded from accuracy; counted in coverage)
+  fix class   none vs config_revert - ABSTAINED (excluded from accuracy; counted in coverage)
+  coverage: abstained
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0
+  budget exhausted        no
+
+COST  in 26502 / out 12243 tokens   $0.4386
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+exit=0

@@ -12,6 +12,41 @@ from datetime import datetime
 from enum import StrEnum
 
 
+class JoinRule(StrEnum):
+    """Which rule decided a correlation, as ADR-0017 requires it be recorded.
+
+    Lives here rather than beside `DependencyPolicy` because both the graph policy and the
+    deployed time-overlap one have to name their rule, and `faultline.context` already imports
+    this module. `faultline.context.policy` re-exports it, so nothing that used it moved.
+    """
+
+    GRAPH = "graph"
+    """The graph answered - joined within the radius, or declined outside it."""
+
+    NO_GRAPH_PRESENCE = "no_graph_presence"
+    """The alerting service is not usable for graph reasoning, so time overlap decided."""
+
+    NO_JUDGEABLE_CANDIDATE = "no_judgeable_candidate"
+    """No open incident holds a service the graph knows, so there was nothing to measure
+    against and time overlap decided."""
+
+    TIME_OVERLAP = "time_overlap"
+    """No graph was consulted at all: the deployed policy is `TimeOverlapPolicy`.
+
+    **This is the value ADR-0017's exposure is about.** It asked "how often did the graph
+    actually decide, and how often did this quietly become time overlap again", and a
+    deployment running the time-overlap policy answers *always* - which nobody looking at the
+    database could see until this rule was written down beside the others (T4.1)."""
+
+    TIME_OVERLAP_SETTLE = "time_overlap_settle_window"
+    """Joined a resolved incident inside its settle window. A different claim from
+    `time_overlap`: it says the incident had already closed and this rejoined it."""
+
+    NO_CANDIDATE = "no_candidate"
+    """Nothing to join, so an incident was opened. Recorded rather than left blank, because a
+    blank is indistinguishable from a column nobody wrote to."""
+
+
 class IncidentState(StrEnum):
     """The eleven states `docs/ARCHITECTURE.md` commits to, as ADR-0016 names them.
 
@@ -104,6 +139,19 @@ class Episode:
     attached_at: datetime
     ends_at: datetime | None = None
     resolved_at: datetime | None = None
+
+    join_rule: JoinRule | None = None
+    """Which correlation rule attached this episode (T4.1, closing ADR-0017's deferral).
+
+    Per episode, not per incident. ADR-0017 wrote "`incidents` has no column for it", and the
+    column it was reaching for turns out to belong one table over: a join is a decision about
+    an *episode*, and an incident accumulates several taken by possibly different rules. The
+    first episode of an incident carries `no_candidate`, which is a decision too.
+
+    The question this answers is ADR-0017's own: "how often did the graph actually decide, and
+    how often did this quietly become time overlap again". Today every row will say
+    `time_overlap` - the deployed policy is `TimeOverlapPolicy` - and that being visible is
+    the entire point."""
 
     @property
     def is_resolved(self) -> bool:

@@ -556,7 +556,7 @@ incidents in the corpus for why.
 > stay here because a note is where the evidence was first recorded and the ADR is where the
 > position was taken; the two are not the same document.
 
-### T4.1 — harness runner *(designed, ADR-0022)*
+### T4.1 — harness runner *(built)*
 Drives runs from the scenario catalog: **what to inject, how long to wait, how long
 between runs**, reading `injection`, `seconds_to_alert`, `seconds_of_steady_state` and
 `seconds_to_settle` from bundle manifests. Specified to work **through public interfaces
@@ -566,18 +566,61 @@ ADR-0022 §3 adds three things this entry did not list. A **baseline gate that r
 than warns** - the T1.5 recorder's gate is the model, the agent path has none, and T3.4, T3.4b,
 T3.4c and T3.5 all performed the same check by hand. A **world lock**, because one driver of the
 world has been an instruction to a human since T3.3. And the **`DecisionLog` schema change
-ADR-0017 deferred to "whoever builds that reporting"** - a join-rule column on `incidents`, whose
-consumer is exactly T4.1's question of how often the graph actually decided.
-
-Two pre-existing defects block a first clean run and belong here: `runtime_version` on every
-trajectory says `t3.3`, including T3.5's, and zero-step trajectory rows exist from before T3.5's
-guard (`f7261a74`).
+ADR-0017 deferred to "whoever builds that reporting"** - **landed**, as `join_rule` on
+`incident_episodes` rather than on `incidents`: a join is a decision about an episode, and an
+incident accumulates several. Every deployed join now records `time_overlap`, which is ADR-0017's
+exposure made visible - the graph policy is not the one running.
 
 **Only ten of the twelve bundles are runnable.** `currency-cpu-throttle` and
 `flag-service-crashloop` carry an `INVALID.md` and an empty `alerts_over_window`; neither can
-produce an incident, so neither can be investigated. Seven dev plus three holdout.
-`docs/adr/0022-evaluation-harness.md`, `docs/adr/0009:203`, `docs/adr/0009:35`,
-`docs/adr/0009:229`, `docs/adr/0008:45`
+produce an incident, so neither can be investigated. Seven dev plus three holdout, and the
+command refuses the other two by name.
+
+`faultline-eval <scenario>` runs the whole protocol as one command: baseline gate, inject,
+wait for the orchestrator to correlate, invoke `faultline-investigate` **as a subprocess**, revert,
+confirm recovery, score. The CLI is invoked rather than imported because ADR-0009 specifies the
+harness works through public interfaces only, and the exit code being relied on has to be the one
+being exercised.
+
+**The gate refuses rather than warns**, and encodes both of ADR-0022's known-good facts:
+`frontend-proxy` at 0.000 req/s is the healthy state (181 baseline samples of 0.0), and the
+five-minute post-restart p95 hazard is the recorder's own `require_settled_containers`, reused
+rather than restated. **The world lock does not wait** - waiting is how two harness processes
+interleave injections with nothing in either log to show it.
+
+**A run that dies is a recorded discard, never a deletion**: the run directory is created before
+the gate is read, and whatever happens next is written into it. Applied to every run rather than
+only to holdout, because the rule costs nothing to extend.
+
+Scoring is deterministic only - no judge, which is T4.2. Triage recall **and** precision as a
+pair with the unmeasured-edge count quoted; `unknown` treated as abstention and reported as
+coverage; the `class_dispute` register for the boundary ADR-0022 resolved; and the four held-out
+categories printed even at zero.
+
+Two defects from the design review are fixed. **`runtime_version` is now derived**
+(`faultline.agents.stamp`) from the package version plus a digest over every role system prompt
+and every contract schema - the two things that determine what a run *is* - so it cannot say
+`t3.3` three tasks later. No git and no subprocess: ADR-0004 keeps benchmark infrastructure out
+of the product, and the harness records the git sha separately where that already belongs. And
+**a zero-step trajectory is an explicit recorded discard** naming `f7261a74` as the row that
+prompted it.
+
+The first scored run (`docs/evidence/t4.1-first-scored-run/`) produced **ADR-0017's number, and
+it is not zero**: blast-radius recall 0.78 on `cart-redis-misconfig`, missing
+`frauddetectionservice` and `quoteservice`, with precision 0.58 reported beside it and not
+combined. One observation on one scenario settles nothing; what changed is that the hypothesis
+ADR-0017 could only state is now a measurement every run produces. The verdict **abstained**, and
+the run is the first demonstration that the scorer treats that as coverage rather than error -
+for two reasons it names: a Jaeger 500, and **the comma-list dispatch defect recurring**, whose
+fix is T3.4c sitting unmerged in PR #28.
+
+**Open gap, found by breaking it.** The discard rule holds for every failure the process can
+observe. A `SIGKILL` runs no `except` and no `finally`, so an externally killed run leaves a
+directory with no `manifest.json` and no `DISCARDED.md`. Any aggregation over `evals/runs/` must
+treat a directory without a manifest as an incomplete run.
+`src/evalharness/run.py`, `src/evalharness/gate.py`, `src/evalharness/scoring.py`,
+`src/faultline/agents/stamp.py`, `src/faultline/orchestrator/models.py`,
+`docs/adr/0022-evaluation-harness.md`, `docs/evidence/t4.1-first-scored-run/README.md`
 
 ### T4.1b — run-time self-exclusion *(designed, ADR-0022 §4)*
 ADR-0008 axis 2. A scenario's own artifacts are never retrievable while it is scored;
