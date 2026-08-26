@@ -174,3 +174,77 @@ means what quiet meant. World clean at 04:48:07Z: no active injections, incident
 resolved with its investigation id intact. Ingest and orchestrator stopped.
 
 `make check`: 354 passed, 1 skipped.
+
+---
+
+# The second run — attempted, discarded, and what that showed
+
+The first scored run above **stands exactly as recorded**, degradation and all. This section is
+added beside it, not over it.
+
+After PR #27 (T3.4b) merged to `main` and T3.4c was cherry-picked onto this branch, the pipeline
+finally held both fixes the first run was missing. A second run of the same scenario was started
+to measure the difference.
+
+**It did not produce a scored report.** The investigation failed on its first model call:
+
+    FAILED MID-INVESTIGATION: did not start - BadRequestError: Error code: 400 -
+    'Your credit balance is too low to access the Anthropic API.'
+
+Run id `20260826T045545Z-cart-redis-misconfig`, kept in `evals/runs/` with its `DISCARDED.md`.
+`second-attempt-manifest.json` here is its manifest.
+
+## What the harness did with it, which is the point worth keeping
+
+| step | |
+|---|---|
+| baseline gate | **passed** — 15 services reporting, 0 alerts |
+| injected | 04:55:45Z |
+| incident | `82dc019b-ee6f-4138-b8e0-c3ed33dfc669`, 2 episodes |
+| investigate | exit **4**, no verdict artifact |
+| reverted | 05:00:18Z — from the `finally`, so the revert ran despite the failure |
+| recovery | **confirmed** |
+| discarded | recorded, with the reason, in `DISCARDED.md` |
+
+Three behaviours built earlier in this task and in T3.5 were exercised by an external failure
+nobody arranged:
+
+1. **The failed-start rule held.** The CLI reported `did not start`, no trajectory was
+   persisted, and the incident stayed in `triaging` rather than moving to the terminal `FAILED`.
+   That distinction was added at T3.5 after a `ModuleNotFoundError` permanently retired a live
+   incident; this is the first time it has protected one in the wild. Incident `82dc019b`
+   resolved normally when its alerts cleared.
+2. **The revert ran anyway**, because it is in a `finally`. The world was clean at 05:06:19Z:
+   no active injections, no firing alerts, no open incidents.
+3. **The run was recorded, not deleted.** `evals/runs/` now holds three directories for this
+   scenario — one scored, two discarded, each saying why. That is the honest count.
+
+It also exercised the exit-code contract end to end: `faultline-investigate` returned **4** (no
+verdict, trajectory persisted up to the failure), and `faultline-eval` turned that into its own
+**4** (run discarded) rather than a zero that would have entered an aggregate.
+
+## What changed between the two runs, measured without a second run
+
+The one comparison that does not need a model call is the stamp, and it is exactly what the
+stamp is for:
+
+| | run 1 (`20260826T043356Z`) | run 2 (`20260826T045545Z`) |
+|---|---|---|
+| `runtime_version` | `faultline/0.0.1+prompts:69aa6c670318` | `faultline/0.0.1+prompts:59bf438b2a96` |
+
+**The digest moved because the code the model is held to moved.** T3.4c changed the `Dispatch`
+contract — `service` is now validated against the service catalog, and the class's own
+documentation of that rule becomes the `description` in `model_json_schema()`. A literal version
+string would have said the same thing for both runs; this one says they are not the same
+experiment, which is the whole reason it was derived rather than typed.
+
+**No scored comparison is available yet, and none is claimed.** What the first run's two causes
+of abstention would look like under the complete pipeline is unmeasured:
+
+- the **comma-list dispatch defect** is now refused at plan-parse time with a bounded re-ask
+  (T3.4c, pinned by seven tests in `tests/test_roles.py`), so the specific failure the first run
+  hit cannot recur in the same form;
+- the **Jaeger 500** was infrastructure and nothing in this branch addresses it.
+
+Whether that changes the verdict from `unknown` to a class is the question the re-run exists to
+answer, and it stays open until the API account has credit.

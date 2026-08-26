@@ -662,6 +662,15 @@ fix is T3.4c sitting unmerged in PR #28.
 observe. A `SIGKILL` runs no `except` and no `finally`, so an externally killed run leaves a
 directory with no `manifest.json` and no `DISCARDED.md`. Any aggregation over `evals/runs/` must
 treat a directory without a manifest as an incomplete run.
+
+A **second run** was attempted once T3.4b and T3.4c were both in the pipeline, and was discarded:
+the API account ran out of credit on the investigation's first model call. It produced no score
+and none is claimed - but it exercised three rules under a failure nobody arranged. The
+failed-start distinction held (no trajectory, incident left `triaging` rather than terminal
+`FAILED`, resolved normally afterwards); the revert ran from its `finally` and the world came
+back clean; and the run was recorded rather than deleted. The one comparison available without a
+model call is the stamp, which moved - `prompts:69aa6c670318` to `prompts:59bf438b2a96`, because
+T3.4c changed the `Dispatch` contract - and that is exactly what a derived stamp is for.
 `src/evalharness/run.py`, `src/evalharness/gate.py`, `src/evalharness/scoring.py`,
 `src/faultline/agents/stamp.py`, `src/faultline/orchestrator/models.py`,
 `docs/adr/0022-evaluation-harness.md`, `docs/evidence/t4.1-first-scored-run/README.md`
