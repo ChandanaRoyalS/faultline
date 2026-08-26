@@ -7,6 +7,7 @@ budget rather than the model's judgement.
 from __future__ import annotations
 
 import json
+import re
 from datetime import UTC, datetime
 from typing import Any
 
@@ -17,7 +18,7 @@ from faultline.agents.budget import Budget, BudgetState
 from faultline.agents.contracts import DispatchPlan, SpecialistFindings
 from faultline.agents.investigation import Investigation
 from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
-from faultline.agents.roles import Planner, build_specialists
+from faultline.agents.roles import Planner, Scribe, Synthesizer, build_specialists
 from faultline.agents.trajectory import InMemoryTrajectoryStore, StepKind
 from faultline.agents.triage import Triage
 from faultline.context.catalog import ServiceCatalog
@@ -378,3 +379,257 @@ def test_a_truncated_reply_is_re_asked_as_truncation_rather_than_as_malformed_js
     assert completion.attempts == 2
     nudge = model.calls[-1].messages[-1]["content"]
     assert "cut off at the token limit" in nudge and "shorter" in nudge
+
+
+# --- synthesizer and scribe ---------------------------------------------------
+
+
+VERDICT_REPLY = json.dumps(
+    {
+        "root_cause": "the cart service could not reach its datastore",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "confidence": "high",
+        "evidence": ["RID"],
+        "reasoning": "the change record and the crash loop agree",
+        "open_questions": ["whether the port was ever correct"],
+    }
+)
+
+
+def draft_reply(citations: list[str]) -> str:
+    return json.dumps(
+        {
+            "title": "Cart lookups failing at checkout",
+            "sections": [
+                {
+                    "heading": "What was observed",
+                    "body": "Checkout began failing at T+0. The storefront still rendered.",
+                    "citations": citations,
+                }
+            ],
+        }
+    )
+
+
+def full_engine(model: LanguageModel, budget: Budget, corpus: Any = None) -> tuple[Any, Any]:
+
+    tools = Tools(ToolSettings(), changes=InMemoryChangeLog())
+    store = InMemoryTrajectoryStore()
+    engine = Investigation(
+        planner=Planner(model),
+        specialists=build_specialists(tools, model),
+        store=store,
+        model=model,
+        budget=budget,
+        synthesizer=Synthesizer(model),
+        scribe=Scribe(model),
+        corpus=corpus,
+    )
+    return engine, store
+
+
+class FakeCorpus:
+    """Records what it was asked, so the exclusion can be asserted on the call, not the result."""
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, int, str | None]] = []
+
+    def search(self, query: str, k: int = 5, exclude_origin: str | None = None) -> list[Any]:
+        self.calls.append((query, k, exclude_origin))
+        return []
+
+
+ONE_DISPATCH = plan_reply(
+    [{"specialist": "changes", "service": "cartservice", "question": "q", "reason": "r"}],
+    [{"specialist": "logs", "reason": "later"}],
+)
+
+
+def test_every_retrieval_row_carries_exclude_origin(monkeypatch: pytest.MonkeyPatch) -> None:
+    """**ADR-0008's axis 2, at the point it is first consumed live.** The harness sets the
+    scenario under test and the row records it, which is where T4.1b reads the assertion."""
+    monkeypatch.setenv("FAULTLINE_EVAL_SCENARIO", "cart-redis-misconfig")
+    corpus = FakeCorpus()
+    model = ScriptedModel(
+        {"planner": [ONE_DISPATCH], "synthesizer": [VERDICT_REPLY], "scribe": [draft_reply([])]}
+    )
+    engine, store = full_engine(model, Budget(max_dispatch_rounds=1), corpus)
+
+    result = engine.run("incident-7", triage_of("cartservice"), ANCHOR)
+
+    assert result.exclude_origin == "scenario:cart-redis-misconfig"
+    assert corpus.calls and corpus.calls[0][2] == "scenario:cart-redis-misconfig"
+    rows = [s.retrieval for s in store.trajectories[result.trajectory.id].steps if s.retrieval]
+    assert len(rows) == 1
+    assert rows[0].exclude_origin == "scenario:cart-redis-misconfig"
+
+
+def test_production_retrieval_carries_no_exclusion_and_that_is_distinct(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A live incident has no origin to exclude. `None` has to be distinguishable from a scored
+    run that forgot one."""
+    monkeypatch.delenv("FAULTLINE_EVAL_SCENARIO", raising=False)
+    corpus = FakeCorpus()
+    model = ScriptedModel(
+        {"planner": [ONE_DISPATCH], "synthesizer": [VERDICT_REPLY], "scribe": [draft_reply([])]}
+    )
+    engine, _ = full_engine(model, Budget(max_dispatch_rounds=1), corpus)
+
+    result = engine.run("incident-8", triage_of("cartservice"), ANCHOR)
+
+    assert result.exclude_origin is None
+    assert corpus.calls[0][2] is None
+
+
+def test_a_flagged_investigation_produces_a_flagged_verdict_not_silence() -> None:
+    """ADR-0020 §5. The synthesizer is told what is incomplete and must account for it; the
+    flags travel on the trajectory so T4.2 can report those runs separately."""
+    model = ScriptedModel(
+        {
+            "planner": [
+                plan_reply(
+                    [
+                        {
+                            "specialist": "changes",
+                            "service": "cartservice",
+                            "question": "q",
+                            "reason": "r",
+                        },
+                        {
+                            "specialist": "metrics",
+                            "service": "cartservice",
+                            "question": "q",
+                            "reason": "r",
+                        },
+                    ],
+                    [{"specialist": "logs", "reason": "no"}],
+                )
+            ],
+            "synthesizer": [VERDICT_REPLY],
+            "scribe": [draft_reply([])],
+        }
+    )
+    engine, store = full_engine(model, Budget(max_tokens=200, max_dispatch_rounds=1))
+
+    result = engine.run("incident-9", triage_of("cartservice"), ANCHOR)
+
+    assert result.budget_exhausted
+    assert result.verdict is not None, "a flagged investigation still produces a verdict"
+    assert result.flags and "budget exhausted" in result.flags[0]
+    verdict_steps = [
+        s for s in store.trajectories[result.trajectory.id].steps if s.payload.get("flags")
+    ]
+    assert verdict_steps and verdict_steps[0].payload["flags"] == result.flags
+
+
+def test_the_scribe_cannot_quote_a_result_id_the_store_does_not_hold() -> None:
+    """**This is where thesis 1 is cut.** A citation nobody can resolve is what a fabricated one
+    looks like, so it is refused rather than dropped - dropping it would turn an invented
+    reference into unsupported prose."""
+    from faultline.agents.contracts import NarrativeDraft
+    from faultline.agents.narrative import UnknownCitationError, render
+
+    draft = NarrativeDraft.model_validate(json.loads(draft_reply(["tr_never_stored"])))
+
+    with pytest.raises(UnknownCitationError, match="not in the trajectory store"):
+        render(draft, InMemoryTrajectoryStore())
+
+
+def test_a_quote_comes_from_the_stored_envelope_not_from_the_drafts_text() -> None:
+    """The scribe emits references; the renderer resolves them. Free-form pass-through from tool
+    output to corpus material has nowhere to happen."""
+    from faultline.agents.contracts import NarrativeDraft
+    from faultline.agents.narrative import render
+    from faultline.agents.trajectory import StepKind, ToolCallRecord, Trajectory, TrajectoryStep
+
+    store = InMemoryTrajectoryStore()
+    trajectory = Trajectory(incident_id="i", model="m", effort="high", started_at=ANCHOR)
+    trajectory.add(
+        TrajectoryStep(
+            seq=1,
+            role="logs",
+            kind=StepKind.TOOL_CALL,
+            at=ANCHOR,
+            tool_call=ToolCallRecord(
+                tool="logql_query",
+                request={},
+                result_id="tr_stored",
+                envelope=(
+                    '<tool_result id="tr_stored" trust="untrusted">\n'
+                    "line one\nline two\n</tool_result:tr_stored>"
+                ),
+            ),
+        )
+    )
+    store.save(trajectory)
+    draft = NarrativeDraft.model_validate(json.loads(draft_reply(["tr_stored"])))
+
+    rendered = render(draft, store)
+
+    assert "line one" in rendered, "the quote came from the store"
+    assert "Evidence `tr_stored`" in rendered
+
+
+def test_the_leak_guard_runs_over_the_finished_narrative() -> None:
+    """The T2.6 banned vocabulary, over the rendered text. A record naming a class of failure
+    hands the reader the answer in one word."""
+    from faultline.agents.contracts import NarrativeDraft
+    from faultline.agents.narrative import NarrativeLeakError, leaked_words, render
+
+    leaking = NarrativeDraft.model_validate(
+        {
+            "title": "A bad_config incident",
+            "sections": [
+                {"heading": "What happened", "body": "the injected fault", "citations": []}
+            ],
+        }
+    )
+
+    with pytest.raises(NarrativeLeakError) as raised:
+        render(leaking, InMemoryTrajectoryStore())
+
+    assert "bad_config" in str(raised.value)
+    assert leaked_words("a clean record about a failure") == []
+    assert "faultline" in leaked_words("written by faultline")
+
+
+class CitingScribeModel(ScriptedModel):
+    """A scribe that cites whatever result_id this run actually produced.
+
+    The real scribe does exactly this - it reads the ids out of the findings it is given - and
+    a fixed citation string cannot stand in for it, because result ids are minted per call.
+    """
+
+    def __init__(self, replies: dict[str, list[str]]) -> None:
+        super().__init__(replies)
+        self.seen: list[str] = []
+
+    def complete(self, request: ModelRequest) -> ModelResponse:
+        self.seen.extend(re.findall(r"tr_[0-9a-f]+", str(request)))
+        if request.role == "scribe":
+            assert self.seen, "no envelope reached the model, so there is nothing to cite"
+            self.calls.append(request)
+            return ModelResponse(text=draft_reply([self.seen[-1]]), model=self.name)
+        return super().complete(request)
+
+
+def test_the_trajectory_is_persisted_before_the_scribe_resolves_citations() -> None:
+    """Found on the first end-to-end run: the scribe cited real result_ids and every one was
+    refused, because the trajectory was still only in memory when the renderer looked.
+
+    The guard fired correctly on evidence that genuinely existed - which is the worst kind of
+    correct, since it looks exactly like the fabricated-citation case it is there to catch.
+    """
+    model = CitingScribeModel(
+        {"planner": [ONE_DISPATCH], "synthesizer": [VERDICT_REPLY], "scribe": []}
+    )
+    engine, store = full_engine(model, Budget(max_dispatch_rounds=1))
+    result = engine.run("incident-10", triage_of("cartservice"), ANCHOR)
+
+    cited = result.draft.sections[0].citations[0]
+    assert store.envelope(cited) is not None, "saved before the scribe's citation is resolved"
+    assert result.narrative_error is None, result.narrative_error
+    assert result.narrative is not None
+    assert cited in result.narrative

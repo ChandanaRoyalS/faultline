@@ -9,8 +9,11 @@ from faultline.agents.contracts import (
     Dispatch,
     DispatchPlan,
     Finding,
+    NarrativeDraft,
+    NarrativeSection,
     RuledOut,
     SpecialistFindings,
+    Verdict,
 )
 from faultline.agents.investigation import Investigation, InvestigationResult
 from faultline.agents.model import (
@@ -20,7 +23,8 @@ from faultline.agents.model import (
     ModelRequest,
     ModelResponse,
 )
-from faultline.agents.roles import Planner, Specialist, build_specialists
+from faultline.agents.narrative import NarrativeLeakError, UnknownCitationError
+from faultline.agents.roles import Planner, Scribe, Specialist, Synthesizer, build_specialists
 from faultline.agents.settings import AgentSettings
 from faultline.agents.trajectory import (
     InMemoryTrajectoryStore,
@@ -51,18 +55,25 @@ __all__ = [
     "LanguageModel",
     "ModelRequest",
     "ModelResponse",
+    "NarrativeDraft",
+    "NarrativeLeakError",
+    "NarrativeSection",
     "Planner",
     "PostgresTrajectoryStore",
     "RetrievalRecord",
     "RuledOut",
+    "Scribe",
     "Specialist",
     "SpecialistFindings",
     "StepKind",
+    "Synthesizer",
     "ToolCallRecord",
     "Trajectory",
     "TrajectoryStep",
     "TrajectoryStore",
     "Triage",
     "TriageResult",
+    "UnknownCitationError",
+    "Verdict",
     "build_specialists",
 ]

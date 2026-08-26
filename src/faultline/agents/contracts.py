@@ -93,3 +93,54 @@ class SpecialistFindings(BaseModel):
     saying nothing about them."""
 
     note: str = ""
+
+
+FaultClass = Literal[
+    "bad_deploy", "bad_config", "dependency_latency", "resource_exhaustion", "unknown"
+]
+RemediationClass = Literal["rollback", "restart", "config_revert", "scale", "none"]
+
+
+class Verdict(BaseModel):
+    """What the synthesizer concluded. Cited, and citable back to stored evidence.
+
+    `ARCHITECTURE.md` requires the RCA be **cited and citation-validated**, so `evidence` is a
+    list of `result_id`s a validator can resolve rather than prose a reader has to trust.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    root_cause: str
+    fault_class: FaultClass
+    remediation_class: RemediationClass
+    confidence: Literal["high", "medium", "low"]
+    evidence: list[str] = Field(description="result_ids this verdict rests on")
+    reasoning: str
+    open_questions: list[str]
+    """What the evidence did not settle. A verdict that claims to have settled everything on
+    six dispatches is a verdict nobody should trust, and the field makes saying so cheap."""
+
+
+class NarrativeSection(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    heading: str
+    body: str = Field(description="The scribe's own words. Never pasted tool output.")
+    citations: list[str] = Field(
+        description="result_ids whose stored evidence supports this section"
+    )
+
+
+class NarrativeDraft(BaseModel):
+    """The scribe's structured output. **Prose is generated from this, not from context.**
+
+    ADR-0020 §4: this record becomes corpus material at T2.4b, so a hostile log line copied
+    into it is retrieved next month as institutional knowledge with the trust label gone -
+    thesis 1 with a persistence layer. The draft carries references; the renderer resolves them
+    against the store. Free-form pass-through from tool output to corpus has nowhere to happen.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    title: str
+    sections: list[NarrativeSection] = Field(min_length=1)

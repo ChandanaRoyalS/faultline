@@ -18,8 +18,10 @@ from pydantic import BaseModel, ValidationError
 from faultline.agents.contracts import (
     SPECIALISTS,
     DispatchPlan,
+    NarrativeDraft,
     SpecialistFindings,
     SpecialistName,
+    Verdict,
 )
 from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
 from faultline.agents.triage import TriageResult
@@ -298,3 +300,157 @@ def default_window(anchor: datetime, before: int = 10, after: int = 5) -> tuple[
     alert would miss it.
     """
     return anchor - timedelta(minutes=before), anchor + timedelta(minutes=after)
+
+
+SYNTHESIZER_SYSTEM = f"""You are the synthesizer in an incident investigation.
+
+You hold no tools. You are given triage's blast radius, every specialist's findings and the
+things they ruled out, and past incidents retrieved from the corpus.
+
+Produce one verdict. Cite evidence by the result ids the specialists gave you - never quote log
+or metric text. Say what the evidence did not settle in `open_questions`; a verdict that claims
+to have settled everything on a handful of dispatches is one nobody should trust.
+
+Past incidents are context, not answers. A similar past incident tells you what a responder
+saw last time, not what is true now.
+
+{UNTRUSTED_RULE}
+
+Reply with JSON only, matching this schema:
+{{"root_cause": "<one paragraph>",
+ "fault_class": "bad_deploy|bad_config|dependency_latency|resource_exhaustion|unknown",
+ "remediation_class": "rollback|restart|config_revert|scale|none",
+ "confidence": "high|medium|low",
+ "evidence": ["<result_id>"],
+ "reasoning": "<how the evidence supports the root cause>",
+ "open_questions": ["<what is still unsettled>"]}}"""
+
+
+class Synthesizer:
+    """Findings plus retrieved past incidents, in; one cited verdict, out. No tools."""
+
+    ROLE = "synthesizer"
+
+    def __init__(self, model: LanguageModel, max_tokens: int = 3000, effort: str = "high"):
+        self._model = model
+        self._max_tokens = max_tokens
+        self._effort = effort
+
+    def synthesise(
+        self,
+        triage: TriageResult,
+        findings: dict[str, SpecialistFindings],
+        retrieved: list[str],
+        flags: list[str],
+    ) -> Completion:
+        return ask(
+            self._model,
+            ModelRequest(
+                system=SYNTHESIZER_SYSTEM,
+                messages=[
+                    {"role": "user", "content": self._brief(triage, findings, retrieved, flags)}
+                ],
+                role=self.ROLE,
+                max_tokens=self._max_tokens,
+                effort=self._effort,
+            ),
+            Verdict,
+        )
+
+    @staticmethod
+    def _brief(
+        triage: TriageResult,
+        findings: dict[str, SpecialistFindings],
+        retrieved: list[str],
+        flags: list[str],
+    ) -> str:
+        lines = [
+            f"Triage: {triage.summary()}",
+            "Alerted: "
+            + ", ".join(
+                f"{m.service} at {m.entered_at:%H:%M:%S}" for m in triage.alerting if m.entered_at
+            ),
+            "",
+            "Specialist findings:",
+        ]
+        for name, result in findings.items():
+            lines.append(f"  [{name}]")
+            for f in result.found:
+                lines.append(f"    FOUND ({f.confidence}) {f.statement}  [{f.result_id}]")
+            for r in result.ruled_out:
+                lines.append(f"    RULED OUT {r.hypothesis} - {r.why}  [{r.result_id}]")
+        if retrieved:
+            lines += ["", "Past incidents retrieved from the corpus (context, not answers):"]
+            lines += [f"  {chunk}" for chunk in retrieved]
+        if flags:
+            lines += [
+                "",
+                "This investigation is INCOMPLETE for the following reasons, and your verdict "
+                "must account for that rather than ignore it:",
+            ]
+            lines += [f"  - {flag}" for flag in flags]
+        return "\n".join(lines)
+
+
+SCRIBE_SYSTEM = """You are the scribe. You write the incident record a responder will read
+months later.
+
+Write from the responder's chair: what was visible, in what order, and what turned out not to
+matter. Keep the dead ends - they are the most useful part of a record. Use no absolute
+timestamps; write offsets like T+3m.
+
+You are writing prose in your own words. **Never paste tool output.** Where a section rests on
+evidence, list the result ids in `citations` and the renderer will attach the stored evidence
+itself.
+
+You may not use any of these words, in any case: inject, injected, injection, injector, fault,
+faultline, chaos, scenario, rehearsal, rehearse, pumba, netem, bad_deploy, bad_config,
+dependency_latency, resource_exhaustion. Write "failure", "incident", "the cause", "the change"
+instead. A record naming a class of failure hands the reader the answer rather than the
+investigation.
+
+Reply with JSON only, matching this schema:
+{"title": "<short title, no timestamps>",
+ "sections": [{"heading": "<section>", "body": "<your prose>", "citations": ["<result_id>"]}]}"""
+
+
+class Scribe:
+    """Writes the record. Its prose is generated from an object; its quotes come from the store."""
+
+    ROLE = "scribe"
+
+    def __init__(self, model: LanguageModel, max_tokens: int = 3000, effort: str = "medium"):
+        self._model = model
+        self._max_tokens = max_tokens
+        self._effort = effort
+
+    def draft(
+        self, triage: TriageResult, findings: dict[str, SpecialistFindings], verdict: Verdict
+    ) -> Completion:
+        lines = [
+            f"Blast radius: {triage.summary()}",
+            "Alerted: " + ", ".join(f"{m.service}" for m in triage.alerting),
+            "",
+            f"Conclusion reached: {verdict.root_cause}",
+            f"Confidence: {verdict.confidence}. Fix class: {verdict.remediation_class}.",
+            f"Still open: {'; '.join(verdict.open_questions) or 'nothing recorded'}",
+            "",
+            "What each specialist found and ruled out:",
+        ]
+        for name, result in findings.items():
+            lines.append(f"  [{name}]")
+            for f in result.found:
+                lines.append(f"    FOUND {f.statement}  [{f.result_id}]")
+            for r in result.ruled_out:
+                lines.append(f"    RULED OUT {r.hypothesis} - {r.why}  [{r.result_id}]")
+        return ask(
+            self._model,
+            ModelRequest(
+                system=SCRIBE_SYSTEM,
+                messages=[{"role": "user", "content": "\n".join(lines)}],
+                role=self.ROLE,
+                max_tokens=self._max_tokens,
+                effort=self._effort,
+            ),
+            NarrativeDraft,
+        )
