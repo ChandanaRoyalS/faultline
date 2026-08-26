@@ -13,7 +13,13 @@ from datetime import UTC, datetime
 from faultline.agents.budget import Budget, BudgetState
 from faultline.agents.contracts import DispatchPlan, SpecialistFindings, SpecialistName
 from faultline.agents.model import LanguageModel
-from faultline.agents.roles import Planner, Specialist, SpecialistRun, default_window
+from faultline.agents.roles import (
+    Planner,
+    SchemaValidationError,
+    Specialist,
+    SpecialistRun,
+    default_window,
+)
 from faultline.agents.trajectory import (
     RetrievalRecord,
     StepKind,
@@ -33,6 +39,8 @@ class InvestigationResult:
     runs: list[SpecialistRun] = field(default_factory=list)
     budget_exhausted: bool = False
     exhausted_reason: str | None = None
+    failed_dispatches: list[tuple[str, str]] = field(default_factory=list)
+    """Specialists whose output did not validate twice. Reported, never silent."""
 
     @property
     def findings(self) -> dict[str, SpecialistFindings]:
@@ -40,6 +48,8 @@ class InvestigationResult:
 
     def summary(self) -> str:
         flag = f" BUDGET EXHAUSTED ({self.exhausted_reason})" if self.budget_exhausted else ""
+        if self.failed_dispatches:
+            flag += f" {len(self.failed_dispatches)} failed dispatch(es)"
         return (
             f"{len(self.plans)} round(s), {len(self.runs)} dispatch(es), "
             f"{self.trajectory.steps[-1].seq if self.trajectory.steps else 0} step(s){flag}"
@@ -160,7 +170,30 @@ class Investigation:
             )
         )
 
-        findings, response, attempts = specialist.run(service, question, start, end, rendered)
+        try:
+            findings, response, attempts = specialist.run(service, question, start, end, rendered)
+        except SchemaValidationError as failure:
+            # One specialist's failure, not the investigation's. Recorded as a step so it is
+            # visible to scoring rather than merely absent, and the other dispatches continue.
+            state.spend_tokens(failure.response.input_tokens, failure.response.output_tokens)
+            result.failed_dispatches.append((name, str(failure)))
+            trajectory.add(
+                TrajectoryStep(
+                    seq=seq + 1,
+                    role=name,
+                    kind=StepKind.COMPLETION,
+                    at=datetime.now(UTC),
+                    tokens_in=failure.response.input_tokens,
+                    tokens_out=failure.response.output_tokens,
+                    payload={
+                        "attempts": 2,
+                        "result_id": tool_result.id,
+                        "schema_failure": str(failure),
+                        "stop_reason": failure.response.stop_reason,
+                    },
+                )
+            )
+            return
         state.spend_tokens(response.input_tokens, response.output_tokens)
         trajectory.add(
             TrajectoryStep(

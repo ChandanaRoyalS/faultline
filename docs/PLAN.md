@@ -366,9 +366,21 @@ All four budget bounds are live from the first dispatch and exhaustion produces 
 verdict rather than an exception - a partial diagnosis is scoreable and a `FAILED` incident is
 not.
 
-**The live dispatch has not run.** `docs/evidence/t3.3-first-dispatch/` records stage 1 failing
-at the credential (`401 invalid x-api-key`) with the world untouched and zero tokens spent - the
-two-stage split isolating auth from everything else, as intended.
+**The live dispatch has run** (`docs/evidence/t3.3-first-dispatch/`). Against a real
+`cart-redis-misconfig` injection with `claude-opus-5`: two rounds, six dispatches, 26,831 tokens,
+$0.28 - and it **found the root cause from evidence**, the logs specialist reading a crash loop on
+Redis port 6380 and the changes specialist finding an environment update three minutes before
+onset. The change record named the fault without naming the harness, which is T2.6's leak
+boundary holding under a real agent reading it.
+
+The planner dispatched **three of four in both rounds**, skipping logs in round one ("traces plus
+metrics should localize the failing dependency; logs can be added later") and traces in round two
+("traces already did their job"). Structured output validated first try on 6 of 8 completions.
+
+The run also found a defect: a reply cut off at `max_tokens` is truncated JSON that arrives
+looking malformed, and the re-ask invited the same too-long answer again, killing an
+investigation that already had three specialists' findings. Fixed in the same branch - truncation
+is re-asked as truncation, and a specialist that fails twice now fails alone.
 `src/faultline/agents/roles.py`, `src/faultline/agents/investigation.py`,
 `src/faultline/agents/budget.py`, `src/faultline/agents/contracts.py`,
 `docs/adr/0020-agent-layer.md`, `docs/evidence/t3.3-first-dispatch/README.md`

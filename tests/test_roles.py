@@ -298,3 +298,83 @@ def test_a_specialist_tool_call_cap_stops_that_specialist_not_the_investigation(
 
     assert not state.may_call_tool("metrics")
     assert state.exhausted_reason and "metrics tool calls" in state.exhausted_reason
+
+
+def test_a_specialist_whose_output_never_validates_fails_alone() -> None:
+    """Found on the first live dispatch: a reply cut off at `max_tokens` is truncated JSON, and
+    it arrives looking like malformed JSON. Twice in a row it raised out of the loop and killed
+    an investigation that already had findings from three other specialists.
+
+    A specialist that cannot produce valid output is one specialist's failure. It is recorded as
+    a step so scoring sees it rather than finding it merely absent, and the rest continue - the
+    same argument ADR-0020 §5 makes about budget exhaustion, applied to a failure it did not
+    anticipate.
+    """
+    model = ScriptedModel(
+        {
+            "planner": [
+                plan_reply(
+                    [
+                        {
+                            "specialist": "changes",
+                            "service": "cartservice",
+                            "question": "q",
+                            "reason": "r",
+                        },
+                        {
+                            "specialist": "metrics",
+                            "service": "cartservice",
+                            "question": "q",
+                            "reason": "r",
+                        },
+                    ],
+                    [{"specialist": "traces", "reason": "no"}],
+                )
+            ],
+            "changes": ['{"found": [{"statement": "cut off her', '{"still": "broken'],
+        }
+    )
+    engine, store = investigation(model, Budget(max_dispatch_rounds=1))
+
+    result = engine.run("incident-6", triage_of("cartservice"), ANCHOR)
+
+    assert [name for name, _ in result.failed_dispatches] == ["changes"]
+    assert [run.specialist for run in result.runs] == ["metrics"], "the others still ran"
+    trajectory = next(iter(store.trajectories.values()))
+    failures = [s for s in trajectory.steps if "schema_failure" in s.payload]
+    assert len(failures) == 1, "the failure is a step, not an absence"
+
+
+def test_a_truncated_reply_is_re_asked_as_truncation_rather_than_as_malformed_json() -> None:
+    """The re-ask that merely said "that did not validate" invited the same too-long reply
+    again. Naming the failure is what makes the one retry worth having."""
+    replies = ['{"found": [{"statement": "cut off her', FINDINGS_REPLY]
+
+    class Truncating(ScriptedModel):
+        def complete(self, request: ModelRequest) -> ModelResponse:
+            response = super().complete(request)
+            stop = (
+                "max_tokens"
+                if response.text.startswith('{"found": [{"statement": "cut')
+                else "end_turn"
+            )
+            return ModelResponse(
+                text=response.text,
+                model=response.model,
+                input_tokens=100,
+                output_tokens=50,
+                stop_reason=stop,
+            )
+
+    model = Truncating({"metrics": replies})
+    from faultline.agents.roles import ask
+
+    completion = ask(
+        model,
+        ModelRequest(system="s", messages=[{"role": "user", "content": "u"}], role="metrics"),
+        SpecialistFindings,
+    )
+
+    assert completion.attempts == 2
+    nudge = model.calls[-1].messages[-1]["content"]
+    assert "cut off at the token limit" in nudge and "shorter" in nudge

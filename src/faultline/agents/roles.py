@@ -35,6 +35,21 @@ UNTRUSTED_RULE = (
 an agent that identifies content as untrusted and believes it anyway is T6.8's problem."""
 
 
+class SchemaValidationError(RuntimeError):
+    """A reply that did not validate twice. **A finding about the model, not a parse problem.**
+
+    Carried rather than raised past the dispatch loop: a specialist that cannot produce valid
+    output is one specialist's failure, and killing the investigation over it would throw away
+    the findings the others already produced (ADR-0020 §5's argument, applied to a failure the
+    ADR did not anticipate).
+    """
+
+    def __init__(self, response: ModelResponse, cause: Exception) -> None:
+        super().__init__(f"schema validation failed twice ({cause})")
+        self.response = response
+        self.cause = cause
+
+
 @dataclass(frozen=True, slots=True)
 class Completion:
     """A parsed reply plus the usage that has to reach the budget and the trajectory."""
@@ -63,17 +78,23 @@ def ask(model: LanguageModel, request: ModelRequest, schema: type[BaseModel]) ->
             return Completion(_parse(response.text, schema), response, attempt)
         except (ValidationError, ValueError) as exc:
             if attempt == 2:
-                raise
+                raise SchemaValidationError(response, exc) from exc
+            # A reply cut off at `max_tokens` is a truncated JSON document, and it arrives here
+            # looking like a malformed one. Found on the first live dispatch: a 40-line log
+            # envelope produced a findings object longer than the cap, and the re-ask that
+            # merely said "that did not validate" invited the same too-long reply again. Say
+            # which failure it was, and ask for less.
+            truncated = response.stop_reason == "max_tokens"
+            nudge = (
+                "Your reply was cut off at the token limit, so the JSON was incomplete. "
+                "Reply again, complete and much shorter - at most three entries per list."
+                if truncated
+                else f"That did not validate against the schema: {exc}."
+            )
             messages = [
                 *messages,
                 {"role": "assistant", "content": response.text},
-                {
-                    "role": "user",
-                    "content": (
-                        f"That did not validate against the schema: {exc}. "
-                        "Reply with JSON only, matching the schema exactly."
-                    ),
-                },
+                {"role": "user", "content": f"{nudge} Reply with JSON only."},
             ]
     raise AssertionError(f"unreachable; last response {last}")
 
@@ -215,7 +236,7 @@ class Specialist:
         name: SpecialistName,
         tools: Tools,
         model: LanguageModel,
-        max_tokens: int = 1200,
+        max_tokens: int = 3000,
         effort: str = "medium",
     ) -> None:
         self.name = name
@@ -260,7 +281,7 @@ class Specialist:
 
 
 def build_specialists(
-    tools: Tools, model: LanguageModel, max_tokens: int = 1200, effort: str = "medium"
+    tools: Tools, model: LanguageModel, max_tokens: int = 3000, effort: str = "medium"
 ) -> dict[SpecialistName, Specialist]:
     return {
         name: Specialist(name, tools, model, max_tokens=max_tokens, effort=effort)
