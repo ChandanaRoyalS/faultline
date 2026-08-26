@@ -778,17 +778,54 @@ Triage over seven: recall mean **0.94**, precision mean **0.56**, 19 unmeasured 
 `cart-dependency-latency` reproduced T3.5's disputed miss **exactly**, on an independent run: same
 two wrong labels, same reasoning shape. One observation was an anecdote; two is a pattern.
 
-> **Decision owed, and deliberately not taken here: the contradiction checker.** Its live ledger
-> is now **0 true positives, 4 false positives**. The two new firings are `?` not being a clause
-> boundary, and the evidence words `image` and `flag` matching inside `image-pull` and `flagged`.
-> ADR-0022 §Consequences: "If a first batch does not improve it, the honest options are to narrow
-> it further or to retire it - and either is a decision with an ADR, not a quiet edit." The first
-> batch has run. Taking the decision inside the sweep that produced its evidence would be that
-> quiet edit.
+### T4.3 — the decisions the sweep forced *(built)*
+Three decisions, each recorded where it belongs. **contract not written** - a follow-on to T4.2.
 
-> **Note for T4.1: no retry on transient API failures.** A 529 on the first model call cost a
-> whole scenario slot - injection, correlation wait, revert, ten minutes - and the sweep continued
-> past it correctly. A sweep is where that costs the most.
+**The contradiction checker is retired** (ADR-0021 addendum), on the condition ADR-0022 set in
+advance. Live ledger: **0 true positives, 4 false positives** - and the one historical true
+positive does not survive scrutiny either, because T3.4b diagnosed its cause as a context-assembly
+defect and fixed it, so the verdict that check caught was accurate about what it had been shown.
+Narrowing was rejected because each of the four false positives had a *different* cause and each
+fix bought exactly one round: parsing prose for intent is a small language model made of regexes,
+with none of the calibration and all of the confidence. The module is kept unwired with its ledger
+and a stated bar for re-admission: **a mechanism that does not parse prose** - the obvious shape
+being a structured `unqueried: [{specialist, service}]` field beside `open_questions`, which turns
+the check into a set comparison.
+
+**The dispute register records disagreeing readings, not a silent tiebreak** (ADR-0022 addendum).
+With one entry the two possible definitions were indistinguishable; the sweep's four observations
+separated them. A register defined by the fix tiebreak records `dependency_latency` twice and is
+**blind to both `resource_exhaustion` rows**, because both readings there give `config_revert` -
+so it would go quiet exactly where the labels are least separable. The finding changes shape with
+the definition: "wrong on `resource_exhaustion`, 0/2" versus **"reads every change-mediated fault
+as `bad_config`"**, and the data says the second. Across seven scenarios the agent returned
+exactly two values - `bad_deploy` where the change touched an image, `bad_config` everywhere else
+- and never a symptom class. That one rule predicts all seven rows, including the four it got
+right. Both `resource_exhaustion` verdicts identify the mechanism *correctly* before classifying
+on the change. The register now holds four entries; **every disputed miss is still a miss** and
+the fault-class figure stays 4/7.
+
+**Bounded retry on transient provider failures** (`evalharness.run`). Transient statuses only -
+529, 429, 5xx, connection and timeout errors - three attempts after the first at 20s/60s/120s,
+every attempt recorded in the run manifest with its delay, and a run that exhausts them discards
+exactly as before. **A 400 is deliberately not retried**: `invalid_request_error` covers both a
+malformed request and an exhausted credit balance, and T4.1's second run died on the latter.
+Retrying is cheap because the fault is still injected and the incident still exists, so only the
+investigation repeats; the sweep paid an injection, a correlation wait, a revert and ten minutes
+for one 529.
+
+**The stamp does not move for any of the three.** `runtime_version` is the package version plus a
+digest over the role system prompts and the contract schemas. Retirement removes a call site,
+the register is harness-side scoring, and retry is harness-side transport - none touches a prompt
+or a contract. `prompts:59bf438b2a96` is pinned by a test, so the sweep's rows stay comparable to
+every run made after this task.
+
+Not decided here: **whether the prompt should teach the symptom/change distinction.** That is a
+prompt change, so it moves the stamp and needs its own before/after comparison - CLAUDE.md's
+eval-before-opinion rule, applied to the first finding this harness has produced that suggests one.
+`docs/adr/0021-verdict-grounding-and-two-ended-truncation.md`,
+`docs/adr/0022-evaluation-harness.md`, `src/evalharness/run.py`,
+`src/evalharness/scoring.py`, `src/faultline/agents/grounding.py`
 `docs/adr/0022-evaluation-harness.md`, `docs/adr/0008:121`, `docs/adr/0009:12`
 
 ---

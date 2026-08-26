@@ -1,23 +1,60 @@
-"""A deterministic cross-check between a verdict and the trajectory it was drawn from (T3.4b).
+"""A deterministic cross-check between a verdict and the trajectory it was drawn from.
 
-T3.4's first end-to-end run produced a verdict whose highest-value open question was
-"no change history has been queried for shippingservice at all". The query existed:
-`tr_f536225dc17d`, dispatched in round two, read at high confidence by the changes specialist,
-naming the image swap outright. Diagnosis found the finding never reached the synthesizer -
-`InvestigationResult.findings` keyed on specialist name, so three `changes` dispatches
-collapsed to the last one. That is fixed upstream; every dispatch now reaches every role.
+**RETIRED at T4.3, on its own evidence. Nothing calls this module.** Kept, unwired, because the
+idea was sound and the implementation is what failed - and because a retired mechanism whose
+record is deleted gets rebuilt identically by the next person with the same good idea.
 
-This module is the second line, for the case the assembly fix does not cover: a synthesizer
-that was shown the dispatch and asserts its absence anyway. **The claim is flagged, never
-stripped.** Editing a model's verdict to agree with the record would destroy the evidence that
-it disagreed, and T4.2 has to be able to count these. So the contradiction becomes a flag
-carrying the `result_id` that refutes it, and travels with the verdict into scoring.
+## The ledger that retired it
 
-The rule is deliberately narrow: a sentence that names a dispatched service, names that
-dispatch's evidence type, and negates the *act of querying* before naming it. An empty result
-reported as empty is not a contradiction - "no change of any kind is recorded for
-checkoutservice" is a finding, and eight of the nine rehearsed narratives turn on exactly that
-kind of negative.
+| run | fired | verdict |
+|---|---|---|
+| `e7739dec` (T3.4, historical) | 1 | **true positive** |
+| `6b9715de` (T3.4b) | 1 | false positive |
+| `f7afdb76` (T3.4c) | 1 | false positive |
+| `cart-bad-image-tag` (T4.2 sweep) | 2 | false positives |
+
+**Live: 0 true positives, 4 false positives.** And the one true positive does not survive
+scrutiny either: T3.4b diagnosed its cause as a *context-assembly* defect - three `changes`
+dispatches collapsing to one in a dict keyed on specialist name - and fixed it. The verdict that
+check caught was accurate about what it had been shown. **The defect it was built to catch has
+had no instance since the assembly fix, and every firing since has been wrong.**
+
+ADR-0022 §Consequences set the condition in advance: "If a first batch does not improve it, the
+honest options are to narrow it further or to retire it - and either is a decision with an ADR,
+not a quiet edit." The batch ran. The decision is ADR-0021's addendum.
+
+## Why narrowing was rejected
+
+Each false positive had a *different* cause, and each fix was local:
+
+1. a comma-joined clause whose second half said the service **was** covered (T3.4b) - fixed by
+   splitting on `, and`;
+2. a clause citing the very `result_id` it qualified (T3.4c) - fixed by skipping self-citing
+   clauses;
+3. `?` not being a clause boundary, so a service named in a question joined a negation in the
+   answer (T4.2);
+4. the evidence word `image` matching inside `image-pull`, and `flag` inside `flagged` (T4.2).
+
+Four fixes, four new rules, and the fifth failure would have a fifth cause. **That is what
+parsing prose for intent looks like from the inside**: every repair is correct, local, and buys
+one round. The list of ways an English sentence can mention a service and a negation without
+claiming a dispatch never happened is not finite, and a check whose precision must be maintained
+by patching a regex is not a deterministic check - it is a small language model made of regexes,
+with none of the calibration and all of the confidence.
+
+## The bar for re-admission
+
+The idea is worth keeping: **a verdict makes claims, and the trajectory can refute some of
+them.** What is not worth keeping is inferring which claim a sentence is making.
+
+Re-admission requires a mechanism that **does not parse prose**. The obvious shape is a
+structured field: the synthesizer already returns `open_questions` as a list, and a schema that
+asked for `unqueried: [{specialist, service}]` alongside them would make the same check a set
+comparison - exactly resolvable, no regex, and wrong in ways a schema violation catches. That is
+a contracts change and belongs to whoever wants the check back, with this ledger in hand.
+
+Until then: **the trajectory is the record, and a verdict that misdescribes it is a finding for a
+human reading the run, not a flag a scorer can trust.**
 """
 
 from __future__ import annotations

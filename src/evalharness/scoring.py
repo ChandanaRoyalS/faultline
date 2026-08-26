@@ -37,6 +37,14 @@ class ClassDispute:
     **Enumerated here, never inferred by the scorer.** A scorer that decided for itself which
     misses were "nearly right" would be grading on sympathy. Each entry cites the ADR section
     that resolved it and the evidence that resolved it there.
+
+    **The register records where the two readings of the label set disagree** - not where the
+    fix tiebreak can settle it (ADR-0022 addendum, T4.3). Those are different tests, and the
+    first sweep showed the difference matters: the tiebreak is *silent* on
+    `resource_exhaustion`, because both readings land on `config_revert`, so a register defined
+    by the tiebreak would have recorded two of the four observations and hidden the other two.
+
+    A register entry is **visibility, not forgiveness**. Every disputed miss is still a miss.
     """
 
     scenario_id: str
@@ -54,11 +62,9 @@ CLASS_DISPUTES: tuple[ClassDispute, ...] = (
         resolved_by="ADR-0022 §1.2",
         why=(
             "A shaping rule on a container's network namespace reads as either 'a dependency "
-            "got slow' or 'something was configured wrong'. The tiebreak is which fix works, "
-            "and that was measured: pumba binds to the container present, so a restart durably "
-            "clears the delay (1.9ms -> ~650ms -> 1.9ms, sidecar still running) while there is "
-            "no configuration to revert. Counted as a miss; named so a reader can see how much "
-            "of a class error rate is this boundary."
+            "got slow' or 'something was configured wrong'. Resolved against the agent by the "
+            "fix test, which was measured: pumba binds to the container present, so a restart "
+            "durably clears the delay while there is no configuration to revert."
         ),
     ),
     ClassDispute(
@@ -68,7 +74,38 @@ CLASS_DISPUTES: tuple[ClassDispute, ...] = (
         resolved_by="ADR-0022 §1.2",
         why="The class of fix follows the same fork, and by the same measurement.",
     ),
+    ClassDispute(
+        scenario_id="ad-memory-squeeze",
+        truth="resource_exhaustion",
+        returned="bad_config",
+        resolved_by="ADR-0022 addendum, T4.3",
+        why=(
+            "A memory cap was lowered onto the service, and the service then exhausted it. The "
+            "label set names the symptom; the agent named the artifact the change touched. The "
+            "fix tiebreak cannot settle this one - both readings give `config_revert` - which "
+            "is precisely why the register is defined on the readings and not on the tiebreak."
+        ),
+    ),
+    ClassDispute(
+        scenario_id="frauddetection-memory-squeeze",
+        truth="resource_exhaustion",
+        returned="bad_config",
+        resolved_by="ADR-0022 addendum, T4.3",
+        why=(
+            "The same shape as `ad-memory-squeeze`, and the verdict identified the mechanism "
+            "correctly - a process killed by the kernel for exceeding its cgroup limit - before "
+            "classifying on the change rather than on the symptom."
+        ),
+    ),
 )
+"""The four observations of one boundary, not two observations of two boundaries.
+
+`bad_config` was returned for five of the sweep's seven scenarios, and the agent returned only
+two values across the whole sweep: `bad_deploy` where the change touched an image, `bad_config`
+everywhere else. It never returned a symptom class for any scenario. That single rule predicts
+all seven rows, including the four it got right - and the register exists so a reader can see
+that from the scored output rather than by reading seven verdicts.
+"""
 
 
 def dispute_for(scenario_id: str, truth: str, returned: str) -> ClassDispute | None:
@@ -251,12 +288,15 @@ class Categories:
 
 
 CONTRADICTION_LEDGER = (
-    "The contradiction check has fired twice live and been wrong both times "
-    "(0 true positives, 2 false positives). Its one true positive is historical, and the "
-    "context-assembly fix that shipped beside it removed that verdict's cause (ADR-0022 §2)."
+    "The contradiction check was RETIRED at T4.3 (ADR-0021 addendum) after a live ledger of "
+    "0 true positives and 4 false positives. A non-zero count here therefore comes from a run "
+    "recorded before the retirement, and is not evidence about the agent."
 )
-"""Printed next to any non-zero contradiction count, until a batch gives it a denominator.
-A flag whose live precision is 0/2 is not yet evidence about an agent."""
+"""Printed next to any non-zero contradiction count.
+
+The category is kept rather than removed: runs recorded before the retirement still carry
+firings, and a category that disappears takes its history with it. Going forward it prints at
+zero, which is the point."""
 
 
 @dataclass
@@ -357,7 +397,7 @@ class ScoredRun:
             f"  specialists failed alone {len(c.failed_alone)}"
             + (f"  {'; '.join(c.failed_alone)}" if c.failed_alone else ""),
             f"  contradiction firings   {len(c.contradictions)}"
-            + (f"  {'; '.join(c.contradictions)}" if c.contradictions else ""),
+            + (f"  {'; '.join(c.contradictions)}" if c.contradictions else " (check retired)"),
             f"  budget exhausted        {c.budget_exhausted_reason or 'no'}",
             f"  narrative refused       {'yes' if c.narrative_refused else 'no'}",
         ]

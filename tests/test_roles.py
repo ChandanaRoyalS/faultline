@@ -694,9 +694,14 @@ def test_the_synthesizer_brief_indexes_every_dispatch_before_the_detail() -> Non
     assert brief.index("Dispatches executed") < brief.index("Specialist findings in full")
 
 
-def test_a_verdict_contradicting_its_own_trajectory_is_flagged_on_the_investigation() -> None:
-    """The second line, for the case the assembly fix does not cover. The flag has to reach
-    `result.flags`, because that is what the trajectory records and what T4.2 reads."""
+def test_a_verdict_contradicting_its_own_trajectory_is_no_longer_flagged() -> None:
+    """**Retired at T4.3**, on a live ledger of 0 true positives and 4 false positives.
+
+    This test used to assert the flag reached `result.flags`. It now asserts the opposite, and
+    it is kept rather than deleted so the retirement is visible at the place the behaviour
+    changed. The verdict text is still never edited - that was never the checker's doing.
+    See `faultline.agents.grounding` and ADR-0021's addendum.
+    """
     denial = json.dumps(
         {
             "root_cause": "something went wrong",
@@ -716,8 +721,8 @@ def test_a_verdict_contradicting_its_own_trajectory_is_flagged_on_the_investigat
 
     assert result.verdict is not None
     assert "No change history has been queried" in result.verdict.reasoning, "not stripped"
-    flag = next(f for f in result.flags if f.startswith("contradiction:"))
-    assert result.runs[0].result.id in flag
+    assert result.contradictions == [], "the check is retired and emits nothing"
+    assert not [f for f in result.flags if f.startswith("contradiction:")]
 
 
 # --- the dispatch contract (T3.4c) --------------------------------------------

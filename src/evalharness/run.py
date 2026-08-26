@@ -53,6 +53,40 @@ episode scores triage against an incident that is still filling up."""
 RECOVERY_TIMEOUT_SECONDS = 420
 RECOVERY_POLL_SECONDS = 30
 
+TRANSIENT_SIGNALS: tuple[str, ...] = (
+    "overloaded_error",
+    "OverloadedError",
+    "rate_limit_error",
+    "RateLimitError",
+    "Error code: 429",
+    "Error code: 500",
+    "Error code: 502",
+    "Error code: 503",
+    "Error code: 504",
+    "Error code: 529",
+    "APIConnectionError",
+    "APITimeoutError",
+)
+"""Failures worth trying again: the provider was busy, not the request was wrong.
+
+**A 400 is deliberately absent.** `invalid_request_error` covers a malformed request and an
+exhausted credit balance, and both are terminal - T4.1's second run died on the latter and
+retrying it would have burned three more world injections to learn the same thing.
+"""
+
+RETRY_DELAYS_SECONDS: tuple[int, ...] = (20, 60, 120)
+"""Three attempts after the first, at widening delays. **Small and fixed, not adaptive.**
+
+Sized against what a retry costs *here* rather than against a service-level objective. A retry is
+cheap - the fault is still injected and the incident still exists, so only the investigation
+repeats - while the alternative is what the first sweep paid: a 529 on the first model call cost
+an injection, a correlation wait, a revert and ten minutes, for one scenario slot.
+
+Widening because a provider that is busy now is often busy in twenty seconds; three because a
+provider still refusing after three and a half minutes is having an outage, and a sweep should
+report that rather than sit in it.
+"""
+
 
 class RunError(RuntimeError):
     """The run cannot continue. The reason is recorded as a discard before this escapes."""
@@ -307,6 +341,11 @@ def parser() -> argparse.ArgumentParser:
     return p
 
 
+def transient_signal(transcript: str) -> str | None:
+    """The transient failure this transcript shows, or `None` if it failed for a real reason."""
+    return next((signal for signal in TRANSIENT_SIGNALS if signal in transcript), None)
+
+
 def _investigate(incident_id: str, scenario_id: str, out: Path, args: Any) -> tuple[int, str]:
     """`faultline-investigate`, as a subprocess. **Its exit code is the contract being used.**"""
     cmd = [
@@ -325,6 +364,42 @@ def _investigate(incident_id: str, scenario_id: str, out: Path, args: Any) -> tu
         cmd += ["--postgres-dsn", args.postgres_dsn]
     print(f"  $ {' '.join(cmd)}")
     return _sh(cmd)
+
+
+def _investigate_with_retry(
+    incident_id: str, scenario_id: str, out: Path, args: Any
+) -> tuple[int, str, list[dict[str, Any]]]:
+    """The investigation, retried on transient provider failures only.
+
+    **The world stays as it is between attempts.** The fault is still injected and the incident
+    still exists, so a retry repeats the investigation and nothing else - which is what makes
+    retrying cheap enough to be worth doing at all.
+
+    Every attempt is recorded, including the successful one, so a scored run says how many it
+    needed rather than only whether it eventually worked. A run that exhausts the delays fails
+    exactly as it does today: no verdict artifact, and the run is discarded with its reason.
+    """
+    attempts: list[dict[str, Any]] = []
+    transcript = ""
+    code = 1
+    for attempt, delay in enumerate([0, *RETRY_DELAYS_SECONDS], start=1):
+        if delay:
+            print(f"  transient failure; waiting {delay}s before attempt {attempt}")
+            time.sleep(delay)
+        code, transcript = _investigate(incident_id, scenario_id, out, args)
+        signal = transient_signal(transcript) if code != 0 else None
+        attempts.append(
+            {
+                "attempt": attempt,
+                "waited_seconds": delay,
+                "exit_code": code,
+                "transient_signal": signal,
+            }
+        )
+        if code == 0 or signal is None:
+            # Either it worked, or it failed for a reason repeating will not change.
+            break
+    return code, transcript, attempts
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -391,9 +466,12 @@ def main(argv: list[str] | None = None) -> int:
                 time.sleep(SETTLE_AFTER_ALERT_SECONDS)
 
                 print("investigating...")
-                code, transcript = _investigate(incident_id, args.scenario_id, run.path, args)
+                code, transcript, attempts = _investigate_with_retry(
+                    incident_id, args.scenario_id, run.path, args
+                )
                 run.write("investigate.txt", transcript)
                 run.manifest["investigate_exit_code"] = code
+                run.manifest["investigate_attempts"] = attempts
                 print(transcript)
             finally:
                 print("reverting...")
