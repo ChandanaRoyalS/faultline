@@ -15,26 +15,13 @@ can show is working.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from enum import StrEnum
 
 from faultline.context.catalog import GraphPresence, ServiceCatalog
 from faultline.ingest.models import AlertEvent
 from faultline.orchestrator.correlation import CorrelationPolicy
-from faultline.orchestrator.models import Incident
+from faultline.orchestrator.models import Incident, JoinRule
 
-
-class JoinRule(StrEnum):
-    """Which rule decided a correlation, as ADR-0017 requires it be recorded."""
-
-    GRAPH = "graph"
-    """The graph answered - joined within the radius, or declined outside it."""
-
-    NO_GRAPH_PRESENCE = "no_graph_presence"
-    """The alerting service is not usable for graph reasoning, so time overlap decided."""
-
-    NO_JUDGEABLE_CANDIDATE = "no_judgeable_candidate"
-    """No open incident holds a service the graph knows, so there was nothing to measure
-    against and time overlap decided."""
+__all__ = ["Decision", "DecisionLog", "DependencyPolicy", "JoinRule"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -143,6 +130,17 @@ class DependencyPolicy:
             detail = f"{event.service!r} is not in the catalog at all"
         self._record(event, rule, None if chosen is None else chosen.id, detail=detail)
         return chosen
+
+    @property
+    def last_rule(self) -> JoinRule:
+        """The rule behind the most recent `match` (T4.1).
+
+        The `DecisionLog` already holds every decision; this is the same fact, exposed where
+        the orchestrator can stamp it onto the episode row. The log stays: it carries `hops`
+        and `detail` that a single column cannot, and it is what makes the mix enumerable
+        in-process for a report that has not been written yet.
+        """
+        return self.log.decisions[-1].rule if self.log.decisions else JoinRule.NO_CANDIDATE
 
     def _record(
         self,

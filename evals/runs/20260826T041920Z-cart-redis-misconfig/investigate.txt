@@ -1,0 +1,29 @@
+incident a2bf75a6-2e9b-4768-b6a8-78bbeed3d5db  state triaging  anchor 04:22:00
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 11ac4d9b-3969-4b64-81c4-2e5af042299c
+investigation: 2 round(s), 6 dispatch(es), 17 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_5b25114cf774, tr_6918adff1097, tr_35d30c8d5982, tr_85399cf58a71, tr_0158ce317070, tr_dd850a819de0
+  root cause  : cartservice is in a startup crash loop because it cannot establish a connection to its Redis cart backend, and the only recorded mutation in the window is an automated environment-configuration edit at 04:19:22 that set the cart Redis address to a redis-cart endpoint on port 6380 (tr_5b25114cf774). cartservice was logging clean cart operations at ~04:12 and by 04:22 is repeatedly timing out after 15-40s against exactly that host:port and dying on an unhandled exception in the Redis connection-establishment path called from Main (tr_6918adff1097). Because the process never reaches a serving state, checkoutservice's outbound hipstershop.CartService/GetCart call fails fast (0.4-1.1ms) with no cartservice server-side span at all, aborting PlaceOrder before shipping/payment/currency/email are ever reached, and the error status propagates up through checkoutservice to frontend (tr_35d30c8d5982, tr_85399cf58a71). The absence of any cartservice span-metric series - numerator and denominator both missing - is consistent with a service that is not serving rather than a service with a zero error rate (tr_0158ce317070). The proximate trigger is therefore a bad cache-endpoint configuration pushed by platform-automation, not a deploy: no deploy, flag flip, or downstream change is recorded anywhere in the queried window (tr_dd850a819de0, tr_5b25114cf774).
+  OPEN        : Was port 6380 itself the defect (e.g. the correct endpoint being 6379, or TLS expected on 6380 while the client logs abortConnect/TLS off), or is the address correct and redis-cart itself down or unreachable? No one queried the Redis backend's health, listeners, or network path.
+  OPEN        : The change record shows 'no prior value recorded' - it is unresolved whether this was a first-time introduction of the variable, a change from a working value, or a change-log gap. Without the prior value a revert target cannot be named with certainty.
+  OPEN        : The 03:50-04:12 interval of the triage window was never queried by any specialist; three separate findings flag this gap. If frontend or cart errors were already present before 04:19, the config edit could be a reaction to the incident rather than its cause.
+  OPEN        : Why do cartservice span metrics have no denominator at all across 04:12-04:27? Crash-looping explains it, but a renamed service_name label or a broken span-metrics pipeline would produce the same emptiness and would change how much weight the metric absence carries.
+  OPEN        : The 4 unmeasured edges crossed by triage are not all accounted for; only the checkout->cart edge was characterised. Whether any other unmeasured edge is contributing to the 12-service blast radius is unestablished.
+  OPEN        : Restart counts, OOM/CPU pressure, and container-runtime status for cartservice were never retrieved, so a resource-exhaustion contributor alongside the config change cannot be formally excluded.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T041920Z-cart-redis-misconfig/a2bf75a6-2e9b-4768-b6a8-78bbeed3d5db-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T041920Z-cart-redis-misconfig/a2bf75a6-2e9b-4768-b6a8-78bbeed3d5db-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 15554.03it/s]

@@ -22,7 +22,13 @@ from faultline.ingest.models import AlertEvent, AlertStatus
 from faultline.orchestrator.cap import InvestigationCap
 from faultline.orchestrator.correlation import CorrelationPolicy
 from faultline.orchestrator.machine import transition
-from faultline.orchestrator.models import Episode, Incident, IncidentState, Severity
+from faultline.orchestrator.models import (
+    Episode,
+    Incident,
+    IncidentState,
+    JoinRule,
+    Severity,
+)
 from faultline.orchestrator.store import IncidentStore
 
 
@@ -80,25 +86,27 @@ class Orchestrator:
     def _apply_firing(self, event: AlertEvent) -> Applied:
         candidates = self._store.correlation_candidates(event.received_at - self._settle)
         target = self._policy.match(event, candidates)
+        # Read in the same statement as the match, per `CorrelationPolicy.last_rule`.
+        rule = self._policy.last_rule
 
         if target is None:
-            return self._open(event)
+            return self._open(event, rule)
 
         reopened = target.state is IncidentState.RESOLVED
         if reopened:
             self._reopen(target)
-        self._attach(target, event)
+        self._attach(target, event, rule)
         self._store.save(target)
         return Applied(incident_id=target.id, joined=True)
 
-    def _open(self, event: AlertEvent) -> Applied:
+    def _open(self, event: AlertEvent, rule: JoinRule) -> Applied:
         incident = Incident(opened_at=event.received_at, last_activity_at=event.received_at)
-        self._attach(incident, event)
+        self._attach(incident, event, rule)
         self._admit_or_queue(incident)
         self._store.save(incident)
         return Applied(incident_id=incident.id, opened=True)
 
-    def _attach(self, incident: Incident, event: AlertEvent) -> None:
+    def _attach(self, incident: Incident, event: AlertEvent, rule: JoinRule) -> None:
         """Record the episode on the incident. **Does not change state.**
 
         ADR-0016: an alert joining an incident already past `OPEN` does not restart triage.
@@ -116,6 +124,7 @@ class Orchestrator:
                 alertname=labels.get("alertname"),
                 starts_at=event.starts_at,
                 attached_at=event.received_at,
+                join_rule=rule,
             ),
         )
         incident.last_activity_at = event.received_at

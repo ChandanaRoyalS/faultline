@@ -30,6 +30,7 @@ from faultline.agents.roles import (
     Synthesizer,
     default_window,
 )
+from faultline.agents.stamp import runtime_version
 from faultline.agents.trajectory import (
     RetrievalRecord,
     StepKind,
@@ -146,7 +147,7 @@ class Investigation:
             effort=self._effort,
             started_at=datetime.now(UTC),
             role_models=dict(self._role_models),
-            runtime_version="t3.3",
+            runtime_version=runtime_version(),
         )
         state = BudgetState(self._budget)
         result = InvestigationResult(trajectory=trajectory)
@@ -201,6 +202,10 @@ class Investigation:
             )
             plan: DispatchPlan = completion.value
             result.plans.append(plan)
+            # Dispatches the planner named illegally and did not correct on its one re-ask.
+            # Recorded as failures rather than dropped quietly, so they reach the verdict's
+            # flags and T4.2's scoring alongside every other kind of incompleteness (T3.4c).
+            result.failed_dispatches += [(Planner.ROLE, why) for why in completion.rejected]
 
             for dispatch in plan.dispatches:
                 if not state.may_call_tool(dispatch.specialist):

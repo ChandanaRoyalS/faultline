@@ -17,13 +17,30 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from faultline.context.catalog import ServiceCatalog
+
+_CATALOG: ServiceCatalog | None = None
+
 SpecialistName = Literal["metrics", "logs", "changes", "traces"]
 
 SPECIALISTS: tuple[SpecialistName, ...] = ("metrics", "logs", "changes", "traces")
 
 
 class Dispatch(BaseModel):
-    """One specialist, one question, one service, one window."""
+    """One specialist, one question, **one service**, one window.
+
+    "One service" was a docstring and nothing else until T3.4c. The field was a bare `str`, and
+    T3.4b's planner put four names in it - `"paymentservice, currencyservice, cartservice,
+    productcatalogservice"` - which the contract accepted, the tool layer turned into a PromQL
+    label value that cannot match any `service_name`, and the specialist reported as an empty
+    result. Two of six dispatches went that way.
+
+    **This is where ADR-0019's empty-is-not-error principle stops.** An empty answer from a
+    well-formed query is evidence, and eight of the nine rehearsed narratives turn on one. A
+    selector that *cannot* match anything is a contract error at construction time, and reading
+    its emptiness as evidence is the defect - it is the one shape of empty that means nothing at
+    all while looking exactly like the shape that means everything.
+    """
 
     model_config = ConfigDict(extra="forbid")
 
@@ -144,3 +161,73 @@ class NarrativeDraft(BaseModel):
 
     title: str
     sections: list[NarrativeSection] = Field(min_length=1)
+
+
+def _catalog() -> ServiceCatalog:
+    """The catalog, built once. Lazy because a snapshot read at import time is a side effect
+    every consumer of these schemas would pay for, validator or not."""
+    global _CATALOG
+    if _CATALOG is None:
+        _CATALOG = ServiceCatalog.from_snapshot()
+    return _CATALOG
+
+
+def _legal(catalog: ServiceCatalog, named: str) -> str | None:
+    entry = catalog.get(named.strip())
+    return entry.service if entry is not None else None
+
+
+def _why_illegal(named: str, legal: str) -> str:
+    named = named.strip()
+    if "," in named or " and " in named:
+        return (
+            f"dispatch service {named!r} names more than one service. A dispatch is one "
+            f"specialist asking one question about one service; to cover three services, "
+            f"make three dispatches. Legal values: {legal}."
+        )
+    return f"dispatch service {named!r} is not a service this system knows. Legal values: {legal}."
+
+
+def validate_dispatch_services(plan: DispatchPlan) -> None:
+    """Every dispatch names exactly one service the catalog knows. **Canonicalises in place.**
+
+    Raised as `ValueError` so it takes the same bounded re-ask as any other schema failure
+    (ADR-0003): the planner is told what was wrong and what the legal values are, once, and a
+    second failure fails the dispatch alone rather than being parsed leniently.
+
+    Either naming scheme is accepted - `cart-service` and `cartservice` are the same service and
+    `canonical_service` is what says so - and the stored value is normalised to the compose name,
+    so everything downstream of the plan sees one identity.
+    """
+    catalog = _catalog()
+    legal = ", ".join(sorted(catalog.services))
+    for dispatch in plan.dispatches:
+        canonical = _legal(catalog, dispatch.service)
+        if canonical is None:
+            raise ValueError(_why_illegal(dispatch.service, legal))
+        dispatch.service = canonical
+
+
+def partition_dispatch_services(plan: DispatchPlan) -> list[str]:
+    """Keep the legal dispatches, drop the rest, and say why each was dropped.
+
+    **After the one re-ask, not instead of it.** A plan that still names an illegal service on
+    its second attempt loses that dispatch and nothing else: three good dispatches and one bad
+    one is three dispatches' worth of evidence, and throwing the round away to punish the fourth
+    would cost the investigation more than the fourth was worth. Each drop is recorded as a
+    failed dispatch, the same route a specialist takes when its own output will not validate
+    twice.
+    """
+    catalog = _catalog()
+    legal = ", ".join(sorted(catalog.services))
+    kept: list[Dispatch] = []
+    rejected: list[str] = []
+    for dispatch in plan.dispatches:
+        canonical = _legal(catalog, dispatch.service)
+        if canonical is None:
+            rejected.append(_why_illegal(dispatch.service, legal))
+            continue
+        dispatch.service = canonical
+        kept.append(dispatch)
+    plan.dispatches = kept
+    return rejected

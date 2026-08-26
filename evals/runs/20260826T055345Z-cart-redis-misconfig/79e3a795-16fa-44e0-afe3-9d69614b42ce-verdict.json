@@ -1,0 +1,60 @@
+{
+  "incident_id": "79e3a795-16fa-44e0-afe3-9d69614b42ce",
+  "trajectory_id": "5b5d82e1-f0df-46da-a903-32edbd57fb4a",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-redis-misconfig",
+  "verdict": {
+    "root_cause": "An automated platform change at 05:53:46 rewrote cartservice's Redis backing-store address to a target on port 6380 (tr_81bd1cfe0ec8). cartservice cannot establish a connection to redis-cart at that endpoint; the connect attempt times out after ~15-40s and throws an unhandled exception out of RedisCartStore.EnsureRedisConnected -> InitializeAsync -> Program.Main, so the process crash-loops at startup and never reaches a serving state (tr_53476e44e67f). With cartservice unavailable, checkoutservice's first downstream step \u2014 the outbound CartService/GetCart call inside prepareOrderItemsAndShippingQuoteFromCart \u2014 fails immediately, and that error propagates up through PlaceOrder to the frontend, which is why checkoutservice, frontend and loadgenerator all alerted at 05:56:30 (tr_86d0e8624dca). checkoutservice itself is blameless: no changes on it (tr_bd5c71d3706d), it keeps accepting orders and logs no errors of its own, but no PlaceOrder after ~05:55 ever reaches the payment/email/message-write steps (tr_af6d4aa36488), and its error ratio is elevated but partial, consistent with intermittent success while cart replicas cycle (tr_5cc20e61b736).",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_81bd1cfe0ec8",
+      "tr_53476e44e67f",
+      "tr_86d0e8624dca",
+      "tr_af6d4aa36488",
+      "tr_5cc20e61b736",
+      "tr_bd5c71d3706d",
+      "tr_887fa4128382"
+    ],
+    "reasoning": "Three independent layers converge on one story. Traces establish the causal direction and the failing edge: the deepest error-bearing span in every sampled failing checkout is checkoutservice's outbound GetCart, the enclosing prepare span carries no independent error, and frontend spans error only after their child does \u2014 so origin is at or below cartservice, not in checkout logic or the frontend (tr_86d0e8624dca). checkout's own logs corroborate the shape without naming a culprit: orders keep arriving, no error severity is emitted, and the completion lines for payment/email/message-write vanish after ~05:55, i.e. requests die at the first downstream step (tr_af6d4aa36488). cartservice logs supply the mechanism: every error in the window is a Redis connect failure to port 6380 thrown unhandled from Program.Main, meaning the process never serves, and normal cart operations were healthy earlier at ~05:46 (tr_53476e44e67f). The change log supplies the trigger and the timing: a single automated env-var edit at 05:53:46 setting exactly that Redis address, under three minutes before onset, with no deploy or flag change competing for the explanation (tr_81bd1cfe0ec8). Latency mechanisms are excluded \u2014 root spans complete in 1-3ms and erroring leaves sub-millisecond, so this is fast-fail, not saturation or deadline exhaustion (tr_86d0e8624dca) \u2014 which also rules out resource_exhaustion at the checkout tier. cartservice's absent calls_total series is a telemetry gap, not a signal, and is consistent with a process that never reaches serving state, but it was not usable as corroboration (tr_887fa4128382). Because the fault is an injected/incorrect configuration value rather than code, reverting the env var to the working Redis endpoint (and letting the crash-looping pods restart into it) is the corrective action; a rollback of any image would not touch the offending value.",
+    "open_questions": [
+      "No prior value was recorded for the Redis address (tr_81bd1cfe0ec8), so it is unsettled whether 6380 is a wrong port versus a first-time injection of a setting that previously came from a default \u2014 this changes what 'revert' means in practice.",
+      "It is not confirmed from evidence here whether any Redis instance actually listens on 6380, or whether the correct endpoint is 6379; the connect timeout duration hints at an unreachable host/port rather than a refusal, but that was not directly verified.",
+      "Why platform-automation made the change is entirely unexamined \u2014 a reconciliation loop, template change, or pipeline could re-apply the bad value immediately after a revert.",
+      "The ~4-minute gap between the config edit at 05:53:46 and the first cartservice Redis errors at ~05:57:51 (tr_53476e44e67f) is unexplained; it is plausibly rollout/pod-cycling lag but no pod or restart evidence was gathered to confirm it, and alerting fired at 05:56:30, before the first observed cart error line.",
+      "cartservice has no usable request/error metrics under the queried labels (tr_887fa4128382); no memory, restart-count, or cache-connection metrics were retrieved at all, so replica-level behaviour and any concurrent resource pressure are unverified.",
+      "checkoutservice's error ratio is partial rather than total (tr_5cc20e61b736) while every sampled trace failed identically (tr_86d0e8624dca); the successful fraction was never characterised \u2014 possibly stale-cache or non-checkout call paths, possibly sampling bias.",
+      "Triage flagged 4 unmeasured edges; accountingservice, currencyservice and paymentservice are argued out because checkout aborts before reaching them (tr_86d0e8624dca), but that argument covers only these failing checkout traces and does not prove those services are healthy or uninvolved in the broader 12-service blast radius.",
+      "The other 9 services in the blast radius were never dispatched on; whether their alerts are all downstream of cart or include an independent problem is unestablished."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired ",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m49s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\n**frontend** and **loadgenerator** crossed the error threshol",
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for "
+  ],
+  "failed_dispatches": [],
+  "narrative_error": "the narrative mentions ['fault']. This text becomes corpus material at T2.4b, so it is written from the responder's chair - what was visible, not what we know because we caused it (ADR-0020 \u00a74, evals/scenarios/ARTIFACTS.md)."
+}

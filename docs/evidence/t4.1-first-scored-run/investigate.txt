@@ -1,0 +1,30 @@
+incident cae7e558-dc95-413f-b7ee-f0ae88173022  state triaging  anchor 04:36:30
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 07991318-2c68-4333-bf99-a42e6d839e50
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_a96ac556b459, tr_9c75fb07b9cf, tr_d7c5f0e96cd3, tr_f031982de448, tr_f0e152f2896f, tr_79945d6a9c52, tr_c8b247b0f008
+  root cause  : Not established. The only positively measured fact is that checkoutservice transitioned from clean to roughly 67% errored spans inside the 04:26:30–04:41:30 window while its process stayed up, kept accepting PlaceOrder requests, and logged no errors, exceptions, or RPC failures of its own (tr_a96ac556b459, tr_9c75fb07b9cf). That pattern — a partial error ratio well below 1.0, with the caller silent about the failure in its own logs — is characteristic of a caller propagating a downstream failure on a subset of call paths rather than of a fault originating in checkoutservice. But the three dispatches that would have identified the downstream culprit all returned no usable data for non-substantive reasons: the trace query failed with a backend 500 (tr_d7c5f0e96cd3), the dependency error-ratio query used a prose string as an exact-match service_name selector and therefore could not match any series (tr_79945d6a9c52), and the dependency log query comma-joined four service names into one literal label value and is indistinguishable from a no-op (tr_c8b247b0f008). Change history is empty for checkoutservice and for all nine dependencies, but only across a ~15-minute window, not the 90-minute lookback that was asked for (tr_f031982de448, tr_f0e152f2896f) — so a deploy or config change landing before 04:26:30 remains entirely unexamined. I decline to name a fault class on this basis; the corpus cases (cart-bad-image-tag, shipping-wrong-image) show a dependency deploy producing exactly this caller-errors/dependency-silent signature, which is a reason to prioritise the wider change lookback, not a reason to conclude one happened here.
+  OPEN        : Which dependency, if any, is the origin? No per-service error ratio, request rate, or latency was obtained — tr_79945d6a9c52 must be re-run with one selector per service or a regex matcher before any dependency is implicated or exonerated.
+  OPEN        : Do cartservice, paymentservice, currencyservice, or productcatalogservice log errors in this window? tr_c8b247b0f008's matcher was malformed; the question is completely open, not answered negatively.
+  OPEN        : Was there a deploy, config edit, or flag flip in the 75 minutes of lookback that neither change query covered (before ~04:26:30)? Both corpus analogues involved a dependency image change that would sit outside the queried interval.
+  OPEN        : Is the tracing backend's 500 (tr_d7c5f0e96cd3) an independent second failure, or a symptom of the same underlying condition? It should be checked on its own terms, and re-queried once healthy for span-level error attribution.
+  OPEN        : Why does the ~67% error ratio plateau below 1.0 — which subset of checkout call paths still succeeds? That split is the strongest available discriminator and is currently unexplained.
+  OPEN        : What happened between 04:27:32 and 04:34:42 in checkoutservice logs? tr_9c75fb07b9cf was truncated to the oldest 8 and newest 32 lines, so the pre-onset stretch is unobserved.
+  OPEN        : Do frontend and loadgenerator error onsets precede, coincide with, or follow checkoutservice's? All three alerted at 04:36:30, but no comparative onset data was gathered; per the corpus, loadgenerator's signal only restates the storefront's.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T043356Z-cart-redis-misconfig/cae7e558-dc95-413f-b7ee-f0ae88173022-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T043356Z-cart-redis-misconfig/cae7e558-dc95-413f-b7ee-f0ae88173022-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 16915.83it/s]

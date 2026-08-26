@@ -1,0 +1,59 @@
+{
+  "incident_id": "cae7e558-dc95-413f-b7ee-f0ae88173022",
+  "trajectory_id": "07991318-2c68-4333-bf99-a42e6d839e50",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-redis-misconfig",
+  "verdict": {
+    "root_cause": "Not established. The only positively measured fact is that checkoutservice transitioned from clean to roughly 67% errored spans inside the 04:26:30\u201304:41:30 window while its process stayed up, kept accepting PlaceOrder requests, and logged no errors, exceptions, or RPC failures of its own (tr_a96ac556b459, tr_9c75fb07b9cf). That pattern \u2014 a partial error ratio well below 1.0, with the caller silent about the failure in its own logs \u2014 is characteristic of a caller propagating a downstream failure on a subset of call paths rather than of a fault originating in checkoutservice. But the three dispatches that would have identified the downstream culprit all returned no usable data for non-substantive reasons: the trace query failed with a backend 500 (tr_d7c5f0e96cd3), the dependency error-ratio query used a prose string as an exact-match service_name selector and therefore could not match any series (tr_79945d6a9c52), and the dependency log query comma-joined four service names into one literal label value and is indistinguishable from a no-op (tr_c8b247b0f008). Change history is empty for checkoutservice and for all nine dependencies, but only across a ~15-minute window, not the 90-minute lookback that was asked for (tr_f031982de448, tr_f0e152f2896f) \u2014 so a deploy or config change landing before 04:26:30 remains entirely unexamined. I decline to name a fault class on this basis; the corpus cases (cart-bad-image-tag, shipping-wrong-image) show a dependency deploy producing exactly this caller-errors/dependency-silent signature, which is a reason to prioritise the wider change lookback, not a reason to conclude one happened here.",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_a96ac556b459",
+      "tr_9c75fb07b9cf",
+      "tr_d7c5f0e96cd3",
+      "tr_f031982de448",
+      "tr_f0e152f2896f",
+      "tr_79945d6a9c52",
+      "tr_c8b247b0f008"
+    ],
+    "reasoning": "Two findings are load-bearing and well-supported. First, checkoutservice is genuinely degraded and the degradation began inside the window: error ratio rises from a minimum of 0 to a peak near 67% over 58 sampled points (tr_a96ac556b459). The sub-1.0 peak rules out total outage and, combined with error-status tagging, rules out a latency-only timeout picture. Second, checkoutservice's own logs over the contiguous 04:34:42\u201304:39:02 stretch contain only info PlaceOrder lines with no error, exception, or RPC-failure message, and PlaceOrder cadence continues through onset (tr_9c75fb07b9cf) \u2014 so the process did not crash or restart, and it names no failing downstream. A service that is erroring on two-thirds of spans while logging nothing about it is most consistent with errors arriving from a call it makes, not from local logic \u2014 but that is an inference from a shape, not a measurement. The measurements that would confirm or refute it do not exist in this evidence set: tr_d7c5f0e96cd3 is a server-side 500 (which means the trace silence carries no information about emission), and tr_79945d6a9c52 and tr_c8b247b0f008 both failed at the label-selector level, so their empty returns cannot be read as dependency health. The specialists correctly closed off the silence-implies-health inference in both cases. The change-log nulls (tr_f031982de448, tr_f0e152f2896f) do genuinely exclude a change landing in the ~10 minutes before onset or during the incident, but both results explicitly flag that 75 minutes of the requested lookback went unqueried, which is where the corpus analogues would put a bad image tag. With no per-service dependency signal of any kind, naming a fault class would be asserting the shape as the answer, and recommending a rollback would be acting on a change nobody has yet observed.",
+    "open_questions": [
+      "Which dependency, if any, is the origin? No per-service error ratio, request rate, or latency was obtained \u2014 tr_79945d6a9c52 must be re-run with one selector per service or a regex matcher before any dependency is implicated or exonerated.",
+      "Do cartservice, paymentservice, currencyservice, or productcatalogservice log errors in this window? tr_c8b247b0f008's matcher was malformed; the question is completely open, not answered negatively.",
+      "Was there a deploy, config edit, or flag flip in the 75 minutes of lookback that neither change query covered (before ~04:26:30)? Both corpus analogues involved a dependency image change that would sit outside the queried interval.",
+      "Is the tracing backend's 500 (tr_d7c5f0e96cd3) an independent second failure, or a symptom of the same underlying condition? It should be checked on its own terms, and re-queried once healthy for span-level error attribution.",
+      "Why does the ~67% error ratio plateau below 1.0 \u2014 which subset of checkout call paths still succeeds? That split is the strongest available discriminator and is currently unexplained.",
+      "What happened between 04:27:32 and 04:34:42 in checkoutservice logs? tr_9c75fb07b9cf was truncated to the oldest 8 and newest 32 lines, so the pre-onset stretch is unobserved.",
+      "Do frontend and loadgenerator error onsets precede, coincide with, or follow checkoutservice's? All three alerted at 04:36:30, but no comparative onset data was gathered; per the corpus, loadgenerator's signal only restates the storefront's."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired ",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

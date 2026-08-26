@@ -18,7 +18,13 @@ from faultline.agents.budget import Budget, BudgetState
 from faultline.agents.contracts import DispatchPlan, SpecialistFindings
 from faultline.agents.investigation import Investigation
 from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
-from faultline.agents.roles import Planner, Scribe, Synthesizer, build_specialists
+from faultline.agents.roles import (
+    Planner,
+    SchemaValidationError,
+    Scribe,
+    Synthesizer,
+    build_specialists,
+)
 from faultline.agents.trajectory import InMemoryTrajectoryStore, StepKind
 from faultline.agents.triage import Triage
 from faultline.context.catalog import ServiceCatalog
@@ -712,3 +718,129 @@ def test_a_verdict_contradicting_its_own_trajectory_is_flagged_on_the_investigat
     assert "No change history has been queried" in result.verdict.reasoning, "not stripped"
     flag = next(f for f in result.flags if f.startswith("contradiction:"))
     assert result.runs[0].result.id in flag
+
+
+# --- the dispatch contract (T3.4c) --------------------------------------------
+
+# Verbatim from trajectory 6b9715de-f684-4352-9739-bbdeeb3607df, T3.4b's live run. Both were
+# accepted by the contract, reached the tool layer, and produced selectors that cannot match.
+T34B_COMMA_LIST = "paymentservice, currencyservice, cartservice, productcatalogservice"
+T34B_PROSE_LIST = (
+    "checkoutservice and its direct dependencies (paymentservice, currencyservice, "
+    "cartservice, productcatalogservice, frontend)"
+)
+
+
+def plan_naming(service: str) -> str:
+    return plan_reply(
+        [{"specialist": "metrics", "service": service, "question": "q", "reason": "r"}],
+        [{"specialist": "logs", "reason": "later"}],
+    )
+
+
+def test_the_comma_list_from_t34b_is_rejected_and_the_reask_says_what_is_legal() -> None:
+    """**The T3.4b defect, verbatim.** Four service names in one `service` field became a PromQL
+    label value that cannot match any `service_name`, so the query returned no series at all -
+    not even a zero-valued denominator - and the specialist reported an empty result.
+
+    ADR-0019's empty-is-not-error principle covers a well-formed query that found nothing. It
+    does not cover a selector that cannot match, and reading that emptiness as evidence is the
+    defect: it is the one shape of empty that means nothing while looking like the shape that
+    means everything.
+    """
+    model = ScriptedModel({"planner": [plan_naming(T34B_COMMA_LIST), plan_naming("cartservice")]})
+    completion = Planner(model).plan(triage_of("cartservice"))
+
+    assert completion.attempts == 2, "rejected, then re-asked once"
+    assert completion.value.dispatches[0].service == "cartservice"
+
+    reask = model.calls[1].messages[-1]["content"]
+    assert T34B_COMMA_LIST in reask, "the planner is told which value was wrong"
+    assert "names more than one service" in reask
+    assert "make three dispatches" in reask
+    assert "cartservice" in reask and "shippingservice" in reask, "and what is legal"
+
+
+def test_the_prose_list_from_t34b_is_rejected_too() -> None:
+    """The other half of the same run: a `service` field carrying a sentence. It is the same
+    error wearing different punctuation, and a check that only looked for commas would pass the
+    ones joined by "and"."""
+    model = ScriptedModel({"planner": [plan_naming(T34B_PROSE_LIST), plan_naming("frontend")]})
+    completion = Planner(model).plan(triage_of("cartservice"))
+
+    assert completion.attempts == 2
+    assert "names more than one service" in model.calls[1].messages[-1]["content"]
+
+
+def test_an_unknown_service_is_rejected_with_the_legal_values() -> None:
+    """A name nobody has heard of is a different error from a list, and says so."""
+    model = ScriptedModel({"planner": [plan_naming("shoppingcartsvc"), plan_naming("cartservice")]})
+    Planner(model).plan(triage_of("cartservice"))
+
+    reask = model.calls[1].messages[-1]["content"]
+    assert "is not a service this system knows" in reask
+    assert "productcatalogservice" in reask
+
+
+def test_either_naming_scheme_is_accepted_and_stored_canonically() -> None:
+    """`cart-service` and `cartservice` are the same service; `canonical_service` is what says
+    so. The contract accepts either and normalises, so everything downstream of the plan sees
+    one identity - which is the whole reason that machinery exists (ADR-0008's axis 1)."""
+    model = ScriptedModel({"planner": [plan_naming("cart-service")]})
+    completion = Planner(model).plan(triage_of("cartservice"))
+
+    assert completion.attempts == 1, "not an error, just the other name"
+    assert completion.value.dispatches[0].service == "cartservice"
+
+
+def test_a_second_illegal_reply_loses_that_dispatch_and_keeps_the_rest() -> None:
+    """**Fails the dispatch alone.** Three good dispatches and one bad one is three dispatches'
+    worth of evidence; throwing the round away to punish the fourth costs more than the fourth
+    was worth. The drop is recorded, never silent."""
+    stubborn = plan_reply(
+        [
+            {"specialist": "metrics", "service": T34B_COMMA_LIST, "question": "q", "reason": "r"},
+            {"specialist": "changes", "service": "cartservice", "question": "q", "reason": "r"},
+        ],
+        [],
+    )
+    model = ScriptedModel({"planner": [stubborn, stubborn]})
+    completion = Planner(model).plan(triage_of("cartservice"))
+
+    assert [d.service for d in completion.value.dispatches] == ["cartservice"]
+    assert len(completion.rejected) == 1
+    assert T34B_COMMA_LIST in completion.rejected[0]
+
+
+def test_a_plan_with_nothing_legal_left_still_fails() -> None:
+    """Salvage is not leniency. A plan whose every dispatch is illegal after the re-ask has
+    nothing to run, and pretending otherwise would hand the loop an empty round."""
+    hopeless = plan_naming(T34B_COMMA_LIST)
+    model = ScriptedModel({"planner": [hopeless, hopeless]})
+    with pytest.raises(SchemaValidationError):
+        Planner(model).plan(triage_of("cartservice"))
+
+
+def test_a_rejected_dispatch_reaches_the_investigations_flags() -> None:
+    """It has to arrive where every other kind of incompleteness arrives, or T4.2 cannot see
+    that the plan the planner wrote is not the plan that ran."""
+    mixed = plan_reply(
+        [
+            {"specialist": "metrics", "service": T34B_COMMA_LIST, "question": "q", "reason": "r"},
+            {"specialist": "changes", "service": "cartservice", "question": "q", "reason": "r"},
+        ],
+        [],
+    )
+    model = ScriptedModel(
+        {
+            "planner": [mixed, mixed],
+            "synthesizer": [VERDICT_REPLY],
+            "scribe": [draft_reply([])],
+        }
+    )
+    engine, _ = full_engine(model, Budget(max_dispatch_rounds=1))
+    result = engine.run("incident-15", triage_of("cartservice"), ANCHOR)
+
+    assert [run.service for run in result.runs] == ["cartservice"]
+    flag = next(f for f in result.flags if "more than one service" in f)
+    assert flag.startswith("planner produced no valid findings")

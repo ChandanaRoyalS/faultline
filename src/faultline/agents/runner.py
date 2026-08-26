@@ -71,6 +71,12 @@ class RunReport:
 
     result: InvestigationResult | None
     error: str | None = None
+    blast_radius: tuple[str, ...] = ()
+    """Triage's predicted set, carried onto the artifact so the harness can score it without
+    importing the product's triage (T4.1). ADR-0009 specifies the harness works through public
+    interfaces, and a file the CLI wrote is one."""
+
+    unmeasured_edges: int = 0
 
     @property
     def exit_code(self) -> Exit:
@@ -112,6 +118,8 @@ def run_investigation(
     two phases should leave the state it had actually reached, not the state it started in.
     """
     states = [incident.state.value]
+    radius = tuple(sorted(member.service for member in triage.blast_radius))
+    edges = len(triage.unmeasured_edges)
 
     def advance(step: Callable[[], None]) -> None:
         step()
@@ -128,13 +136,17 @@ def run_investigation(
             # `FAILED` would retire a live incident permanently - ADR-0016 makes `FAILED`
             # terminal and `INVESTIGABLE` is `{TRIAGING}`. T3.5's own smoke did exactly this,
             # once, with a `ModuleNotFoundError`.
-            return RunReport(incident.id, None, tuple(states), None, f"did not start - {why}")
+            return RunReport(
+                incident.id, None, tuple(states), None, f"did not start - {why}", radius, edges
+            )
         advance(
             partial(
                 machine.record_investigation_failure, incident, failure.cause.__class__.__name__
             )
         )
-        return RunReport(incident.id, failure.trajectory.id, tuple(states), None, why)
+        return RunReport(
+            incident.id, failure.trajectory.id, tuple(states), None, why, radius, edges
+        )
 
     incident.investigation_id = result.trajectory.id
     for state, trigger in machine.INVESTIGATION_PHASES:
@@ -145,7 +157,7 @@ def run_investigation(
             break
         advance(partial(machine.transition, incident, state, trigger=trigger))
 
-    return RunReport(incident.id, result.trajectory.id, tuple(states), result)
+    return RunReport(incident.id, result.trajectory.id, tuple(states), result, None, radius, edges)
 
 
 def write_outputs(report: RunReport, out: Path) -> list[Path]:
@@ -167,6 +179,8 @@ def write_outputs(report: RunReport, out: Path) -> list[Path]:
                 "incident_id": report.incident_id,
                 "trajectory_id": report.trajectory_id,
                 "states": list(report.states),
+                "blast_radius": list(report.blast_radius),
+                "unmeasured_edges": report.unmeasured_edges,
                 "exclude_origin": result.exclude_origin,
                 "verdict": None if result.verdict is None else result.verdict.model_dump(),
                 "flags": result.flags,

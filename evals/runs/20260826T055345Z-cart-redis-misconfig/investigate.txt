@@ -1,0 +1,31 @@
+incident 79e3a795-16fa-44e0-afe3-9d69614b42ce  state triaging  anchor 05:56:30
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 5b5d82e1-f0df-46da-a903-32edbd57fb4a
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_81bd1cfe0ec8, tr_53476e44e67f, tr_86d0e8624dca, tr_af6d4aa36488, tr_5cc20e61b736, tr_bd5c71d3706d, tr_887fa4128382
+  root cause  : An automated platform change at 05:53:46 rewrote cartservice's Redis backing-store address to a target on port 6380 (tr_81bd1cfe0ec8). cartservice cannot establish a connection to redis-cart at that endpoint; the connect attempt times out after ~15-40s and throws an unhandled exception out of RedisCartStore.EnsureRedisConnected -> InitializeAsync -> Program.Main, so the process crash-loops at startup and never reaches a serving state (tr_53476e44e67f). With cartservice unavailable, checkoutservice's first downstream step — the outbound CartService/GetCart call inside prepareOrderItemsAndShippingQuoteFromCart — fails immediately, and that error propagates up through PlaceOrder to the frontend, which is why checkoutservice, frontend and loadgenerator all alerted at 05:56:30 (tr_86d0e8624dca). checkoutservice itself is blameless: no changes on it (tr_bd5c71d3706d), it keeps accepting orders and logs no errors of its own, but no PlaceOrder after ~05:55 ever reaches the payment/email/message-write steps (tr_af6d4aa36488), and its error ratio is elevated but partial, consistent with intermittent success while cart replicas cycle (tr_5cc20e61b736).
+  OPEN        : No prior value was recorded for the Redis address (tr_81bd1cfe0ec8), so it is unsettled whether 6380 is a wrong port versus a first-time injection of a setting that previously came from a default — this changes what 'revert' means in practice.
+  OPEN        : It is not confirmed from evidence here whether any Redis instance actually listens on 6380, or whether the correct endpoint is 6379; the connect timeout duration hints at an unreachable host/port rather than a refusal, but that was not directly verified.
+  OPEN        : Why platform-automation made the change is entirely unexamined — a reconciliation loop, template change, or pipeline could re-apply the bad value immediately after a revert.
+  OPEN        : The ~4-minute gap between the config edit at 05:53:46 and the first cartservice Redis errors at ~05:57:51 (tr_53476e44e67f) is unexplained; it is plausibly rollout/pod-cycling lag but no pod or restart evidence was gathered to confirm it, and alerting fired at 05:56:30, before the first observed cart error line.
+  OPEN        : cartservice has no usable request/error metrics under the queried labels (tr_887fa4128382); no memory, restart-count, or cache-connection metrics were retrieved at all, so replica-level behaviour and any concurrent resource pressure are unverified.
+  OPEN        : checkoutservice's error ratio is partial rather than total (tr_5cc20e61b736) while every sampled trace failed identically (tr_86d0e8624dca); the successful fraction was never characterised — possibly stale-cache or non-checkout call paths, possibly sampling bias.
+  OPEN        : Triage flagged 4 unmeasured edges; accountingservice, currencyservice and paymentservice are argued out because checkout aborts before reaching them (tr_86d0e8624dca), but that argument covers only these failing checkout traces and does not prove those services are healthy or uninvolved in the broader 12-service blast radius.
+  OPEN        : The other 9 services in the blast radius were never dispatched on; whether their alerts are all downstream of cart or include an independent problem is unestablished.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+NARRATIVE NOT RENDERED: the narrative mentions ['fault']. This text becomes corpus material at T2.4b, so it is written from the responder's chair - what was visible, not what we know because we caused it (ADR-0020 §4, evals/scenarios/ARTIFACTS.md).
+wrote /Users/chandana/dev/faultline/evals/runs/20260826T055345Z-cart-redis-misconfig/79e3a795-16fa-44e0-afe3-9d69614b42ce-verdict.json
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7957.95it/s]

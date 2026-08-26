@@ -14,7 +14,13 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Protocol
 
-from faultline.orchestrator.models import Episode, Incident, IncidentState, Severity
+from faultline.orchestrator.models import (
+    Episode,
+    Incident,
+    IncidentState,
+    JoinRule,
+    Severity,
+)
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS incidents (
@@ -31,6 +37,11 @@ CREATE TABLE IF NOT EXISTS incidents (
 -- Added at T3.5 rather than in the original CREATE, so an existing deployment gains it
 -- without a migration tool. The runner writes it; nothing before T3.5 had an id to write.
 ALTER TABLE incidents ADD COLUMN IF NOT EXISTS investigation_id TEXT;
+
+-- ADR-0017 deferred this to "whoever builds that reporting", which is T4.1. Per episode
+-- rather than per incident: a join is a decision about an episode, and an incident
+-- accumulates several. See `Episode.join_rule`.
+ALTER TABLE incident_episodes ADD COLUMN IF NOT EXISTS join_rule TEXT;
 
 CREATE TABLE IF NOT EXISTS incident_episodes (
     incident_id   TEXT        NOT NULL REFERENCES incidents(id),
@@ -190,7 +201,7 @@ class PostgresIncidentStore:
                 cur.execute(
                     "INSERT INTO incident_episodes (incident_id, episode_key, fingerprint, "
                     "service, severity, alertname, starts_at, ends_at, attached_at, "
-                    "resolved_at) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
+                    "resolved_at, join_rule) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s) "
                     "ON CONFLICT (incident_id, episode_key) DO UPDATE SET "
                     "ends_at = EXCLUDED.ends_at, resolved_at = EXCLUDED.resolved_at",
                     (
@@ -204,6 +215,7 @@ class PostgresIncidentStore:
                         episode.ends_at,
                         episode.attached_at,
                         episode.resolved_at,
+                        None if episode.join_rule is None else episode.join_rule.value,
                     ),
                 )
         self._conn.commit()
@@ -256,7 +268,8 @@ class PostgresIncidentStore:
             for incident in incidents:
                 cur.execute(
                     "SELECT episode_key, fingerprint, service, severity, alertname, "
-                    "starts_at, ends_at, attached_at, resolved_at FROM incident_episodes "
+                    "starts_at, ends_at, attached_at, resolved_at, join_rule "
+                    "FROM incident_episodes "
                     "WHERE incident_id = %s",
                     (incident.id,),
                 )
@@ -271,5 +284,6 @@ class PostgresIncidentStore:
                         ends_at=e[6],
                         attached_at=e[7],
                         resolved_at=e[8],
+                        join_rule=None if e[9] is None else JoinRule(e[9]),
                     )
         return incidents
