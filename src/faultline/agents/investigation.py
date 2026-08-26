@@ -11,7 +11,6 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from faultline.agents import grounding
 from faultline.agents import narrative as narrative_renderer
 from faultline.agents.budget import Budget, BudgetState
 from faultline.agents.contracts import (
@@ -99,7 +98,12 @@ class InvestigationResult:
         return flags + self.contradictions
 
     contradictions: list[str] = field(default_factory=list)
-    """Verdict claims the trajectory refutes. **Flagged, never stripped** - see `grounding`."""
+    """**Always empty since T4.3.** The contradiction checker is retired; see
+    `faultline.agents.grounding` and ADR-0021's addendum.
+
+    The field stays so runs recorded before the retirement still load, and so the category keeps
+    printing at zero in a scored report rather than vanishing - a category that disappears takes
+    its history with it."""
 
     def summary(self) -> str:
         flag = f" BUDGET EXHAUSTED ({self.exhausted_reason})" if self.budget_exhausted else ""
@@ -281,15 +285,9 @@ class Investigation:
             return seq
         state.spend_tokens(completion.response.input_tokens, completion.response.output_tokens)
         result.verdict = completion.value
-        # Before the step is written, so the recorded flags are the ones the verdict carries.
-        result.contradictions = grounding.contradictions(
-            [
-                completion.value.root_cause,
-                completion.value.reasoning,
-                *completion.value.open_questions,
-            ],
-            result.runs,
-        )
+        # The contradiction cross-check ran here until T4.3. Retired on its own evidence:
+        # 0 true positives and 4 false positives across every live firing (ADR-0021 addendum).
+        # `grounding` is kept, unwired, with the bar for re-admission written down.
         seq += 1
         trajectory.add(
             TrajectoryStep(

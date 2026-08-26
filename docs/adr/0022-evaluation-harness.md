@@ -396,3 +396,76 @@ say much**, and printing it anyway is the honest form of that finding.
   is a decision with an ADR, not a quiet edit.
 - Nothing here measures the demo path (T5.3) or the threat model (T6.x). Both read trajectories
   this harness will produce and neither is designed against.
+
+---
+
+## Addendum (T4.3): the dispute register records disagreeing *readings*, not a silent tiebreak
+
+§1.2 above introduced the `class_dispute` register with one entry, and defined it loosely enough
+that two readings were possible: a dispute is where **the fix tiebreak disagrees with the agent**,
+or a dispute is where **the two readings of the label set disagree**. With one entry the two
+definitions were indistinguishable. The first sweep produced four observations and separated
+them.
+
+**Decision: the register records where the two readings disagree.** The fix test is how ADR-0022
+*resolves* a dispute; it is not the test for whether one exists.
+
+### Why the sweep settles it
+
+The four observations of this boundary:
+
+| scenario | truth | returned | fix tiebreak |
+|---|---|---|---|
+| cart-dependency-latency (T3.5) | `dependency_latency` / `restart` | `bad_config` / `config_revert` | **discriminates** — restart clears it, there is nothing to revert |
+| cart-dependency-latency (sweep) | same | same | same |
+| ad-memory-squeeze (sweep) | `resource_exhaustion` / `config_revert` | `bad_config` / `config_revert` | **silent** — both readings give `config_revert` |
+| frauddetection-memory-squeeze (sweep) | `resource_exhaustion` / `config_revert` | `bad_config` / `config_revert` | **silent** |
+
+A register defined by the tiebreak records the first two and is blind to the other two — and the
+two it misses are the ones where the label set's ambiguity is *worst*, because nothing downstream
+disagrees. Defining visibility by whether a tiebreak fires means the register goes quiet exactly
+where the labels are least separable.
+
+### The finding this changes, which is the point of taking the decision
+
+Under the narrow definition the per-class table reads: **"wrong on `resource_exhaustion`, 0/2."**
+Under the wide one it reads: **"reads every change-mediated fault as `bad_config`."** The sweep
+data says which is true, and it is not close.
+
+Across all seven scenarios the agent returned exactly **two** values: `bad_deploy` where the
+change record touched an image, `bad_config` everywhere else. It never returned a symptom class
+for any scenario. That one rule predicts all seven rows — including the four it got right, which
+are right because the artifact and the symptom happen to agree there.
+
+Both `resource_exhaustion` verdicts identify the mechanism *correctly* before classifying:
+
+> "A process killed by the kernel for exceeding its cgroup limit dies without emitting an
+> application-level…" — `frauddetection-memory-squeeze`
+
+> "adservice began hitting the newly imposed memory ceiling…" — `ad-memory-squeeze`
+
+These are not runs that failed to understand resource exhaustion. They are runs that understood
+it and then answered a different question: *what changed*, rather than *what is wrong*. That is a
+single, coherent, wrong classifier — and it is a far more actionable finding than a per-class
+accuracy of 0/2, because it names the thing to fix.
+
+### What this does not change
+
+**Every disputed miss is still a miss.** The register is visibility, not forgiveness: the four
+entries are counted wrong in the per-class table and in every aggregate, and the fault-class
+figure stays 4/7. What changes is that a reader of the scored output can see that three of the
+four errors are one error, without reading seven verdicts to find out.
+
+The entries stay **enumerated, never inferred**. A scorer deciding for itself which misses were
+nearly right would be grading on sympathy; each entry names the ADR section that admitted it.
+
+### Consequences
+
+- The register has four entries where it had two, and the two new ones cite this addendum.
+- ADR-0008's requirement is reinforced, not relaxed: remediation-class accuracy stays broken out
+  by fault class. The sweep's 6/7 fix figure is inflated by `resource_exhaustion` and
+  `bad_config` sharing `config_revert`, which is the same collinearity that silenced the tiebreak.
+- **Whether the prompt should teach the symptom/change distinction is not decided here.** It is a
+  prompt change, so it moves `runtime_version` and needs its own before/after comparison —
+  CLAUDE.md's eval-before-opinion rule, applied to the first finding this harness has produced
+  that suggests one.

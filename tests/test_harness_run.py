@@ -254,3 +254,118 @@ def test_the_episode_wait_comes_from_the_bundle_not_a_constant() -> None:
     assert expected_episodes(bundle_for("ad-memory-squeeze")) == 2, "two where the radius is wider"
     assert expected_episodes(bundle_for("cart-redis-misconfig")) == 2
     assert expected_episodes({"alerts_over_window": []}) == 1, "never waits for zero"
+
+
+# --- transient retry (T4.3) ----------------------------------------------------
+
+# Verbatim from run 20260826T061939Z's investigate.txt - the 529 that cost a scenario slot.
+SWEEP_529 = (
+    "FAILED MID-INVESTIGATION: did not start - OverloadedError: Error code: 529 - "
+    "{'type': 'error', 'error': {'type': 'overloaded_error', 'message': 'Overloaded'}}"
+)
+
+# Verbatim from run 20260826T045545Z - the exhausted credit balance, which is terminal.
+SWEEP_400 = (
+    "FAILED MID-INVESTIGATION: did not start - BadRequestError: Error code: 400 - "
+    "{'type': 'error', 'error': {'type': 'invalid_request_error', 'message': "
+    "'Your credit balance is too low to access the Anthropic API.'}}"
+)
+
+
+def test_the_sweeps_529_is_recognised_as_transient() -> None:
+    """**The failure that cost a scenario slot.** One 529 on the first model call, and the run
+    spent an injection, a correlation wait, a revert and ten minutes to learn the provider was
+    busy (`evals/runs/SWEEP-2026-08-26.md`)."""
+    from evalharness.run import transient_signal
+
+    assert transient_signal(SWEEP_529) == "overloaded_error"
+
+
+def test_an_exhausted_credit_balance_is_not_retried() -> None:
+    """A 400 covers a malformed request and an empty account, and both are terminal. T4.1's
+    second run died on the latter; retrying would have burned three more world injections to
+    learn the same thing."""
+    from evalharness.run import transient_signal
+
+    assert transient_signal(SWEEP_400) is None
+
+
+def test_a_transient_failure_is_retried_and_every_attempt_is_recorded(tmp_path: Path) -> None:
+    """A scored run says how many attempts it needed, not just that it eventually worked."""
+    from evalharness import run as run_mod
+
+    calls: list[int] = []
+
+    def flaky(incident_id: str, scenario_id: str, out: Path, args: Any) -> tuple[int, str]:
+        calls.append(1)
+        return (4, SWEEP_529) if len(calls) < 3 else (0, "verdict produced")
+
+    with (
+        patch.object(run_mod, "_investigate", flaky),
+        patch.object(run_mod.time, "sleep"),
+        patch.object(run_mod, "RETRY_DELAYS_SECONDS", (1, 2, 3)),
+    ):
+        code, _text, attempts = run_mod._investigate_with_retry("i", "s", tmp_path, None)
+
+    assert code == 0 and len(calls) == 3
+    assert [a["attempt"] for a in attempts] == [1, 2, 3]
+    assert [a["waited_seconds"] for a in attempts] == [0, 1, 2], (
+        "delays are recorded, not just taken"
+    )
+    assert attempts[0]["transient_signal"] == "overloaded_error"
+    assert attempts[-1]["transient_signal"] is None
+
+
+def test_a_terminal_failure_is_not_retried_at_all(tmp_path: Path) -> None:
+    """One attempt, and the reason it stopped is on the record."""
+    from evalharness import run as run_mod
+
+    calls: list[int] = []
+
+    def terminal(incident_id: str, scenario_id: str, out: Path, args: Any) -> tuple[int, str]:
+        calls.append(1)
+        return 4, SWEEP_400
+
+    with patch.object(run_mod, "_investigate", terminal), patch.object(run_mod.time, "sleep"):
+        code, _t, attempts = run_mod._investigate_with_retry("i", "s", tmp_path, None)
+
+    assert code == 4 and len(calls) == 1
+    assert attempts == [
+        {"attempt": 1, "waited_seconds": 0, "exit_code": 4, "transient_signal": None}
+    ]
+
+
+def test_exhausting_the_retries_still_discards(tmp_path: Path) -> None:
+    """The bound is a bound. A provider still refusing after three and a half minutes is having
+    an outage, and a sweep should report that rather than sit in it - the run discards exactly
+    as it did before retry existed."""
+    from evalharness import run as run_mod
+
+    calls: list[int] = []
+
+    def always_busy(incident_id: str, scenario_id: str, out: Path, args: Any) -> tuple[int, str]:
+        calls.append(1)
+        return 4, SWEEP_529
+
+    with (
+        patch.object(run_mod, "_investigate", always_busy),
+        patch.object(run_mod.time, "sleep"),
+    ):
+        code, _t, attempts = run_mod._investigate_with_retry("i", "s", tmp_path, None)
+
+    assert code == 4
+    assert len(calls) == 1 + len(run_mod.RETRY_DELAYS_SECONDS) == 4
+    assert all(a["transient_signal"] == "overloaded_error" for a in attempts)
+
+
+def test_the_retry_path_touches_nothing_the_stamp_covers() -> None:
+    """**Harness-side only, and this is why the stamp does not move.** `runtime_version` is the
+    package version plus a digest over every role system prompt and every contract schema. Retry
+    lives in `evalharness`, which is neither - so a run made after this change is comparable to
+    the sweep's rows, and the sweep's stamp stays meaningful."""
+    from faultline.agents.stamp import prompt_digest
+
+    assert prompt_digest() == "59bf438b2a96", (
+        "the sweep's stamp. If this fails, a prompt or a contract moved and every row in "
+        "evals/runs/SWEEP-2026-08-26.md is from a different experiment than the next run."
+    )

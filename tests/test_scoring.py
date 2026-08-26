@@ -241,12 +241,21 @@ def test_a_refused_narrative_is_not_averaged_into_anything() -> None:
     assert scored.as_dict()["categories"]["narrative_refused"] is True
 
 
-def test_the_contradiction_ledger_is_printed_beside_any_firing() -> None:
-    """Its live precision is 0/2. A flag reported without that history reads as evidence
-    about an agent, which it is not yet."""
+def test_the_contradiction_ledger_says_the_check_is_retired() -> None:
+    """**Retired at T4.3** on a ledger of 0 true positives and 4 false positives. A non-zero
+    count can now only come from a run recorded before the retirement, and the report has to say
+    so - otherwise an old firing reads as live evidence about the agent."""
     categories = Categories(contradictions=("contradiction: metrics was not queried",))
     report = ScoredRun("r", "s", "t", categories=categories).report()
-    assert "0 true positives, 2 false positives" in report
+    assert "RETIRED at T4.3" in report
+    assert "0 true positives and 4 false positives" in report
+
+
+def test_a_run_with_no_firings_says_the_check_is_retired_rather_than_nothing() -> None:
+    """Going forward the count is always zero, and a bare zero would read as "the check looked
+    and found nothing" rather than "the check is gone"."""
+    report = ScoredRun("r", "s", "t", categories=Categories()).report()
+    assert "contradiction firings   0 (check retired)" in report
 
 
 def test_budget_exhaustion_names_the_bound_that_bit() -> None:
