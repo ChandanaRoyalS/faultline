@@ -69,18 +69,66 @@ def transition(incident: Incident, to: IncidentState, *, trigger: str) -> None:
     incident.state = to
 
 
-def record_agent_outcome(incident: Incident, outcome: object) -> None:
-    """Advance an agent-driven state. **Not built: T3.x owns what an outcome is.**
+INVESTIGABLE = frozenset({IncidentState.TRIAGING})
+"""The states an investigation may be started from. **Exactly one, and that is the machine's
+answer rather than a choice made here**: `ALLOWED` lets `PLANNING` be entered from `TRIAGING`
+and from nowhere else, so `TRIAGING` is the only door into the agent lifecycle.
 
-    ADR-0016 names `TRIAGING`, `PLANNING`, `INVESTIGATING`, `SYNTHESIZING` and `PROPOSING`
-    with their triggers and deliberately does not design them, because what each agent
-    returns - and how a specialist timeout differs from a specialist failure - is T3.x's
-    contract. Writing it from this side would be inventing it.
+An incident already past that door - left in `PLANNING` or `INVESTIGATING` by a crashed run -
+is deliberately not restartable. `record_investigation_failure` moves such a run to `FAILED`
+before it can be stranded, and a `FAILED` incident is terminal by ADR-0016's table. Resuming a
+half-finished investigation would need a transition the table does not have, and inventing one
+here is the thing this module's docstring exists to prevent."""
+
+INVESTIGATION_PHASES: tuple[tuple[IncidentState, str], ...] = (
+    (IncidentState.PLANNING, "planner produced a dispatch plan"),
+    (IncidentState.INVESTIGATING, "specialists ran their dispatches"),
+    (IncidentState.SYNTHESIZING, "synthesizer produced a verdict"),
+)
+"""What the runner walks, in order, once an investigation returns.
+
+**It stops at `SYNTHESIZING` and does not enter `PROPOSING`.** `PROPOSING` means a remediation
+proposal exists, and the proposer is the one role of the nine that T3.x has not built. An
+incident parked in `SYNTHESIZING` says exactly what happened - triage, planning, dispatch and a
+verdict - and claims nothing about a proposal. `SYNTHESIZING -> PROPOSING` stays in the table,
+unused, for the task that builds it.
+"""
+
+
+def record_agent_outcome(incident: Incident, outcome: object) -> None:
+    """Advance an agent-driven state from a finished investigation. **Built at T3.5.**
+
+    ADR-0016 named `TRIAGING`, `PLANNING`, `INVESTIGATING`, `SYNTHESIZING` and `PROPOSING` with
+    their triggers and deliberately left the contract to T3.x, because what an agent returns -
+    and how a specialist timeout differs from a specialist failure - was not decided yet. It is
+    now: `outcome` is an `InvestigationResult`, and this walks the phases it evidences.
+
+    Typed as `object` because `faultline.agents` imports `faultline.orchestrator` and not the
+    other way round; the duck-typing is deliberate and the attributes read here are the ones
+    ADR-0020 §5 fixed.
+
+    A result carrying no verdict does **not** advance to `SYNTHESIZING`. There is nothing to
+    score and nothing to propose from, and marking it as synthesized would put a state on the
+    incident that its own trajectory contradicts.
     """
-    raise NotImplementedError(
-        "agent outcomes arrive at T3.x; ADR-0016 names the states and leaves the contract "
-        "to the task that builds the agents"
-    )
+    verdict = getattr(outcome, "verdict", None)
+    for state, trigger in INVESTIGATION_PHASES:
+        if state is IncidentState.SYNTHESIZING and verdict is None:
+            return
+        transition(incident, state, trigger=trigger)
+
+
+def record_investigation_failure(incident: Incident, reason: str) -> None:
+    """An investigation that raised. **`FAILED`, from wherever it got to.**
+
+    ADR-0020 §5 draws the line: budget exhaustion produces a *flagged verdict* and never a
+    `FAILED` incident, because a partial diagnosis is scoreable. This is the other case - the
+    run did not finish at all - and leaving the incident in `PLANNING` or `INVESTIGATING` would
+    strand it in a state nothing can advance and `INVESTIGABLE` will not accept.
+    """
+    if incident.state in TERMINAL:
+        return
+    transition(incident, IncidentState.FAILED, trigger=f"investigation failed: {reason}")
 
 
 def record_approval_outcome(incident: Incident, outcome: object) -> None:

@@ -125,6 +125,13 @@ class Incident:
     decision came with."""
 
     episodes: dict[str, Episode] = field(default_factory=dict)
+    investigation_id: str | None = None
+    """The trajectory this incident's investigation wrote (T3.5).
+
+    The join every report kept asking for by hand. A state saying an investigation happened is
+    not much use without the record of what it did, and the trajectory id is the handle T4.2
+    scores against and T5.3 replays from."""
+
     state_before_resolution: IncidentState | None = None
     """Where a reopened incident goes back to. ADR-0016: a `RESOLVED` incident returns to its
     prior state, or to `OPEN` if it never started."""

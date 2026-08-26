@@ -469,14 +469,16 @@ def test_the_transition_table_refuses_what_adr_0016_does_not_list() -> None:
         transition(incident, IncidentState.EXECUTING, trigger="a test")
 
 
-def test_the_states_that_need_unbuilt_components_are_stubs_that_say_so() -> None:
-    """ADR-0016 names them and deliberately does not design them. Calling one should explain
-    which task owns the contract rather than fail obscurely."""
+def test_the_state_that_still_needs_an_unbuilt_component_is_a_stub_that_says_so() -> None:
+    """One of the two stubs is still a stub, and its message should name what is missing.
+
+    `record_agent_outcome` stopped being one at T3.5 - the runner is the component it was
+    waiting for. The action plane still has no task number, so approval and execution outcomes
+    have nothing to arrive from.
+    """
     from faultline.orchestrator import machine
 
     incident = Incident(state=IncidentState.TRIAGING)
-    with pytest.raises(NotImplementedError, match=r"T3\.x"):
-        machine.record_agent_outcome(incident, object())
     with pytest.raises(NotImplementedError, match="no task number"):
         machine.record_approval_outcome(incident, object())
 

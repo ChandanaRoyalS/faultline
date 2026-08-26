@@ -465,12 +465,48 @@ questions. n=2 is an observation, not a rate.
 `src/faultline/tools/tools.py`, `src/faultline/tools/results.py`,
 `docs/evidence/t3.4b-rerun/README.md`
 
-### T3.5 — state machine
-Part of the orchestrator's eleven-state machine. The states and their triggers are proposed
-in ADR-0016; the five that depend on agent outcomes (`TRIAGING`, `PLANNING`, `INVESTIGATING`,
-`SYNTHESIZING`, `PROPOSING`) are named there but deliberately not designed, since what each
-agent returns is T3.x's contract.
-`src/faultline/orchestrator/__init__.py:1`, `docs/adr/0016-orchestrator-correlation-state-and-cap.md`
+### T3.5 — the investigation runner, and the state machine it drives *(built)*
+**The plan called this task "state machine" and it is broader than that** - the machine's
+agent-driven transitions are one part of packaging the pipeline as an operational entrypoint.
+The difference is marked rather than resolved silently: the transitions this entry describes are
+exactly the ones the plan scoped, and the CLI around them is the component they were waiting
+for. **contract not written** for the CLI; the transitions' contract *was* written, in ADR-0016,
+and this closes it.
+
+`faultline-investigate` is the fourth command and the one T4.1 drives. Everything T3.1-T3.4c
+built ran as a hand-assembled script in the evidence directories, which is fine for a smoke and
+useless to a harness. It takes an incident id (or `--list`), runs triage, planner, specialists,
+synthesizer and scribe under the budget from settings, persists the trajectory, writes the
+verdict as JSON and the narrative as markdown under `--out`, and exits **0** on a clean verdict,
+**2** on a flagged one, **3** on a refusal, **4** on no verdict - four codes because a sweep
+that cannot tell them apart will pool them, which is what ADR-0020 §5 exists to prevent.
+
+**`record_agent_outcome` stopped being a stub.** ADR-0016 named the five agent-driven states and
+left the contract to T3.x; T3.x has built it. The decisions the runner forced are recorded in
+ADR-0016 §5: an investigation starts from `TRIAGING` and nowhere else (which the table already
+said), it stops at `SYNTHESIZING` and does not claim a `PROPOSING` it has no proposer for, a
+flagged verdict is not a failed incident, and the trajectory id lands on the incident row -
+upserted with `COALESCE`, because the orchestrator saves incidents too and has no id to offer.
+
+Two defects found by the smoke. **A failed *start* is not a failed investigation**: the first
+live attempt raised `ModuleNotFoundError` before any model call, the runner marked the incident
+`FAILED`, and `FAILED` is terminal - one absent optional extra permanently retired a live
+incident nothing had investigated. And **"the trajectory is persisted up to the failure" was not
+true** until this task: a run that died in the synthesizer left nothing in the store at all.
+
+The smoke (`docs/evidence/t3.5-runner-smoke/`) drove one investigation of `cart-dependency-latency`
+entirely through the CLI - a fault class no agent run had faced. States
+`triaging -> planning -> investigating -> synthesizing`, then `-> resolved` by the orchestrator
+with the investigation id intact. 43,513 tokens, $0.47, exit 0. The agent reconstructed the
+mechanism exactly - 300ms egress delay, one hop per Redis call, compounding across two
+sequential cart calls - and classified it `bad_config`/`config_revert` against a ground truth of
+`dependency_latency`/`restart`. **Retrieval earned its keep for the first time**: the agent
+refused the empty-error-ratio trap that sent T3.4's run to the wrong service, citing two past
+incidents in the corpus for why.
+`src/faultline/agents/cli.py`, `src/faultline/agents/runner.py`,
+`src/faultline/orchestrator/machine.py`, `src/faultline/orchestrator/store.py`,
+`docs/adr/0016-orchestrator-correlation-state-and-cap.md`,
+`docs/evidence/t3.5-runner-smoke/README.md`
 
 ---
 
@@ -501,6 +537,20 @@ agent returns is T3.x's contract.
 > PromQL matched no series at all and two of six dispatches were spent on it (T3.4b's re-run,
 > `docs/evidence/t3.4b-rerun/README.md`). Whether `service` is one name or a set is a contract
 > question ADR-0020 does not settle.
+
+> **Note for T4.2: the fault-class boundary `cart-dependency-latency` sits on.** A shaping rule
+> attached to a container's network namespace is readable as `dependency_latency` (a dependency
+> got slow) or as `bad_config` (something was configured wrong), and T3.5's run chose the
+> second against a ground truth of the first - while reconstructing the mechanism exactly. The
+> class of fix follows the same fork: `incident.md` says `restart` because "nothing was deployed
+> and no configuration was wrong", and the agent proposed `config_revert` for a fault with no
+> configuration to revert. **This is an ambiguity in the label set, not only an agent error**,
+> and scoring needs a position on it before it reports a fault-class accuracy
+> (`docs/evidence/t3.5-runner-smoke/README.md`).
+
+> **Note for T4.1: retrieval `k` counts chunks, not documents.** T3.5's run asked for 3 and
+> got two chunks of one document plus one of another - two distinct past incidents, not three.
+> Whether that is what `k` should mean is unexamined.
 
 ### T4.1 — harness runner
 Drives runs from the scenario catalog: **what to inject, how long to wait, how long

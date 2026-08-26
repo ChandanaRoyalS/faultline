@@ -42,6 +42,28 @@ from faultline.agents.triage import TriageResult
 from faultline.tools import envelope as envelope_renderer
 
 
+class InvestigationFailedError(RuntimeError):
+    """A run that raised, carrying what it had got to. **The distinction the runner needs.**
+
+    A failure with steps behind it is a partial investigation: evidence exists, it is persisted,
+    and the incident should record that an attempt happened. A failure with none is a failed
+    *start* - a missing dependency, an unreachable database - and nothing about the incident has
+    changed. Found at T3.5's smoke, where `ModuleNotFoundError` raised before the first model
+    call and moved the incident to `FAILED`, which ADR-0016 makes terminal: one missing optional
+    extra permanently retired a live incident that nothing had actually investigated.
+    """
+
+    def __init__(self, trajectory: Trajectory, cause: Exception) -> None:
+        super().__init__(f"{type(cause).__name__}: {cause}")
+        self.trajectory = trajectory
+        self.cause = cause
+
+    @property
+    def started(self) -> bool:
+        """Whether any step was recorded before the failure."""
+        return bool(self.trajectory.steps)
+
+
 @dataclass(slots=True)
 class InvestigationResult:
     trajectory: Trajectory
@@ -128,6 +150,33 @@ class Investigation:
         )
         state = BudgetState(self._budget)
         result = InvestigationResult(trajectory=trajectory)
+        try:
+            return self._run(trajectory, state, result, incident_id, triage, anchor)
+        except Exception as exc:
+            # **The partial record survives the failure.** Found at T3.5: a run that died in the
+            # synthesizer left nothing in the store at all, because the only saves were at the
+            # end - so three specialists' worth of evidence went with the exception. The
+            # trajectory is what T4.2 scores and T5.3 replays, and a crashed run is exactly the
+            # one worth reading.
+            #
+            # A trajectory with no steps is not saved. Nothing ran, so there is nothing to
+            # score, and an empty row would be indistinguishable from an investigation that
+            # produced no evidence.
+            if trajectory.steps:
+                trajectory.ended_at = datetime.now(UTC)
+                trajectory.outcome = "failed"
+                self._store.save(trajectory)
+            raise InvestigationFailedError(trajectory, exc) from exc
+
+    def _run(
+        self,
+        trajectory: Trajectory,
+        state: BudgetState,
+        result: InvestigationResult,
+        incident_id: str,
+        triage: TriageResult,
+        anchor: datetime,
+    ) -> InvestigationResult:
         seq = 0
 
         while state.start_round():

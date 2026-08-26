@@ -28,6 +28,10 @@ CREATE TABLE IF NOT EXISTS incidents (
     state_before_resolution  TEXT
 );
 
+-- Added at T3.5 rather than in the original CREATE, so an existing deployment gains it
+-- without a migration tool. The runner writes it; nothing before T3.5 had an id to write.
+ALTER TABLE incidents ADD COLUMN IF NOT EXISTS investigation_id TEXT;
+
 CREATE TABLE IF NOT EXISTS incident_episodes (
     incident_id   TEXT        NOT NULL REFERENCES incidents(id),
     episode_key   TEXT        NOT NULL,
@@ -158,12 +162,16 @@ class PostgresIncidentStore:
         with self._conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO incidents (id, state, severity, opened_at, last_activity_at, "
-                "resolved_at, resolution, state_before_resolution) "
-                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) "
+                "resolved_at, resolution, state_before_resolution, investigation_id) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s) "
                 "ON CONFLICT (id) DO UPDATE SET state = EXCLUDED.state, "
                 "severity = EXCLUDED.severity, last_activity_at = EXCLUDED.last_activity_at, "
                 "resolved_at = EXCLUDED.resolved_at, resolution = EXCLUDED.resolution, "
-                "state_before_resolution = EXCLUDED.state_before_resolution",
+                "state_before_resolution = EXCLUDED.state_before_resolution, "
+                # COALESCE, not EXCLUDED: the orchestrator saves incidents too, and it has no
+                # investigation id to offer. Overwriting with its NULL would erase the join.
+                "investigation_id = COALESCE(EXCLUDED.investigation_id, "
+                "incidents.investigation_id)",
                 (
                     incident.id,
                     incident.state.value,
@@ -175,6 +183,7 @@ class PostgresIncidentStore:
                     None
                     if incident.state_before_resolution is None
                     else incident.state_before_resolution.value,
+                    incident.investigation_id,
                 ),
             )
             for episode in incident.episodes.values():
@@ -227,7 +236,7 @@ class PostgresIncidentStore:
         with self._conn.cursor() as cur:
             cur.execute(
                 "SELECT id, state, opened_at, last_activity_at, resolved_at, resolution, "
-                f"state_before_resolution FROM incidents {where}",
+                f"state_before_resolution, investigation_id FROM incidents {where}",
                 params,
             )
             rows = cur.fetchall()
@@ -240,6 +249,7 @@ class PostgresIncidentStore:
                     resolved_at=row[4],
                     resolution=row[5],
                     state_before_resolution=None if row[6] is None else IncidentState(row[6]),
+                    investigation_id=row[7],
                 )
                 for row in rows
             ]

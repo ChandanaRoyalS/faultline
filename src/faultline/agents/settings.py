@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from faultline.agents.budget import Budget
+
 
 class AgentSettings(BaseSettings):
     """Overridable via FAULTLINE_AGENT_*.
@@ -51,6 +53,25 @@ class AgentSettings(BaseSettings):
 
     max_tokens: int = 16000
     timeout_seconds: float = 600.0
+
+    # --- the budget's four bounds (ADR-0020 §5), exposed so an operator can set them ---------
+    #
+    # The values are `Budget`'s own defaults, restated rather than re-decided: they are still
+    # the placeholders ADR-0020 marked as such, and T4.1's runs are still what will set them.
+    # What is new is that the runner (T3.5) is a command, and a command whose bounds can only
+    # be changed by editing a dataclass is not one a harness can sweep.
+    budget_max_tool_calls_per_specialist: int = 12
+    budget_max_tokens: int = 150_000
+    budget_wall_clock_seconds: int = 600
+    budget_max_dispatch_rounds: int = 2
+
+    def budget(self) -> Budget:
+        return Budget(
+            max_tool_calls_per_specialist=self.budget_max_tool_calls_per_specialist,
+            max_tokens=self.budget_max_tokens,
+            wall_clock_seconds=self.budget_wall_clock_seconds,
+            max_dispatch_rounds=self.budget_max_dispatch_rounds,
+        )
 
     def model_for(self, role: str) -> str:
         return self.role_models.get(role, self.model)
