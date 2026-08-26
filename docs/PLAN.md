@@ -671,6 +671,22 @@ failed-start distinction held (no trajectory, incident left `triaging` rather th
 back clean; and the run was recorded rather than deleted. The one comparison available without a
 model call is the stamp, which moved - `prompts:69aa6c670318` to `prompts:59bf438b2a96`, because
 T3.4c changed the `Dispatch` contract - and that is exactly what a derived stamp is for.
+
+**The complete-pipeline run landed** (`20260826T055345Z`): `bad_config`/`config_revert`, **both
+correct, at high confidence**, against run 1's abstention on the same scenario - and it named the
+port, the crash loop and the propagation path. Two runs of one scenario, one per pipeline, so the
+honest statement is *the run that could reach a class did*, not *the fix caused it*; the
+abstention had two causes and only the comma-list dispatch defect is addressed, the Jaeger 500
+simply not recurring. 52,055 tokens, $0.54. Triage was identical on both runs - deterministic
+traversal, same alerting set - which makes ADR-0017's under-reach misses
+(`frauddetectionservice`, `quoteservice`) observed twice rather than once.
+
+> **Note for T4.2: a refused narrative render is invisible in the scored report.** Run 3's
+> narrative was refused by the leak guard for using a banned word, so it wrote no `narrative.md`
+> - correct behaviour, and `faultline-investigate` still exited 0 because a verdict existed. But
+> T4.2's judge scores narratives, and nothing in `report.txt` says there is none to score. The
+> four held-out categories do not cover it and a fifth may be owed
+> (`docs/evidence/t4.1-first-scored-run/README.md`).
 `src/evalharness/run.py`, `src/evalharness/gate.py`, `src/evalharness/scoring.py`,
 `src/faultline/agents/stamp.py`, `src/faultline/orchestrator/models.py`,
 `docs/adr/0022-evaluation-harness.md`, `docs/evidence/t4.1-first-scored-run/README.md`

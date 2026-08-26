@@ -248,3 +248,101 @@ of abstention would look like under the complete pipeline is unmeasured:
 
 Whether that changes the verdict from `unknown` to a class is the question the re-run exists to
 answer, and it stays open until the API account has credit.
+
+---
+
+# The third run — the complete pipeline, and the comparison it owed
+
+Run id `20260826T055345Z-cart-redis-misconfig`. **Runs 1 and 2 are untouched**; this lands beside
+them under its own id. Files here: `run3-report.txt`, `run3-manifest.json`,
+`run3-investigate.txt`.
+
+This is the first run of this scenario on a pipeline holding both T3.4b (two-ended truncation,
+context assembly, grounding — merged to `main` as PR #27) and T3.4c (one service per dispatch,
+planner cap raised to 3000 — cherry-picked onto this branch after PR #28 was found closed rather
+than merged).
+
+## The two scored reports, side by side
+
+| | **run 1** `20260826T043356Z` | **run 3** `20260826T055345Z` |
+|---|---|---|
+| `runtime_version` | `…+prompts:69aa6c670318` | `…+prompts:59bf438b2a96` |
+| pipeline | T3.4b absent, T3.4c absent | **both present** |
+| baseline gate | passed | passed |
+| **fault class** | `unknown` — **abstained** | **`bad_config`** vs `bad_config` — **correct** |
+| **class of fix** | `none` — abstained | **`config_revert`** vs `config_revert` — **correct** |
+| confidence | low | **high** |
+| coverage | abstained | **reached a class** |
+| triage recall | 0.78 (7/9) | 0.78 (7/9) |
+| triage precision | 0.58 (7/12) | 0.58 (7/12) |
+| missed | frauddetectionservice, quoteservice | frauddetectionservice, quoteservice |
+| unmeasured edges | 4 | 4 |
+| flagged / failed-alone / contradictions / exhausted | 0 / 0 / 0 / no | 0 / 0 / 0 / no |
+| tokens | in 26,502 / out 12,243 | in 38,138 / out 13,917 |
+| cost | $0.4386 | **$0.5386** |
+| wall clock | 13m21s | 13m44s |
+
+## Does the complete pipeline turn run 1's abstention into a class? Yes.
+
+Run 1 returned `unknown` / `none` at low confidence. Run 3 returned **`bad_config` /
+`config_revert` at high confidence, both correct**, and named the mechanism exactly:
+
+> "An automated platform change at 05:53:46 rewrote cartservice's Redis backing-store address to
+> a target on port 6380 (`tr_81bd1cfe0ec8`). cartservice cannot establish a connection to
+> redis-cart at that endpoint; the connect attempt times out after ~15-40s and throws an
+> unhandled exception out of `RedisCartStore.EnsureRedisConnected -> InitializeAsync ->
+> Program.Main`, so the process crash-loops at startup and never reaches a serving state
+> (`tr_53476e44e67f`). With cartservice unavailable, checkoutservice's first downstream step …
+> fails immediately, and that error propagates up through PlaceOrder to the frontend"
+
+That is `cart-redis-misconfig`'s ground truth, with the port, the crash loop and the propagation
+path.
+
+**What this is not.** Two runs of one scenario, one on each pipeline. The abstention had two
+causes and only one of them is addressed here: the **comma-list dispatch defect** is now refused
+at plan-parse time, and the **Jaeger 500** was infrastructure that nothing on this branch
+touches — it simply did not recur. So the honest statement is *the run that could reach a class
+did*, not *the fix caused it*. n=1 per arm. A rate needs the ten-scenario sweep with repeats,
+which is what the harness now exists to run.
+
+## Triage did not move, and that is expected rather than reassuring
+
+Identical on both runs: recall 0.78, precision 0.58, the same two misses
+(`frauddetectionservice`, `quoteservice`), the same four unmeasured edges. Triage is a
+deterministic traversal over the service graph from the incident's alerting set, and both
+incidents alerted on the same services — so the same input produced the same output. **This is a
+consistency check, not evidence of stability across scenarios.**
+
+It does mean ADR-0017's under-reach number is unchanged and now observed twice:
+`frauddetectionservice` and `quoteservice` alerted in the recorded bundle and neither was
+reached by the directed 2-hop traversal.
+
+## One thing the scored report does not say, and should
+
+**The narrative was refused by the leak guard**, so run 3 wrote no `narrative.md`:
+
+    narrative_error: the narrative mentions ['fault']. This text becomes corpus material at
+    T2.4b, so it is written from the responder's chair …
+
+That is the T3.4 guard working as designed — a leak fails the render rather than being reported
+downstream — and the scribe simply used a banned word. The verdict, the trajectory and the score
+are unaffected, and `faultline-investigate` correctly still exited 0 because a verdict was
+produced.
+
+But **nothing in `report.txt` says the narrative is missing.** T4.2's judge scores narratives,
+and for this run there is nothing to judge; a scorer reading only the report would not know. The
+four held-out categories cover flagged verdicts, lone specialist failures, contradictions and
+budget exhaustion — a refused render is a fifth thing, and it is currently invisible. Recorded
+for T4.2 rather than fixed here, since the narrative is that task's input and not this one's.
+
+## Housekeeping
+
+Gate passed before injection and again after revert. Injected 05:53:45Z, reverted 06:02:25Z,
+world clean at 06:08:12Z: no active injections, no firing alerts, incident `79e3a795` resolved
+with its investigation id `5b5d82e1` intact. Ingest and orchestrator stopped.
+
+Join-rule mix across the database is now 32 `time_overlap`, 4 `no_candidate`, **0 `graph`** —
+ADR-0017's exposure, unchanged and still visible.
+
+`evals/runs/` holds four directories for this scenario: **two scored, two discarded**, each
+saying which it is. That is the honest count.
