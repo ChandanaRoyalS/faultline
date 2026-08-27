@@ -394,13 +394,21 @@ T4.5 re-ran all seven scenarios rather than comparing against the old numbers.
 """
 
 SWEEP_4_DIGEST = "bf7605651ef2"
-"""The pipeline after T4.12 taught the planner that an empty stream is silence, not a bad query.
+"""The pipeline T4.12 built, measured, and **rejected**. Never HEAD after that experiment closed.
+
+T4.12 taught the planner that an empty stream is silence rather than a bad query. It did what it
+said - re-issues after silence fell, `trace_query` adoption rose 3/7 to 5/7 - and it moved dispatch
+away from the failing service, which cost three scenarios to win one: dev coverage 6/7 to 4/7. The
+pre-registration had named that floor in advance, so the instruction was reverted and the stamp
+returned to `SWEEP_2_DIGEST`.
+
+The digest stays here because `evals/runs/SWEEP-2026-08-27-evidence.md` is a record of seven live
+runs and the freeze guard's lineage check has to be able to place it. A rejected pipeline is still
+a pipeline this repository ran.
 
 There is no `SWEEP_3_DIGEST`: dev sweep 3 raised the `changes` bound and moved no prompt, so it
 ran on `SWEEP_2_DIGEST`. That is the point of T4.7's decision to keep budget bounds out of the
 stamp - S2 and S3 are the same agent given different room, and the stamp says so.
-
-S3 is therefore S4's baseline: same budget, same harness, one prompt delta.
 """
 
 
@@ -413,8 +421,8 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == SWEEP_4_DIGEST, (
-        f"expected the evidence-class pipeline {SWEEP_4_DIGEST}. If a prompt or a contract "
+    assert prompt_digest() == SWEEP_2_DIGEST, (
+        f"expected the taxonomy-instruction pipeline {SWEEP_2_DIGEST}. If a prompt or a contract "
         f"moved again, no sweep in evals/runs/ describes the current agent."
     )
     assert len({SWEEP_1_DIGEST, SWEEP_2_DIGEST, SWEEP_4_DIGEST}) == 3, "three experiments"

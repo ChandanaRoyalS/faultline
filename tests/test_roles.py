@@ -1010,45 +1010,15 @@ def test_a_specialist_without_an_override_keeps_the_default_bound() -> None:
 
 
 # --- the evidence-class instruction (T4.12) -----------------------------------
-
-
-def test_the_planner_is_taught_that_silence_is_evidence() -> None:
-    """ADR-0019 made `empty` a typed field so a tool could not confuse *no data* with
-    *query failed*. That settled the contract and left the consequence unstated: what a
-    planner should DO with silence. T4.11 measured the gap - five repeats re-issued a
-    query to a stream published at 0 lines/hour and never changed evidence class.
-    """
-    from faultline.agents.roles import PLANNER_SYSTEM
-
-    text = PLANNER_SYSTEM.lower()
-    assert "an empty result is a result" in text
-    assert "silence is a reason to change evidence" in text
-    # The prior must be demoted in the same breath, or the instruction argues with the
-    # dispatch counts sitting three lines above it.
-    assert "a prior, not a rule" in text
-
-
-def test_the_evidence_class_instruction_names_no_answers() -> None:
-    """Same bar as T4.5's taxonomy instruction. Teaching the planner how to read silence is
-    legitimate; naming which stream is silent in which scenario is ADR-0008 axis 1.
-    """
-    from faultline.agents.roles import PLANNER_SYSTEM
-
-    text = PLANNER_SYSTEM.lower()
-    for token in (
-        "product-catalog",
-        "productcatalogservice",
-        "cart-redis-misconfig",
-        "shipping-wrong-image",
-        "ad-memory-squeeze",
-        "cartservice",
-        "adservice",
-        "shippingservice",
-        "frauddetectionservice",
-        "emailservice",
-        "frontend",
-        "feature flag",
-        "0 lines",
-        "lines/hour",
-    ):
-        assert token not in text, f"{token} is an answer key, not an instruction"
+#
+# T4.12 added an instruction to PLANNER_SYSTEM teaching that an empty stream is silence
+# rather than a bad query, and the two guards that stood here asserted its text and its
+# freedom from answer keys. The instruction was measured against dev sweep 3 and reverted:
+# it won the one scenario it targeted and cost three others, coverage 6/7 -> 4/7, against a
+# floor registered before the run. The guards go with it - a test pinning the wording of a
+# prompt that no longer exists is rot, and the evidence for what it did lives in
+# evals/runs/SWEEP-2026-08-27-evidence.md rather than in an assertion here.
+#
+# What the regressions decomposed is recorded in PLAN.md as the next candidate: the
+# instruction taught switching vantage but never returning, so the next formulation keeps
+# the subject fixed and moves only the evidence class.

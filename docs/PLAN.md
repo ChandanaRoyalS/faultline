@@ -819,12 +819,23 @@ tool calls fell 58 -> 50.
 while its two scenarios swapped places. The house rule that an aggregate needs its per-class table
 was not enough here; only the per-scenario row shows it.
 
-**Recommendation: do not keep this stamp.** It buys one scenario and sells three. Not merging is
-the outcome, not a deferral.
+**Outcome: the instruction was reverted and the stamp returned to `53fafe9c12bc`.** The
+experiment's result was adopted as registered - it buys one scenario and sells three, which the
+pre-registration had said in advance would not be worth the stamp. Everything else is kept: the
+pre-registration, all seven run directories, the sweep report, ADR-0023 and the re-issue analyser.
+`bf7605651ef2` survives as `SWEEP_4_DIGEST` and in the sweep record, because a rejected pipeline is
+still a pipeline this repository ran and the freeze guard's lineage check has to place it.
 
-**Next candidate experiment:** a narrowed instruction keeping *do not re-ask a silent stream* and
-dropping *change vantage point* - the first clause is what the winning trajectory needed, the
-second is what emptied `cartservice` of dispatches. Separate stamp, separate sweep.
+**Next candidate experiment - the mechanism decomposed by the regressions.** The instruction taught
+**switching vantage** and never taught **returning**: having moved outward from a silent stream,
+nothing brought the planner back to the service it had already localized, and the failing-service
+dispatch count collapsed 3->0, 4->1, 3->0 on exactly the three regressions. The next formulation
+separates the two: **silence at a service changes the evidence CLASS, not the SUBJECT - keep
+dispatching at the service you localized, with tools whose streams are not silent.** That keeps
+what the winning trajectory needed at seq 6 and removes what emptied `cartservice` of dispatches.
+Separate stamp, separate sweep, with the same pre-registration discipline - and the registered
+endpoint should be the failing-service dispatch count, which is the thing S4 showed actually
+predicts the outcome.
 
 ADR-0023 fell out of this being the first prompt change to land after a holdout was frozen: a
 freeze manifest is a historical record, so its guard checks completeness and known lineage rather

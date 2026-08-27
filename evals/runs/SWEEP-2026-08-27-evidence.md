@@ -8,6 +8,10 @@ before any scenario ran).
 the trajectory, and the instruction is net harmful — coverage fell 6/7 → 4/7. It should not be
 kept.**
 
+**Outcome: tested under `bf7605651ef2`, rejected per the pre-registration, reverted. The stamp
+exists only in this record — HEAD is `53fafe9c12bc`, the pipeline this sweep was measured
+against.**
+
 | | dev sweep 3 | **dev sweep 4** |
 |---|---|---|
 | stamp | `prompts:53fafe9c12bc` | **`prompts:bf7605651ef2`** |
@@ -120,19 +124,30 @@ Two things the instruction did **not** cost: no scenario returned a *wrong* clas
 regression is answer → abstention, never answer → error — and triage was unchanged
 (0.91 → 0.92 recall, 0.54 → 0.56 precision), which is the closest thing here to a control.
 
-## Recommendation
+## The decision taken
 
-**Do not keep this stamp.** It buys one scenario and sells three. The pre-registration said an
+**The stamp was not kept.** It buys one scenario and sells three. The pre-registration said an
 instruction that unsettles another scenario has not been shown to be worth its stamp, and that is
-what happened. `main` is unaffected — the PR carries the experiment and its negative result, and
-not merging is the outcome rather than a deferral.
+what happened, so the instruction was reverted in this branch's final commit and HEAD returned to
+`53fafe9c12bc` — confirmed by the stamp pin test.
+
+**Everything else stays**: this report, the pre-registration, all seven run directories, the
+prediction ledger, ADR-0023, and the re-issue analyser. `bf7605651ef2` survives as
+`SWEEP_4_DIGEST` and in these pages, because a rejected pipeline is still one this repository ran
+and the freeze guard's lineage check has to be able to place it. **A negative result that leaves
+no record is an experiment run twice.**
 
 **What is worth keeping is the finding**, which is sharper than the instruction: the agent's
 handling of silence is a real, movable lever, and the failing-service dispatch count is the thing
-it moves. The obvious next experiment is a narrowed instruction that keeps *do not re-ask a silent
-stream* and drops *change vantage point* — the first clause is what the winning trajectory needed
-at seq 6, and the second is what emptied `cartservice` of dispatches. That is a separate stamp and
-a separate sweep, recorded in PLAN.md rather than made here.
+it moves.
+
+The regressions decompose the instruction into two things it taught as one. It taught **switching
+vantage** and never taught **returning** — having moved outward from a silent stream, nothing
+brought the planner back to the service it had already localized. The next formulation separates
+them: *silence at a service changes the evidence **class**, not the **subject** — keep dispatching
+at the service you localized, with tools whose streams are not silent.* That keeps what the winning
+trajectory needed at seq 6 and removes what emptied `cartservice` of dispatches. Separate stamp,
+separate sweep, recorded in PLAN.md rather than made here.
 
 ## What this sweep cannot show
 
