@@ -60,6 +60,12 @@ The demo run is an ordinary run — same gate, same revert, same recovery check,
 `evals/runs/` like any other — but it is marked `demo` in its manifest and **no aggregate ever
 counts it**, because a run made to be watched is not a sample. A test pins that exclusion.
 
+## Bundles
+
+Every recorded rehearsal, rendered as a readable page — what broke, what paged and in what
+order, what the capture set holds, and the narrative the responder wrote:
+**[docs/bundles/](docs/bundles/)**. Twelve scenarios, ten runnable and two that could not fire.
+
 ## Architecture in brief
 
 ```
