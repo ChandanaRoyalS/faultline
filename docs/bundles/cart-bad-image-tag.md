@@ -1,0 +1,191 @@
+# Cart service deployed on an image tag that was never published
+
+## The scenario
+
+| | |
+|---|---|
+| scenario | `cart-bad-image-tag` |
+| fault class | **`bad_deploy`** |
+| expected remediation | `rollback` |
+| split | `dev` |
+| injected at | `cartservice` via `cart-bad-image-tag` |
+| time to page | 5m01s |
+| steady state captured | 351s |
+| capture window | 2026-08-23T18:48:53+00:00 → 2026-08-23T19:09:45+00:00 |
+
+The clock below runs from the moment the fault went in.
+
+| | |
+|---|---|
+| `t_inject` | T+0m00s |
+| first alert firing | T+5m01s |
+| `t_revert` | T+10m52s |
+| all clear | T+13m52s |
+
+## What fired, and when
+
+| when | service | alert | firing for | |
+|---|---|---|---:|---|
+| T+4m45s | `checkoutservice` | ServiceHighErrorRate | 8.5 min | **paged** |
+| T+4m45s | `frontend` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+4m45s | `loadgenerator` | ServiceHighErrorRate | 9.0 min | **paged** |
+| T+6m00s | `currencyservice` | ServiceNoTraffic | 5.2 min | joined later |
+| T+6m00s | `quoteservice` | ServiceNoTraffic | 5.2 min | joined later |
+| T+6m15s | `accountingservice` | ServiceNoTraffic | 5.0 min | joined later |
+| T+6m15s | `cartservice` | ServiceNoTraffic | 5.0 min | joined later |
+| T+6m15s | `emailservice` | ServiceNoTraffic | 5.0 min | joined later |
+| T+6m15s | `frauddetectionservice` | ServiceNoTraffic | 5.0 min | joined later |
+| T+6m15s | `shippingservice` | ServiceNoTraffic | 5.0 min | joined later |
+| T+13m15s | `emailservice` | ServiceHighErrorRate | 0.5 min | began after the revert |
+
+## What the bundle contains
+
+| capture | query |
+|---|---|
+| `metrics/alerts-firing.json` | `ALERTS{alertstate="firing"}` |
+| `metrics/call-rate.json` | `sum by(service_name) (rate(calls_total[2m]))` |
+| `metrics/error-ratio.json` | `sum by(service_name) (rate(calls_total{status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total[2m]))` |
+| `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
+
+`logs/cart-service.txt` — 506 lines.
+
+## A look at the logs
+
+From `logs/cart-service.txt` (500 lines):
+
+```
+2026-08-23T18:48:55+00:00  AddItemAsync called with userId=4b19a1ee-9f23-11f1-a06c-5acf6c7804bd, productId=9SIQT8TOJO, quantity=1
+2026-08-23T18:48:55+00:00  GetCartAsync called with userId=4b19a1ee-9f23-11f1-a06c-5acf6c7804bd
+2026-08-23T18:48:55+00:00  AddItemAsync called with userId=4b19a1ee-9f23-11f1-a06c-5acf6c7804bd, productId=2ZYFJ3GM2N, quantity=4
+2026-08-23T18:48:55+00:00  GetCartAsync called with userId=4b19a1ee-9f23-11f1-a06c-5acf6c7804bd
+2026-08-23T18:48:55+00:00  AddItemAsync called with userId=4b19a1ee-9f23-11f1-a06c-5acf6c7804bd, productId=LS4PSXUNUM, quantity=10
+2026-08-23T18:48:55+00:00  GetCartAsync called with userId=4b19a1ee-9f23-11f1-a06c-5acf6c7804bd
+2026-08-23T18:48:55+00:00  GetCartAsync called with userId=4b19a1ee-9f23-11f1-a06c-5acf6c7804bd
+2026-08-23T18:48:55+00:00  EmptyCartAsync called with userId=4b19a1ee-9f23-11f1-a06c-5acf6c7804bd
+2026-08-23T18:48:58+00:00  AddItemAsync called with userId=4ced9d22-9f23-11f1-a06c-5acf6c7804bd, productId=9SIQT8TOJO, quantity=3
+2026-08-23T18:48:58+00:00  GetCartAsync called with userId=4ced9d22-9f23-11f1-a06c-5acf6c7804bd
+2026-08-23T18:48:58+00:00  GetCartAsync called with userId=4ced9d22-9f23-11f1-a06c-5acf6c7804bd
+2026-08-23T18:48:58+00:00  EmptyCartAsync called with userId=4ced9d22-9f23-11f1-a06c-5acf6c7804bd
+```
+
+_488 further lines are in the bundle._
+
+## The incident record
+
+Written from the responder's chair, by someone who did not know the fault class
+or that anything had been injected. This text is also corpus material, which is
+why it never names the injector.
+
+**It keeps its own clock.** The table above is measured from the injection, which
+is the only origin the manifest records; a narrative's `T+` offsets are the
+responder's own and start wherever that responder started counting — usually the
+page, sometimes the injection, sometimes an event in the logs. The same moment can
+therefore carry two different offsets on this page. The absolute timestamps in the
+bundle are the tiebreak.
+
+### What was observed
+
+The page named three services in the same evaluation: `ServiceHighErrorRate` on
+**frontend**, **loadgenerator** and **checkoutservice**. It arrived 5m01s after onset.
+
+On the storefront, product pages rendered normally. Adding anything to a basket failed.
+
+Seven services then went quiet in two waves fifteen seconds apart. **currencyservice**
+and **quoteservice** first, at T+1m15s; then **accountingservice**, **cartservice**,
+**emailservice**, **frauddetectionservice** and **shippingservice** at T+1m30s. All
+`ServiceNoTraffic`.
+
+Eleven alerts across ten services.
+
+### What was checked
+
+**Error rate by service.** frontend, loadgenerator and checkout were over threshold.
+cartservice showed no errors at all — flat zero. Read, wrongly, as evidence cart was
+healthy.
+
+**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what
+the storefront is failing to do and says nothing about cause.
+
+**Traces from frontend.** Checkout spans failing on their call to cart. The first real
+narrowing.
+
+**The two waves of silence.** Tempting to read as a spreading failure — one thing
+knocking over another, which knocks over more. It is not. Both waves are the same
+event seen at two evaluation boundaries: services stopped being called at the same
+moment, and their rate windows emptied a scrape apart. **Fifteen seconds of separation
+between groups is scrape granularity, not causal ordering.**
+
+**cartservice container state.** There was no container. Not a restarting one, not a
+crashed one — no cartservice process existed on the host, and therefore no exit code and
+no restart count.
+
+The logs are the interesting part, and not in the way the phrase "no container" suggests.
+The log stream is intact and entirely ordinary right up to onset, then stops dead with the
+container's own shutdown lines at T+0. For the whole of the fault it produces **nothing** —
+three lines inside the window, all of them that shutdown. The next line arrives one second
+after the fix went in.
+
+So "check the service's logs" does not return nothing. It returns a full history that ends
+mid-sentence at the moment the incident begins, and never resumes. The gap is the evidence,
+and it is only visible if you look at where the lines stop rather than at what they say.
+
+**The orchestrator's output, which is the only place the answer lives.** The deployment
+had been asked for an image tag that does not exist in the registry. The pull failed,
+so the container was never created. That failure is recorded where scheduling failures
+are recorded, not where application failures are.
+
+**What changed on cartservice.** Its image reference, and nothing else. Environment,
+configuration, dependencies and resource limits were untouched, and the previously
+deployed image was still present locally and still healthy.
+
+### Root cause
+
+cartservice was pointed at an image tag that had never been published. The pull could
+not resolve, the container was never created, and the service ceased to exist. Redis
+was fine, the network was fine, the code was fine — there was no running copy of the
+code for any of that to matter to.
+
+Its apparent zero error rate was an absence of data. A service that is not running
+records no calls, and therefore no errored ones.
+
+### Resolution
+
+The image reference was restored to the previously deployed tag. cartservice came up on
+the next reconciliation and the no-traffic alerts cleared eight seconds later — those
+six services had never been broken, only starved.
+
+A brief `ServiceHighErrorRate` appeared on **emailservice** more than two minutes after
+the fix and lasted half a minute, on a service that had not errored once during the
+incident. It is a recovery artifact: checkout resumed and pushed queued work through a
+service that had been idle. Everything was clear at **T+8m51s**.
+
+Class of fix: **rollback**. A deployment moved the service to a version that does not
+exist; the fix was to put the previous version back.
+
+### Detection notes
+
+- Onset to first page: **5m01s**.
+- Services alerting at the page: **3**. Over the whole incident: **10**, across 11
+  alerts.
+- Alerts that fired only during recovery: **1** — emailservice, thirty seconds, on a
+  service that was never part of the failure.
+- **The broken service was indistinguishable from six healthy ones.** cartservice
+  appeared in the second wave of `ServiceNoTraffic` alongside five services that were
+  merely downstream of it, and was never singled out by any alert.
+- Did the loudest service turn out to be the culprit? **No.** frontend and loadgenerator
+  alerted longest at nine minutes each and neither was broken.
+- **The shape of the log stream is the strongest evidence available, and both kinds of
+  failure leave one.** A service that keeps dying produces continuous failure chatter —
+  the same error, over and over, for as long as the incident lasts. A service that was
+  never created produces a clean stop and then silence. Both leave a log file, and both
+  files are full of ordinary traffic from before onset, so counting lines distinguishes
+  nothing. What distinguishes them is **where the lines end and whether anything follows**.
+  Here they end at onset with an orderly shutdown and resume one second after the fix,
+  which is a container that was stopped and never replaced — not one that is failing.
+- **Do not read scrape granularity as causation.** The seven quiet services split into
+  two groups fifteen seconds apart, which looks like propagation and is an artifact of
+  when each rate window happened to empty.
+
+---
+
+Rendered from [`evals/scenarios/artifacts/dev/cart-bad-image-tag/`](../../evals/scenarios/artifacts/dev/cart-bad-image-tag/) by `faultline-render`. [All bundles](README.md).

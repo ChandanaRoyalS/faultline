@@ -1232,8 +1232,8 @@ eval-before-opinion rule, applied to the first finding this harness has produced
 from the bundle-rendering side - "renders bundles for a human audience; needs `title` and the
 alert summary before anyone reads a scenario file." What T5.3 actually delivers is `make demo`:
 one narrated **live run** of the whole pipeline end to end. The two overlap only in that both
-serve a human reader. The bundle-rendering work is not done and is not folded in here; it
-remains available for a later task. Recorded rather than quietly reinterpreted.
+serve a human reader. **The bundle-rendering half was done separately at T5.3b, which closes
+this entry's original scope** - see below.
 
 `make demo` -> `faultline-demo`, a wrapper over the same `faultline-eval` the sweeps use. Same
 baseline gate, same revert, same recovery check, same run directory. It narrates the arc a
@@ -1300,6 +1300,45 @@ T4.10's 6/6 stands as published and unamended, and README.md states the demo-inc
 coexist as long as both are visible.
 
 `docs/adr/0009:12`, `src/evalharness/rehearse.py:739`
+
+### T5.3b — the bundles, rendered for people *(built; closes T5.3's original scope)*
+The half of T5.3 the demo did not do. `faultline-render` turns a recorded bundle into a
+Markdown page: the narrative's own title, the scenario front matter, an alert timeline
+summarised from `alerts_over_window`, what the capture set holds with the query behind each
+file, a short log excerpt, and `incident.md` inline. All twelve bundles plus an index in
+`docs/bundles/`.
+
+**Deterministic by construction** - nothing reads the clock, the filesystem's ordering or the
+environment; every collection is sorted; times print as offsets from the injection rather than
+as local times; the render carries no provenance of its own. Pinned two ways: render-twice
+byte-equality, and a test that makes `datetime.now` raise during a render. No model calls and no
+live services, so the conftest guards have nothing to intercept. Nothing is written inside the
+capture trees, and the pre-commit exclusion lists are untouched.
+
+**Four things the bundles taught the renderer**, each now pinned by a test:
+
+1. **`docs/bundles/` is not in the captured-evidence exclusion**, so `trailing-whitespace` and
+   `end-of-file-fixer` rewrite whatever is left there. A renderer emitting a trailing space
+   would be corrected on commit and then disagree with its own output forever. Every line is
+   stripped and the file ends in exactly one newline.
+2. **Captured logs are hostile by construction.** Two committed captures carry ANSI escape
+   sequences - 25 in `cart-bad-image-tag`, 5 in `cart-redis-misconfig` - which ADR-0019
+   measured rather than supposed. They are stripped before any log line reaches a page.
+3. **The two INVALID bundles carry `null` for `seconds_to_alert` and `t_alert_firing`.** A page
+   rendering those as `T+0m00s` would claim an instant page for a fault that never paged; they
+   render as "never paged" under the INVALID banner.
+4. **A narrative keeps its own clock, and it is not the manifest's.** Checked across every
+   bundle with a narrative offset: `cart-redis-misconfig` and `shipping-wrong-image` measure
+   `T+` from the page, `ad-memory-squeeze` from the injection, and two match neither - they are
+   counting from something in the logs. The manifest records only `t_inject`, so a page's table
+   and the narrative below it can give the same moment two offsets. **Not fixed in the
+   narratives**, which are recorded artifacts and corpus material; each page says so instead and
+   points at the absolute timestamps as the tiebreak.
+
+The index states in one line why rendering holdout narratives for people is not a contamination
+event: ADR-0008's quarantine governs the retrieval corpus and the agent, both refused
+structurally, and neither is touched by a person reading a narrative that has been committed
+since it was recorded.
 
 ### T6.4 — knowledge corpus
 Commits to ≥50 documents in the retrieval store.
