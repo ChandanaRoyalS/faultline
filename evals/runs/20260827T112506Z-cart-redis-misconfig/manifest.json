@@ -1,0 +1,158 @@
+{
+  "run_id": "20260827T112506Z-cart-redis-misconfig",
+  "scenario_id": "cart-redis-misconfig",
+  "split": "dev",
+  "scenario_fingerprint": "392fc77bf038447c5cb77c2ca5c18cdfad15869ab0d37087251abfc1b6de13b1",
+  "started_at": "2026-08-27T11:25:06.352484+00:00",
+  "demo": true,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "1f47c3074c1f4c1d8adf0b45370cdbfe5339a612",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {},
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      437
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-27T11:25:06.734990+00:00",
+  "incident_id": "1b265a8c-f6f3-4f41-8bda-f398e4c51ab4",
+  "investigate_exit_code": 2,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 2,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-27T11:51:33.436296+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [],
+    "unexpected_silent": [],
+    "services_reporting": 0,
+    "youngest_container": [
+      "cart-service",
+      655
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260827T112506Z-cart-redis-misconfig",
+    "scenario_id": "cart-redis-misconfig",
+    "trajectory_id": "611b839d-ad75-4bea-bc5b-5198fab3bc9f",
+    "runtime_version": "faultline/0.0.1+prompts:53fafe9c12bc",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {},
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": false,
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.6428571428571429,
+      "matched": [
+        "accountingservice",
+        "cartservice",
+        "checkoutservice",
+        "currencyservice",
+        "frauddetectionservice",
+        "frontend",
+        "loadgenerator",
+        "quoteservice",
+        "shippingservice"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "adservice",
+        "emailservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice"
+      ],
+      "excluded_began_after_revert": [
+        "emailservice"
+      ],
+      "unmeasured_edges_crossed": 5,
+      "n_alerted": 9,
+      "n_predicted": 14
+    },
+    "fault_class": {
+      "truth": "bad_config",
+      "returned": "unknown",
+      "correct": false,
+      "abstained": true,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "none",
+      "correct": false,
+      "abstained": true,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": true,
+      "budget_exhausted_reason": "budget exhausted: changes tool calls: 4 of 4 used",
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 11278,
+    "tokens_out": 8077,
+    "cost_usd": 0.2583,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-27T12:02:29.220324+00:00"
+}

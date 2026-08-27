@@ -1,0 +1,27 @@
+incident bd514b54-a9a1-4771-9fdc-8389b774541b  state triaging  anchor 12:06:15
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 5e94408e-8e97-4a0e-95c0-4b2aa9255581
+investigation: 1 round(s), 6 dispatch(es), 16 step(s) BUDGET EXHAUSTED (metrics tool calls: 4 of 4 used)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_39d61a838631, tr_1a4680ab07c2, tr_382063006eb4
+  root cause  : Every failing PlaceOrder trace aborts at the same point: checkoutservice's outbound CartService/GetCart call is the deepest span and the only non-inherited ERROR (tr_39d61a838631). Failures return sub-millisecond, so this is immediate rejection at the cart hop, not slow-dependency waiting. checkoutservice is exonerated as origin (clean internal span; no change records, tr_382063006eb4), other checkout downstreams are never reached or are flat-zero healthy (tr_88f35ed09b48). cartservice emitted no span-metric series at all - neither error numerator nor call denominator (tr_1a4680ab07c2) - consistent with a process not serving RPCs. What made cartservice stop serving was never established: no cart-side changes, logs, or pod state were queried before the metrics budget ran out. A crashlooping wrong image, an OOM/restart loop, and a bad listen address or credential all produce this identical signature at the depth reached.
+  OPEN        : What is cartservice's actual process state - crashlooping, OOMKilled, or up but rejecting? No cart logs, pod status or restart counts were collected.
+  OPEN        : Is there any change record on cartservice near onset? Only checkoutservice's log was queried, and it covered 15 minutes rather than the requested 90.
+  OPEN        : Why is checkoutservice's error ratio bursty (0 to 0.67, tr_28f9f06549f8) while every sampled trace fails uniformly - restart loop or sampling artefact?
+
+=== FLAGGED ===
+  budget exhausted: metrics tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T120348Z-cart-redis-misconfig/bd514b54-a9a1-4771-9fdc-8389b774541b-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T120348Z-cart-redis-misconfig/bd514b54-a9a1-4771-9fdc-8389b774541b-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10521.00it/s]

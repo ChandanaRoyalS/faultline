@@ -88,6 +88,35 @@ report that rather than sit in it.
 """
 
 
+def counts_toward_aggregates(manifest: dict[str, Any]) -> bool:
+    """Whether a run may be counted in any figure that leaves this repository.
+
+    **A demo run is a normal run that no aggregate may count.** It passes the same gate,
+    reverts the same way and is recorded the same way - the only thing it is not is a sample.
+    Demos get re-run to be watched, on whichever scenario tells the best story, so counting
+    them would quietly weight the numbers toward the scenario chosen for being watchable.
+
+    One predicate rather than a convention, because "remember to exclude the demo" is the kind
+    of rule that holds until the first person who did not know it writes the next aggregate.
+    """
+    return not manifest.get("demo", False)
+
+
+EVENT_PREFIX = "@@EVENT "
+"""Marks a machine-readable progress line on stdout.
+
+The demo narrates a live run, and the alternative was scraping this module's prose - which
+would make every print statement here a compatibility surface, silently broken by rewording.
+An explicit event line is a contract that can be pinned by a test instead.
+"""
+
+
+def emit(enabled: bool, event: str, **fields: Any) -> None:
+    """One progress event, when a narrator asked for them. A no-op for every ordinary run."""
+    if enabled:
+        print(EVENT_PREFIX + json.dumps({"event": event, **fields}), flush=True)
+
+
 class RunError(RuntimeError):
     """The run cannot continue. The reason is recorded as a discard before this escapes."""
 
@@ -340,6 +369,20 @@ def parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--max-tokens", type=int, default=120_000)
     p.add_argument(
+        "--demo",
+        action="store_true",
+        help="mark this run `demo` in its manifest. A demo run is a normal run in every "
+        "other respect - same gate, same revert, same recovery check, same run directory - "
+        "but it is excluded from every sweep aggregate, because a run made to be watched is "
+        "not a sample (T5.3)",
+    )
+    p.add_argument(
+        "--progress-json",
+        action="store_true",
+        help="emit one machine-readable @@EVENT line per phase alongside the human output, "
+        "so a narrator can follow the run without scraping prose (T5.3)",
+    )
+    p.add_argument(
         "--holdout",
         action="store_true",
         help="permit a holdout scenario. Refused without it, because a holdout run is a "
@@ -460,6 +503,8 @@ def main(argv: list[str] | None = None) -> int:
             "split": bundle.get("split"),
             "scenario_fingerprint": bundle.get("scenario_fingerprint"),
             "started_at": started.isoformat(),
+            # A demo run is a normal run that no aggregate may count (T5.3).
+            "demo": bool(args.demo),
             "recorder": recorder_provenance("evalharness.run", REPO_ROOT),
             "models": settings.effective_models(
                 ["planner", "metrics", "logs", "changes", "traces", "synthesizer", "scribe"]
@@ -481,6 +526,16 @@ def main(argv: list[str] | None = None) -> int:
         }
     )
     print(f"run {run.run_id}")
+    ev = args.progress_json
+    emit(
+        ev,
+        "run",
+        run_id=run.run_id,
+        scenario=args.scenario_id,
+        split=bundle.get("split"),
+        title=bundle.get("title"),
+        demo=bool(args.demo),
+    )
 
     try:
         with WorldLock():
@@ -488,11 +543,18 @@ def main(argv: list[str] | None = None) -> int:
             reading = gate.require(open_incidents(dsn))
             run.manifest["baseline_gate"] = reading.as_dict()
             print(f"  clean: {reading.services_reporting} services reporting, 0 alerts")
+            emit(
+                ev,
+                "gate",
+                services=reading.services_reporting,
+                silent=list(reading.silent_services),
+            )
 
             print(f"injecting {args.scenario_id}...")
             injected_at = datetime.now(UTC)
             code, out = _sh(["faultline-inject", "start", args.scenario_id])
             run.manifest["injected_at"] = injected_at.isoformat()
+            emit(ev, "injected", scenario=args.scenario_id)
             run.write("inject.txt", out)
             if code != 0:
                 raise RunError(f"injection failed:\n{out}")
@@ -501,26 +563,38 @@ def main(argv: list[str] | None = None) -> int:
                 print("waiting for the orchestrator to correlate...")
                 incident_id = wait_for_incident(dsn, injected_at, expected_episodes(bundle))
                 run.manifest["incident_id"] = incident_id
+                emit(ev, "correlated", incident_id=incident_id, episodes=expected_episodes(bundle))
                 print(f"  settling {SETTLE_AFTER_ALERT_SECONDS}s so the blast radius fills")
+                emit(ev, "settling", seconds=SETTLE_AFTER_ALERT_SECONDS)
                 time.sleep(SETTLE_AFTER_ALERT_SECONDS)
 
                 print("investigating...")
+                emit(ev, "investigating", incident_id=incident_id)
                 code, transcript, attempts = _investigate_with_retry(
                     incident_id, args.scenario_id, run.path, args
                 )
                 run.write("investigate.txt", transcript)
                 run.manifest["investigate_exit_code"] = code
                 run.manifest["investigate_attempts"] = attempts
+                emit(ev, "investigated", exit_code=code, attempts=len(attempts))
                 print(transcript)
             finally:
                 print("reverting...")
                 _, revert = _sh(["faultline-inject", "stop", args.scenario_id])
                 run.manifest["reverted_at"] = datetime.now(UTC).isoformat()
+                emit(ev, "reverted", scenario=args.scenario_id)
                 run.write("revert.txt", revert)
 
             print("confirming recovery...")
             recovery = confirm_recovery()
             run.manifest["recovery"] = recovery.as_dict()
+            emit(
+                ev,
+                "recovered",
+                passed=recovery.passed,
+                services=recovery.services_reporting,
+                refusals=list(recovery.refusals),
+            )
             if not recovery.passed:
                 print(f"  WARNING: world not quiet after revert: {recovery.refusals}")
 
@@ -542,6 +616,16 @@ def main(argv: list[str] | None = None) -> int:
         scored.budget = dict(run.manifest["budget"])
         run.manifest["score"] = scored.as_dict()
         run.manifest["finished_at"] = datetime.now(UTC).isoformat()
+        emit(
+            ev,
+            "scored",
+            run_dir=str(run.path),
+            trajectory_id=trajectory_id,
+            fault_class=scored.fault_class.as_dict() if scored.fault_class else None,
+            cost_usd=scored.cost_usd,
+            tokens_in=scored.tokens_in,
+            tokens_out=scored.tokens_out,
+        )
         run.save_manifest()
         report = scored.report()
         run.write("report.txt", report + "\n")

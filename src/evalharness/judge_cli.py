@@ -54,11 +54,14 @@ def run(argv: list[str] | None = None) -> int:
     settings = JudgeSettings.from_env()
     root = Path(args.runs_root) if args.runs_root else RUN_ROOT
     wanted = set(args.run_ids)
+    # `load_run` drops demo runs, so the default sweep never judges one. Naming a demo run
+    # explicitly still works: the rule is that no *aggregate* counts it, not that it may
+    # never be looked at (T5.3).
     runs = [
         loaded
         for directory in sorted(root.iterdir())
         if directory.is_dir() and (not wanted or directory.name in wanted)
-        if (loaded := load_run(directory)) is not None
+        if (loaded := load_run(directory, allow_demo=bool(wanted))) is not None
     ]
     if not runs:
         print("no scored runs to judge")
