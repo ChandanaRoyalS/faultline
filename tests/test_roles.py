@@ -1022,3 +1022,55 @@ def test_a_specialist_without_an_override_keeps_the_default_bound() -> None:
 # What the regressions decomposed is recorded in PLAN.md as the next candidate: the
 # instruction taught switching vantage but never returning, so the next formulation keeps
 # the subject fixed and moves only the evidence class.
+
+
+# --- the return-to-locus instruction (T4.14) ----------------------------------
+
+
+def test_the_planner_is_taught_that_silence_changes_the_class_not_the_subject() -> None:
+    """T4.12's instruction taught switching vantage and never taught returning: having moved
+    outward from a silent stream, nothing brought the planner back to the service it had
+    already localized, and the failing-service dispatch count collapsed 3->0, 4->1, 3->0 on
+    exactly its three regressions. This formulation separates the two halves.
+    """
+    import re
+
+    from faultline.agents.roles import PLANNER_SYSTEM
+
+    # The prompt is hard-wrapped, so a phrase that spans a line break would not match a
+    # literal search. Normalise whitespace rather than reflowing the prompt to suit a test.
+    text = re.sub(r"\s+", " ", PLANNER_SYSTEM.lower())
+    assert "silence changes the evidence class, not the subject" in text
+    assert "do not put the same question back to it" in text
+    # The half T4.12 was missing, which is the whole point of this stamp.
+    assert "keeps its claim on your dispatches until its evidence classes are exhausted" in text
+
+
+def test_the_return_to_locus_instruction_names_no_answers() -> None:
+    """Same bar as T4.5's taxonomy instruction and T4.12's. Teaching how to spend dispatches
+    is legitimate; naming which service holds the answer in which scenario is ADR-0008 axis 1.
+    """
+    from faultline.agents.roles import PLANNER_SYSTEM
+
+    text = PLANNER_SYSTEM.lower()
+    for token in (
+        "product-catalog",
+        "productcatalogservice",
+        "cart-redis-misconfig",
+        "shipping-wrong-image",
+        "ad-memory-squeeze",
+        "cartservice",
+        "adservice",
+        "shippingservice",
+        "frauddetectionservice",
+        "emailservice",
+        "featureflagservice",
+        "frontend",
+        "redis",
+        "feature flag",
+        "bad_config",
+        "bad_deploy",
+        "dependency_latency",
+        "resource_exhaustion",
+    ):
+        assert token not in text, f"{token} is an answer key, not an instruction"
