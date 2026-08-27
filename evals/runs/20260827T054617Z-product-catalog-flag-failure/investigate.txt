@@ -1,0 +1,31 @@
+incident af991fd1-a026-427f-9de7-ac99fa3ac3c9  state triaging  anchor 05:49:15
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 7beacc92-6be1-4717-a4ac-35a4f58372e2
+investigation: 2 round(s), 8 dispatch(es), 21 step(s)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_4ebe6206b86b, tr_daca9f7e265e, tr_12e2b1ea0143, tr_3b5877322382, tr_05b147cb267b, tr_969733dc3889, tr_3eab28a379bb, tr_94c6b6cd6baf
+  root cause  : Not established. The evidence in hand shows a partial, bursty failure: frontend's error ratio oscillates between 0% and ~10.7% and productcatalogservice's between 0% and ~12% over the same window, with both services continuously serving and continuously emitting telemetry (tr_4ebe6206b86b, tr_daca9f7e265e, tr_12e2b1ea0143). No change of any kind — deploy, config push, or flag flip — is recorded for either frontend or productcatalogservice in the 15 minutes bracketing onset (tr_3b5877322382, tr_05b147cb267b, tr_969733dc3889), which removes the simplest explanation without supplying a replacement. Every attempt to read productcatalogservice logs failed on a label-selector mismatch ("product-catalog-service" vs "productcatalogservice") and returned zero lines, so no failure signature — internal fault versus downstream timeout — was ever recovered (tr_3eab28a379bb, tr_94c6b6cd6baf). No latency series, no saturation or resource metrics, and no per-dependency breakdown were collected anywhere, and ten of the twelve services in the blast radius — including checkoutservice, which alerted 15 seconds after the others — were never dispatched to at all. The shape of the failure (intermittent bursts, no proximate change, culprit possibly unnamed by the page) is consistent with the ad-memory-squeeze pattern in the corpus, but that is a resemblance, not a finding: nothing here measured memory, threads, connections, or latency on any service.
+  OPEN        : What do productcatalogservice's logs actually say? Every log dispatch used the hyphenated selector; re-run against the label value "productcatalogservice" over the full 05:39-06:00Z window, which also closes the uncovered 05:54-06:00 tail.
+  OPEN        : Are frontend's error bursts temporally aligned with productcatalogservice's, or with some other service? Nothing collected has a per-dependency, per-route, or per-upstream dimension, so the causal direction between the two alerting services is unestablished.
+  OPEN        : Ten of the twelve services in the blast radius were never investigated, including checkoutservice, which alerted 15 seconds later than the rest. The true culprit may be a service the page never named, as in the retrieved incident.
+  OPEN        : Four unmeasured edges were crossed in triage and none were subsequently measured; the failure may propagate across a hop no dispatch observed.
+  OPEN        : No latency was measured anywhere in the call graph, so dependency_latency was neither confirmed nor eliminated.
+  OPEN        : No saturation signals (memory, CPU, file descriptors, connection or thread pools) were collected for any service, so resource_exhaustion is untested despite the corpus resemblance.
+  OPEN        : Changes were queried only for 05:39:15-05:54:15Z and only under the frontend and productcatalogservice keys; the preceding 50 minutes and all shared platform components (ingress, mesh, base images, node pool) remain unexamined.
+  OPEN        : Onset timing of the frontend error elevation relative to 05:49:15 is unknown — tr_4ebe6206b86b returned only min/max summaries with no per-timestamp values.
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T054617Z-product-catalog-flag-failure/af991fd1-a026-427f-9de7-ac99fa3ac3c9-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T054617Z-product-catalog-flag-failure/af991fd1-a026-427f-9de7-ac99fa3ac3c9-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7757.88it/s]

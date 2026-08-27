@@ -1,0 +1,28 @@
+run 20260827T060533Z-product-catalog-flag-failure   scenario product-catalog-flag-failure
+trajectory 9ed2c4f3-e6bf-41e6-8fb6-1750d62beae5   runtime faultline/0.0.1+prompts:53fafe9c12bc
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (3/3 alerted services predicted)
+  precision 0.43  (3/7 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): adservice, cartservice, checkoutservice, recommendationservice
+  unmeasured edges crossed: 1 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  fault class unknown vs bad_config - ABSTAINED (excluded from accuracy; counted in coverage)
+  fix class   none vs config_revert - ABSTAINED (excluded from accuracy; counted in coverage)
+  coverage: abstained
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 25324 / out 13731 tokens   $0.4699
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'per_specialist_tool_calls': {'changes': 8}, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).

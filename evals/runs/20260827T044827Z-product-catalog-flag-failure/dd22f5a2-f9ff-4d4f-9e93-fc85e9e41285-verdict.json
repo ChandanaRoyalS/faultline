@@ -1,0 +1,55 @@
+{
+  "incident_id": "dd22f5a2-f9ff-4d4f-9e93-fc85e9e41285",
+  "trajectory_id": "5f32fdae-a42e-4124-bd41-c1180972436c",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "Not established. The only positive signal in the entire dispatch set is that productcatalogservice emitted STATUS_CODE_ERROR spans on roughly 0\u201311.4% of its calls across the 15-minute window, intermittently rather than continuously, while continuing to serve the large majority of traffic (tr_839eda652d8a, tr_1096f7dba2d7). Every attempt to characterize the mechanism behind those errors failed to return data: no latency, CPU, memory, GC, thread or connection-pool series were ever queried or returned for productcatalogservice (tr_839eda652d8a, tr_1096f7dba2d7); both log dispatches ran against a hyphenated label value that matches no stream and were never re-run with the correct selector, so no error signature and no first-anomalous-line timestamp exist (tr_223ade85cee8, tr_f32b98c26f6e); and the two peer services examined, adservice and cartservice, returned no series at all \u2014 numerator and denominator both absent \u2014 which is a gap in instrumentation or traffic rather than a measurement of health (tr_ea2d754fc52d, tr_dc3105edf015). The change log is empty for productcatalogservice, but only over 04:43:15\u201304:58:15, and it was never extended to the preceding hour or to any dependency (tr_8c5b0d29808f, tr_227ccdd76acc). A partial, oscillating error rate with a healthy success majority is compatible with a saturating resource, a slow downstream whose calls time out on some fraction of requests, or a bad artifact on a subset of replicas; nothing in the collected evidence discriminates among these. Naming a class here would be guessing dressed as a finding.",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_839eda652d8a",
+      "tr_1096f7dba2d7",
+      "tr_223ade85cee8",
+      "tr_f32b98c26f6e",
+      "tr_8c5b0d29808f",
+      "tr_227ccdd76acc",
+      "tr_ea2d754fc52d",
+      "tr_dc3105edf015"
+    ],
+    "reasoning": "Two independent metric dispatches agree on the shape of the symptom: productcatalogservice is partially and intermittently failing, peaking near 11.4% of calls, with the denominator populated throughout (tr_839eda652d8a, tr_1096f7dba2d7). That shape rules out several things and both specialists said so \u2014 it is not a hard-down service or crash loop, not a chronic baseline, not a single discrete spike, and not upstream black-holing, since mixed-status call records are reaching instrumentation (tr_1096f7dba2d7). What it does not do is identify a mechanism. The four dispatch classes that would have discriminated all came back empty or misdirected. Both log queries used a selector that matches no stream, and the second specialist was explicit that the corrected re-run did not actually execute, so the emptiness carries no information about whether the service was logging (tr_223ade85cee8, tr_f32b98c26f6e) \u2014 this forecloses reading silence as a crash signal. Both change dispatches returned nothing, which does legitimately exclude a deploy, config edit, flag flip or in-window rollback landing on productcatalogservice between 04:43 and 04:58 (tr_8c5b0d29808f, tr_227ccdd76acc); it does not exclude a change earlier in the unqueried 03:53\u201304:43 interval, nor any change to a dependency, and both specialists flagged that limitation themselves. The absence of change evidence is therefore weak negative evidence against bad_deploy and bad_config in the immediate window, not affirmative evidence for any other class. The adservice and cartservice results are not clean bills of health: with the all-status denominator missing, the correct reading is that instrumentation or traffic stopped, which is itself an unexplained anomaly worth chasing rather than a reason to exclude those services (tr_ea2d754fc52d, tr_dc3105edf015). The retrieved ad-memory-squeeze incident is a tempting fit \u2014 intermittent frontend errors with the true culprit showing flat metrics \u2014 but adopting it would mean importing a memory-exhaustion mechanism that no dispatch in this investigation measured, and the corpus records what a responder saw then, not what is true now. The triage note that an unmeasured edge was crossed reinforces that the causal path leaves the instrumented region. Since resource_exhaustion, dependency_latency and bad_deploy each remain live and none has affirmative support, the class is unknown and no remediation follows from the evidence in hand.",
+    "open_questions": [
+      "What do productcatalogservice's logs actually say? Both log dispatches used a hyphenated selector that matches nothing; the query must be re-run against the unhyphenated label, or a label-values enumeration run first, before any error signature or first-anomaly timestamp exists.",
+      "Is productcatalogservice saturating? No CPU, memory, GC, thread-pool or connection-pool series was ever retrieved. A memory or connection-pool ceiling would explain a partial, oscillating error rate and would point at resource_exhaustion.",
+      "What are productcatalogservice's latency percentiles, and is the error fraction correlated with timeouts on an outbound call? This is the discriminator between dependency_latency and a local fault, and it was never measured.",
+      "Why do adservice and cartservice have no call-count series at all in this window? Absent denominators mean either traffic ceased or emission/scraping stopped \u2014 either is unexplained and could be upstream of, downstream of, or unrelated to the productcatalogservice errors.",
+      "Was there any change to productcatalogservice or its dependencies between 03:53 and 04:43? Both change dispatches covered only the 15-minute window straddling onset; the preceding hour named in the original question is unqueried, and no dependency change stream was ever pulled.",
+      "Are the errors concentrated on a subset of replicas or pods? A per-instance breakdown would separate a bad artifact on some replicas from a fleet-wide condition, and no dispatch attempted it.",
+      "What is on the unmeasured edge that triage flagged, and does the causal path run through it? Nothing in the dispatch set probed beyond the instrumented boundary."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for ",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired "
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

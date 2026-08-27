@@ -1,0 +1,61 @@
+{
+  "incident_id": "af991fd1-a026-427f-9de7-ac99fa3ac3c9",
+  "trajectory_id": "7beacc92-6be1-4717-a4ac-35a4f58372e2",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "Not established. The evidence in hand shows a partial, bursty failure: frontend's error ratio oscillates between 0% and ~10.7% and productcatalogservice's between 0% and ~12% over the same window, with both services continuously serving and continuously emitting telemetry (tr_4ebe6206b86b, tr_daca9f7e265e, tr_12e2b1ea0143). No change of any kind \u2014 deploy, config push, or flag flip \u2014 is recorded for either frontend or productcatalogservice in the 15 minutes bracketing onset (tr_3b5877322382, tr_05b147cb267b, tr_969733dc3889), which removes the simplest explanation without supplying a replacement. Every attempt to read productcatalogservice logs failed on a label-selector mismatch (\"product-catalog-service\" vs \"productcatalogservice\") and returned zero lines, so no failure signature \u2014 internal fault versus downstream timeout \u2014 was ever recovered (tr_3eab28a379bb, tr_94c6b6cd6baf). No latency series, no saturation or resource metrics, and no per-dependency breakdown were collected anywhere, and ten of the twelve services in the blast radius \u2014 including checkoutservice, which alerted 15 seconds after the others \u2014 were never dispatched to at all. The shape of the failure (intermittent bursts, no proximate change, culprit possibly unnamed by the page) is consistent with the ad-memory-squeeze pattern in the corpus, but that is a resemblance, not a finding: nothing here measured memory, threads, connections, or latency on any service.",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_4ebe6206b86b",
+      "tr_daca9f7e265e",
+      "tr_12e2b1ea0143",
+      "tr_3b5877322382",
+      "tr_05b147cb267b",
+      "tr_969733dc3889",
+      "tr_3eab28a379bb",
+      "tr_94c6b6cd6baf"
+    ],
+    "reasoning": "Two independent frontend metric dispatches agree the failure is partial and intermittent, not a hard outage, and both explicitly state they carry only a service_name dimension and therefore cannot attribute errors to any downstream (tr_4ebe6206b86b, tr_daca9f7e265e). The productcatalogservice error series shows the same bursty shape with a zero floor and a ~12% peak while the denominator stays non-zero, so that service was up and mostly succeeding (tr_12e2b1ea0143). Correlation of the two series is suggestive but untested \u2014 tr_daca9f7e265e says so directly. Three change dispatches returned empty logs for both services (tr_3b5877322382, tr_05b147cb267b, tr_969733dc3889), which is why I do not select bad_deploy, bad_config, or a rollback/config_revert remediation: a change record is the evidence that would support those classes and there is none, though two of those dispatches also note they covered only 15 of the 60 minutes asked about and were scoped by service name, so a platform-level or older change is unexamined rather than excluded. dependency_latency cannot be selected because no latency was measured at any hop \u2014 tr_4ebe6206b86b states there is no latency signal in its data at all. resource_exhaustion is the pattern the retrieved ad-memory-squeeze incident matched, and the symptom shape here rhymes with it, but no dispatch measured memory, CPU, file descriptors, connections, or threads on any service, so choosing it would be importing the corpus's answer rather than reading this incident's evidence. The log dispatches that would have named a failure signature both failed on a selector mismatch and are correctly self-flagged as such (tr_3eab28a379bb, tr_94c6b6cd6baf) \u2014 their emptiness is a tooling artifact and is not evidence of silence from the service. With the mechanism unidentified, no remediation can be named honestly; restarting or scaling on this basis would be a guess.",
+    "open_questions": [
+      "What do productcatalogservice's logs actually say? Every log dispatch used the hyphenated selector; re-run against the label value \"productcatalogservice\" over the full 05:39-06:00Z window, which also closes the uncovered 05:54-06:00 tail.",
+      "Are frontend's error bursts temporally aligned with productcatalogservice's, or with some other service? Nothing collected has a per-dependency, per-route, or per-upstream dimension, so the causal direction between the two alerting services is unestablished.",
+      "Ten of the twelve services in the blast radius were never investigated, including checkoutservice, which alerted 15 seconds later than the rest. The true culprit may be a service the page never named, as in the retrieved incident.",
+      "Four unmeasured edges were crossed in triage and none were subsequently measured; the failure may propagate across a hop no dispatch observed.",
+      "No latency was measured anywhere in the call graph, so dependency_latency was neither confirmed nor eliminated.",
+      "No saturation signals (memory, CPU, file descriptors, connection or thread pools) were collected for any service, so resource_exhaustion is untested despite the corpus resemblance.",
+      "Changes were queried only for 05:39:15-05:54:15Z and only under the frontend and productcatalogservice keys; the preceding 50 minutes and all shared platform components (ingress, mesh, base images, node pool) remain unexamined.",
+      "Onset timing of the frontend error elevation relative to 05:49:15 is unknown \u2014 tr_4ebe6206b86b returned only min/max summaries with no per-timestamp values."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for ",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **3m30s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 4\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence three\n  minutes later.** Th"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

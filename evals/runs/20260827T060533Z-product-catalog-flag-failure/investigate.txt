@@ -1,0 +1,31 @@
+incident 7c888b0b-74c3-42b2-9a0d-c7c1b14e8a63  state triaging  anchor 06:09:00
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 9ed2c4f3-e6bf-41e6-8fb6-1750d62beae5
+investigation: 2 round(s), 9 dispatch(es), 23 step(s)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_4ca828b27368, tr_6eae261bb752, tr_002b87d7ee68, tr_105c48f50895, tr_a7ff783ab63f, tr_5181276312c4, tr_b402eb55a949, tr_f623b72d8d9d, tr_d9c25c5802bc
+  root cause  : Not established. What the evidence supports is a localized, bursty partial failure originating at productcatalogservice and surfacing at the frontend: productcatalogservice emits error-status RPCs on its own spans in bursts (peaks of roughly 12-20% of calls depending on the query, floor at zero) while continuing to serve the large majority of requests (tr_4ca828b27368, tr_6eae261bb752), and frontend shows a correlated intermittent error fraction peaking around 10-16% with the same burst-and-recover shape (tr_002b87d7ee68, tr_105c48f50895). loadgenerator's alert is the synthetic client restating the storefront's failure and carries no independent information. The mechanism behind the bursts is unmeasured: no latency percentiles, no CPU/memory/connection-pool saturation, and no logs were retrieved at all, because both Loki attempts used a hyphenated label value that matches nothing (tr_a7ff783ab63f, tr_5181276312c4). Change history is empty for both frontend and productcatalogservice, but only across 05:59-06:14 - roughly ten minutes before onset - so a change landing between 05:09 and 05:59, or a change owned by a shared platform component or an upstream dependency, remains entirely unexamined (tr_b402eb55a949, tr_f623b72d8d9d, tr_d9c25c5802bc). Triage also recorded one unmeasured edge crossed from frontend, so a hop in the call path was never instrumented in this investigation. I will not name a fault class on error-ratio curves alone.
+  OPEN        : What is productcatalogservice's latency profile during the error bursts? p50/p95/p99 correlated against the burst timestamps is the single measurement most likely to separate dependency_latency from an internal failure.
+  OPEN        : What are productcatalogservice's CPU, memory, GC and connection/thread-pool saturation series across 05:45-06:14? Bursty partial errors with the service staying up is the classic signature of resource exhaustion, and it was never checked.
+  OPEN        : What is the correct Loki label for this service? Both attempts used the hyphenated form and matched nothing; the unhyphenated service value or a different key (app/job/container) should be tried before any conclusion is drawn about log content.
+  OPEN        : Were there any changes to productcatalogservice, its dependencies, or shared platform config between 05:09 and 05:59? Both change queries silently truncated to 05:59 and both specialists flagged the gap.
+  OPEN        : Which downstream destination do frontend's errors point at? Both frontend metric queries aggregated only by service_name and produced no per-dependency breakdown, so the frontend-to-productcatalogservice attribution is inferred from timing alone.
+  OPEN        : What is the unmeasured edge triage recorded as crossed from frontend, and does a service on it sit between frontend and productcatalogservice?
+  OPEN        : Why do the two productcatalogservice error-ratio queries disagree on peak (roughly 0.2 versus 0.125)? Different windows or aggregation would explain it, but it is unreconciled and affects how severe the bursts actually are.
+  OPEN        : What is the precise onset time on productcatalogservice relative to frontend? Establishing which tier degraded first would test the direction of propagation, and no dispatch produced per-service onset timestamps.
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T060533Z-product-catalog-flag-failure/7c888b0b-74c3-42b2-9a0d-c7c1b14e8a63-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T060533Z-product-catalog-flag-failure/7c888b0b-74c3-42b2-9a0d-c7c1b14e8a63-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10398.93it/s]

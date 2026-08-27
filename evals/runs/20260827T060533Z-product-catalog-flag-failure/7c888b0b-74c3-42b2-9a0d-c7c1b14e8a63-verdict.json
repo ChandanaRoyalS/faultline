@@ -1,0 +1,57 @@
+{
+  "incident_id": "7c888b0b-74c3-42b2-9a0d-c7c1b14e8a63",
+  "trajectory_id": "9ed2c4f3-e6bf-41e6-8fb6-1750d62beae5",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "Not established. What the evidence supports is a localized, bursty partial failure originating at productcatalogservice and surfacing at the frontend: productcatalogservice emits error-status RPCs on its own spans in bursts (peaks of roughly 12-20% of calls depending on the query, floor at zero) while continuing to serve the large majority of requests (tr_4ca828b27368, tr_6eae261bb752), and frontend shows a correlated intermittent error fraction peaking around 10-16% with the same burst-and-recover shape (tr_002b87d7ee68, tr_105c48f50895). loadgenerator's alert is the synthetic client restating the storefront's failure and carries no independent information. The mechanism behind the bursts is unmeasured: no latency percentiles, no CPU/memory/connection-pool saturation, and no logs were retrieved at all, because both Loki attempts used a hyphenated label value that matches nothing (tr_a7ff783ab63f, tr_5181276312c4). Change history is empty for both frontend and productcatalogservice, but only across 05:59-06:14 - roughly ten minutes before onset - so a change landing between 05:09 and 05:59, or a change owned by a shared platform component or an upstream dependency, remains entirely unexamined (tr_b402eb55a949, tr_f623b72d8d9d, tr_d9c25c5802bc). Triage also recorded one unmeasured edge crossed from frontend, so a hop in the call path was never instrumented in this investigation. I will not name a fault class on error-ratio curves alone.",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_4ca828b27368",
+      "tr_6eae261bb752",
+      "tr_002b87d7ee68",
+      "tr_105c48f50895",
+      "tr_a7ff783ab63f",
+      "tr_5181276312c4",
+      "tr_b402eb55a949",
+      "tr_f623b72d8d9d",
+      "tr_d9c25c5802bc"
+    ],
+    "reasoning": "Every dispatch that returned usable data returned the same kind of data - error ratios - and error ratios distinguish scope, not mechanism. They establish three things firmly. First, productcatalogservice is a genuine emitter, not a relay: errors are attributed to its own spans and its call denominator is non-zero throughout, so it is up, reachable and failing a minority of requests (tr_4ca828b27368, tr_6eae261bb752). Second, the failure is bursty, not a plateau: both frontend and productcatalogservice series return to zero within the window, which rules out a dependency being hard-down for the duration (tr_002b87d7ee68, tr_105c48f50895, tr_6eae261bb752). Third, frontend is not an innocent bystander and not in total outage - roughly one call in ten carries an error at peak. What no dispatch produced is anything that separates the candidate mechanisms. Resource exhaustion, a slow dependency below productcatalogservice, and a partially-bad code path would all produce exactly this curve; distinguishing them needs latency percentiles or saturation series, and both metrics specialists explicitly recorded that neither was queried (tr_4ca828b27368, tr_6eae261bb752). The two change dispatches on productcatalogservice are weaker than they look: both flag that the executed window started at 05:59 rather than covering the requested hour, and one notes the result is scoped to changes owned by productcatalogservice itself and does not cover shared platform config or upstream owners (tr_f623b72d8d9d). An empty change log over a ten-minute slice is not evidence of no change. The log dispatches settled nothing about the service and one thing about the tooling: the empty results are attributable to a label mismatch, since zero lines of any kind - not merely zero error lines - came back for an actively serving service, so no inference about error volume or first-occurrence time is available (tr_5181276312c4). The retrieved ad-memory-squeeze incident matches the alert signature here - frontend and loadgenerator paging together with intermittent frontend errors - and in that case the culprit was a service the page never named. That is a reason to widen the search past productcatalogservice, not a reason to import its resource_exhaustion conclusion; here productcatalogservice is itself alerting and emitting, which is a different starting position. Because no evidence identifies a failing mechanism, fault_class is unknown and remediation_class is none: there is no change to revert (nothing was found to revert, and the search window was too narrow to trust that), and a restart or scale would be a guess at a mechanism nobody has measured.",
+    "open_questions": [
+      "What is productcatalogservice's latency profile during the error bursts? p50/p95/p99 correlated against the burst timestamps is the single measurement most likely to separate dependency_latency from an internal failure.",
+      "What are productcatalogservice's CPU, memory, GC and connection/thread-pool saturation series across 05:45-06:14? Bursty partial errors with the service staying up is the classic signature of resource exhaustion, and it was never checked.",
+      "What is the correct Loki label for this service? Both attempts used the hyphenated form and matched nothing; the unhyphenated service value or a different key (app/job/container) should be tried before any conclusion is drawn about log content.",
+      "Were there any changes to productcatalogservice, its dependencies, or shared platform config between 05:09 and 05:59? Both change queries silently truncated to 05:59 and both specialists flagged the gap.",
+      "Which downstream destination do frontend's errors point at? Both frontend metric queries aggregated only by service_name and produced no per-dependency breakdown, so the frontend-to-productcatalogservice attribution is inferred from timing alone.",
+      "What is the unmeasured edge triage recorded as crossed from frontend, and does a service on it sit between frontend and productcatalogservice?",
+      "Why do the two productcatalogservice error-ratio queries disagree on peak (roughly 0.2 versus 0.125)? Different windows or aggregation would explain it, but it is unreconciled and affects how severe the bursts actually are.",
+      "What is the precise onset time on productcatalogservice relative to frontend? Establishing which tier degraded first would test the direction of propagation, and no dispatch produced per-service onset timestamps."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for ",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired "
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

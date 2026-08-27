@@ -1,0 +1,54 @@
+{
+  "incident_id": "b707995c-86bb-4efb-bc6f-74f9374c3c6c",
+  "trajectory_id": "2fcd1837-bd0f-45d6-ae05-2de2ea7e9cc0",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "Not established. The only positive signal in hand is that productcatalogservice itself emitted errors on a minority of calls \u2014 intermittent, peaking near 13.6% and returning to zero between spikes \u2014 during a window in which loadgenerator, productcatalogservice and frontend all alerted (tr_9fbeba3d3dc7, tr_2d55c2a36f86). Everything that could have named a mechanism came back empty: change history for productcatalogservice, cartservice and adservice records nothing in the 05:03\u201305:18 bracket around onset (tr_c4a9069628ee, tr_69d7febd3f9f, tr_89851a2cfb64), and both log dispatches were executed against a hyphenated service label that matches no stream in Loki, so they returned zero lines and characterize nothing (tr_2f15082b25ed, tr_8f219560f828). No latency percentiles, no CPU/memory/connection-pool saturation series, and no per-dependency call metrics were ever retrieved (tr_9fbeba3d3dc7, tr_2d55c2a36f86). A partial, spiky error fraction on a service that keeps serving most traffic is compatible with resource pressure, with a slow or flaky dependency behind an unmeasured edge, and with a latent code path \u2014 the collected evidence does not distinguish among them, so the fault class is unknown rather than any of the four named mechanisms.",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_9fbeba3d3dc7",
+      "tr_2d55c2a36f86",
+      "tr_c4a9069628ee",
+      "tr_69d7febd3f9f",
+      "tr_89851a2cfb64",
+      "tr_2f15082b25ed",
+      "tr_8f219560f828"
+    ],
+    "reasoning": "Two independent metric pulls agree on the shape of the failure and on its limits: productcatalogservice is an error-emitting hop, not a bystander, but it is not down \u2014 the error fraction peaks around 13.6% across 58 and 61 samples respectively and touches zero, ruling out both total outage and clean health (tr_9fbeba3d3dc7, tr_2d55c2a36f86). That same shape argues against a monotonic saturation curve of the classic leak-to-death kind (tr_2d55c2a36f86), but it does not rule out resource exhaustion generally: OOM-kill/restart cycles and GC pressure both produce exactly this sawtooth, and no memory, CPU, file-descriptor or pool metric was ever retrieved to check. Three change dispatches returned empty logs for the three services most likely to carry a triggering edit (tr_c4a9069628ee, tr_69d7febd3f9f, tr_89851a2cfb64), which weakens bad_deploy and bad_config as proximate triggers \u2014 but only weakens them, because the productcatalogservice query covered just 05:03\u201305:18 and explicitly did not examine 04:13\u201305:03 (tr_c4a9069628ee), and a change landing 30 minutes before onset can surface late. The log evidence contributes nothing at all: both attempts used a hyphenated selector that the re-run confirmed matches no stream, so the emptiness is a query defect, not a finding about the service (tr_8f219560f828). With no logs, no saturation data, no latency data, no dependency-level breakdown, and one unmeasured edge crossed in the triage graph, there is no basis for naming a mechanism. The retrieved ad-memory-squeeze incident matches the intermittent-error signature and would tempt a resource_exhaustion call by analogy \u2014 but adservice's change log is empty here (tr_89851a2cfb64) and no adservice memory series was pulled, so that resemblance is a hypothesis to test, not evidence. Declaring a class on this evidence would be a guess dressed as a verdict; the correct next move is to re-run logs with the correct label and pull saturation and per-dependency latency for productcatalogservice.",
+    "open_questions": [
+      "What do productcatalogservice's logs actually say around 05:13? Both attempts used a non-matching hyphenated label; the query must be re-run with the unhyphenated service name before any log-based reading is possible.",
+      "Was productcatalogservice under memory, CPU, file-descriptor or connection-pool pressure? No saturation series was ever retrieved, so resource_exhaustion is untested rather than excluded \u2014 as is any container restart / OOM-kill count.",
+      "What are productcatalogservice's latency percentiles during the window? Without them, dependency_latency cannot be distinguished from fast-failing internal errors.",
+      "Which dependency sits behind the one unmeasured edge triage flagged, and what were its error and latency series? Per-dependency breakdown for adservice and cartservice calls was requested but never returned.",
+      "Were there changes to productcatalogservice between 04:13 and 05:03? That interval was explicitly outside the queried window, so bad_deploy and bad_config are not fully closed.",
+      "Why did loadgenerator and productcatalogservice page simultaneously at 05:13:00 with frontend 15s later? The ordering has not been reconciled against the call graph to confirm productcatalogservice is the origin rather than a co-victim.",
+      "Is adservice showing the memory signature seen in the ad-memory-squeeze corpus entry? Its change log is empty but no adservice resource metrics were pulled."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for ",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired "
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}
