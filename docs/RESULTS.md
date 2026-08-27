@@ -64,9 +64,21 @@ appear in this document:
 | stamp | what it is |
 |---|---|
 | `prompts:59bf438b2a96` | dev sweep 1 |
-| `prompts:53fafe9c12bc` | dev sweep 2 **and the holdout run** — the synthesizer taught the taxonomy |
+| `prompts:53fafe9c12bc` | dev sweeps 2 and 3, **the holdout run**, and both variance experiments — the synthesizer taught the taxonomy. Sweep 3 raised a budget bound and moved no prompt, which is why it shares sweep 2's stamp: ADR-0022 keeps budget out of the digest so that raising a bound reads as the same agent given more room. |
+| `prompts:bf7605651ef2` | **dev sweep 4 only** — the planner taught that an empty stream is silence rather than a bad query (T4.12). Measured net harmful against a floor registered before the run — coverage 6/7 → 4/7 — and **reverted**. This stamp was HEAD for the length of one sweep and exists now only in that sweep's record. |
 
 A test pins the current value and fails loudly if it moves, with the reason spelled out.
+
+**The holdout numbers below describe the pipeline `53fafe9c12bc`, which is HEAD.** T4.12 built a
+successor, `bf7605651ef2`, measured it as net harmful and reverted it, so these figures describe
+the current agent. They were briefly a measurement of a prior pipeline and are not any more — see
+[ADR-0023](adr/0023-a-freeze-manifest-outlives-the-pipeline-it-froze.md), which exists because
+supersession is a state a pipeline can enter and leave. Nothing about the holdout run has
+changed and its figures stand exactly as measured — but they are a measurement of a prior agent,
+and no claim here extends them to the current one. Re-entering the holdout under the new stamp is
+a separate decision with its own pre-registration under ADR-0022's protocol, and it has not been
+made. See [ADR-0023](adr/0023-a-freeze-manifest-outlives-the-pipeline-it-froze.md), which is where
+this obligation to say so instead of asserting it in a test comes from.
 
 ### Honest n
 
@@ -132,6 +144,41 @@ on scenarios they were developed against.
 | `bad_deploy` | 2 | 2 / 2 | 1 / 1 | 1 |
 | `dependency_latency` | 1 | **0 / 1** | **1 / 1** | 0 |
 | `resource_exhaustion` | 2 | **0 / 2** | **1 / 1** | 1 |
+
+### Dev sweep 4 — the evidence-class instruction, measured and not recommended
+
+T4.12 tested the mechanism T4.11 found, with the prediction registered before the run
+([`SWEEP-2026-08-27-evidence.md`](../evals/runs/SWEEP-2026-08-27-evidence.md)). One addition to the
+planner prompt; budget unchanged, so the prompt was the only delta against sweep 3.
+
+**Tested under `bf7605651ef2`, rejected per the pre-registration, reverted — that stamp exists
+only in this record.** The prediction hit and the instruction is net harmful. `product-catalog-flag-failure` — the
+reachability-blocked abstention T4.11 explained — answered `bad_config` correctly at high
+confidence, and its trajectory shows the registered mechanism executed: empty logs at seq 6, **not**
+re-issued, vantage changed, `change_history` at the flag service reached, `trace_query` called for
+the first time on that scenario. **And coverage fell 6/7 → 4/7**, with three registered
+must-not-regress scenarios falling to abstention.
+
+| | sweep 3 `53fafe9c12bc` | sweep 4 `bf7605651ef2` |
+|---|---|---|
+| coverage | **6 / 7** | **4 / 7** |
+| fault class, of answered | 6 / 6 | 4 / 4 |
+| judge same / different | 6 / 1 | 4 / 3 |
+| triage recall / precision | 0.91 / 0.54 | 0.92 / 0.56 |
+| re-issues after silence | 4, in 3 runs | 2, in 2 runs |
+| runs calling `trace_query` | 3 / 7 | 5 / 7 |
+
+**No run returned a wrong class** — every regression is answer → abstention — and triage was flat,
+which is the closest thing here to a control. The predictor is **dispatches at the service whose
+failure is the fault**: it collapsed 3→0, 4→1 and 3→0 on exactly the three regressions and held on
+every scenario that did not regress. The instruction moved dispatch away from the failing service,
+which is right where that service is mute and wrong everywhere else.
+
+Two cautions this sweep supplies about reading the rest of this document. **The `bad_config`
+per-class row is identical in both sweeps** — 1/1 answered, 1 abstained — while its two scenarios
+swapped places; a per-class table is required here by house rule and was still not enough. And
+`cart-redis-misconfig`, which T4.10 measured answering **6/6** under the byte-identical budget,
+abstained once here — so a 6/6 prior is not a guarantee under a moved prompt.
 
 **How to read sweep 2's `4 / 7` coverage.** Not as "answered 4, correctly declined 3". T4.11
 ([`VARIANCE-2026-08-27-abstention.md`](../evals/runs/VARIANCE-2026-08-27-abstention.md)) repeated

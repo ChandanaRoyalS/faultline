@@ -1,0 +1,31 @@
+incident a7fa0f1b-bd20-4d4b-9558-d05bd022a0b2  state triaging  anchor 06:52:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: b189f4df-b8ce-4183-b003-c57da3a77204
+investigation: 1 round(s), 10 dispatch(es), 24 step(s) BUDGET EXHAUSTED (metrics tool calls: 4 of 4 used)
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_6dcada371f1a, tr_32a9bb14d792, tr_6fb9e287712e, tr_7160a3df4e1b, tr_1a39804e166d, tr_1b0cebe10f45, tr_49f80feef9b8, tr_0ba63624ef69, tr_3f8aba9fd5cf, tr_65cee649184b
+  root cause  : The best-supported account is that adservice was starved by an externally imposed memory limit. At 06:48:46Z platform-automation applied a resource_limits update that lowered ad-service's container memory limit to 256m (tr_6dcada371f1a) — the only recorded change on any of the six services examined. Roughly four minutes later loadgenerator and frontend alerted, and adservice emitted no call-count telemetry whatsoever for the queried window — neither the error numerator nor the unfiltered denominator resolved (tr_32a9bb14d792), which is the signature of a process that is not running or is repeatedly dying rather than one that is serving cleanly. Frontend shows a partial failure — error ratio rising from zero to a ~12.7% peak, so seven of eight requests still succeeded (tr_6fb9e287712e) — which fits a single non-critical leaf dependency failing rather than a core checkout-path service. productcatalogservice is demonstrably healthy and serving (tr_7160a3df4e1b), and no other service has any change record in-window (tr_1b0cebe10f45, tr_49f80feef9b8, tr_0ba63624ef69, tr_3f8aba9fd5cf, tr_65cee649184b). The mechanism is exhaustion, not a wrong value per se: the container is being killed for exceeding a ceiling it cannot fit under, so the failure in the world is resource exhaustion, with the limit edit as the trigger that started it.
+  OPEN        : Was adservice actually OOMKilled? No memory/saturation metric, restart count, container event or pod log was retrieved — the exhaustion mechanism is inferred from the limit change plus telemetry silence, not observed.
+  OPEN        : Why does cartservice also have no call-count series at all (tr_1a39804e166d)? Is it uninstrumented for span metrics, or is it a second failing service? Two past corpus incidents turned on cartservice silence being misread; this was not resolved.
+  OPEN        : Are the frontend's ~12.7% errors actually on the ad call path? Frontend metrics carry no endpoint or operation dimension (tr_6fb9e287712e), so the attribution to adservice is circumstantial rather than traced.
+  OPEN        : The change-log window began at 06:42:30 for every service; 06:20–06:42:30 was never queried. An earlier deploy or config edit on frontend, cartservice, checkoutservice, productcatalogservice or recommendationservice remains possible.
+  OPEN        : checkoutservice, recommendationservice and loadgenerator had no metrics dispatched at all — their error/latency behaviour is entirely unmeasured, and the budget is exhausted.
+  OPEN        : Triage reported one unmeasured edge crossed; which dependency link that is, and whether it hides a slow downstream (a dependency_latency story), was never established.
+  OPEN        : What was adservice's prior memory limit, and what is its actual working-set requirement? Without that, the correct restore value is unknown and 256m cannot be confirmed as too low.
+
+=== FLAGGED ===
+  budget exhausted: metrics tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T064846Z-ad-memory-squeeze/a7fa0f1b-bd20-4d4b-9558-d05bd022a0b2-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T064846Z-ad-memory-squeeze/a7fa0f1b-bd20-4d4b-9558-d05bd022a0b2-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9207.84it/s]

@@ -1007,3 +1007,18 @@ def test_a_specialist_without_an_override_keeps_the_default_bound() -> None:
         state.record_tool_call("metrics")
     assert not state.may_call_tool("metrics")
     assert "metrics tool calls: 4 of 4 used" in (state.exhausted_reason or "")
+
+
+# --- the evidence-class instruction (T4.12) -----------------------------------
+#
+# T4.12 added an instruction to PLANNER_SYSTEM teaching that an empty stream is silence
+# rather than a bad query, and the two guards that stood here asserted its text and its
+# freedom from answer keys. The instruction was measured against dev sweep 3 and reverted:
+# it won the one scenario it targeted and cost three others, coverage 6/7 -> 4/7, against a
+# floor registered before the run. The guards go with it - a test pinning the wording of a
+# prompt that no longer exists is rot, and the evidence for what it did lives in
+# evals/runs/SWEEP-2026-08-27-evidence.md rather than in an assertion here.
+#
+# What the regressions decomposed is recorded in PLAN.md as the next candidate: the
+# instruction taught switching vantage but never returning, so the next formulation keeps
+# the subject fixed and moves only the evidence class.

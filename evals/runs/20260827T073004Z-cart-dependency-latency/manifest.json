@@ -1,0 +1,205 @@
+{
+  "run_id": "20260827T073004Z-cart-dependency-latency",
+  "scenario_id": "cart-dependency-latency",
+  "split": "dev",
+  "scenario_fingerprint": "c982653939a5c1ff29bf570cf2e5b2760075c7cc0456a7471c22f585f3cb425b",
+  "started_at": "2026-08-27T07:30:04.509669+00:00",
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "e80c69ca7cfa23c66a8e6580b21706e5c5ca1c7f",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      643
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-27T07:30:04.883975+00:00",
+  "incident_id": "46682d05-d535-4cf1-9006-92cd682a585a",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-27T07:39:42.550896+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      1373
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260827T073004Z-cart-dependency-latency",
+    "scenario_id": "cart-dependency-latency",
+    "trajectory_id": "46cc0c48-a966-4c72-886b-b853ff3b516c",
+    "runtime_version": "faultline/0.0.1+prompts:bf7605651ef2",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": true,
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.3333333333333333,
+      "matched": [
+        "cartservice",
+        "checkoutservice",
+        "frontend",
+        "loadgenerator"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "accountingservice",
+        "adservice",
+        "currencyservice",
+        "emailservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice",
+        "shippingservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 4,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "dependency_latency",
+      "returned": "dependency_latency",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "restart",
+      "returned": "config_revert",
+      "correct": false,
+      "abstained": false,
+      "dispute": "ADR-0022 \u00a71.2"
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 36994,
+    "tokens_out": 14592,
+    "cost_usd": 0.5498,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-27T07:42:14.654211+00:00",
+  "judge": {
+    "scenario_id": "cart-dependency-latency",
+    "run_id": "20260827T073004Z-cart-dependency-latency",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: an unauthorized traffic-shaping container attached to cartservice's network namespace applying 300ms egress delay.",
+    "dead_ends_closed": [
+      "cartservice restart/recreation",
+      "cartservice code or image change",
+      "cartservice configuration change",
+      "error rates and failures",
+      "total traffic stop",
+      "pool exhaustion and queueing"
+    ],
+    "dead_ends_missed": [
+      "span-derived metric family unavailability explanation",
+      "pre-change baseline establishment",
+      "whether automation will re-apply the shaper"
+    ],
+    "traps": [
+      {
+        "trap": "service latency propagation means slowest service in chain is the culprit",
+        "outcome": "took"
+      },
+      {
+        "trap": "p95 should rise by exactly the added delay (300ms)",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "restart warm-up window produces alarm that means nothing",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "latency burst or errors in unobserved log gaps",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "Agent narrative correctly identified the root cause via change history and validated it through trace analysis showing per-call latency penalties. It explicitly avoided the trap of expecting exact 300ms rise (correctly predicting ~600ms for two Redis calls) and the warm-up confusion. However, it did not explicitly engage with whether error bursts occurred in log gaps, leaving that as open rather than closing it as the recorded narrative implicitly does through the flat (not decaying) elevation pattern.",
+    "tokens_in": 4752,
+    "tokens_out": 429
+  }
+}

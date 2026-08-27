@@ -1,0 +1,29 @@
+incident 46682d05-d535-4cf1-9006-92cd682a585a  state triaging  anchor 07:33:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 46cc0c48-a966-4c72-886b-b853ff3b516c
+investigation: 2 round(s), 6 dispatch(es), 17 step(s)
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_23c6a06559e7, tr_13c06c895b58, tr_fe0ccc313b47, tr_70d05518e0cb, tr_533b4b3e43f3, tr_d9b1713664fd
+  root cause  : At 07:30:09Z a platform-automation action attached a traffic-shaping container to cartservice's network namespace, applying a fixed 300ms egress delay with zero jitter on eth0 (tr_23c6a06559e7). Roughly 3.5 minutes later the storefront alerts fired. Trace decomposition confirms the mechanism precisely: every sampled cartservice Redis client span sits at ~300-310ms with essentially no spread, cartservice self-time is ~1ms, and the penalty scales with the number of outbound calls per request (GetCart with one Redis call ~302ms, AddItem with two ~603-612ms), with a further ~300ms appearing on the caller hop into cartservice — consistent with the response leg also traversing the shaped interface (tr_13c06c895b58). The delay propagates unmodified upward: checkoutservice cart calls ~1210ms, PlaceOrder ~2470ms, frontend HTTP ~1517-1530ms, all accounted for by the cart path while every non-cart dependency in the same traces stays under 20ms. cartservice is not failing, crashing, or erroring — it is waiting on a call path that an injected network delay made slow, and the upstream services are waiting on it.
+  OPEN        : Why the span-derived call-count metric family returned no series at all for cartservice, including the unfiltered denominator — wrong label schema, collector ingestion gap, or something else. This is unexplained and leaves the alerted error rates on frontend, checkout and loadgenerator unquantified.
+  OPEN        : No pre-change baseline was observed. The trace sample carries no timestamps, is truncated at 200 spans, and contains no sub-10ms cartservice Redis spans, so the ~300ms is inferred to be additive from the change record rather than measured against a known-good prior.
+  OPEN        : Whether any hard errors occurred is not settled. Both log results were truncated to the oldest 8 and newest 32 lines, leaving roughly 07:23:36-07:35:48 on cartservice and 07:23:37-07:37:05 on checkoutservice unobserved, and neither query covered past 07:38:30. Sustained errors are excluded; a burst inside the gap is not.
+  OPEN        : Why the ~300ms also appears on the caller-side hop into cartservice. Egress-only shaping delaying the response leg is the natural reading, but this was not directly verified, and an ingress-side component would change the remediation.
+  OPEN        : Whether the automation that attached the shaper will re-apply it after removal — no intent, ticket, or owning workflow for the platform-automation principal was identified, so the fix may not hold.
+  OPEN        : No dispatch examined the Redis backend itself or the sync_edge dependency candidates (productcatalogservice, adservice, emailservice, shippingservice, recommendationservice); the second metrics query was scoped to cartservice only and explicitly did not address them.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T073004Z-cart-dependency-latency/46682d05-d535-4cf1-9006-92cd682a585a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T073004Z-cart-dependency-latency/46682d05-d535-4cf1-9006-92cd682a585a-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10625.02it/s]

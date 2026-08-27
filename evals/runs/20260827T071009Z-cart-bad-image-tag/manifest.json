@@ -1,0 +1,213 @@
+{
+  "run_id": "20260827T071009Z-cart-bad-image-tag",
+  "scenario_id": "cart-bad-image-tag",
+  "split": "dev",
+  "scenario_fingerprint": "d4b9a16337b55bfe9feb260c5e6c3173f6cf8b23fec2724198a472bd26481ada",
+  "started_at": "2026-08-27T07:10:09.028416+00:00",
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "e80c69ca7cfa23c66a8e6580b21706e5c5ca1c7f",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "ad-service",
+      648
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-27T07:10:09.468790+00:00",
+  "incident_id": "1a090893-3baa-40fd-bc2d-e1a525402254",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-27T07:19:20.444641+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      303
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260827T071009Z-cart-bad-image-tag",
+    "scenario_id": "cart-bad-image-tag",
+    "trajectory_id": "2cf201d7-8087-4810-8457-c85d3c34e7a1",
+    "runtime_version": "faultline/0.0.1+prompts:bf7605651ef2",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": false,
+    "triage": {
+      "recall": 0.7777777777777778,
+      "precision": 0.5833333333333334,
+      "matched": [
+        "accountingservice",
+        "cartservice",
+        "checkoutservice",
+        "currencyservice",
+        "frontend",
+        "loadgenerator",
+        "shippingservice"
+      ],
+      "missed_alerted_not_predicted": [
+        "frauddetectionservice",
+        "quoteservice"
+      ],
+      "predicted_not_alerted": [
+        "adservice",
+        "emailservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice"
+      ],
+      "excluded_began_after_revert": [
+        "emailservice"
+      ],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 9,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "bad_deploy",
+      "returned": "unknown",
+      "correct": false,
+      "abstained": true,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "rollback",
+      "returned": "none",
+      "correct": false,
+      "abstained": true,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 37417,
+    "tokens_out": 11817,
+    "cost_usd": 0.4825,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-27T07:24:24.303963+00:00",
+  "judge": {
+    "scenario_id": "cart-bad-image-tag",
+    "run_id": "20260827T071009Z-cart-bad-image-tag",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a non-existent image tag causing container startup failure; the agent narrative identifies a cartservice backend problem but explicitly stops short of determining the mechanism, leaving it unresolved.",
+    "dead_ends_closed": [
+      "paymentservice involvement",
+      "checkoutservice code or deployment change",
+      "currency-specific issue",
+      "final publish or email delivery as failure point"
+    ],
+    "dead_ends_missed": [
+      "cartservice's actual state, logs, and metrics (agent explicitly defers this)",
+      "cartservice image or deployment change (agent notes change avenue unexamined)",
+      "scrape granularity as apparent causation (agent does not discuss the two waves of silence)",
+      "frontend's zero error rate miscounting (agent notes ratio aggregation issue but does not resolve it)"
+    ],
+    "traps": [
+      {
+        "trap": "silent non-completion in logs indicates a hang",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "empty PromQL series means meaningful absence of service activity",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "fifteen-minute window changes eliminate causation across whole incident",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "cartservice zero error rate proves it is healthy",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "two waves of alerts fifteen seconds apart indicate propagation",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent correctly narrowed the failure locus to the cartservice call but did not pursue cartservice itself, leaving the root cause (image pull failure, container nonexistence) completely undiscovered. The agent's self-awareness about this gap and its explicit deferral to future investigation is notable but does not constitute root cause agreement.",
+    "tokens_in": 6535,
+    "tokens_out": 465
+  }
+}

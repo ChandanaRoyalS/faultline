@@ -1,0 +1,67 @@
+{
+  "incident_id": "091088ba-f970-45cb-8b0d-2ed81164ac8e",
+  "trajectory_id": "b29570db-616f-45a1-b69d-516e89f87681",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:shipping-wrong-image",
+  "verdict": {
+    "root_cause": "Every sampled PlaceOrder trace fails at the same point: checkoutservice's outbound client span to ShippingService/GetQuote returns ERROR in 0.4\u20132.6ms with no shippingservice server-side child span, while all prior calls (cartservice/Redis, productcatalogservice, currencyservice) succeed normally. That signature \u2014 fast, uniform, deterministic failure with the callee never producing a server span \u2014 means the call is being rejected at or before the shippingservice handler (connection refused / unavailable / immediate rejection), not that shipping is slow or that checkout has an internal bug. Checkout itself is healthy: it is alive, accepting requests and logging order starts through 09:14:28, but no order reaches payment, email or queue-write logging, exactly matching the trace evidence that execution aborts inside prepareOrderItemsAndShippingQuoteFromCart. The simultaneous 09:12:45 alerts on accountingservice, emailservice, frauddetectionservice, quoteservice and shippingservice are consistent with traffic starvation downstream of the stall rather than five independent faults \u2014 quoteservice sees no work because shipping never calls it, and the post-payment services see no work because checkout never gets that far. What made shippingservice stop serving was never established: no specialist was dispatched to shippingservice or quoteservice at all, and the only change query run covered checkoutservice alone (which showed no changes, correctly excluding a checkout-side deploy or flag flip). The mechanism is therefore an unavailable shipping dependency whose own failure mode \u2014 non-running artifact, wrong endpoint/port value, or its own downstream \u2014 remains unidentified.",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_bb9484cf38ae",
+      "tr_d66c8ab1f361",
+      "tr_188ed47f27e7",
+      "tr_8208b7da1b41"
+    ],
+    "reasoning": "The trace evidence (tr_bb9484cf38ae) localizes the fault precisely and rules out every alternative hop in the checkout path: cart/Redis, productcatalog, currency all complete cleanly and are followed by later spans; payment, shipping-order and queue/email spans never appear because execution aborts at the quote step. The absence of a shippingservice server span under an erroring client span, combined with single-digit-millisecond durations, distinguishes rejection-at-the-callee from timeout or slowness, which is why dependency_latency does not fit. The log evidence (tr_d66c8ab1f361) independently corroborates the same shape from a different signal: order-start lines continue at steady cadence while all completion-stage lines vanish together, and no crash, restart or telemetry gap explains it. The change evidence (tr_188ed47f27e7) excludes a checkoutservice deploy, config push or flag flip in the onset window, which removes the most convenient bad_deploy/bad_config story on the alerting service itself and pushes causation to shippingservice \u2014 a service nobody queried. I decline to name bad_deploy or bad_config because both remain live and the evidence cannot separate them: a shipping pod that will not start and a shipping endpoint pointing at a wrong address produce the same fast-fail-with-no-server-span signature from checkout's vantage point, and the remediations (rollback vs config_revert) are different. The past cart incidents are a warning that the quiet, error-free service is often the broken one \u2014 here shippingservice emits nothing at all in checkout's logs \u2014 but they are pattern, not proof, and I have not treated their resolutions as this incident's. One inconsistency is unresolved and lowers confidence: the metric series (tr_8208b7da1b41) shows checkout error ratio peaking near 0.30 with zero-error points, while traces show 100% of sampled PlaceOrder calls failing; this is probably a window/sampling artifact (metrics span 08:59:30\u201309:14:30 including pre-onset minutes, and checkout serves non-PlaceOrder RPCs) but it was never reconciled.",
+    "open_questions": [
+      "Nothing at all was queried on shippingservice \u2014 no logs, metrics, traces or change history. Whether its pods are running, crash-looping, failing readiness, or rejecting connections is entirely unestablished.",
+      "Was there a deploy, image change, config edit or flag flip on shippingservice (or quoteservice) near 09:09? The only change query covered checkoutservice and only 08:59:30\u201309:14:30; the 08:30\u201308:59 span and all dependencies are unqueried.",
+      "Is shippingservice itself failing, or failing because quoteservice (which also alerted at 09:12:45) is unavailable to it? Without a shipping-side trace or log we cannot tell whether quoteservice is a starved victim or the origin.",
+      "Why does checkout's error ratio peak at ~0.30 with zero-error intervals when every sampled PlaceOrder trace is ERROR? Unreconciled \u2014 could be pre-onset data in the window, non-PlaceOrder RPC traffic diluting the ratio, or trace sampling bias toward the failing period.",
+      "The log window 09:01:04\u201309:11:05 was truncated and never observed; error/warning lines naming the failing dependency could exist there and would change the picture.",
+      "Whether the correct fix is rollback, config_revert or restart depends entirely on shippingservice's state, which is why no remediation is named here.",
+      "The five 09:12:45 alerts are interpreted as traffic starvation downstream of the stall; this is inference from topology and the log/trace pattern, not confirmed by any per-service check of accountingservice, emailservice or frauddetectionservice."
+    ]
+  },
+  "flags": [
+    "planner produced no valid findings: dispatch service 'cartservice,productcatalogservice,currencyservice,paymentservice,frontend' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.",
+    "planner produced no valid findings: dispatch service 'cartservice,productcatalogservice,currencyservice,paymentservice,frontend' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice."
+  ],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-bad-image-tag / Resolution: The image reference was restored to the previously deployed tag. cartservice came up on\nthe next reconciliation and the no-traffic alerts cleared eight seconds later \u2014 those\nsix services had never been broken, only starved.\n\nA brief `ServiceHighErrorRate` appeared on **emailservi"
+  ],
+  "failed_dispatches": [
+    [
+      "planner",
+      "dispatch service 'cartservice,productcatalogservice,currencyservice,paymentservice,frontend' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice."
+    ],
+    [
+      "planner",
+      "dispatch service 'cartservice,productcatalogservice,currencyservice,paymentservice,frontend' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice."
+    ]
+  ],
+  "narrative_error": null
+}

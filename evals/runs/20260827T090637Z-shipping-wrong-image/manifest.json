@@ -1,0 +1,206 @@
+{
+  "run_id": "20260827T090637Z-shipping-wrong-image",
+  "scenario_id": "shipping-wrong-image",
+  "split": "dev",
+  "scenario_fingerprint": "e223160aeb185a2c1c58488648b2817093d307f839a7940fe36e4f9d7fb3ccd6",
+  "started_at": "2026-08-27T09:06:37.199107+00:00",
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "e80c69ca7cfa23c66a8e6580b21706e5c5ca1c7f",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "feature-flag-service",
+      1550
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-27T09:06:37.556624+00:00",
+  "incident_id": "091088ba-f970-45cb-8b0d-2ed81164ac8e",
+  "investigate_exit_code": 2,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 2,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-27T09:18:21.524902+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "shipping-service",
+      303
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260827T090637Z-shipping-wrong-image",
+    "scenario_id": "shipping-wrong-image",
+    "trajectory_id": "b29570db-616f-45a1-b69d-516e89f87681",
+    "runtime_version": "faultline/0.0.1+prompts:bf7605651ef2",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": false,
+    "triage": {
+      "recall": 0.8571428571428571,
+      "precision": 0.5454545454545454,
+      "matched": [
+        "accountingservice",
+        "checkoutservice",
+        "emailservice",
+        "frauddetectionservice",
+        "quoteservice",
+        "shippingservice"
+      ],
+      "missed_alerted_not_predicted": [
+        "loadgenerator"
+      ],
+      "predicted_not_alerted": [
+        "cartservice",
+        "currencyservice",
+        "frontend",
+        "paymentservice",
+        "productcatalogservice"
+      ],
+      "excluded_began_after_revert": [
+        "frontend"
+      ],
+      "unmeasured_edges_crossed": 5,
+      "n_alerted": 7,
+      "n_predicted": 11
+    },
+    "fault_class": {
+      "truth": "bad_deploy",
+      "returned": "unknown",
+      "correct": false,
+      "abstained": true,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "rollback",
+      "returned": "none",
+      "correct": false,
+      "abstained": true,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [
+        "planner produced no valid findings: dispatch service 'cartservice,productcatalogservice,currencyservice,paymentservice,frontend' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.",
+        "planner produced no valid findings: dispatch service 'cartservice,productcatalogservice,currencyservice,paymentservice,frontend' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice."
+      ],
+      "n_flagged": 2,
+      "failed_alone": [
+        "planner: dispatch service 'cartservice,productcatalogservice,currencyservice,paymentservice,frontend' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.",
+        "planner: dispatch service 'cartservice,productcatalogservice,currencyservice,paymentservice,frontend' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice."
+      ],
+      "n_failed_alone": 2,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 32070,
+    "tokens_out": 12512,
+    "cost_usd": 0.4732,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-27T09:23:25.501978+00:00",
+  "judge": {
+    "scenario_id": "shipping-wrong-image",
+    "run_id": "20260827T090637Z-shipping-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a deployment that swapped shippingservice's image to a JVM-based service, causing startup failure under an undersized memory limit. The agent narrative stops at 'shippingservice is unavailable' without identifying what made it unavailable or what changed.",
+    "dead_ends_closed": [
+      "checkoutservice's own process healthy",
+      "checkoutservice's configuration unchanged",
+      "checkoutservice's other dependencies fine",
+      "checkoutservice itself had not crashed or been restarted"
+    ],
+    "dead_ends_missed": [
+      "what changed on shippingservice (image deployment)",
+      "shippingservice's startup behavior (crash loop vs. killed container)",
+      "the language runtime change in shippingservice logs (Rust to JVM)",
+      "shippingservice's deployment history and image reference",
+      "whether the memory limit had changed"
+    ],
+    "traps": [
+      {
+        "trap": "memory limit set below service needs (signature of JVM dying at startup)",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "raising the memory limit would stop the alert",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent investigation correctly traced the failure to shippingservice unavailability but explicitly stopped without examining shippingservice itself. It never queried shippingservice logs, metrics, traces, or change history\u2014the exact data that would have revealed the image swap. The recorded narrative treats the absence of investigation on the failing service as 'the single largest defect in this record.'",
+    "tokens_in": 6524,
+    "tokens_out": 404
+  }
+}

@@ -1,0 +1,26 @@
+incident 1a090893-3baa-40fd-bc2d-e1a525402254  state triaging  anchor 07:13:00
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 2cf201d7-8087-4810-8457-c85d3c34e7a1
+investigation: 2 round(s), 6 dispatch(es), 17 step(s)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_f3fa09aba87d, tr_fb622e081b6a, tr_99787a7980d8
+  root cause  : The failing hop is checkoutservice's outbound CartService/GetCart call. All 40 sampled PlaceOrder traces share an identical structure terminating at GetCart, with the cart span the innermost errored span propagating upward through checkout and frontend (tr_f3fa09aba87d). It is a fast-fail, not a stall: cart calls return errors in roughly 2-5ms. Checkoutservice logs corroborate from the other side - PlaceOrder entries arrive at normal cadence but no payment, email, or message-write lines follow, so requests fail silently before payment is reached (tr_fb622e081b6a). Checkoutservice is exonerated as origin (alive, ingress intact, internal span clean, no changes recorded: tr_2d755f274ba2), and paymentservice is off the failing path entirely since no payment span is ever entered. What is NOT established is the mechanism inside cartservice: no dispatch queried cartservice's logs, metrics, or changes at all, and the only dependency metrics attempted were paymentservice's, which returned an empty series whose emptiness is uninterpretable because even the unfiltered denominator matched nothing (tr_99787a7980d8). Deterministic sub-5ms rejection is consistent with a wrong backing-store address/credential, an unservable cart artifact, or a refused connection - the evidence cannot choose among these, and picking one would borrow the answer from the cart-redis-misconfig corpus entry rather than read this incident.
+  OPEN        : What is happening inside cartservice? Its logs, metrics, and change history were never queried - the one dispatch that would turn this locus into a mechanism.
+  OPEN        : Was there a deploy, config edit, or flag flip on cartservice or its backing store near 07:13, or earlier than the 15-minute windows all change queries covered?
+  OPEN        : Why does frontend show intermittent errors peaking near 30% (tr_b9aa56dfd705) while cart-path traces show 100% failure? Likely non-checkout routes still succeeding, but per-route breakdown was explicitly not resolved.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T071009Z-cart-bad-image-tag/1a090893-3baa-40fd-bc2d-e1a525402254-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T071009Z-cart-bad-image-tag/1a090893-3baa-40fd-bc2d-e1a525402254-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10314.77it/s]

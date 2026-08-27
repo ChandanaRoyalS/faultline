@@ -393,6 +393,24 @@ different experiment than the next run. It changed, deliberately, and they are -
 T4.5 re-ran all seven scenarios rather than comparing against the old numbers.
 """
 
+SWEEP_4_DIGEST = "bf7605651ef2"
+"""The pipeline T4.12 built, measured, and **rejected**. Never HEAD after that experiment closed.
+
+T4.12 taught the planner that an empty stream is silence rather than a bad query. It did what it
+said - re-issues after silence fell, `trace_query` adoption rose 3/7 to 5/7 - and it moved dispatch
+away from the failing service, which cost three scenarios to win one: dev coverage 6/7 to 4/7. The
+pre-registration had named that floor in advance, so the instruction was reverted and the stamp
+returned to `SWEEP_2_DIGEST`.
+
+The digest stays here because `evals/runs/SWEEP-2026-08-27-evidence.md` is a record of seven live
+runs and the freeze guard's lineage check has to be able to place it. A rejected pipeline is still
+a pipeline this repository ran.
+
+There is no `SWEEP_3_DIGEST`: dev sweep 3 raised the `changes` bound and moved no prompt, so it
+ran on `SWEEP_2_DIGEST`. That is the point of T4.7's decision to keep budget bounds out of the
+stamp - S2 and S3 are the same agent given different room, and the stamp says so.
+"""
+
 
 def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """`runtime_version` is the package version plus a digest over every role system prompt and
@@ -405,9 +423,9 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
 
     assert prompt_digest() == SWEEP_2_DIGEST, (
         f"expected the taxonomy-instruction pipeline {SWEEP_2_DIGEST}. If a prompt or a contract "
-        f"moved again, neither sweep in evals/runs/ describes the current agent."
+        f"moved again, no sweep in evals/runs/ describes the current agent."
     )
-    assert SWEEP_1_DIGEST != SWEEP_2_DIGEST, "the two sweeps are two experiments"
+    assert len({SWEEP_1_DIGEST, SWEEP_2_DIGEST, SWEEP_4_DIGEST}) == 3, "three experiments"
 
 
 def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:

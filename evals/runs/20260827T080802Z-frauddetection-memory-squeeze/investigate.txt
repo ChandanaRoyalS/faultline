@@ -1,0 +1,29 @@
+incident fdca9d00-7f0f-4caa-92c1-c464e50828eb  state triaging  anchor 08:14:00
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 8fe4b9e9-4a13-4d9e-ab11-7440a9509bec
+investigation: 2 round(s), 4 dispatch(es), 13 step(s)
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_4215e952dfd4, tr_8d36cfc8aff2, tr_358bb2221bb0, tr_f69cbcf7cffc
+  root cause  : At 08:08:02Z platform-automation lowered the memory resource limit on the frauddetection-service workload to 200m. Roughly eighteen seconds later the service stopped doing useful work and entered a crash-restart loop: from ~08:08:20 to at least 08:16:19 the log contains nothing but repeated full JVM/OpenTelemetry-agent bootstrap sequences at ~60s intervals, with no application errors, exceptions, or stack traces to explain the termination, and no order-consumption records after the first restart. That signature — a JVM that starts, does no visible work, and dies silently without logging, immediately after its memory ceiling was tightened — is the classic pattern of a container being killed by the kernel for exceeding a ceiling that is now below the heap the JVM is configured to commit. The service is not failing on a bad code path; it is being denied the memory it needs and is killed for it, so the failing mechanism is memory exhaustion against the new limit. The span-derived call metrics being entirely absent (no error numerator and no total-calls denominator) is a downstream consequence: a process that never lives long enough to serve traffic emits no RPC spans.
+  OPEN        : The OOM kill itself is inferred, not observed. kube_pod_container_status_restarts_total, last_terminated_reason, container_memory_working_set_bytes and the container memory limit series were never queried (tr_f69cbcf7cffc explicitly leaves the OOM hypothesis open). A single query for last_terminated_reason=OOMKilled would confirm or refute the mechanism outright.
+  OPEN        : The prior memory limit is not recorded (tr_4215e952dfd4), so the magnitude of the reduction is unknown and the correct value to revert to has to be determined from the JVM heap settings or from a healthy peer, not from the change record.
+  OPEN        : The recorded new value '200m' uses milli-unit notation, which is a CPU unit, not a memory unit. If the limit was written with a malformed or misinterpreted unit rather than merely lowered, the framing shifts toward a wrong value rather than a tight-but-intentional ceiling, and the fix differs (correct the unit vs. restore a number). This was not resolved.
+  OPEN        : The log result covers only 08:04–08:19 and the middle of the window was dropped (oldest 8 + newest 32 lines kept), so an error or exception in the dropped segment cannot be excluded, and it is unknown whether the restart loop continued past 08:16:19.
+  OPEN        : Why platform-automation made this change is unexamined — whether it was a policy rollout, an autoscaler/VPA recommendation, or a templating error determines whether reverting the limit will simply be re-applied by the same automation.
+  OPEN        : No evidence was gathered on whether other workloads received the same automated limit reduction; triage scoped this to one service, but the actor was automation, which typically acts on more than one target.
+
+flags: none
+
+retrieval: exclude_origin='scenario:frauddetection-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T080802Z-frauddetection-memory-squeeze/fdca9d00-7f0f-4caa-92c1-c464e50828eb-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T080802Z-frauddetection-memory-squeeze/fdca9d00-7f0f-4caa-92c1-c464e50828eb-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8025.51it/s]

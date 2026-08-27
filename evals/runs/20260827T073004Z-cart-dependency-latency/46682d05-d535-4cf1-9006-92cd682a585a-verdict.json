@@ -1,0 +1,57 @@
+{
+  "incident_id": "46682d05-d535-4cf1-9006-92cd682a585a",
+  "trajectory_id": "46cc0c48-a966-4c72-886b-b853ff3b516c",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-dependency-latency",
+  "verdict": {
+    "root_cause": "At 07:30:09Z a platform-automation action attached a traffic-shaping container to cartservice's network namespace, applying a fixed 300ms egress delay with zero jitter on eth0 (tr_23c6a06559e7). Roughly 3.5 minutes later the storefront alerts fired. Trace decomposition confirms the mechanism precisely: every sampled cartservice Redis client span sits at ~300-310ms with essentially no spread, cartservice self-time is ~1ms, and the penalty scales with the number of outbound calls per request (GetCart with one Redis call ~302ms, AddItem with two ~603-612ms), with a further ~300ms appearing on the caller hop into cartservice \u2014 consistent with the response leg also traversing the shaped interface (tr_13c06c895b58). The delay propagates unmodified upward: checkoutservice cart calls ~1210ms, PlaceOrder ~2470ms, frontend HTTP ~1517-1530ms, all accounted for by the cart path while every non-cart dependency in the same traces stays under 20ms. cartservice is not failing, crashing, or erroring \u2014 it is waiting on a call path that an injected network delay made slow, and the upstream services are waiting on it.",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_23c6a06559e7",
+      "tr_13c06c895b58",
+      "tr_fe0ccc313b47",
+      "tr_70d05518e0cb",
+      "tr_533b4b3e43f3",
+      "tr_d9b1713664fd"
+    ],
+    "reasoning": "Two independent lines converge. The change record supplies a concrete latency-inducing mechanism with a predicted signature \u2014 fixed 300ms, zero jitter, applied at the network layer to all cartservice egress (tr_23c6a06559e7). The traces show exactly that signature and nothing else: near-constant ~300ms per outbound call across ~40 Redis spans with a few milliseconds of spread, negligible cartservice self-time, and a penalty that multiplies by egress call count rather than applying once per inbound request (tr_13c06c895b58). That tight unimodal distribution excludes the competing explanations the trace specialist enumerated \u2014 queueing or pool saturation would produce a heavy right tail, retry/backoff would produce multi-modal durations, and a per-request interceptor would not scale with call count. It is not cluster-wide: currencyservice, productcatalogservice, paymentservice, shippingservice, quoteservice and emailservice are all fast in the same traces, so only the cart path carries the increment. Logs corroborate that this is a slowdown and not an outage or error condition: cartservice logs show steady multi-per-second handler entries through ~07:36:21 with no error, warning, lifecycle or dependency-failure lines (tr_fe0ccc313b47), and checkoutservice was still completing PlaceOrder \u2192 payment \u2192 email \u2192 queue-write sequences with advancing offsets through 07:37:33, with no cartservice-attributed timeout or deadline text (tr_70d05518e0cb). I classify this as dependency_latency rather than bad_config because the failing mechanism is the wait: the value inserted delay into a call path, and requests break by taking too long, not because an address, credential or limit is itself wrong. The remediation is to detach the traffic-shaping container and restore the unshaped network path \u2014 the inverse of the injection \u2014 rather than a restart or a rollback of any artifact, since no image or version changed (tr_23c6a06559e7). The two metrics dispatches returned nothing usable: both the error numerator and the unfiltered call denominator were empty for the cartservice selector (tr_533b4b3e43f3, tr_d9b1713664fd), so they neither confirm nor refute an error spike. Notably, the retrieved past incidents both hinge on cartservice showing flat-zero errors being misread as health; here the metric family is absent entirely rather than reading zero, and the traces independently establish that cart traffic was flowing, so the corpus pattern does not apply and should not be used to argue for a missing-artifact story.",
+    "open_questions": [
+      "Why the span-derived call-count metric family returned no series at all for cartservice, including the unfiltered denominator \u2014 wrong label schema, collector ingestion gap, or something else. This is unexplained and leaves the alerted error rates on frontend, checkout and loadgenerator unquantified.",
+      "No pre-change baseline was observed. The trace sample carries no timestamps, is truncated at 200 spans, and contains no sub-10ms cartservice Redis spans, so the ~300ms is inferred to be additive from the change record rather than measured against a known-good prior.",
+      "Whether any hard errors occurred is not settled. Both log results were truncated to the oldest 8 and newest 32 lines, leaving roughly 07:23:36-07:35:48 on cartservice and 07:23:37-07:37:05 on checkoutservice unobserved, and neither query covered past 07:38:30. Sustained errors are excluded; a burst inside the gap is not.",
+      "Why the ~300ms also appears on the caller-side hop into cartservice. Egress-only shaping delaying the response leg is the natural reading, but this was not directly verified, and an ingress-side component would change the remediation.",
+      "Whether the automation that attached the shaper will re-apply it after removal \u2014 no intent, ticket, or owning workflow for the platform-automation principal was identified, so the fix may not hold.",
+      "No dispatch examined the Redis backend itself or the sync_edge dependency candidates (productcatalogservice, adservice, emailservice, shippingservice, recommendationservice); the second metrics query was scoped to cartservice only and explicitly did not address them."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / Resolution: The image reference was restored to the previously deployed tag. cartservice came up on\nthe next reconciliation and the no-traffic alerts cleared eight seconds later \u2014 those\nsix services had never been broken, only starved.\n\nA brief `ServiceHighErrorRate` appeared on **emailservi"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}
