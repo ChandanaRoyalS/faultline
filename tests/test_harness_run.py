@@ -393,6 +393,16 @@ different experiment than the next run. It changed, deliberately, and they are -
 T4.5 re-ran all seven scenarios rather than comparing against the old numbers.
 """
 
+SWEEP_4_DIGEST = "bf7605651ef2"
+"""The pipeline after T4.12 taught the planner that an empty stream is silence, not a bad query.
+
+There is no `SWEEP_3_DIGEST`: dev sweep 3 raised the `changes` bound and moved no prompt, so it
+ran on `SWEEP_2_DIGEST`. That is the point of T4.7's decision to keep budget bounds out of the
+stamp - S2 and S3 are the same agent given different room, and the stamp says so.
+
+S3 is therefore S4's baseline: same budget, same harness, one prompt delta.
+"""
+
 
 def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """`runtime_version` is the package version plus a digest over every role system prompt and
@@ -403,11 +413,11 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == SWEEP_2_DIGEST, (
-        f"expected the taxonomy-instruction pipeline {SWEEP_2_DIGEST}. If a prompt or a contract "
-        f"moved again, neither sweep in evals/runs/ describes the current agent."
+    assert prompt_digest() == SWEEP_4_DIGEST, (
+        f"expected the evidence-class pipeline {SWEEP_4_DIGEST}. If a prompt or a contract "
+        f"moved again, no sweep in evals/runs/ describes the current agent."
     )
-    assert SWEEP_1_DIGEST != SWEEP_2_DIGEST, "the two sweeps are two experiments"
+    assert len({SWEEP_1_DIGEST, SWEEP_2_DIGEST, SWEEP_4_DIGEST}) == 3, "three experiments"
 
 
 def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:

@@ -1007,3 +1007,48 @@ def test_a_specialist_without_an_override_keeps_the_default_bound() -> None:
         state.record_tool_call("metrics")
     assert not state.may_call_tool("metrics")
     assert "metrics tool calls: 4 of 4 used" in (state.exhausted_reason or "")
+
+
+# --- the evidence-class instruction (T4.12) -----------------------------------
+
+
+def test_the_planner_is_taught_that_silence_is_evidence() -> None:
+    """ADR-0019 made `empty` a typed field so a tool could not confuse *no data* with
+    *query failed*. That settled the contract and left the consequence unstated: what a
+    planner should DO with silence. T4.11 measured the gap - five repeats re-issued a
+    query to a stream published at 0 lines/hour and never changed evidence class.
+    """
+    from faultline.agents.roles import PLANNER_SYSTEM
+
+    text = PLANNER_SYSTEM.lower()
+    assert "an empty result is a result" in text
+    assert "silence is a reason to change evidence" in text
+    # The prior must be demoted in the same breath, or the instruction argues with the
+    # dispatch counts sitting three lines above it.
+    assert "a prior, not a rule" in text
+
+
+def test_the_evidence_class_instruction_names_no_answers() -> None:
+    """Same bar as T4.5's taxonomy instruction. Teaching the planner how to read silence is
+    legitimate; naming which stream is silent in which scenario is ADR-0008 axis 1.
+    """
+    from faultline.agents.roles import PLANNER_SYSTEM
+
+    text = PLANNER_SYSTEM.lower()
+    for token in (
+        "product-catalog",
+        "productcatalogservice",
+        "cart-redis-misconfig",
+        "shipping-wrong-image",
+        "ad-memory-squeeze",
+        "cartservice",
+        "adservice",
+        "shippingservice",
+        "frauddetectionservice",
+        "emailservice",
+        "frontend",
+        "feature flag",
+        "0 lines",
+        "lines/hour",
+    ):
+        assert token not in text, f"{token} is an answer key, not an instruction"

@@ -148,6 +148,22 @@ and metrics were consulted in all ten, logs in seven, traces in two. Dispatching
 every time is not a plan. Every specialist you do not dispatch must appear in `skipped` with
 a reason.
 
+An empty result is a result. A stream that returns nothing has told you it was silent over
+that window, and that is a fact about the world rather than a failed query or a selector to
+second-guess. Read it as an answer and let it move you.
+
+So in a follow-up round, do not put the same question back to a stream that already came
+back empty unless something material has changed - a different window, a different service,
+a selector you can justify from something you learned since. Re-asking a silent stream
+spends a round confirming what you were already told. Silence is a reason to change evidence
+class or vantage point: the caller's logs rather than the callee's, traces rather than logs,
+a tool you have not used yet.
+
+The dispatch counts above are a prior, not a rule. They say what ten past investigations
+happened to need, and a prior is worth what it predicts about the incident in front of you.
+When the evidence types you reached for first come back silent, the low-prior tools stop
+being the unlikely ones - they are what is left.
+
 {UNTRUSTED_RULE}
 
 Reply with JSON only, matching this schema:
