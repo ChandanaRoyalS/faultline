@@ -37,13 +37,20 @@ best-evidenced: nine services alert, the blast radius narrows to a single hop, *
 that alerts loudest is not the service that broke**, and the answer is a change record rather
 than an inference. It is also the only scenario whose repeat behaviour has been measured.
 
-**What that measured record actually says, including the demo run: 6 correct verdicts out of 7
-runs at this configuration.** The seventh is the recorded demo run itself, and it **abstained** —
-it localized correctly to the checkout→cart hop, then exhausted its metrics budget without ever
-spending a change-history query on `cartservice`, which is where the answer was. So the
-transcript below shows the system declining to name a cause rather than naming the right one.
-That is left as it fell rather than re-run until it looked better: an abstention is a result
-here, and a demo that is re-rolled until it impresses is an advertisement.
+**The recorded run declined to name a fault class.** Six prior runs under this exact
+configuration answered correctly
+([T4.10's table](evals/runs/VARIANCE-2026-08-27.md#the-five-repeats), n = 5, plus dev sweep 3's
+row); this one localized correctly to the checkout→cart hop, then exhausted its metrics budget
+without ever spending a change-history query on `cartservice`, which is where the answer was, and
+returned `unknown`. **Saying `unknown` rather than guessing is a designed behaviour, not a
+breakdown** — an abstention is reported as coverage and kept out of the accuracy figure entirely,
+so the system is never rewarded for a confident wrong answer. What the run leaves open — why the
+planner sometimes spends its budget without reaching the one service that holds the answer — is
+the next experiment queued in [`docs/PLAN.md`](docs/PLAN.md).
+
+Counting it, the record at this configuration is **6 correct out of 7**. It is left as it fell
+rather than re-run until it looked better: a demo that is re-rolled until it impresses is an
+advertisement.
 
 **Would rather read than run?** A full transcript of a real run, with the narrative the scribe
 wrote, is in [`docs/demo/`](docs/demo/) — [`transcript.txt`](docs/demo/transcript.txt) and the

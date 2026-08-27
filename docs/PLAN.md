@@ -1279,8 +1279,18 @@ was the same shape as every other run of this scenario (9 alerted, 12 predicted,
 the world had not drifted; the planner exhausted `metrics` at 4/4 and never spent a `changes`
 dispatch on `cartservice`, which is where the answer was.
 
-That is a legitimate seventh observation of a configuration this repository has published a 6/6
-on - and `counts_toward_aggregates` excludes it. **The rule is still right**: demos are re-run to
+**The failure mode is T4.12's next candidate, seen at the reverted stamp.** The demo run
+localized to `cartservice` and then never dispatched `changes` there - which is precisely what
+that entry names: *keep dispatching at the service you localized.* This matters for how T4.12's
+regressions are read. Those three could have been read as the rejected instruction *creating* a
+tendency to abandon the localized service; this run shows the same shape at `53fafe9c12bc`, with
+no such instruction in the prompt. **The tendency pre-exists the instruction.** Stated at its
+honest weight: one occurrence in seven runs at baseline, against three of seven under the
+instruction - which is consistent with amplification rather than creation, and is not enough
+observations to claim it.
+
+That is also a legitimate seventh observation of a configuration this repository has published a
+6/6 on - and `counts_toward_aggregates` excludes it. **The rule is still right**: demos are re-run to
 be watched and on whichever scenario tells the best story, so letting them into aggregates would
 weight every figure toward watchability. But its first application hid a real datum, which is
 worth knowing about the rule rather than discovering later. The resolution taken here is to keep

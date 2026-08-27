@@ -1,3 +1,18 @@
+[ Added when this transcript was filed. Everything below the line is the run's own
+  output, unedited. ]
+
+  This recorded run declined to name a fault class. Six prior runs under this exact
+  configuration answered correctly - see the table in evals/runs/VARIANCE-2026-08-27.md
+  ("The five repeats", n = 5, plus dev sweep 3's row) - and this one returned `unknown`
+  instead. Saying `unknown` rather than guessing is a designed behaviour, not a breakdown:
+  an abstention is reported as coverage and kept out of the accuracy figure entirely, so
+  the system is never rewarded for a confident wrong answer. The open question it puts on
+  display - why the planner sometimes spends its budget without ever reaching the one
+  service that holds the answer - is the next candidate experiment in docs/PLAN.md. The
+  run was kept as it fell rather than re-run until it looked better.
+
+------------------------------------------------------------------------
+
 ========================================================================
 FAULTLINE DEMO - one incident, start to finish
 ========================================================================
