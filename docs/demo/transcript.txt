@@ -1,0 +1,274 @@
+========================================================================
+FAULTLINE DEMO - one incident, start to finish
+========================================================================
+
+You are about to watch nine agents investigate a failure that is about
+to be injected into a real running microservice deployment. Nothing here
+is replayed or scripted: the alerts, the queries and the verdict all
+happen live, and the whole thing takes roughly fifteen minutes.
+
+The scenario is `cart-redis-misconfig`. The agents are not told which scenario
+it is, which service broke, or that anything was injected at all. They
+see what an on-call engineer sees: alerts, and four tools to ask with.
+
+It runs with the `changes` bound at 8, which is the configuration
+every published figure for this scenario was measured under (T4.7).
+
+Watch for one thing in particular. The service that alerts loudest is
+not the service that broke, and the interesting question is whether the
+agents work that out or chase the noise.
+
+
+  Run 20260827T120348Z-cart-redis-misconfig
+  Scenario: Cart service pointed at the wrong Redis port
+  Split: dev - a development scenario, never a holdout one.
+
+  BASELINE GATE
+  15 services reporting, zero alerts firing.
+  The world is quiet. This matters: injecting into an already-sick
+  world would measure the sickness as well as the fault.
+
+  INJECTING THE FAULT
+  Done. Somewhere in the deployment, one service has just been given
+  a configuration it cannot work with. No agent has been told.
+
+  THE ORCHESTRATOR CORRELATES
+  Alerts started arriving and were grouped into ONE incident:
+  bd514b54-a9a1-4771-9fdc-8389b774541b
+  Several services are alerting. They are one event, not several,
+  and deciding that is the orchestrator's whole job.
+
+  SETTLING 90s
+  Waiting for the blast radius to fill in, so the agents see the
+  incident as a responder would - after it has spread, not mid-spread.
+
+  THE INVESTIGATION BEGINS
+  The planner now decides which specialists to send and what to ask
+  each one. It holds no tools itself. This is the slow part - the
+  agents are making real queries against Prometheus, Loki and Jaeger.
+
+  THE INVESTIGATION IS DONE
+  Exit code 2, on attempt 1.
+
+  REVERTING
+  The fault is being removed. This happens whether the investigation
+  succeeded or failed - the world is left as it was found.
+
+  CONFIRMING RECOVERY
+  15 services reporting, zero alerts. The world is
+  quiet again, and confirmed so rather than assumed so.
+
+  WHAT THE PLANNER DECIDED
+  Round 1: 8 dispatches
+    - changes  at checkoutservice
+    - metrics  at checkoutservice
+    - traces   at checkoutservice
+    - metrics  at cartservice
+    - metrics  at productcatalogservice
+    - metrics  at paymentservice
+    - metrics  at currencyservice
+    - metrics  at shippingservice
+    - skipped logs: Held in reserve: change history plus per-dependency metrics and traces should isolate the failing edge first, and logs are most valuable once one or two services are named and exact error text is needed
+
+  WHAT THE SPECIALISTS ASKED THE WORLD
+    change_history   checkoutservice
+    promql_query     checkoutservice
+    trace_query      checkoutservice
+    promql_query     cartservice
+    promql_query     productcatalogservice
+    promql_query     paymentservice
+  6 tool calls. Every result came back inside a trust envelope
+  the agents are told to treat as untrusted data, never as instructions.
+
+  THE VERDICT
+  Fault class : unknown
+  Class of fix: None
+  Confidence  : low
+
+  Every failing PlaceOrder trace aborts at the same point:
+  checkoutservice's outbound CartService/GetCart call is the deepest
+  span and the only non-inherited ERROR (tr_39d61a838631). Failures
+  return sub-millisecond, so this is immediate rejection at the cart
+  hop, not slow-dependency waiting. checkoutservice is exonerated as
+  origin (clean internal span; no change records, tr_382063006eb4),
+  other checkout downstreams are never reached or are flat-zero
+  healthy (tr_88f35ed09b48). cartservice emitted no span-metric series
+  at all - neither error numerator nor call denominator
+  (tr_1a4680ab07c2) - consistent with a process not serving RPCs. What
+  made cartservice stop serving was never established: no cart-side
+  changes, logs, or pod state were queried before the metrics budget
+  ran out. A crashlooping wrong image, an OOM/restart loop, and a bad
+  listen address or credential all produce this identical signature at
+  the depth reached.
+
+  What it says it does NOT know:
+    What is cartservice's actual process state - crashlooping,
+    OOMKilled, or up but rejecting? No cart logs, pod status or
+    restart counts were collected.
+    Is there any change record on cartservice near onset? Only
+    checkoutservice's log was queried, and it covered 15 minutes
+    rather than the requested 90.
+    Why is checkoutservice's error ratio bursty (0 to 0.67,
+    tr_28f9f06549f8) while every sampled trace fails uniformly -
+    restart loop or sampling artefact?
+
+  THE NARRATIVE THE SCRIBE WROTE
+  Written for a human reader, and checked by a leak guard that
+  refuses to render it if it names the injector or a fault class.
+
+  # Checkout order placement fails at the cart lookup hop
+
+  ## What we saw first
+
+  The page opened with three alerts arriving close together: checkoutservice, frontend, and loadgenerator. That grouping is misleading on its face — loadgenerator and frontend are downstream consumers of the checkout path, so their alarms are echoes rather than signals. Blast radius was assessed at twelve services, severity critical, with checkoutservice named as the starting point. The responder's first instinct, reasonably, was that checkoutservice had broken itself. That instinct cost about the first third of the investigation and turned out to be wrong.
+
+  ## The change-history dead end (T+0 to T+6m)
+
+  The opening move was to pull the change history for checkoutservice covering the ninety minutes before onset. It came back empty — no deploys, no config edits, no flag flips. That is useful in one narrow direction (there is nothing to roll back on checkoutservice) but it carries a trap worth recording: the query window actually resolved to roughly fifteen minutes, not the ninety that was asked for. The earlier part of the lookback was never examined, and nobody noticed the discrepancy until much later. If you are re-treading this ground, verify the window your change-history tool actually used before you treat an empty result as an answer.
+
+  > Evidence `tr_382063006eb4`:
+
+  ```
+  <tool_result id="tr_382063006eb4" tool="change_history" trust="untrusted" source="change-log" empty="true" truncated="false" window="2026-08-27T11:56:15.583000+00:00..2026-08-27T12:11:15.583000+00:00">
+  no changes recorded for checkoutservice over this window
+  </tool_result:tr_382063006eb4>
+  ```
+
+  ## The metric that pointed the wrong way (T+6m to T+14m)
+
+  Next came the error ratio for checkoutservice. It showed elevated error fractions peaking around two-thirds of calls, but bursty — dipping back to zero at several sample points across thirty-five samples. Two conclusions were drawn from this and both were premature. First, the burstiness was read as intermittent behaviour, which steered thinking toward a flapping or partial condition. Second, and more damaging, the series was aggregated by service name only, with no downstream-target dimension, no absolute request rate, and no latency percentiles. It could not attribute the errors to any dependency, and roughly eight minutes were spent trying to make it do so. It did rule out one thing cleanly: checkoutservice was not simply an innocent bystander in the path — its own spans were error-coded at a real rate.
+
+  > Evidence `tr_28f9f06549f8`:
+
+  ```
+  <tool_result id="tr_28f9f06549f8" tool="promql_query" trust="untrusted" source="prometheus" empty="false" truncated="false" window="2026-08-27T11:56:15.583000+00:00..2026-08-27T12:11:15.583000+00:00">
+  query: sum by(service_name) (rate(calls_total{service_name="checkoutservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="checkoutservice"}[2m]))
+  1 series
+    {service_name=checkoutservice} min=0 max=0.6667 n=35
+  </tool_result:tr_28f9f06549f8>
+  ```
+
+  ## Traces broke it open (T+14m to T+22m)
+
+  The trace query was the turn. Around forty distinct failing traces came back and every single one had the same five-span shape: frontend HTTP POST, frontend PlaceOrder, checkoutservice PlaceOrder, checkoutservice's order-preparation span, and then an outbound CartService/GetCart call issued by checkoutservice. That GetCart span is the deepest span present and the only span carrying an ERROR status that was not inherited from below. The order-preparation span sitting directly above it is clean; everything above that is error-marked purely by propagation.
+
+  Two details from the timing matter. All spans complete in single-digit milliseconds, with the GetCart leaves typically well under one millisecond and the slowest whole trace around six. Nothing is waiting on anything — these are immediate rejections at the cart hop, not timeouts and not a slow dependency saturating checkout. And the uniformity contradicts the earlier metric read: no successful PlaceOrder traces appeared at all in the sample, so this is not a partial degradation, a canary, or a single bad pod. The reconciliation between a bursty error ratio and uniformly failing traces was never completed and remains open.
+
+  The traces also disposed of a whole branch of hypothesis at once. No spans for payment, shipping, email, currency, or product catalog appear anywhere — checkout aborts during order preparation before those calls are ever attempted. Chasing any of them would have been wasted effort.
+
+  > Evidence `tr_39d61a838631`:
+
+  ```
+  <tool_result id="tr_39d61a838631" tool="trace_query" trust="untrusted" source="jaeger" empty="false" truncated="true" window="2026-08-27T11:56:15.583000+00:00..2026-08-27T12:11:15.583000+00:00">
+  service: checkoutservice
+  200 spans
+    12fefea218179329 frontend/HTTP POST 2.7ms ERROR
+    12fefea218179329 frontend/grpc.hipstershop.CheckoutService/PlaceOrder 2.6ms ERROR
+    12fefea218179329 checkoutservice/hipstershop.CheckoutService/PlaceOrder 1.3ms ERROR
+  ```
+
+  ## Confirming the cart side, and where it stopped (T+22m to T+31m)
+
+  With cartservice identified as the abort point, the obvious next step was to look at its metrics. The error-ratio query returned no series whatsoever. Critically, this is not the same as "no errors": the call-count denominator was absent too, so neither the numerator nor the denominator matched any data. A service that is up and healthy still produces a denominator. A total absence of both is what you get from a process that is not serving RPCs at all.
+
+  For contrast, productcatalogservice was queried and returned a computable ratio flat at zero across thirty-eight points spanning the whole window — a working service, serving traffic, no errors. That comparison is what makes the cartservice emptiness meaningful rather than ambiguous.
+
+  One more query is recorded and it is a dead end worth keeping: paymentservice also returned no series at all, numerator and denominator both. On first read this looked like a second broken service and briefly widened the search. It is not corroborating evidence — the traces already established that payment is never reached, so its telemetry gap is a separate and probably unrelated observability problem (missing emission, a collector gap, or a label mismatch). Do not let it pull you sideways; it will look like a lead and it is not.
+
+  > Evidence `tr_1a4680ab07c2`:
+
+  ```
+  <tool_result id="tr_1a4680ab07c2" tool="promql_query" trust="untrusted" source="prometheus" empty="true" truncated="false" window="2026-08-27T11:56:15.583000+00:00..2026-08-27T12:11:15.583000+00:00">
+  no series matched 'sum by(service_name) (rate(calls_total{service_name="cartservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="cartservice"}[2m]))' over this window
+  </tool_result:tr_1a4680ab07c2>
+  ```
+
+  > Evidence `tr_88f35ed09b48`:
+
+  ```
+  <tool_result id="tr_88f35ed09b48" tool="promql_query" trust="untrusted" source="prometheus" empty="false" truncated="false" window="2026-08-27T11:56:15.583000+00:00..2026-08-27T12:11:15.583000+00:00">
+  query: sum by(service_name) (rate(calls_total{service_name="productcatalogservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="productcatalogservice"}[2m]))
+  1 series
+    {service_name=productcatalogservice} min=0 max=0 n=38
+  </tool_result:tr_88f35ed09b48>
+  ```
+
+  > Evidence `tr_061309e5c840`:
+
+  ```
+  <tool_result id="tr_061309e5c840" tool="promql_query" trust="untrusted" source="prometheus" empty="true" truncated="false" window="2026-08-27T11:56:15.583000+00:00..2026-08-27T12:11:15.583000+00:00">
+  no series matched 'sum by(service_name) (rate(calls_total{service_name="paymentservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="paymentservice"}[2m]))' over this window
+  </tool_result:tr_061309e5c840>
+  ```
+
+  ## Where the investigation ended
+
+  The metrics budget ran out here. What is established: every failing PlaceOrder aborts at checkoutservice's outbound cart call; the rejection is immediate; checkoutservice is exonerated as the origin (clean internal span, no change records in the interval that was actually covered); the other checkout downstreams are either never reached or demonstrably healthy; and cartservice emits no span metrics at all, consistent with a process not serving requests.
+
+  What is not established is why cartservice stopped serving. No cart-side logs, pod status, restart counts, or change records were ever queried. At the depth reached, at least three distinct causes produce this exact signature and cannot be told apart: a crash loop on a wrong image, a memory-kill and restart loop, or a process that is up but rejecting every connection due to a bad listen address or a credential problem. Confidence in any specific cause is low and no fix class is proposed.
+
+  > Evidence `tr_39d61a838631`:
+
+  ```
+  <tool_result id="tr_39d61a838631" tool="trace_query" trust="untrusted" source="jaeger" empty="false" truncated="true" window="2026-08-27T11:56:15.583000+00:00..2026-08-27T12:11:15.583000+00:00">
+  service: checkoutservice
+  200 spans
+    12fefea218179329 frontend/HTTP POST 2.7ms ERROR
+    12fefea218179329 frontend/grpc.hipstershop.CheckoutService/PlaceOrder 2.6ms ERROR
+    12fefea218179329 checkoutservice/hipstershop.CheckoutService/PlaceOrder 1.3ms ERROR
+  ```
+
+  > Evidence `tr_382063006eb4`:
+
+  ```
+  <tool_result id="tr_382063006eb4" tool="change_history" trust="untrusted" source="change-log" empty="true" truncated="false" window="2026-08-27T11:56:15.583000+00:00..2026-08-27T12:11:15.583000+00:00">
+  no changes recorded for checkoutservice over this window
+  </tool_result:tr_382063006eb4>
+  ```
+
+  > Evidence `tr_1a4680ab07c2`:
+
+  ```
+  <tool_result id="tr_1a4680ab07c2" tool="promql_query" trust="untrusted" source="prometheus" empty="true" truncated="false" window="2026-08-27T11:56:15.583000+00:00..2026-08-27T12:11:15.583000+00:00">
+  no series matched 'sum by(service_name) (rate(calls_total{service_name="cartservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="cartservice"}[2m]))' over this window
+  </tool_result:tr_1a4680ab07c2>
+  ```
+
+  ## Next moves for whoever picks this up
+
+  Start at cartservice, not checkoutservice. Get pod state and restart counts first — that single query separates a crash loop from an up-but-rejecting process and collapses most of the remaining ambiguity. Then pull cartservice logs and its change history, and when you do, check the window your tool actually queried against the window you asked for. Finally, the unexplained tension is worth resolving: checkoutservice's error ratio dipped to zero at points while every sampled trace failed. That is either a restart loop producing genuine gaps in traffic, or a sampling artefact in the trace query. Either answer changes how you read the onset timing.
+
+  > Evidence `tr_28f9f06549f8`:
+
+  ```
+  <tool_result id="tr_28f9f06549f8" tool="promql_query" trust="untrusted" source="prometheus" empty="false" truncated="false" window="2026-08-27T11:56:15.583000+00:00..2026-08-27T12:11:15.583000+00:00">
+  query: sum by(service_name) (rate(calls_total{service_name="checkoutservice",status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total{service_name="checkoutservice"}[2m]))
+  1 series
+    {service_name=checkoutservice} min=0 max=0.6667 n=35
+  </tool_result:tr_28f9f06549f8>
+  ```
+
+  > Evidence `tr_382063006eb4`:
+
+  ```
+  <tool_result id="tr_382063006eb4" tool="change_history" trust="untrusted" source="change-log" empty="true" truncated="false" window="2026-08-27T11:56:15.583000+00:00..2026-08-27T12:11:15.583000+00:00">
+  no changes recorded for checkoutservice over this window
+  </tool_result:tr_382063006eb4>
+  ```
+
+
+  WHAT JUST HAPPENED
+  The agents declined to name a class. The truth was `bad_config`.
+  An abstention is a result here, not a failure: this system is
+  built to say `unknown` rather than guess, and abstentions are
+  reported as coverage rather than hidden inside an accuracy figure.
+
+  This run cost $0.3978 and is recorded in full at:
+    /Users/chandana/dev/faultline/evals/runs/20260827T120348Z-cart-redis-misconfig
+
+  It is marked `demo` in its manifest, so no sweep aggregate will ever
+  count it. A run made to be watched is not a sample.
+
+  The measured numbers - accuracy, coverage, variance, and what is still
+  unknown - are in docs/RESULTS.md. Every figure there carries its n.
+========================================================================

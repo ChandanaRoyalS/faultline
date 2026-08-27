@@ -440,3 +440,56 @@ def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:
     assert "evalharness" not in covered
     assert evalharness.run.__name__.startswith("evalharness")
     assert evalharness.judge.__name__.startswith("evalharness")
+
+
+# --- the demo run's exclusion (T5.3) ------------------------------------------
+
+
+def test_a_demo_run_is_marked_in_its_manifest() -> None:
+    """`--demo` is the only thing that separates a demo from any other run.
+
+    Everything else is deliberately identical - same gate, same revert, same recovery check,
+    same run directory - because a demo that takes a shortcut demonstrates the shortcut.
+    """
+    from evalharness.run import parser
+
+    assert parser().parse_args(["cart-redis-misconfig"]).demo is False
+    assert parser().parse_args(["cart-redis-misconfig", "--demo"]).demo is True
+
+
+def test_no_aggregate_counts_a_demo_run() -> None:
+    """The rule the demo depends on, as a predicate rather than a convention.
+
+    A demo is re-run to be watched, on whichever scenario tells the best story. Counting one
+    would weight every published figure toward the scenario picked for being watchable - and
+    "remember to exclude the demo" is the kind of rule that holds only until the next person
+    to write an aggregate has not heard it.
+    """
+    from evalharness.run import counts_toward_aggregates
+
+    assert counts_toward_aggregates({"scenario_id": "x"}) is True
+    assert counts_toward_aggregates({"scenario_id": "x", "demo": False}) is True
+    assert counts_toward_aggregates({"scenario_id": "x", "demo": True}) is False
+
+
+def test_the_judge_skips_demo_runs_unless_one_is_named(tmp_path: Path) -> None:
+    """The enforcement point: the judge is what enumerates runs, so it is where the
+    exclusion has to hold. Naming a demo run explicitly still reaches it - the rule is
+    that no aggregate counts it, not that nobody may look at it."""
+    from evalharness.judge import load_run
+
+    scored = {
+        "scenario_id": "cart-redis-misconfig",
+        "run_id": "demo-run",
+        "models": {"planner": "claude-opus-5"},
+        "categories": {},
+    }
+    run_dir = tmp_path / "20260828T000000Z-cart-redis-misconfig"
+    run_dir.mkdir()
+    (run_dir / "manifest.json").write_text(json.dumps({"demo": True, "score": scored}))
+
+    assert load_run(run_dir) is None, "a sweep must not pick up a demo run"
+    assert load_run(run_dir, allow_demo=True) is not None, "naming it explicitly still works"
+
+    (run_dir / "manifest.json").write_text(json.dumps({"score": scored}))
+    assert load_run(run_dir) is not None, "an ordinary run is unaffected"

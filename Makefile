@@ -1,4 +1,4 @@
-.PHONY: help install lint format type test check up down eval
+.PHONY: help install lint format type test check up down eval demo
 
 help:
 	@grep -E '^[a-z]+:' Makefile | sed 's/:.*//' | tr '\n' ' '; echo
@@ -31,6 +31,14 @@ down:
 
 eval:
 	@echo "eval harness arrives in Phase 4 (T4.1) - see docs/adr and the execution plan"
+
+# ---- T5.3: the demo ----
+# One narrated run of the whole system, end to end, against the live world. Makes real
+# model calls; refuses with instructions if the world is down or no key is present.
+# Costs about $0.60 and takes about fifteen minutes. The transcript of a real run is in
+# docs/demo/transcript.txt for anyone who would rather read than run.
+demo:
+	uv run faultline-demo
 
 # ---- T1.1: the world (OpenTelemetry Demo, pinned) ----
 OTEL_DEMO_VERSION := v1.2.1

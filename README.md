@@ -13,6 +13,46 @@ agent works; it is that you can find out whether it does, and so can we.
 > **Status: pre-v0.1.** Built gate by gate against a published execution plan. Nothing is claimed
 > that a clean clone cannot demonstrate.
 
+## Demo
+
+One command runs the whole system against the live world and narrates it for a first-time
+viewer — baseline gate, injection, correlation, the planner's dispatches, the specialists'
+queries, the verdict, the narrative, the revert, and the confirmed recovery.
+
+```bash
+make world-up    # the pinned OpenTelemetry demo; give it ~2 minutes to settle
+make demo        # ~15 minutes, real model calls
+```
+
+It needs an Anthropic key in `~/.faultline-anthropic-key` or `ANTHROPIC_API_KEY`, and it
+refuses with instructions if the world is down or the key is missing. Nothing else here needs
+a key — `make check` runs offline.
+
+**The recorded run cost $0.3978.** That is one draw, not a point estimate: repeats of this
+scenario under the same configuration have ranged **$0.4794–$0.7017**
+([`VARIANCE-2026-08-27.md`](evals/runs/VARIANCE-2026-08-27.md), n = 5).
+
+The scenario is `cart-redis-misconfig`, chosen because it is the most watchable *and* the
+best-evidenced: nine services alert, the blast radius narrows to a single hop, **the service
+that alerts loudest is not the service that broke**, and the answer is a change record rather
+than an inference. It is also the only scenario whose repeat behaviour has been measured.
+
+**What that measured record actually says, including the demo run: 6 correct verdicts out of 7
+runs at this configuration.** The seventh is the recorded demo run itself, and it **abstained** —
+it localized correctly to the checkout→cart hop, then exhausted its metrics budget without ever
+spending a change-history query on `cartservice`, which is where the answer was. So the
+transcript below shows the system declining to name a cause rather than naming the right one.
+That is left as it fell rather than re-run until it looked better: an abstention is a result
+here, and a demo that is re-rolled until it impresses is an advertisement.
+
+**Would rather read than run?** A full transcript of a real run, with the narrative the scribe
+wrote, is in [`docs/demo/`](docs/demo/) — [`transcript.txt`](docs/demo/transcript.txt) and the
+[`narrative.md`](docs/demo/narrative.md) beside it.
+
+The demo run is an ordinary run — same gate, same revert, same recovery check, recorded in
+`evals/runs/` like any other — but it is marked `demo` in its manifest and **no aggregate ever
+counts it**, because a run made to be watched is not a sample. A test pins that exclusion.
+
 ## Architecture in brief
 
 ```

@@ -90,6 +90,15 @@ this obligation to say so instead of asserting it in a test comes from.
   different questions and [ADR-0017](adr/0017-context-layer-graph-and-dependency-policy.md) has a
   live hypothesis riding on recall alone.
 - Unmeasured graph edges are quoted on every blast-radius figure.
+- **Per-scenario rows are the floor for any behavioural claim.** A per-class table is required
+  above, and T4.12 showed it is not sufficient. Between dev sweeps 3 and 4 the `bad_config` row
+  read identically — n = 2, one answered, one abstained — while **its two scenarios swapped
+  places**: `cart-redis-misconfig` answered in S3 and abstained in S4, and
+  `product-catalog-flag-failure` did the exact reverse. That row reported "no change" for the
+  single largest behavioural change in the sweep. With n = 2 per class, one gain and one loss
+  cancel exactly, and the aggregate cannot distinguish "nothing happened" from "everything
+  happened and netted out." Any claim about *what the agent does* is quoted from the
+  per-scenario table, not the per-class one.
 
 ### Run protocol
 
@@ -349,7 +358,12 @@ Drawn from [`docs/PLAN.md`](PLAN.md); each is open and none is answered by anyth
    should act on: **no cost figure anywhere is a point estimate** - each is one draw from a ~1.9x
    spread, which puts the gap between two sweep totals inside a single scenario's repeat range -
    and **variance is now measured for exactly one of ten scenarios**, the one with the most prior
-   successes. ~~Nothing is known about variance on a scenario that abstains~~ — **T4.11 measured
+   successes. **T5.3 added a seventh observation of that configuration and it abstained** — the
+   demo run, byte-identical in stamp and all four bounds, which exhausted `metrics` and never
+   queried the failing service's change history. It is excluded from the 6/6 above by the demo
+   rule (`counts_toward_aggregates`) and recorded here instead, because a figure and an
+   observation it may not absorb should both be visible. ~~Nothing is known about variance on a
+   scenario that abstains~~ — **T4.11 measured
    that too**, five repeats of `product-catalog-flag-failure` under the byte-identical
    configuration ([`VARIANCE-2026-08-27-abstention.md`](../evals/runs/VARIANCE-2026-08-27-abstention.md)):
    the abstention is **5/5 stable**, no repeat answered, and **dispersion is lower than on the

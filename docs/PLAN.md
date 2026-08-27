@@ -1227,9 +1227,68 @@ eval-before-opinion rule, applied to the first finding this harness has produced
 
 ## Phase 5 onward
 
-### T5.3 — demo
-Renders bundles for a human audience; needs `title` and the alert summary before anyone
-reads a scenario file.
+### T5.3 — demo *(built)*
+**Scope note: what was built is not what this entry described.** The entry above was written
+from the bundle-rendering side - "renders bundles for a human audience; needs `title` and the
+alert summary before anyone reads a scenario file." What T5.3 actually delivers is `make demo`:
+one narrated **live run** of the whole pipeline end to end. The two overlap only in that both
+serve a human reader. The bundle-rendering work is not done and is not folded in here; it
+remains available for a later task. Recorded rather than quietly reinterpreted.
+
+`make demo` -> `faultline-demo`, a wrapper over the same `faultline-eval` the sweeps use. Same
+baseline gate, same revert, same recovery check, same run directory. It narrates the arc a
+first-time viewer needs - what fired, what the orchestrator correlated, what the planner
+dispatched, what the specialists asked, the verdict, the narrative, the revert, the confirmed
+recovery - from `@@EVENT` progress lines the harness emits under `--progress-json`, rather than
+by scraping prose, so rewording a print statement cannot silently break the narration.
+
+**No product code and the stamp does not move**: everything is in `src/evalharness/`, and
+`src/faultline/` is byte-identical to main.
+
+The demo run is marked `demo` in its manifest and **excluded from every aggregate** by
+`counts_toward_aggregates`, one predicate rather than a convention, wired into the judge's run
+enumeration - which is the only place runs are enumerated - and pinned by three tests. Naming a
+demo run explicitly still reaches it; the rule is that no aggregate counts it, not that nobody
+may look at it.
+
+Scenario: **`cart-redis-misconfig`**, chosen for a story a stranger can follow - seven services
+alert, the blast radius narrows to one hop, **the alerting service is not the broken one**, and
+the answer is a change record rather than an inference - and because it is the only scenario
+whose repeat behaviour has been measured (T4.10: 6/6 correct under a fixed configuration).
+
+**Two defects the demo found by being run, both fixed in T5.3:**
+
+1. A plain `uv sync` drops the optional `agents` extra, so the model client is missing and an
+   investigation dies on `ModuleNotFoundError` **after** a fault has been injected and an
+   incident correlated. The preflight now checks it and refuses with the fix. Cost of learning
+   this: one discarded run, recorded not deleted.
+2. **The demo ran the default `changes` bound of 4 while every claim about its scenario was
+   measured at 8.** It reproduced T4.7's starvation exactly - the planner asked for five
+   `changes` dispatches, exhausted the bound at 4/4, never reached the failing service's change
+   history, and abstained on a scenario watched to answer correctly six times out of six. A new
+   entry point had not inherited the configuration. The bound is now explicit in
+   `demo.CHANGES_BOUND` with the reasoning next to it, and the intro states the configuration
+   the viewer is watching. **A demo must run the configuration its claim rests on**; choosing a
+   scenario on evidence gathered at one budget and demonstrating it at another is a different
+   experiment wearing the first one's reputation.
+
+**And one finding about the exclusion rule, on its first use.** The recorded demo run is
+byte-identical in configuration to T4.10's five repeats - same stamp `53fafe9c12bc`, same four
+bounds - and it **abstained**, where those five and S3's row all answered correctly. The incident
+was the same shape as every other run of this scenario (9 alerted, 12 predicted, recall 0.78), so
+the world had not drifted; the planner exhausted `metrics` at 4/4 and never spent a `changes`
+dispatch on `cartservice`, which is where the answer was.
+
+That is a legitimate seventh observation of a configuration this repository has published a 6/6
+on - and `counts_toward_aggregates` excludes it. **The rule is still right**: demos are re-run to
+be watched and on whichever scenario tells the best story, so letting them into aggregates would
+weight every figure toward watchability. But its first application hid a real datum, which is
+worth knowing about the rule rather than discovering later. The resolution taken here is to keep
+the exclusion and **record the observation beside the figure it bears on** rather than inside it:
+T4.10's 6/6 stands as published and unamended, and README.md states the demo-inclusive record as
+6 of 7 where it describes the demo. A figure and an observation it is not allowed to absorb can
+coexist as long as both are visible.
+
 `docs/adr/0009:12`, `src/evalharness/rehearse.py:739`
 
 ### T6.4 — knowledge corpus

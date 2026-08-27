@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from evalharness.run import counts_toward_aggregates
 from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
 from faultline.tools.envelope import neutralise
 
@@ -464,13 +465,19 @@ def judged_rows(results: list[JudgeResult]) -> list[str]:
     return lines
 
 
-def load_run(run_dir: Path) -> dict[str, Any] | None:
-    """A scored run's manifest, narrative and refusal, or `None` if it is not a scored run."""
+def load_run(run_dir: Path, allow_demo: bool = False) -> dict[str, Any] | None:
+    """A scored run's manifest, narrative and refusal, or `None` if it is not a scored run.
+
+    Demo runs are skipped unless `allow_demo`, which the CLI sets only when the caller named
+    run ids explicitly. No aggregate counts a demo; looking at one on purpose is fine.
+    """
     manifest_path = run_dir / "manifest.json"
     if not manifest_path.exists():
         return None
     manifest = json.loads(manifest_path.read_text())
     if "score" not in manifest:
+        return None
+    if not allow_demo and not counts_toward_aggregates(manifest):
         return None
     score = manifest["score"]
     narratives = sorted(run_dir.glob("*-narrative.md"))
