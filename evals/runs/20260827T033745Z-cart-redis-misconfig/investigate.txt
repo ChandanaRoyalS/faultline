@@ -1,0 +1,29 @@
+incident ee55e9ee-a89f-4d69-980d-b34d2160deae  state triaging  anchor 03:40:15
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 5b1b6267-23c9-43d9-92a3-a5fcc6b07b04
+investigation: 2 round(s), 11 dispatch(es), 27 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_9f124d3d02ef, tr_37309257e4ed, tr_34e02e3f107e, tr_d0834463478d, tr_ca11e72b37a1, tr_1828e73c3100, tr_5cfa77c5594d, tr_be2f37cbfe4c, tr_6d2dbb9f0fa1, tr_38879161549e, tr_a3e26d2df304
+  root cause  : At 03:37:46 UTC platform-automation rewrote cartservice's environment configuration so its Redis endpoint points at redis-cart port 6380 instead of the conventional 6379 (tr_9f124d3d02ef). cartservice resolves that endpoint during RedisCartStore.InitializeAsync at process start, cannot connect, and dies with an unhandled ApplicationException out of Main, restarting on a ~30-60s cycle from at least 03:42:57 through 03:45:04 (tr_37309257e4ed). With cartservice's listener absent for most of each cycle, checkoutservice's outbound CartService/GetCart call is refused immediately — every sampled checkout trace fails at that hop in 0.4-1.2ms with the error inherited upward to the frontend (tr_34e02e3f107e), and checkout's own logs show orders accepted after 03:40 but never reaching the payment, email or queue-write steps (tr_d0834463478d). The wrong port value is itself the failure: the request path breaks because the connection target names a port nothing is listening on. Downstream services named in triage (payment, currency, product catalog) are collateral non-participants — they are never reached in any failing trace (tr_34e02e3f107e) and show clean or zero error ratios (tr_1828e73c3100, tr_38879161549e, tr_a3e26d2df304).
+  OPEN        : Nobody verified what redis-cart is actually listening on. If Redis legitimately moved to 6380 and cartservice's old value was stale, the correct fix is on the Redis side, not a revert of the cartservice env. tr_9f124d3d02ef records no prior value, so the pre-change state is unknown.
+  OPEN        : Why platform-automation issued this edit — what reconciled it, whether it will re-apply after a manual revert, and whether other services carry the same rewritten endpoint. No dispatch examined the automation source or any service beyond the eleven queried.
+  OPEN        : A ~5-minute gap sits between the config change (03:37:46), the alert (03:40:15) and the earliest crash-loop lines retained (03:42:57). tr_37309257e4ed notes normal cart traffic at 03:30 but log retention dropped the middle of the window, so the exact moment cartservice first failed to start is unestablished.
+  OPEN        : checkoutservice's error ratio peaks near 0.67, not 1.0 (tr_ca11e72b37a1), while every sampled trace carries ERROR (tr_34e02e3f107e). These are not obviously consistent. The residual successes may fall in the gaps between cart restarts, or the trace sample may be biased — unresolved, and tr_ca11e72b37a1 could not return per-timestamp values to locate the inflection.
+  OPEN        : Triage reported 12 services and 4 unmeasured edges crossed; only cart, checkout, payment, currency and productcatalog were examined. Whether the remaining services are merely starved of traffic (as in the cart-bad-image-tag corpus case) or independently impaired was never checked.
+  OPEN        : tr_38879161549e flags that an empty change log only equals 'nothing happened' if the pipeline captures all change types; out-of-band or manual changes on any service would be invisible to every changes dispatch here.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T033745Z-cart-redis-misconfig/ee55e9ee-a89f-4d69-980d-b34d2160deae-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T033745Z-cart-redis-misconfig/ee55e9ee-a89f-4d69-980d-b34d2160deae-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10160.72it/s]

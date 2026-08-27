@@ -778,6 +778,37 @@ Triage over seven: recall mean **0.94**, precision mean **0.56**, 19 unmeasured 
 `cart-dependency-latency` reproduced T3.5's disputed miss **exactly**, on an independent run: same
 two wrong labels, same reasoning shape. One observation was an anecdote; two is a pattern.
 
+### T4.10 — variance, measured at last *(built)*
+The experiment T4.9 named. **contract not written.** Five repeats of `cart-redis-misconfig`
+holding scenario, stamp (`prompts:53fafe9c12bc`) and budget (`changes` 8, others 4) constant -
+**the first measurement in this project where all three are fixed.** Declared and committed before
+the first run; five attempts was the experiment and a discard would not have been replaced. Zero
+discards. $3.01 agent + $0.17 judged (`evals/runs/VARIANCE-2026-08-27.md`).
+
+**One distinct verdict from five identical configurations.** All five `bad_config`/`config_revert`,
+all correct, all judged `same_mechanism`. A sixth byte-identical row already existed in the archive
+(T4.7's sweep row), making it **six for six**.
+
+**Target-in-plan was stable; breadth was not.** `cartservice` entered the plan in all five - four
+times in round 1, once in round 2 - while round-1 breadth ran **5, 7, 8, 8, 13** (2.6x). Reaching
+the broken service is not a by-product of planning widely. This answers T4.9's cause-versus-symptom
+test for **one** scenario: target-in-plan *can* be stable while breadth is not. T4.8's
+`email-wrong-image`, where it was not stable, remains untested under repeats.
+
+**What varied:** tokens 36,430-68,493 (1.9x), cost $0.48-$0.70, rounds used (1 once, 2 four
+times), confidence (high x4, medium x1), one exhaustion of five. **The widest plan was the
+cheapest run** - 13 dispatches, exhausted `metrics` in round 1, no follow-up, 47% fewer tokens
+than a run that planned 8 and used both rounds. And the **least stable thing measured was
+dead-end coverage**: the judge found 3 to 7 closed and 2 to 6 missed on five runs that agreed
+entirely on the answer, which `ARTIFACTS.md` calls the most useful part of a record.
+
+Three corrections it forces on earlier figures: verdicts where a scenario answers look stable and
+are unlikely to be lucky draws (measured for one of ten scenarios); **cost figures are single
+draws with a ~1.9x spread and must never be quoted as points**, which puts the difference between
+two sweep totals well inside one scenario's repeat spread; and anything read off a single run's
+plan is one sample from a 2.6x spread - T4.8's finding stands as reported, at the n it was
+reported with.
+
 ### T4.9 — planner allocation, read from the archive *(analysis only; nothing product-side changed)*
 No model calls, no injections. **contract not written.** Every stored investigation, one row each
 (`docs/evidence/t4.9-allocation/README.md`): 39 trajectories, **36 carry a plan**, 33 produced a

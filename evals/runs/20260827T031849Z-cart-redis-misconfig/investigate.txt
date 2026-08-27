@@ -1,0 +1,31 @@
+incident e27a32b1-2416-47d0-a772-050cfd1c3bbc  state triaging  anchor 03:21:15
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 9bc599af-69d7-4c99-ab59-5de262a99e19
+investigation: 1 round(s), 9 dispatch(es), 22 step(s) BUDGET EXHAUSTED (metrics tool calls: 4 of 4 used)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_4fb900a9ca0a, tr_76bb207abfbe, tr_6b8eb46ecb6a, tr_451444fb25c0, tr_88d26cfee601, tr_7e86a1c0e57d, tr_2e5599d80ba6, tr_260da502b58b, tr_d6b4445dd2d4
+  root cause  : At 03:18:50 UTC — roughly 2.4 minutes before frontend and loadgenerator paged — platform-automation rewrote cartservice's environment configuration to point its Redis address at redis-cart:6380 (tr_4fb900a9ca0a). 6379 is the conventional Redis port and no prior value is recorded, so the new value most likely names an endpoint that is not accepting cart traffic. cartservice's calls to its backing store then fail, and the failure propagates up the checkout path: checkoutservice, which must read/write the cart to complete an order, peaks near two-thirds of calls erroring (tr_6b8eb46ecb6a), and frontend degrades partially — about 31% of calls at peak (tr_76bb207abfbe) — because only cart-and-checkout-bearing request paths break while browse paths continue to succeed. That asymmetry is corroborated by productcatalogservice, which sits on the browse path and is flat at zero errors for all 61 samples (tr_451444fb25c0). No other service in the blast radius has any recorded change in the window: frontend (tr_7e86a1c0e57d), checkoutservice (tr_2e5599d80ba6), productcatalogservice (tr_260da502b58b) and featureflagservice (tr_d6b4445dd2d4) all returned empty change logs, leaving the cartservice config edit as the sole change candidate. The mechanism is the wrong value itself — an address/port that does not resolve to a serving Redis — which makes this bad_config rather than a deploy or an exhaustion story.
+  OPEN        : Whether redis-cart genuinely serves on 6379 and not 6380 is unverified. The change record shows no prior value, so the assumption that 6380 is wrong rests on convention, not on evidence from this system. If redis-cart was legitimately moved to 6380 the entire verdict inverts.
+  OPEN        : cartservice's own error rate, latency and saturation are completely unmeasured (tr_88d26cfee601). The metrics budget was exhausted (4 of 4 calls used) before the service at the centre of this verdict could be measured.
+  OPEN        : The absent cartservice span-metrics series has at least three explanations — the service not emitting, a different service label value, or dropped data — and this investigation cannot distinguish them. If the pipeline was simply broken for cartservice, the absence carries no signal about cartservice health at all.
+  OPEN        : Every change query covered only 03:11:15–03:26:15, not the requested 90-minute lookback. The interval from roughly 01:51 to 03:11 is unexamined for all five services, so an earlier deploy or config push that only manifested at 03:21 remains possible.
+  OPEN        : Triage recorded 4 unmeasured edges crossed. No specialist was dispatched to redis-cart itself, nor to the remaining 7 of 12 services in the blast radius, so an alternative origin outside the queried set is not excluded.
+  OPEN        : Onset timing cannot be pinned for any service: both metrics results returned min/max aggregates without per-sample timestamps (tr_76bb207abfbe, tr_6b8eb46ecb6a), so the claim that degradation began after 03:18:50 is a correlation of the change record with the alert time, not a measured before/after comparison.
+  OPEN        : No latency evidence was gathered anywhere in this investigation. If cartservice is timing out against an unreachable endpoint rather than being refused immediately, a dependency_latency framing would fit the observed partial degradation about as well, and the remediation would be the same but the mechanism different.
+
+=== FLAGGED ===
+  budget exhausted: metrics tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T031849Z-cart-redis-misconfig/e27a32b1-2416-47d0-a772-050cfd1c3bbc-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T031849Z-cart-redis-misconfig/e27a32b1-2416-47d0-a772-050cfd1c3bbc-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8455.76it/s]
