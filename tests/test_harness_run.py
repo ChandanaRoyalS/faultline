@@ -8,6 +8,8 @@ encode are exactly the ones a live test would be least likely to produce on dema
 from __future__ import annotations
 
 import json
+import os
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 from unittest.mock import patch
@@ -28,6 +30,15 @@ QUIET = {
 }
 
 
+NOW = datetime(2026, 8, 26, 12, 30, 0, tzinfo=UTC)
+"""A fixed clock, so a settle-window test is arithmetic rather than a race."""
+
+SETTLE = timedelta(seconds=300)
+"""The orchestrator's default. Patched in the helper so these tests do not read the
+environment; `test_the_gate_reads_the_settle_window_from_the_orchestrator` is the one that
+checks the real wiring."""
+
+
 def reading_with(settled: Exception | None = None, **overrides: Any) -> gate.GateReading:
     world = {**QUIET, **overrides}
     latest = {
@@ -40,8 +51,10 @@ def reading_with(settled: Exception | None = None, **overrides: Any) -> gate.Gat
         patch.object(gate, "container_uptimes", return_value=world["uptimes"]),
         patch.object(gate, "require_settled_containers", side_effect=settled),
         patch.object(gate.baseline_mod, "active_injections", return_value=world["injections"]),
+        patch.object(gate, "now", return_value=world.get("now", NOW)),
+        patch.object(gate, "settle_window", return_value=world.get("window", SETTLE)),
     ):
-        return gate.read(overrides.get("open_incidents"))
+        return gate.read(overrides.get("open_incidents"), overrides.get("resolved_incidents"))
 
 
 # --- the gate ------------------------------------------------------------------
@@ -81,6 +94,100 @@ def test_the_post_restart_hazard_is_the_recorders_own_gate_reused() -> None:
 
     assert not reading.passed
     assert any("up 42s" in why for why in reading.refusals)
+
+
+# --- the settle window (T4.13) ------------------------------------------------
+#
+# T4.7's first sweep attempt lost a scenario to this. An incident had been resolved by hand
+# a few minutes earlier; the next scenario's alerts arrived inside the orchestrator's settle
+# window, correlated into that resolved incident and reopened it, and the run that should
+# have had its own incident had nothing to investigate - 22 events, one incident. The gate
+# refused on non-terminal incidents and was blind to recently-terminal ones. The fix at the
+# time was a person noticing and waiting the window out.
+
+T47_INCIDENT = "8e8abd45-3e37-48c0-aa52-c5403bf6ae83"
+"""The shape of the record that caused it: an id and a `resolved_at`."""
+
+
+def test_an_incident_resolved_inside_the_settle_window_blocks() -> None:
+    """It is terminal, so the open-incident check passes it, and it will still swallow this
+    run's alerts - which is the whole of the T4.7 defect."""
+    resolved_at = NOW - timedelta(seconds=120)
+    reading = reading_with(resolved_incidents=[(T47_INCIDENT, resolved_at)])
+
+    assert reading.open_incidents == [], "terminal: the old check sees nothing wrong"
+    assert not reading.passed
+    assert reading.settling_incidents == [
+        {
+            "incident_id": T47_INCIDENT,
+            "resolved_at": resolved_at.isoformat(),
+            "seconds_remaining": 180,
+        }
+    ]
+
+
+def test_an_incident_resolved_outside_the_settle_window_does_not_block() -> None:
+    """The refusal has to end on its own, or it is a permanent block rather than a wait."""
+    reading = reading_with(resolved_incidents=[(T47_INCIDENT, NOW - timedelta(seconds=301))])
+
+    assert reading.settling_incidents == []
+    assert reading.passed
+
+
+def test_the_boundary_is_the_window_exactly() -> None:
+    """One second either side, so an off-by-one cannot hide behind a generous fixture."""
+    assert not reading_with(
+        resolved_incidents=[(T47_INCIDENT, NOW - timedelta(seconds=299))]
+    ).passed
+    assert reading_with(resolved_incidents=[(T47_INCIDENT, NOW - timedelta(seconds=300))]).passed
+
+
+def test_the_refusal_says_which_incident_when_it_resolved_and_how_long_to_wait() -> None:
+    """A refusal a person can act on by waiting, which is exactly what T4.7 did by hand.
+    Every part of that sentence is load-bearing: without the id you cannot tell which run
+    left it, without the resolution time you cannot tell whether it is yours, and without
+    the remaining seconds you do not know whether to wait or to go and look."""
+    resolved_at = NOW - timedelta(seconds=45)
+    reading = reading_with(resolved_incidents=[(T47_INCIDENT, resolved_at)])
+
+    why = "\n".join(reading.refusals)
+    assert T47_INCIDENT in why
+    assert resolved_at.isoformat() in why
+    assert "300s settle window" in why
+    assert "Wait 255s." in why
+    assert "reopen it rather than open a new incident" in why
+
+
+def test_several_settling_incidents_are_all_named_oldest_first() -> None:
+    reading = reading_with(
+        resolved_incidents=[
+            ("younger", NOW - timedelta(seconds=10)),
+            ("older", NOW - timedelta(seconds=200)),
+        ]
+    )
+
+    assert [row["incident_id"] for row in reading.settling_incidents] == ["older", "younger"]
+
+
+def test_the_gate_reads_the_settle_window_from_the_orchestrator() -> None:
+    """**Not a copied constant.** ADR-0016 calls this window a placeholder to be replaced by
+    measurement, so a second copy here would go stale the moment it is. The gate must follow a
+    deployment that changes it, with no edit."""
+    from faultline.orchestrator.settings import OrchestratorSettings
+
+    assert gate.settle_window() == timedelta(seconds=OrchestratorSettings().settle_window_seconds)
+
+    # Through the environment, which is how a deployment would actually move it.
+    with patch.dict(os.environ, {"FAULTLINE_ORCH_SETTLE_WINDOW_SECONDS": "900"}):
+        assert gate.settle_window() == timedelta(seconds=900)
+
+
+def test_a_gate_read_with_no_incident_arguments_never_refuses_on_settling() -> None:
+    """`confirm_recovery` calls the gate this way on purpose. After a revert this run's own
+    incident has just resolved and is inside the window by construction, so a recovery check
+    that applied this refusal would fail every run against the fault it had just fixed."""
+    assert reading_with().settling_incidents == []
+    assert reading_with().passed
 
 
 def test_a_degraded_p95_blocks_and_names_the_service() -> None:
