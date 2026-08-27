@@ -1,0 +1,61 @@
+{
+  "incident_id": "b06870b0-f178-4aa8-b740-7b8cbe5e39eb",
+  "trajectory_id": "7c0aeb1b-ddaa-4d33-b697-29662caea7f4",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-bad-image-tag",
+  "verdict": {
+    "root_cause": "Checkout requests are failing at the cart dependency boundary: every failed trace terminates at the checkoutservice -> CartService/GetCart child span, which is the deepest and only errored span and which dominates the parent's duration while completing in single-digit milliseconds (tr_65397f6bba34). Checkout itself is alive, accepting traffic and emitting no warn/error lines; its order sequences simply stop before the payment step (tr_c9e90d184aca), and its span error ratio rises from zero to roughly two-thirds of calls (tr_e97eeefc1aec). No change of any kind landed on checkoutservice in the onset window (tr_4dfedf518141). The only recorded change anywhere in the examined dependency set is a cartservice image-reference update to a hotfix build applied by platform automation at 16:42:32 UTC (tr_308c1cb54c0c), immediately preceding the break in checkout completion logging at ~16:44:52 (tr_c9e90d184aca); the pre-rollout cartservice instance was healthy up to a clean, graceful shutdown at exactly that timestamp (tr_d6ef32a98932). The most consistent explanation is that the newly rolled-out cartservice artifact is broken for the GetCart path, returning immediate errors to checkout. This is not a slow-dependency failure - failures are fast, with no timeouts or long tail (tr_65397f6bba34).",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_65397f6bba34",
+      "tr_308c1cb54c0c",
+      "tr_c9e90d184aca",
+      "tr_e97eeefc1aec",
+      "tr_4dfedf518141",
+      "tr_d6ef32a98932",
+      "tr_ccb27134aef7"
+    ],
+    "reasoning": "Three independent lines converge on cartservice as the failing component and on the 16:42:32 rollout as the trigger. Traces localize the error to the innermost GetCart child and rule out both upstream (frontend/checkout logic) and further-downstream services - payment, currency and accounting spans never appear because checkout aborts during cart retrieval (tr_65397f6bba34). Checkout's own logs corroborate the stall at or before the payment step with no local errors and no restarts (tr_c9e90d184aca), and its metrics show a real, non-total, in-window error elevation against a zero baseline (tr_e97eeefc1aec). The change axis excludes checkoutservice entirely for the onset window (tr_4dfedf518141) and identifies exactly one candidate act: an image-reference update - a code/build rollout, explicitly not a config or scale action - on cartservice roughly two minutes before checkout's completion logging breaks (tr_308c1cb54c0c). Cart logs show the old instance was healthy and terminated gracefully at that timestamp, excluding a crash or unplanned restart as the trigger (tr_d6ef32a98932). Classifying the mechanism rather than the act: the failure is fast, immediate errors from a dependency whose artifact was just swapped, not a wait (excluding dependency_latency per tr_65397f6bba34), not a saturation signal (no restart, OOM or resource evidence anywhere), and the change record names an artifact substitution rather than a wrong value in a setting. The running cartservice artifact is not one that serves GetCart correctly, so the fix is to restore the prior image, not to restart or re-tune. Confidence is held at medium, not high, because the cart-side failure has never been observed directly: cart metrics returned no series at all under the queried label set (tr_ccb27134aef7) and the cart log query truncated away everything after 16:42:32 (tr_d6ef32a98932), so the causal link from the new build to the GetCart errors is inferential timing plus elimination, not direct observation. The retrieved cart-redis-misconfig incident is a live alternative shape: there too cartservice looked clean on metrics while being the culprit, and the mechanism there was a wrong value rather than a wrong artifact.",
+    "open_questions": [
+      "The post-rollout behaviour of cartservice is entirely unobserved: no log lines after 16:42:32 were returned (tr_d6ef32a98932) and no metric series exist for the service under the queried name/label set (tr_ccb27134aef7). The new build has never been seen failing - only inferred to be failing.",
+      "If the hotfix image carries a baked-in or newly-read configuration value (for example a cache/Redis endpoint or credential) and that value is what breaks GetCart, the mechanism would be bad_config rather than bad_deploy, and the remediation would be config_revert rather than image rollback. The retrieved cart-redis-misconfig incident makes this a real alternative. The change entry does not record the prior image reference, so the build delta is unestablished (tr_308c1cb54c0c).",
+      "The previous cartservice image reference is unknown, so the rollback target is not identified from this evidence (tr_308c1cb54c0c).",
+      "cartservice's own downstream edges (cache/store) were never examined; if the new build is failing because a dependency of cart is unavailable, the fault may sit one hop further down.",
+      "Change status for productcatalogservice and checkoutservice's other dependencies is unknown, not clean (tr_308c1cb54c0c); a second concurrent change has not been excluded.",
+      "Change history before 16:36 UTC is unexamined for every service (tr_4dfedf518141), so an earlier change with delayed effect is not ruled out.",
+      "Onset timing is inconsistent between sources: checkout logs place the break at ~16:44:52 (tr_c9e90d184aca) while the alerts fired at 16:46:00 and the deploy landed at 16:42:32. The ~2m gap between deploy and first missing completion is unexplained - rolling replacement is plausible but unverified.",
+      "Checkout's error ratio peaks near two-thirds and touches zero within the window (tr_e97eeefc1aec) while traces show no successful PlaceOrder in the sample (tr_65397f6bba34); whether surviving traffic is hitting old cart pods or a different path is unresolved.",
+      "Four unmeasured edges flagged by triage were not all covered; only the cart edge was traced."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired ",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m49s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\n**frontend** and **loadgenerator** crossed the error threshol"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

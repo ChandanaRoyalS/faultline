@@ -1,0 +1,205 @@
+{
+  "run_id": "20260827T170258Z-cart-dependency-latency",
+  "scenario_id": "cart-dependency-latency",
+  "split": "dev",
+  "scenario_fingerprint": "c982653939a5c1ff29bf570cf2e5b2760075c7cc0456a7471c22f585f3cb425b",
+  "started_at": "2026-08-27T17:02:58.668469+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "53a88405c3d94d09664be4dd2a5266306c3d3e66",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      643
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-27T17:02:59.037903+00:00",
+  "incident_id": "f7ab847a-5612-4922-a2bd-f3da673dc6c7",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-27T17:12:24.882689+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      1361
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260827T170258Z-cart-dependency-latency",
+    "scenario_id": "cart-dependency-latency",
+    "trajectory_id": "c9d425ea-9c23-4e24-9423-0c1d2479ea4f",
+    "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": true,
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.3333333333333333,
+      "matched": [
+        "cartservice",
+        "checkoutservice",
+        "frontend",
+        "loadgenerator"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "accountingservice",
+        "adservice",
+        "currencyservice",
+        "emailservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice",
+        "shippingservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 4,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "dependency_latency",
+      "returned": "dependency_latency",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "restart",
+      "returned": "config_revert",
+      "correct": false,
+      "abstained": false,
+      "dispute": "ADR-0022 \u00a71.2"
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 33862,
+    "tokens_out": 13301,
+    "cost_usd": 0.5018,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-27T17:14:56.873744+00:00",
+  "judge": {
+    "scenario_id": "cart-dependency-latency",
+    "run_id": "20260827T170258Z-cart-dependency-latency",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: an unauthorized traffic-shaping container attached to cartservice's network namespace adding 300ms of egress delay per packet.",
+    "dead_ends_closed": [
+      "cartservice image or code change",
+      "cartservice configuration edit",
+      "cartservice restart or warm-up",
+      "error-based failures or retries",
+      "cluster-wide network problem",
+      "sidecar or interceptor latency"
+    ],
+    "dead_ends_missed": [
+      "whether retry logic is amplifying the latency (2-4x mismatch between client and server spans)",
+      "whether the shaping attachment was sanctioned with a scheduled end",
+      "whether the same automation touched other namespaces",
+      "independent confirmation that checkoutservice and loadgenerator have no separate problem"
+    ],
+    "traps": [
+      {
+        "trap": "latency must rise by exactly 300ms per hop",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "missing cartservice metrics or logs means the service is silent or down",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "restart of cartservice would clear the problem and appear as a rollback",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "Agent narrative identifies the same mechanism with high confidence and explicitly closes most critical dead ends; it deliberately leaves open three uncertainties about retry amplification, automation scope, and independent confirmation of other services, which the recorded narrative addresses but the agent appropriately flags as unresolved from its evidence.",
+    "tokens_in": 4679,
+    "tokens_out": 405
+  }
+}

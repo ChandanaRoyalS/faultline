@@ -1,0 +1,29 @@
+incident f60b3456-012c-4ec0-b7ab-c3a6da59a3bf  state triaging  anchor 17:46:45
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 6ac6d224-7f6a-4988-976b-25ba567c5772
+investigation: 2 round(s), 5 dispatch(es), 15 step(s)
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_20bb2395825f, tr_51230664f086, tr_7b4ae7c5d59e, tr_b84f84a22924, tr_01d14b6e534d
+  root cause  : At 17:40:38Z platform-automation lowered frauddetectionservice's container memory limit to 200m — the only change recorded on the service in the window. Roughly twenty seconds later the service stopped emitting application-level output: Kafka order-consumption lines end around 17:37:45 and from ~17:40:56 onward the logs contain nothing but a JVM/OpenTelemetry-agent startup triple repeating at ~60-second intervals, including a cycle beginning at 17:46:50 immediately after the alert timestamp. That is the signature of a JVM whose committed heap exceeds the new ceiling: the process starts, grows into its configured heap, is killed by the kernel, and is relaunched, never surviving long enough to resume consuming. Consistent with this, span metrics for the service report no series at all across 17:36–17:51 — neither errored nor total calls — which is what a container that is repeatedly dying and being rescraped looks like, not a service serving traffic. The failing mechanism is the process running out of the memory it needs and being killed for it; the limit edit is how it started, exhaustion is what is happening.
+  OPEN        : No memory working-set, container memory limit, OOM-kill counter or pod restart series was ever queried (tr_b84f84a22924 states this explicitly), so the OOM kill is inferred from the restart signature and timing, not directly observed. A container_memory_working_set / kube_pod_container_status_last_terminated_reason check would confirm or refute it.
+  OPEN        : The prior memory limit is not recorded (tr_20bb2395825f), so the magnitude of the reduction and whether 200m is merely tight or drastically undersized relative to the JVM heap settings is unknown — this determines what value the revert should restore.
+  OPEN        : Traces (tr_01d14b6e534d) show intact 'orders process' consumer spans across the sampled window with no gaps, which sits uneasily with logs showing no consumption after ~17:37:45 and a continuous restart loop. Whether the sampled traces predate 17:40, whether the pod has multiple replicas with only some affected, or whether the consumer briefly drains between restarts is unresolved.
+  OPEN        : The 200m value may itself be correct policy with the JVM's -Xmx being the mismatched side; whether the right fix is raising the limit or lowering the heap configuration is not settled by this evidence.
+  OPEN        : Whether the platform-automation actor will re-apply the same limit after a manual revert (i.e. whether the automation's input needs correcting) was not investigated.
+  OPEN        : The isolated missing currencyservice server span in trace 923ba06e89d3ae48 (tr_01d14b6e534d) is unexplained and was judged unrelated; it was not pursued.
+
+flags: none
+
+retrieval: exclude_origin='scenario:frauddetection-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T174038Z-frauddetection-memory-squeeze/f60b3456-012c-4ec0-b7ab-c3a6da59a3bf-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T174038Z-frauddetection-memory-squeeze/f60b3456-012c-4ec0-b7ab-c3a6da59a3bf-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 12553.05it/s]

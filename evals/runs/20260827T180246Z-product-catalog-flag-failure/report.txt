@@ -1,0 +1,28 @@
+run 20260827T180246Z-product-catalog-flag-failure   scenario product-catalog-flag-failure
+trajectory de89f9d5-c63c-4ffe-8cbb-24b0f1bb5977   runtime faultline/0.0.1+prompts:1b0e7cbb4c47
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (3/3 alerted services predicted)
+  precision 0.43  (3/7 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): adservice, cartservice, checkoutservice, recommendationservice
+  unmeasured edges crossed: 1 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  fault class bad_config vs bad_config - correct
+  fix class   config_revert vs config_revert - correct
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 33630 / out 14148 tokens   $0.5219
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'per_specialist_tool_calls': {'changes': 8}, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).

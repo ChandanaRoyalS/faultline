@@ -826,6 +826,8 @@ pre-registration, all seven run directories, the sweep report, ADR-0023 and the 
 `bf7605651ef2` survives as `SWEEP_4_DIGEST` and in the sweep record, because a rejected pipeline is
 still a pipeline this repository ran and the freeze guard's lineage check has to place it.
 
+**Run at T4.14, and it worked - see above.** The formulation below became `1b0e7cbb4c47`.
+
 **Next candidate experiment - the mechanism decomposed by the regressions.** The instruction taught
 **switching vantage** and never taught **returning**: having moved outward from a silent stream,
 nothing brought the planner back to the service it had already localized, and the failing-service
@@ -1301,6 +1303,45 @@ T4.10's 6/6 stands as published and unamended, and README.md states the demo-inc
 coexist as long as both are visible.
 
 `docs/adr/0009:12`, `src/evalharness/rehearse.py:739`
+
+### T4.14 — return to the locus *(built; stamp KEPT)*
+The refined formulation this plan carried after T4.12, run before T7.1 because both baselines -
+S3 and S4 - were measured against the current world and neither survives a re-record.
+**contract not written.** Pre-registered in the branch's first commit
+(`evals/runs/PREREGISTRATION-2026-08-27-locus.md`); results in
+`evals/runs/SWEEP-2026-08-27-locus.md`. Stamp `53fafe9c12bc` -> **`1b0e7cbb4c47`**, budget
+unchanged at `changes` 8 so both baselines stay live comparisons. $3.83 agent + $0.26 judge.
+
+**Every registered condition met, and the stamp is kept.** Coverage **7/7**, fault class **7/7**,
+class of fix 6/7 - **the first sweep in this repository where every dev scenario was answered and
+every answer was right** - against S3's 6/7 and S4's 4/7. It is also the cheapest in tool calls,
+**47** against S3's 58, so this is not "dispatch more and hope".
+
+**The primary endpoint moved with the outcome.** Failing-service dispatches, registered ahead of
+coverage because S4 measured it as the thing that predicts the result: total **15 -> 26**, and
+**zero scenarios collapsed to <=1** against S4's three. Distinct evidence classes at the failing
+service - the second half of the instruction stated as a number - went 20 -> 17 -> **25**, with
+four scenarios reaching one more class at their target than they ever had. All three S4
+regressions recovered to 3 dispatches each, and S4's product-catalog gain was retained: the
+"improve on **both** baselines" condition T4.12 failed.
+
+**Falsifier 4 - coverage rising with the dispatch counts unmoved, registered as the outcome most
+likely to be misread as a win - did not fire**, and not marginally: the counts moved on five of
+seven scenarios and the endpoint and the outcome moved on the same rows.
+
+**What did not improve, recorded beside it.** Triage was flat (0.91 -> 0.90 recall), which is the
+control - the instruction changed how dispatches are spent, not what the blast radius looks like.
+`cart-bad-image-tag` returned the correct class and fix while the judge scored its narrative
+`different` with its weakest dead-end row of any sweep, which is a right answer with a narrative
+the judge does not follow. `cart-dependency-latency` still returns `config_revert` for a
+network-path fix, unmoved by this stamp. Re-issues held at S4's 2 rather than reaching zero, and
+one of them is `product-catalog-flag-failure` re-asking a silent stream at its own target - the
+one place the sweep disobeys its own instruction. Cost rose to $3.83, the highest of the three.
+
+**Consequence for the holdout figures:** HEAD is `1b0e7cbb4c47`, so the holdout numbers describe a
+superseded pipeline again. ADR-0023's reporting obligation is discharged in RESULTS.md and
+README.md rather than asserted in a test - which is the case that ADR was written for, now
+occurring a second time and resolving the other way from T4.12.
 
 ### T4.13 — the gate learns about the settle window *(built; closes T4.7's recorded note)*
 The blind spot T4.7 measured and recorded rather than fixed. **Harness-side only**: the stamp

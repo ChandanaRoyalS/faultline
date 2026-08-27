@@ -66,14 +66,18 @@ appear in this document:
 | `prompts:59bf438b2a96` | dev sweep 1 |
 | `prompts:53fafe9c12bc` | dev sweeps 2 and 3, **the holdout run**, and both variance experiments — the synthesizer taught the taxonomy. Sweep 3 raised a budget bound and moved no prompt, which is why it shares sweep 2's stamp: ADR-0022 keeps budget out of the digest so that raising a bound reads as the same agent given more room. |
 | `prompts:bf7605651ef2` | **dev sweep 4 only** — the planner taught that an empty stream is silence rather than a bad query (T4.12). Measured net harmful against a floor registered before the run — coverage 6/7 → 4/7 — and **reverted**. This stamp was HEAD for the length of one sweep and exists now only in that sweep's record. |
+| `prompts:1b0e7cbb4c47` | **dev sweep 5 and current HEAD** — T4.12's instruction decomposed: silence changes the evidence **class**, not the **subject**, and a localized service keeps its claim until its evidence classes are exhausted (T4.14). Every registered condition met; **coverage 7/7, fault class 7/7**. |
 
 A test pins the current value and fails loudly if it moves, with the reason spelled out.
 
-**The holdout numbers below describe the pipeline `53fafe9c12bc`, which is HEAD.** T4.12 built a
-successor, `bf7605651ef2`, measured it as net harmful and reverted it, so these figures describe
-the current agent. They were briefly a measurement of a prior pipeline and are not any more — see
-[ADR-0023](adr/0023-a-freeze-manifest-outlives-the-pipeline-it-froze.md), which exists because
-supersession is a state a pipeline can enter and leave. Nothing about the holdout run has
+**The holdout numbers below describe the pipeline `53fafe9c12bc`, which is no longer HEAD.**
+T4.14's `1b0e7cbb4c47` is, and it was kept on measurement. These figures stand exactly as
+measured and describe a prior agent; no claim here extends them to the current one, and the
+holdout has not been re-entered under the new stamp — that is a separate decision with its own
+pre-registration under ADR-0022's protocol, and it has not been made. This is the second time
+supersession has occurred and the first time it has persisted; see
+[ADR-0023](adr/0023-a-freeze-manifest-outlives-the-pipeline-it-froze.md), which exists because it
+is a state a pipeline can enter and leave. Nothing about the holdout run has
 changed and its figures stand exactly as measured — but they are a measurement of a prior agent,
 and no claim here extends them to the current one. Re-entering the holdout under the new stamp is
 a separate decision with its own pre-registration under ADR-0022's protocol, and it has not been
@@ -153,6 +157,40 @@ on scenarios they were developed against.
 | `bad_deploy` | 2 | 2 / 2 | 1 / 1 | 1 |
 | `dependency_latency` | 1 | **0 / 1** | **1 / 1** | 0 |
 | `resource_exhaustion` | 2 | **0 / 2** | **1 / 1** | 1 |
+
+### Dev sweep 5 — return to the locus, and the best dev result yet
+
+T4.14 ran the formulation T4.12's regressions decomposed, pre-registered before the run
+([`SWEEP-2026-08-27-locus.md`](../evals/runs/SWEEP-2026-08-27-locus.md)). One addition to the
+planner prompt; budget unchanged, so both S3 and S4 are live comparisons.
+
+**Every registered condition met. Coverage 7/7, fault class 7/7** — the first sweep here where
+every dev scenario was answered and every answer was right — on **47** tool calls against S3's 58.
+
+| | sweep 3 `53fafe9c12bc` | sweep 4 `bf7605651ef2` | **sweep 5 `1b0e7cbb4c47`** |
+|---|---|---|---|
+| coverage | 6 / 7 | 4 / 7 | **7 / 7** |
+| fault class, of answered | 6 / 6 | 4 / 4 | **7 / 7** |
+| class of fix, of answered | 5 / 6 | 3 / 4 | **6 / 7** |
+| failing-service dispatches, total | 25 | 15 | **26** |
+| scenarios collapsed to ≤ 1 there | 0 | **3** | **0** |
+| evidence classes at the failing service | 20 | 17 | **25** |
+| judge same / different | 6 / 0 | 4 / 3 | **6 / 1** |
+| triage recall / precision | 0.91 / 0.54 | 0.92 / 0.56 | 0.90 / 0.54 |
+
+The **primary endpoint was registered ahead of coverage** — failing-service dispatches, because
+S4 measured that as what predicts the outcome — and it moved with the result on five of seven
+scenarios. The falsifier registered as most likely to be misread as a win (coverage rising with
+the counts unmoved) did not fire.
+
+**Read the dev caveat above before quoting 7/7.** Dev is where prompts were fitted; three stamps
+have now been selected against these seven scenarios, and this is the sweep that stopped. What
+7/7 licenses is "the instruction did what it was predicted to do", not "the system solves
+incidents". Holdout has not been re-entered under this stamp.
+
+What did not improve is recorded beside it: triage was flat (the control), `cart-bad-image-tag`
+returned a correct class with a narrative the judge scored `different`, `cart-dependency-latency`
+still returns the wrong fix class, and re-issues held at 2 rather than reaching zero.
 
 ### Dev sweep 4 — the evidence-class instruction, measured and not recommended
 

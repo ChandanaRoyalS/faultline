@@ -1,0 +1,32 @@
+incident b06870b0-f178-4aa8-b740-7b8cbe5e39eb  state triaging  anchor 16:46:00
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 7c0aeb1b-ddaa-4d33-b697-29662caea7f4
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_65397f6bba34, tr_308c1cb54c0c, tr_c9e90d184aca, tr_e97eeefc1aec, tr_4dfedf518141, tr_d6ef32a98932, tr_ccb27134aef7
+  root cause  : Checkout requests are failing at the cart dependency boundary: every failed trace terminates at the checkoutservice -> CartService/GetCart child span, which is the deepest and only errored span and which dominates the parent's duration while completing in single-digit milliseconds (tr_65397f6bba34). Checkout itself is alive, accepting traffic and emitting no warn/error lines; its order sequences simply stop before the payment step (tr_c9e90d184aca), and its span error ratio rises from zero to roughly two-thirds of calls (tr_e97eeefc1aec). No change of any kind landed on checkoutservice in the onset window (tr_4dfedf518141). The only recorded change anywhere in the examined dependency set is a cartservice image-reference update to a hotfix build applied by platform automation at 16:42:32 UTC (tr_308c1cb54c0c), immediately preceding the break in checkout completion logging at ~16:44:52 (tr_c9e90d184aca); the pre-rollout cartservice instance was healthy up to a clean, graceful shutdown at exactly that timestamp (tr_d6ef32a98932). The most consistent explanation is that the newly rolled-out cartservice artifact is broken for the GetCart path, returning immediate errors to checkout. This is not a slow-dependency failure - failures are fast, with no timeouts or long tail (tr_65397f6bba34).
+  OPEN        : The post-rollout behaviour of cartservice is entirely unobserved: no log lines after 16:42:32 were returned (tr_d6ef32a98932) and no metric series exist for the service under the queried name/label set (tr_ccb27134aef7). The new build has never been seen failing - only inferred to be failing.
+  OPEN        : If the hotfix image carries a baked-in or newly-read configuration value (for example a cache/Redis endpoint or credential) and that value is what breaks GetCart, the mechanism would be bad_config rather than bad_deploy, and the remediation would be config_revert rather than image rollback. The retrieved cart-redis-misconfig incident makes this a real alternative. The change entry does not record the prior image reference, so the build delta is unestablished (tr_308c1cb54c0c).
+  OPEN        : The previous cartservice image reference is unknown, so the rollback target is not identified from this evidence (tr_308c1cb54c0c).
+  OPEN        : cartservice's own downstream edges (cache/store) were never examined; if the new build is failing because a dependency of cart is unavailable, the fault may sit one hop further down.
+  OPEN        : Change status for productcatalogservice and checkoutservice's other dependencies is unknown, not clean (tr_308c1cb54c0c); a second concurrent change has not been excluded.
+  OPEN        : Change history before 16:36 UTC is unexamined for every service (tr_4dfedf518141), so an earlier change with delayed effect is not ruled out.
+  OPEN        : Onset timing is inconsistent between sources: checkout logs place the break at ~16:44:52 (tr_c9e90d184aca) while the alerts fired at 16:46:00 and the deploy landed at 16:42:32. The ~2m gap between deploy and first missing completion is unexplained - rolling replacement is plausible but unverified.
+  OPEN        : Checkout's error ratio peaks near two-thirds and touches zero within the window (tr_e97eeefc1aec) while traces show no successful PlaceOrder in the sample (tr_65397f6bba34); whether surviving traffic is hitting old cart pods or a different path is unresolved.
+  OPEN        : Four unmeasured edges flagged by triage were not all covered; only the cart edge was traced.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T164231Z-cart-bad-image-tag/b06870b0-f178-4aa8-b740-7b8cbe5e39eb-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T164231Z-cart-bad-image-tag/b06870b0-f178-4aa8-b740-7b8cbe5e39eb-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10160.72it/s]

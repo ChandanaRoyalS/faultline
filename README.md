@@ -102,10 +102,12 @@ declared rather than hidden.
 
 Pipeline stamp **`prompts:53fafe9c12bc`**, frozen before the run
 ([`FREEZE-2026-08-26-holdout.json`](evals/runs/FREEZE-2026-08-26-holdout.json)).
-That stamp is also HEAD. T4.12 built a successor, `prompts:bf7605651ef2`, measured it as net
-harmful — it won the one abstention it targeted and cost three other scenarios
-([`SWEEP-2026-08-27-evidence.md`](evals/runs/SWEEP-2026-08-27-evidence.md)) — and **reverted it**.
-The holdout has not been re-entered under any other stamp.
+**That stamp is no longer HEAD.** T4.12 built a successor, measured it as net harmful and
+reverted it; T4.14 then built `prompts:1b0e7cbb4c47`, which met every pre-registered condition
+and was **kept** ([`SWEEP-2026-08-27-locus.md`](evals/runs/SWEEP-2026-08-27-locus.md): dev
+coverage 7/7, fault class 7/7). These holdout figures stand as measured under `53fafe9c12bc` and
+describe a prior agent; **the holdout has not been re-entered under the current stamp**, and doing
+so is a separate decision with its own pre-registration.
 
 | scenario | ground truth | fault class | class of fix | judge (SHARED LINEAGE) |
 |---|---|---|---|---|

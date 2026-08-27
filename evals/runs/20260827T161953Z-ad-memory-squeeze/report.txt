@@ -1,0 +1,28 @@
+run 20260827T161953Z-ad-memory-squeeze   scenario ad-memory-squeeze
+trajectory 5c29de6b-ba84-4136-a23d-8af852a213d9   runtime faultline/0.0.1+prompts:1b0e7cbb4c47
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (3/3 alerted services predicted)
+  precision 0.43  (3/7 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): cartservice, checkoutservice, productcatalogservice, recommendationservice
+  unmeasured edges crossed: 1 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  fault class resource_exhaustion vs resource_exhaustion - correct
+  fix class   config_revert vs config_revert - correct
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        2  planner produced no valid findings: dispatch service 'adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.; planner produced no valid findings: dispatch service 'adservice,cartservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.
+  specialists failed alone 2  planner: dispatch service 'adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.; planner: dispatch service 'adservice,cartservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 41985 / out 13635 tokens   $0.5508
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'per_specialist_tool_calls': {'changes': 8}, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).

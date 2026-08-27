@@ -1,0 +1,29 @@
+incident f7ab847a-5612-4922-a2bd-f3da673dc6c7  state triaging  anchor 17:06:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: c9d425ea-9c23-4e24-9423-0c1d2479ea4f
+investigation: 2 round(s), 6 dispatch(es), 17 step(s)
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_8aad7663d02d, tr_ce21084268a8, tr_6f0c3e1ed887, tr_88035e786843, tr_06a7eced1cdd, tr_4312edc27553
+  root cause  : At 17:03:03 UTC a platform-automation principal attached a traffic-shaping container to the cart-service network namespace applying a fixed 300ms, zero-jitter egress delay on eth0 (tr_8aad7663d02d). That delay lands on cartservice's outbound hop to its Redis cart store, so every Redis operation now takes ~300-305ms (tr_ce21084268a8). cartservice itself is healthy — self-time outside the Redis children is only 1-3ms, it keeps serving requests, and it logs no errors (tr_ce21084268a8, tr_6f0c3e1ed887). The penalty scales with Redis call count (GetCart ~302ms with one HGET, AddItem ~605ms with HGET+HMSET), which is what an egress-path delay predicts and which rules out a uniform per-request inbound interceptor. The damage propagates upward as pure latency, not errors: frontend CartService/GetCart runs ~605-608ms and checkoutservice PlaceOrder ~2455ms dominated by two cart interactions, while every non-cart dependency stays under ~20ms (tr_ce21084268a8). Frontend's error ratio is a true, populated zero across the whole window (tr_88035e786843, tr_06a7eced1cdd), consistent with a latency-only, warning-severity incident. The failing mechanism is therefore a dependency call path that became slow and callers that fail by waiting — the injected shaping rule is how it started, waiting on Redis is what is happening.
+  OPEN        : cartservice span-derived RED metrics returned zero series — numerator and denominator both empty (tr_4312edc27553). Whether that is a label-naming mismatch, a missing scrape target, or genuinely absent spans was never resolved, and it means cartservice error rate and latency percentiles were never measured from metrics at all.
+  OPEN        : Caller spans are 2x-4x larger than the cartservice server spans they wrap — frontend ~605ms against ~302ms, checkoutservice ~1205ms against ~301ms (tr_ce21084268a8). The specialist attributes this to client-side retries or queueing but nothing confirms which. A 300ms egress delay alone does not obviously produce a clean doubling at the frontend and quadrupling at checkout; if retry logic is amplifying, removing the shaper fixes the symptom but leaves an untuned retry path.
+  OPEN        : No frontend latency-percentile series was ever retrieved. Both frontend metric dispatches returned error ratios instead (tr_88035e786843, tr_06a7eced1cdd), so the predicted step increase near 17:03:03 is inferred from traces only and unconfirmed at the edge.
+  OPEN        : The cartservice log result was truncated and the 17:06:30 incident minute falls entirely inside the dropped middle region (tr_6f0c3e1ed887). Error output at the exact alert moment can be neither confirmed nor denied, and the trailing 2.5-minute gap with no lines is not distinguishable from ingestion lag.
+  OPEN        : Whether the traffic-shaping attachment was a sanctioned chaos experiment with a scheduled end or an unintended automation action is unknown, as is whether the same automation touched other namespaces. Triage crossed 4 unmeasured edges and 12 services were in blast radius; only cartservice and frontend were examined directly.
+  OPEN        : loadgenerator and checkoutservice both alerted but neither was dispatched against. Checkout's ~2455ms PlaceOrder is explained by the cart hop in the trace sample, but no independent check confirms checkout has no separate problem.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T170258Z-cart-dependency-latency/f7ab847a-5612-4922-a2bd-f3da673dc6c7-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T170258Z-cart-dependency-latency/f7ab847a-5612-4922-a2bd-f3da673dc6c7-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 19127.48it/s]

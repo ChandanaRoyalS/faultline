@@ -1,0 +1,30 @@
+incident 34b0818f-2ded-4436-8517-4ae62cbf1622  state triaging  anchor 18:26:00
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 52eb845c-ffe7-418a-9288-f9ef3a263dce
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : tr_b63725f95c2b, tr_bf2af5a3921f, tr_326965fece2e, tr_0788c8691756, tr_be6701c0ec7a, tr_3cd2eeba1e55, tr_69afa240783f
+  root cause  : At 18:23:13 UTC platform automation updated shippingservice's image reference to a tag whose suffix names a different service, and the pod has been unable to reach a serving state since: from 18:23:34 onward shippingservice logs contain nothing but repeated process-startup banners, at least ten of them, tightening into a ~64s backoff cadence through 18:30:02, with no request handling logged after 18:23:34 (it was answering GetQuote and ShipOrder normally at 18:16). The boot output after the change is JVM/OpenTelemetry-Java-agent banners while the pre-change lines were a Rust-style format — a runtime mismatch consistent with the wrong artifact being pulled. With no serving shipping backend, checkoutservice's ShippingService/GetQuote client span is the innermost ERROR in every failing trace, failing in 0.3–2.5ms with no stall signature, aborting PlaceOrder inside prepareOrderItemsAndShippingQuoteFromCart and propagating up to the frontend HTTP POST — which matches checkout's logs going quiet on all post-placement steps (payment, email, message write) from ~18:25:44 while placements keep arriving, and matches shippingservice emitting no calls_total series at all for the window. The running artifact on shippingservice is not the one that should be running; that is the mechanism.
+  OPEN        : The restart cause is inferred, not observed: no exit codes, container termination reasons, OOM-kill records, or liveness-probe events were retrieved. An image that cannot start and an image killed for exceeding a limit look identical in these logs.
+  OPEN        : tr_bf2af5a3921f flags that the pre- and post-18:23 log lines come from apparently different runtimes under one selector, and explicitly warns this could be a label collision or a sidecar sharing the service label. If so, the restart loop may belong to another pod and the wrong-artifact reading weakens considerably. This should be confirmed against the pod/container identity before rollback.
+  OPEN        : The prior image reference is recorded as absent/unknown (tr_b63725f95c2b), so there is no established good version to roll back to — the rollback target must be recovered from deployment history.
+  OPEN        : No server-side shippingservice span was captured for any failing GetQuote (tr_326965fece2e), so the exact failure mode on the checkout→shipping edge (connection refused, DNS failure, unhealthy endpoint removal) is unmeasured.
+  OPEN        : shippingservice metrics returned an empty denominator (tr_0788c8691756); the specialist could not distinguish a service emitting nothing from a wrong metric selector, so the metric evidence corroborates but does not independently confirm the outage.
+  OPEN        : Coverage gaps remain: checkoutservice changes were queried only over 18:16–18:31, leaving ~17:26–18:16 unexamined, and checkout logs are missing 18:16:13–18:25:44, so the precise onset relative to the 18:23:13 deploy is not directly observed.
+  OPEN        : Whether the other 9 services in the 12-service blast radius are independently affected or are purely downstream of the checkout failure was not dispatched on.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T182309Z-shipping-wrong-image/34b0818f-2ded-4436-8517-4ae62cbf1622-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T182309Z-shipping-wrong-image/34b0818f-2ded-4436-8517-4ae62cbf1622-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 36810.95it/s]
