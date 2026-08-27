@@ -1,0 +1,30 @@
+incident b707995c-86bb-4efb-bc6f-74f9374c3c6c  state triaging  anchor 05:13:00
+triage: 7 services, severity critical, start from productcatalogservice, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 2fcd1837-bd0f-45d6-ae05-2de2ea7e9cc0
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_9fbeba3d3dc7, tr_2d55c2a36f86, tr_c4a9069628ee, tr_69d7febd3f9f, tr_89851a2cfb64, tr_2f15082b25ed, tr_8f219560f828
+  root cause  : Not established. The only positive signal in hand is that productcatalogservice itself emitted errors on a minority of calls — intermittent, peaking near 13.6% and returning to zero between spikes — during a window in which loadgenerator, productcatalogservice and frontend all alerted (tr_9fbeba3d3dc7, tr_2d55c2a36f86). Everything that could have named a mechanism came back empty: change history for productcatalogservice, cartservice and adservice records nothing in the 05:03–05:18 bracket around onset (tr_c4a9069628ee, tr_69d7febd3f9f, tr_89851a2cfb64), and both log dispatches were executed against a hyphenated service label that matches no stream in Loki, so they returned zero lines and characterize nothing (tr_2f15082b25ed, tr_8f219560f828). No latency percentiles, no CPU/memory/connection-pool saturation series, and no per-dependency call metrics were ever retrieved (tr_9fbeba3d3dc7, tr_2d55c2a36f86). A partial, spiky error fraction on a service that keeps serving most traffic is compatible with resource pressure, with a slow or flaky dependency behind an unmeasured edge, and with a latent code path — the collected evidence does not distinguish among them, so the fault class is unknown rather than any of the four named mechanisms.
+  OPEN        : What do productcatalogservice's logs actually say around 05:13? Both attempts used a non-matching hyphenated label; the query must be re-run with the unhyphenated service name before any log-based reading is possible.
+  OPEN        : Was productcatalogservice under memory, CPU, file-descriptor or connection-pool pressure? No saturation series was ever retrieved, so resource_exhaustion is untested rather than excluded — as is any container restart / OOM-kill count.
+  OPEN        : What are productcatalogservice's latency percentiles during the window? Without them, dependency_latency cannot be distinguished from fast-failing internal errors.
+  OPEN        : Which dependency sits behind the one unmeasured edge triage flagged, and what were its error and latency series? Per-dependency breakdown for adservice and cartservice calls was requested but never returned.
+  OPEN        : Were there changes to productcatalogservice between 04:13 and 05:03? That interval was explicitly outside the queried window, so bad_deploy and bad_config are not fully closed.
+  OPEN        : Why did loadgenerator and productcatalogservice page simultaneously at 05:13:00 with frontend 15s later? The ordering has not been reconciled against the call graph to confirm productcatalogservice is the origin rather than a co-victim.
+  OPEN        : Is adservice showing the memory signature seen in the ad-memory-squeeze corpus entry? Its change log is empty but no adservice resource metrics were pulled.
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T050940Z-product-catalog-flag-failure/b707995c-86bb-4efb-bc6f-74f9374c3c6c-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T050940Z-product-catalog-flag-failure/b707995c-86bb-4efb-bc6f-74f9374c3c6c-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10257.70it/s]

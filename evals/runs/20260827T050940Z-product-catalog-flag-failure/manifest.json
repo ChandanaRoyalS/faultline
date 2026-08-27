@@ -1,0 +1,195 @@
+{
+  "run_id": "20260827T050940Z-product-catalog-flag-failure",
+  "scenario_id": "product-catalog-flag-failure",
+  "split": "dev",
+  "scenario_fingerprint": "78c464d798db218705fbd6f124c501902cbda526703cfc5355dc003ed2a0d645",
+  "started_at": "2026-08-27T05:09:40.407831+00:00",
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "f9e0beb717fb8aeee2125229b2980c5f94fde920",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "feature-flag-service",
+      643
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-27T05:09:40.773941+00:00",
+  "incident_id": "b707995c-86bb-4efb-bc6f-74f9374c3c6c",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-27T05:18:09.792397+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "feature-flag-service",
+      303
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260827T050940Z-product-catalog-flag-failure",
+    "scenario_id": "product-catalog-flag-failure",
+    "trajectory_id": "2fcd1837-bd0f-45d6-ae05-2de2ea7e9cc0",
+    "runtime_version": "faultline/0.0.1+prompts:53fafe9c12bc",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": false,
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.42857142857142855,
+      "matched": [
+        "frontend",
+        "loadgenerator",
+        "productcatalogservice"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "adservice",
+        "cartservice",
+        "checkoutservice",
+        "recommendationservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 1,
+      "n_alerted": 3,
+      "n_predicted": 7
+    },
+    "fault_class": {
+      "truth": "bad_config",
+      "returned": "unknown",
+      "correct": false,
+      "abstained": true,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "none",
+      "correct": false,
+      "abstained": true,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 17162,
+    "tokens_out": 11684,
+    "cost_usd": 0.3779,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-27T05:23:13.379791+00:00",
+  "judge": {
+    "scenario_id": "product-catalog-flag-failure",
+    "run_id": "20260827T050940Z-product-catalog-flag-failure",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a feature flag misconfiguration at a flag service as the root cause; the agent narrative explicitly states the cause is not established and remains unknown.",
+    "dead_ends_closed": [
+      "service disappeared",
+      "productcatalogservice code or configuration changed",
+      "database or cache dependency failure",
+      "recent deploys or configuration pushes to productcatalogservice"
+    ],
+    "dead_ends_missed": [
+      "the specific product identifier that fails consistently",
+      "feature flag service consulted by productcatalogservice",
+      "one input failing while others succeed (configuration signature)",
+      "flag service configuration"
+    ],
+    "traps": [
+      {
+        "trap": "resource pressure or dependency latency as cause",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "productcatalogservice is the origin of the failure",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "the loudest alerting service is the culprit",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent narrative failed to retrieve logs (label mismatch), never queried the flag service, and did not recognize the partial-failure-with-stable-boundary signature as diagnostic of configuration rather than resource/dependency problems. It declared the cause unknown rather than discovering the misconfigured flag.",
+    "tokens_in": 5921,
+    "tokens_out": 356
+  }
+}

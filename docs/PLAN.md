@@ -778,6 +778,49 @@ Triage over seven: recall mean **0.94**, precision mean **0.56**, 19 unmeasured 
 `cart-dependency-latency` reproduced T3.5's disputed miss **exactly**, on an independent run: same
 two wrong labels, same reasoning shape. One observation was an anecdote; two is a pattern.
 
+### T4.11 — the abstention path, repeated *(built)*
+The complement to T4.10. **contract not written.** Five repeats of `product-catalog-flag-failure`
+under the byte-identical T4.10 configuration - stamp `prompts:53fafe9c12bc`, `changes` 8/others 4 -
+so the two experiments differ only in scenario. Declared and frozen before the first run; one
+discard (529 mid-run, exit 4), no replacement. $1.75 agent + $0.15 judge
+(`evals/runs/VARIANCE-2026-08-27-abstention.md`).
+
+**`email-wrong-image` stays untested.** It is holdout, and five development repeats of a holdout
+scenario is repeated holdout use wearing a costume. `product-catalog-flag-failure` is the dev-legal
+instrument for the same behaviour.
+
+**The abstention is 5/5 stable** (four repeats plus T4.7's byte-identical archive row): every run
+reached `unknown`/`none` at low confidence, and **no repeat answered** - so the hoped-for
+"trajectory that answered" does not exist and none was manufactured.
+
+**But the stability has a mechanical cause outside the agent's judgement.** Every plan in every
+repeat dispatched `logs:productcatalogservice`. That stream is empty by construction - ADR-0005
+published it at **0 lines/hour**, and the scenario file records the same fact in a comment. The
+agent read the empty result as a *label-syntax defect* ("both attempts used the hyphenated form"),
+re-issued it as "corrected logs pending", and **never called `trace_query` in any repeat** - while
+four of the scenario's eight `expected_evidence` items, including both discriminators, sit on
+traces. The planner prompt supplies the prior that invites the skip: *"traces in two"* of ten. The
+one run that ever solved this scenario (S1, different stamp, not a repeat) queried **frontend**
+logs and got `Error: 13 INTERNAL: Error: ProductCatalogService Fail Feature Flag Enabled` in one
+call. The difference between solve and abstention is which service's logs were queried.
+
+**Dispersion is *lower* on the abstention path than on the answering path**, on every measure:
+round-1 breadth spread **1** (4,4,5,5) against T4.10's **8** (2.6x); tokens 1.35x against 1.9x;
+zero exhaustions against one. An agent that cannot reach the evidence does not flail - it converges
+cheaply on the same wrong plan. Low dispersion here is a symptom of a systematic blocker, not of
+calibration.
+
+**What it forces on S2's `4/7` dev coverage figure:** the number is reproducible - it will not
+drift to `5/7` on a re-run - but it must **not** be glossed as "answers 4, correctly declines 3".
+At least one of the three non-answers is forced by evidence reachability, not by calibrated
+refusal to guess. The other two non-answers have not been analysed this way; one of three is
+explained, and that is the whole claim. Nothing product-side changed and the stamp did not move.
+
+**Next candidate experiment (not run here):** dispatch `traces` on this scenario and measure
+whether it converts the abstention to an answer. It is a stamp-moving change - either a planner
+prompt that stops treating traces as the rare specialist, or a tool layer that distinguishes
+"stream has no lines" from "your selector was wrong". Both were out of T4.11's scope.
+
 ### T4.10 — variance, measured at last *(built)*
 The experiment T4.9 named. **contract not written.** Five repeats of `cart-redis-misconfig`
 holding scenario, stamp (`prompts:53fafe9c12bc`) and budget (`changes` 8, others 4) constant -

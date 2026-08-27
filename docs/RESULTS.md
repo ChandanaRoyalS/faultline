@@ -133,6 +133,15 @@ on scenarios they were developed against.
 | `dependency_latency` | 1 | **0 / 1** | **1 / 1** | 0 |
 | `resource_exhaustion` | 2 | **0 / 2** | **1 / 1** | 1 |
 
+**How to read sweep 2's `4 / 7` coverage.** Not as "answered 4, correctly declined 3". T4.11
+([`VARIANCE-2026-08-27-abstention.md`](../evals/runs/VARIANCE-2026-08-27-abstention.md)) repeated
+`product-catalog-flag-failure` five times under a byte-identical configuration: the abstention is
+**5/5 stable** — the figure is reproducible and will not drift to `5/7` — but it is **forced by
+evidence reachability, not by calibrated refusal to guess**. Every plan queries a log stream
+ADR-0005 measured at 0 lines/hour, misreads the silence as a bad selector, and never reaches the
+traces that carry the answer. **One of the three non-answers is explained this way; the other two
+have not been analysed**, and no claim is made about them.
+
 ---
 
 ## Findings the record supports
@@ -257,9 +266,14 @@ Drawn from [`docs/PLAN.md`](PLAN.md); each is open and none is answered by anyth
    `changes` raised 4 → 8, same stamp, seven dev scenarios. **The answer is mixed and it
    decomposes** — budget owned one abstention, the instruction owns another, and a third is
    neither. Starvation was real and is gone (zero runs exhausted `changes`, against two);
-   coverage rose 4/7 → 6/7 with accuracy-of-answered holding at 100%. What remains open is the
+   coverage rose 4/7 → 6/7 with accuracy-of-answered holding at 100%. ~~What remains open is the
    part it could not settle: `product-catalog-flag-failure` abstains twice with budget to spare,
-   and nothing yet explains why.
+   and nothing yet explains why.~~ **Explained at T4.11**
+   ([`VARIANCE-2026-08-27-abstention.md`](../evals/runs/VARIANCE-2026-08-27-abstention.md)): the
+   budget was never the binding constraint. Every plan dispatches `logs:productcatalogservice`, a
+   stream ADR-0005 published at **0 lines/hour**; the agent reads the empty result as a
+   label-syntax error rather than a fact about the world, retries it, and **never calls
+   `trace_query`** — where four of the scenario's eight expected-evidence items live.
 2. ~~**The `changes`-budget question `email-wrong-image` exposed.**~~ **Answered at T4.8, and the
    answer was neither hypothesis.** A second holdout entry under the raised bound
    ([`HOLDOUT-2026-08-26-entry2.md`](../evals/runs/HOLDOUT-2026-08-26-entry2.md), pre-registered,
@@ -288,8 +302,13 @@ Drawn from [`docs/PLAN.md`](PLAN.md); each is open and none is answered by anyth
    should act on: **no cost figure anywhere is a point estimate** - each is one draw from a ~1.9x
    spread, which puts the gap between two sweep totals inside a single scenario's repeat range -
    and **variance is now measured for exactly one of ten scenarios**, the one with the most prior
-   successes. Nothing is known about variance on a scenario that abstains, on holdout, or on any
-   other fault class.
+   successes. ~~Nothing is known about variance on a scenario that abstains~~ — **T4.11 measured
+   that too**, five repeats of `product-catalog-flag-failure` under the byte-identical
+   configuration ([`VARIANCE-2026-08-27-abstention.md`](../evals/runs/VARIANCE-2026-08-27-abstention.md)):
+   the abstention is **5/5 stable**, no repeat answered, and **dispersion is lower than on the
+   answering path** (breadth spread 1 against 8, tokens 1.35x against 1.9x). Convergence, not
+   flailing — because the same reachability gap bites identically every run. Still nothing known
+   about variance on holdout, or on any other fault class.
 
 Also open and smaller: the freeze manifest's self-referential git sha; whether retrieval `k`
 should count chunks or documents; whether the holdout `dependency_latency` near-miss should be
