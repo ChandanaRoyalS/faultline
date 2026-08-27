@@ -194,6 +194,29 @@ def open_incidents(dsn: str) -> list[str]:
         return [row[0] for row in cur.fetchall()]
 
 
+def settling_incidents(dsn: str) -> list[tuple[str, datetime]]:
+    """Incidents that have resolved but whose settle window may not have elapsed (T4.13).
+
+    The window itself is the gate's to apply - this asks for a generous superset and lets one
+    place decide what "still settling" means. `resolved_at` is stored as the observable moment
+    the last episode cleared, which is the same clock the orchestrator reopens against.
+    """
+    import psycopg
+
+    horizon = now_utc() - gate.settle_window() * 2
+    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, resolved_at FROM incidents "
+            "WHERE resolved_at IS NOT NULL AND resolved_at >= %s",
+            (horizon,),
+        )
+        return [(row[0], row[1]) for row in cur.fetchall()]
+
+
+def now_utc() -> datetime:
+    return datetime.now(UTC)
+
+
 def expected_episodes(bundle: dict[str, Any]) -> int:
     """How many episodes to wait for, read from the bundle rather than assumed.
 
@@ -243,7 +266,14 @@ def wait_for_incident(dsn: str, after: datetime, min_episodes: int = 2) -> str:
 
 def confirm_recovery() -> gate.GateReading:
     """The gate, run again after the revert. Same checks, so recovery means the same thing
-    quiet meant."""
+    quiet meant.
+
+    **Deliberately without the incident arguments.** Recovery asks whether the world came back,
+    not whether the store is ready to receive a new injection. This run's own incident has just
+    resolved, so it is inside the settle window by construction (T4.13) and passing it here
+    would make every run fail its own recovery check. The settle-window refusal belongs to the
+    baseline gate, which is the one deciding whether it is safe to inject.
+    """
     deadline = time.monotonic() + RECOVERY_TIMEOUT_SECONDS
     reading = gate.read()
     while time.monotonic() < deadline and not reading.passed:
@@ -540,7 +570,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         with WorldLock():
             print("baseline gate...")
-            reading = gate.require(open_incidents(dsn))
+            reading = gate.require(open_incidents(dsn), settling_incidents(dsn))
             run.manifest["baseline_gate"] = reading.as_dict()
             print(f"  clean: {reading.services_reporting} services reporting, 0 alerts")
             emit(
@@ -634,7 +664,9 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     except gate.GateRefusedError as refused:
-        run.manifest["baseline_gate"] = gate.read().as_dict()
+        run.manifest["baseline_gate"] = gate.read(
+            open_incidents(dsn), settling_incidents(dsn)
+        ).as_dict()
         run.discard("baseline gate refused", str(refused))
         print(f"REFUSED: {refused}")
         return 3

@@ -1023,12 +1023,13 @@ and both still answered. $3.69 + $0.28 judged.
 the identical class**. Not clean repeat variance - one bound differs - but under the same prompts
 and contracts, no scenario that produced a class produced a different one.
 
-> **Note for T4.1: the gate is blind to recently-resolved incidents.** A stranded incident
-> resolved by hand minutes before the sweep sat inside the orchestrator's 5-minute settle window;
-> the next scenario's alerts reopened it into `OPEN` and every subsequent event joined it, so no
-> `triaging` incident ever appeared and the run was discarded after 900s. The gate refuses on
-> *non-terminal* incidents; a recently-resolved one is invisible to it and captures a new run's
-> alerts just as effectively. Recorded, not fixed.
+> ~~**Note for T4.1: the gate is blind to recently-resolved incidents.**~~ **Closed at T4.13.**
+> A stranded incident resolved by hand minutes before the sweep sat inside the orchestrator's
+> 5-minute settle window; the next scenario's alerts reopened it into `OPEN` and every subsequent
+> event joined it, so no `triaging` incident ever appeared and the run was discarded after 900s.
+> The gate refused on *non-terminal* incidents; a recently-resolved one was invisible to it and
+> captured a new run's alerts just as effectively. The gate now refuses on those too - see
+> T4.13 below.
 `src/faultline/agents/budget.py`, `src/faultline/agents/stamp.py`,
 `src/evalharness/run.py`, `src/evalharness/scoring.py`,
 `evals/runs/SWEEP-2026-08-26-budget.md`
@@ -1300,6 +1301,31 @@ T4.10's 6/6 stands as published and unamended, and README.md states the demo-inc
 coexist as long as both are visible.
 
 `docs/adr/0009:12`, `src/evalharness/rehearse.py:739`
+
+### T4.13 — the gate learns about the settle window *(built; closes T4.7's recorded note)*
+The blind spot T4.7 measured and recorded rather than fixed. **Harness-side only**: the stamp
+does not move and `src/faultline/` is untouched - the orchestrator's settle window was already
+public on `OrchestratorSettings`, so nothing needed exposing.
+
+The baseline gate now refuses when any incident's `resolved_at` is within the settle window of
+now, naming **which incident, when it resolved, and how many seconds until the window clears** -
+a refusal a person can act on by waiting, which is exactly what T4.7 did by hand. Terminal
+incidents pass the old open-incident check while remaining able to swallow a new run's alerts,
+which is the whole of the defect.
+
+**The window is read from `OrchestratorSettings`, not copied.** ADR-0016 calls it a placeholder
+to be replaced by measurement, so a constant in the gate would go stale the moment it is
+replaced. A test pins that the gate follows the environment variable a deployment would set.
+
+**One thing the change had to be careful about**, now documented at the call site and pinned by a
+test: `confirm_recovery` calls the gate *without* the incident arguments, deliberately. After a
+revert this run's own incident has just resolved and is inside the window by construction, so a
+recovery check that applied this refusal would fail every run against the fault it had just
+fixed. Recovery asks whether the world came back; the baseline gate asks whether it is safe to
+inject. Only the second one owns this question.
+
+The gate's two known-good-world exemptions - `frontend-proxy` at zero, and the post-restart p95
+hazard reused from the recorder rather than restated - are untouched and still pinned.
 
 ### T5.3b — the bundles, rendered for people *(built; closes T5.3's original scope)*
 The half of T5.3 the demo did not do. `faultline-render` turns a recorded bundle into a

@@ -22,13 +22,24 @@ Two facts have to be encoded or the gate fails on a healthy world, and both are 
    and it does not. The recorder's `require_settled_containers` is that fact as a gate, and it
    is reused here rather than restated.
 
+3. **A resolved incident is not a finished incident until its settle window has elapsed.**
+   The orchestrator reopens a resolved incident when a firing episode arrives inside that
+   window (`TIME_OVERLAP_SETTLE`), which is correct behaviour and is exactly how a new run's
+   alerts get swallowed by the previous run's incident. T4.7's first sweep attempt lost a
+   scenario to it: 22 events, one incident, and the scenario after it had nothing of its own
+   to investigate. The fix at the time was a person noticing and waiting the window out; this
+   is that person, written down.
+
 Thresholds are **placeholders** in ADR-0016's sense - reasons, no measurements. Set them from
-T4.1's own first runs.
+T4.1's own first runs. The settle window is **not** one of them: it is read from the
+orchestrator's own settings on every call, so a deployment that changes the window moves the
+gate with it and no edit here is needed.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime, timedelta
 from typing import Any
 
 from evalharness import baseline as baseline_mod
@@ -46,6 +57,18 @@ every clean reading taken across T3.4-T3.5 sat far below it and every degraded o
 
 EXPECTED_SILENT = frozenset({"frontend-proxy"})
 """Services whose zero request rate is the healthy state. See the module docstring, fact 1."""
+
+
+def settle_window() -> timedelta:
+    """The orchestrator's settle window, read from its configuration rather than copied.
+
+    A constant here would be a second source of truth for a number ADR-0016 explicitly calls a
+    placeholder to be replaced by measurement. Reading it means the gate refuses on whatever
+    window the orchestrator is actually running, including one set from the environment.
+    """
+    from faultline.orchestrator.settings import OrchestratorSettings
+
+    return timedelta(seconds=OrchestratorSettings().settle_window_seconds)
 
 
 class GateRefusedError(RuntimeError):
@@ -68,6 +91,7 @@ class GateReading:
     youngest_container: tuple[str, int] | None = None
     active_injections: str = ""
     open_incidents: list[str] = field(default_factory=list)
+    settling_incidents: list[dict[str, Any]] = field(default_factory=list)
     refusals: list[str] = field(default_factory=list)
 
     @property
@@ -87,6 +111,7 @@ class GateReading:
             else None,
             "active_injections": self.active_injections,
             "open_incidents": self.open_incidents,
+            "settling_incidents": self.settling_incidents,
             "refusals": self.refusals,
         }
 
@@ -103,11 +128,18 @@ def _latest_by_service(query: str, window_seconds: int = 180) -> dict[str, float
     return {service: points[-1][1] for service, points in series_points(payload).items() if points}
 
 
-def read(open_incidents: list[str] | None = None) -> GateReading:
+def read(
+    open_incidents: list[str] | None = None,
+    resolved_incidents: list[tuple[str, datetime]] | None = None,
+) -> GateReading:
     """Take every reading. **Does not raise** - `require` decides what the readings mean.
 
     Split so the readings land in the manifest even when the gate refuses, and so the whole
     thing is testable without a world.
+
+    `resolved_incidents` is `(id, resolved_at)` for incidents that have already reached a
+    terminal state. The gate decides which of them are still settling; the caller does not
+    need to know the window.
     """
     reading = GateReading(open_incidents=list(open_incidents or []))
 
@@ -148,12 +180,37 @@ def read(open_incidents: list[str] | None = None) -> GateReading:
             f"{', '.join(reading.open_incidents)} - a new alert would correlate into one "
             "rather than opening its own"
         )
+
+    window = settle_window()
+    moment = now()
+    for incident_id, resolved_at in sorted(resolved_incidents or [], key=lambda row: row[1]):
+        clears_at = resolved_at + window
+        if clears_at <= moment:
+            continue
+        reading.settling_incidents.append(
+            {
+                "incident_id": incident_id,
+                "resolved_at": resolved_at.isoformat(),
+                "seconds_remaining": int((clears_at - moment).total_seconds()),
+            }
+        )
+    for settling in reading.settling_incidents:
+        reading.refusals.append(
+            f"incident {settling['incident_id']} resolved at {settling['resolved_at']} and is "
+            f"still inside the orchestrator's {int(window.total_seconds())}s settle window - a "
+            f"firing episode now would reopen it rather than open a new incident, and this "
+            f"run's alerts would be attributed to the previous one. "
+            f"Wait {settling['seconds_remaining']}s."
+        )
     return reading
 
 
-def require(open_incidents: list[str] | None = None) -> GateReading:
+def require(
+    open_incidents: list[str] | None = None,
+    resolved_incidents: list[tuple[str, datetime]] | None = None,
+) -> GateReading:
     """Read, then refuse if anything is wrong. The readings travel on the exception."""
-    reading = read(open_incidents)
+    reading = read(open_incidents, resolved_incidents)
     if not reading.passed:
         detail = "\n".join(f"  - {why}" for why in reading.refusals)
         raise GateRefusedError(
