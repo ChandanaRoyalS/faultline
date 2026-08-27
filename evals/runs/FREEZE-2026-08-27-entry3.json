@@ -1,0 +1,59 @@
+{
+  "budget": {
+    "max_dispatch_rounds": 2,
+    "max_tokens": 120000,
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "wall_clock_seconds": 600
+  },
+  "corpus": {
+    "documents": [
+      "scenario:ad-memory-squeeze",
+      "scenario:cart-bad-image-tag",
+      "scenario:cart-dependency-latency",
+      "scenario:cart-redis-misconfig",
+      "scenario:frauddetection-memory-squeeze",
+      "scenario:product-catalog-flag-failure",
+      "scenario:shipping-wrong-image"
+    ],
+    "holdout_chunks": 0,
+    "rows": 35,
+    "sha256": "e4ca493867b454fdab1935f2f06f17004ddd8ee4377ac285e19c553f9eb06bb2"
+  },
+  "frozen_for": "holdout entry 3 (T4.15) - dev sweep 5 pipeline, T4.7 budget",
+  "judge": {
+    "allow_shared_lineage": false,
+    "model": null,
+    "prompt_sha256": "244108af996ad2a5138f6632a297941dd26643d806c73dfa9e24bc7d51392b54"
+  },
+  "model_map": {
+    "effort_default": "high",
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    },
+    "role_efforts": {}
+  },
+  "prompts": {
+    "chars": 6867,
+    "constants": [
+      "PLANNER_SYSTEM",
+      "SCRIBE_SYSTEM",
+      "SPECIALIST_SYSTEM",
+      "SYNTHESIZER_SYSTEM"
+    ],
+    "sha256": "acf112a925f100bb8e57382335ed0b84c297ac1a9652e50d7fec11b99362c9c0"
+  },
+  "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
+  "tool_layer": {
+    "git_dirty": false,
+    "git_sha": "8018c2cf935283d8de7c00fb0e15470eef76dcf3"
+  }
+}
