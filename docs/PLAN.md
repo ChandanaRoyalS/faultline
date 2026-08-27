@@ -778,6 +778,59 @@ Triage over seven: recall mean **0.94**, precision mean **0.56**, 19 unmeasured 
 `cart-dependency-latency` reproduced T3.5's disputed miss **exactly**, on an independent run: same
 two wrong labels, same reasoning shape. One observation was an anecdote; two is a pattern.
 
+### T4.12 — silence is evidence: the evidence-class experiment *(built; result negative, stamp not recommended)*
+The experiment T4.11 named. **contract not written.** One addition to `PLANNER_SYSTEM` teaching
+the consequence ADR-0019's empty-is-not-error rule implies - an empty stream is silence, not a
+query to retry - and demoting the dispatch-count prior in the same breath. Stamp
+`53fafe9c12bc` -> `bf7605651ef2`; budget held at T4.7's so **the prompt is the only delta against
+dev sweep 3**, which is the baseline. Prediction registered in the branch's first commit per
+T4.8's precedent (`evals/runs/PREREGISTRATION-2026-08-27-evidence.md`). $3.57 agent + $0.29 judge
+(`evals/runs/SWEEP-2026-08-27-evidence.md`).
+
+**The prediction hit and the mechanism was confirmed on the trajectory.**
+`product-catalog-flag-failure` answered `bad_config` correctly at **high** confidence, judge
+`same_mechanism`, all four traps avoided - the first time it has answered since S1's different
+stamp. The trajectory shows the registered mechanism executed: logs at the failing service came
+back **empty at seq 6**, it did **not** re-issue them (T4.11 re-issued the identical query), it
+changed vantage across four services, reached **`change_history` at `featureflagservice`** - a
+dispatch no T4.11 repeat ever made - and called **`trace_query`**, never called once in any T4.11
+repeat. Falsifier 3, registered as the outcome most likely to be misread as a win, did not fire.
+
+**And the instruction is net harmful: coverage 6/7 -> 4/7.** Three registered must-not-regress
+scenarios fell to abstention - `cart-bad-image-tag`, `cart-redis-misconfig`, `shipping-wrong-image`.
+Accuracy-of-answered held at 4/4 and triage was flat (0.91 -> 0.92 recall), so **no run returned a
+wrong class**; every regression is answer -> abstention.
+
+**The column that predicts the outcome is dispatches at the service whose failure is the fault.**
+Three regressions: 3->0, 4->1, 3->0. Four non-regressions: 2->2, 3->5, 4->4, and 6->3 on the one
+scenario where dispatching away is correct. **Every regression is a target-dispatch collapse and
+no scenario whose target dispatches held regressed.** The regressed runs localized the locus and
+failed to establish the mechanism, saying so themselves. `cart-redis-misconfig` spent nine
+dispatches on checkoutservice x5, paymentservice x2, currencyservice x2 and cartservice x1 - and
+T4.10 measured that scenario answering **6/6** under the byte-identical budget, so this is not
+plausibly its variance.
+
+**Primary endpoint, registered as behavioural rather than coverage: failed, and improved.**
+Re-issues after silence 4-in-3-runs -> 2-in-2-runs, both survivors bare same-window PromQL
+re-asks; **2 -> 0 on the targeted scenario**. `trace_query` adoption rose 3/7 -> 5/7 while total
+tool calls fell 58 -> 50.
+
+**The `bad_config` per-class row reads "no change" in both sweeps** - 1/1 answered, 1 abstained -
+while its two scenarios swapped places. The house rule that an aggregate needs its per-class table
+was not enough here; only the per-scenario row shows it.
+
+**Recommendation: do not keep this stamp.** It buys one scenario and sells three. Not merging is
+the outcome, not a deferral.
+
+**Next candidate experiment:** a narrowed instruction keeping *do not re-ask a silent stream* and
+dropping *change vantage point* - the first clause is what the winning trajectory needed, the
+second is what emptied `cartservice` of dispatches. Separate stamp, separate sweep.
+
+ADR-0023 fell out of this being the first prompt change to land after a holdout was frozen: a
+freeze manifest is a historical record, so its guard checks completeness and known lineage rather
+than agreement with HEAD, and the holdout figures now carry a note that they describe a superseded
+pipeline.
+
 ### T4.11 — the abstention path, repeated *(built)*
 The complement to T4.10. **contract not written.** Five repeats of `product-catalog-flag-failure`
 under the byte-identical T4.10 configuration - stamp `prompts:53fafe9c12bc`, `changes` 8/others 4 -

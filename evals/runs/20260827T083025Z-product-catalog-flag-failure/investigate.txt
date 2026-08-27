@@ -1,0 +1,30 @@
+incident ad236e70-dda7-44a4-8058-ee9ede045013  state triaging  anchor 08:33:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: a90800cd-8633-4c2a-a80e-9d2c73b75115
+investigation: 2 round(s), 11 dispatch(es), 27 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_07167402dd7b, tr_3e7f1d8f4665, tr_3bcb172ff367, tr_5135d50e2665, tr_57548fb318c3, tr_78d1da2c5f95, tr_b2178d32c35c, tr_be0aa7d04972
+  root cause  : At 08:30:29 UTC a platform-automation actor set the FAULTLINE_ENABLED_FLAGS environment variable on featureflagservice, activating a product-catalog failure flag that had previously been unset (tr_07167402dd7b). productcatalogservice consults featureflagservice on the GetProduct path, and from that point a fraction of GetProduct calls fast-fail: frontend traces show the ERROR originating on productcatalogservice's own GetProduct server span, propagating up through frontend's client span to the loadgenerator-driven request, with every erroring chain containing a client-side GetFlag call to FeatureFlagService that is absent from the many successful GetProduct chains in the same window (tr_3e7f1d8f4665). The failing spans complete in ~2-4ms, comparable to healthy calls, so this is a deliberate error return rather than a timeout, saturation, or slow dependency (tr_3e7f1d8f4665). The resulting partial degradation is visible as ~11% error ratio at productcatalogservice (tr_3bcb172ff367) and ~13% at frontend (tr_5135d50e2665), matching the 08:33:30 pages on frontend, loadgenerator and productcatalogservice. No other service in the blast radius carries a change record for the window (tr_57548fb318c3, tr_78d1da2c5f95, tr_b2178d32c35c, tr_be0aa7d04972). The mechanism is the configuration value itself: a fault-injection flag is set to on in a production path, and the wrongness of that value is precisely what makes the request fail.
+  OPEN        : No direct confirmation from productcatalogservice's own logs that it read the flag and returned an error because of it - the log dispatch used a hyphenated label selector and returned zero lines, which the specialist judged a query-shape artifact rather than service silence (tr_102d3edfcc22). A re-query on the correct label would close the causal loop.
+  OPEN        : Every change dispatch covered only 08:23:30-08:38:30, not the requested ~2h lookback. An earlier change on frontend, productcatalogservice, cartservice or adservice remains entirely unexamined and cannot be excluded.
+  OPEN        : The precise onset timestamp at productcatalogservice was not pinned down - only min/max of the error ratio were returned, not the per-timestamp series (tr_3bcb172ff367) - so the 08:30:29 flag activation is correlated with the pages but not yet proven to precede the first error sample.
+  OPEN        : Why only ~11% of GetProduct calls fail rather than all of them is unexplained: whether the flag applies probabilistically, to specific product IDs, or to a subset of replicas is unsettled. Three of four fan-out GetProduct calls in one trace succeeded (tr_3e7f1d8f4665).
+  OPEN        : cartservice and adservice have no call-volume telemetry at all in the window - both the error numerator and the unfiltered denominator matched nothing (tr_7ba72dab164d, tr_191641c59b56). This is an unexplained observability gap and those two services are neither implicated nor cleared by metrics; only traces speak for them.
+  OPEN        : Triage reported 7 services in the blast radius and one unmeasured edge crossed; the featureflagservice hop appears only as a client-side span with no server-side spans of its own (tr_3e7f1d8f4665), so featureflagservice's own health and whether recommendationservice's separate GetFlag calls are also affected were never directly measured.
+  OPEN        : Whether the automation that set the flag is on a schedule and will re-apply it after a revert is unknown.
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T083025Z-product-catalog-flag-failure/ad236e70-dda7-44a4-8058-ee9ede045013-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T083025Z-product-catalog-flag-failure/ad236e70-dda7-44a4-8058-ee9ede045013-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 17969.86it/s]

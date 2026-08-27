@@ -1,0 +1,44 @@
+{
+  "incident_id": "fdca9d00-7f0f-4caa-92c1-c464e50828eb",
+  "trajectory_id": "8fe4b9e9-4a13-4d9e-ab11-7440a9509bec",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origin": "scenario:frauddetection-memory-squeeze",
+  "verdict": {
+    "root_cause": "At 08:08:02Z platform-automation lowered the memory resource limit on the frauddetection-service workload to 200m. Roughly eighteen seconds later the service stopped doing useful work and entered a crash-restart loop: from ~08:08:20 to at least 08:16:19 the log contains nothing but repeated full JVM/OpenTelemetry-agent bootstrap sequences at ~60s intervals, with no application errors, exceptions, or stack traces to explain the termination, and no order-consumption records after the first restart. That signature \u2014 a JVM that starts, does no visible work, and dies silently without logging, immediately after its memory ceiling was tightened \u2014 is the classic pattern of a container being killed by the kernel for exceeding a ceiling that is now below the heap the JVM is configured to commit. The service is not failing on a bad code path; it is being denied the memory it needs and is killed for it, so the failing mechanism is memory exhaustion against the new limit. The span-derived call metrics being entirely absent (no error numerator and no total-calls denominator) is a downstream consequence: a process that never lives long enough to serve traffic emits no RPC spans.",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_4215e952dfd4",
+      "tr_8d36cfc8aff2",
+      "tr_358bb2221bb0",
+      "tr_f69cbcf7cffc"
+    ],
+    "reasoning": "Three independent lines converge. (1) tr_4215e952dfd4 establishes that exactly one change landed in the window and it was a memory-limit reduction at 08:08:02Z; deploys, flag flips, and dependency bumps were each explicitly ruled out, so there is no competing local trigger. (2) tr_8d36cfc8aff2 dates the behavioural break to ~08:08:20 \u2014 eighteen seconds after the change \u2014 and characterises it as repeated JVM startup banners rather than degraded throughput inside one long-lived process, while ruling out application errors, dependency failures, business-logic faults, and a broken log pipeline. Crucially it found no exception or panic: the process is being killed from outside, not failing from within, which is what an external memory kill looks like from stdout. (3) tr_358bb2221bb0 and tr_f69cbcf7cffc both show the total-calls denominator is empty, not just the error numerator \u2014 the service is serving no traffic at all, which fits a process that never reaches readiness, and is inconsistent with a normal-traffic-with-errors state (explicitly ruled out in both). I classify this as resource_exhaustion rather than bad_config because the config edit is how it started while running out of memory against the ceiling is what is happening now; the request path is broken by the process dying, not by any value naming a wrong address, port or credential. Remediation is config_revert because restoring the prior limit (or raising it above the JVM's committed footprint) is what would actually stop the kills \u2014 a restart alone would only re-enter the loop, and a rollback has nothing to roll back to since no artifact changed.",
+    "open_questions": [
+      "The OOM kill itself is inferred, not observed. kube_pod_container_status_restarts_total, last_terminated_reason, container_memory_working_set_bytes and the container memory limit series were never queried (tr_f69cbcf7cffc explicitly leaves the OOM hypothesis open). A single query for last_terminated_reason=OOMKilled would confirm or refute the mechanism outright.",
+      "The prior memory limit is not recorded (tr_4215e952dfd4), so the magnitude of the reduction is unknown and the correct value to revert to has to be determined from the JVM heap settings or from a healthy peer, not from the change record.",
+      "The recorded new value '200m' uses milli-unit notation, which is a CPU unit, not a memory unit. If the limit was written with a malformed or misinterpreted unit rather than merely lowered, the framing shifts toward a wrong value rather than a tight-but-intentional ceiling, and the fix differs (correct the unit vs. restore a number). This was not resolved.",
+      "The log result covers only 08:04\u201308:19 and the middle of the window was dropped (oldest 8 + newest 32 lines kept), so an error or exception in the dropped segment cannot be excluded, and it is unknown whether the restart loop continued past 08:16:19.",
+      "Why platform-automation made this change is unexamined \u2014 whether it was a policy rollout, an autoscaler/VPA recommendation, or a templating error determines whether reverting the limit will simply be re-applied by the same automation.",
+      "No evidence was gathered on whether other workloads received the same automated limit reduction; triage scoped this to one service, but the actor was automation, which typically acts on more than one target."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. The process ran for a few minutes on the heap it had already committed, grew,\nwas killed by the kernel, an",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m45s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **4**. Over the",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

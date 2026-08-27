@@ -1,0 +1,34 @@
+incident 091088ba-f970-45cb-8b0d-2ed81164ac8e  state triaging  anchor 09:09:30
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: b29570db-616f-45a1-b69d-516e89f87681
+investigation: 2 round(s), 4 dispatch(es), 13 step(s) 2 failed dispatch(es)
+  FAILED DISPATCH planner: dispatch service 'cartservice,productcatalogservice,currencyservice,paymentservice,frontend' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.
+  FAILED DISPATCH planner: dispatch service 'cartservice,productcatalogservice,currencyservice,paymentservice,frontend' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_bb9484cf38ae, tr_d66c8ab1f361, tr_188ed47f27e7, tr_8208b7da1b41
+  root cause  : Every sampled PlaceOrder trace fails at the same point: checkoutservice's outbound client span to ShippingService/GetQuote returns ERROR in 0.4–2.6ms with no shippingservice server-side child span, while all prior calls (cartservice/Redis, productcatalogservice, currencyservice) succeed normally. That signature — fast, uniform, deterministic failure with the callee never producing a server span — means the call is being rejected at or before the shippingservice handler (connection refused / unavailable / immediate rejection), not that shipping is slow or that checkout has an internal bug. Checkout itself is healthy: it is alive, accepting requests and logging order starts through 09:14:28, but no order reaches payment, email or queue-write logging, exactly matching the trace evidence that execution aborts inside prepareOrderItemsAndShippingQuoteFromCart. The simultaneous 09:12:45 alerts on accountingservice, emailservice, frauddetectionservice, quoteservice and shippingservice are consistent with traffic starvation downstream of the stall rather than five independent faults — quoteservice sees no work because shipping never calls it, and the post-payment services see no work because checkout never gets that far. What made shippingservice stop serving was never established: no specialist was dispatched to shippingservice or quoteservice at all, and the only change query run covered checkoutservice alone (which showed no changes, correctly excluding a checkout-side deploy or flag flip). The mechanism is therefore an unavailable shipping dependency whose own failure mode — non-running artifact, wrong endpoint/port value, or its own downstream — remains unidentified.
+  OPEN        : Nothing at all was queried on shippingservice — no logs, metrics, traces or change history. Whether its pods are running, crash-looping, failing readiness, or rejecting connections is entirely unestablished.
+  OPEN        : Was there a deploy, image change, config edit or flag flip on shippingservice (or quoteservice) near 09:09? The only change query covered checkoutservice and only 08:59:30–09:14:30; the 08:30–08:59 span and all dependencies are unqueried.
+  OPEN        : Is shippingservice itself failing, or failing because quoteservice (which also alerted at 09:12:45) is unavailable to it? Without a shipping-side trace or log we cannot tell whether quoteservice is a starved victim or the origin.
+  OPEN        : Why does checkout's error ratio peak at ~0.30 with zero-error intervals when every sampled PlaceOrder trace is ERROR? Unreconciled — could be pre-onset data in the window, non-PlaceOrder RPC traffic diluting the ratio, or trace sampling bias toward the failing period.
+  OPEN        : The log window 09:01:04–09:11:05 was truncated and never observed; error/warning lines naming the failing dependency could exist there and would change the picture.
+  OPEN        : Whether the correct fix is rollback, config_revert or restart depends entirely on shippingservice's state, which is why no remediation is named here.
+  OPEN        : The five 09:12:45 alerts are interpreted as traffic starvation downstream of the stall; this is inference from topology and the log/trace pattern, not confirmed by any per-service check of accountingservice, emailservice or frauddetectionservice.
+
+=== FLAGGED ===
+  planner produced no valid findings: dispatch service 'cartservice,productcatalogservice,currencyservice,paymentservice,frontend' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.
+  planner produced no valid findings: dispatch service 'cartservice,productcatalogservice,currencyservice,paymentservice,frontend' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T090637Z-shipping-wrong-image/091088ba-f970-45cb-8b0d-2ed81164ac8e-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T090637Z-shipping-wrong-image/091088ba-f970-45cb-8b0d-2ed81164ac8e-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9070.19it/s]

@@ -49,6 +49,10 @@ declared rather than hidden.
 
 Pipeline stamp **`prompts:53fafe9c12bc`**, frozen before the run
 ([`FREEZE-2026-08-26-holdout.json`](evals/runs/FREEZE-2026-08-26-holdout.json)).
+T4.12 built and measured a successor pipeline, `prompts:bf7605651ef2`, and **recommends against
+keeping it** — it raised the one abstention it targeted and cost three other scenarios
+([`SWEEP-2026-08-27-evidence.md`](evals/runs/SWEEP-2026-08-27-evidence.md)). These holdout figures
+describe `53fafe9c12bc` as measured, and the holdout has not been re-entered under any other stamp.
 
 | scenario | ground truth | fault class | class of fix | judge (SHARED LINEAGE) |
 |---|---|---|---|---|

@@ -1,0 +1,59 @@
+{
+  "incident_id": "a7fa0f1b-bd20-4d4b-9558-d05bd022a0b2",
+  "trajectory_id": "b189f4df-b8ce-4183-b003-c57da3a77204",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "The best-supported account is that adservice was starved by an externally imposed memory limit. At 06:48:46Z platform-automation applied a resource_limits update that lowered ad-service's container memory limit to 256m (tr_6dcada371f1a) \u2014 the only recorded change on any of the six services examined. Roughly four minutes later loadgenerator and frontend alerted, and adservice emitted no call-count telemetry whatsoever for the queried window \u2014 neither the error numerator nor the unfiltered denominator resolved (tr_32a9bb14d792), which is the signature of a process that is not running or is repeatedly dying rather than one that is serving cleanly. Frontend shows a partial failure \u2014 error ratio rising from zero to a ~12.7% peak, so seven of eight requests still succeeded (tr_6fb9e287712e) \u2014 which fits a single non-critical leaf dependency failing rather than a core checkout-path service. productcatalogservice is demonstrably healthy and serving (tr_7160a3df4e1b), and no other service has any change record in-window (tr_1b0cebe10f45, tr_49f80feef9b8, tr_0ba63624ef69, tr_3f8aba9fd5cf, tr_65cee649184b). The mechanism is exhaustion, not a wrong value per se: the container is being killed for exceeding a ceiling it cannot fit under, so the failure in the world is resource exhaustion, with the limit edit as the trigger that started it.",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_6dcada371f1a",
+      "tr_32a9bb14d792",
+      "tr_6fb9e287712e",
+      "tr_7160a3df4e1b",
+      "tr_1a39804e166d",
+      "tr_1b0cebe10f45",
+      "tr_49f80feef9b8",
+      "tr_0ba63624ef69",
+      "tr_3f8aba9fd5cf",
+      "tr_65cee649184b"
+    ],
+    "reasoning": "Two facts do the work: an automated memory-limit reduction on adservice at 06:48:46Z (tr_6dcada371f1a) and the complete absence of adservice call metrics for the window, where the specialist explicitly ruled out reading that absence as 'zero errors' because the unfiltered denominator is empty too (tr_32a9bb14d792). Change-log queries on the other five services came back empty (tr_1b0cebe10f45, tr_49f80feef9b8, tr_0ba63624ef69, tr_3f8aba9fd5cf, tr_65cee649184b), so no competing trigger was recorded in the covered interval. The timing fits: limit lands 06:48:46, loadgenerator alerts 06:52:30, frontend 06:52:45. The severity shape fits too \u2014 frontend degrades partially (~12.7% peak, tr_6fb9e287712e) rather than failing outright, consistent with one optional leaf dependency going dark while productcatalogservice keeps serving error-free (tr_7160a3df4e1b). On class: the taxonomy directs that a limit lowered until a process is killed for exceeding it is resource_exhaustion, not bad_config \u2014 the edit is how it started, exhaustion is what is happening \u2014 so I have classed it that way even though the upstream act was a configuration change. The fix that would actually stop it is restoring the memory limit to a value adservice fits under, hence config_revert; a bare restart would recycle into the same kill loop. Confidence is held at medium, not high, because the exhaustion mechanism itself was never directly observed: no memory/saturation metric, no OOMKill event, no container restart count, and no logs or traces were gathered for adservice, and the metrics budget is exhausted. The past cart incidents are a live warning here \u2014 twice a responder read cartservice's quiet metrics as health and was wrong \u2014 and cartservice is again silent in this incident (tr_1a39804e166d), with the same denominator-empty signature as adservice. I have not been able to distinguish whether cartservice is simply uninstrumented for span metrics or is a second casualty, and that is the main way this verdict could be wrong.",
+    "open_questions": [
+      "Was adservice actually OOMKilled? No memory/saturation metric, restart count, container event or pod log was retrieved \u2014 the exhaustion mechanism is inferred from the limit change plus telemetry silence, not observed.",
+      "Why does cartservice also have no call-count series at all (tr_1a39804e166d)? Is it uninstrumented for span metrics, or is it a second failing service? Two past corpus incidents turned on cartservice silence being misread; this was not resolved.",
+      "Are the frontend's ~12.7% errors actually on the ad call path? Frontend metrics carry no endpoint or operation dimension (tr_6fb9e287712e), so the attribution to adservice is circumstantial rather than traced.",
+      "The change-log window began at 06:42:30 for every service; 06:20\u201306:42:30 was never queried. An earlier deploy or config edit on frontend, cartservice, checkoutservice, productcatalogservice or recommendationservice remains possible.",
+      "checkoutservice, recommendationservice and loadgenerator had no metrics dispatched at all \u2014 their error/latency behaviour is entirely unmeasured, and the budget is exhausted.",
+      "Triage reported one unmeasured edge crossed; which dependency link that is, and whether it hides a slow downstream (a dependency_latency story), was never established.",
+      "What was adservice's prior memory limit, and what is its actual working-set requirement? Without that, the correct restore value is unknown and 256m cannot be confirmed as too low."
+    ]
+  },
+  "flags": [
+    "budget exhausted: metrics tool calls: 4 of 4 used"
+  ],
+  "retrieved": [
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-dependency-latency / What was checked: **Whether the reading was real.** cartservice runs at 2ms. Not approximately 2ms \u2014\nacross forty-five minutes of measured quiet operation its minimum, mean and maximum are\nall 2ms, and it has never been observed above 3ms on an undisturbed system. A reading of\n650ms is not an excu",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

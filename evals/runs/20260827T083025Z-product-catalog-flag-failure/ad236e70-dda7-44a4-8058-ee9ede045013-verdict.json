@@ -1,0 +1,55 @@
+{
+  "incident_id": "ad236e70-dda7-44a4-8058-ee9ede045013",
+  "trajectory_id": "a90800cd-8633-4c2a-a80e-9d2c73b75115",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "At 08:30:29 UTC a platform-automation actor set the FAULTLINE_ENABLED_FLAGS environment variable on featureflagservice, activating a product-catalog failure flag that had previously been unset (tr_07167402dd7b). productcatalogservice consults featureflagservice on the GetProduct path, and from that point a fraction of GetProduct calls fast-fail: frontend traces show the ERROR originating on productcatalogservice's own GetProduct server span, propagating up through frontend's client span to the loadgenerator-driven request, with every erroring chain containing a client-side GetFlag call to FeatureFlagService that is absent from the many successful GetProduct chains in the same window (tr_3e7f1d8f4665). The failing spans complete in ~2-4ms, comparable to healthy calls, so this is a deliberate error return rather than a timeout, saturation, or slow dependency (tr_3e7f1d8f4665). The resulting partial degradation is visible as ~11% error ratio at productcatalogservice (tr_3bcb172ff367) and ~13% at frontend (tr_5135d50e2665), matching the 08:33:30 pages on frontend, loadgenerator and productcatalogservice. No other service in the blast radius carries a change record for the window (tr_57548fb318c3, tr_78d1da2c5f95, tr_b2178d32c35c, tr_be0aa7d04972). The mechanism is the configuration value itself: a fault-injection flag is set to on in a production path, and the wrongness of that value is precisely what makes the request fail.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_07167402dd7b",
+      "tr_3e7f1d8f4665",
+      "tr_3bcb172ff367",
+      "tr_5135d50e2665",
+      "tr_57548fb318c3",
+      "tr_78d1da2c5f95",
+      "tr_b2178d32c35c",
+      "tr_be0aa7d04972"
+    ],
+    "reasoning": "Two independent dispatches converge. The change dispatch names a single change anywhere in the window - an environment update on featureflagservice enabling a product-catalog failure flag, transitioning from unset to on at 08:30:29 (tr_07167402dd7b) - roughly three minutes before the 08:33:30 pages. The trace dispatch independently localises the error to productcatalogservice's GetProduct server span and observes that the FeatureFlagService GetFlag child call appears in both erroring chains and in none of the successful ones (tr_3e7f1d8f4665). That co-occurrence, plus the fast-fail duration profile, rules out the competing mechanisms: not dependency_latency (erroring spans are ~2-4ms, in line with successes, no deadline signature), not resource_exhaustion (partial ~11-13% failure with the bulk of traffic served, no saturation or truncation signature), not bad_deploy (the recorded change is explicitly classified as an environment/config update, not a release, and no other service has any change record). The failure is not a side effect of the edit - the flag's value is read on the request path and its enabled state is what returns the error - so bad_config is the mechanism and unsetting FAULTLINE_ENABLED_FLAGS is the fix, not a rollback or restart. Change dispatches on productcatalogservice, frontend, cartservice and adservice returning empty removes the alternative change-driven attributions within the queried window. The cartservice and adservice metric dispatches (tr_7ba72dab164d, tr_191641c59b56) returned no series at all and clear nothing; they are excluded from the supporting evidence for that reason, though the traces separately show both paths completing without error.",
+    "open_questions": [
+      "No direct confirmation from productcatalogservice's own logs that it read the flag and returned an error because of it - the log dispatch used a hyphenated label selector and returned zero lines, which the specialist judged a query-shape artifact rather than service silence (tr_102d3edfcc22). A re-query on the correct label would close the causal loop.",
+      "Every change dispatch covered only 08:23:30-08:38:30, not the requested ~2h lookback. An earlier change on frontend, productcatalogservice, cartservice or adservice remains entirely unexamined and cannot be excluded.",
+      "The precise onset timestamp at productcatalogservice was not pinned down - only min/max of the error ratio were returned, not the per-timestamp series (tr_3bcb172ff367) - so the 08:30:29 flag activation is correlated with the pages but not yet proven to precede the first error sample.",
+      "Why only ~11% of GetProduct calls fail rather than all of them is unexplained: whether the flag applies probabilistically, to specific product IDs, or to a subset of replicas is unsettled. Three of four fan-out GetProduct calls in one trace succeeded (tr_3e7f1d8f4665).",
+      "cartservice and adservice have no call-volume telemetry at all in the window - both the error numerator and the unfiltered denominator matched nothing (tr_7ba72dab164d, tr_191641c59b56). This is an unexplained observability gap and those two services are neither implicated nor cleared by metrics; only traces speak for them.",
+      "Triage reported 7 services in the blast radius and one unmeasured edge crossed; the featureflagservice hop appears only as a client-side span with no server-side spans of its own (tr_3e7f1d8f4665), so featureflagservice's own health and whether recommendationservice's separate GetFlag calls are also affected were never directly measured.",
+      "Whether the automation that set the flag is on a schedule and will re-apply it after a revert is unknown."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired ",
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for "
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}
