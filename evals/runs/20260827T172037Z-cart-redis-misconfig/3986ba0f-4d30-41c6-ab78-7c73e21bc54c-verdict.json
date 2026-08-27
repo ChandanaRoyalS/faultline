@@ -1,0 +1,60 @@
+{
+  "incident_id": "3986ba0f-4d30-41c6-ab78-7c73e21bc54c",
+  "trajectory_id": "21d2389a-324e-4310-8862-f97e1e83bd0f",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-redis-misconfig",
+  "verdict": {
+    "root_cause": "cartservice is down because an automated environment-variable change at 17:20:38 pointed its Redis backing-store address at redis-cart on port 6380 \u2014 a non-default port with no recorded prior value \u2014 and nothing is answering there. cartservice's startup path (RedisCartStore.EnsureRedisConnected via InitializeAsync in Main) blocks on that connect, times out after tens of seconds, throws an unhandled exception and kills the process, producing a crash loop with at least six cycles between 17:24:47 and 17:27:29. Because the process dies before gRPC serving begins, it never registers a server span, which is why cartservice's span-derived call metrics are entirely empty rather than merely zero-error. Callers fast-fail: frontend's GetCart/AddItem client spans and checkoutservice's nested CartService/GetCart client span error in under a millisecond, which is what drives frontend's ~31.5% error ratio, checkoutservice's ~66% peak error ratio, and the silent mid-pipeline stall where orders are placed but never reach payment, email or message-write. checkoutservice and frontend are propagators, not faults; the wrong endpoint value is itself the failing mechanism.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_1ae166a5f4b1",
+      "tr_8e580206e03d",
+      "tr_9a4b89aba003",
+      "tr_10d2f7406063",
+      "tr_640d72847cfc",
+      "tr_e72cb9413005",
+      "tr_b79e6df5609c",
+      "tr_f851cf44f972"
+    ],
+    "reasoning": "Three independent lines converge on cartservice's Redis endpoint. (1) Traces (tr_9a4b89aba003) localise first failure to a caller-side client span into cartservice from two independent callers while every other RPC edge from frontend \u2014 catalog, ads, recommendations \u2014 succeeds, ruling out mesh/node/infrastructure and ruling checkoutservice a propagator; no cartservice server span exists anywhere in 200 spans. (2) cartservice logs (tr_8e580206e03d) supply the mechanism the traces could not see across the unmeasured edge: a deterministic startup crash loop on a Redis connect timeout to redis-cart:6380, with healthy request serving at 17:13 confirming onset is later. (3) The change log (tr_1ae166a5f4b1) supplies a single, unambiguous, correctly-timed cause at 17:20:38 \u2014 an env update retargeting the Redis address to a non-default port, prior value unset. The absence of cartservice call-count series entirely (tr_10d2f7406063) is corroborating rather than contradictory: a healthy service would emit a non-zero denominator, an absent process emits nothing, which is exactly the trap the cart-bad-image-tag corpus entry describes. Upstream symptoms fit: frontend partial degradation confined to cart-bearing requests (tr_b79e6df5609c), checkoutservice error ratio elevated with no changes of its own (tr_e72cb9413005, tr_f851cf44f972), and checkout logs showing orders starting but never completing post-cart stages with no error line of its own (tr_640d72847cfc). I classify this bad_config rather than dependency_latency because although the connect attempts consume tens of seconds, the service is not failing by waiting on a slow dependency \u2014 it is failing because the value names an endpoint that does not serve it; the wrongness of the address is the failure. It is not bad_deploy because no image or build changed. Remediation is config_revert: restore the prior (unset/default) Redis address so cartservice can complete initialization; restart alone would only re-enter the loop, and rollback has no artifact to roll back to.",
+    "open_questions": [
+      "Nobody verified what redis-cart is actually listening on. If the platform automation legitimately moved Redis to 6380 and cartservice was correct to follow, the fault is on the Redis side and a blind config_revert to the unset default would not fix it.",
+      "Why did platform automation set this variable, and is it part of a broader scripted migration that will re-apply the value after a revert? The actor is unnamed automation, not a human, so the change may be reconciled back.",
+      "Onset timing is not fully reconciled: the change landed at 17:20:38, alerts fired at 17:23:15, but the observed crash-loop cycles start at 17:24:47. The interval between the env edit and the first pod restart \u2014 and whether errors were already occurring before the first crash \u2014 was not measured.",
+      "Four unmeasured edges were crossed at triage and only cartservice's was resolved by logs. No specialist examined the remaining services in the 12-service blast radius, so a concurrent second fault cannot be excluded.",
+      "checkoutservice's missing payment / confirmation-email / message-write stages are consistent with the cart call aborting the flow, but no direct evidence ties the stall to the cart failure rather than to a separate downstream problem; checkoutservice's per-dependency outbound error rates and saturation signals were never queried.",
+      "The change-log query for checkoutservice covered only 17:13:15\u201317:28:15 and only that service; the earlier 16:23\u201317:13 lookback and the six synchronous dependencies were never checked for changes.",
+      "cartservice's metric telemetry gap was explained as process absence, but that inference was not confirmed against an independent source such as pod restart counts or container exit codes."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired ",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

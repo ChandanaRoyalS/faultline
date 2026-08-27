@@ -1,0 +1,59 @@
+{
+  "incident_id": "34b0818f-2ded-4436-8517-4ae62cbf1622",
+  "trajectory_id": "52eb845c-ffe7-418a-9288-f9ef3a263dce",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:shipping-wrong-image",
+  "verdict": {
+    "root_cause": "At 18:23:13 UTC platform automation updated shippingservice's image reference to a tag whose suffix names a different service, and the pod has been unable to reach a serving state since: from 18:23:34 onward shippingservice logs contain nothing but repeated process-startup banners, at least ten of them, tightening into a ~64s backoff cadence through 18:30:02, with no request handling logged after 18:23:34 (it was answering GetQuote and ShipOrder normally at 18:16). The boot output after the change is JVM/OpenTelemetry-Java-agent banners while the pre-change lines were a Rust-style format \u2014 a runtime mismatch consistent with the wrong artifact being pulled. With no serving shipping backend, checkoutservice's ShippingService/GetQuote client span is the innermost ERROR in every failing trace, failing in 0.3\u20132.5ms with no stall signature, aborting PlaceOrder inside prepareOrderItemsAndShippingQuoteFromCart and propagating up to the frontend HTTP POST \u2014 which matches checkout's logs going quiet on all post-placement steps (payment, email, message write) from ~18:25:44 while placements keep arriving, and matches shippingservice emitting no calls_total series at all for the window. The running artifact on shippingservice is not the one that should be running; that is the mechanism.",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_b63725f95c2b",
+      "tr_bf2af5a3921f",
+      "tr_326965fece2e",
+      "tr_0788c8691756",
+      "tr_be6701c0ec7a",
+      "tr_3cd2eeba1e55",
+      "tr_69afa240783f"
+    ],
+    "reasoning": "Three independent lines converge on shippingservice as the failing component and on the 18:23:13 image update as what made it fail. (1) Traces localize the fault precisely: tr_326965fece2e shows the checkoutservice\u2192ShippingService/GetQuote client span is the only ERROR-bearing leaf in every failing trace, with cart, catalog and currency children all succeeding fast, and frontend/checkout error status only inherited. It also rules out latency as the mechanism \u2014 failures return in single-digit milliseconds, the signature of a refused/unavailable backend, not a slow one, which excludes dependency_latency. (2) tr_bf2af5a3921f shows shippingservice in a restart loop with backoff, serving normally at 18:16 and never reaching a serving state after 18:23:34, and tr_0788c8691756 corroborates from a different source: no calls_total series at all for shippingservice, numerator or denominator, consistent with a process that never gets far enough to emit RPC metrics. (3) tr_b63725f95c2b supplies the mechanism-defining detail \u2014 the new image tag names a different service, and the pre-change reference is unrecorded. That the post-change boot output is JVM-based where the pre-change request logs were Rust-formatted is independent corroboration that a different artifact is now running. This is bad_deploy rather than bad_config: the failing value is an image reference pointed at the wrong artifact, which the taxonomy assigns to bad_deploy. It is not resource_exhaustion \u2014 no memory, CPU, fd or connection saturation data was returned anywhere (tr_0788c8691756, tr_69afa240783f), and the crash-without-stack-trace pattern is equally consistent with an image that simply cannot start. Checkout itself is exonerated as the origin: tr_3cd2eeba1e55 records no change on checkoutservice in the bracketing window, tr_be6701c0ec7a shows the process alive and accepting placements throughout with no error lines of its own, and tr_69afa240783f shows an intermittent, non-total error fraction consistent with an upstream partial failure. The correct fix is to restore the previous image reference; a plain restart would only re-enter the same loop.",
+    "open_questions": [
+      "The restart cause is inferred, not observed: no exit codes, container termination reasons, OOM-kill records, or liveness-probe events were retrieved. An image that cannot start and an image killed for exceeding a limit look identical in these logs.",
+      "tr_bf2af5a3921f flags that the pre- and post-18:23 log lines come from apparently different runtimes under one selector, and explicitly warns this could be a label collision or a sidecar sharing the service label. If so, the restart loop may belong to another pod and the wrong-artifact reading weakens considerably. This should be confirmed against the pod/container identity before rollback.",
+      "The prior image reference is recorded as absent/unknown (tr_b63725f95c2b), so there is no established good version to roll back to \u2014 the rollback target must be recovered from deployment history.",
+      "No server-side shippingservice span was captured for any failing GetQuote (tr_326965fece2e), so the exact failure mode on the checkout\u2192shipping edge (connection refused, DNS failure, unhealthy endpoint removal) is unmeasured.",
+      "shippingservice metrics returned an empty denominator (tr_0788c8691756); the specialist could not distinguish a service emitting nothing from a wrong metric selector, so the metric evidence corroborates but does not independently confirm the outage.",
+      "Coverage gaps remain: checkoutservice changes were queried only over 18:16\u201318:31, leaving ~17:26\u201318:16 unexamined, and checkout logs are missing 18:16:13\u201318:25:44, so the precise onset relative to the 18:23:13 deploy is not directly observed.",
+      "Whether the other 9 services in the 12-service blast radius are independently affected or are purely downstream of the checkout failure was not dispatched on."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for "
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

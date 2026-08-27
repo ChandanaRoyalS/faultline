@@ -518,6 +518,15 @@ ran on `SWEEP_2_DIGEST`. That is the point of T4.7's decision to keep budget bou
 stamp - S2 and S3 are the same agent given different room, and the stamp says so.
 """
 
+SWEEP_5_DIGEST = "1b0e7cbb4c47"
+"""The pipeline T4.14 built: silence changes the evidence CLASS, not the SUBJECT.
+
+T4.12's formulation taught switching vantage and never taught returning, and its three
+regressions were all failing-service dispatch collapses. This one separates the halves and keeps
+the localized service's claim on the plan. Its primary endpoint is the dispatch count at the
+failing service, which S4 measured as the thing that actually predicts the outcome.
+"""
+
 
 def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """`runtime_version` is the package version plus a digest over every role system prompt and
@@ -528,11 +537,13 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == SWEEP_2_DIGEST, (
-        f"expected the taxonomy-instruction pipeline {SWEEP_2_DIGEST}. If a prompt or a contract "
+    assert prompt_digest() == SWEEP_5_DIGEST, (
+        f"expected the return-to-locus pipeline {SWEEP_5_DIGEST}. If a prompt or a contract "
         f"moved again, no sweep in evals/runs/ describes the current agent."
     )
-    assert len({SWEEP_1_DIGEST, SWEEP_2_DIGEST, SWEEP_4_DIGEST}) == 3, "three experiments"
+    assert len({SWEEP_1_DIGEST, SWEEP_2_DIGEST, SWEEP_4_DIGEST, SWEEP_5_DIGEST}) == 4, (
+        "four experiments"
+    )
 
 
 def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:

@@ -1,0 +1,34 @@
+incident 560f3987-adb2-45cf-bd4d-34e38cb24d37  state triaging  anchor 16:23:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 5c29de6b-ba84-4136-a23d-8af852a213d9
+investigation: 2 round(s), 7 dispatch(es), 19 step(s) 2 failed dispatch(es)
+  FAILED DISPATCH planner: dispatch service 'adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.
+  FAILED DISPATCH planner: dispatch service 'adservice,cartservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_8288272dd0bf, tr_2ba33258cf6e, tr_d575d870c184, tr_ecdb2f0db1da, tr_1cfa39c19ffd, tr_c43cc564ad33, tr_55ed7a4f3bb9
+  root cause  : adservice is in a container crash loop and is therefore not accepting connections, and the frontend's outbound GetAds RPCs fail at the transport layer as a result. A platform-automation change lowered ad-service's container memory limit to 256m at 16:19:54Z (tr_8288272dd0bf); adservice's logs show normal ad-request serving up to ~16:14:20 and then, from 16:20:10 onward, nothing but repeated JVM/OTel-agent bootstrap sequences on a roughly 60-second cadence with no gRPC serving activity — at least eleven restarts between 16:20 and 16:27 (tr_2ba33258cf6e). The process is being killed for exceeding its (newly reduced) memory ceiling before or shortly after it reaches the serving stage, which is why adservice emits no call-count series at all for the window, neither error nor total (tr_d575d870c184). Upstream, frontend logs gRPC status 14 UNAVAILABLE with a 'no connection established' detail recurring 16:20–16:26 (tr_1cfa39c19ffd), and traces localise every error-marked span to the frontend HTTP GET -> frontend gRPC GetAds path, with the checkout subtree and all shared backends fast and clean (tr_ecdb2f0db1da). The two failure shapes on the ad path — ~2.5s calls hitting a client timeout ceiling and sub-millisecond fast failures — match a peer that is alternately unreachable during restart and refusing connections outright. Frontend's own error rate is intermittent and peaks near 10.3% because only ad-bearing pages fail (tr_c43cc564ad33), and no frontend change is recorded in the window (tr_55ed7a4f3bb9). The failing mechanism is the adservice process exhausting its available memory and being terminated, not a wrong address, credential or artifact.
+  OPEN        : No direct kill evidence: the adservice logs returned contain no OOMError, GC pressure, or exit-code/OOMKilled record (tr_2ba33258cf6e). Container-level restart reasons or kubelet events are needed to confirm memory as the kill cause rather than, say, a startup probe failure or the agent failing under the new limit.
+  OPEN        : The prior memory limit value is unrecorded (tr_8288272dd0bf), so the magnitude of the reduction — and whether 256m is merely tight or grossly insufficient for this JVM plus OTel javaagent — is unknown.
+  OPEN        : The 16:14:20–16:20:10 interval was truncated out of the adservice log result, so the exact onset and the first failure mode before the loop stabilised are unobserved.
+  OPEN        : All queries end at 16:28:45; nothing is known about 16:28:45–16:35, including whether the crash loop persisted, self-resolved, or was remediated.
+  OPEN        : The planner's multi-service dispatches failed, so cartservice, checkoutservice, productcatalogservice and recommendationservice were never directly examined. They are cleared only indirectly by trace sampling (tr_ecdb2f0db1da), and triage reported 7 services in blast radius plus one unmeasured edge — collateral damage or a second concurrent fault on an unexamined service cannot be excluded.
+  OPEN        : The fast-failing sub-millisecond GetAds spans versus the ~2.5s timeout spans (tr_ecdb2f0db1da) were not reconciled against the restart cadence; whether the fast failures are connection-refused during a down phase or something else on the ad path is unconfirmed.
+  OPEN        : Whether the platform-automation policy that lowered the limit will re-apply it after a manual revert, causing recurrence, is unknown.
+
+=== FLAGGED ===
+  planner produced no valid findings: dispatch service 'adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.
+  planner produced no valid findings: dispatch service 'adservice,cartservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, shippingservice.
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T161953Z-ad-memory-squeeze/560f3987-adb2-45cf-bd4d-34e38cb24d37-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T161953Z-ad-memory-squeeze/560f3987-adb2-45cf-bd4d-34e38cb24d37-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8201.33it/s]

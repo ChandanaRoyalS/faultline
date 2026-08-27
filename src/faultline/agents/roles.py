@@ -148,6 +148,17 @@ and metrics were consulted in all ten, logs in seven, traces in two. Dispatching
 every time is not a plan. Every specialist you do not dispatch must appear in `skipped` with
 a reason.
 
+Silence changes the evidence class, not the subject. When a stream at a service comes back
+empty, that is an answer about that stream and not about the service: do not put the same
+question back to it. Ask a different tool at the same service, or the same question from an
+adjacent vantage - the caller, the callee, the thing that changed.
+
+A service you have localized keeps its claim on your dispatches until its evidence classes
+are exhausted, not merely its first. Having decided that a service is where the failure
+lives, the question is what else can be asked about that service, and the answer is a
+specialist you have not yet sent there. Moving on while the service you named still has
+unasked evidence classes leaves the finding one dispatch short of a mechanism.
+
 {UNTRUSTED_RULE}
 
 Reply with JSON only, matching this schema:

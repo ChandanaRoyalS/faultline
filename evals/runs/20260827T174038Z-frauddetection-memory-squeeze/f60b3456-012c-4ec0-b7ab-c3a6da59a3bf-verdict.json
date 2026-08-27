@@ -1,0 +1,45 @@
+{
+  "incident_id": "f60b3456-012c-4ec0-b7ab-c3a6da59a3bf",
+  "trajectory_id": "6ac6d224-7f6a-4988-976b-25ba567c5772",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origin": "scenario:frauddetection-memory-squeeze",
+  "verdict": {
+    "root_cause": "At 17:40:38Z platform-automation lowered frauddetectionservice's container memory limit to 200m \u2014 the only change recorded on the service in the window. Roughly twenty seconds later the service stopped emitting application-level output: Kafka order-consumption lines end around 17:37:45 and from ~17:40:56 onward the logs contain nothing but a JVM/OpenTelemetry-agent startup triple repeating at ~60-second intervals, including a cycle beginning at 17:46:50 immediately after the alert timestamp. That is the signature of a JVM whose committed heap exceeds the new ceiling: the process starts, grows into its configured heap, is killed by the kernel, and is relaunched, never surviving long enough to resume consuming. Consistent with this, span metrics for the service report no series at all across 17:36\u201317:51 \u2014 neither errored nor total calls \u2014 which is what a container that is repeatedly dying and being rescraped looks like, not a service serving traffic. The failing mechanism is the process running out of the memory it needs and being killed for it; the limit edit is how it started, exhaustion is what is happening.",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_20bb2395825f",
+      "tr_51230664f086",
+      "tr_7b4ae7c5d59e",
+      "tr_b84f84a22924",
+      "tr_01d14b6e534d"
+    ],
+    "reasoning": "Three independent lines converge. Changes (tr_20bb2395825f) establishes a single trigger \u2014 a memory-limit reduction to 200m at 17:40:38 \u2014 and rules out deploys, image changes, flag flips, dependency bumps and application config edits, so no other local act is available to explain the disruption. Logs (tr_51230664f086) supply the mechanism: the repeating JVM bootstrap triple at ~60s cadence beginning ~17:40:56, with no exception, stack trace or named dependency anywhere, is a crash/restart loop in which the process dies before reaching application code \u2014 exactly what an out-of-memory kill produces, and what a slow dependency or an application bug would not (those leave stack traces or latency). Both metrics dispatches (tr_7b4ae7c5d59e, tr_b84f84a22924) find the total-call denominator absent for the whole window, which they read as the instance being down/restarting rather than serving cleanly, corroborating the loop. Traces (tr_01d14b6e534d) rule out the competing stories: no caller times out, no connection is refused, and no synchronous dependency is slow \u2014 frauddetectionservice is only an async orders-topic consumer with sub-millisecond spans, so dependency_latency has no surface to act on. The class is resource_exhaustion rather than bad_config because the wrong value does not itself break a request path \u2014 it lowers a ceiling the process then exceeds; the failure is the kill. The fix is to restore the memory limit to a value that fits the JVM's configured heap (config_revert); a restart alone would re-enter the same loop, and rollback is inapplicable since the artifact never changed.",
+    "open_questions": [
+      "No memory working-set, container memory limit, OOM-kill counter or pod restart series was ever queried (tr_b84f84a22924 states this explicitly), so the OOM kill is inferred from the restart signature and timing, not directly observed. A container_memory_working_set / kube_pod_container_status_last_terminated_reason check would confirm or refute it.",
+      "The prior memory limit is not recorded (tr_20bb2395825f), so the magnitude of the reduction and whether 200m is merely tight or drastically undersized relative to the JVM heap settings is unknown \u2014 this determines what value the revert should restore.",
+      "Traces (tr_01d14b6e534d) show intact 'orders process' consumer spans across the sampled window with no gaps, which sits uneasily with logs showing no consumption after ~17:37:45 and a continuous restart loop. Whether the sampled traces predate 17:40, whether the pod has multiple replicas with only some affected, or whether the consumer briefly drains between restarts is unresolved.",
+      "The 200m value may itself be correct policy with the JVM's -Xmx being the mismatched side; whether the right fix is raising the limit or lowering the heap configuration is not settled by this evidence.",
+      "Whether the platform-automation actor will re-apply the same limit after a manual revert (i.e. whether the automation's input needs correcting) was not investigated.",
+      "The isolated missing currencyservice server span in trace 923ba06e89d3ae48 (tr_01d14b6e534d) is unexplained and was judged unrelated; it was not pursued."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. The process ran for a few minutes on the heap it had already committed, grew,\nwas killed by the kernel, an",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m49s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\n**frontend** and **loadgenerator** crossed the error threshol",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m45s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **4**. Over the"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

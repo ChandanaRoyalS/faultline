@@ -1,0 +1,206 @@
+{
+  "run_id": "20260827T164231Z-cart-bad-image-tag",
+  "scenario_id": "cart-bad-image-tag",
+  "split": "dev",
+  "scenario_fingerprint": "d4b9a16337b55bfe9feb260c5e6c3173f6cf8b23fec2724198a472bd26481ada",
+  "started_at": "2026-08-27T16:42:31.373776+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "53a88405c3d94d09664be4dd2a5266306c3d3e66",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "ad-service",
+      659
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-27T16:42:31.757778+00:00",
+  "incident_id": "b06870b0-f178-4aa8-b740-7b8cbe5e39eb",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-27T16:52:14.709125+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      303
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260827T164231Z-cart-bad-image-tag",
+    "scenario_id": "cart-bad-image-tag",
+    "trajectory_id": "7c0aeb1b-ddaa-4d33-b697-29662caea7f4",
+    "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": true,
+    "triage": {
+      "recall": 0.7777777777777778,
+      "precision": 0.5833333333333334,
+      "matched": [
+        "accountingservice",
+        "cartservice",
+        "checkoutservice",
+        "currencyservice",
+        "frontend",
+        "loadgenerator",
+        "shippingservice"
+      ],
+      "missed_alerted_not_predicted": [
+        "frauddetectionservice",
+        "quoteservice"
+      ],
+      "predicted_not_alerted": [
+        "adservice",
+        "emailservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice"
+      ],
+      "excluded_began_after_revert": [
+        "emailservice"
+      ],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 9,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "bad_deploy",
+      "returned": "bad_deploy",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "rollback",
+      "returned": "rollback",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 42937,
+    "tokens_out": 14687,
+    "cost_usd": 0.5819,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-27T16:57:18.492185+00:00",
+  "judge": {
+    "scenario_id": "cart-bad-image-tag",
+    "run_id": "20260827T164231Z-cart-bad-image-tag",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a non-existent image tag that prevented container creation entirely; the agent narrative attributes the failure to a broken GetCart implementation in a deployed hotfix build that is actively running and returning errors.",
+    "dead_ends_closed": [
+      "checkoutservice rollout or config change",
+      "crash disguised as rollout",
+      "payment or accounting service failure"
+    ],
+    "dead_ends_missed": [
+      "cart redis misconfiguration alternative",
+      "cart downstream dependencies (not examined)",
+      "two-minute delay between rollout and first missing completion (unexplained)"
+    ],
+    "traps": [
+      {
+        "trap": "zero error rate on cartservice indicating health",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "two waves of silence fifteen seconds apart as spreading causal failure",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "reading broken service directly from its own metrics",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent narrative correctly identified cartservice as the culprit and excluded several false paths, but concluded the image tag exists and is broken rather than recognizing it was never published. The agent had access to the change history showing the image reference but did not check whether that tag actually exists in the registry\u2014the orchestrator logs showing pull failure would have resolved this. The agent's medium confidence and open questions reflect genuine investigative gaps, but they missed the definitive evidence available in the scheduler rather than the application layer.",
+    "tokens_in": 5243,
+    "tokens_out": 385
+  }
+}

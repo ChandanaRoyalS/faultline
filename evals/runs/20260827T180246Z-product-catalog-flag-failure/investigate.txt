@@ -1,0 +1,30 @@
+incident e1f35796-a977-428f-abb6-907bdc41179f  state triaging  anchor 18:06:15
+triage: 7 services, severity critical, start from productcatalogservice, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: de89f9d5-c63c-4ffe-8cbb-24b0f1bb5977
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_aaee60f94860, tr_3eb0d8be9dd7, tr_1e5fc3db1c61, tr_713acf69c44d, tr_7acd7d63b739, tr_0e11de1a36c2, tr_c50e39c0e75e
+  root cause  : productcatalogservice is returning application-level gRPC status 13 INTERNAL on its GetProduct operation because a deliberate "ProductCatalogService failure" feature flag is enabled. Frontend's client-side gRPC errors name that flag explicitly in the status detail (tr_aaee60f94860), and the trace topology corroborates the mechanism structurally: every failing GetProduct span carries an accompanying FeatureFlagService/GetFlag lookup that no successful GetProduct span in the sample shows, and the innermost ERROR sits on the productcatalogservice server span itself rather than on any downstream (tr_3eb0d8be9dd7). The failure is fast-returning, not slow — failing spans finish in 0.8–2.7ms versus sub-0.1ms for successes — so nothing is waiting on or starving for a resource. Impact fans out from there: frontend browse paths and the checkout path both fail through the same catalog dependency, with checkout aborting at the catalog lookup before currency/shipping/payment/email run (tr_3eb0d8be9dd7, tr_aaee60f94860). Error ratios are partial and bursty rather than total — ~10.7% at productcatalogservice and ~9.4% at frontend, both touching zero within the window (tr_1e5fc3db1c61, tr_713acf69c44d) — consistent with a flag that fails a fraction of lookups rather than all of them. The flag's enablement is the wrong value and the wrong value is what breaks each request, so the fix is to turn it off, not to roll back or restart anything.
+  OPEN        : When and by whom the failure flag was enabled is unestablished — roughly 110 minutes (16:06–17:56) of change history were never queried, and no toggle record exists in the 15 minutes that were. Onset at 18:06:15 with frontend errors already visible at ~18:02:57 suggests the toggle predates the page.
+  OPEN        : Why the error ratio is partial and bursty (~10%, dipping to zero) rather than total: whether the flag fails a probability-weighted fraction of lookups, applies to a subset of product IDs, or is set on only some replicas. Nothing dispatched distinguishes these.
+  OPEN        : productcatalogservice's own logs were never actually read — the Loki selector used 'product-catalog-service' against a service named 'productcatalogservice' and returned zero lines of any severity. The service's first-person account of the flag evaluation should be re-queried against the correct label before this is considered closed.
+  OPEN        : Which HTTP routes and what share of user sessions are affected is unknown: the frontend metric carries no route dimension and the frontend log result contains no HTTP request lines.
+  OPEN        : The unmeasured edge crossed in triage was never resolved to a specific service pair, so blast radius beyond the seven named services is not fully bounded.
+  OPEN        : Whether checkout failures produced partial or abandoned orders needing cleanup — traces show the order pipeline absent after the catalog abort, but no dispatch examined order state.
+  OPEN        : Whether this flag is a leftover from an intentional fault-injection or chaos exercise, which would change the remediation owner even though it does not change the technical fix.
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T180246Z-product-catalog-flag-failure/e1f35796-a977-428f-abb6-907bdc41179f-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T180246Z-product-catalog-flag-failure/e1f35796-a977-428f-abb6-907bdc41179f-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 13887.08it/s]

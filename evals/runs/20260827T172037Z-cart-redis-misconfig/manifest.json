@@ -1,0 +1,212 @@
+{
+  "run_id": "20260827T172037Z-cart-redis-misconfig",
+  "scenario_id": "cart-redis-misconfig",
+  "split": "dev",
+  "scenario_fingerprint": "392fc77bf038447c5cb77c2ca5c18cdfad15869ab0d37087251abfc1b6de13b1",
+  "started_at": "2026-08-27T17:20:37.090855+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "53a88405c3d94d09664be4dd2a5266306c3d3e66",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      1702
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-27T17:20:37.460673+00:00",
+  "incident_id": "3986ba0f-4d30-41c6-ab78-7c73e21bc54c",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-27T17:29:54.165433+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      302
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260827T172037Z-cart-redis-misconfig",
+    "scenario_id": "cart-redis-misconfig",
+    "trajectory_id": "21d2389a-324e-4310-8862-f97e1e83bd0f",
+    "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": true,
+    "triage": {
+      "recall": 0.7777777777777778,
+      "precision": 0.5833333333333334,
+      "matched": [
+        "accountingservice",
+        "cartservice",
+        "checkoutservice",
+        "currencyservice",
+        "frontend",
+        "loadgenerator",
+        "shippingservice"
+      ],
+      "missed_alerted_not_predicted": [
+        "frauddetectionservice",
+        "quoteservice"
+      ],
+      "predicted_not_alerted": [
+        "adservice",
+        "emailservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice"
+      ],
+      "excluded_began_after_revert": [
+        "emailservice"
+      ],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 9,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "bad_config",
+      "returned": "bad_config",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "config_revert",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 42522,
+    "tokens_out": 15980,
+    "cost_usd": 0.6121,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-27T17:34:57.974526+00:00",
+  "judge": {
+    "scenario_id": "cart-redis-misconfig",
+    "run_id": "20260827T172037Z-cart-redis-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify that cartservice was configured with an incorrect Redis port (6380 instead of 6379), causing the service to fail startup validation and enter a restart loop.",
+    "dead_ends_closed": [
+      "checkoutservice had the highest error ratio but its logs showed no errors",
+      "checkoutservice change log was empty",
+      "cartservice showed no errors in metrics (empty series, not zero)",
+      "frontend and loadgenerator errors were propagation, not root cause",
+      "not a currency-specific failure",
+      "not a request-handler bug",
+      "not auth or TLS handshake problem"
+    ],
+    "dead_ends_missed": [
+      "whether redis-cart actually moved to 6380 legitimately",
+      "whether the revert will be reconciled back by automation",
+      "whether errors preceded the first restart cycle",
+      "whether a second concurrent failure in the twelve-service radius exists",
+      "checkout's per-dependency outbound error rates"
+    ],
+    "traps": [
+      {
+        "trap": "cartservice error rate of zero read as health",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "seven services going silent read as platform-wide event with cartservice as equal suspect among seven",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "the two waves of silence as causal ordering spreading failure",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "Agent narrative explicitly acknowledges several open items and unmeasured edges rather than closing them definitively, which aligns with appropriate uncertainty. The recorded narrative's key insight about cartservice appearing indistinguishable from downstream services in alerts is not addressed by the agent, but this is a detection/alerting critique rather than a root cause disagreement.",
+    "tokens_in": 4960,
+    "tokens_out": 457
+  }
+}

@@ -1,0 +1,30 @@
+incident 3986ba0f-4d30-41c6-ab78-7c73e21bc54c  state triaging  anchor 17:23:15
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 21d2389a-324e-4310-8862-f97e1e83bd0f
+investigation: 2 round(s), 8 dispatch(es), 21 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_1ae166a5f4b1, tr_8e580206e03d, tr_9a4b89aba003, tr_10d2f7406063, tr_640d72847cfc, tr_e72cb9413005, tr_b79e6df5609c, tr_f851cf44f972
+  root cause  : cartservice is down because an automated environment-variable change at 17:20:38 pointed its Redis backing-store address at redis-cart on port 6380 — a non-default port with no recorded prior value — and nothing is answering there. cartservice's startup path (RedisCartStore.EnsureRedisConnected via InitializeAsync in Main) blocks on that connect, times out after tens of seconds, throws an unhandled exception and kills the process, producing a crash loop with at least six cycles between 17:24:47 and 17:27:29. Because the process dies before gRPC serving begins, it never registers a server span, which is why cartservice's span-derived call metrics are entirely empty rather than merely zero-error. Callers fast-fail: frontend's GetCart/AddItem client spans and checkoutservice's nested CartService/GetCart client span error in under a millisecond, which is what drives frontend's ~31.5% error ratio, checkoutservice's ~66% peak error ratio, and the silent mid-pipeline stall where orders are placed but never reach payment, email or message-write. checkoutservice and frontend are propagators, not faults; the wrong endpoint value is itself the failing mechanism.
+  OPEN        : Nobody verified what redis-cart is actually listening on. If the platform automation legitimately moved Redis to 6380 and cartservice was correct to follow, the fault is on the Redis side and a blind config_revert to the unset default would not fix it.
+  OPEN        : Why did platform automation set this variable, and is it part of a broader scripted migration that will re-apply the value after a revert? The actor is unnamed automation, not a human, so the change may be reconciled back.
+  OPEN        : Onset timing is not fully reconciled: the change landed at 17:20:38, alerts fired at 17:23:15, but the observed crash-loop cycles start at 17:24:47. The interval between the env edit and the first pod restart — and whether errors were already occurring before the first crash — was not measured.
+  OPEN        : Four unmeasured edges were crossed at triage and only cartservice's was resolved by logs. No specialist examined the remaining services in the 12-service blast radius, so a concurrent second fault cannot be excluded.
+  OPEN        : checkoutservice's missing payment / confirmation-email / message-write stages are consistent with the cart call aborting the flow, but no direct evidence ties the stall to the cart failure rather than to a separate downstream problem; checkoutservice's per-dependency outbound error rates and saturation signals were never queried.
+  OPEN        : The change-log query for checkoutservice covered only 17:13:15–17:28:15 and only that service; the earlier 16:23–17:13 lookback and the six synchronous dependencies were never checked for changes.
+  OPEN        : cartservice's metric telemetry gap was explained as process absence, but that inference was not confirmed against an independent source such as pod restart counts or container exit codes.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T172037Z-cart-redis-misconfig/3986ba0f-4d30-41c6-ab78-7c73e21bc54c-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T172037Z-cart-redis-misconfig/3986ba0f-4d30-41c6-ab78-7c73e21bc54c-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 29665.13it/s]
