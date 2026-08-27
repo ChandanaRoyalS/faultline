@@ -1,0 +1,205 @@
+{
+  "run_id": "20260827T033745Z-cart-redis-misconfig",
+  "scenario_id": "cart-redis-misconfig",
+  "split": "dev",
+  "scenario_fingerprint": "392fc77bf038447c5cb77c2ca5c18cdfad15869ab0d37087251abfc1b6de13b1",
+  "started_at": "2026-08-27T03:37:45.570472+00:00",
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "9c2e9cd1b4a49b72493f6ac39cc515f0bfd6afaf",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      643
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-27T03:37:45.940693+00:00",
+  "incident_id": "ee55e9ee-a89f-4d69-980d-b34d2160deae",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-27T03:48:01.024618+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      303
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260827T033745Z-cart-redis-misconfig",
+    "scenario_id": "cart-redis-misconfig",
+    "trajectory_id": "5b1b6267-23c9-43d9-92a3-a5fcc6b07b04",
+    "runtime_version": "faultline/0.0.1+prompts:53fafe9c12bc",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": true,
+    "triage": {
+      "recall": 0.7777777777777778,
+      "precision": 0.5833333333333334,
+      "matched": [
+        "accountingservice",
+        "cartservice",
+        "checkoutservice",
+        "currencyservice",
+        "frontend",
+        "loadgenerator",
+        "shippingservice"
+      ],
+      "missed_alerted_not_predicted": [
+        "frauddetectionservice",
+        "quoteservice"
+      ],
+      "predicted_not_alerted": [
+        "adservice",
+        "emailservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice"
+      ],
+      "excluded_began_after_revert": [
+        "emailservice"
+      ],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 9,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "bad_config",
+      "returned": "bad_config",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "config_revert",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 50530,
+    "tokens_out": 17963,
+    "cost_usd": 0.7017,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-27T03:53:04.460670+00:00",
+  "judge": {
+    "scenario_id": "cart-redis-misconfig",
+    "run_id": "20260827T033745Z-cart-redis-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: cartservice configured with wrong Redis port (6380 instead of 6379), causing startup failure and service unavailability.",
+    "dead_ends_closed": [
+      "checkoutservice deployment or config changes",
+      "paymentservice, currencyservice, or other upstream service changes",
+      "cartservice error metrics as health indicator",
+      "checkoutservice logs as sole evidence of failure mode"
+    ],
+    "dead_ends_missed": [
+      "whether redis-cart actually moved to 6380 legitimately",
+      "whether platform automation will re-apply the change",
+      "whether other services carry the same rewritten endpoint",
+      "the gap between the change timestamp and earliest retained crash lines"
+    ],
+    "traps": [
+      {
+        "trap": "cartservice's zero error rate read as health",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "seven services going silent in two waves as causal cascade",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "cartservice indistinguishable from six downstream services in alerting",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "Agent correctly identifies root cause through logs and change history. However, it leaves several operational questions open (automation re-application, cross-service impact) that the recorded narrative does not address, and does not engage with the recorded narrative's analysis of why cartservice was hard to single out in alerting despite being the sole cause.",
+    "tokens_in": 4681,
+    "tokens_out": 388
+  }
+}

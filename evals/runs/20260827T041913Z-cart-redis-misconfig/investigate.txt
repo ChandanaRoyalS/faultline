@@ -1,0 +1,30 @@
+incident ebc4ad6e-ad6c-4126-b1cd-892d07314cc8  state triaging  anchor 04:22:00
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 5cd7abdc-23d1-4837-a9da-a3d6f2d2000a
+investigation: 2 round(s), 8 dispatch(es), 21 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_d1cc26cefb81, tr_ef8759fc9086, tr_c2ed8108ce8a, tr_a822df8d0c59, tr_39c88823fcba, tr_01c987ecc565, tr_d62763c38653, tr_3812dbe219c3
+  root cause  : At 04:19:13 UTC a platform-automation environment update rewrote cartservice's Redis backend address to point at redis-cart on port 6380, a port nothing is serving on (the conventional port is 6379). The new value took effect on cartservice restart, and from then on cartservice cannot complete the Redis-backed cart store initialization it performs in its startup path: every process start logs a connect attempt to :6380, times out after ~25-40s, throws an unhandled ApplicationException from Main and exits, producing a tight crash-restart loop with at least six identical cycles between 04:23 and 04:26 and no request served. With cartservice absent, checkoutservice's outbound CartService/GetCart client span fails sub-millisecond at connection establishment — no cartservice server span or Redis span exists beneath it — and PlaceOrder aborts before payment, shipping or email are ever called. That error status propagates up through frontend gRPC PlaceOrder to the frontend HTTP POST, which is what alerted at 04:22 alongside loadgenerator, with checkoutservice following at 04:22:15. The failing mechanism is the configuration value itself: the address names a port on which no Redis listener exists, and that wrongness is what breaks every request.
+  OPEN        : Whether the intended target really was 6379 and 6380 is a typo, or whether this was a deliberate Redis migration whose server-side half (a listener on 6380) never landed or landed late — nobody queried the Redis/redis-cart side at all, so we have not confirmed what is or is not listening on either port.
+  OPEN        : The change record shows no prior value for the variable (tr_d1cc26cefb81), so the exact state to revert to is not established by this evidence and must be read from the deployment manifest or the pipeline that pushed it.
+  OPEN        : The ~3-minute gap between the 04:19:13 config write and the 04:22:00 frontend alert is unexplained by the dispatches — presumably rollout/restart timing, but no pod or replica event data was gathered, and cartservice logs place the visible crash loop only from 04:23:20.
+  OPEN        : Why checkoutservice emits no error- or warning-severity logs for a failing downstream call (tr_d62763c38653) — an observability gap that delayed attribution and is worth a follow-up independent of this incident.
+  OPEN        : The middle of the checkoutservice log window was truncated (tr_d62763c38653), so the exact transition from completing to non-completing orders cannot be dated from logs; the trace and change evidence carry that dating instead.
+  OPEN        : Triage crossed 4 unmeasured edges across 12 affected services; only frontend, checkoutservice and cartservice were examined. Whether other cart-dependent services (e.g. the storefront cart page) are independently degraded, and whether any service was affected by something other than this cart outage, was not checked.
+  OPEN        : Whether the same automation pushed this variable to other services or environments — the blast radius of the pipeline change itself was never queried.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T041913Z-cart-redis-misconfig/ebc4ad6e-ad6c-4126-b1cd-892d07314cc8-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T041913Z-cart-redis-misconfig/ebc4ad6e-ad6c-4126-b1cd-892d07314cc8-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8391.05it/s]

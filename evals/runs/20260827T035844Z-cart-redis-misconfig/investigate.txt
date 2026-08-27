@@ -1,0 +1,29 @@
+incident facf75eb-7fb8-4da3-aa67-9116c16f65c5  state triaging  anchor 04:01:15
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 021eccc6-7f9e-4c10-beaf-27855a9d1282
+investigation: 2 round(s), 10 dispatch(es), 25 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_c0d42f396713, tr_36aff0184df5, tr_1cff58eba55c, tr_4394866ca91a, tr_4b6f80a2745f, tr_e965cf620377, tr_e76969138297, tr_8abb7e77159e, tr_2d5f1946b717, tr_276e740a9dcb
+  root cause  : At 03:58:45 UTC an automated platform actor rewrote cartservice's environment so its Redis endpoint variable points at redis-cart:6380 (tr_c0d42f396713). Redis's standard listening port is 6379, and cartservice's own logs show every connection attempt to redis-cart:6380 failing, throwing an unhandled exception out of RedisCartStore.EnsureRedisConnected during startup initialization and killing the process, producing a sustained crash-restart loop (tr_36aff0184df5). Because the process never reaches a serving state, cartservice emits no call metrics at all — both the error and total counters are absent for the window (tr_4394866ca91a) — and every sampled checkout trace fails at the outbound CartService/GetCart call, the deepest errored span, with frontend and checkoutservice merely inheriting that status (tr_1cff58eba55c). Failures are immediate rejections in single-digit milliseconds, not timeouts. No change of any kind is recorded on checkoutservice, productcatalogservice, currencyservice or paymentservice in the onset window (tr_e76969138297, tr_8abb7e77159e, tr_2d5f1946b717, tr_276e740a9dcb), leaving the cartservice endpoint edit as the only candidate trigger. The failing mechanism is the configuration value itself: the port named in the endpoint is wrong, and requests to the cart store break because that value is wrong.
+  OPEN        : No one verified what port redis-cart is actually listening on, or that 6379 was the prior value — the change record shows no previous value. If redis-cart itself were down or moved, the port edit could be coincidental or even a failed remediation attempt; confirming the listener settles this.
+  OPEN        : The change edit was made by platform-automation, not a human. What drove that automation to rewrite the endpoint is unknown, and if it reconciles continuously, a manual config revert may be overwritten.
+  OPEN        : Every changes dispatch covered only 03:51:15-04:06:15 rather than the requested 90-minute lookback, so changes between roughly 02:31 and 03:51 on all five services remain unexamined.
+  OPEN        : cartservice's exact onset time is not established: the log result dropped everything between 03:51:23 and 04:03:28, precisely the interval containing the hypothesized 03:58:45 start, and no cart call metrics exist to anchor a first-rise minute.
+  OPEN        : 4 unmeasured edges were crossed in triage and 12 services were in blast radius, but only 5 were dispatched. Whether the remaining services are purely starved downstream of cart (as in the corpus precedent) or carry independent faults was not checked.
+  OPEN        : Frontend and checkoutservice error ratios were aggregated without a route or downstream dimension, so the claim that all upstream errors trace to the cart path rests on trace sampling alone, not on metric attribution.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T035844Z-cart-redis-misconfig/facf75eb-7fb8-4da3-aa67-9116c16f65c5-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T035844Z-cart-redis-misconfig/facf75eb-7fb8-4da3-aa67-9116c16f65c5-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9795.78it/s]

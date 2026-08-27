@@ -280,8 +280,20 @@ Drawn from [`docs/PLAN.md`](PLAN.md); each is open and none is answered by anyth
    that `docs/ARCHITECTURE.md` and `docs/THREAT-MODEL.md` both depend on has no task number and is
    recorded in PLAN.md under "Discovered omissions".
 
+6. **Variance beyond one scenario.** T4.10 measured run-to-run variance for the first time -
+   five repeats of `cart-redis-misconfig` with scenario, stamp and budget all fixed
+   ([`VARIANCE-2026-08-27.md`](../evals/runs/VARIANCE-2026-08-27.md)). **One distinct verdict from
+   five identical configurations**, six for six counting a byte-identical prior row, while
+   **round-1 breadth ran 5 to 13 and tokens 36k to 68k**. Two things follow that this repository
+   should act on: **no cost figure anywhere is a point estimate** - each is one draw from a ~1.9x
+   spread, which puts the gap between two sweep totals inside a single scenario's repeat range -
+   and **variance is now measured for exactly one of ten scenarios**, the one with the most prior
+   successes. Nothing is known about variance on a scenario that abstains, on holdout, or on any
+   other fault class.
+
 Also open and smaller: the freeze manifest's self-referential git sha; whether retrieval `k`
 should count chunks or documents; whether the holdout `dependency_latency` near-miss should be
-admitted to the dispute register — a decision for an ADR, not for a report; and **the baseline
+admitted to the dispute register — a decision for an ADR, not for a report; **the baseline
 gate's blindness to recently-resolved incidents**, which cost T4.7 a scenario when one sitting
-inside the settle window captured the next run's alerts.
+inside the settle window captured the next run's alerts; and **dead-end coverage as the least
+stable thing yet measured** — 3 to 7 closed across five runs that agreed on the verdict.
