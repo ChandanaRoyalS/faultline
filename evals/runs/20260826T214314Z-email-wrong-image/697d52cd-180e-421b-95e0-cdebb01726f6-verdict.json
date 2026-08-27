@@ -1,0 +1,48 @@
+{
+  "incident_id": "697d52cd-180e-421b-95e0-cdebb01726f6",
+  "trajectory_id": "0c085143-b642-4e2a-9cb5-598d4199d94d",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:email-wrong-image",
+  "verdict": {
+    "root_cause": "checkoutservice is healthy; its one failing step is an outbound HTTP POST to emailservice:6060 /send_order_confirmation that fails at DNS resolution against the container's embedded resolver (127.0.0.11:53) before any TCP dial. The same host/port/path succeeded earlier in the window, so the configured URL is not wrong \u2014 emailservice disappeared from service discovery some time between 21:37:09 and 21:49:29. The email step is non-fatal, so payment, cart, shipping and the orders publish all succeed and the error ratio peaks near 7.8% rather than going total. What removed emailservice from DNS (failed deploy, OOM kill, scale-to-zero, discovery-side change) was never dispatched on, so the initiating act is unestablished.",
+    "fault_class": "unknown",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_d05bec9e4467",
+      "tr_6dae66117de6",
+      "tr_3377e25035db"
+    ],
+    "reasoning": "tr_d05bec9e4467 pins the mechanism as name-lookup failure before connection, ruling out timeout/overload, connection refused, TLS, HTTP 4xx/5xx, and a mis-typed host/port/path (so bad_config is not the mechanism). tr_6dae66117de6 isolates the ERROR to that single short span and clears all core gRPC dependencies, the frontend, and the async pipeline; the span carries almost no duration, so this is not a waiting failure. tr_3377e25035db bounds impact to a partial excursion, inconsistent with checkoutservice crash-looping or exhausting resources. tr_7a44508803f5 and tr_5ec6c6704874 clear a checkoutservice change but queried only that service over ~15 minutes, so they say nothing about emailservice. With the caller exonerated and the callee never examined, the mechanism is a dependency absent from name resolution, but bad_deploy and resource_exhaustion on emailservice both produce this exact signature.",
+    "open_questions": [
+      "Why did emailservice stop resolving? Its logs, container state, and change history were never dispatched.",
+      "Exact onset time is hidden by log truncation between 21:37:09 and 21:49:29.",
+      "Were the 4 unmeasured edges or the other 8 services affected by the same discovery/DNS condition?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired ",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m49s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\n**frontend** and **loadgenerator** crossed the error threshol",
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named.\n\nfrontend's alert then did something worth recording: it dropped back under the\nthreshold after thirty seconds, stayed clear for "
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}
