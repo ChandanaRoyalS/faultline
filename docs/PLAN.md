@@ -1614,11 +1614,51 @@ the scenario and the catalog are healthy; kafka is not, and will trip the gate r
 the retention change lands, which is a standing tax on every rehearsal and every scored run rather
 than one scenario's problem.
 
-**Recorded, not fixed:** from inside the harness a suspended host is indistinguishable from a world
-that will not alert - both are a deadline expiring with no incident. The telemetry hole is obvious
-in Prometheus afterwards and invisible at the time. A correlate-wait that noticed its own metrics
-had stopped could report "the world stopped reporting" rather than "the fault did not fire", which
-are different findings that currently share a discard message.
+#### Queued: the correlate deadline is not robust to a suspended host
+
+**The defect is that the deadline is denominated in wall-clock seconds.** The run spent its full
+900s wait while the world produced ~16 minutes less evidence than that wait implies, and a deadline
+measured in time cannot notice. From inside the harness a suspended host and a world that will not
+alert are the same event: a deadline expiring with no incident, and the same discard message.
+
+**A better deadline keys on elapsed scrape samples rather than wall clock** - what the wait is
+really asking is whether the world has had enough chances to alert, and a scrape is that unit, so
+a suspended host stops the clock instead of exhausting it. **A cheaper backstop is a gate on a
+metrics gap**: if the store has a hole inside the wait window, the honest outcome is "the world
+stopped reporting", which is a different finding from "the fault did not fire" and arguably not a
+discard at all. Both are harness-side, neither moves the stamp, and **neither is built here** -
+changing how every scored run decides it has waited long enough deserves its own task.
+
+#### Queued: kafka's growth is not bounded by a heap cap — the real fix is retention
+
+**Digest-locked.** Bounding what kafka retains (`log.retention.bytes`, `log.segment.bytes`) so
+there is less on disk to map and cache edits the compose files feeding `world.compose_digest`, so
+it would invalidate all twelve bundles and need another uniform re-record. It queues beside the
+`memory_limiter` change.
+
+**The tripwire has already been crossed once.** Kafka was at **89.69%** when T7.11 began, a hair
+under the pre-flight gate's 90% threshold, and **93.37%** twenty minutes later - it crossed during
+the task's two injections. **The next sweep may start refusing at the gate**, and the documented
+interim remedy remains `docker restart kafka` followed by the consumers, which do not reconnect on
+their own.
+
+#### The discard stands, and the S6 table is corrected rather than qualified
+
+**Position taken.** It stands as recorded: it happened, ADR-0022 3.3 keeps discards visible "so the
+number of runs is a fact nobody can hide by tidying", and T7.10's pre-registration said
+discard-and-continue with no re-runs. Re-running it now that the cause is known to be environmental
+would be re-running to improve a number, and that the improvement would be *fair* is not the test.
+S6 was a seven-scenario sweep that scored six.
+
+**What the table needed was not softening but a falsified claim removed.** T7.10 published a kafka
+hypothesis for that row; it has been tested and refuted, so the row is relabelled from "possibly
+the world" to "environmental - not a result", with the original reasoning left visible beneath the
+correction in both `SWEEP-2026-08-28-refound.md` and `RESULTS.md`. **Coverage stays quoted over the
+six runs that produced a verdict** - the denominator was never seven, and inflating it now would be
+the same error pointing the other way. The five-of-six agreement and the triage identity never
+included this row.
+
+The seventh scenario says "the host slept" - not "the control failed", not "the world changed".
 
 ### T7.10 — the benchmark, re-founded on the world that exists *(run)*
 Every published figure was measured on the pre-T7.1 world and the re-recorded world had no sweep

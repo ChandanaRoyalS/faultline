@@ -76,7 +76,22 @@ exactly this outcome, occurring here at n = 1. The verdict says so itself:
 **Attribution: planner allocation, not the world.** T4.9 and T4.10 measured allocation as the least
 stable thing in this system, and this is consistent with that rather than with the world change.
 
-## Movement 2: `frauddetection-memory-squeeze` discarded — **possibly the world**
+## Movement 2: `frauddetection-memory-squeeze` discarded — **environmental, established at T7.11**
+
+> **Corrected 2026-08-28.** This section originally offered a kafka-heap-cap hypothesis. **T7.11
+> tested it directly and it is not supported.** Two injections both paged — T+382s and T+381s
+> against this bundle's 390s — so the scenario is healthy on this world, and the discard was the
+> **host suspending mid-run**: a sixteen-minute hole in which all fifteen services stopped
+> reporting together, with the alert reaching `pending` the instant scraping resumed and the
+> harness's 900s deadline already expired. See
+> [`docs/evidence/t7.11-control/README.md`](../../docs/evidence/t7.11-control/README.md).
+>
+> **The discard stands as recorded** — it happened, and ADR-0022 §3.3 keeps discards visible. What
+> changes is its *attribution*, from "possibly the world" to "not a result at all". The original
+> reasoning is left below rather than deleted, because a hypothesis that was tested and failed is
+> worth more in the record than one quietly removed.
+
+### The original reasoning, now falsified
 
 No incident reached one episode within **900s**. The baseline gate passed cleanly beforehand (15
 services reporting, only `frontend-proxy` silent) and the fault injected, so this is a genuine

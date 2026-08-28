@@ -83,6 +83,13 @@ Not the discard's cause, and worse than the thing it was meant to fix.
 | PID 1 RSS | 1868 MiB, **4.7× the heap cap** |
 | measured shortly after T7.1's rebuild | 585 MiB (28.6%) |
 | elapsed | ~14.5 hours |
+| **during this task alone** | **89.69% → 93.37% in ~20 minutes** |
+
+The last row deserves its own line. Kafka was at **89.69%** when this task began — a hair under
+the pre-flight gate's 90% threshold — and **93.37%** twenty minutes later, having crossed it during
+the two injections. **The next sweep would have been refused at the gate.** That is the gate
+working, and it is also a measurement: the growth is fast enough to cross a threshold inside a
+single task.
 
 **The cap works and does not matter.** It bounds the Java heap; the growth is outside it. Kafka
 mmaps its index files and the page cache for its log segments counts against the container's
@@ -119,9 +126,53 @@ kafka, on a trajectory that will trip the pre-flight gate roughly daily until th
 lands. Every rehearsal and every scored run passes through that gate, so this is a standing tax on
 the whole catalog rather than a problem for one scenario.
 
-**A harness observation, recorded not fixed:** a suspended host is indistinguishable, from inside
-the harness, from a world that will not alert — both look like a deadline expiring with no
-incident. The 16-minute telemetry hole is visible in Prometheus afterwards and invisible to the
-run at the time. A correlate-wait that noticed its own metrics had stopped could say "the world
-stopped reporting" instead of "the fault did not fire", which are different findings and currently
-produce the same discard message.
+## Queued: the correlate deadline is not robust to a suspended host
+
+**Recorded, not built.** A suspended host and a world that will not alert are indistinguishable
+from inside the harness: both are a 900s deadline expiring with no incident, and both produce the
+same discard message. The sixteen-minute hole is obvious in Prometheus afterwards and invisible to
+the run at the time.
+
+**The defect is that the deadline is denominated in wall-clock seconds.** The run spent its full
+wait while the world produced roughly sixteen minutes less evidence than that wait implies, and a
+deadline measured in time cannot notice the difference.
+
+**What a better deadline keys on**, in preference order:
+
+1. **Elapsed scrape samples rather than wall clock.** What the wait is really asking is *"has the
+   world had enough chances to alert"*, and a scrape is that unit. Counting samples of an
+   always-present series across the window makes the deadline advance only when the world does —
+   a suspended host stops the clock rather than exhausting it. This addresses the cause.
+2. **A gate on a metrics gap**, as a cheaper backstop. Before declaring "no incident", check
+   whether the metrics store has a hole inside the wait window. If it does, the honest outcome is
+   **"the world stopped reporting"** — a different finding from "the fault did not fire", and
+   arguably not a discard at all, since nothing about the scenario was measured.
+
+Both are harness-side and neither moves the stamp. Neither is built here: this task is
+characterisation, and changing how every scored run decides it has waited long enough deserves its
+own task rather than a footnote in one.
+
+## Does the discard stand? A position
+
+**Yes, it stands as recorded — and the S6 table needs a correction rather than a qualification.**
+
+*Why it stands.* It happened. ADR-0022 §3.3 keeps a discarded run and its reason in the results
+directory "so the number of runs is a fact nobody can hide by tidying", and T7.10's own
+pre-registration said discard-and-continue with no re-runs. Re-running it now, knowing the cause
+was environmental, would be re-running to improve a number — the move the protocol exists to
+prevent. That the number would improve *fairly* is not the test. S6 was a seven-scenario sweep
+that scored six.
+
+*Why "qualification" is the wrong word.* The table does not need softening; it needs a **claim
+corrected**. T7.10 published a kafka hypothesis for this row, and that hypothesis has been tested
+and falsified. Leaving it standing would be worse than any missing caveat. The row is relabelled
+from "possibly the world" to "environmental — not a result", with the original reasoning left
+visible beneath the correction rather than deleted.
+
+*What does not change.* Coverage stays quoted over the six runs that produced a verdict — the
+denominator was never seven, and inflating it now would be the same error pointing the other way.
+The five-of-six agreement and the triage identity never included this row and are untouched.
+
+*What a reader should take from it.* The seventh scenario says "the host slept" — not "the control
+failed" and not "the world changed". It is evidence about the environment the benchmark runs in,
+which is worth having, and no evidence at all about the agent, the world change, or the scenario.

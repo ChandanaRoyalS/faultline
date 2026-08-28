@@ -105,8 +105,11 @@ produced the same one S5 did, and every one was correct. Two scenarios did not p
 comparable result: `shipping-wrong-image` abstained after spending **zero** dispatches on the
 failing service (the collapse T4.12 identified, and **not** traceable to the capture change —
 the service was in its blast radius both times), and `frauddetection-memory-squeeze` never
-alerted within 900s, which is outside its recorded 390–469s range and has a plausible but
-**unestablished** link to T7.1's kafka heap cap.
+alerted within 900s — **which T7.11 established was the host suspending mid-run**, not the world
+and not the scenario: two injections both paged at T+382s and T+381s against a recorded 390s, and
+the metrics store has a sixteen-minute hole in which all fifteen services stop reporting together.
+**That discard is environmental and is not a result about this system.** It stands in the record;
+coverage is quoted over the six runs that produced one.
 
 **Triage is unchanged.** Five of six scenarios score identically to S5 once S5 is rescored under
 the current scorer — the raw stored figures appear to improve only because T7.3 fixed the
