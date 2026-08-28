@@ -3,6 +3,7 @@ origin: scenario:productcatalog-dependency-latency
 split: holdout
 fault_class: dependency_latency
 recorded_from: 2026-08-28T05:09:23+00:00
+capability: cap:9c416e0a
 onset_to_page: 3m49s
 page_to_fix: 5m00s
 fix_to_all_clear: 2m32s

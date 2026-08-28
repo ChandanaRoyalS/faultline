@@ -894,6 +894,44 @@ def archive_recording(out: Path) -> str | None:
     return archive.name
 
 
+def warn_if_narrative_is_stale(out: Path) -> bool:
+    """Say loudly, at the end of a recording, if the narrative predates the capability set.
+
+    **Warns rather than refuses.** Refusing would block a recording over prose, and the standing
+    rule is that a re-record never rewrites a narrative - a person does, afterwards. What must
+    not happen is the recording landing *silently* stale, which is how T7.1 shipped a narrative
+    claiming its logs were empty beside a capture holding sixteen restart attempts. The failing
+    guard in `make check` is what actually stops it; this is what tells whoever is standing here
+    that they now owe a review.
+    """
+    from evalharness.capability import capability_version
+
+    incident = out / HAND_WRITTEN
+    if not incident.is_file():
+        return False
+    current = capability_version()
+    front = incident.read_text().split("---")
+    stamped = None
+    if len(front) > 2:
+        for line in front[1].split("\n"):
+            if line.startswith("capability:"):
+                stamped = line.split(":", 1)[1].strip()
+    if stamped == current:
+        return False
+    try:
+        shown = incident.relative_to(REPO_ROOT)
+    except ValueError:
+        shown = incident  # a bundle outside the tree, which only a test does
+    print(
+        f"\n  !! {shown} was written against "
+        f"{stamped or 'no recorded capability'}; the current set is {current}.\n"
+        f"     Its claims about what a responder could reach may be stale. Review it against "
+        f"the captures - logs/ first - and then set `capability: {current}`.\n"
+        f"     `make check` fails until you do."
+    )
+    return True
+
+
 def clear_bundle(out: Path) -> list[str]:
     """Empty a bundle before re-recording into it, keeping the narrative and the archive.
 
@@ -1139,6 +1177,7 @@ def rehearse(
                 "this bundle, and write INVALID.md if it genuinely cannot alert."
             )
     print(f"\nbundle written to {out.relative_to(REPO_ROOT)}")
+    warn_if_narrative_is_stale(out)
     print("next: write incident.md, then set `rehearsed: true` in the scenario YAML.")
     return 0
 

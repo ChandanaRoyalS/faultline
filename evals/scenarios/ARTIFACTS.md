@@ -318,12 +318,29 @@ every claim has been checked against **the captures**, not only the manifest:
 - claims that a tool **returned nothing**, which a later tool may now answer
 
 **2. What forces the review to happen.** Discipline alone did not work — it failed at T2.6 and
-again at T7.1. **Proposed and not yet built:** a `CAPABILITY_VERSION` in the harness, bumped when
-the tool surface or the capture set changes, stamped into narrative front matter the way
-`recorded_from` pins the recording, with a guard that fails when the two differ. The guard cannot
-check prose, and it is not trying to: it makes the review mandatory rather than remembered, which
-is the part that failed. Neither half is sufficient alone — without the trigger nobody looks, and
-without the checklist the looking misses `logs/`, as it did.
+again at T7.1 — so **T7.8 built the trigger**.
+
+`CAPABILITY_VERSION` is a short digest of what a responder could reach, stamped into every
+narrative's front matter as `capability:` the way `recorded_from` pins the recording. A guard in
+`make check` fails when a narrative's stamp is older than the current set, and the recorder prints
+the same debt at the end of a re-record so a capture-set change cannot land quietly.
+
+Three inputs, two derived so they cannot drift:
+
+| input | source | moves when |
+|---|---|---|
+| tool surface | read off `Tools` at runtime | a tool is added, removed or renamed |
+| `CAPTURE_SET` | `evalharness.provenance` | a bundle gains or loses a capture |
+| `TOOL_BEHAVIOUR_REVISION` | next to the tools, in `tools.py` | a tool returns materially different evidence without changing its name — two-ended truncation is the worked example |
+
+It deliberately excludes **prompts and contracts** (that is `runtime_version`; five prompt
+experiments changed nothing about what a responder could see) and **the world** (that is
+`world.compose_digest`, whose re-record has its own guard — double-firing teaches people to ignore
+both).
+
+**The guard checks a stamp, not the prose, and its failure message says so.** A green check means
+somebody reviewed the narrative; it never means a claim was verified. Both halves are needed:
+without the trigger nobody looks, and without the checklist the looking misses `logs/`, as it did.
 
 ### A series' end is a soft edge, everywhere
 

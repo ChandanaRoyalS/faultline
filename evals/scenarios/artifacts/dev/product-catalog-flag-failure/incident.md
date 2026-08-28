@@ -3,6 +3,7 @@ origin: scenario:product-catalog-flag-failure
 split: dev
 fault_class: bad_config
 recorded_from: 2026-08-28T03:53:07+00:00
+capability: cap:9c416e0a
 onset_to_page: 4m04s
 page_to_fix: 5m00s
 fix_to_all_clear: 1m34s

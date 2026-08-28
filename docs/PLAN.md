@@ -1573,6 +1573,48 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.8 — a narrative is only as current as the last capability change *(built; based on T7.7)*
+The guard T7.7 proposed. **contract not written.** Built because discipline has now failed at
+exactly this twice: T2.6 left four narratives asserting *"what changed: nothing"* after a change
+log existed, and T7.1 forced a narrative rewrite and **still** missed sixteen restart lines,
+because the review compared front matter against the manifest and never opened `logs/`.
+
+**`CAPABILITY_VERSION` = `cap:9c416e0a`**, a digest over three inputs, two of them derived so they
+cannot drift:
+
+| input | source | moves when |
+|---|---|---|
+| tool surface | read off `Tools` at runtime | a tool is added, removed or renamed |
+| `CAPTURE_SET` | `evalharness.provenance` | a bundle gains or loses a capture |
+| `TOOL_BEHAVIOUR_REVISION` | next to the tools in `tools.py` | a tool returns materially different evidence without changing its name |
+
+The third input is hand-maintained and exists because the derivable parts miss real capability
+changes: **two-ended truncation kept `logql_query`'s name and signature** and started returning the
+oldest lines too, which re-opened every claim of the form "the logs showed nothing before onset".
+A digest over method names would not have moved. Its bump bar is written beside it, and explicitly
+excludes refactors and docstrings - a version that moves when nothing a narrative could cite has
+moved is the `ffs_stub_image_id` mistake ADR-0014 names.
+
+**What it deliberately does not cover:** prompts and contracts (that is `runtime_version` - five
+prompt experiments changed nothing about what a responder could *see*), the world (that is
+`world.compose_digest`, whose re-record has its own guard; double-firing teaches people to ignore
+both), and whether a tool works *well* - a tool returning the wrong answer has the same capability
+version as one returning the right answer.
+
+**Wired in two places.** `make check` fails on any narrative whose stamp is older than the current
+set. The recorder prints the same debt at the end of a re-record, warning rather than refusing -
+refusing would block a recording over prose, and the standing rule is that a person rewrites a
+narrative afterwards. The failing test is what stops it landing; the warning is what tells whoever
+is standing at the recorder that they owe a review.
+
+**It checks a stamp, not the prose, and the failure message says so** - a green check means
+somebody reviewed the narrative, never that a claim was verified. The message then names what
+changed and what a review must cover, in order: **the captures and `logs/` first**, claims a newly
+added tool may now answer, claims resting on a series' edge, and **front matter last**, because
+checking it first is exactly what let T7.1's review pass while the prose was wrong.
+
+All twelve narratives are stamped at `cap:9c416e0a`, which T7.7 reviewed.
+
 ### T7.7 — what was true when it was written *(built; based on T7.6)*
 The audit T7.6's two findings implied. **contract not written.** No world, no model calls.
 **Branched off `t7.6-narratives-reachable` rather than main**, because four narratives are
