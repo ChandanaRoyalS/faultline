@@ -272,6 +272,10 @@ class Investigation:
                     exclude_origin=exclude,
                     returned=[hit.chunk.document_id for hit in hits],
                     scores=[hit.score for hit in hits],
+                    # The same list handed to the synthesizer below, not a re-render of it
+                    # (T7.9). Rebuilding this at read time is what ADR-0020 calls replaying a
+                    # different prompt.
+                    rendered=list(result.retrieved),
                 ),
             )
 
