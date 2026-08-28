@@ -1573,6 +1573,56 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.5 — reachability is a property of the scenario *(built)*
+T7.4's first proposal, taken: reachability becomes a recorded field rather than a scorer
+exemption. **contract not written.**
+
+**Schema decision: additive optional field, no `bundle_schema_version` bump**, following
+`CAPTURE_SET`'s precedent exactly. ADR-0014's recorded bar is *a change that makes existing
+bundles false*, and this makes none false - a manifest without `reachability` still correctly
+describes what it holds, and no guard that passed starts failing.
+
+**Existing bundles get the field computed from their own captures, which is derivation and not
+backfill.** The distinction is ADR-0014's own: it refused to backfill `compose_digest` because a
+digest asserts something about the world *outside* the capture, so writing one in afterwards would
+claim a capture was taken against a world that did not exist when it was taken. Reachability
+asserts nothing outside the bundle - it is a reading of files the bundle already contains, the way
+counting a log's lines is, and it adds no claim that was not already sitting in `metrics/`.
+
+**The scorer reports it and acts on nothing.** A run's report and manifest carry the target's
+reachability beside the verdict, so an abstention on a zero-class scenario is visibly different
+from one where the evidence was available - and nothing is forgiven, weighted or excluded. Pinned
+by a test that scores two runs identical but for reachability and asserts every field but
+reachability itself is byte-identical, coverage included. A scorer deciding which abstentions were
+excusable would be grading on sympathy, which is the failure ADR-0022 names for the dispute
+register.
+
+**The catalog gate is in CATALOG.md and enforced.** A new scenario declares
+`answers_idle_or_absent` before it is rehearsed; the declaration is checked against what its bundle
+actually recorded, and disagreeing in **either** direction fails - over-claiming is what the gate
+exists for, under-claiming is a stale claim. A zero-class scenario is recordable but only
+deliberately, and then its narrative must not turn on the question. All twelve existing scenarios
+now carry the declaration, derived rather than asserted.
+
+#### Narrative corrections owed — **not made here**
+
+T7.4 named four narratives that teach a check the agent cannot perform. **ADR-0009 owns the
+decision** - it is the ADR that governs what a narrative may claim, having established that the
+narrative is written blind from the responder's chair. The underlying question of whether the tool
+surface should grow is **ADR-0019's**, which already carries container inspection as *marked for
+decision*; either ADR can discharge the first pair, and they discharge it differently.
+
+| narrative | what is owed | weight |
+|---|---|---|
+| `cart-dependency-latency` | Its **decisive** check is *"a container was attached to cart's network namespace that is not part of any service definition"* - container inspection, which is not one of the four tools. **No agent can ever reproduce this finding**, so the correction must either rest the narrative on evidence that is reachable, or ADR-0019 must add the tool. Rewriting it to hedge would leave a narrative that still points nowhere. | **Heavy** - the conclusion depends on it |
+| `productcatalog-dependency-latency` | Same claim, same tool gap, and worse: T7.4 measured this target at **zero** answering classes, so there is no substitute evidence to move the check onto. If the tool is not added, this narrative's decisive step may not be expressible at all, and that is a finding about the scenario rather than the prose. | **Heavy**, and possibly unfixable without ADR-0019 |
+| `cart-bad-image-tag` | Names container state as **framing** - *"no exit code and no restart count"* - around evidence that is genuinely in its 500 log lines. The correction is to describe what the logs show without asserting a check that was not made. | Light |
+| `cart-redis-misconfig` | Same shape, same mitigation: *"cartservice container state, and its logs"*, where the logs carry it. | Light |
+
+Not rewritten here for the reason T7.4 gave: these are corpus material, three of them are seeded
+into the retrieval store, and **whether they cost dispatches is unmeasured**. Editing them and the
+corpus together would move the prose and the numbers in one step and settle nothing.
+
 ### T7.4 — evidence reachability, characterised *(analysis only; nothing changed)*
 The finding T7.1 recorded and never characterised. **contract not written.** Twelve rows, one per
 bundle, every cell from a committed capture, the committed graph snapshot, or the tool layer's

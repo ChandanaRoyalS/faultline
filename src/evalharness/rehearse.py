@@ -39,6 +39,7 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+from evalharness import reachability
 from evalharness.prom import (
     LOKI,
     METRIC_QUERIES,
@@ -806,6 +807,11 @@ def write_bundle(
         "world": world_provenance(reference_container="cart-service", stub_image=STUB_IMAGE),
         **facts,
     }
+    # Derived last, because it reads the captures this run has just written. Additive and
+    # optional: no `bundle_schema_version` bump, on the same reasoning as `capture_set` above -
+    # ADR-0014's bar is a change that makes existing bundles false, and a bundle without this
+    # field is not false, only unannotated. See `evalharness.reachability`.
+    manifest["reachability"] = reachability.derive(out)
     (out / "manifest.json").write_text(json.dumps(manifest, indent=2, sort_keys=True) + "\n")
 
     lines = ["# Exact queries behind every file in metrics/. Re-runnable.", ""]

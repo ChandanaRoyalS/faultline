@@ -100,6 +100,16 @@
     "target": "cartservice"
   },
   "origin": "scenario:cart-bad-image-tag",
+  "reachability": {
+    "answers_idle_or_absent": [
+      "runtime",
+      "logs"
+    ],
+    "derived_from": "the bundle's own captures (T7.5)",
+    "none_can_answer": false,
+    "runtime_series": 20,
+    "target_log_lines": 500
+  },
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,

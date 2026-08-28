@@ -120,6 +120,20 @@ reconciliation record.
 
 - No figure without its n.
 - No aggregate without its per-class table.
+- **An abstention is not one thing.** T7.4 measured, per scenario, which evidence classes could
+  even in principle answer *"was the target idle or absent"* — only runtime metrics and logs can,
+  since span and trace absence *is* the ambiguity and change history says what changed rather than
+  what is running. **Two of twelve scenarios have no such class**: `product-catalog-flag-failure`'s
+  target emits 2 log lines and no runtime series, and `productcatalog-dependency-latency`'s emits
+  **0** log lines and none. T4.11's **5/5 stable abstention** is on the first of those.
+
+  From T7.5 every bundle records this, derived from its own captures, and every run's report and
+  manifest carry it beside the verdict — so an abstention forced by unreachability is *visibly*
+  different from one produced by an agent that had the evidence and reasoned badly. **Nothing is
+  forgiven**: no figure on this page is weighted, excluded or adjusted by it, and a test pins that
+  two runs identical but for reachability score byte-identically. A scorer deciding which
+  abstentions were excusable would be grading on sympathy. The reader gets to make that judgement
+  with the fact in front of them; the scorer does not make it for them.
 - **Accuracy and coverage are never quoted apart.** An `unknown` verdict is an abstention: out of
   the accuracy ratio entirely, reported as coverage.
 - Blast-radius **recall and precision are a pair and never combined** — no F-score. The two answer

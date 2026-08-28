@@ -82,6 +82,24 @@ class Scenario(BaseModel):
     Needed because detection time scales with the target's traffic rate: a service at
     0.099 req/s takes four minutes longer to trip a rule than one at 5 req/s, and a global
     timeout tuned on the busy ones reports the sparse one as undetectable."""
+    answers_idle_or_absent: list[str] | None = None
+    """Which evidence classes the author expects to answer "was the target idle or absent"
+    (T7.5). `[]` declares that none will.
+
+    **Authored before recording; checked against the bundle afterwards.** The recorded value is
+    derived from the captures (`bundle.reachability`), and this field is the claim the author
+    made in advance. The gate exists because six of twelve existing bundles were recorded before
+    anyone asked whether their target could produce the evidence their narrative would go on to
+    cite, and two of them cannot answer this question at all - a fact discovered at T7.4, long
+    after the narratives were written.
+
+    Only `runtime` and `logs` can answer it. Span metrics and traces cannot: their absence *is*
+    the ambiguity. Change history cannot: it says what changed, not what is running.
+
+    `None` means undeclared, which is permitted for the scenarios that predate the gate and
+    refused for new ones - see `CATALOG.md`. **A scenario declaring `[]` is recordable**, but
+    only deliberately: its narrative must not rest on a question its target cannot answer."""
+
     blocked: bool = False
     """This scenario cannot be rehearsed and does not occupy its slot.
 

@@ -336,6 +336,20 @@ class ScoredRun:
     cost_usd: float = 0.0
     models: dict[str, str] = field(default_factory=dict)
     runtime_version: str = ""
+    reachability: dict[str, Any] = field(default_factory=dict)
+    """What the scenario's target could have answered, from its bundle (T7.5).
+
+    **Reported, never acted on.** An abstention on a scenario whose target can answer nothing
+    is a different event from an abstention on one where the evidence was available, and a
+    reader of this run should be able to see which - but nothing here forgives, weights or
+    excludes on the strength of it. The scorer's job is to say what happened; deciding that
+    some abstentions do not count would be grading on sympathy, which is the failure ADR-0022
+    already names for the dispute register.
+
+    Concretely: no field in this class is computed from it, and the accuracy, coverage and
+    triage figures are byte-identical whether it is populated or empty.
+    """
+
     budget: dict[str, Any] = field(default_factory=dict)
     """The bounds this run was given. **Printed beside the stamp, never folded into it.**
 
@@ -360,6 +374,7 @@ class ScoredRun:
             "runtime_version": self.runtime_version,
             "budget": self.budget,
             "reached_a_class": self.reached_a_class,
+            "reachability": self.reachability,
             "triage": None if self.triage is None else self.triage.as_dict(),
             "fault_class": None if self.fault_class is None else self.fault_class.as_dict(),
             "fix_class": None if self.fix_class is None else self.fix_class.as_dict(),
@@ -402,6 +417,17 @@ class ScoredRun:
             lines.append("")
 
         lines.append("VERDICT")
+        if self.reachability:
+            classes = self.reachability.get("answers_idle_or_absent") or []
+            if self.reachability.get("none_can_answer"):
+                lines.append(
+                    "  reachability NO evidence class can answer 'was the target idle or "
+                    "absent' - runtime series 0, target logs "
+                    f"{self.reachability.get('target_log_lines', 0)}. Reported, not forgiven: "
+                    "an abstention here still counts exactly as one."
+                )
+            else:
+                lines.append(f"  reachability answerable by: {', '.join(classes)}")
         for name, score in (("fault class", self.fault_class), ("fix class", self.fix_class)):
             if score is None:
                 lines.append(f"  {name:11} not produced")
