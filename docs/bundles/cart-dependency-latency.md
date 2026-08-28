@@ -113,16 +113,17 @@ frontend calls checkout and checkout calls cart. The leaf of that chain is where
 time is being spent; the other two are waiting on it. That narrowed the search to cart
 within a couple of minutes.
 
-**What changed on cartservice.** Nothing. No deploy, no image change, no environment
-difference, no config edit. Its container specification was byte-identical to the
-previous day's. This is the dead end that cost the most time, because "what changed" is
-the first question and it returned an empty answer.
+**What changed on cartservice, which is where it breaks open.** No deploy, no image
+change, no environment difference, no config edit — and one record that is none of those:
+a **container created**, described as a traffic-shaping container attached to
+cart-service's network namespace, carrying `eth0 delay=300ms jitter=0ms`.
 
-**Running containers.** A container was attached to cart's network namespace that is
-not part of any service definition — nothing in the compose files creates it. It was
-applying traffic shaping to cart's interface. The change was at the network layer, one
-level below anything a service specification describes, which is why looking at cart's
-own configuration found nothing.
+The trap is that the first four answers are all "nothing" and the fifth is the whole
+incident. A responder scanning for the familiar shapes of change — a deploy, a config
+edit, a version — reads four empty rows and concludes the service was not touched. The
+change was at the network layer, one level below anything a service specification
+describes, and it is in the change record under the service's own name rather than
+anywhere in the service's own configuration.
 
 ### Root cause
 
@@ -159,9 +160,13 @@ there was nothing to roll back or revert; the container simply needed replacing.
   precisely because it is unusual. Latency propagates upward through callers, so the
   slowest service in the chain is the source.
 - **Detection was never the hard part; attribution was.** On a service whose entire
-  operating range is 2ms, the alert is unambiguous the moment it fires. What cost time
-  was that the change had been made below the level any service specification describes,
-  so every question about cart itself came back clean.
+  operating range is 2ms, the alert is unambiguous the moment it fires. What cost time was
+  that the change had been made below the level any service specification describes — so
+  every question about cart's *own configuration* came back clean while the change record
+  held the answer all along, filed under cart's name and not shaped like a deploy.
+- **"Nothing changed" is a conclusion about a query, not about a service.** Four kinds of
+  change came back empty here and a fifth did not. Reading the empty four as "the service
+  was not touched" is the single most expensive move available in this incident.
 - **A latency reading taken shortly after a restart is not a baseline reading.** cart
   decays from about 100ms to 2ms over roughly four minutes after being recreated. Any
   comparison against "normal" must exclude that window, and a responder who samples

@@ -120,6 +120,17 @@ reconciliation record.
 
 - No figure without its n.
 - No aggregate without its per-class table.
+- **The corpus is a living document, and stored trajectories point into it.** T7.6 rewrote four
+  narratives so every claim rests on evidence the four-tool surface can reach; three are dev
+  scenarios and therefore corpus material, and the corpus was re-seeded — 35 chunks, 7 documents,
+  `holdout_chunks` still **0**. **39 of 62 stored trajectories retrieved a chunk whose text has
+  since changed** (`cart-bad-image-tag` 39 retrievals, `cart-redis-misconfig` 25,
+  `cart-dependency-latency` 6). Those runs' retrieval rows still name the chunk they were given,
+  and the chunk id still resolves — but the prose behind it now reads differently, so a reader
+  reconstructing what an agent saw from the *current* corpus will not see quite what that agent
+  saw. **No figure moves**: retrieval is an input to a run, the runs are not re-scored, and the
+  rewrites corrected claims about the *tools* rather than about the faults. What is lost is exact
+  replayability of the retrieved text, and the `superseded/` archives do not cover narratives.
 - **An abstention is not one thing.** T7.4 measured, per scenario, which evidence classes could
   even in principle answer *"was the target idle or absent"* — only runtime metrics and logs can,
   since span and trace absence *is* the ambiguity and change history says what changed rather than

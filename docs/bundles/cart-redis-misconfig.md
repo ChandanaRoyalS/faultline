@@ -127,11 +127,18 @@ reads as a platform-wide event. Six of them are downstream of checkout and went 
 because checkout had stopped calling them; only one was the cause. What the alerting
 does not supply is any indication of which.
 
-**cartservice container state, and its logs.** The container was restarting repeatedly,
-and unlike a service that was never created it had plenty to say. Its logs run to
-hundreds of lines of the same cycle: the process starts, checks its Redis connection,
-fails that check, exits, and is restarted. The failure message names the address it was
-trying to reach.
+**cartservice's logs, which are the whole of it.** Eight `Connecting to Redis` lines
+over the window, each naming `redis-cart:6380`, and seven unhandled exceptions between
+them — `Wasn't able to connect to redis`, with the stack ending in
+`RedisCartStore.EnsureRedisConnected`. Eight connection attempts is eight starts; seven
+crashes is what happened to the first seven. The cycle is legible from the log alone:
+the process starts, checks its Redis connection, fails that check, exits, and comes
+back to do it again.
+
+Note what carries this and what does not. The restart loop is not read off a restart
+count — it is read off the repetition in the stream, which is the same evidence a
+responder without host access would have. And the address is *in the log line*, so the
+wrong port is named before any change record is consulted.
 
 **Recent changes to cartservice.** `REDIS_ADDR` set to `redis-cart:6380`. Redis was
 listening on 6379 and healthy throughout — every other consumer of it was unaffected.
@@ -174,11 +181,12 @@ roll back to — one environment value was wrong.
 - Would the page alone have been enough? **No.** It named a single service, the synthetic
   client, which is the one service in the system guaranteed to be reporting somebody
   else's failure.
-- **A restarting container is a talkative one.** The decisive evidence was in cart's own
-  logs, and it existed because the process reached the point of trying and failing. A
-  service that is repeatedly killed, or that was never created at all, leaves nothing to
-  read — so "the logs are empty" and "the logs are damning" are both findings, and the
-  difference between them narrows the cause before anything else does.
+- **A restarting process is a talkative one, and the repetition is the evidence.** Eight
+  identical connection attempts and seven identical crashes say "this is starting over and
+  over" without any need to ask the host how many times it restarted. A service that is
+  killed before it can speak, or that stops and never returns, leaves a differently shaped
+  stream — so "the logs are empty", "the logs stop dead" and "the logs repeat" are three
+  findings, and telling them apart narrows the cause before anything else does.
 - The most misleading signal was cart's own error rate: a flat zero throughout, read as
   health when it meant absence.
 
