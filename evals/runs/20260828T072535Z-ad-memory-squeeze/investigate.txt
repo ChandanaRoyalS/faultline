@@ -1,0 +1,39 @@
+incident e3b2899b-57b9-48b0-9a53-670b2bb8ad2e  state triaging  anchor 07:28:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8772.38it/s]
+Traceback (most recent call last):
+  File "/Users/chandana/dev/faultline/src/faultline/agents/investigation.py", line 159, in run
+    return self._run(trajectory, state, result, incident_id, triage, anchor)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/agents/investigation.py", line 233, in _run
+    self._store.save(trajectory)
+  File "/Users/chandana/dev/faultline/src/faultline/agents/trajectory.py", line 331, in save
+    cur.execute(
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.UndefinedColumn: column "rendered" of relation "trajectory_retrievals" does not exist
+LINE 1: ... seq, query, k, exclude_origin, returned, scores, rendered, ...
+                                                             ^
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/Users/chandana/dev/faultline/.venv/bin/faultline-investigate", line 10, in <module>
+    sys.exit(run())
+             ^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/agents/cli.py", line 215, in run
+    report = run_investigation(store, incident, engine, triage, anchor)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/agents/runner.py", line 133, in run_investigation
+    result = engine.run(incident.id, triage, anchor)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/agents/investigation.py", line 173, in run
+    self._store.save(trajectory)
+  File "/Users/chandana/dev/faultline/src/faultline/agents/trajectory.py", line 277, in save
+    cur.execute(
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/psycopg/cursor.py", line 117, in execute
+    raise ex.with_traceback(None)
+psycopg.errors.InFailedSqlTransaction: current transaction is aborted, commands ignored until end of transaction block
