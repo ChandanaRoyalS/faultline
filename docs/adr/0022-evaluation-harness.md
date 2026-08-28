@@ -560,3 +560,104 @@ configuration — which is a different way of having no benchmark.
 - Entry 2 declares its configuration and its prediction **before** running, in a committed file.
 - Neither entry is a comparison against the other in the sense §3.3 forbids: they differ in a
   frozen item and are published as two experiments, side by side, with the difference named.
+
+---
+
+## Addendum (T4.15): the third entry, argued against the four conditions
+
+The T4.8 addendum ended by saying a third entry **needs an argument this addendum does not
+supply**, and that it should have to say why the answer is not "report entry 1's limitation and
+stop". This is that argument.
+
+**The answer: yes — with one condition met only under strain, and it is named rather than
+smoothed over.**
+
+### What entitles it
+
+Dev sweep 5 ([`SWEEP-2026-08-27-locus.md`](../../evals/runs/SWEEP-2026-08-27-locus.md)) is a new
+reported result under a new stamp: `prompts:1b0e7cbb4c47`, coverage 7/7, fault class 7/7, every
+pre-registered condition met. Under §3.3's "a holdout run happens once per reported result", that
+result is entitled to its own entry and entries 1 and 2 are not entitled to be refreshed.
+
+Why not "report entry 1's limitation and stop": **entry 1's limitation has been chased through
+two further findings and answered on dev, and the answer has never been tested where it counts.**
+Entry 1's two abstentions were `changes` starvation. T4.7 dissolved that on dev; entry 2 tested
+it on holdout and found a *third* cause — the plan not investigating the service it had
+implicated. S5 addresses that cause on dev and beats both baselines. Meanwhile **the project's
+published holdout figure now describes a pipeline two stamps old**, which is precisely the
+failure mode the T4.8 addendum gave for rejecting a flat no: a holdout number that can never be
+refreshed describes a system that no longer exists.
+
+### The four conditions
+
+**1. Validated on dev before holdout is touched — MET, and more strongly than entry 2's.** The
+instruction was measured twice on dev before this question was asked. Its first formulation
+(T4.12) was **rejected** on dev against a pre-registered floor, and the second (T4.14) was kept on
+dev against six pre-registered conditions including a primary endpoint chosen ahead of coverage.
+Holdout is being asked about a change that has already been through a full reject-and-refine cycle
+somewhere else.
+
+**2. Justified by mechanism, not by a holdout signal — MET UNDER STRAIN, and the strain is worse
+than T4.8's.** The honest account:
+
+*What came from dev.* The quantity the instruction optimises — dispatches at the failing service —
+was defined and measured on dev at T4.12, from three dev regressions whose counts collapsed 3→0,
+4→1, 3→0. The wording was selected on dev, the rejected version was rejected on dev, and T5.3's
+demo observed the same tendency at baseline on a dev scenario. No holdout run informed the
+wording, the value, or the decision to keep.
+
+*What came from holdout.* **The failure mode was first named in entry 2**, in these words: "the
+plan simply did not investigate the implicated service". The T4.14 instruction says a localized
+service keeps its claim on the dispatches until its evidence classes are exhausted. That is the
+same failure, and holdout is where it was first written down — a day before T4.12 measured it on
+dev.
+
+T4.8's leak was that holdout made a confound *salient* while the mechanism was independently
+visible on dev beforehand. **This leak is more direct**: for this specific failure mode, holdout
+was chronologically first. The dev evidence is stronger and quantitative, but it is not prior.
+
+*What that costs, and how it is paid.* It is paid by labelling rather than by exclusion.
+`email-wrong-image` is the scenario whose failure produced the concept, so **its entry-3 result is
+corroborative, not confirmatory, and is reported that way** — a hypothesis tested on the case that
+generated it is not independent evidence about that case, whichever way it comes out. The other
+two scenarios do not have this problem: neither has ever been read for a mechanism, because
+`recommendation-memory-squeeze` abstained on starvation and `productcatalog-dependency-latency`
+answered. Dropping `email-wrong-image` instead was considered and rejected: excluding the hardest
+case to protect a number is worse than running it and saying what it is worth.
+
+**3. A prediction registered before the run — MET.** In the branch's first commit, before any
+scenario runs, naming what should resolve, what should not, and the falsifier.
+
+**4. Entries 1 and 2 stand unedited beside it — MET.** Neither file is touched. All three are
+published together and the ledger below counts all three.
+
+### The argument from T7.1, weighed and declined
+
+There is a real argument that was not counted. T7.1 re-records the world; entries 1 and 2 were
+measured against the current one, so an entry comparable to them must run now or never.
+
+**The urgency is real and it is not a protocol argument.** A deadline created by another task's
+schedule says nothing about whether this entry is a new experiment or a re-run in costume, which
+is the only question the four conditions ask. Counting it would establish that any impending
+change unlocks the holdout set, and that is a precedent worth more than one entry. **This entry
+stands on conditions 1–4 or not at all**; had condition 2 failed, T7.1's schedule would not have
+rescued it.
+
+### What this entry spends
+
+The set holds three scenarios. Agent exposures before this entry: `email-wrong-image` **2**,
+`productcatalog-dependency-latency` **1**, `recommendation-memory-squeeze` **1** — entry 2's two
+discards died at their first model call, so no agent ever saw them. Entry 3 makes those 3, 2 and 2.
+
+**This should be the last entry before the set is re-authored or extended.** Not a rule this
+addendum can enforce on its successor, but the reason is arithmetic rather than taste: a
+three-scenario set read four times is no longer a holdout in any sense a reader would recognise,
+and T7.0's four further fault classes are the honest way to buy more.
+
+### The ledger
+
+| entry | reported result it belongs to | stamp | `changes` bound | file |
+|---|---|---|---|---|
+| **1** | T4.5's taxonomy-instruction pipeline | `prompts:53fafe9c12bc` | 4 | `HOLDOUT-2026-08-26.md` |
+| **2** | T4.7's raised-bound configuration | `prompts:53fafe9c12bc` | 8 | `HOLDOUT-2026-08-26-entry2.md` — **1 of 3 scored**, two discarded to an empty API account and **not re-run** |
+| **3** | T4.14's return-to-locus pipeline (dev sweep 5) | `prompts:1b0e7cbb4c47` | 8 | `HOLDOUT-2026-08-27-entry3.md` — condition 2 met **under strain**; `email-wrong-image`'s row is corroborative, not confirmatory |

@@ -1304,6 +1304,48 @@ coexist as long as both are visible.
 
 `docs/adr/0009:12`, `src/evalharness/rehearse.py:739`
 
+### T4.15 — the holdout, entry three *(argued, then run)*
+The protocol question first. The T4.8 addendum said a third entry needs an argument it does not
+supply; **ADR-0022 now carries that argument as its next ledger row**, and the answer is yes with
+condition 2 met **under strain**. What came from dev: the quantity the instruction optimises was
+defined and measured at T4.12 from three dev regressions, the wording was selected on dev, the
+first formulation was rejected on dev, and T5.3's demo saw the tendency at baseline. What came
+from holdout: **entry 2 is where the failure mode was first named** - "the plan simply did not
+investigate the implicated service" - a day before T4.12 measured it. T4.8's leak was holdout
+making a confound salient while the mechanism was independently visible on dev beforehand; this
+leak is more direct, because here holdout was chronologically first. Paid by labelling rather than
+exclusion: **`email-wrong-image`'s row is corroborative, not confirmatory**, and dropping it was
+considered and rejected because excluding the hardest case to protect a number is worse than
+running it and saying what it is worth.
+
+**The T7.1 argument was weighed and declined.** A re-record does close comparability with entries
+1 and 2 permanently, and that is not a protocol argument: a deadline from another task's schedule
+says nothing about whether this is a new experiment or a re-run in costume, and counting it would
+establish that any impending change unlocks the holdout set.
+
+**The result: 3 of 3 answered, 3 of 3 correct, 3 of 3 judged `same_mechanism`, zero budget
+exhaustions, triage recall 1.00 on all three** (`evals/runs/HOLDOUT-2026-08-27-entry3.md`). Both of
+entry 1's starvation abstentions resolved. Every registered prediction hit and neither falsifier
+fired - including the behavioural endpoint for the hard case: `emailservice` was dispatched on
+three times where entry 2 sent zero. $1.68 agent + $0.11 judge.
+
+**What it does not license.** n=3, one run each, no interval; `bad_config` has n=0 on holdout and
+always has; the fix class is 2/3, with `productcatalog-dependency-latency` making the same
+`config_revert`-for-`restart` miss it made in entry 1 and that `cart-dependency-latency` makes on
+dev in every sweep, unmoved by three stamps.
+
+**One operational finding, recorded because it cost a batch.** `email-wrong-image`'s revert
+restored the image but **not** `checkoutservice`, which held broken state after `emailservice` was
+recreated beneath it; `accountingservice` separately stopped reconnecting to Kafka and claimed no
+message for four hours. The baseline gate refused the next two scenarios rather than measuring a
+sick world - T4.13's gate doing its job one task after being built, and the reason this entry has
+three clean rows instead of one clean row and two contaminated ones. **Both services are the same
+failure class CATALOG.md documents for the maintenance path**, arriving through a different door:
+a scenario's own revert rather than a maintenance restart. The documented repair applied unchanged.
+The two refused scenarios were then run as **firsts, not re-runs** - a gate refusal is upstream of
+any exposure, and this repository's own accounting already counts entry 2's pre-call discards as
+zero exposures.
+
 ### T4.14 — return to the locus *(built; stamp KEPT)*
 The refined formulation this plan carried after T4.12, run before T7.1 because both baselines -
 S3 and S4 - were measured against the current world and neither survives a re-record.

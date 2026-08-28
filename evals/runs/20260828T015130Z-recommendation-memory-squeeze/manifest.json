@@ -1,0 +1,200 @@
+{
+  "run_id": "20260828T015130Z-recommendation-memory-squeeze",
+  "scenario_id": "recommendation-memory-squeeze",
+  "split": "holdout",
+  "scenario_fingerprint": "c176c703540bee9dff616233c1674771dcfa924d498c9fe0cddcac673735972b",
+  "started_at": "2026-08-28T01:51:30.081728+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "f881b4627e31323a1d5936d288025f192b67f993",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "accounting-service",
+      1354
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-28T01:51:30.446400+00:00",
+  "incident_id": "79baa310-d485-4186-b208-49a27fd9dee0",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-28T02:01:07.233104+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "recommendation-service",
+      317
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260828T015130Z-recommendation-memory-squeeze",
+    "scenario_id": "recommendation-memory-squeeze",
+    "trajectory_id": "33165dd6-0053-453e-8e20-bd5ebaa60830",
+    "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": true,
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.42857142857142855,
+      "matched": [
+        "frontend",
+        "loadgenerator",
+        "recommendationservice"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "adservice",
+        "cartservice",
+        "checkoutservice",
+        "productcatalogservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 1,
+      "n_alerted": 3,
+      "n_predicted": 7
+    },
+    "fault_class": {
+      "truth": "resource_exhaustion",
+      "returned": "resource_exhaustion",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "config_revert",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 43725,
+    "tokens_out": 14042,
+    "cost_usd": 0.5697,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-28T02:06:41.256448+00:00",
+  "judge": {
+    "scenario_id": "recommendation-memory-squeeze",
+    "run_id": "20260828T015130Z-recommendation-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: the container memory limit was lowered to 32 MiB, below what the runtime needs to start, causing the process to be killed during initialization.",
+    "dead_ends_closed": [
+      "frontend change history",
+      "checkout edge latency",
+      "recommendationservice error ratio"
+    ],
+    "dead_ends_missed": [
+      "whether the condition self-resolved after T+12m",
+      "which policy emitted the limit change",
+      "whether other services were affected"
+    ],
+    "traps": [
+      {
+        "trap": "frontend was broken or changed",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "checkout or another dependency was slow",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "zero error rate means service is healthy",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "empty logs mean clean startup",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent correctly identified the same mechanism and closed the major dead ends, but explicitly acknowledges gaps in observability (kill events, working-set metrics, restart counts) that the recorded narrative filled by synthesizing runtime metrics stopping, process absence, and the timing of the configuration change.",
+    "tokens_in": 4944,
+    "tokens_out": 339
+  }
+}

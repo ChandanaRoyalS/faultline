@@ -1,0 +1,54 @@
+{
+  "incident_id": "79baa310-d485-4186-b208-49a27fd9dee0",
+  "trajectory_id": "33165dd6-0053-453e-8e20-bd5ebaa60830",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:recommendation-memory-squeeze",
+  "verdict": {
+    "root_cause": "At 01:51:30 UTC platform-automation lowered recommendationservice's container memory limit to 32m (tr_40150e3a31bd). Recommendationservice's own request logs stop abruptly at exactly that timestamp with no shutdown, no traceback and no restart banner (tr_b3572e6653d8), and ten seconds later frontend begins emitting gRPC status 14 UNAVAILABLE with a 'no connection established' detail on its outbound client path, persisting through 01:57 (tr_59fbe80dca96). Traces confirm the failing edge is specifically frontend \u2192 RecommendationService/ListRecommendations: the client span carries the error and essentially all of the multi-second latency, no recommendationservice server span ever appears beneath it, and every other downstream edge (cart, productcatalog, ad, checkout and its whole subtree) is sub-10ms and error-free (tr_ee29b61ef6b7). The service's own error ratio stays flat at zero (tr_f2810da36fd8) precisely because it never gets far enough to return an error status \u2014 connections are not being accepted, so failures surface only at the caller, which is also why frontend's aggregate error ratio is partial (~22% peak) rather than total (tr_24d81b7acf89) and why no frontend change exists to blame (tr_98d97a1a8393). The mechanism in the world is that the recommendation container cannot operate within a 32MiB memory ceiling: it is being starved/killed for exceeding the limit rather than serving wrong values, so this is resource exhaustion that the limit edit initiated.",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_40150e3a31bd",
+      "tr_b3572e6653d8",
+      "tr_59fbe80dca96",
+      "tr_ee29b61ef6b7",
+      "tr_f2810da36fd8",
+      "tr_24d81b7acf89",
+      "tr_98d97a1a8393"
+    ],
+    "reasoning": "Three independent signals converge on the same minute and the same edge. The change record places a memory-limit reduction at 01:51:30; the target service's log stream ends at 01:51:30 without any orderly shutdown; the caller starts failing at 01:51:40 with a connection-establishment error, not a deadline or application error. Traces localise the failure to a single edge and exonerate the frontend itself, the load generator, the unmeasured checkoutservice edge, and any broad backend slowdown \u2014 all other dependencies complete in milliseconds in the same window. The recommendation-side error ratio of zero is consistent with, not contradictory to, this picture: a process that cannot accept connections returns no error statuses of its own. I classify this as resource_exhaustion rather than bad_config because the wrong value is not itself breaking a request path \u2014 no address, credential or flag is pointing anywhere wrong \u2014 the container is failing because it cannot obtain the memory it needs to run under the new ceiling. The remediation is config_revert (restore the prior limit) rather than restart, because a restart under a 32m ceiling would reproduce the condition; the automation policy that emitted the edit must also be stopped from re-applying it.",
+    "open_questions": [
+      "No direct kill evidence was retrieved: container OOM-kill events, restart counts, RSS/working-set metrics and replica readiness for recommendationservice were all explicitly not covered (tr_f2810da36fd8). The OOM mechanism is inferred from timing and log silence, not observed.",
+      "The recommendationservice log result kept only the newest 32 lines ending at 01:51:30; whether ERROR or memory-related lines were emitted after that point and dropped by truncation is not established (tr_b3572e6653d8).",
+      "The frontend log lines identify no target service, host or method, so the UNAVAILABLE errors are tied to recommendationservice only through the trace evidence, not through the logs themselves (tr_59fbe80dca96).",
+      "The change record shows no prior memory-limit value, so the size of the reduction and whether 32m was ever viable for this workload is unknown (tr_40150e3a31bd).",
+      "Which automation policy emitted the change, and whether it applied similar limit reductions to other services that have not yet manifested symptoms, is unidentified (tr_40150e3a31bd).",
+      "The change histories of frontend's other four dependencies (adservice, cartservice, checkoutservice, productcatalogservice) were never queried, and the frontend query covered only 15 minutes rather than the intended two-hour lookback (tr_98d97a1a8393).",
+      "Whether the condition self-resolved, was still ongoing after 01:57, or was masked by retries is not settled; frontend errors were still present at the last visible sample."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired ",
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **3m30s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 4\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence three\n  minutes later.** Th"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

@@ -1,0 +1,56 @@
+{
+  "incident_id": "d9b52121-de72-4198-8369-2c5b96e3beff",
+  "trajectory_id": "8c79ae51-1196-4ed4-930e-7ddaac8db00d",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:email-wrong-image",
+  "verdict": {
+    "root_cause": "At 21:14:07 UTC a platform-automation actor updated emailservice's image reference to an artifact tagged for a different service (quoteservice). From 21:15 onward emailservice is no longer the email application at all: it emits Apache startup output under pid 1, hits a fatal ports-configuration syntax error during config parse, exits, and is restarted on a ~60s cadence \u2014 a crash-restart loop in which the process never binds a listener. Because no instance ever becomes ready, the emailservice name stops resolving for callers: checkoutservice's outbound order-confirmation HTTP POST to the emailservice host on port 6060 fails at name lookup against the embedded Docker resolver (127.0.0.11:53) before any TCP connection, producing the single ERROR span in every failing checkout trace and the recurring warning per order. The failure is confined to the confirmation-notification branch \u2014 payment, shipping, cart-empty and the orders publish all still succeed \u2014 which is why checkoutservice's error ratio is partial (~8.3% peak) rather than total. emailservice's own error-ratio metric reads flat zero throughout, which is not health: a process that dies during config parse never serves a request it could fail, so it contributes no error-status calls. The running artifact is not the one that should be running; that, not any value in emailservice's own configuration, is the mechanism.",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_a614468ba3ef",
+      "tr_a6cd9169496c",
+      "tr_ff3b2d09a3eb",
+      "tr_be48622726b0",
+      "tr_626315519e37",
+      "tr_50e819a89376",
+      "tr_96a14b4ced79",
+      "tr_88e4683f49e2"
+    ],
+    "reasoning": "Three independent lines converge on emailservice. The change log (tr_a614468ba3ef) places exactly one change in the window \u2014 an image-reference update at 21:14:07 carrying a tag naming quoteservice, an automation actor, no config or scaling edits. The logs (tr_a6cd9169496c) show the consequence one minute later: healthy 200s at ~2ms up to 21:08, then from 21:15 a repeating ~60s cycle of Apache startup, config-variable warnings and a fatal ports syntax error under pid 1 \u2014 the wrong application refusing to start, not the email application misbehaving. The caller side (tr_ff3b2d09a3eb) names the failure precisely as DNS resolution of the emailservice hostname failing at the Docker resolver, i.e. no ready endpoint, and confirms the same code path succeeded at 21:08:05/21:08:09. Traces (tr_be48622726b0) show the only ERROR span in the failing path is checkoutservice's own outbound HTTP POST to the email endpoint, failing fast at ~2ms with no downstream service span in error. The emailservice zero-error metric (tr_626315519e37) is the classic misread flagged by cart-redis-misconfig and cart-bad-image-tag in the corpus: a component that never serves cannot emit errors, so flat zero is consistent with, not exculpatory of, total startup failure. Change queries on checkoutservice (tr_96a14b4ced79) and cartservice (tr_88e4683f49e2) are empty, removing the two obvious alternative rollback targets. The mechanism is a wrong artifact running, so the fix is to restore emailservice's correct image; a restart alone would only re-enter the crash loop, and there is no emailservice configuration value to revert \u2014 the ports file is the wrong artifact's own.",
+    "open_questions": [
+      "The dominant customer-visible symptom is unexplained by this mechanism: checkoutservice PlaceOrder spans run 1.5s-29s with only tens of milliseconds attributable to child spans (tr_be48622726b0), and the erroring email POST itself lasts ~2ms. Whether this multi-second self-time is a side effect of resolver retries/backoff outside instrumentation, or a second concurrent fault, is not settled by any dispatch.",
+      "The change record lists the prior image reference as null (tr_a614468ba3ef), so the correct artifact to roll back to is not established by the evidence and must be recovered from the registry or deployment history.",
+      "Exact onset is unresolved. checkoutservice logs were truncated between 21:08:09 and 21:18:53 (tr_ff3b2d09a3eb), and the alert fired at 21:17:45 \u2014 roughly three minutes after the image change and two after the first crash-loop line. The gap is consistent with the causal chain but does not prove first-failure timing.",
+      "No latency percentile, CPU/memory/thread-pool or connection-pool saturation data was ever retrieved for checkoutservice (tr_50e819a89376), so a resource-side contribution to the latency cannot be excluded.",
+      "Change status for productcatalogservice, shippingservice, currencyservice, paymentservice and frauddetectionservice was never queried (tr_88e4683f49e2); four unmeasured edges from triage remain uninspected.",
+      "Whether the mis-targeted image was pushed to other services by the same automation run is unknown \u2014 only emailservice, cartservice and checkoutservice change logs were pulled."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired ",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

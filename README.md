@@ -102,12 +102,13 @@ declared rather than hidden.
 
 Pipeline stamp **`prompts:53fafe9c12bc`**, frozen before the run
 ([`FREEZE-2026-08-26-holdout.json`](evals/runs/FREEZE-2026-08-26-holdout.json)).
-**That stamp is no longer HEAD.** T4.12 built a successor, measured it as net harmful and
-reverted it; T4.14 then built `prompts:1b0e7cbb4c47`, which met every pre-registered condition
-and was **kept** ([`SWEEP-2026-08-27-locus.md`](evals/runs/SWEEP-2026-08-27-locus.md): dev
-coverage 7/7, fault class 7/7). These holdout figures stand as measured under `53fafe9c12bc` and
-describe a prior agent; **the holdout has not been re-entered under the current stamp**, and doing
-so is a separate decision with its own pre-registration.
+**The holdout has been entered three times, under two stamps.** The figures above are entry 1,
+under `53fafe9c12bc`. **Entry 3, under the current stamp `prompts:1b0e7cbb4c47`, answered all
+three and got all three right** — 3/3 coverage, 3/3 fault class, 3/3 judged `same_mechanism`
+([`HOLDOUT-2026-08-27-entry3.md`](evals/runs/HOLDOUT-2026-08-27-entry3.md)). Two caveats travel
+with that number and are stated in full there: `email-wrong-image`'s row is corroborative rather
+than confirmatory, and **n = 3 with no interval is not a benchmark**. Every entry is numbered and
+counted in ADR-0022's ledger; entries 1 and 2 stand unedited.
 
 | scenario | ground truth | fault class | class of fix | judge (SHARED LINEAGE) |
 |---|---|---|---|---|
