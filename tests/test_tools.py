@@ -7,6 +7,7 @@ change log, and `tests/conftest.py`'s guard covering the rest.
 
 from __future__ import annotations
 
+import json
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -518,14 +519,32 @@ def test_traces_are_needed_by_the_two_narratives_that_justified_the_fourth_tool(
 
 # --- two-ended retention, from the real capture (T3.4b) -----------------------
 
-CAPTURE = (
-    Path(__file__).resolve().parents[1]
-    / "evals/scenarios/artifacts/dev/shipping-wrong-image/logs/shipping-service.txt"
-)
-FAULT_WINDOW = (
-    datetime(2026, 8, 23, 18, 24, tzinfo=UTC),
-    datetime(2026, 8, 23, 18, 36, tzinfo=UTC),
-)
+_BUNDLE = Path(__file__).resolve().parents[1] / "evals/scenarios/artifacts/dev/shipping-wrong-image"
+CAPTURE = _BUNDLE / "logs/shipping-service.txt"
+
+
+def _fault_window() -> tuple[datetime, datetime]:
+    """The capture's own window, read from its manifest rather than written down here.
+
+    It was written down here until T7.1, as two literal 2026-08-23 timestamps, and the
+    re-record moved the capture five days without moving them - so the replay matched no lines
+    at all and the truncation tests failed asserting `truncated` on an empty result. A fixture
+    pinned to a date is pinned to a recording; this one is pinned to the bundle.
+
+    **It ends at the revert, not at the end of the capture.** These tests are about what a
+    specialist sees *during* a fault, and the recorded window runs on past the fix - so a
+    window ending at `window.end` puts recovered Rust output in the newest lines and the
+    language boundary disappears from the truncated view. The original literal window ended
+    mid-fault; this reproduces that intent from the manifest.
+    """
+    manifest = json.loads((_BUNDLE / "manifest.json").read_text())
+    return (
+        datetime.fromisoformat(manifest["window"]["start"]),
+        datetime.fromisoformat(manifest["t_revert"]),
+    )
+
+
+FAULT_WINDOW = _fault_window()
 
 
 def _recorded_lines() -> list[tuple[datetime, str]]:

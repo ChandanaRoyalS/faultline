@@ -90,6 +90,14 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 
 ## Results
 
+> **The world moved on 2026-08-28.** T7.1 capped kafka's heap, raised `otel-col`'s limit, took
+> Prometheus retention from 6 hours to 15 days, and renamed the stub variants — then re-recorded
+> all twelve bundles against the result. **Every number below was measured against the previous
+> world and stands as measured; none of it was re-run.** A future result is not comparable to
+> these figures, because it would differ in the agent *and* the world. See
+> [docs/RESULTS.md](docs/RESULTS.md) and the
+> [reconciliation record](docs/evidence/t7.1-reconciliation/README.md).
+
 Full method and findings: **[docs/RESULTS.md](docs/RESULTS.md)**. Raw runs and reports:
 [`evals/runs/`](evals/runs/).
 

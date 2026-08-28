@@ -9,26 +9,27 @@
 | expected remediation | `config_revert` |
 | split | `dev` |
 | injected at | `featureflagservice` via `product-catalog-flag-failure` |
-| time to page | 3m24s |
-| steady state captured | 429s |
-| capture window | 2026-08-23T17:43:08+00:00 → 2026-08-23T18:01:29+00:00 |
+| time to page | 4m04s |
+| steady state captured | 300s |
+| capture window | 2026-08-28T03:48:07+00:00 → 2026-08-28T04:05:45+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+3m24s |
-| `t_revert` | T+10m33s |
-| all clear | T+11m21s |
+| first alert firing | T+4m04s |
+| `t_revert` | T+9m04s |
+| all clear | T+10m38s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m30s | `loadgenerator` | ServiceHighErrorRate | 7.8 min | **paged** |
-| T+3m45s | `frontend` | ServiceHighErrorRate | 7.5 min | joined later |
-| T+3m45s | `productcatalogservice` | ServiceHighErrorRate | 7.5 min | joined later |
+| T+3m45s | `loadgenerator` | ServiceHighErrorRate | 6.8 min | **paged** |
+| T+4m15s | `frontend` | ServiceHighErrorRate | 3.8 min | joined later |
+| T+4m15s | `productcatalogservice` | ServiceHighErrorRate | 6.2 min | joined later |
+| T+10m15s | `frontend` | ServiceHighErrorRate | 0.2 min | began after the revert |
 
 ## What the bundle contains
 
@@ -38,6 +39,7 @@ The clock below runs from the moment the fault went in.
 | `metrics/call-rate.json` | `sum by(service_name) (rate(calls_total[2m]))` |
 | `metrics/error-ratio.json` | `sum by(service_name) (rate(calls_total{status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total[2m]))` |
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
+| `metrics/runtime.json` | `{exported_job="featureflagservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
 `logs/feature-flag-service.txt` — 8 lines.
 
@@ -46,8 +48,8 @@ The clock below runs from the moment the fault went in.
 From `logs/feature-flag-service.txt` (2 lines):
 
 ```
-2026-08-23T17:48:12+00:00  ffs-stub listening on :50053; enabled flags: productCatalogFailure
-2026-08-23T17:58:44+00:00  ffs-stub listening on :50053; enabled flags: none
+2026-08-28T03:53:11+00:00  ffs-stub listening on :50053; enabled flags: productCatalogFailure
+2026-08-28T04:02:15+00:00  ffs-stub listening on :50053; enabled flags: none
 ```
 
 
@@ -66,10 +68,12 @@ bundle are the tiebreak.
 
 ### What was observed
 
-The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, 3m24s after
+The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, 4m04s after
 onset. Fifteen seconds later **frontend** and **productcatalogservice** joined it.
 
-Three alerts across three services, and the set never grew.
+Three services alerted during the failure and the set never grew. A fourth alert fired
+after the fix: frontend crossed the threshold again for about twelve seconds during
+recovery, on a service that had already been alerting throughout.
 
 On the storefront most product pages rendered normally. One did not — it returned an
 error every time, while everything around it worked. Baskets, checkout and payment were
@@ -119,18 +123,20 @@ no amount of investigating product catalog would have found it.
 ### Resolution
 
 The flag was turned off. The next request for that product succeeded. Everything was
-clear **48 seconds** after the fix — by a wide margin the fastest recovery on this
-system, because nothing had to restart, drain or reconnect. A flag flip takes effect on
-the following request.
+clear **1m34s** after the fix. Nothing had to restart, drain or reconnect — a flag flip
+takes effect on the following request — and the remaining time is the alerting's own
+rolling windows emptying rather than the system recovering.
 
 Class of fix: **config_revert**. Nothing was deployed and there was no version to roll
 back to; one configuration value was wrong and was set back.
 
 ### Detection notes
 
-- Onset to first page: **3m24s**.
-- Services alerting at the page: **1**. Over the whole incident: **3**, across 3 alerts.
-- Alerts that fired only during recovery: **none**.
+- Onset to first page: **4m04s**.
+- Services alerting at the page: **1**. Over the whole incident: **3**, across 4 alerts.
+- Alerts that fired only during recovery: **1** — frontend, about twelve seconds, after
+  the fix had already gone in. It names a service that was genuinely part of the failure,
+  which makes it harder to dismiss than a recovery alert on an uninvolved service.
 - **The service that errors is not the service that is misconfigured.** This is the
   inverse of a failure where the broken service goes silent. Here the broken-looking
   service is healthy and correct, and the alerting points at it with complete accuracy
@@ -143,9 +149,6 @@ back to; one configuration value was wrong and was set back.
   have surfaced it — not a dashboard, not an alert, not a trace attribute. The only route
   to it was knowing that product catalog consults it, and then going to look at
   something the observability stack does not know exists.
-- **Recovery time is diagnostic in hindsight.** A 48-second all-clear means nothing was
-  restarted or refilled. Faults that require a process to come back take minutes; a fault
-  that clears within one scrape interval was a decision, not a state.
 - Did the loudest service turn out to be the culprit? **No**, but for an unusual reason:
   the loudest service was loadgenerator as always, and the *second* loudest was the
   service actually producing the errors — which was still not the cause.

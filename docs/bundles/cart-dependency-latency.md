@@ -9,27 +9,27 @@
 | expected remediation | `restart` |
 | split | `dev` |
 | injected at | `cart-service` via `cart-dependency-latency` |
-| time to page | 3m45s |
+| time to page | 3m49s |
 | steady state captured | 300s |
-| capture window | 2026-08-23T15:11:15+00:00 → 2026-08-23T15:29:16+00:00 |
+| capture window | 2026-08-28T03:05:51+00:00 → 2026-08-28T03:24:12+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+3m45s |
-| `t_revert` | T+8m45s |
-| all clear | T+11m01s |
+| first alert firing | T+3m49s |
+| `t_revert` | T+8m49s |
+| all clear | T+11m21s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m45s | `cartservice` | ServiceHighLatency | 7.2 min | **paged** |
-| T+3m45s | `checkoutservice` | ServiceHighLatency | 7.0 min | **paged** |
-| T+3m45s | `frontend` | ServiceHighLatency | 7.0 min | **paged** |
-| T+3m45s | `loadgenerator` | ServiceHighLatency | 7.0 min | **paged** |
+| T+3m30s | `cartservice` | ServiceHighLatency | 7.5 min | **paged** |
+| T+3m30s | `loadgenerator` | ServiceHighLatency | 7.2 min | **paged** |
+| T+3m45s | `checkoutservice` | ServiceHighLatency | 7.0 min | joined later |
+| T+3m45s | `frontend` | ServiceHighLatency | 7.0 min | joined later |
 
 ## What the bundle contains
 
@@ -39,6 +39,7 @@ The clock below runs from the moment the fault went in.
 | `metrics/call-rate.json` | `sum by(service_name) (rate(calls_total[2m]))` |
 | `metrics/error-ratio.json` | `sum by(service_name) (rate(calls_total{status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total[2m]))` |
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
+| `metrics/runtime.json` | `{exported_job="cartservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
 `logs/cart-service.txt` — 506 lines.
 
@@ -47,18 +48,18 @@ The clock below runs from the moment the fault went in.
 From `logs/cart-service.txt` (500 lines):
 
 ```
-2026-08-23T15:11:16+00:00  AddItemAsync called with userId=e2e1c9a8-9f04-11f1-a06c-5acf6c7804bd, productId=OLJCESPC7Z, quantity=4
-2026-08-23T15:11:16+00:00  GetCartAsync called with userId=e2e1c9a8-9f04-11f1-a06c-5acf6c7804bd
-2026-08-23T15:11:16+00:00  GetCartAsync called with userId=e2e1c9a8-9f04-11f1-a06c-5acf6c7804bd
-2026-08-23T15:11:16+00:00  EmptyCartAsync called with userId=e2e1c9a8-9f04-11f1-a06c-5acf6c7804bd
-2026-08-23T15:11:16+00:00  AddItemAsync called with userId=e2f9092e-9f04-11f1-a06c-5acf6c7804bd, productId=1YMWWN1N4O, quantity=2
-2026-08-23T15:11:16+00:00  GetCartAsync called with userId=e2f9092e-9f04-11f1-a06c-5acf6c7804bd
-2026-08-23T15:11:16+00:00  GetCartAsync called with userId=e2f9092e-9f04-11f1-a06c-5acf6c7804bd
-2026-08-23T15:11:16+00:00  EmptyCartAsync called with userId=e2f9092e-9f04-11f1-a06c-5acf6c7804bd
-2026-08-23T15:11:16+00:00  AddItemAsync called with userId=e36f72d0-9f04-11f1-a06c-5acf6c7804bd, productId=0PUK6V6EV0, quantity=1
-2026-08-23T15:11:16+00:00  GetCartAsync called with userId=e36f72d0-9f04-11f1-a06c-5acf6c7804bd
-2026-08-23T15:11:19+00:00  GetCartAsync called with userId=
-2026-08-23T15:11:19+00:00  AddItemAsync called with userId=e4e31a22-9f04-11f1-a06c-5acf6c7804bd, productId=66VCHSJNUP, quantity=1
+2026-08-28T03:05:55+00:00  AddItemAsync called with userId=627d5eee-a28d-11f1-ac74-5e36fd0150fc, productId=6E92ZMYYFZ, quantity=1
+2026-08-28T03:05:55+00:00  GetCartAsync called with userId=627d5eee-a28d-11f1-ac74-5e36fd0150fc
+2026-08-28T03:05:55+00:00  GetCartAsync called with userId=627d5eee-a28d-11f1-ac74-5e36fd0150fc
+2026-08-28T03:05:55+00:00  EmptyCartAsync called with userId=627d5eee-a28d-11f1-ac74-5e36fd0150fc
+2026-08-28T03:05:56+00:00  GetCartAsync called with userId=
+2026-08-28T03:05:56+00:00  AddItemAsync called with userId=6342d4b2-a28d-11f1-ac74-5e36fd0150fc, productId=L9ECAV7KIM, quantity=1
+2026-08-28T03:05:56+00:00  GetCartAsync called with userId=6342d4b2-a28d-11f1-ac74-5e36fd0150fc
+2026-08-28T03:05:56+00:00  AddItemAsync called with userId=6342d4b2-a28d-11f1-ac74-5e36fd0150fc, productId=1YMWWN1N4O, quantity=1
+2026-08-28T03:05:56+00:00  GetCartAsync called with userId=6342d4b2-a28d-11f1-ac74-5e36fd0150fc
+2026-08-28T03:05:56+00:00  GetCartAsync called with userId=6342d4b2-a28d-11f1-ac74-5e36fd0150fc
+2026-08-28T03:05:56+00:00  EmptyCartAsync called with userId=6342d4b2-a28d-11f1-ac74-5e36fd0150fc
+2026-08-28T03:05:57+00:00  AddItemAsync called with userId=63ce5fdc-a28d-11f1-ac74-5e36fd0150fc, productId=L9ECAV7KIM, quantity=2
 ```
 
 _488 further lines are in the bundle._
@@ -78,9 +79,9 @@ bundle are the tiebreak.
 
 ### What was observed
 
-Four `ServiceHighLatency` alerts fired in the same evaluation: **cartservice**,
-**checkoutservice**, **frontend** and **loadgenerator**. The page arrived 3m45s after
-things started slowing.
+The page named two services: `ServiceHighLatency` on **cartservice** and
+**loadgenerator**, 3m49s after things started slowing. **checkoutservice** and
+**frontend** followed fifteen seconds later, for four alerts across four services.
 
 No errors. Not one. Every request succeeded; they simply took longer. The storefront
 worked end to end — adding to a basket returned normally, just sluggishly.
@@ -136,7 +137,7 @@ p95 to rise by exactly 300ms would have doubted a correct measurement.
 ### Resolution
 
 Recreating the cart container cleared the shaping — the rule is bound to the container
-instance, so a new one comes up on a clean network path. Everything was quiet 2m16s
+instance, so a new one comes up on a clean network path. Everything was quiet 2m32s
 later.
 
 Class of fix: **restart**. Nothing was deployed and no configuration was wrong, so
@@ -144,14 +145,16 @@ there was nothing to roll back or revert; the container simply needed replacing.
 
 ### Detection notes
 
-- Onset to first page: **3m45s**, against a three-minute persistence clause. Detection
+- Onset to first page: **3m49s**, against a three-minute persistence clause. Detection
   is dominated by the clause, not by how long the signal took to appear — the underlying
   measurement crossed the threshold almost immediately.
-- Services alerting at the page: **4**. Over the whole incident: **4**. The blast radius
-  never grew, and all four alerts began in the same evaluation.
+- Services alerting at the page: **2**. Over the whole incident: **4**. The blast radius
+  never grew beyond cart and its callers.
 - Alerts that fired only during recovery: **none**.
 - **The culprit was named in the page**, unlike a fault that removes a service entirely
-  — a slow service still reports its own latency, so it appears in its own alert.
+  — a slow service still reports its own latency, so it appears in its own alert. Here it
+  was one of only two services named, alongside the synthetic client, which is as close to
+  being handed the answer as this system's alerting gets.
 - Did the loudest service turn out to be the culprit? **Yes**, and that is worth noting
   precisely because it is unusual. Latency propagates upward through callers, so the
   slowest service in the chain is the source.
@@ -163,11 +166,12 @@ there was nothing to roll back or revert; the container simply needed replacing.
   decays from about 100ms to 2ms over roughly four minutes after being recreated. Any
   comparison against "normal" must exclude that window, and a responder who samples
   inside it will conclude the service is far noisier than it is.
-- On clearing order: cart's alert cleared about fifteen seconds after its callers' did.
-  That is an observation about this incident and not a rule — clearing order is
-  dominated by how full each service's rolling window happens to be when the fault
-  stops, which has more to do with traffic rate than with causation. Do not read
-  causation into what cleared when.
+- On ordering, in both directions: cart and the synthetic client alerted fifteen seconds
+  before checkout and frontend, and cart's alert also cleared after its callers'. Neither
+  gap is causal. Both are dominated by how full each service's rolling window happens to
+  be at the moment the fault starts or stops, which has more to do with traffic rate than
+  with the direction of the failure — and reading the *firing* order as causal would have
+  been right here by luck, since cart genuinely was the source.
 
 ---
 

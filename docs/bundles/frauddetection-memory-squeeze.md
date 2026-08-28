@@ -9,24 +9,24 @@
 | expected remediation | `config_revert` |
 | split | `dev` |
 | injected at | `frauddetection-service` via `frauddetection-memory-squeeze` |
-| time to page | 7m49s |
-| steady state captured | 383s |
-| capture window | 2026-08-23T20:04:11+00:00 → 2026-08-23T20:26:38+00:00 |
+| time to page | 6m30s |
+| steady state captured | 300s |
+| capture window | 2026-08-28T03:30:27+00:00 → 2026-08-28T03:50:28+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+7m49s |
-| `t_revert` | T+14m12s |
-| all clear | T+15m27s |
+| first alert firing | T+6m30s |
+| `t_revert` | T+11m30s |
+| all clear | T+13m01s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+7m45s | `frauddetectionservice` | ServiceNoTraffic | 7.5 min | **paged** |
+| T+6m15s | `frauddetectionservice` | ServiceNoTraffic | 6.8 min | **paged** |
 
 ## What the bundle contains
 
@@ -36,29 +36,30 @@ The clock below runs from the moment the fault went in.
 | `metrics/call-rate.json` | `sum by(service_name) (rate(calls_total[2m]))` |
 | `metrics/error-ratio.json` | `sum by(service_name) (rate(calls_total{status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total[2m]))` |
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
+| `metrics/runtime.json` | `{exported_job="frauddetectionservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/frauddetection-service.txt` — 212 lines.
+`logs/frauddetection-service.txt` — 227 lines.
 
 ## A look at the logs
 
-From `logs/frauddetection-service.txt` (206 lines):
+From `logs/frauddetection-service.txt` (221 lines):
 
 ```
-2026-08-23T20:09:11+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-23T20:09:12+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-23T20:09:12+00:00  [otel.javaagent 2026-08-23 20:09:12:183 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-23T20:09:14+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-23T20:09:14+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-23T20:09:14+00:00  [otel.javaagent 2026-08-23 20:09:14:522 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-23T20:09:16+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-23T20:09:17+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-23T20:09:17+00:00  [otel.javaagent 2026-08-23 20:09:17:194 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-23T20:09:19+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-23T20:09:20+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-23T20:09:20+00:00  [otel.javaagent 2026-08-23 20:09:20:219 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-28T03:35:27+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-28T03:35:28+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-28T03:35:28+00:00  [otel.javaagent 2026-08-28 03:35:28:188 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-28T03:35:30+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-28T03:35:30+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-28T03:35:30+00:00  [otel.javaagent 2026-08-28 03:35:30:644 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-28T03:35:32+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-28T03:35:33+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-28T03:35:33+00:00  [otel.javaagent 2026-08-28 03:35:33:234 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-28T03:35:35+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-28T03:35:36+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-28T03:35:36+00:00  [otel.javaagent 2026-08-28 03:35:36:242 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
 ```
 
-_194 further lines are in the bundle._
+_209 further lines are in the bundle._
 
 ## The incident record
 
@@ -75,7 +76,7 @@ bundle are the tiebreak.
 
 ### What was observed
 
-One alert. `ServiceNoTraffic` on **frauddetectionservice**, 7m49s after onset. Nothing
+One alert. `ServiceNoTraffic` on **frauddetectionservice**, 6m30s after onset. Nothing
 else fired for the entire incident.
 
 The storefront was perfect throughout. Product pages, search, basket, checkout, payment
@@ -133,7 +134,7 @@ the orchestrator restarted it, and it hit the same wall.
 ### Resolution
 
 The memory limit was restored. The service came up on its next restart, resumed
-consuming, and worked through what had accumulated. Everything was clear **1m15s**
+consuming, and worked through what had accumulated. Everything was clear **1m31s**
 after the fix — the fastest recovery of any incident on this system, because nothing in
 the request path had to drain or reconnect.
 
@@ -142,10 +143,13 @@ one resource limit was wrong and was put back.
 
 ### Detection notes
 
-- Onset to first page: **7m49s**, the slowest on this system, and it is a function of
+- Onset to first page: **6m30s**, the slowest on this system, and it is a function of
   traffic rate rather than of severity. At one call every ten seconds a two-minute rate
   window empties slowly and the persistence clause starts late. The same fault on a
-  busy service pages in under three minutes.
+  busy service pages in under three minutes. The figure is also the least stable one
+  here: the same fault on the same service has been recorded pausing anywhere from six
+  and a half to nearly eight minutes, because what is being timed is a rate window
+  draining at a rate that low.
 - Services alerting at the page: **1**. Over the whole incident: **1**, across 1 alert.
 - Alerts that fired only during recovery: **none**.
 - **The page named the culprit directly, and it is the only incident here that does.**

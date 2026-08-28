@@ -18,7 +18,7 @@
 | injected at | `currencyservice` via `currency-cpu-throttle` |
 | time to page | — never paged |
 | steady state captured | 300s |
-| capture window | 2026-08-23T09:41:17+00:00 → 2026-08-23T10:00:24+00:00 |
+| capture window | 2026-08-28T04:15:22+00:00 → 2026-08-28T04:34:29+00:00 |
 
 The clock below runs from the moment the fault went in.
 
@@ -26,7 +26,7 @@ The clock below runs from the moment the fault went in.
 |---|---|
 | `t_inject` | T+0m00s |
 | first alert firing | — |
-| `t_revert` | T+12m03s |
+| `t_revert` | T+12m04s |
 | all clear | T+12m07s |
 
 ## What fired, and when
@@ -41,29 +41,30 @@ _No alert fired over the capture window._
 | `metrics/call-rate.json` | `sum by(service_name) (rate(calls_total[2m]))` |
 | `metrics/error-ratio.json` | `sum by(service_name) (rate(calls_total{status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total[2m]))` |
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
+| `metrics/runtime.json` | `{exported_job="currencyservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/currency-service.txt` — 451 lines.
+`logs/currency-service.txt` — 462 lines.
 
 ## A look at the logs
 
-From `logs/currency-service.txt` (445 lines):
+From `logs/currency-service.txt` (456 lines):
 
 ```
-2026-08-23T09:41:18+00:00  Convert conversion successful
-2026-08-23T09:41:18+00:00  Convert conversion successful
-2026-08-23T09:41:26+00:00  Convert conversion successful
-2026-08-23T09:41:26+00:00  Convert conversion successful
-2026-08-23T09:41:26+00:00  Convert conversion successful
-2026-08-23T09:41:26+00:00  Convert conversion successful
-2026-08-23T09:41:34+00:00  Convert conversion successful
-2026-08-23T09:41:34+00:00  Convert conversion successful
-2026-08-23T09:41:34+00:00  Convert conversion successful
-2026-08-23T09:41:34+00:00  Convert conversion successful
-2026-08-23T09:41:34+00:00  Convert conversion successful
-2026-08-23T09:41:37+00:00  Convert conversion successful
+2026-08-28T04:15:40+00:00  Convert conversion successful
+2026-08-28T04:15:40+00:00  Convert conversion successful
+2026-08-28T04:15:46+00:00  Convert conversion successful
+2026-08-28T04:15:46+00:00  Convert conversion successful
+2026-08-28T04:16:04+00:00  Convert conversion successful
+2026-08-28T04:16:04+00:00  Convert conversion successful
+2026-08-28T04:16:16+00:00  Convert conversion successful
+2026-08-28T04:16:16+00:00  Convert conversion successful
+2026-08-28T04:16:27+00:00  Convert conversion successful
+2026-08-28T04:16:27+00:00  Convert conversion successful
+2026-08-28T04:16:27+00:00  Convert conversion successful
+2026-08-28T04:16:27+00:00  Convert conversion successful
 ```
 
-_433 further lines are in the bundle._
+_444 further lines are in the bundle._
 
 ## The incident record
 

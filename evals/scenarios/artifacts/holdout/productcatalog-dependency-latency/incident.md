@@ -2,22 +2,22 @@
 origin: scenario:productcatalog-dependency-latency
 split: holdout
 fault_class: dependency_latency
-recorded_from: 2026-08-23T16:21:22+00:00
+recorded_from: 2026-08-28T05:09:23+00:00
 onset_to_page: 3m49s
-page_to_fix: 5m13s
-fix_to_all_clear: 2m16s
+page_to_fix: 5m00s
+fix_to_all_clear: 2m32s
 ---
 
 # Product catalog network path acquires 300ms of delay, slowing every caller
 
 ## What was observed
 
-Three `ServiceHighLatency` alerts fired together: **frontend**, **loadgenerator** and
-**recommendationservice**. The page arrived 3m49s after things started slowing.
+Four `ServiceHighLatency` alerts fired together: **checkoutservice**, **frontend**,
+**loadgenerator** and **recommendationservice**. The page arrived 3m49s after things
+started slowing.
 
-**checkoutservice** joined fifteen seconds later. **productcatalogservice** — the
-service the delay was actually on — joined thirty seconds after the page, last of the
-five.
+**productcatalogservice** — the service the delay was actually on — joined a full minute
+after the others, last of the five.
 
 No errors anywhere. Every request succeeded; they took longer. The storefront worked
 end to end, sluggishly. Product pages were slow to render and the recommendation strip
@@ -68,7 +68,7 @@ configuration were untouched.
 ## Resolution
 
 Recreating the container cleared the shaping — the rule binds to the container
-instance, so a replacement comes up on a clean network path. Everything was quiet 2m16s
+instance, so a replacement comes up on a clean network path. Everything was quiet 2m32s
 later, which is the metric window emptying rather than a gradual recovery.
 
 Class of fix: **restart**. Nothing was deployed and no configuration was wrong, so
@@ -78,12 +78,14 @@ there was nothing to roll back or revert.
 
 - Onset to first page: **3m49s**, against a three-minute persistence clause. Detection
   is dominated by the clause.
-- Services alerting at the page: **3**. Over the whole incident: **5**. The blast radius
+- Services alerting at the page: **4**. Over the whole incident: **5**. The blast radius
   never grew.
 - Alerts that fired only during recovery: **none**.
-- **The culprit alerted last**, thirty seconds after the page and after two of its own
-  callers. A slow service does report its own latency, but it reports the smallest
-  number in the incident, so it crosses the threshold last and looks least urgent.
+- **The culprit alerted last**, a full minute after the page and after all four of its
+  own callers. A slow service does report its own latency, but it reports the smallest
+  number in the incident, so it crosses the threshold last and looks least urgent. The
+  gap is wide enough that a responder triaging on arrival order would have spent a
+  minute with the culprit entirely absent from the incident.
 - Did the loudest service turn out to be the culprit? **No** — and the reason
   generalises. Latency accumulates upward through fan-out: a caller that makes N calls
   to a slow dependency is N times slower than the dependency is. **Rank by position in

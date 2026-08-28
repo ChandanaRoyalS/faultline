@@ -82,6 +82,40 @@ a separate decision with its own pre-registration under ADR-0022's protocol, and
 made. See [ADR-0023](adr/0023-a-freeze-manifest-outlives-the-pipeline-it-froze.md), which is where
 this obligation to say so instead of asserting it in a test comes from.
 
+### Every figure below was measured against a world that no longer exists
+
+T7.1 changed four things about the world — kafka's heap is capped, `otel-col`'s limit is 600M,
+Prometheus keeps 15 days instead of 6 hours, and the flag-service stub variants are renamed — and
+re-recorded all twelve scenario bundles against the result. `world.compose_digest` moved from
+`4a7690c6fdda…` to `299d791c5e0d…` and `ffs_stub_source_digest` from `5d06a3668aa0…` to
+`8defed3104c4…`.
+
+**Nothing in this document was re-measured.** Every dev sweep, every variance experiment, every
+holdout entry and the retrieval corpus behind them were produced against the **old** world, and
+they stand exactly as measured. What changes is what they can be compared to:
+
+- **A future run is not comparable to any figure here.** It would differ in the agent *and* the
+  world, and this document cannot separate those. Comparing across the digest boundary is
+  comparing across worlds.
+- **The corpus is old-world too.** It was seeded from the dev narratives as they were before the
+  re-record, and those narratives have now been rewritten against new evidence — see
+  [the reconciliation record](evidence/t7.1-reconciliation/README.md) for what changed. Re-seeding
+  is a separate decision and has not been made.
+- **The holdout entries are the sharpest case.** All three were measured on the old world; the
+  set has been used three times already, and ADR-0022's T4.15 addendum records that it should not
+  be entered again before it is re-authored or extended.
+
+The re-record was deliberately kept separate from any measurement: **no sweep and no holdout entry
+was run in T7.1.** What the new world is worth measuring against is a decision with its own
+argument to make, and making it in the same task that moved the world would have confounded the
+two.
+
+The re-record also moved the narratives these figures were partly reasoned from. Three observations
+were **removed** rather than softened because the new captures no longer contain them, and one
+inference — that a fast all-clear proves nothing restarted — was **refuted by the re-record itself**,
+since a scenario that does require a process to come back cleared faster. Details are in the
+reconciliation record.
+
 ### Honest n
 
 - No figure without its n.

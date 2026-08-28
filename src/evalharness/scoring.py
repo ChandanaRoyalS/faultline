@@ -175,10 +175,21 @@ def score_triage(
     """Compare the blast radius to what actually alerted, minus the recovery phase.
 
     ADR-0009: "the blast radius blames the fault for damage the fix did", so entries whose
-    `began_after_revert` is true are excluded from both sides. Three bundles have them -
-    emailservice in `cart-bad-image-tag` and `cart-redis-misconfig`, frontend in
-    `shipping-wrong-image`. The flag is *omitted* rather than false where there is no revert to
-    compare against, so this reads it as falsy-by-absence deliberately.
+    `began_after_revert` is true are excluded from both sides. The flag is *omitted* rather
+    than false where there is no revert to compare against, so this reads it as
+    falsy-by-absence deliberately.
+
+    **Known defect, recorded at T7.1 and not fixed there.** The exclusion is keyed on the
+    *service*: `alerted - after` removes a service from the blast radius even when it also
+    alerted during the fault, which understates the radius. Until T7.1's re-record every
+    after-revert alert in the catalog belonged to a service that alerted *only* after the
+    revert - emailservice in two cart bundles, frontend in `shipping-wrong-image` - so the
+    sets were disjoint and the subtraction was harmless. The re-record retired all three and
+    produced the first overlapping case, `product-catalog-flag-failure`, where frontend
+    alerts during the fault and again in recovery.
+
+    The fix is to exclude per alert rather than per service. It changes triage numbers, so it
+    belongs with a decision to re-measure rather than with the task that moved the world.
     """
     alerted: set[str] = set()
     after: set[str] = set()

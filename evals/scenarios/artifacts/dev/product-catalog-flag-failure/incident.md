@@ -2,20 +2,22 @@
 origin: scenario:product-catalog-flag-failure
 split: dev
 fault_class: bad_config
-recorded_from: 2026-08-23T17:48:08+00:00
-onset_to_page: 3m24s
-page_to_fix: 7m09s
-fix_to_all_clear: 48s
+recorded_from: 2026-08-28T03:53:07+00:00
+onset_to_page: 4m04s
+page_to_fix: 5m00s
+fix_to_all_clear: 1m34s
 ---
 
 # A feature flag turned on at the flag service makes product catalog fail one product
 
 ## What was observed
 
-The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, 3m24s after
+The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, 4m04s after
 onset. Fifteen seconds later **frontend** and **productcatalogservice** joined it.
 
-Three alerts across three services, and the set never grew.
+Three services alerted during the failure and the set never grew. A fourth alert fired
+after the fix: frontend crossed the threshold again for about twelve seconds during
+recovery, on a service that had already been alerting throughout.
 
 On the storefront most product pages rendered normally. One did not — it returned an
 error every time, while everything around it worked. Baskets, checkout and payment were
@@ -65,18 +67,20 @@ no amount of investigating product catalog would have found it.
 ## Resolution
 
 The flag was turned off. The next request for that product succeeded. Everything was
-clear **48 seconds** after the fix — by a wide margin the fastest recovery on this
-system, because nothing had to restart, drain or reconnect. A flag flip takes effect on
-the following request.
+clear **1m34s** after the fix. Nothing had to restart, drain or reconnect — a flag flip
+takes effect on the following request — and the remaining time is the alerting's own
+rolling windows emptying rather than the system recovering.
 
 Class of fix: **config_revert**. Nothing was deployed and there was no version to roll
 back to; one configuration value was wrong and was set back.
 
 ## Detection notes
 
-- Onset to first page: **3m24s**.
-- Services alerting at the page: **1**. Over the whole incident: **3**, across 3 alerts.
-- Alerts that fired only during recovery: **none**.
+- Onset to first page: **4m04s**.
+- Services alerting at the page: **1**. Over the whole incident: **3**, across 4 alerts.
+- Alerts that fired only during recovery: **1** — frontend, about twelve seconds, after
+  the fix had already gone in. It names a service that was genuinely part of the failure,
+  which makes it harder to dismiss than a recovery alert on an uninvolved service.
 - **The service that errors is not the service that is misconfigured.** This is the
   inverse of a failure where the broken service goes silent. Here the broken-looking
   service is healthy and correct, and the alerting points at it with complete accuracy
@@ -89,9 +93,6 @@ back to; one configuration value was wrong and was set back.
   have surfaced it — not a dashboard, not an alert, not a trace attribute. The only route
   to it was knowing that product catalog consults it, and then going to look at
   something the observability stack does not know exists.
-- **Recovery time is diagnostic in hindsight.** A 48-second all-clear means nothing was
-  restarted or refilled. Faults that require a process to come back take minutes; a fault
-  that clears within one scrape interval was a decision, not a state.
 - Did the loudest service turn out to be the culprit? **No**, but for an unusual reason:
   the loudest service was loadgenerator as always, and the *second* loudest was the
   service actually producing the errors — which was still not the cause.

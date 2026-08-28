@@ -2,24 +2,28 @@
 origin: scenario:email-wrong-image
 split: holdout
 fault_class: bad_deploy
-recorded_from: 2026-08-24T02:55:23+00:00
-onset_to_page: 4m16s
+recorded_from: 2026-08-28T04:54:58+00:00
+onset_to_page: 4m01s
 page_to_fix: 5m00s
-fix_to_all_clear: 1m00s
+fix_to_all_clear: 1m45s
 ---
 
 # Email service deployed with another service's image
 
 ## What was observed
 
-One alert: `ServiceHighErrorRate` on **checkoutservice**, 4m16s after onset. Nothing
-else fired for the whole incident.
+The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 4m01s after
+onset.
 
 On the storefront, browsing, search and basket operations were normal. Checkout failed.
 
-**emailservice never appeared in the alerting at any point** — not on error rate, not
-on latency, not on traffic. The only evidence in the alert stream was one of its
-callers failing.
+**emailservice did alert — but late, quietly, and not on anything resembling failure.**
+`ServiceNoTraffic` fired on it at **T+6m15s**, two and a quarter minutes after the page
+and more than six minutes after onset, and it is the only alert the broken service
+produced. It never showed an error rate and never showed latency: a container that
+cannot finish starting serves nothing, so the only rule it can eventually trip is the
+one that notices an absence. Two alerts across two services, and for the first two and a
+quarter minutes the entire signal was one caller failing.
 
 ## What was checked
 
@@ -78,13 +82,17 @@ fix was to put the previous one back.
 
 ## Detection notes
 
-- Onset to first page: **4m16s**.
-- Services alerting at the page: **1**. Over the whole incident: **1**, across 1 alert.
+- Onset to first page: **4m01s**.
+- Services alerting at the page: **1**. Over the whole incident: **2**, across 2 alerts.
 - Alerts that fired only during recovery: **none**.
-- **The broken service never alerted.** No error rate, no latency, no absence of
-  traffic. A container that cannot finish starting records nothing at all, and this one
-  did not stay dead long enough in any single window to register as silent either. The
-  entire signal was one caller failing.
+- **The broken service alerted last, and on absence rather than failure.** Its only alert
+  was `ServiceNoTraffic` at T+6m15s — no error rate, no latency, because a container that
+  cannot finish starting serves nothing and so fails nothing. A responder working from
+  the alert stream alone gets the caller first and the culprit two and a quarter minutes
+  later, in a form that says only "this stopped being called" and not "this is broken".
+- **Do not wait for the broken service to announce itself.** It did here, eventually, and
+  the announcement carried less information than the dependency graph did — following
+  checkout's failing outbound call named `emailservice` before the alerting did.
 - **Whether a failing process explains itself is the first thing to establish.** A
   process that prints a reason chose to stop; a process whose output ends mid-startup
   with no reason was stopped by something else. Those two have almost disjoint sets of
@@ -93,6 +101,6 @@ fix was to put the previous one back.
   the evidence is hidden; it is that the alerting points at a healthy service and the
   broken one is invisible, so reaching the logs at all requires following the
   dependency rather than the alert.
-- Did the loudest service turn out to be the culprit? **No** — but it was the only
-  service that alerted, so "loudest" and "only" were the same thing, and the culprit was
-  one hop beyond it.
+- Did the loudest service turn out to be the culprit? **No.** checkoutservice alerted
+  for 6.8 minutes against emailservice's 3.2, so the loudest service was the caller and
+  the culprit was one hop beyond it — quieter, later, and easy to read as collateral.

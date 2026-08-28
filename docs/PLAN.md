@@ -1504,6 +1504,64 @@ them, and `test_bundles_match_the_label_they_were_recorded_against` says so out 
 `flag-service-crashloop`, whose injection params changed with the rename. ADR-0014 already named
 that state the correct one.
 
+#### Stage 2 — the uniform re-record, and what it surfaced
+
+Twelve bundles, one driver, **zero discards**. New digests, `capture_set` 2 with
+`metrics/runtime.json`, predecessors archived under `superseded/<t_inject>/`.
+
+Two driver defects, both caught by gates before anything was injected: a rebuilt `ffs-stub:1`
+left `feature-flag-service` on an orphaned image sha, and a fixed 120s inter-scenario gap is
+shorter than the 300s settle rule a revert triggers. The driver now waits for the gate.
+
+**`INVALID.md` was not on the recorder's preserve list**, so `--force` deleted both markers -
+the only files explaining why two bundles are empty. Recovered from git; `INVALID.md` now sits
+beside `incident.md` in `PRESERVED`, pinned by a test.
+
+**Six of twelve targets export no runtime metrics at all**, invisible until every target was
+asked at once. `process_runtime_*` exists for four services and `runtime_*`/`system_memory_*`
+adds a fifth; for the other six `{exported_job="<target>"}` matches nothing whatsoever, so the
+query is not at fault. Pinned as a measured set, asserted in both directions.
+
+**The retention hypothesis is refuted for both INVALID bundles.** Both fired nothing over a 420s
+wait and across the whole window, and both recorded reasons were re-verified against the rebuilt
+world rather than assumed: `featureflagservice` still emits no span metrics at all, and
+`currencyservice` idles at **0.04% CPU** so a quota ceiling has nothing to bind against. Neither
+reason was ever about retention. Both markers stay, and that closes the question.
+
+#### Stage 3 — narrative reconciliation
+
+Every narrative rewritten against its new manifest; corrections recorded in
+`docs/evidence/t7.1-reconciliation/README.md` rather than inside the narratives, which are corpus
+material written in a responder's voice. **Three observations were removed rather than softened**
+because the new captures no longer contain them - `ad-memory-squeeze`'s crosses-clears-crosses
+alert, `cart-bad-image-tag`'s two-wave split, and `recommendation-memory-squeeze`'s latency
+alerts. One inference was **refuted by the re-record itself**: `product-catalog-flag-failure`
+argued that a fast all-clear proves nothing restarted, and `frauddetection-memory-squeeze`, which
+*does* require a process to come back, now clears faster than it does.
+
+`email-wrong-image`'s central claim - that the broken service never alerted at all - is
+contradicted: it alerts, late and only on absence. That is the scenario T4.8 and T4.15 both built
+findings on, and those findings were about **planner behaviour**, not about this claim, so they
+stand.
+
+**Published figures were not re-measured**, deliberately: `RESULTS.md` and `README.md` now state
+that everything in them was measured against the old world and that comparing a future run to
+them compares across worlds. No sweep and no holdout entry ran in T7.1 - what the new world is
+worth measuring against is a decision with its own argument to make.
+
+#### Queued: the blast-radius exclusion is keyed on the service, not the alert
+
+Found at stage 3 and **not fixed**, because it changes triage numbers and T7.1 re-measures
+nothing. `score_triage` computes `alerted - after`, which drops a service from the blast radius
+entirely when it has *any* post-revert alert - including the alert it raised during the fault.
+That understates the radius.
+
+It was unreachable until now: every after-revert alert in the catalog belonged to a service that
+alerted *only* after the revert, so the two sets were disjoint. The re-record retired all three
+of those and produced the first overlap, `product-catalog-flag-failure`, where frontend alerts
+during the fault and again in recovery. **The fix is to exclude per alert rather than per
+service**, and it belongs with a decision to re-measure.
+
 #### Queued: a `memory_limiter` processor for otel-col — **600M is a timer, not a fix**
 
 Not taken at T7.1, and recorded here rather than left in a commit message because the raise will

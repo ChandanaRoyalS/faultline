@@ -2,10 +2,10 @@
 origin: scenario:cart-bad-image-tag
 split: dev
 fault_class: bad_deploy
-recorded_from: 2026-08-23T18:53:53+00:00
-onset_to_page: 5m01s
-page_to_fix: 5m51s
-fix_to_all_clear: 3m00s
+recorded_from: 2026-08-28T02:56:25+00:00
+onset_to_page: 4m02s
+page_to_fix: 5m00s
+fix_to_all_clear: 2m15s
 ---
 
 # Cart service deployed on an image tag that was never published
@@ -13,16 +13,16 @@ fix_to_all_clear: 3m00s
 ## What was observed
 
 The page named three services in the same evaluation: `ServiceHighErrorRate` on
-**frontend**, **loadgenerator** and **checkoutservice**. It arrived 5m01s after onset.
+**frontend**, **loadgenerator** and **checkoutservice**. It arrived 4m02s after onset.
 
 On the storefront, product pages rendered normally. Adding anything to a basket failed.
 
-Seven services then went quiet in two waves fifteen seconds apart. **currencyservice**
-and **quoteservice** first, at T+1m15s; then **accountingservice**, **cartservice**,
-**emailservice**, **frauddetectionservice** and **shippingservice** at T+1m30s. All
-`ServiceNoTraffic`.
+Two and a half minutes after the page, seven services went quiet **together** at
+T+6m15s — accountingservice, **cartservice**, currencyservice, emailservice,
+frauddetectionservice, quoteservice and shippingservice. All `ServiceNoTraffic`, all in
+the same evaluation.
 
-Eleven alerts across ten services.
+Ten alerts across ten services.
 
 ## What was checked
 
@@ -36,11 +36,12 @@ the storefront is failing to do and says nothing about cause.
 **Traces from frontend.** Checkout spans failing on their call to cart. The first real
 narrowing.
 
-**The two waves of silence.** Tempting to read as a spreading failure — one thing
-knocking over another, which knocks over more. It is not. Both waves are the same
-event seen at two evaluation boundaries: services stopped being called at the same
-moment, and their rate windows emptied a scrape apart. **Fifteen seconds of separation
-between groups is scrape granularity, not causal ordering.**
+**The gap between the errors and the silence.** Errors alerted at T+3m45s; the silence
+did not arrive until T+6m15s, two and a half minutes later. That is not the failure
+spreading. `ServiceHighErrorRate` responds to requests that fail, and `ServiceNoTraffic`
+only once calls stop arriving at all and a rate window empties — the same event crossing
+two thresholds that are sensitive to different things. The seven quiet services were all
+quiet for the same reason at the same moment.
 
 **cartservice container state.** There was no container. Not a restarting one, not a
 crashed one — no cartservice process existed on the host, and therefore no exit code and
@@ -78,29 +79,26 @@ records no calls, and therefore no errored ones.
 ## Resolution
 
 The image reference was restored to the previously deployed tag. cartservice came up on
-the next reconciliation and the no-traffic alerts cleared eight seconds later — those
-six services had never been broken, only starved.
-
-A brief `ServiceHighErrorRate` appeared on **emailservice** more than two minutes after
-the fix and lasted half a minute, on a service that had not errored once during the
-incident. It is a recovery artifact: checkout resumed and pushed queued work through a
-service that had been idle. Everything was clear at **T+8m51s**.
+the next reconciliation and the no-traffic alerts cleared — those six services had never
+been broken, only starved. Everything was clear at **T+11m17s**, 2m15s after the fix.
 
 Class of fix: **rollback**. A deployment moved the service to a version that does not
 exist; the fix was to put the previous version back.
 
 ## Detection notes
 
-- Onset to first page: **5m01s**.
-- Services alerting at the page: **3**. Over the whole incident: **10**, across 11
+- Onset to first page: **4m02s**.
+- Services alerting at the page: **3**. Over the whole incident: **10**, across 10
   alerts.
-- Alerts that fired only during recovery: **1** — emailservice, thirty seconds, on a
-  service that was never part of the failure.
-- **The broken service was indistinguishable from six healthy ones.** cartservice
-  appeared in the second wave of `ServiceNoTraffic` alongside five services that were
-  merely downstream of it, and was never singled out by any alert.
-- Did the loudest service turn out to be the culprit? **No.** frontend and loadgenerator
-  alerted longest at nine minutes each and neither was broken.
+- Alerts that fired only during recovery: **none**. Every alert in this window belongs
+  to the failure itself.
+- **The broken service was indistinguishable from six healthy ones.** cartservice went
+  quiet in the same evaluation as six services that were merely downstream of it, and
+  nothing in the alerting singled it out — not its position, not its timing, not the
+  alert it fired. Alphabetically it is one entry in a list of seven.
+- Did the loudest service turn out to be the culprit? **No.** loadgenerator alerted
+  longest at 7.2 minutes and frontend and checkout at 7.0, and none of the three was
+  broken.
 - **The shape of the log stream is the strongest evidence available, and both kinds of
   failure leave one.** A service that keeps dying produces continuous failure chatter —
   the same error, over and over, for as long as the incident lasts. A service that was
@@ -109,6 +107,7 @@ exist; the fix was to put the previous version back.
   nothing. What distinguishes them is **where the lines end and whether anything follows**.
   Here they end at onset with an orderly shutdown and resume one second after the fix,
   which is a container that was stopped and never replaced — not one that is failing.
-- **Do not read scrape granularity as causation.** The seven quiet services split into
-  two groups fifteen seconds apart, which looks like propagation and is an artifact of
-  when each rate window happened to empty.
+- **Two thresholds, not two events.** The two-and-a-half-minute gap between the error
+  alerts and the silence is the most misreadable feature of this incident: it looks like
+  a failure spreading outward from the storefront, and it is one failure being noticed
+  twice by rules that measure different things.

@@ -9,24 +9,25 @@
 | expected remediation | `rollback` |
 | split | `holdout` |
 | injected at | `emailservice` via `email-wrong-image` |
-| time to page | 4m16s |
+| time to page | 4m01s |
 | steady state captured | 300s |
-| capture window | 2026-08-24T02:50:23+00:00 → 2026-08-24T03:07:39+00:00 |
+| capture window | 2026-08-28T04:49:58+00:00 → 2026-08-28T05:07:44+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+4m16s |
-| `t_revert` | T+9m16s |
-| all clear | T+10m16s |
+| first alert firing | T+4m01s |
+| `t_revert` | T+9m01s |
+| all clear | T+10m46s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+4m00s | `checkoutservice` | ServiceHighErrorRate | 6.0 min | **paged** |
+| T+3m45s | `checkoutservice` | ServiceHighErrorRate | 6.8 min | **paged** |
+| T+6m15s | `emailservice` | ServiceNoTraffic | 3.2 min | joined later |
 
 ## What the bundle contains
 
@@ -36,29 +37,30 @@ The clock below runs from the moment the fault went in.
 | `metrics/call-rate.json` | `sum by(service_name) (rate(calls_total[2m]))` |
 | `metrics/error-ratio.json` | `sum by(service_name) (rate(calls_total{status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total[2m]))` |
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
+| `metrics/runtime.json` | `{exported_job="emailservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/email-service.txt` — 180 lines.
+`logs/email-service.txt` — 192 lines.
 
 ## A look at the logs
 
-From `logs/email-service.txt` (174 lines):
+From `logs/email-service.txt` (186 lines):
 
 ```
-2026-08-24T02:51:54+00:00  172.18.0.20 - - [24/Aug/2026:02:51:54 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0054
-2026-08-24T02:51:59+00:00  172.18.0.20 - - [24/Aug/2026:02:51:59 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
-2026-08-24T02:52:07+00:00  172.18.0.20 - - [24/Aug/2026:02:52:07 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-24T02:52:16+00:00  172.18.0.20 - - [24/Aug/2026:02:52:16 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-24T02:52:24+00:00  172.18.0.20 - - [24/Aug/2026:02:52:24 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-24T02:52:27+00:00  172.18.0.20 - - [24/Aug/2026:02:52:27 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
-2026-08-24T02:52:27+00:00  172.18.0.20 - - [24/Aug/2026:02:52:27 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-24T02:52:38+00:00  172.18.0.20 - - [24/Aug/2026:02:52:38 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
-2026-08-24T02:52:44+00:00  172.18.0.20 - - [24/Aug/2026:02:52:44 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
-2026-08-24T02:52:45+00:00  172.18.0.20 - - [24/Aug/2026:02:52:45 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-24T02:52:49+00:00  172.18.0.20 - - [24/Aug/2026:02:52:49 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-24T02:52:51+00:00  172.18.0.20 - - [24/Aug/2026:02:52:51 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
+2026-08-28T04:50:14+00:00  172.18.0.20 - - [28/Aug/2026:04:50:14 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-08-28T04:50:16+00:00  172.18.0.20 - - [28/Aug/2026:04:50:16 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-08-28T04:50:19+00:00  172.18.0.20 - - [28/Aug/2026:04:50:19 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-08-28T04:50:19+00:00  172.18.0.20 - - [28/Aug/2026:04:50:19 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-08-28T04:50:22+00:00  172.18.0.20 - - [28/Aug/2026:04:50:22 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0015
+2026-08-28T04:50:35+00:00  172.18.0.20 - - [28/Aug/2026:04:50:35 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-08-28T04:50:45+00:00  172.18.0.20 - - [28/Aug/2026:04:50:45 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
+2026-08-28T04:50:55+00:00  172.18.0.20 - - [28/Aug/2026:04:50:55 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-08-28T04:50:59+00:00  172.18.0.20 - - [28/Aug/2026:04:50:59 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
+2026-08-28T04:51:08+00:00  172.18.0.20 - - [28/Aug/2026:04:51:08 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0027
+2026-08-28T04:51:08+00:00  172.18.0.20 - - [28/Aug/2026:04:51:08 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-08-28T04:51:12+00:00  172.18.0.20 - - [28/Aug/2026:04:51:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
 ```
 
-_162 further lines are in the bundle._
+_174 further lines are in the bundle._
 
 ## The incident record
 
@@ -75,14 +77,18 @@ bundle are the tiebreak.
 
 ### What was observed
 
-One alert: `ServiceHighErrorRate` on **checkoutservice**, 4m16s after onset. Nothing
-else fired for the whole incident.
+The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 4m01s after
+onset.
 
 On the storefront, browsing, search and basket operations were normal. Checkout failed.
 
-**emailservice never appeared in the alerting at any point** — not on error rate, not
-on latency, not on traffic. The only evidence in the alert stream was one of its
-callers failing.
+**emailservice did alert — but late, quietly, and not on anything resembling failure.**
+`ServiceNoTraffic` fired on it at **T+6m15s**, two and a quarter minutes after the page
+and more than six minutes after onset, and it is the only alert the broken service
+produced. It never showed an error rate and never showed latency: a container that
+cannot finish starting serves nothing, so the only rule it can eventually trip is the
+one that notices an absence. Two alerts across two services, and for the first two and a
+quarter minutes the entire signal was one caller failing.
 
 ### What was checked
 
@@ -141,13 +147,17 @@ fix was to put the previous one back.
 
 ### Detection notes
 
-- Onset to first page: **4m16s**.
-- Services alerting at the page: **1**. Over the whole incident: **1**, across 1 alert.
+- Onset to first page: **4m01s**.
+- Services alerting at the page: **1**. Over the whole incident: **2**, across 2 alerts.
 - Alerts that fired only during recovery: **none**.
-- **The broken service never alerted.** No error rate, no latency, no absence of
-  traffic. A container that cannot finish starting records nothing at all, and this one
-  did not stay dead long enough in any single window to register as silent either. The
-  entire signal was one caller failing.
+- **The broken service alerted last, and on absence rather than failure.** Its only alert
+  was `ServiceNoTraffic` at T+6m15s — no error rate, no latency, because a container that
+  cannot finish starting serves nothing and so fails nothing. A responder working from
+  the alert stream alone gets the caller first and the culprit two and a quarter minutes
+  later, in a form that says only "this stopped being called" and not "this is broken".
+- **Do not wait for the broken service to announce itself.** It did here, eventually, and
+  the announcement carried less information than the dependency graph did — following
+  checkout's failing outbound call named `emailservice` before the alerting did.
 - **Whether a failing process explains itself is the first thing to establish.** A
   process that prints a reason chose to stop; a process whose output ends mid-startup
   with no reason was stopped by something else. Those two have almost disjoint sets of
@@ -156,9 +166,9 @@ fix was to put the previous one back.
   the evidence is hidden; it is that the alerting points at a healthy service and the
   broken one is invisible, so reaching the logs at all requires following the
   dependency rather than the alert.
-- Did the loudest service turn out to be the culprit? **No** — but it was the only
-  service that alerted, so "loudest" and "only" were the same thing, and the culprit was
-  one hop beyond it.
+- Did the loudest service turn out to be the culprit? **No.** checkoutservice alerted
+  for 6.8 minutes against emailservice's 3.2, so the loudest service was the caller and
+  the culprit was one hop beyond it — quieter, later, and easy to read as collateral.
 
 ---
 
