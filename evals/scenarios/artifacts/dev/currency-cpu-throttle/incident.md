@@ -3,6 +3,7 @@ origin: scenario:currency-cpu-throttle
 split: dev
 fault_class: resource_exhaustion
 recorded_from: 2026-08-28T04:20:22+00:00
+capability: cap:9c416e0a
 onset_to_page: n/a
 page_to_fix: n/a
 fix_to_all_clear: 3s

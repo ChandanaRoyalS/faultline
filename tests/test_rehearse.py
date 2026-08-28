@@ -635,3 +635,32 @@ def test_the_runtime_capture_covers_every_runtime_the_demo_uses() -> None:
 
     for family in ("process_runtime_", "runtime_", "system_memory_"):
         assert family in query, f"{family}* would not be captured"
+
+
+def test_the_recorder_says_so_when_the_narrative_predates_the_capability_set(
+    tmp_path: Path,
+) -> None:
+    """A capture-set change must not land with narratives silently stale (T7.8).
+
+    It warns rather than refuses: refusing would block a recording over prose, and the standing
+    rule is that a re-record never rewrites a narrative - a person does, afterwards. `make check`
+    is what stops it landing; this is what tells whoever is standing at the recorder that they
+    now owe a review.
+    """
+    from evalharness.capability import capability_version
+    from evalharness.rehearse import warn_if_narrative_is_stale
+
+    bundle = tmp_path / "a-bundle"
+    bundle.mkdir()
+
+    (bundle / "incident.md").write_text("---\ncapability: cap:0000dead\n---\n\n# old\n")
+    assert warn_if_narrative_is_stale(bundle) is True, "an older stamp is a debt"
+
+    (bundle / "incident.md").write_text("---\nrecorded_from: x\n---\n\n# unstamped\n")
+    assert warn_if_narrative_is_stale(bundle) is True, "no stamp is also a debt"
+
+    (bundle / "incident.md").write_text(f"---\ncapability: {capability_version()}\n---\n\n# ok\n")
+    assert warn_if_narrative_is_stale(bundle) is False, "reviewed at the current set is quiet"
+
+    (bundle / "incident.md").unlink()
+    assert warn_if_narrative_is_stale(bundle) is False, "no narrative is not a stale narrative"

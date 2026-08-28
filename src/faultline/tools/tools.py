@@ -71,6 +71,24 @@ def two_ended_split(cap: int) -> tuple[int, int]:
     return oldest, cap - oldest
 
 
+TOOL_BEHAVIOUR_REVISION = 1
+"""Bumped when a tool returns materially different evidence without changing the tool set.
+
+**The one input to `CAPABILITY_VERSION` that cannot be derived**, and it exists because the
+derivable part misses real capability changes. Two-ended truncation (T3.4b) is the worked
+example: `logql_query` kept its name and its signature, and started returning the oldest lines
+as well as the newest - which re-opened every narrative claim of the form "the logs showed
+nothing before onset". A digest over method names would not have moved.
+
+Bump when a change alters **what a responder could conclude** from a tool's output. Do not bump
+for refactors, docstrings, error messages, or performance: a version that moves when nothing a
+narrative could cite has moved is the `ffs_stub_image_id` mistake ADR-0014 names - a field that
+produces differences nobody can act on, until nobody looks at it.
+
+Revision 1 is the surface as of T7.8: four tools, two-ended log retention, trust envelopes with
+per-call nonces, change records emitted by the injector.
+"""
+
 ALLOWED_PATHS = frozenset({PROMETHEUS_QUERY_RANGE, LOKI_QUERY_RANGE, JAEGER_TRACES})
 """Every path this layer can reach. Asserted by test, so adding one is a visible act."""
 

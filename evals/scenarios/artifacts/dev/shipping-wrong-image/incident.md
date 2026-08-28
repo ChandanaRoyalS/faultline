@@ -3,6 +3,7 @@ origin: scenario:shipping-wrong-image
 split: dev
 fault_class: bad_deploy
 recorded_from: 2026-08-28T04:07:24+00:00
+capability: cap:9c416e0a
 onset_to_page: 2m48s
 page_to_fix: 5m00s
 fix_to_all_clear: 2m01s
