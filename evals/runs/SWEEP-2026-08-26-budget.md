@@ -56,7 +56,7 @@ things and measure neither.
 | runs exhausting `changes` | **2** | **0** |
 | runs exhausting anything | 2 | 2 (both `metrics`) |
 | judge same_mechanism / different | 4 / 3 | **6 / 1** |
-| triage recall / precision | 0.95 / 0.57 | 0.91 / 0.54 |
+| triage recall / precision | ~~0.95 / 0.57~~ **0.95 / 0.60** | ~~0.91 / 0.54~~ **0.92 / 0.58** | _(rescored 2026-08-28 under T7.3's fixed per-episode exclusion; the original figures are struck)_
 
 | per fault class | n | S2 fault / answered | S3 fault / answered | S3 abstained |
 |---|---|---|---|---|

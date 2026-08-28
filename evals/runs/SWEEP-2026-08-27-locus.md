@@ -45,7 +45,7 @@ the rejected one. Same world, same harness, same protocol, same budget. Holdout 
 | re-issues after silence | 4, in 3 runs | 2, in 2 runs | **2, in 2 runs** |
 | runs exhausting a bound | 2 | 1 | **0** |
 | tool calls, total | 58 | 50 | **47** |
-| triage recall / precision | 0.91 / 0.54 | 0.92 / 0.56 | 0.90 / 0.54 |
+| triage recall / precision | ~~0.91 / 0.54~~ **0.92 / 0.58** | ~~0.92 / 0.56~~ **0.92 / 0.59** | ~~0.90 / 0.54~~ **0.91 / 0.57** | _(rescored 2026-08-28 under T7.3's fixed per-episode exclusion; the original figures are struck)_
 
 | per fault class | n | S3 answered | S4 answered | **S5 answered** |
 |---|---|---|---|---|

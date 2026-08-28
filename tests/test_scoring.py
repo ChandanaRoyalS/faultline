@@ -129,39 +129,71 @@ def test_a_dispute_only_applies_to_the_pair_it_was_written_for() -> None:
 # --- triage --------------------------------------------------------------------
 
 
-def test_recovery_phase_alerts_are_excluded_from_both_sides() -> None:
-    """ADR-0009: "the blast radius blames the fault for damage the fix did".
+def test_a_purely_recovery_phase_alert_is_still_excluded() -> None:
+    """ADR-0009: "the blast radius blames the fault for damage the fix did". A service whose
+    only alert began after the revert is not part of the fault's damage and stays out."""
+    alerts = [
+        {"service": "cartservice", "began_after_revert": False},
+        {"service": "emailservice", "began_after_revert": True},
+    ]
 
-    Written against `shipping-wrong-image` until T7.1, whose recovery-phase `frontend` alert
-    did not recur in the re-record. `product-catalog-flag-failure` carries one now, and it is
-    the more demanding fixture: its recovery alert names a service that **was** genuinely part
-    of the failure, so excluding it cannot be done by asking whether the service was involved -
-    only by asking when its alert began.
+    score = score_triage({"cartservice"}, alerts, unmeasured_edges=0)
+
+    assert score.alerted == frozenset({"cartservice"})
+    assert score.excluded_after_revert == frozenset({"emailservice"})
+    assert "emailservice" not in score.missed, "not a recall miss - not the fault's damage"
+
+
+def test_a_service_that_alerts_during_and_after_stays_in_the_blast_radius() -> None:
+    """The case T7.3 fixed, taken from a committed recording rather than invented.
+
+    `product-catalog-flag-failure` has `frontend` alerting during the fault and again in
+    recovery. The exclusion is per **episode**: the recovery alert is dropped, and the fault's
+    own alert keeps the service in the radius.
+
+    The old code computed `alerted - after` over service names, which removed the service
+    entirely and understated the radius - blaming the fault for *less* than it did, which is
+    the mirror of the error ADR-0009 was guarding against.
+
+    The historical case is the same shape on a different service: `cart-redis-misconfig`'s
+    pre-T7.1 recording, archived at `superseded/20260824T044427Z/`, has `emailservice` raising
+    `ServiceNoTraffic` while the fault is live and `ServiceHighErrorRate` during recovery. That
+    shape is behind 18 of the 24 re-scored runs, and it is not the fixture here only because
+    the live recording no longer contains it.
     """
     truth = bundle("product-catalog-flag-failure")
-    after = {a["service"] for a in truth["alerts_over_window"] if a.get("began_after_revert")}
-    assert after == {"frontend"}, "the bundle this test is written against"
     during = {a["service"] for a in truth["alerts_over_window"] if not a.get("began_after_revert")}
-    assert "frontend" in during, "the same service alerted during the fault as well"
+    after = {a["service"] for a in truth["alerts_over_window"] if a.get("began_after_revert")}
+    assert during & after == {"frontend"}, "the committed recording this test is written against"
 
     score = score_triage({"productcatalogservice"}, truth["alerts_over_window"], unmeasured_edges=1)
 
-    assert "frontend" in score.excluded_after_revert
+    assert "frontend" in score.alerted, "kept on the strength of its during-fault alert"
+    assert score.excluded_after_revert == frozenset(), "not excluded, so not listed"
+    assert "frontend" in score.missed, "alerted and not predicted - a real recall miss"
+    assert score.recall == 1 / 3, "three services alerted during the fault; one was predicted"
 
-    # **Current behaviour, pinned rather than endorsed.** The exclusion is keyed on the
-    # service, not the alert: `alerted - after` drops frontend from the blast radius
-    # entirely, including the alert it raised *during* the fault. That understates the
-    # radius, because frontend genuinely was damaged by this fault.
-    #
-    # It has never mattered until now. The only after-revert alerts in the catalog were on
-    # services that alerted *only* after the revert, so the two sets were disjoint and the
-    # subtraction was harmless. T7.1's re-record produced the first overlap, which is how a
-    # latent defect becomes a reachable one.
-    #
-    # Not fixed here: correcting it changes triage numbers, and T7.1 deliberately re-measures
-    # nothing. Queued in PLAN.md with the fix (exclude per alert, not per service).
-    assert "frontend" not in score.alerted, "understated: see the note above"
-    assert "frontend" not in score.missed
+
+def test_the_exclusion_cannot_go_back_to_being_per_service() -> None:
+    """A regression guard with the defect written into it.
+
+    Per-service exclusion and per-episode exclusion agree on every input where no service has
+    both kinds of alert, which is why this went unnoticed: it is only distinguishable on the
+    overlapping case. So the guard is that case, asserted against what the old expression
+    would have produced.
+    """
+    alerts = [
+        {"service": "frontend", "began_after_revert": False},
+        {"service": "frontend", "began_after_revert": True},
+    ]
+
+    score = score_triage({"frontend"}, alerts, unmeasured_edges=0)
+
+    during = {a["service"] for a in alerts if not a.get("began_after_revert")}
+    after = {a["service"] for a in alerts if a.get("began_after_revert")}
+    assert during - after == frozenset(), "what the old code computed: the service vanishes"
+    assert score.alerted == frozenset({"frontend"}), "what the fix computes: it stays"
+    assert score.recall == 1.0 and score.precision == 1.0
 
 
 def test_recall_and_precision_are_both_reported_and_neither_is_combined() -> None:
