@@ -28,8 +28,8 @@ injection:
   target: featureflagservice
   method: flag-service-bad-deploy
   params:
-    image: "faultline/ffs-stub:broken"
-    server: "server_broken.py"
+    image: "ffs-stub:2"
+    server: "server_v2.py"
 ground_truth:
   root_cause: >
     A build of featureflagservice was deployed in which GetFlag returns UNAVAILABLE. The

@@ -56,6 +56,14 @@ services:
 
   # Point Prometheus at our config (rules + Alertmanager) and keep more history:
   # the demo's 1h retention is too short to investigate an incident after the fact.
+  #
+  # T7.1: 6h -> 15d. Six hours cost something measurable. When the fifth capture was added,
+  # backfilling runtime.json into the ten existing bundles was impossible - their windows
+  # were from 2026-08-23, the Prometheus server had started 2026-08-24T08:53Z, and a query
+  # at cart-dependency-latency's t_inject returned no data. The window was gone before the
+  # question was asked, and that is what settled ARTIFACTS.md's decision not to re-record
+  # the existing ten. Fifteen days is chosen so a bundle stays queryable across a whole
+  # phase of work rather than a working day.
   prometheus:
     volumes:
       - ../compose/prometheus/prometheus-config.yaml:/etc/prometheus/faultline-prometheus.yaml:ro
@@ -63,7 +71,7 @@ services:
     command:
       - --config.file=/etc/prometheus/faultline-prometheus.yaml
       - --storage.tsdb.path=/prometheus
-      - --storage.tsdb.retention.time=6h
+      - --storage.tsdb.retention.time=15d
       - --web.console.templates=/etc/prometheus/consoles
       - --web.console.libraries=/etc/prometheus/console_libraries
       - --web.enable-lifecycle

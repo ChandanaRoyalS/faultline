@@ -22,8 +22,8 @@ injection:
   target: featureflagservice
   method: flag-service-crashloop
   params:
-    image: "faultline/ffs-stub:crashloop"
-    server: "server_crash.py"
+    image: "ffs-stub:3"
+    server: "server_v3.py"
 ground_truth:
   root_cause: >
     A build of featureflagservice was deployed that serves correct responses and then

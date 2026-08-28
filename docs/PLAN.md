@@ -1469,6 +1469,47 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+**Scope note: this entry and the work done under the T7.1 name are two different things.**
+The entry above is catalog growth. What the tree has been calling "T7.1" everywhere else -
+`CATALOG.md`'s queue table, `ARTIFACTS.md`, ADR-0019, `RESULTS.md`'s open questions, and a test
+docstring - is the **digest-locked change queue and the uniform re-record it requires**. That is
+what was built; catalog growth is untouched and still owed. Recorded rather than silently merged,
+because a reader following either citation should land on the right thing.
+
+### T7.1 (the digest-locked queue) — the world moves *(stage 1 built)*
+Four changes taken together, since one digest change costs the same as four:
+
+| change | file | justified by |
+|---|---|---|
+| cap kafka's JVM heap at 400m | `world-arm64.override.yml` | CATALOG.md measured the trajectory: raised 1200M->2g at ~10:40, back to **90.2% of 2g by ~19:30**. Nine hours to consume the new headroom - unbounded growth, not undersizing. `paymentservice` and `quoteservice`, raised the same morning, both settled *below* their old ceilings, which is what a squeezed container looks like. A cap stops the growth; another raise buys hours. |
+| `otel-col` 300M -> 600M | `world-arm64.override.yml` | Measured at **291.7MiB of 300MiB - 97.2%** after ~a day, over the pre-flight gate's 90% threshold, and **a rehearsal was refused on it**. |
+| Prometheus retention 6h -> 15d | `compose/telemetry.yml` | Six hours already cost a backfill: `runtime.json` could not be added to the ten existing bundles because their windows were from 08-23 and Prometheus had started 08-24T08:53Z. The window was gone before the question was asked. |
+| stub variants renamed | `compose/ffs-stub/`, `src/injector/catalog.py` | ADR-0019: `faultline/ffs-stub:broken` and `:crashloop` made the **tag the answer key**, and `faultline/` gave away the harness besides. Now `ffs-stub:1/:2/:3` over `server.py`/`server_v2.py`/`server_v3.py`. |
+
+**`KNOWN_LEAKING_FAULTS` is now empty and pinned empty.** ADR-0019 tolerated two leaking change
+records because both scenarios were blocked and unreachable; T7.1 took the rename instead, because
+a leak tolerated for being unreachable is a leak waiting for the scenario to become reachable.
+
+**Digests moved, which is the point and the cost:**
+
+| | before | after |
+|---|---|---|
+| `world.compose_digest` | `4a7690c6fdda…1583e` | **`299d791c5e0d…6a6c`** |
+| `world.ffs_stub_source_digest` | `5d06a3668aa0…b9db` | **`8defed3104c4…7fde`** |
+
+**Every existing bundle was recorded under the old pair and stays recorded under it.** Nothing is
+backfilled: a backfilled digest would be a false claim that a capture was taken against a world
+that did not exist when it was taken (ADR-0014). The bundles are stale until stage 2 re-records
+them, and `test_bundles_match_the_label_they_were_recorded_against` says so out loud for
+`flag-service-crashloop`, whose injection params changed with the rename. ADR-0014 already named
+that state the correct one.
+
+**The otel-col raise buys time and does not fix the growth**, and is taken anyway because
+`otel-col` is the path every metric and trace takes - a kafka OOM writes a spurious incident into
+a bundle, a collector OOM writes a hole. The real fix is a `memory_limiter` processor in the
+collector config, which is **not** a `compose_digest` input and so was never locked to this
+re-record; it is left for its own change rather than bundled into a digest bump.
+
 ### T7.2 — external benchmark confirmation
 Confirms the runtime interface ADR-0004 inferred from harness source.
 `docs/adr/0004:48`, `docs/adr/0004:55`

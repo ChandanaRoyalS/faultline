@@ -353,8 +353,13 @@ def test_no_change_record_leaks_the_answer_key() -> None:
 
     assert leaked_by == set(KNOWN_LEAKING_FAULTS), (
         "the set of faults that cannot be rendered without leaking has changed: "
-        f"{sorted(leaked_by ^ set(KNOWN_LEAKING_FAULTS))}. Both known cases deploy a stub "
-        "image whose tag names the fault; a third one is a new defect."
+        f"{sorted(leaked_by ^ set(KNOWN_LEAKING_FAULTS))}. That set has been empty since "
+        "T7.1 renamed the stub variants, so any entry here is a new defect."
+    )
+    assert not KNOWN_LEAKING_FAULTS, (
+        "T7.1 emptied this set by renaming the stub tags, and empty is the state worth "
+        "pinning: re-populating it means a fault was added whose change record gives away "
+        "its own answer."
     )
 
 

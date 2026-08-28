@@ -70,7 +70,7 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_DIR = REPO_ROOT / "evals" / "scenarios"
 ARTIFACT_ROOT = SCENARIO_DIR / "artifacts"
 
-STUB_IMAGE = "faultline/ffs-stub:1"
+STUB_IMAGE = "ffs-stub:1"
 """The world's flag service (ADR-0006). Its digest is part of what "the same world" means."""
 
 
@@ -197,7 +197,7 @@ def orphaned_image_references() -> list[tuple[str, str]]:
 def require_coherent_images() -> None:
     """Refuse to inject into a world where a container's image no longer exists.
 
-    Measured: three rebuilds of `faultline/ffs-stub:1` in one session left
+    Measured: three rebuilds of `ffs-stub:1` in one session left
     `feature-flag-service` running an image id that had been reclaimed. The next
     dependency_latency fault injected cleanly, applied nothing, and produced a thirteen
     minute bundle of a healthy world - because pumba enumerates every container to find

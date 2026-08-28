@@ -6,10 +6,16 @@ WORKDIR /app
 RUN pip install --no-cache-dir grpcio==1.62.2 grpcio-tools==1.62.2
 COPY demo.proto .
 RUN python -m grpc_tools.protoc -I. --python_out=. --grpc_python_out=. demo.proto
-# T1.4 builds a faulty variant of this image (:broken) by pointing SERVER at
-# server_broken.py. One Dockerfile and one generated stub keep the healthy and
-# faulty builds identical in everything except the injected regression - so a
-# bad_deploy scenario blames the deploy, not an incidental image difference.
+# T1.4 builds faulty variants of this image by pointing SERVER at another entry
+# point. One Dockerfile and one generated stub keep the healthy and faulty builds
+# identical in everything except the injected regression - so a bad_deploy
+# scenario blames the deploy, not an incidental image difference.
+#
+# T7.1: the variants are numbered (:1 healthy, :2, :3) and their entry points are
+# named to match. They used to be :broken/:crashloop over server_broken.py and
+# server_crash.py, and an honest image-change record has to name the image it
+# deployed - so the tag *was* the answer key, with `crashloop` stating the fault
+# outright (ADR-0019). A number names the artifact without describing it.
 ARG SERVER=server.py
 COPY ${SERVER} ./server.py
 CMD ["python", "server.py"]
