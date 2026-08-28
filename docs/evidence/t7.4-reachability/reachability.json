@@ -1,0 +1,176 @@
+[
+ {
+  "scenario": "ad-memory-squeeze",
+  "split": "dev",
+  "target": "adservice",
+  "runtime_series": 48,
+  "runtime_families": [
+   "process_runtime_jvm_buffer",
+   "process_runtime_jvm_classes",
+   "process_runtime_jvm_classes_current"
+  ],
+  "runtime_labels": [
+   "exported_job",
+   "job"
+  ],
+  "span_metrics": true,
+  "in_graph": true,
+  "log_lines": 131
+ },
+ {
+  "scenario": "cart-bad-image-tag",
+  "split": "dev",
+  "target": "cartservice",
+  "runtime_series": 20,
+  "runtime_families": [
+   "process_runtime_dotnet_assemblies",
+   "process_runtime_dotnet_exceptions",
+   "process_runtime_dotnet_gc_allocations"
+  ],
+  "runtime_labels": [
+   "exported_job",
+   "job"
+  ],
+  "span_metrics": true,
+  "in_graph": true,
+  "log_lines": 500
+ },
+ {
+  "scenario": "cart-dependency-latency",
+  "split": "dev",
+  "target": "cartservice",
+  "runtime_series": 20,
+  "runtime_families": [
+   "process_runtime_dotnet_assemblies",
+   "process_runtime_dotnet_exceptions",
+   "process_runtime_dotnet_gc_allocations"
+  ],
+  "runtime_labels": [
+   "exported_job",
+   "job"
+  ],
+  "span_metrics": true,
+  "in_graph": true,
+  "log_lines": 500
+ },
+ {
+  "scenario": "cart-redis-misconfig",
+  "split": "dev",
+  "target": "cartservice",
+  "runtime_series": 20,
+  "runtime_families": [
+   "process_runtime_dotnet_assemblies",
+   "process_runtime_dotnet_exceptions",
+   "process_runtime_dotnet_gc_allocations"
+  ],
+  "runtime_labels": [
+   "exported_job",
+   "job"
+  ],
+  "span_metrics": true,
+  "in_graph": true,
+  "log_lines": 500
+ },
+ {
+  "scenario": "currency-cpu-throttle",
+  "split": "dev",
+  "target": "currencyservice",
+  "runtime_series": 0,
+  "runtime_families": [],
+  "runtime_labels": [],
+  "span_metrics": true,
+  "in_graph": true,
+  "log_lines": 456
+ },
+ {
+  "scenario": "flag-service-crashloop",
+  "split": "dev",
+  "target": "featureflagservice",
+  "runtime_series": 0,
+  "runtime_families": [],
+  "runtime_labels": [],
+  "span_metrics": false,
+  "in_graph": false,
+  "log_lines": 71
+ },
+ {
+  "scenario": "frauddetection-memory-squeeze",
+  "split": "dev",
+  "target": "frauddetectionservice",
+  "runtime_series": 38,
+  "runtime_families": [
+   "process_runtime_jvm_classes",
+   "process_runtime_jvm_classes_current",
+   "process_runtime_jvm_cpu"
+  ],
+  "runtime_labels": [
+   "exported_job",
+   "job"
+  ],
+  "span_metrics": true,
+  "in_graph": true,
+  "log_lines": 221
+ },
+ {
+  "scenario": "product-catalog-flag-failure",
+  "split": "dev",
+  "target": "featureflagservice",
+  "runtime_series": 0,
+  "runtime_families": [],
+  "runtime_labels": [],
+  "span_metrics": false,
+  "in_graph": false,
+  "log_lines": 2
+ },
+ {
+  "scenario": "shipping-wrong-image",
+  "split": "dev",
+  "target": "shippingservice",
+  "runtime_series": 0,
+  "runtime_families": [],
+  "runtime_labels": [],
+  "span_metrics": true,
+  "in_graph": true,
+  "log_lines": 287
+ },
+ {
+  "scenario": "email-wrong-image",
+  "split": "holdout",
+  "target": "emailservice",
+  "runtime_series": 0,
+  "runtime_families": [],
+  "runtime_labels": [],
+  "span_metrics": true,
+  "in_graph": true,
+  "log_lines": 186
+ },
+ {
+  "scenario": "productcatalog-dependency-latency",
+  "split": "holdout",
+  "target": "productcatalogservice",
+  "runtime_series": 0,
+  "runtime_families": [],
+  "runtime_labels": [],
+  "span_metrics": true,
+  "in_graph": true,
+  "log_lines": 0
+ },
+ {
+  "scenario": "recommendation-memory-squeeze",
+  "split": "holdout",
+  "target": "recommendationservice",
+  "runtime_series": 13,
+  "runtime_families": [
+   "runtime_cpython",
+   "runtime_cpython_cpu",
+   "runtime_cpython_gc"
+  ],
+  "runtime_labels": [
+   "exported_job",
+   "job"
+  ],
+  "span_metrics": true,
+  "in_graph": true,
+  "log_lines": 116
+ }
+]

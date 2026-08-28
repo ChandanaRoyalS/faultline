@@ -1573,6 +1573,44 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.4 — evidence reachability, characterised *(analysis only; nothing changed)*
+The finding T7.1 recorded and never characterised. **contract not written.** Twelve rows, one per
+bundle, every cell from a committed capture, the committed graph snapshot, or the tool layer's
+source - **the live world was not used**, because "can this target produce this evidence" is a
+property of the recording rather than of today
+(`docs/evidence/t7.4-reachability/`).
+
+**Four of nine distinct targets export runtime metrics**, all under `exported_job` and never
+`service_name`: `adservice` 48 series (`process_runtime_jvm_*`), `frauddetectionservice` 38,
+`cartservice` 20 (`process_runtime_dotnet_*`), `recommendationservice` 13
+(`runtime_cpython_*`/`system_memory_*`). `featureflagservice` is additionally absent from spans and
+from the graph, which `context/catalog.py` already records with its measurement.
+
+**Two scenarios cannot answer "was this service idle or absent" by any class available to the
+agent.** Runtime metrics and logs are the only two that can - span and trace absence *is* the
+ambiguity, and change history says what changed rather than what is running. Both zero-class cases
+are product-catalog-rooted: `product-catalog-flag-failure`'s target emits 2 log lines and no
+runtime series, and `productcatalog-dependency-latency`'s emits **0 log lines** and none, which
+confirms ADR-0005's measurement of `product-catalog-service` at 0 lines/hour from the bundle side.
+
+**Four narratives teach a check the agent cannot perform**, and they are named as narrative defects
+rather than scenario defects: the scenarios are recordable and their faults real. Both
+`dependency_latency` narratives put their **decisive** check on container inspection - *"a container
+was attached to cart's network namespace"* - which is not one of the four tools, and which ADR-0019
+flagged at design time and nobody closed. `cart-bad-image-tag` and `cart-redis-misconfig` name
+container state as **framing** around evidence that is genuinely in the logs, which is the milder
+version of the same error.
+
+**Three implications, each with a next step that is not taken here.** For the corpus: three seeded
+dev narratives teach reaching for a tool that does not exist, and whether that costs dispatches is
+**unmeasured** - the next step is a pre-registered comparison, not an edit, because rewriting the
+narratives would move the corpus and the numbers together. For scoring: T4.11's 5/5 stable
+abstention is on the scenario this table shows has zero answering classes, and the scorer cannot
+distinguish that from an abstention caused by reasoning - the next step is to record reachability
+as a **scenario** field, since a scorer deciding which abstentions were excusable would be grading
+on sympathy. For catalog growth: **this table is the pre-recording check PLAN.md's real T7.1
+needs**, run against a target before the scenario is rehearsed rather than discovered afterwards.
+
 ### T7.3 — the blast radius counts alerts, not services *(built)*
 The defect T7.1 recorded rather than fixed. **contract not written.** `score_triage` filtered alert
 episodes correctly and then projected to service names *before* subtracting, so `alerted - after`
