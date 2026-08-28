@@ -1573,6 +1573,44 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.9 — retrieval is evidence too *(decision, with the implementation it requires)*
+**contract not written.** ADR-0020 §3 states the principle - *"reconstructing what the model saw
+means storing the rendered text, not the object it was rendered from"* - and applies it to tool
+envelopes only. Retrieval rows were specified for ADR-0008's contamination assertion rather than
+for replay, so the principle was never carried across, and **retrieval was the only evidence in a
+trajectory not stored as read**.
+
+It mattered rather than being untidy because chunk ids do not keep pointing at the same text: the
+corpus is re-seeded whenever a narrative is corrected, and **60 of 62 stored trajectories name
+chunks whose prose has since changed** - the union across T7.6's three rewritten documents (39
+trajectories) and T7.7's two (41), re-derived rather than carried over, because each of those
+tasks reported only its own.
+
+**Decision: store the rendered retrieval text on the row with a hash beside it**, the same shape
+as `envelope` / `envelope_sha256`. Three points settle it.
+
+*Rendered, not the chunk body.* The synthesizer reads
+`f"{scenario_id} / {section}: {text[:280]}"` - the body is the object, that line is the text. It
+also means a hash of the body would have hashed the wrong thing.
+
+*Text and hash, not one or the other.* The asymmetry is real, and ADR-0020 already resolved it
+once for envelopes, rejecting content-addressing because a hash used as key is "a place for a hash
+to disagree with its content". **Measured rather than argued**: the rendered form averages 319
+bytes, so every retrieval in the project's history costs **57 KiB - 5.3% of the 1.1 MiB already
+spent on envelopes.** There is no trade-off at this scale.
+
+*Snapshot-per-stamp rejected on evidence.* The corpus drifted three times **without
+`runtime_version` moving**, because narrative corrections are not prompt changes - so a per-stamp
+snapshot would have detected none of them.
+
+**Nothing is repaired backwards, and RESULTS.md says so beside the corpus discussion rather than
+in a footnote.** For a pre-T7.9 run you can still say what was retrieved (ids, and the
+`exclude_origin` proving the filter fired) and what the tools returned (verbatim); you cannot say
+what the retrieval *said*. That text is gone, not stale - the corpus that produced it was
+overwritten, and `superseded/` archives manifests and metrics, never narratives. `rendered` is
+empty on every older row and reads as "not kept", never as "nothing retrieved", which `returned`
+contradicts.
+
 ### T7.8 — a narrative is only as current as the last capability change *(built; based on T7.7)*
 The guard T7.7 proposed. **contract not written.** Built because discipline has now failed at
 exactly this twice: T2.6 left four narratives asserting *"what changed: nothing"* after a change

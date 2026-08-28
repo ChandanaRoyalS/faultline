@@ -135,6 +135,21 @@ reconciliation record.
   runtime series stay visible until T+300s while its logs place the shutdown at T+0. Three
   narratives dated a death from a series end; all three now say what that dating is worth. **No
   figure moves** — none of this touches a scored run.
+- **What is replayable for runs already recorded, and what is not.** A trajectory stores every
+  tool result verbatim, so the tool evidence any past run saw reads today exactly as it read
+  then. **Its retrieval evidence does not.** Until T7.9 a retrieval row held chunk *ids*, and ids
+  do not keep pointing at the same words — the corpus is re-seeded whenever a narrative is
+  corrected. For every run recorded before T7.9, **the retrieved text is gone**: not stale, gone,
+  and not reconstructible, because the corpus that produced it has been overwritten and
+  `superseded/` archives manifests and metrics but never narratives.
+
+  So for a past run you can still say **what was retrieved** (the ids, and the `exclude_origin`
+  that proves the contamination filter fired) and **what the tools returned** (verbatim). You
+  cannot say **what the retrieval said**. Cumulatively this now reaches **60 of 62 stored
+  trajectories** — the union across every rewritten document, wider than the 39 and 41 that T7.6
+  and T7.7 each reported for their own. T7.9 fixed it going forward — the rendered lines are
+  stored beside a hash, the same shape as tool envelopes — and fixed nothing backwards. **No
+  figure moves either way**: retrieval is an input to a run, and no run is re-scored.
 - **The corpus is a living document, and stored trajectories point into it.** T7.6 rewrote four
   narratives so every claim rests on evidence the four-tool surface can reach; three are dev
   scenarios and therefore corpus material, and the corpus was re-seeded — 35 chunks, 7 documents,
