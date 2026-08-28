@@ -430,6 +430,25 @@ A third token is exempted rather than pinned: `FAULTLINE_ENABLED_FLAGS`, the var
 `product-catalog-flag-failure` changes. It leaks this harness's existence and not the answer,
 and it is likewise digest-locked. One line, visible, with the reason beside it.
 
+**Container inspection: closed at T7.6, and the answer was already built.** This ADR flagged
+that both `dependency_latency` narratives reason from evidence no tool can reach - *"a container
+was attached to cart's network namespace that no service definition creates"* - and owned the
+question to T2.6, "since building change history is what will settle it". It did settle it, and
+nobody went back to check: the emitted change record for a `dependency_latency` fault reads
+**`container created: traffic-shaping container attached to cart-service's network namespace`**
+with `None -> eth0 delay=300ms jitter=0ms`, filed under the target service's own name. That is the
+narratives' decisive finding, verbatim, through `change_history`.
+
+**So no tool is needed and none was added.** T7.5 recorded these two narratives as possibly
+unfixable without a new tool and flagged `productcatalog-dependency-latency` as having no
+substitute evidence at all; **both of those flags were wrong**, because T7.5 reasoned from its
+reachability table, which answers "was the target idle or absent" and not "what changed beneath
+it". The two questions have different answers and the table was only ever built for the first.
+
+What was actually wrong was the narratives: written at T1.5, before a change log existed, they
+assert *"what changed on cartservice: nothing"* - which is now false against the log that has
+existed since T2.6. T7.6 rewrote both to source the finding where it lives.
+
 **Marked for decision, collected:** whether `docker inspect` diffing backstops the emitted
 change log, and whether `actor` is synthetic, a roster, or absent. *(The trace tool and the
 change-log location were decided at implementation — see above.)*

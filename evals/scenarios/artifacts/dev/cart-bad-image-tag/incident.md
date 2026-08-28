@@ -43,35 +43,40 @@ only once calls stop arriving at all and a rate window empties — the same even
 two thresholds that are sensitive to different things. The seven quiet services were all
 quiet for the same reason at the same moment.
 
-**cartservice container state.** There was no container. Not a restarting one, not a
-crashed one — no cartservice process existed on the host, and therefore no exit code and
-no restart count.
-
-The logs are the interesting part, and not in the way the phrase "no container" suggests.
-The log stream is intact and entirely ordinary right up to onset, then stops dead with the
-container's own shutdown lines at T+0. For the whole of the fault it produces **nothing** —
-three lines inside the window, all of them that shutdown. The next line arrives one second
-after the fix went in.
+**cartservice's logs, which stop rather than complain.** The stream is intact and entirely
+ordinary right up to onset, then ends at T+0 with the service's own shutdown lines. For the
+whole of the fault it produces **nothing** — three lines inside the window, all of them that
+shutdown. The next line arrives one second after the fix went in.
 
 So "check the service's logs" does not return nothing. It returns a full history that ends
 mid-sentence at the moment the incident begins, and never resumes. The gap is the evidence,
 and it is only visible if you look at where the lines stop rather than at what they say.
 
-**The orchestrator's output, which is the only place the answer lives.** The deployment
-had been asked for an image tag that does not exist in the registry. The pull failed,
-so the container was never created. That failure is recorded where scheduling failures
-are recorded, not where application failures are.
+**cartservice's own runtime series, which confirm it is gone rather than idle.** A process
+that is merely not being called still reports its heap; these stop. **They also date it
+badly, and the bundle proves why**: the series carry on for five minutes past a shutdown the
+logs place exactly at T+0, at an unchanging value, and then cease. That tail is the metrics
+store holding a stale sample forward, not the process living — so runtime series answer
+*whether* the service is running and are worth up to five minutes of slack on *when* it
+stopped. The logs are what date this one.
 
-**What changed on cartservice.** Its image reference, and nothing else. Environment,
-configuration, dependencies and resource limits were untouched, and the previously
-deployed image was still present locally and still healthy.
+**What changed on cartservice, which is where the answer lives.** Its image reference had
+been moved to a tag that does not exist in the registry. Nothing else about the service was
+touched — environment, configuration, dependencies and resource limits all unchanged, and the
+previously deployed image still present and still healthy.
+
+That the pull failed and no container was ever created is an **inference from the change
+record**, not something observed: an unresolvable tag and a service that goes away at the same
+instant have one obvious explanation. What the evidence to hand shows is that the service
+stopped, stayed stopped, and had its image reference changed in the same moment. Whether a
+container was created and died instantly or never created at all is not visible from here, and
+it does not change the fix.
 
 ## Root cause
 
-cartservice was pointed at an image tag that had never been published. The pull could
-not resolve, the container was never created, and the service ceased to exist. Redis
-was fine, the network was fine, the code was fine — there was no running copy of the
-code for any of that to matter to.
+cartservice was pointed at an image tag that had never been published, and the service
+ceased to exist. Redis was fine, the network was fine, the code was fine — there was no
+running copy of the code for any of that to matter to.
 
 Its apparent zero error rate was an absence of data. A service that is not running
 records no calls, and therefore no errored ones.
@@ -99,6 +104,10 @@ exist; the fix was to put the previous version back.
 - Did the loudest service turn out to be the culprit? **No.** loadgenerator alerted
   longest at 7.2 minutes and frontend and checkout at 7.0, and none of the three was
   broken.
+- **Two classes agree, and one of them is precise.** The logs say the service stopped at T+0
+  and never spoke again; the runtime series say it is absent rather than idle. Only the logs
+  date it — the runtime tail runs five minutes past a shutdown the logs place exactly, which
+  is the metrics store holding a stale sample rather than the process living.
 - **The shape of the log stream is the strongest evidence available, and both kinds of
   failure leave one.** A service that keeps dying produces continuous failure chatter —
   the same error, over and over, for as long as the incident lasts. A service that was

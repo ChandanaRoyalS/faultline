@@ -50,14 +50,15 @@ several catalog lookups and each one pays the delay separately. The service with
 largest absolute latency was the one making the most calls to the slow thing — not the
 slow thing. That is why it crossed the threshold last.
 
-**What changed on productcatalogservice.** Nothing. No deploy, no image change, no
-environment difference, no configuration edit. The dead end that cost the most time,
-because "what changed" is the first question and the answer was empty.
+**What changed on productcatalogservice, which is where it breaks open.** No deploy, no
+image change, no environment difference, no configuration edit — and one record that is
+none of those: a **container created**, described as a traffic-shaping container attached
+to product-catalog-service's network namespace, carrying `eth0 delay=300ms jitter=0ms`.
 
-**Running containers.** A container was attached to product catalog's network namespace
-that no service definition creates. It was applying traffic shaping to the interface.
-The change sat one level below anything a service specification describes, which is why
-inspecting the service found nothing.
+The trap is that the first four answers are all "nothing" and the fifth is the whole
+incident. The change sat one level below anything a service specification describes, so
+inspecting the service found nothing — while the change record, under the service's own
+name, described it directly.
 
 ## Root cause
 

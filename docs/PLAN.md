@@ -1573,6 +1573,58 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.6 — the narratives say only what the tools can reach *(built)*
+The debt T7.5 recorded, discharged. **contract not written.** No world, no model calls.
+
+**The heavy pair turned out not to be heavy, and T7.5's framing was wrong.** It recorded both
+`dependency_latency` narratives as resting on container inspection no agent can perform, and
+flagged `productcatalog-dependency-latency` as possibly having no substitute evidence at all.
+Both flags were wrong. The emitted change record for a `dependency_latency` fault reads
+**`container created: traffic-shaping container attached to cart-service's network namespace`**
+with `None -> eth0 delay=300ms jitter=0ms`, filed under the target's own name and reachable
+through `change_history`. That is the decisive finding, verbatim, in one of the four tools.
+
+T7.5 reasoned from T7.4's reachability table, which answers *"was the target idle or absent"*.
+These narratives turn on *"what changed beneath it"*. **Different questions, different answers,
+and the table was only ever built for the first** - a caution about reusing a measurement outside
+what it measured.
+
+**What the narratives were actually wrong about** is worse and simpler: both were written at T1.5,
+before a change log existed, and both assert *"what changed: nothing"*. That has been false since
+T2.6 built change history, and nobody went back. Both now open the change section with the four
+familiar shapes of change coming back empty and a fifth that does not, which is a sharper lesson
+than the original: **"nothing changed" is a conclusion about a query, not about a service.**
+
+**The light pair lost nothing and gained precision.** `cart-redis-misconfig` replaced "the
+container was restarting repeatedly" with what its own log shows - **eight** `Connecting to Redis`
+attempts naming `redis-cart:6380` and **seven** crashes between them, so the restart loop is read
+off repetition in the stream rather than off a restart count nobody can query.
+`cart-bad-image-tag` dropped "there was no container" and now rests on the log stopping dead at
+T+0 plus its runtime series ceasing; whether a container was created and died instantly or never
+created at all is not visible from the tools, is not needed for the fix, and the narrative says
+so and stops there.
+
+**One measurement the rewrite produced, from inside a bundle.** `cart-bad-image-tag`'s runtime
+series continue for five minutes past a shutdown its logs place exactly at T+0, at an unchanging
+value, then cease. **That tail is the metrics store holding a stale sample forward, not the
+process living** - proven here rather than supposed, because the logs independently date the
+death. Runtime series therefore answer *whether* a service is running and are worth up to five
+minutes of slack on *when* it stopped.
+
+**A debt this uncovered and did not fix:** `ad-memory-squeeze`'s narrative reads its heap series
+ending at T+4m30s as dating the death, and the staleness finding above means that reading carries
+up to five minutes of uncertainty it does not acknowledge. Its series ending near T+4m30s is
+*consistent with* a death much earlier. Owned by ADR-0009 as a narrative correction, unmeasured
+and unrewritten here.
+
+**ADR-0019's container-inspection question is closed**, with the answer that it was already built
+at T2.6 and never checked. No tool was added.
+
+**Corpus re-seeded**: 35 chunks across 7 documents, `holdout_chunks` **0**. Three of the four
+rewritten narratives are dev and therefore corpus material; the fourth is holdout and correctly
+absent. **39 of 62 stored trajectories retrieved a chunk whose text has now changed** - recorded
+in RESULTS.md, because a stored retrieval row now points at prose that reads differently.
+
 ### T7.5 — reachability is a property of the scenario *(built)*
 T7.4's first proposal, taken: reachability becomes a recorded field rather than a scorer
 exemption. **contract not written.**
