@@ -1,0 +1,30 @@
+incident 7e136c36-eb63-451c-a1aa-47a98ce47a8c  state triaging  anchor 15:34:00
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: e5bbd6f1-22c4-4f8e-8c2d-3e8a8f8cb3c8
+investigation: 2 round(s), 8 dispatch(es), 21 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_31436dddb636, tr_98b6b827ea31, tr_24fe91908077, tr_8f8b891724ff, tr_93da289dfd7f, tr_9e0c9f871e87, tr_dc952facefe4, tr_b42a58370eb7
+  root cause  : Frontend (and checkout, and the loadgenerator) errors are all inherited from a selective, fast-failing error inside productcatalogservice's GetProduct handler. Trace evidence shows every error path terminating at a productcatalogservice GetProduct span carrying ERROR status, completing in ~0.8–2.9ms — faster than the surrounding successful work — while sibling GetProduct calls in the same trace succeed. The distinguishing feature of exactly those failing calls is a FeatureFlagService/GetFlag child span that is absent from every successful sub-millisecond GetProduct call and that itself returns without error. That pattern — a flag lookup present only on the requests that then fast-fail — indicates productcatalogservice is consulting a feature flag and deliberately returning an error status when the flag is set for that request/product. The failing mechanism is therefore a configuration value (an enabled failure-injection/behaviour flag) whose wrongness is itself what breaks the request: no saturation signal, no timeout, no artifact change, and no in-window change record. The bursty 0-to-~10–33% error ratio at productcatalogservice and the ~12% ceiling at frontend are consistent with the flag affecting a subset of requests rather than the whole service.
+  OPEN        : No change record covering 14:34–15:24 was ever queried; the flag flip (or config push) that plausibly set this value is inferred, not observed. Re-run change history over the full pre-onset hour before acting.
+  OPEN        : The GetFlag response value is unknown — traces show the child span exists and succeeds, but not which flag was queried or what it returned. The causal link between the flag and the error branch is inferred from co-occurrence.
+  OPEN        : productcatalogservice logs were never actually read; both queries missed on the label value. Correct label discovery could confirm or refute a flag-gated error path and give a first-occurrence timestamp.
+  OPEN        : Why the errors are bursty (ratio returning to zero within the same window) is unexplained: it could be flag evaluation on specific product IDs, percentage-based rollout, or a caching effect. Whether specific products are affected was not determined.
+  OPEN        : No saturation, latency, or request-rate data for productcatalogservice was returned by any dispatch, so resource_exhaustion is disfavoured on shape alone rather than excluded by measurement.
+  OPEN        : tr_31436dddb636 notes some frontend errors appear at the HTTP handler with no child spans; whether those share the same cause or represent a second failure mode is unsettled.
+  OPEN        : The triage-reported unmeasured edge is claimed as ruled out for the error-bearing path only; it may still hide behaviour not covered by the sampled traces.
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T153045Z-product-catalog-flag-failure/7e136c36-eb63-451c-a1aa-47a98ce47a8c-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T153045Z-product-catalog-flag-failure/7e136c36-eb63-451c-a1aa-47a98ce47a8c-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9501.06it/s]

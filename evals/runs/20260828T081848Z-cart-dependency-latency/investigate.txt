@@ -1,0 +1,29 @@
+incident 8a6178a9-cc0a-4a91-bb4f-2ae041df4aaf  state triaging  anchor 08:22:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 3fc6bed7-d8d7-4db0-841a-701ab090783e
+investigation: 2 round(s), 6 dispatch(es), 17 step(s)
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_0a41300a4f4b, tr_b168907e2864, tr_3f1fe3ae621b, tr_4ee611489716, tr_d18393976354, tr_4f3c96261fcf
+  root cause  : At 08:18:53 UTC platform-automation attached a traffic-shaping container to the cart-service network namespace applying a fixed 300ms, zero-jitter delay on eth0 egress (tr_0a41300a4f4b). Because the rule applies to the whole pod namespace, every outbound cartservice call — in practice its Redis cache round-trips — pays a constant ~300ms penalty. Traces confirm the mechanism exactly: HGET and HMSET spans alike cluster in a tight 300-310ms band with negligible cartservice self-time, and the per-request penalty scales with cache-call count (single-op GetCart/EmptyCart ~301-309ms, two-op AddItem ~603-611ms), while non-cart paths (productcatalog, currency, payment, shipping, email, messaging) stay sub-millisecond to ~20ms in the same window (tr_b168907e2864). cartservice never errored or crashed — its logs show continuous normal cart operations on both sides of the incident (tr_3f1fe3ae621b) — it simply became slow. Callers absorbed the wait: checkoutservice's intra-request step latency grew roughly 50x between the head and tail of the window while still completing orders with gap-free topic offsets (tr_d18393976354), and its error ratio rose from a zero baseline to a ~7.9% peak (tr_4ee611489716), the partial-failure signature of a degraded, not absent, dependency. The failing mechanism is injected wait on a dependency call path, not a wrong artifact and not a wrong configuration value being consumed by the application.
+  OPEN        : checkoutservice's client spans for GetCart/EmptyCart exceed the matching cartservice server spans by ~900ms, roughly triple the ~300ms gap seen from frontend (tr_b168907e2864). An additional caller-side factor on the checkout→cart path — connection setup, retries, or queuing — is unexplained and could mean the 300ms injection is being amplified there.
+  OPEN        : cartservice's error-rate ratio returned no series at all rather than zero (tr_4f3c96261fcf), so it is unknown whether cartservice emitted any error-status calls. This is a label, metric-name or instrumentation-coverage gap that should be resolved before asserting cartservice returned clean.
+  OPEN        : Both log queries were truncated and returned nothing from roughly 08:20-08:25 (tr_3f1fe3ae621b, tr_d18393976354), so the interval containing the 08:22:30 alert was never read directly. Any timeout or error burst confined to that gap is unobserved.
+  OPEN        : checkoutservice's ~7.9% error peak is aggregated by service_name only, with no per-peer breakdown (tr_4ee611489716). Whether those errors are all cart-path timeouts, or include independent payment/shipping/email failures, is not established.
+  OPEN        : Whether the traffic-shaping rule is still attached at query time, and whether it was an intentional chaos experiment with a scheduled teardown or an unintended action, is not settled by the change record.
+  OPEN        : No pre-08:18:53 cartservice spans were returned (tr_b168907e2864), so the healthy baseline for cache round-trip latency is inferred from unaffected peer services rather than measured on the cart path itself.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T081848Z-cart-dependency-latency/8a6178a9-cc0a-4a91-bb4f-2ae041df4aaf-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T081848Z-cart-dependency-latency/8a6178a9-cc0a-4a91-bb4f-2ae041df4aaf-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11605.77it/s]

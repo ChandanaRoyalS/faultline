@@ -1,0 +1,48 @@
+{
+  "incident_id": "538c0147-3887-4bfc-b1c0-6682d3bdd7d6",
+  "trajectory_id": "20587b95-74cb-4613-a188-ea3a140885c8",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "At 07:42:01Z platform-automation lowered adservice's container memory limit to 256m (tr_5621f4cd4674). Within seconds adservice stopped serving: logs switch from ad-request handling to bare JVM/OTel-agent startup banners repeating eleven-plus times through 07:49 on a ~63s backoff, never reaching readiness (tr_83cad89a01f8). The JVM cannot complete init inside the new ceiling, so the container is killed and restarted repeatedly. With no ready pod, adservice's endpoints vanish - its call-count series is entirely absent (tr_1d5d97a07362) - and frontend's gRPC client fails DNS resolution of the adservice target on 9555 with code 14 UNAVAILABLE (tr_8b0fa430b324). Impact is confined to the ad path: only AdService/GetAds spans error, sub-millisecond, while checkout, cart and catalog traces complete cleanly (tr_5dcff80b14aa), matching frontend's partial ~7.4% peak error ratio (tr_7e1118017a6b) with no frontend change recorded (tr_c47d16482d7f).",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_5621f4cd4674",
+      "tr_83cad89a01f8",
+      "tr_8b0fa430b324",
+      "tr_1d5d97a07362",
+      "tr_5dcff80b14aa"
+    ],
+    "reasoning": "The limit reduction at 07:42:01 and the first crash-loop banner at 07:42:17 are tightly coupled in time. Each cycle dies during JVM/agent init with no application log line and a regular ~63s backoff, which is a startup resource kill, not a hang, drain, or deploy (no image or scaling event recorded). The empty adservice metric series is missing telemetry, not health - the trap seen in the cart-redis and cart-bad-image past incidents. Frontend's DNS-resolution UNAVAILABLE errors naming only adservice:9555 are the expected downstream symptom of endpoint withdrawal, and the narrow trace blast radius plus sub-10% error ratio confirm a single-dependency partial failure. Class is resource_exhaustion because the running mechanism is a process killed for exceeding a memory ceiling; the edit is how it started. Restart is useless - the pod already restarts itself every ~63s - so the fix is restoring the prior memory limit.",
+    "open_questions": [
+      "No direct runtime confirmation of OOM kill (exit 137/OOMKilled, memory working-set metrics); exhaustion is inferred from change timing plus JVM-init crash loop.",
+      "The prior memory limit is unrecorded, so the correct value to restore is unknown, and it is unclear whether platform-automation will re-apply 256m.",
+      "loadgenerator alerted at 07:45:15 but was never dispatched on, and change logs for the other five services were not queried, so a concurrent second factor is not excluded."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-dependency-latency / What was observed: The page named two services: `ServiceHighLatency` on **cartservice** and\n**loadgenerator**, 3m49s after things started slowing. **checkoutservice** and\n**frontend** followed fifteen seconds later, for four alerts across four services.\n\nNo errors. Not one. Every request succeeded;"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

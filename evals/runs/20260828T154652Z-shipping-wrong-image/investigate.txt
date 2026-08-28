@@ -1,0 +1,31 @@
+incident 6b29abaf-f64a-44b7-bec9-9723a8089af4  state triaging  anchor 15:49:45
+triage: 10 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 12668bce-900e-4a25-84ab-8c910e410568
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : medium
+  evidence    : tr_4216a1a46c72, tr_b856c003c324, tr_f4b6b20740ad, tr_663de9ef33dc, tr_4e23da0a85ce, tr_8ec40c11c077, tr_32762ea5f122
+  root cause  : Checkout failures are being produced at the shipping-quote step: in every PlaceOrder trace, checkoutservice -> ShippingService/GetQuote is the deepest and only error-bearing downstream span, and the error status is inherited upward through checkoutservice's PlaceOrder server span, the frontend client span and the frontend HTTP POST (tr_4216a1a46c72). The failing shipping calls return in well under three milliseconds, so shipping is rejecting requests immediately rather than hanging, and no payment or email spans are reached. Cart, productcatalog/featureflag and currency all complete cleanly in the same traces (tr_4216a1a46c72), and cartservice logs show ordinary traffic at both ends of the window (tr_663de9ef33dc) — so despite the corpus pattern of cart being wrongly exonerated by a flat-zero error rate, here cart is exonerated by positive trace evidence, and cartservice's empty metric series is an instrumentation/labelling gap, not a health signal (tr_4e23da0a85ce). checkoutservice itself is alive and accepting requests throughout, with an intermittent error fraction peaking near 29% rather than a uniform step to failure (tr_b856c003c324, tr_f4b6b20740ad), and no change records exist for checkoutservice or cartservice in the queried 15-minute window (tr_8ec40c11c077, tr_32762ea5f122). What the evidence does not establish is the mechanism inside shippingservice: no dispatch touched shippingservice's logs, metrics, or change history at all, so whether GetQuote is rejecting because of a bad artifact, a wrong configuration value, or exhausted capacity on part of the fleet is unmeasured. The failing component is localized with high confidence; the failing mechanism is not, and I decline to infer one from the shape of the error alone.
+  OPEN        : What is shippingservice actually doing when GetQuote returns an error in under three milliseconds — no logs, metrics, saturation data, or change history were collected for shippingservice at any point in this investigation.
+  OPEN        : Was there a shippingservice deploy, config edit, or scaling action near onset? The empty change logs cover only checkoutservice and cartservice, and only the 15:39:45-15:54:45 window; the multi-hour lookback the triage implied was never queried.
+  OPEN        : Why does the error ratio peak at ~29% while checkoutservice's logs show no completion records for any of roughly 28 late-window requests? Those two readings imply different impact rates and the discrepancy is unexplained — it may be log truncation, or the sampled traces may not be representative of the successful majority.
+  OPEN        : Why does checkoutservice emit no error-severity record at all for a request that returns an error status to the frontend (tr_f4b6b20740ad)? This may be a logging defect that hid the failing dependency and should be checked independently.
+  OPEN        : Is the intermittency partial-fleet (some shipping replicas failing, others healthy) or time-sliced (all replicas failing in bursts)? Per-instance breakdown was never retrieved, and the answer discriminates between a bad artifact on some pods and a capacity or config problem affecting all of them.
+  OPEN        : cartservice's call-count metric family has no series at all in the window (tr_4e23da0a85ce) — an instrumentation or label gap that is a real monitoring defect and left cart latency and saturation entirely unmeasured, even though traces exonerate cart for this incident.
+  OPEN        : The cartservice log query returned only the oldest 8 and newest 32 lines, omitting the entire stall period including 15:49:32 (tr_663de9ef33dc); cart's behaviour during the actual incident window is inferred from traces alone, not observed in its logs.
+  OPEN        : Four unmeasured edges were reported by triage and none were named or closed here; the eight other affected services beyond checkout, cart and shipping were never examined.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T154652Z-shipping-wrong-image/6b29abaf-f64a-44b7-bec9-9723a8089af4-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T154652Z-shipping-wrong-image/6b29abaf-f64a-44b7-bec9-9723a8089af4-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8080.91it/s]

@@ -90,6 +90,13 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 
 ## Results
 
+> **Current-world benchmark — dev sweep 6.** On the re-recorded world (`299d791c5e0d…`) under
+> stamp `prompts:1b0e7cbb4c47`: **6 of 7 scenarios scored, coverage 5/6, fault class 5/5**
+> ([`SWEEP-2026-08-28-refound.md`](evals/runs/SWEEP-2026-08-28-refound.md)). **No fault class
+> changed across the world boundary.** One scenario abstained and one discarded without alerting;
+> both are analysed there. The figures further down were measured on the **previous** world and
+> are labelled as such — comparing across that boundary compares worlds, not agents.
+>
 > **The world moved on 2026-08-28.** T7.1 capped kafka's heap, raised `otel-col`'s limit, took
 > Prometheus retention from 6 hours to 15 days, and renamed the stub variants — then re-recorded
 > all twelve bundles against the result. **Every number below was measured against the previous

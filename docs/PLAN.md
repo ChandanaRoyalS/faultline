@@ -1573,6 +1573,65 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.10 — the benchmark, re-founded on the world that exists *(run)*
+Every published figure was measured on the pre-T7.1 world and the re-recorded world had no sweep
+at all. **contract not written.** Pre-registered before running
+(`evals/runs/PREREGISTRATION-2026-08-28-refound.md`); results in
+`evals/runs/SWEEP-2026-08-28-refound.md`. $3.37 agent + $0.22 judge.
+
+**Not an experiment on the agent, and the file says so.** Stamp and budget identical to S5; the
+world is the only thing that moved. Every S5-to-S6 comparison crosses a world boundary and cannot
+separate the world's effect from run-to-run variance at n=1 per side.
+
+**Result: 6 of 7 scored, coverage 5/6, fault class 5/5, and no fault class changed.** Every
+scenario that produced a verdict produced the same verdict as on the old world.
+
+**Two scenarios did not produce a comparable result, and they attribute differently.**
+`shipping-wrong-image` abstained with **zero** dispatches at the failing service against three in
+S5 - the collapse T4.12 identified as the predictor - and it is **not** traceable to the capture,
+because the service was in its blast radius both times and both runs made seven calls. That is
+planner allocation, which T4.9 and T4.10 measured as the least stable thing here.
+`frauddetection-memory-squeeze` never alerted within 900s, outside its recorded 390-469s range,
+on one of the three scenarios whose alert set did **not** change. T7.1 capped kafka's JVM heap and
+this scenario's alert is a `ServiceNoTraffic` on a Kafka consumer, which is **a plausible path and
+not a measurement**; separating it from the scenario's known instability needs repeats this sweep
+does not have.
+
+**Triage is unchanged, once a confound is removed.** S5's stored triage was computed by the
+pre-T7.3 scorer. Rescoring S5 under the current one, **five of six scenarios are identical to two
+decimal places**; the only movement is on the run that abstained. The apparent precision gain
+0.54 -> 0.57 in the raw stored figures is entirely T7.3's fix, not the world.
+
+**A defect found by running it**, fixed and committed separately: T7.9's `rendered` columns never
+reached the live database, because `create_schema` runs only `CREATE TABLE IF NOT EXISTS`, which
+does nothing to an existing table. The first scenario died on `UndefinedColumn`. Fixed with
+idempotent `ALTER ... ADD COLUMN IF NOT EXISTS` and a guard; the unit tests could not have caught
+it, because `PostgresTrajectoryStore`'s own docstring says the suite uses the in-memory double.
+Cost: one discarded run whose model spend is **unrecoverable**, since the write that failed is the
+one that would have recorded it.
+
+#### What a fourth holdout entry would need
+
+**Not taken here, and nothing in this sweep licenses one.** ADR-0022's T4.15 addendum already
+records that the set should not be entered again before it is re-authored or extended, and the
+exposure table there stands at 3/2/2. A fourth entry would have to answer four things the third
+did not:
+
+1. **What reported result entitles it.** S6 is not a new pipeline - the stamp is unchanged, so
+   under 3.3's "once per reported result" this sweep is the *same* agent as S5, which entry 3
+   already covered. **The world is not a reported result about the agent**, and an entry claiming
+   otherwise would be measuring the world with the holdout set, which is not what it is for.
+2. **Why the exposure cost is worth paying now.** `email-wrong-image` would reach a fourth
+   exposure and the other two a third, against a set of three. The T4.15 addendum's arithmetic
+   says a three-scenario set read four times is not a holdout in any sense a reader would
+   recognise.
+3. **Whether the holdout bundles' own re-record changed what they measure.** They were
+   re-recorded at T7.1 alongside the dev ones and **have not been read since** - entry 3 ran
+   before that. That is a real question, and it is a question about the *bundles*, answerable by
+   reading them rather than by spending an entry.
+4. **What T7.0 would cost instead.** Four more fault classes with holdout representation is the
+   honest way to buy more holdout, and it does not spend what exists.
+
 ### T7.9 — retrieval is evidence too *(decision, with the implementation it requires)*
 **contract not written.** ADR-0020 §3 states the principle - *"reconstructing what the model saw
 means storing the rendered text, not the object it was rendered from"* - and applies it to tool
