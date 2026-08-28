@@ -288,6 +288,56 @@ on.
 
 Never mention the injector, the scenario id, or the fault class inside the prose.
 
+## A narrative is only as current as the last capability change
+
+**Two things can falsify a narrative without anybody touching it**, and this catalog has been
+bitten by both.
+
+**A re-record changes what was seen.** Already handled: `recorded_from` is absolute precisely so
+it breaks when the recording changes, and a guard fails when narrative and bundle drift apart. The
+standing rule is that a re-record never overwrites a narrative — a person rewrites it against the
+new evidence.
+
+**A capability change changes what *could have been* seen**, and nothing catches that at all.
+Four narratives asserted *"what changed: nothing"* because they were written at T1.5, before T2.6
+built a change log; that claim was true when written and false from the day the log existed, and
+it sat wrong for weeks. The trace tool, two-ended truncation and `metrics/runtime.json` all
+arrived the same way — each one silently re-opening claims about what a responder could not
+reach.
+
+### The discipline, in two parts
+
+**1. What a review must cover.** T7.1's re-record forced a narrative rewrite and the rewrite still
+missed that `ad-memory-squeeze`'s log capture had changed shape, because the reviewer checked front
+matter and alert sets against the manifest and never opened `logs/`. A review is not done until
+every claim has been checked against **the captures**, not only the manifest:
+
+- claims about **what a log shows or does not show** — the most-missed class, twice
+- claims about **counts** — startup attempts, connection attempts, alert totals
+- claims about **a series' first or last sample** (see below)
+- claims that a tool **returned nothing**, which a later tool may now answer
+
+**2. What forces the review to happen.** Discipline alone did not work — it failed at T2.6 and
+again at T7.1. **Proposed and not yet built:** a `CAPABILITY_VERSION` in the harness, bumped when
+the tool surface or the capture set changes, stamped into narrative front matter the way
+`recorded_from` pins the recording, with a guard that fails when the two differ. The guard cannot
+check prose, and it is not trying to: it makes the review mandatory rather than remembered, which
+is the part that failed. Neither half is sufficient alone — without the trigger nobody looks, and
+without the checklist the looking misses `logs/`, as it did.
+
+### A series' end is a soft edge, everywhere
+
+Prometheus scrapes every 5s and serves the last sample forward for **5 minutes**. So:
+
+- **A series appearing is sharp** — accurate to about one scrape interval.
+- **A series disappearing is late by up to five minutes**, and the error is always in the same
+  direction.
+
+Measured, not assumed: `cart-bad-image-tag`'s runtime series remain visible until T+300s while its
+logs place the shutdown at T+0, and resume 73s after the revert. **A narrative may say a series
+stopped; it may not date a death from one** unless something else — logs, a change record — pins
+the moment. Three narratives dated deaths this way before T7.7 and all three are now qualified.
+
 ## manifest.json
 
 Written by the recorder. Required keys:

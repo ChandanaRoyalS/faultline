@@ -120,12 +120,29 @@ reconciliation record.
 
 - No figure without its n.
 - No aggregate without its per-class table.
+- **A narrative claim can be true when written and false later, and nothing was catching it.**
+  T7.7 audited every narrative against the current tool surface and the re-recorded bundles. Three
+  claims were **unsupportable** and removed, three were **true but carrying unstated uncertainty**
+  and are now qualified with its size, one count was wrong. The two causes are distinct: a
+  **re-record** changes what was seen — already guarded by `recorded_from` — and a **capability
+  arriving** changes what could have been seen, which nothing guards at all. Four narratives
+  asserted *"what changed: nothing"* from before a change log existed; `ad-memory-squeeze` asserted
+  its logs held *"not even a startup banner"* while the re-recorded capture holds **sixteen**.
+
+  **A series' end is a soft edge everywhere.** Prometheus serves the last scrape forward for five
+  minutes, so a series *appearing* is sharp to one scrape and a series *disappearing* is late by up
+  to five minutes, always in the same direction. Measured, not assumed: `cart-bad-image-tag`'s
+  runtime series stay visible until T+300s while its logs place the shutdown at T+0. Three
+  narratives dated a death from a series end; all three now say what that dating is worth. **No
+  figure moves** — none of this touches a scored run.
 - **The corpus is a living document, and stored trajectories point into it.** T7.6 rewrote four
   narratives so every claim rests on evidence the four-tool surface can reach; three are dev
   scenarios and therefore corpus material, and the corpus was re-seeded — 35 chunks, 7 documents,
   `holdout_chunks` still **0**. **39 of 62 stored trajectories retrieved a chunk whose text has
   since changed** (`cart-bad-image-tag` 39 retrievals, `cart-redis-misconfig` 25,
-  `cart-dependency-latency` 6). Those runs' retrieval rows still name the chunk they were given,
+  `cart-dependency-latency` 6). **T7.7 changed two more** — `ad-memory-squeeze` and
+  `frauddetection-memory-squeeze`, 62 retrievals across **41 of 62** trajectories, the largest
+  single overlap yet, because `ad-memory-squeeze` is the most-retrieved document in the corpus. Those runs' retrieval rows still name the chunk they were given,
   and the chunk id still resolves — but the prose behind it now reads differently, so a reader
   reconstructing what an agent saw from the *current* corpus will not see quite what that agent
   saw. **No figure moves**: retrieval is an input to a run, the runs are not re-scored, and the

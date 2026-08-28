@@ -36,9 +36,12 @@ this from noise — the same discriminator that works for latency, applied to ab
 
 **Whether the service was idle or absent.** This is the check that turns a dismissible
 alert into an incident, and it costs one query. frauddetectionservice publishes its own
-JVM heap series. A service with nothing to do keeps publishing them. **Those series
-stopped at onset and did not return until the fix.** No traffic *and* no runtime metrics
-is not a quiet service; it is no service.
+JVM heap series. A service with nothing to do keeps publishing them. **Those series stop
+and do not return until the fix.** No traffic *and* no runtime metrics is not a quiet
+service; it is no service.
+
+Read the stop as a fact and not as a timestamp. The series remain *visible* for up to five minutes past the moment they stop being scraped, because the metrics store serves the last sample forward — so this dates the death only to within that window, and the direction of the error is always late. The logs date this one
+properly: the first truncated startup is at T+0.
 
 **Why nothing downstream complained.** frauddetectionservice does not sit in the request
 path. It consumes order events from a queue rather than being called by checkout, so
@@ -51,7 +54,7 @@ the alerting measures how much of it is waiting. The one alert that fired was re
 the *only* externally visible consequence of the failure, and it was reporting it as an
 absence of traffic rather than as a backlog.
 
-**The logs.** Eighteen startup attempts inside the fault window, each three lines of JVM
+**The logs.** Nineteen startup attempts inside the fault window, each three lines of JVM
 banner and then nothing, on a lengthening backoff. No line explains a failure — the
 process is being stopped before it can form an opinion about anything.
 
