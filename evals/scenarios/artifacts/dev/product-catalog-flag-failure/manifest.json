@@ -6,30 +6,39 @@
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-23T17:51:38+00:00",
-      "last_seen": "2026-08-23T17:59:08+00:00",
-      "minutes_firing": 7.8,
+      "first_seen": "2026-08-28T03:56:52+00:00",
+      "last_seen": "2026-08-28T04:03:22+00:00",
+      "minutes_firing": 6.8,
       "service": "loadgenerator"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-23T17:51:53+00:00",
-      "last_seen": "2026-08-23T17:59:08+00:00",
-      "minutes_firing": 7.5,
+      "first_seen": "2026-08-28T03:57:22+00:00",
+      "last_seen": "2026-08-28T04:00:52+00:00",
+      "minutes_firing": 3.8,
       "service": "frontend"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-23T17:51:53+00:00",
-      "last_seen": "2026-08-23T17:59:08+00:00",
-      "minutes_firing": 7.5,
+      "first_seen": "2026-08-28T03:57:22+00:00",
+      "last_seen": "2026-08-28T04:03:22+00:00",
+      "minutes_firing": 6.2,
       "service": "productcatalogservice"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": true,
+      "first_seen": "2026-08-28T04:03:22+00:00",
+      "last_seen": "2026-08-28T04:03:22+00:00",
+      "minutes_firing": 0.2,
+      "service": "frontend"
     }
   ],
-  "baseline_clear_at": "2026-08-23T17:48:08+00:00",
+  "baseline_clear_at": "2026-08-28T03:53:07+00:00",
   "bundle_schema_version": 2,
+  "capture_set": 2,
   "expected_remediation_class": "config_revert",
   "fault_class": "bad_config",
   "injection": {
@@ -44,29 +53,29 @@
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "3103f63feda6ee79a8fda1246404f1531daeb849",
+    "git_sha": "07e516ee12ca3ff891b6e513bbc1d3a00df442b4",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "78c464d798db218705fbd6f124c501902cbda526703cfc5355dc003ed2a0d645",
   "scenario_id": "product-catalog-flag-failure",
-  "seconds_of_steady_state": 429,
-  "seconds_to_alert": 204,
-  "seconds_to_settle": 48,
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": 244,
+  "seconds_to_settle": 94,
   "split": "dev",
-  "t_alert_firing": "2026-08-23T17:51:32+00:00",
-  "t_clear": "2026-08-23T17:59:29+00:00",
-  "t_inject": "2026-08-23T17:48:08+00:00",
-  "t_revert": "2026-08-23T17:58:41+00:00",
+  "t_alert_firing": "2026-08-28T03:57:11+00:00",
+  "t_clear": "2026-08-28T04:03:45+00:00",
+  "t_inject": "2026-08-28T03:53:07+00:00",
+  "t_revert": "2026-08-28T04:02:11+00:00",
   "title": "A feature flag turned on at the flag service makes product catalog fail one product",
   "window": {
-    "end": "2026-08-23T18:01:29+00:00",
-    "start": "2026-08-23T17:43:08+00:00"
+    "end": "2026-08-28T04:05:45+00:00",
+    "start": "2026-08-28T03:48:07+00:00"
   },
   "world": {
-    "compose_digest": "4a7690c6fdda8c63d1701829f4c1e206a4765c931e864b7c739918c74b91583e",
+    "compose_digest": "299d791c5e0da43ec340f03c4908ecbfaf3e10e91b6a9340f98bd09827d76a6c",
     "docker_arch": "arm64",
-    "ffs_stub_image_id": "sha256:94d38cfafd507d96db40cb08f7ce5f2dee6d57b6283570e63380b2a4296ff026",
-    "ffs_stub_source_digest": "5d06a3668aa0648351e2fdf3751a825732cae403a2cb84dcbe7693bcde92b9db",
+    "ffs_stub_image_id": "sha256:e273759fb5c16938bbcf9df934650444642495d9bcebb3af841e015d946d377d",
+    "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
     "host_platform": "Darwin/arm64",
     "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice"
   }

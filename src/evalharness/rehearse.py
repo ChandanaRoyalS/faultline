@@ -821,12 +821,26 @@ def write_bundle(
 
 
 HAND_WRITTEN = "incident.md"
-"""The one file in a bundle a person wrote. A re-record must never be able to destroy it."""
+"""A file in a bundle that a person wrote. A re-record must never be able to destroy it."""
+
+INVALID_MARKER = "INVALID.md"
+"""The other hand-written file: why a bundle captured nothing and is not evidence.
+
+**Added at T7.1, because the uniform re-record deleted both of them.** It was not on the
+preserve list, so `--force` wiped `currency-cpu-throttle`'s and `flag-service-crashloop`'s
+explanations of why those two bundles are empty - and the guards that require an INVALID.md
+beside an alert-free capture failed immediately, which is the guard working. Both were
+recovered from git.
+
+The near-miss is the reason this docstring is long: an alert-free bundle whose marker has been
+deleted looks exactly like a capture failure nobody has explained yet, and the file that says
+otherwise is the one a re-record had just removed.
+"""
 
 SUPERSEDED = "superseded"
 """Manifests from earlier recordings of this bundle, kept so their numbers stay checkable."""
 
-PRESERVED = frozenset({HAND_WRITTEN, SUPERSEDED})
+PRESERVED = frozenset({HAND_WRITTEN, INVALID_MARKER, SUPERSEDED})
 
 
 def superseded_name(t_inject: str) -> str:
@@ -883,9 +897,9 @@ def clear_bundle(out: Path) -> list[str]:
     correct one, both plausible, nothing in the bundle saying which was current. A stale
     artifact that looks like evidence is worse than a missing one.
 
-    Two exceptions. `incident.md` is the one file a person wrote. `superseded/` holds the
-    manifests of earlier recordings, and wiping it on every re-record would defeat the
-    point of keeping them.
+    Three exceptions. `incident.md` and `INVALID.md` are the files a person wrote.
+    `superseded/` holds the manifests of earlier recordings, and wiping it on every re-record
+    would defeat the point of keeping them.
     """
     removed: list[str] = []
     for entry in sorted(out.iterdir()):

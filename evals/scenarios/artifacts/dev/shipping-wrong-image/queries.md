@@ -23,3 +23,9 @@ histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))
 ```promql
 ALERTS{alertstate="firing"}
 ```
+
+## runtime
+
+```promql
+{exported_job="shippingservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}
+```

@@ -1,0 +1,129 @@
+{
+  "alerts_at_fire": [
+    "ServiceHighErrorRate/checkoutservice"
+  ],
+  "alerts_over_window": [
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T18:32:14+00:00",
+      "last_seen": "2026-08-23T18:38:59+00:00",
+      "minutes_firing": 7.0,
+      "service": "checkoutservice"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T18:33:29+00:00",
+      "last_seen": "2026-08-23T18:34:14+00:00",
+      "minutes_firing": 1.0,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T18:33:29+00:00",
+      "last_seen": "2026-08-23T18:34:29+00:00",
+      "minutes_firing": 1.2,
+      "service": "loadgenerator"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T18:35:44+00:00",
+      "last_seen": "2026-08-23T18:37:44+00:00",
+      "minutes_firing": 2.2,
+      "service": "accountingservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T18:35:44+00:00",
+      "last_seen": "2026-08-23T18:37:44+00:00",
+      "minutes_firing": 2.2,
+      "service": "emailservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T18:35:44+00:00",
+      "last_seen": "2026-08-23T18:37:44+00:00",
+      "minutes_firing": 2.2,
+      "service": "frauddetectionservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T18:35:44+00:00",
+      "last_seen": "2026-08-23T18:37:44+00:00",
+      "minutes_firing": 2.2,
+      "service": "quoteservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T18:35:44+00:00",
+      "last_seen": "2026-08-23T18:37:44+00:00",
+      "minutes_firing": 2.2,
+      "service": "shippingservice"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-08-23T18:36:59+00:00",
+      "last_seen": "2026-08-23T18:37:44+00:00",
+      "minutes_firing": 1.0,
+      "service": "loadgenerator"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": true,
+      "first_seen": "2026-08-23T18:37:29+00:00",
+      "last_seen": "2026-08-23T18:37:44+00:00",
+      "minutes_firing": 0.5,
+      "service": "frontend"
+    }
+  ],
+  "baseline_clear_at": "2026-08-23T18:29:29+00:00",
+  "bundle_schema_version": 2,
+  "expected_remediation_class": "rollback",
+  "fault_class": "bad_deploy",
+  "injection": {
+    "method": "shipping-wrong-image",
+    "params": {
+      "expect_start": "yes",
+      "image": "ghcr.io/open-telemetry/demo:v1.2.1-adservice"
+    },
+    "target": "shippingservice"
+  },
+  "origin": "scenario:shipping-wrong-image",
+  "recorded_by": "evalharness.rehearse",
+  "recorder": {
+    "git_dirty": true,
+    "git_sha": "bbc65e3e241d6e6d670b6e81d906efdedd0c734f",
+    "tool": "evalharness.rehearse"
+  },
+  "scenario_fingerprint": "e223160aeb185a2c1c58488648b2817093d307f839a7940fe36e4f9d7fb3ccd6",
+  "scenario_id": "shipping-wrong-image",
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": 169,
+  "seconds_to_settle": 121,
+  "split": "dev",
+  "t_alert_firing": "2026-08-23T18:32:18+00:00",
+  "t_clear": "2026-08-23T18:39:19+00:00",
+  "t_inject": "2026-08-23T18:29:29+00:00",
+  "t_revert": "2026-08-23T18:37:18+00:00",
+  "title": "Shipping service deployed with the ad service's image",
+  "window": {
+    "end": "2026-08-23T18:41:19+00:00",
+    "start": "2026-08-23T18:24:29+00:00"
+  },
+  "world": {
+    "compose_digest": "4a7690c6fdda8c63d1701829f4c1e206a4765c931e864b7c739918c74b91583e",
+    "docker_arch": "arm64",
+    "ffs_stub_image_id": "sha256:94d38cfafd507d96db40cb08f7ce5f2dee6d57b6283570e63380b2a4296ff026",
+    "ffs_stub_source_digest": "5d06a3668aa0648351e2fdf3751a825732cae403a2cb84dcbe7693bcde92b9db",
+    "host_platform": "Darwin/arm64",
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice"
+  }
+}

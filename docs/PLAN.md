@@ -1504,6 +1504,38 @@ them, and `test_bundles_match_the_label_they_were_recorded_against` says so out 
 `flag-service-crashloop`, whose injection params changed with the rename. ADR-0014 already named
 that state the correct one.
 
+#### Queued: a `memory_limiter` processor for otel-col — **600M is a timer, not a fix**
+
+Not taken at T7.1, and recorded here rather than left in a commit message because the raise will
+expire and whoever meets it next should find the reasoning rather than re-derive it.
+
+**What was actually fixed and what was not.** kafka's growth is *stopped* — a JVM heap cap is a
+ceiling the process cannot grow past. otel-col's is only *deferred*: nothing about 600M changes the
+collector's behaviour, it just takes longer to reach. The two changes look alike in the diff and
+are not alike.
+
+**Why it was not fixed here.** The collector config is not a `compose_digest` input, so unlike the
+other four this change was never locked to a re-record — it can be taken any day, and bundling it
+into a digest bump would hide a behavioural change inside a batch whose whole justification is
+"these had to move together". They did not.
+
+**What would tell us it ran out.** The signal is the one that caught it the first time: the
+rehearsal pre-flight gate refuses at 90% of the limit, so `otel-col` at **540MiB of 600M** is the
+tripwire, and it will surface as a refused rehearsal rather than as anything resembling a memory
+problem. Two numbers bound the wait — 291.7MiB after roughly a day at the old ceiling, and the
+measured start of 123.3MiB immediately after this rebuild — so if growth is linear in uptime the
+gate should hold for a week or two rather than a day. **That estimate is an extrapolation from two
+readings of a different ceiling and should be treated as one.** `docker stats --no-stream otel-col`
+between batches is the cheap check; CATALOG.md's operational section already tells a reader to run
+it.
+
+**What the fix looks like when taken.** A `memory_limiter` processor with `limit_mib` set below the
+container limit, so the collector sheds load and reports it rather than being OOM-killed — the
+difference between a world that says it is dropping telemetry and a world with a hole in it. That
+distinction is the whole reason this one matters more than kafka's: a kafka OOM writes a spurious
+incident into a bundle, a collector OOM writes nothing at all, and `test_metric_captures_have_no_holes`
+would catch it only after the run that lost the data.
+
 **The otel-col raise buys time and does not fix the growth**, and is taken anyway because
 `otel-col` is the path every metric and trace takes - a kafka OOM writes a spurious incident into
 a bundle, a collector OOM writes a hole. The real fix is a `memory_limiter` processor in the
