@@ -1573,6 +1573,53 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.11 — the control that did not page *(characterisation; no agent, no model calls)*
+T7.10's discard, explained. **contract not written.** Two direct injections with the alert path
+watched, plus the historical record Prometheus still holds
+(`docs/evidence/t7.11-control/README.md`).
+
+**It does not reproduce.** Two attempts, both firing: `pending` at T+201s in both, `firing` at
+**T+382s** and **T+381s** against the bundle's **390s** - within nine seconds of the recording and
+of each other. The rule is `rate[3m] == 0` for `3m`, so pending at T+201s predicts T+381s, which
+attempt 2 hit exactly. The paging path is arithmetic and the arithmetic holds.
+
+**What actually happened is a suspended host, and the evidence is decisive.** T7.1's retention
+change bought the ability to answer this - the run is four days old and would have been
+unanswerable at 6h. `ALERTS{ServiceNoTraffic, frauddetectionservice}` over the window returns one
+series, `alertstate="pending"`, from 09:11:00 to 09:15:30, never firing; the run's 900s deadline
+expired at ~09:08. And the metrics store has a **sixteen-minute hole from 08:55 to 09:11 in which
+all fifteen services vanish and return together** - a shape no fault on one service can produce.
+The scenario was about three minutes from paging when the harness gave up.
+
+**The kafka hypothesis is not supported.** The bundle it matches was recorded *after* the heap
+cap, so the cap cannot have moved the timing; and the failure was not scenario-shaped.
+
+**A separate kafka finding, and it falsifies T7.1's own prediction.** The heap cap is in effect
+and irrelevant: `KAFKA_HEAP_OPTS=-Xmx400m` with container RSS at **1866 MiB of 2048 - 93.3%**,
+**4.7x the heap cap**, having been 585 MiB shortly after T7.1's rebuild ~14.5 hours earlier. T7.1
+argued a cap would stop growth that a limit raise only deferred; **it did not**, because the growth
+is outside the Java heap - kafka mmaps its index files and its log-segment page cache counts
+against the cgroup, and no `-Xmx` bounds either. The shape matches what CATALOG.md recorded
+*before* the cap. Two points rather than a curve, but the endpoint is already past the pre-flight
+gate's 90% threshold.
+
+**The real fix is bounding retention** - `log.retention.bytes`, `log.segment.bytes` - or accepting
+the documented cycle-between-batches. **Digest-locked**: it edits the compose files feeding
+`world.compose_digest`, so it would invalidate all twelve bundles and need another uniform
+re-record. It queues beside the `memory_limiter` change and does **not** land here.
+
+**What it means.** For the S6 table: the discard was **environmental, not a result** - not evidence
+about the world, the agent, or the scenario, and S6 stands as six scored runs. For the catalog:
+the scenario and the catalog are healthy; kafka is not, and will trip the gate roughly daily until
+the retention change lands, which is a standing tax on every rehearsal and every scored run rather
+than one scenario's problem.
+
+**Recorded, not fixed:** from inside the harness a suspended host is indistinguishable from a world
+that will not alert - both are a deadline expiring with no incident. The telemetry hole is obvious
+in Prometheus afterwards and invisible at the time. A correlate-wait that noticed its own metrics
+had stopped could report "the world stopped reporting" rather than "the fault did not fire", which
+are different findings that currently share a discard message.
+
 ### T7.10 — the benchmark, re-founded on the world that exists *(run)*
 Every published figure was measured on the pre-T7.1 world and the re-recorded world had no sweep
 at all. **contract not written.** Pre-registered before running
