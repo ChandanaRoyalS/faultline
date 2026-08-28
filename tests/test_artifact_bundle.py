@@ -934,3 +934,82 @@ def test_a_re_record_cannot_delete_the_files_a_person_wrote(tmp_path: Path) -> N
     assert (bundle / "INVALID.md").is_file(), "so does the reason a bundle is not evidence"
     assert (bundle / "superseded" / "old.json").is_file(), "and so does the archive"
     assert sorted(removed) == ["manifest.json", "metrics", "queries.md"]
+
+
+# --- the capability guard (T7.8) ----------------------------------------------
+
+
+def test_every_narrative_was_reviewed_against_the_current_capability_set() -> None:
+    """**A narrative is only as current as the last capability change.**
+
+    Discipline failed at this twice. T2.6 built a change log and four narratives went on
+    asserting "what changed: nothing" for weeks. T7.1 re-recorded every bundle, *did* force a
+    narrative rewrite, and the rewrite still missed sixteen restart lines in
+    `ad-memory-squeeze` because the review compared front matter against the manifest and never
+    opened `logs/`.
+
+    `recorded_from` already breaks when the recording changes. This breaks when the capability
+    set changes, which is the other way a true claim goes false.
+
+    **It checks a stamp, not the prose.** A passing run means somebody reviewed the narrative,
+    never that its claims were verified - and the failure message says so, because a guard whose
+    green is mistaken for a proof is worse than no guard.
+    """
+    from evalharness.capability import (
+        STALE_NARRATIVE_MESSAGE,
+        capability_inputs,
+        capability_version,
+    )
+
+    current = capability_version()
+    stale: list[str] = []
+    for bundle in bundles():
+        incident = bundle / "incident.md"
+        if not incident.is_file():
+            continue
+        front = re.match(r"\A---\n(.*?)\n---\n", incident.read_text(), re.DOTALL)
+        found = None
+        if front:
+            for line in front.group(1).split("\n"):
+                if line.startswith("capability:"):
+                    found = line.split(":", 1)[1].strip()
+        if found != current:
+            stale.append(
+                STALE_NARRATIVE_MESSAGE.format(
+                    name=bundle.name,
+                    found=found or "no capability stamp",
+                    current=current,
+                    changes="\n".join(f"  {k}: {v}" for k, v in capability_inputs().items()),
+                )
+            )
+
+    assert not stale, "\n\n".join(stale)
+
+
+def test_the_capability_version_moves_only_on_a_capability_change() -> None:
+    """Two of its three inputs are derived so they cannot drift; the third is deliberate.
+
+    The failure this guards against is a version that moves when nothing a narrative could cite
+    has moved - which is the `ffs_stub_image_id` mistake ADR-0014 names, a field producing
+    differences nobody can act on until nobody looks at it.
+    """
+    from unittest.mock import patch
+
+    from evalharness import capability
+
+    baseline = capability.capability_version()
+    assert baseline.startswith("cap:")
+    assert capability.capability_version() == baseline, "stable across calls"
+
+    with patch.object(capability, "tool_surface", return_value=["promql_query"]):
+        assert capability.capability_version() != baseline, "losing a tool is a capability change"
+
+    with patch.object(capability, "CAPTURE_SET", 99):
+        assert capability.capability_version() != baseline, "a new capture set is new evidence"
+
+
+def test_the_capability_inputs_are_read_from_the_code_not_written_down() -> None:
+    """`tool_surface` reads the class. A hand-maintained list is the thing that drifts."""
+    from evalharness.capability import tool_surface
+
+    assert tool_surface() == ["change_history", "logql_query", "promql_query", "trace_query"]
