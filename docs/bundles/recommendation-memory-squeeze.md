@@ -102,9 +102,13 @@ flat. recommendationservice itself: no errors at all, then no data.
 
 **Whether recommendationservice was idle or gone.** `ServiceNoTraffic` cannot tell those
 apart. Its runtime metrics can: the service publishes its own interpreter memory usage,
-and an idle process keeps publishing. **Those series stopped at onset and did not resume
-until the fix.** A service that has stopped reporting its own memory is not a service
-that is waiting for work.
+and an idle process keeps publishing. **Those series stop and do not resume until after
+the fix.** A service that has stopped reporting its own memory is not a service that is
+waiting for work.
+
+Read the stop as a fact and not as a timestamp. The series remain *visible* for up to five minutes past the moment they stop being scraped, because the metrics store serves the last sample forward — so this dates the death only to within that window, and the direction of the error is always late. Nothing else here dates
+it either — this service leaves no logs when it dies — so on this incident the onset is
+known from the alerting and the death only to within five minutes of it.
 
 **recommendationservice's logs, which say nothing at all.** This is the hardest part of
 this incident. There is no error, no traceback, no truncated startup banner — the stream

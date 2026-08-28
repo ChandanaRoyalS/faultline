@@ -1573,6 +1573,51 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.7 — what was true when it was written *(built; based on T7.6)*
+The audit T7.6's two findings implied. **contract not written.** No world, no model calls.
+**Branched off `t7.6-narratives-reachable` rather than main**, because four narratives are
+rewritten in that unmerged PR and auditing on main would have re-fixed them and conflicted.
+
+**The class: a claim true when written, silently falsified by capability arriving later.** Two
+distinct triggers, and only one is guarded. A **re-record** changes what was seen - already caught
+by `recorded_from`, which is absolute precisely so it breaks. A **capability arriving** changes
+what *could have been* seen, and **nothing catches that**: the change log (T2.6), the trace tool,
+two-ended truncation and `runtime.json` each silently re-opened claims about what a responder could
+not reach.
+
+| narrative | claim | verdict |
+|---|---|---|
+| `ad-memory-squeeze` | *"logs say nothing at all… not even a startup banner"* | **Unsupportable — false.** The capture holds **16** truncated JVM startups from T+0 to T+8m27s. Removed; the loop is now the narrative's strongest evidence. |
+| `ad-memory-squeeze` | *"the runtime series outlived the traffic - a process can be alive and useless"* | **Unsupportable.** The tail is the metrics store, not the process. Removed. |
+| `ad-memory-squeeze` | *"ran for a few minutes on the heap it had already committed"* | **Unsupportable.** The logs show it dying from T+0. Corrected. |
+| `ad-memory-squeeze` | series *"stopped entirely at T+4m30s"* | **True but uncertain.** Qualified: visible stop, true stop up to 5 min earlier. |
+| `frauddetection-memory-squeeze` | *"Eighteen startup attempts"* | **Wrong count.** 19 in this recording. |
+| `frauddetection-memory-squeeze` | series *"stopped at onset"* | **True but uncertain.** Qualified; its logs date it properly at T+0. |
+| `recommendation-memory-squeeze` | series *"stopped at onset and did not resume"* | **True but uncertain.** Qualified - and nothing else dates it, since this service leaves no logs when it dies. |
+| `recommendation-memory-squeeze` | *"leaves no logs when it dies"* | **Still true.** Silent T+0 to T+591s against a revert at T+570s. |
+| `product-catalog-flag-failure` | *"what changed on productcatalogservice: nothing"* | **Still true.** The record is filed under `featureflagservice`, which the narrative goes on to find. |
+
+**The staleness finding generalises, and is measured.** Prometheus scrapes every 5s and serves the
+last sample forward for 5 minutes, so **a series appearing is sharp and a series disappearing is
+late by up to five minutes**, always in the same direction. Proven inside a bundle:
+`cart-bad-image-tag`'s runtime series stay visible to T+300s while its logs place the shutdown at
+T+0, and resume 73s after the revert. **A narrative may say a series stopped; it may not date a
+death from one** without something else pinning the moment.
+
+**The check that closes the loop, argued and recorded in ARTIFACTS.md.** Two parts, because
+neither works alone. **What a review must cover**: T7.1 did force a narrative rewrite and still
+missed `ad-memory-squeeze`, because the reviewer checked front matter and alert sets against the
+manifest and never opened `logs/` - so the review is not done until every claim is checked against
+the **captures**, log content first. **What forces the review**: discipline alone failed twice, so
+the proposal is a `CAPABILITY_VERSION` bumped when the tool surface or capture set changes,
+stamped into narrative front matter the way `recorded_from` pins the recording, guarded on
+mismatch. It cannot check prose and does not try - it makes the review mandatory rather than
+remembered. **Proposed, not built.**
+
+**Corpus re-seeded**: 35 chunks, 7 documents, `holdout_chunks` **0**. Both changed narratives are
+dev; **62 retrievals across 41 of 62 trajectories** now point at text that reads differently - the
+largest overlap yet, because `ad-memory-squeeze` is the most-retrieved document in the corpus.
+
 ### T7.6 — the narratives say only what the tools can reach *(built)*
 The debt T7.5 recorded, discharged. **contract not written.** No world, no model calls.
 
