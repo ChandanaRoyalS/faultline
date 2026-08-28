@@ -1,0 +1,29 @@
+incident d9b52121-de72-4198-8369-2c5b96e3beff  state triaging  anchor 21:17:45
+triage: 9 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 8c79ae51-1196-4ed4-930e-7ddaac8db00d
+investigation: 2 round(s), 8 dispatch(es), 21 step(s)
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_a614468ba3ef, tr_a6cd9169496c, tr_ff3b2d09a3eb, tr_be48622726b0, tr_626315519e37, tr_50e819a89376, tr_96a14b4ced79, tr_88e4683f49e2
+  root cause  : At 21:14:07 UTC a platform-automation actor updated emailservice's image reference to an artifact tagged for a different service (quoteservice). From 21:15 onward emailservice is no longer the email application at all: it emits Apache startup output under pid 1, hits a fatal ports-configuration syntax error during config parse, exits, and is restarted on a ~60s cadence — a crash-restart loop in which the process never binds a listener. Because no instance ever becomes ready, the emailservice name stops resolving for callers: checkoutservice's outbound order-confirmation HTTP POST to the emailservice host on port 6060 fails at name lookup against the embedded Docker resolver (127.0.0.11:53) before any TCP connection, producing the single ERROR span in every failing checkout trace and the recurring warning per order. The failure is confined to the confirmation-notification branch — payment, shipping, cart-empty and the orders publish all still succeed — which is why checkoutservice's error ratio is partial (~8.3% peak) rather than total. emailservice's own error-ratio metric reads flat zero throughout, which is not health: a process that dies during config parse never serves a request it could fail, so it contributes no error-status calls. The running artifact is not the one that should be running; that, not any value in emailservice's own configuration, is the mechanism.
+  OPEN        : The dominant customer-visible symptom is unexplained by this mechanism: checkoutservice PlaceOrder spans run 1.5s-29s with only tens of milliseconds attributable to child spans (tr_be48622726b0), and the erroring email POST itself lasts ~2ms. Whether this multi-second self-time is a side effect of resolver retries/backoff outside instrumentation, or a second concurrent fault, is not settled by any dispatch.
+  OPEN        : The change record lists the prior image reference as null (tr_a614468ba3ef), so the correct artifact to roll back to is not established by the evidence and must be recovered from the registry or deployment history.
+  OPEN        : Exact onset is unresolved. checkoutservice logs were truncated between 21:08:09 and 21:18:53 (tr_ff3b2d09a3eb), and the alert fired at 21:17:45 — roughly three minutes after the image change and two after the first crash-loop line. The gap is consistent with the causal chain but does not prove first-failure timing.
+  OPEN        : No latency percentile, CPU/memory/thread-pool or connection-pool saturation data was ever retrieved for checkoutservice (tr_50e819a89376), so a resource-side contribution to the latency cannot be excluded.
+  OPEN        : Change status for productcatalogservice, shippingservice, currencyservice, paymentservice and frauddetectionservice was never queried (tr_88e4683f49e2); four unmeasured edges from triage remain uninspected.
+  OPEN        : Whether the mis-targeted image was pushed to other services by the same automation run is unknown — only emailservice, cartservice and checkoutservice change logs were pulled.
+
+flags: none
+
+retrieval: exclude_origin='scenario:email-wrong-image', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T211406Z-email-wrong-image/d9b52121-de72-4198-8369-2c5b96e3beff-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260827T211406Z-email-wrong-image/d9b52121-de72-4198-8369-2c5b96e3beff-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9467.54it/s]

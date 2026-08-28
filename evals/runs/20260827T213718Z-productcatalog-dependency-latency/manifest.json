@@ -1,0 +1,71 @@
+{
+  "run_id": "20260827T213718Z-productcatalog-dependency-latency",
+  "scenario_id": "productcatalog-dependency-latency",
+  "split": "holdout",
+  "scenario_fingerprint": "699b7dffac295a72c284601e6c3914caed3f7ab833292d0f1bb2a3d022179179",
+  "started_at": "2026-08-27T21:37:18.401497+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "f881b4627e31323a1d5936d288025f192b67f993",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": false,
+    "firing_alerts": [
+      "ServiceHighLatency/checkoutservice",
+      "ServiceNoTraffic/accountingservice"
+    ],
+    "p95_over_ceiling_ms": {
+      "checkoutservice": 15000.0
+    },
+    "silent_services": [
+      "accountingservice",
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [
+      "accountingservice"
+    ],
+    "services_reporting": 15,
+    "youngest_container": [
+      "email-service",
+      765
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [
+      "d9b52121-de72-4198-8369-2c5b96e3beff"
+    ],
+    "settling_incidents": [],
+    "refusals": [
+      "2 alert(s) firing",
+      "p95 above 1000ms: checkoutservice at 15000ms",
+      "serving no traffic: accountingservice (frontend-proxy at zero is the healthy state and is not counted)",
+      "1 non-terminal incident(s) in the store: d9b52121-de72-4198-8369-2c5b96e3beff - a new alert would correlate into one rather than opening its own"
+    ]
+  },
+  "discarded": {
+    "reason": "baseline gate refused",
+    "at": "2026-08-27T21:37:19.076235+00:00"
+  }
+}

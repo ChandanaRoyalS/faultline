@@ -1,0 +1,56 @@
+{
+  "incident_id": "11e7942f-4b7f-4eb2-ab0d-b64d81b7c02b",
+  "trajectory_id": "f8d9b4a3-df91-44f0-93f6-47bdf13a886c",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:productcatalog-dependency-latency",
+  "verdict": {
+    "root_cause": "At 01:34:26 UTC a platform-automation principal attached a traffic-shaping container to productcatalogservice's network namespace, applying a fixed 300 ms egress delay with zero jitter on eth0 (tr_a548b460d72d). Every caller that crosses the productcatalogservice boundary now pays that fixed penalty: caller-side spans from frontend, recommendationservice and checkoutservice cluster tightly at 301-308 ms while the matching server-side handler spans are ~0.0-0.1 ms, so the time is consumed on the wire between client send and handler entry, not inside the service (tr_0126c91be05d). The penalty stacks per call, so fan-out traces reach 612 ms, 1206-1526 ms and one checkout trace 3687 ms. Nothing is erroring \u2014 frontend and productcatalogservice error ratios are flat at zero across the whole window (tr_926489735ab4, tr_b4f2d77fccb8, tr_c1b38bb4b877) \u2014 so the incident is a latency-only degradation of the productcatalogservice call path, and the alerts on frontend, checkoutservice, recommendationservice and loadgenerator are the callers waiting on it. The failure mechanism is time spent waiting on a dependency, injected at the network layer; the change record is how it started, not the mechanism itself.",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_a548b460d72d",
+      "tr_0126c91be05d",
+      "tr_926489735ab4",
+      "tr_b4f2d77fccb8",
+      "tr_c1b38bb4b877"
+    ],
+    "reasoning": "Two independent lines converge. The change log gives a mechanism with the exact shape observed: a fixed 300 ms, zero-jitter egress delay installed roughly three minutes before onset (tr_a548b460d72d). The traces then confirm that shape empirically and localise it: durations are quantised into a narrow 301-308 ms band rather than heavy-tailed, the same floor appears for three distinct callers (so it is not a caller-side client or pool problem), the server-side spans are sub-millisecond with no children (so it is not the handler, a database, CPU saturation, or a downstream of productcatalogservice), and cart/currency/payment/shipping/email/quote spans in the same traces stay sub-millisecond to ~20 ms (so it is not cluster-wide) (tr_0126c91be05d). Three separate error-ratio queries are flat at zero with populated denominators, which rules out an error-rate event, a hard dependency failure, and a total outage, leaving slow-but-successful calls as the only surviving shape (tr_926489735ab4, tr_b4f2d77fccb8, tr_c1b38bb4b877). I classify this as dependency_latency rather than bad_config because the delay is not a wrong value being read by the service \u2014 it is time inserted into the call path, and the callers fail because they wait. Remediation is detaching the traffic-shaping container / reverting that automation action; a restart or rollback of productcatalogservice would not remove a delay installed in the network namespace, and scaling would not help a fixed per-call penalty. The retrieved product-catalog-flag-failure incident is a poor match for the primary signal: that one produced genuine errors from productcatalogservice's own code, and error ratios here are zero throughout.",
+    "open_questions": [
+      "The second latency tier is unexplained: a minority of GetProduct calls run ~1207-1211 ms client-side with ~904-908 ms server-side, driven by a child FeatureFlagService/GetFlag call of essentially the same duration (tr_0126c91be05d). No dispatch examined FeatureFlagService. This is a distinct mechanism from the 300 ms step and may be a second concurrent fault, or a pre-existing condition \u2014 it was not measured before 01:34:26.",
+      "productcatalogservice logs were never actually read: the Loki selector used a hyphenated label value that does not match the service name, and the empty result is at least as consistent with a label mismatch as with silence (tr_df0b45ed3f5b). A re-query with the correct label is needed before any claim about what the service logged.",
+      "No frontend latency data was retrieved at all \u2014 both frontend metric dispatches returned only error ratios with no per-dependency breakdown and no quantiles (tr_926489735ab4, tr_b4f2d77fccb8). The frontend-side step at 01:34:26 is inferred from traces, not confirmed from metrics, so onset time and the size of user-visible impact are not independently established.",
+      "Whether the traffic-shaping attachment was an authorised chaos/fault-injection experiment or an erroneous automation action is unsettled; that determines whether the fix is to stop an experiment or to correct the automation. The change record names only the principal, not the intent (tr_a548b460d72d).",
+      "Triage crossed four unmeasured edges and the alert list spans 12 services; no dispatch covered checkoutservice, recommendationservice or loadgenerator directly, so I am attributing their alerts to the shared productcatalogservice path by trace inference only.",
+      "The change query covered a bounded window; whether any earlier change (before the queried interval) contributes to the ~900 ms flag tier was not checked."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "product-catalog-flag-failure / What was checked: **productcatalogservice, which was the obvious place to look.** Unlike most incidents on\nthis system, the failing service was named in the alerting and was genuinely returning\nerrors from its own code. It was up, serving, and reporting a healthy call rate \u2014 the\nerrors were a frac",
+    "product-catalog-flag-failure / Root cause: A feature flag was switched on at the flag service, and productcatalogservice honoured\nit by returning errors for one product. The failing service was working correctly; the\nconfiguration that made it fail lived somewhere else entirely, in a component with no\ntelemetry of any kin",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m49s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 10 alerts.\n- Alerts that fired "
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

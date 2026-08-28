@@ -1,0 +1,29 @@
+incident 11e7942f-4b7f-4eb2-ab0d-b64d81b7c02b  state triaging  anchor 01:37:45
+triage: 12 services, severity warning, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: f8d9b4a3-df91-44f0-93f6-47bdf13a886c
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_a548b460d72d, tr_0126c91be05d, tr_926489735ab4, tr_b4f2d77fccb8, tr_c1b38bb4b877
+  root cause  : At 01:34:26 UTC a platform-automation principal attached a traffic-shaping container to productcatalogservice's network namespace, applying a fixed 300 ms egress delay with zero jitter on eth0 (tr_a548b460d72d). Every caller that crosses the productcatalogservice boundary now pays that fixed penalty: caller-side spans from frontend, recommendationservice and checkoutservice cluster tightly at 301-308 ms while the matching server-side handler spans are ~0.0-0.1 ms, so the time is consumed on the wire between client send and handler entry, not inside the service (tr_0126c91be05d). The penalty stacks per call, so fan-out traces reach 612 ms, 1206-1526 ms and one checkout trace 3687 ms. Nothing is erroring — frontend and productcatalogservice error ratios are flat at zero across the whole window (tr_926489735ab4, tr_b4f2d77fccb8, tr_c1b38bb4b877) — so the incident is a latency-only degradation of the productcatalogservice call path, and the alerts on frontend, checkoutservice, recommendationservice and loadgenerator are the callers waiting on it. The failure mechanism is time spent waiting on a dependency, injected at the network layer; the change record is how it started, not the mechanism itself.
+  OPEN        : The second latency tier is unexplained: a minority of GetProduct calls run ~1207-1211 ms client-side with ~904-908 ms server-side, driven by a child FeatureFlagService/GetFlag call of essentially the same duration (tr_0126c91be05d). No dispatch examined FeatureFlagService. This is a distinct mechanism from the 300 ms step and may be a second concurrent fault, or a pre-existing condition — it was not measured before 01:34:26.
+  OPEN        : productcatalogservice logs were never actually read: the Loki selector used a hyphenated label value that does not match the service name, and the empty result is at least as consistent with a label mismatch as with silence (tr_df0b45ed3f5b). A re-query with the correct label is needed before any claim about what the service logged.
+  OPEN        : No frontend latency data was retrieved at all — both frontend metric dispatches returned only error ratios with no per-dependency breakdown and no quantiles (tr_926489735ab4, tr_b4f2d77fccb8). The frontend-side step at 01:34:26 is inferred from traces, not confirmed from metrics, so onset time and the size of user-visible impact are not independently established.
+  OPEN        : Whether the traffic-shaping attachment was an authorised chaos/fault-injection experiment or an erroneous automation action is unsettled; that determines whether the fix is to stop an experiment or to correct the automation. The change record names only the principal, not the intent (tr_a548b460d72d).
+  OPEN        : Triage crossed four unmeasured edges and the alert list spans 12 services; no dispatch covered checkoutservice, recommendationservice or loadgenerator directly, so I am attributing their alerts to the shared productcatalogservice path by trace inference only.
+  OPEN        : The change query covered a bounded window; whether any earlier change (before the queried interval) contributes to the ~900 ms flag tier was not checked.
+
+flags: none
+
+retrieval: exclude_origin='scenario:productcatalog-dependency-latency', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T013421Z-productcatalog-dependency-latency/11e7942f-4b7f-4eb2-ab0d-b64d81b7c02b-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T013421Z-productcatalog-dependency-latency/11e7942f-4b7f-4eb2-ab0d-b64d81b7c02b-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8842.04it/s]

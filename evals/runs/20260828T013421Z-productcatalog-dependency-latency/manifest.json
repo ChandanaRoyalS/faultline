@@ -1,0 +1,202 @@
+{
+  "run_id": "20260828T013421Z-productcatalog-dependency-latency",
+  "scenario_id": "productcatalog-dependency-latency",
+  "split": "holdout",
+  "scenario_fingerprint": "699b7dffac295a72c284601e6c3914caed3f7ab833292d0f1bb2a3d022179179",
+  "started_at": "2026-08-28T01:34:21.752250+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "f881b4627e31323a1d5936d288025f192b67f993",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "accounting-service",
+      325
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-28T01:34:22.115437+00:00",
+  "incident_id": "11e7942f-4b7f-4eb2-ab0d-b64d81b7c02b",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-28T01:43:17.888193+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "accounting-service",
+      1013
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260828T013421Z-productcatalog-dependency-latency",
+    "scenario_id": "productcatalog-dependency-latency",
+    "trajectory_id": "f8d9b4a3-df91-44f0-93f6-47bdf13a886c",
+    "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": true,
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.4166666666666667,
+      "matched": [
+        "checkoutservice",
+        "frontend",
+        "loadgenerator",
+        "productcatalogservice",
+        "recommendationservice"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "accountingservice",
+        "adservice",
+        "cartservice",
+        "currencyservice",
+        "emailservice",
+        "paymentservice",
+        "shippingservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 5,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "dependency_latency",
+      "returned": "dependency_latency",
+      "correct": true,
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "restart",
+      "returned": "config_revert",
+      "correct": false,
+      "abstained": false,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 30038,
+    "tokens_out": 13925,
+    "cost_usd": 0.4983,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-28T01:45:49.853162+00:00",
+  "judge": {
+    "scenario_id": "productcatalog-dependency-latency",
+    "run_id": "20260828T013421Z-productcatalog-dependency-latency",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify an unauthorized traffic-shaping container attached to productcatalogservice's network namespace applying 300ms egress delay as the root cause.",
+    "dead_ends_closed": [
+      "error-rate failures",
+      "frontend metrics providing per-dependency breakdown",
+      "productcatalogservice code or image changes",
+      "service configuration edits",
+      "cluster-wide slowdown"
+    ],
+    "dead_ends_missed": [
+      "whether the attachment was authorized or erroneous",
+      "the secondary latency tier involving FeatureFlagService"
+    ],
+    "traps": [
+      {
+        "trap": "the culprit alerted last and quietest, suggesting it was least urgent",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "three services slow at once suggests they share a common upstream dependency",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "frontend metrics queries answered the question conclusively",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative explicitly documents why it rejected latency-magnitude-based triage in favor of call-graph topology, matching the recorded narrative's key insight. Both identify the 300ms fixed delay from traces and both rule out service-side causes. Agent goes further in documenting measurement failures (frontend metrics, logs with label mismatch) but appropriately flags the FeatureFlagService anomaly as unsettled rather than folding it into the main narrative.",
+    "tokens_in": 5803,
+    "tokens_out": 381
+  }
+}

@@ -1,0 +1,3 @@
+injected recommendation-memory-squeeze (resource_exhaustion) on recommendation-service
+  - docker update: recommendation-service memory limit 800M -> 32m (swap capped at the same value)
+revert with: faultline-inject stop recommendation-memory-squeeze

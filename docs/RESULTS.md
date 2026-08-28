@@ -70,14 +70,12 @@ appear in this document:
 
 A test pins the current value and fails loudly if it moves, with the reason spelled out.
 
-**The holdout numbers below describe the pipeline `53fafe9c12bc`, which is no longer HEAD.**
-T4.14's `1b0e7cbb4c47` is, and it was kept on measurement. These figures stand exactly as
-measured and describe a prior agent; no claim here extends them to the current one, and the
-holdout has not been re-entered under the new stamp — that is a separate decision with its own
-pre-registration under ADR-0022's protocol, and it has not been made. This is the second time
-supersession has occurred and the first time it has persisted; see
-[ADR-0023](adr/0023-a-freeze-manifest-outlives-the-pipeline-it-froze.md), which exists because it
-is a state a pipeline can enter and leave. Nothing about the holdout run has
+**The holdout has now been entered three times, under two stamps, and each table says which.**
+Entries 1 and 2 measured `53fafe9c12bc`; entry 3 measured `1b0e7cbb4c47`, which is HEAD. Entries 1
+and 2 stand unedited as measurements of a prior agent — supersession resolved by re-entering under
+a pre-registered protocol rather than by leaving the figure stale, which is the third distinct way
+this project has handled it (see
+[ADR-0023](adr/0023-a-freeze-manifest-outlives-the-pipeline-it-froze.md)). Nothing about the holdout run has
 changed and its figures stand exactly as measured — but they are a measurement of a prior agent,
 and no claim here extends them to the current one. Re-entering the holdout under the new stamp is
 a separate decision with its own pre-registration under ADR-0022's protocol, and it has not been
@@ -116,7 +114,41 @@ never re-run to fix a number.**
 
 ## The tables
 
-### Holdout — n = 3, stamp `prompts:53fafe9c12bc`
+### Holdout — n = 3, and **three entries under two stamps**
+
+Every entry is numbered and counted in [ADR-0022's ledger](adr/0022-evaluation-harness.md); the
+number of holdout runs is deliberately impossible to hide. **Each table below says which pipeline
+produced it, because they are not the same agent.**
+
+#### Entry 3 — stamp `prompts:1b0e7cbb4c47` (**current HEAD**), `changes` bound 8
+
+| scenario | ground truth | fault class | class of fix | judge |
+|---|---|---|---|---|
+| email-wrong-image | `bad_deploy` / `rollback` | **`bad_deploy`** ✔ | **`rollback`** ✔ | `same_mechanism` |
+| productcatalog-dependency-latency | `dependency_latency` / `restart` | **`dependency_latency`** ✔ | `config_revert` ✘ | `same_mechanism` |
+| recommendation-memory-squeeze | `resource_exhaustion` / `config_revert` | **`resource_exhaustion`** ✔ | **`config_revert`** ✔ | `same_mechanism` |
+
+| per class | n | fault / answered | fix / answered | abstained |
+|---|---|---|---|---|
+| `bad_deploy` | 1 | **1 / 1** | **1 / 1** | 0 |
+| `dependency_latency` | 1 | **1 / 1** | 0 / 1 | 0 |
+| `resource_exhaustion` | 1 | **1 / 1** | **1 / 1** | 0 |
+| `bad_config` · `scale` | **0** | no holdout scenario | | |
+
+Coverage **3/3**, fault class **3/3**, fix **2/3**. Triage recall **1.00** on all three. Budget
+exhausted **0 of 3**. Cost $1.68 agent + $0.11 judge
+([`HOLDOUT-2026-08-27-entry3.md`](../evals/runs/HOLDOUT-2026-08-27-entry3.md)).
+
+**Read two caveats before quoting 3/3.** `email-wrong-image`'s row is **corroborative, not
+confirmatory** — entry 2's finding on that scenario is in the lineage of the instruction entry 3
+tests, which ADR-0022's T4.15 addendum records as condition 2 met under strain.
+`recommendation-memory-squeeze` is the row that carries weight: never read for a mechanism, and it
+abstained in entry 1. And n = 3 with no interval is not a benchmark.
+
+#### Entry 1 — stamp `prompts:53fafe9c12bc`, `changes` bound 4
+
+**Stands unedited.** This is a measurement of a prior pipeline, kept because the sequence is the
+point.
 
 | scenario | ground truth | fault class | class of fix | judge |
 |---|---|---|---|---|
@@ -131,8 +163,16 @@ never re-run to fix a number.**
 | `resource_exhaustion` | 1 | — / 0 | — / 0 | 1 |
 | `bad_config` · `scale` | 0 | no holdout scenario | | |
 
-Triage recall **1.00**, precision 0.32, 9 unmeasured edges. Budget exhausted 2 of 3. Flagged 0 ·
+Triage recall **1.00**, precision 0.32, 9 unmeasured edges. **Budget exhausted 2 of 3** — both
+abstentions carry that signature, which is what entries 2 and 3 went on to chase. Flagged 0 ·
 failed-alone 0 · contradictions 0 · narrative refused 0. Cost $1.08 agent + $0.12 judge.
+
+#### Entry 2 — stamp `prompts:53fafe9c12bc`, `changes` bound 8, **1 of 3 scored**
+
+`email-wrong-image` abstained again with the bound raised and **nothing exhausted**, having never
+dispatched at `emailservice` at all. The other two were discarded to an empty API account before
+their first model call and were not re-run
+([`HOLDOUT-2026-08-26-entry2.md`](../evals/runs/HOLDOUT-2026-08-26-entry2.md)). $0.42, no judge.
 
 ### Dev — **not a benchmark.** n = 7 per sweep
 

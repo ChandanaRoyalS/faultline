@@ -1,0 +1,30 @@
+incident 79baa310-d485-4186-b208-49a27fd9dee0  state triaging  anchor 01:55:00
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 33165dd6-0053-453e-8e20-bd5ebaa60830
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_40150e3a31bd, tr_b3572e6653d8, tr_59fbe80dca96, tr_ee29b61ef6b7, tr_f2810da36fd8, tr_24d81b7acf89, tr_98d97a1a8393
+  root cause  : At 01:51:30 UTC platform-automation lowered recommendationservice's container memory limit to 32m (tr_40150e3a31bd). Recommendationservice's own request logs stop abruptly at exactly that timestamp with no shutdown, no traceback and no restart banner (tr_b3572e6653d8), and ten seconds later frontend begins emitting gRPC status 14 UNAVAILABLE with a 'no connection established' detail on its outbound client path, persisting through 01:57 (tr_59fbe80dca96). Traces confirm the failing edge is specifically frontend → RecommendationService/ListRecommendations: the client span carries the error and essentially all of the multi-second latency, no recommendationservice server span ever appears beneath it, and every other downstream edge (cart, productcatalog, ad, checkout and its whole subtree) is sub-10ms and error-free (tr_ee29b61ef6b7). The service's own error ratio stays flat at zero (tr_f2810da36fd8) precisely because it never gets far enough to return an error status — connections are not being accepted, so failures surface only at the caller, which is also why frontend's aggregate error ratio is partial (~22% peak) rather than total (tr_24d81b7acf89) and why no frontend change exists to blame (tr_98d97a1a8393). The mechanism in the world is that the recommendation container cannot operate within a 32MiB memory ceiling: it is being starved/killed for exceeding the limit rather than serving wrong values, so this is resource exhaustion that the limit edit initiated.
+  OPEN        : No direct kill evidence was retrieved: container OOM-kill events, restart counts, RSS/working-set metrics and replica readiness for recommendationservice were all explicitly not covered (tr_f2810da36fd8). The OOM mechanism is inferred from timing and log silence, not observed.
+  OPEN        : The recommendationservice log result kept only the newest 32 lines ending at 01:51:30; whether ERROR or memory-related lines were emitted after that point and dropped by truncation is not established (tr_b3572e6653d8).
+  OPEN        : The frontend log lines identify no target service, host or method, so the UNAVAILABLE errors are tied to recommendationservice only through the trace evidence, not through the logs themselves (tr_59fbe80dca96).
+  OPEN        : The change record shows no prior memory-limit value, so the size of the reduction and whether 32m was ever viable for this workload is unknown (tr_40150e3a31bd).
+  OPEN        : Which automation policy emitted the change, and whether it applied similar limit reductions to other services that have not yet manifested symptoms, is unidentified (tr_40150e3a31bd).
+  OPEN        : The change histories of frontend's other four dependencies (adservice, cartservice, checkoutservice, productcatalogservice) were never queried, and the frontend query covered only 15 minutes rather than the intended two-hour lookback (tr_98d97a1a8393).
+  OPEN        : Whether the condition self-resolved, was still ongoing after 01:57, or was masked by retries is not settled; frontend errors were still present at the last visible sample.
+
+flags: none
+
+retrieval: exclude_origin='scenario:recommendation-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T015130Z-recommendation-memory-squeeze/79baa310-d485-4186-b208-49a27fd9dee0-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T015130Z-recommendation-memory-squeeze/79baa310-d485-4186-b208-49a27fd9dee0-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9193.14it/s]
