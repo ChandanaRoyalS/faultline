@@ -80,6 +80,34 @@ class RetrievalRecord:
     returned: list[str] = field(default_factory=list)
     scores: list[float] = field(default_factory=list)
 
+    rendered: list[str] = field(default_factory=list)
+    """The retrieved lines **as the model read them**, verbatim (T7.9).
+
+    `returned` holds chunk ids, which is what ADR-0008's contamination assertion needs. It is
+    not what the agent saw, and it does not stay pointing at the same text: the corpus is
+    rewritten whenever a narrative is corrected, and **60 of 62 stored trajectories name chunks
+    whose prose has since changed**.
+
+    ADR-0020 already settled the principle for the other kind of evidence - *"reconstructing
+    what the model saw means storing the rendered text, not the object it was rendered from"* -
+    and applied it to tool envelopes only, because retrieval rows were specified for
+    contamination auditing rather than for replay. This carries it across.
+
+    **Rendered, not the chunk body.** The synthesizer is handed
+    `f"{scenario_id} / {section}: {text[:280]}"`, so the body is the object and this is the
+    text; storing bodies would replay a different prompt, which is the failure the ADR names.
+    """
+
+    @property
+    def rendered_sha256(self) -> str:
+        """Beside the text, never instead of it - the same choice as `envelope_sha256`.
+
+        A hash alone would detect that the corpus had drifted and still not let anyone read
+        what was retrieved, and ADR-0020 rejected content-addressing on the ground that a hash
+        *as key* is "a place for a hash to disagree with its content".
+        """
+        return hashlib.sha256("\n".join(self.rendered).encode()).hexdigest()
+
 
 @dataclass(slots=True)
 class TrajectoryStep:
@@ -220,6 +248,10 @@ CREATE TABLE IF NOT EXISTS trajectory_retrievals (
     exclude_origin TEXT,
     returned       JSONB NOT NULL DEFAULT '[]'::jsonb,
     scores         JSONB NOT NULL DEFAULT '[]'::jsonb,
+    -- The retrieved lines as the model read them (T7.9). Empty for rows written before it,
+    -- and that emptiness is the honest record: their retrieved text is gone, not recoverable.
+    rendered       JSONB NOT NULL DEFAULT '[]'::jsonb,
+    rendered_sha256 TEXT,
     PRIMARY KEY (trajectory_id, seq),
     FOREIGN KEY (trajectory_id, seq) REFERENCES trajectory_steps(trajectory_id, seq)
         ON DELETE CASCADE
@@ -298,7 +330,8 @@ class PostgresTrajectoryStore:
                     r = step.retrieval
                     cur.execute(
                         "INSERT INTO trajectory_retrievals (trajectory_id, seq, query, k, "
-                        "exclude_origin, returned, scores) VALUES (%s,%s,%s,%s,%s,%s,%s) "
+                        "exclude_origin, returned, scores, rendered, rendered_sha256) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                         "ON CONFLICT (trajectory_id, seq) DO NOTHING",
                         (
                             trajectory.id,
@@ -308,6 +341,8 @@ class PostgresTrajectoryStore:
                             r.exclude_origin,
                             json.dumps(r.returned),
                             json.dumps(r.scores),
+                            json.dumps(r.rendered),
+                            r.rendered_sha256 if r.rendered else None,
                         ),
                     )
         self._conn.commit()
@@ -363,17 +398,20 @@ class PostgresTrajectoryStore:
                     tool=tool, request=request or {}, result_id=result_id, envelope=envelope
                 )
             cur.execute(
-                "SELECT seq, query, k, exclude_origin, returned, scores "
+                "SELECT seq, query, k, exclude_origin, returned, scores, rendered "
                 "FROM trajectory_retrievals WHERE trajectory_id = %s",
                 (trajectory_id,),
             )
-            for seq, query, k, exclude_origin, returned, scores in cur.fetchall():
+            for seq, query, k, exclude_origin, returned, scores, rendered in cur.fetchall():
                 steps[seq].retrieval = RetrievalRecord(
                     query=query,
                     k=k,
                     exclude_origin=exclude_origin,
                     returned=returned or [],
                     scores=scores or [],
+                    # Empty for anything recorded before T7.9. Read it as "the retrieved text
+                    # was not kept", never as "nothing was retrieved" - `returned` says that.
+                    rendered=rendered or [],
                 )
         trajectory.steps = [steps[seq] for seq in sorted(steps)]
         return trajectory

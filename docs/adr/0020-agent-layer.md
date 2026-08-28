@@ -269,6 +269,8 @@ Four things it must hold, each because something downstream fails without it:
   the scenario under test on every scored run and then asserts the filter actually fired; a
   scored run where the filter did not fire is marked **invalid**, not annotated". That
   assertion needs the argument recorded per retrieval, and this column is where T4.1b reads it.
+- **Every retrieval with the text the model read** — added at T7.9, and it should have been here
+  from the start. See below.
 - **Every inter-agent message.** Fan-out means a specialist's conclusion becomes the
   synthesizer's input; scoring the synthesizer without seeing what it was given scores the
   wrong thing.
@@ -286,6 +288,52 @@ time rather than only in a smoke, and so a later decision to deduplicate has the
 itself without a migration. Content-addressing was rejected for now on the ADR's own ground -
 "a place for a hash to disagree with its content" - which is a real failure mode when the hash
 *is* the key, and merely a detectable one when it sits beside the text.
+
+### Addendum (T7.9): retrieval is evidence too
+
+**The inconsistency.** This section states the principle — *"reconstructing what the model saw
+means storing the rendered text, not the object it was rendered from"* — and then applies it to
+one of the two kinds of evidence an agent reads. Tool results are stored verbatim by `result_id`.
+Retrievals were stored as **chunk ids**, because the bullet above specified them for ADR-0008's
+contamination assertion rather than for replay, and the principle was never carried across.
+Retrieval was the only evidence in the trajectory not stored as read.
+
+**Why it mattered rather than merely being untidy.** Chunk ids do not keep pointing at the same
+text. The corpus is re-seeded whenever a narrative is corrected, and narratives were corrected
+three times in four tasks, and **60 of 62 stored trajectories name chunks whose prose has since
+changed** - the union across every rewritten document, not the 39 and 41 that T7.6 and T7.7 each
+reported for their own. A tool envelope from the same run still reads exactly as it read. A retrieval
+row from the same run resolves to different words.
+
+**Decision: store the rendered retrieval text on the row, with a hash beside it.** The same shape
+as `envelope` / `envelope_sha256`, for the same reason.
+
+*Rendered, not the chunk body.* The synthesizer is handed
+`f"{scenario_id} / {section}: {text[:280]}"`. The body is the object and that line is the text;
+storing bodies would be storing what it was rendered from, which is the failure this section
+names. It also means a hash of the body would have been hashing the wrong thing.
+
+*Text and hash, not one or the other.* The asymmetry is real — a hash detects drift and cannot be
+read, text can be read and costs storage — and this ADR already resolved it once, for envelopes,
+rejecting content-addressing because a hash used as the key is "a place for a hash to disagree
+with its content". Beside the text it is merely a detectable disagreement. **Measured, so the
+storage argument is not hypothetical**: the rendered form averages 319 bytes, and every retrieval
+in the project's entire history would add **57 KiB — 5.3% of the 1.1 MiB already spent on
+envelopes**. There is no trade-off at this scale.
+
+*Rejected: a corpus snapshot per stamp.* It fails on the evidence that motivated the decision.
+The corpus drifted three times **without `runtime_version` moving** — narrative corrections are
+not prompt changes — so a per-stamp snapshot would not have detected any of them. Snapshotting
+per corpus-change is just storing the corpus repeatedly, indirected through a key that has to be
+kept honest by hand.
+
+*Rejected: accept the limit.* Defensible only if the cost were real, and it is 5.3%.
+
+**What this does not repair.** Nothing, for runs already recorded. Their retrieved text is gone —
+not stale, gone — and it is not reconstructible, because the corpus that produced it has been
+overwritten and `superseded/` archives manifests and metrics, never narratives. `rendered` is
+empty on every pre-T7.9 row and must be read as *"the text was not kept"*, never as *"nothing was
+retrieved"*, which `returned` contradicts.
 
 ## 4. Untrusted content discipline
 

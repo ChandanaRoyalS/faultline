@@ -340,3 +340,63 @@ def test_the_runner_does_not_overwrite_episodes_resolved_while_it_worked() -> No
     )
     assert kept.state is IncidentState.SYNTHESIZING, "and it did advance the state it owns"
     assert kept.investigation_id is not None
+
+
+# --- retrieval is evidence too (T7.9) -----------------------------------------
+
+
+def test_a_retrieval_stores_the_text_the_model_read_not_the_chunk_it_came_from() -> None:
+    """ADR-0020: "reconstructing what the model saw means storing the rendered text, not the
+    object it was rendered from." It applied that to tool envelopes and not to retrievals,
+    because retrieval rows were specified for contamination auditing rather than replay.
+
+    The synthesizer is handed `f"{scenario_id} / {section}: {text[:280]}"`. The chunk body is
+    the object; that line is the text. Storing bodies would replay a different prompt.
+    """
+    from faultline.agents.trajectory import RetrievalRecord
+
+    rendered = ["cart-redis-misconfig / What was checked: the logs run to hundreds of lines"]
+    record = RetrievalRecord(
+        query="q",
+        k=3,
+        exclude_origin="scenario:cart-redis-misconfig",
+        returned=["scenario:cart-redis-misconfig"],
+        scores=[0.42],
+        rendered=rendered,
+    )
+
+    assert record.rendered == rendered, "verbatim, never re-rendered on read"
+    assert record.returned != record.rendered, "ids and text are different things"
+
+
+def test_the_retrieval_hash_sits_beside_the_text_and_not_instead_of_it() -> None:
+    """The asymmetry, resolved the way ADR-0020 already resolved it for envelopes: a hash
+    detects drift but cannot be read, so it is stored *beside* the text. Content-addressing
+    was rejected there because a hash used as the key is "a place for a hash to disagree with
+    its content"; the same applies here.
+    """
+    import hashlib
+
+    from faultline.agents.trajectory import RetrievalRecord
+
+    lines = ["a / b: one", "c / d: two"]
+    record = RetrievalRecord(query="q", k=2, exclude_origin=None, rendered=lines)
+
+    assert record.rendered_sha256 == hashlib.sha256("\n".join(lines).encode()).hexdigest()
+    assert record.rendered == lines, "the text is still there to read"
+
+    drifted = RetrievalRecord(query="q", k=2, exclude_origin=None, rendered=["a / b: ONE"])
+    assert drifted.rendered_sha256 != record.rendered_sha256, "drift is detectable"
+
+
+def test_an_older_trajectory_reads_as_text_not_kept_never_as_nothing_retrieved() -> None:
+    """Runs recorded before T7.9 cannot be repaired - their retrieved text is gone. The record
+    must not let that look like an empty retrieval, which `returned` would contradict."""
+    from faultline.agents.trajectory import RetrievalRecord
+
+    older = RetrievalRecord(
+        query="q", k=3, exclude_origin="scenario:x", returned=["scenario:y"], scores=[0.5]
+    )
+
+    assert older.returned, "the run did retrieve something"
+    assert older.rendered == [], "and what it read was not kept"
