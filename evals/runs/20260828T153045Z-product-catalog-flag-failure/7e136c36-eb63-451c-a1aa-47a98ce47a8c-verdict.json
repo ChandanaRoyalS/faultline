@@ -1,0 +1,55 @@
+{
+  "incident_id": "7e136c36-eb63-451c-a1aa-47a98ce47a8c",
+  "trajectory_id": "e5bbd6f1-22c4-4f8e-8c2d-3e8a8f8cb3c8",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "Frontend (and checkout, and the loadgenerator) errors are all inherited from a selective, fast-failing error inside productcatalogservice's GetProduct handler. Trace evidence shows every error path terminating at a productcatalogservice GetProduct span carrying ERROR status, completing in ~0.8\u20132.9ms \u2014 faster than the surrounding successful work \u2014 while sibling GetProduct calls in the same trace succeed. The distinguishing feature of exactly those failing calls is a FeatureFlagService/GetFlag child span that is absent from every successful sub-millisecond GetProduct call and that itself returns without error. That pattern \u2014 a flag lookup present only on the requests that then fast-fail \u2014 indicates productcatalogservice is consulting a feature flag and deliberately returning an error status when the flag is set for that request/product. The failing mechanism is therefore a configuration value (an enabled failure-injection/behaviour flag) whose wrongness is itself what breaks the request: no saturation signal, no timeout, no artifact change, and no in-window change record. The bursty 0-to-~10\u201333% error ratio at productcatalogservice and the ~12% ceiling at frontend are consistent with the flag affecting a subset of requests rather than the whole service.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_31436dddb636",
+      "tr_98b6b827ea31",
+      "tr_24fe91908077",
+      "tr_8f8b891724ff",
+      "tr_93da289dfd7f",
+      "tr_9e0c9f871e87",
+      "tr_dc952facefe4",
+      "tr_b42a58370eb7"
+    ],
+    "reasoning": "Attribution to productcatalogservice is well supported: tr_31436dddb636 establishes a continuous instrumented chain from loadgenerator through frontend (and through checkoutservice PlaceOrder) down to a productcatalogservice GetProduct span that itself carries ERROR, and rules out adservice, cartservice/Redis, recommendationservice, checkoutservice logic, and an unmeasured edge as the error origin. tr_98b6b827ea31 and tr_24fe91908077 independently confirm productcatalogservice's own error ratio is non-zero (peaks ~10.6%\u201333%) with a zero floor, and rule out total outage, idleness, and monotonic degradation. tr_8f8b891724ff confirms frontend's error ratio rose from a clean zero baseline to ~12%, ruling out a monitoring artifact and a universal failure. The mechanism is narrowed by two facts from tr_31436dddb636: the error-bearing spans are the shortest in their traces and slow traces carry no error (excluding dependency_latency/timeouts), and the failing GetProduct calls uniquely carry a FeatureFlagService/GetFlag child that returns successfully \u2014 the flag lookup itself is healthy, so what is wrong is the value it returns and the error-returning branch it selects. No metric evidence for memory, CPU, connection-pool or thread saturation was returned at all (explicitly noted in tr_98b6b827ea31 and tr_24fe91908077), but nothing points that way either; the fast-fail, per-request selectivity is not the signature of exhaustion. bad_deploy is unsupported: tr_93da289dfd7f found no deploy events in the ten minutes before onset and no in-window change. Confidence is held at medium rather than high because no change record actually confirms a flag flip \u2014 both change queries (tr_93da289dfd7f, tr_9e0c9f871e87) covered only 15:24\u201315:39 and never the requested 14:34\u201315:24 pre-onset hour, so the act that set the flag is inferred from trace topology, not observed. Logs contribute nothing: tr_b42a58370eb7 and tr_dc952facefe4 both returned zero lines under a hyphenated label value that is almost certainly a selector miss, so no service-side error text corroborates the flag branch.",
+    "open_questions": [
+      "No change record covering 14:34\u201315:24 was ever queried; the flag flip (or config push) that plausibly set this value is inferred, not observed. Re-run change history over the full pre-onset hour before acting.",
+      "The GetFlag response value is unknown \u2014 traces show the child span exists and succeeds, but not which flag was queried or what it returned. The causal link between the flag and the error branch is inferred from co-occurrence.",
+      "productcatalogservice logs were never actually read; both queries missed on the label value. Correct label discovery could confirm or refute a flag-gated error path and give a first-occurrence timestamp.",
+      "Why the errors are bursty (ratio returning to zero within the same window) is unexplained: it could be flag evaluation on specific product IDs, percentage-based rollout, or a caching effect. Whether specific products are affected was not determined.",
+      "No saturation, latency, or request-rate data for productcatalogservice was returned by any dispatch, so resource_exhaustion is disfavoured on shape alone rather than excluded by measurement.",
+      "tr_31436dddb636 notes some frontend errors appear at the HTTP handler with no child spans; whether those share the same cause or represent a second failure mode is unsettled.",
+      "The triage-reported unmeasured edge is claimed as ruled out for the error-bearing path only; it may still hide behaviour not covered by the sampled traces."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. From the first restart after the change, the runtime could not complete a startup\ninside the new limit: it"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

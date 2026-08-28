@@ -1,0 +1,26 @@
+incident 538c0147-3887-4bfc-b1c0-6682d3bdd7d6  state triaging  anchor 07:45:15
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 20587b95-74cb-4613-a188-ea3a140885c8
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_5621f4cd4674, tr_83cad89a01f8, tr_8b0fa430b324, tr_1d5d97a07362, tr_5dcff80b14aa
+  root cause  : At 07:42:01Z platform-automation lowered adservice's container memory limit to 256m (tr_5621f4cd4674). Within seconds adservice stopped serving: logs switch from ad-request handling to bare JVM/OTel-agent startup banners repeating eleven-plus times through 07:49 on a ~63s backoff, never reaching readiness (tr_83cad89a01f8). The JVM cannot complete init inside the new ceiling, so the container is killed and restarted repeatedly. With no ready pod, adservice's endpoints vanish - its call-count series is entirely absent (tr_1d5d97a07362) - and frontend's gRPC client fails DNS resolution of the adservice target on 9555 with code 14 UNAVAILABLE (tr_8b0fa430b324). Impact is confined to the ad path: only AdService/GetAds spans error, sub-millisecond, while checkout, cart and catalog traces complete cleanly (tr_5dcff80b14aa), matching frontend's partial ~7.4% peak error ratio (tr_7e1118017a6b) with no frontend change recorded (tr_c47d16482d7f).
+  OPEN        : No direct runtime confirmation of OOM kill (exit 137/OOMKilled, memory working-set metrics); exhaustion is inferred from change timing plus JVM-init crash loop.
+  OPEN        : The prior memory limit is unrecorded, so the correct value to restore is unknown, and it is unclear whether platform-automation will re-apply 256m.
+  OPEN        : loadgenerator alerted at 07:45:15 but was never dispatched on, and change logs for the other five services were not queried, so a concurrent second factor is not excluded.
+
+flags: none
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T074201Z-ad-memory-squeeze/538c0147-3887-4bfc-b1c0-6682d3bdd7d6-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T074201Z-ad-memory-squeeze/538c0147-3887-4bfc-b1c0-6682d3bdd7d6-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9515.71it/s]

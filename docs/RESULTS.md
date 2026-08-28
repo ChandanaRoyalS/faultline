@@ -82,7 +82,37 @@ a separate decision with its own pre-registration under ADR-0022's protocol, and
 made. See [ADR-0023](adr/0023-a-freeze-manifest-outlives-the-pipeline-it-froze.md), which is where
 this obligation to say so instead of asserting it in a test comes from.
 
-### Every figure below was measured against a world that no longer exists
+### Dev, on the world that exists — sweep 6, `world 299d791c5e0d…`
+
+**The current-world benchmark.** Pre-registered, run on the re-recorded bundles under the current
+stamp `prompts:1b0e7cbb4c47` and the T4.7 budget
+([`SWEEP-2026-08-28-refound.md`](../evals/runs/SWEEP-2026-08-28-refound.md)).
+
+| scenario | fault class | class of fix | judge |
+|---|---|---|---|
+| ad-memory-squeeze | **`resource_exhaustion`** ✔ | `config_revert` ✔ | `same_mechanism` |
+| cart-bad-image-tag | **`bad_deploy`** ✔ | `rollback` ✔ | `same_mechanism` |
+| cart-dependency-latency | **`dependency_latency`** ✔ | `config_revert` ✘ | `same_mechanism` |
+| cart-redis-misconfig | **`bad_config`** ✔ | `config_revert` ✔ | `same_mechanism` |
+| frauddetection-memory-squeeze | **DISCARD** — no incident in 900s | — | — |
+| product-catalog-flag-failure | **`bad_config`** ✔ | `config_revert` ✔ | `same_mechanism` |
+| shipping-wrong-image | `unknown` — **abstained** | — | `different` |
+
+**Scored 6 of 7. Coverage 5/6, fault class 5/5, class of fix 4/5.** Cost $3.3650 + $0.2229 judge.
+
+**No fault class changed across the world boundary** — every scenario that produced a class
+produced the same one S5 did, and every one was correct. Two scenarios did not produce a
+comparable result: `shipping-wrong-image` abstained after spending **zero** dispatches on the
+failing service (the collapse T4.12 identified, and **not** traceable to the capture change —
+the service was in its blast radius both times), and `frauddetection-memory-squeeze` never
+alerted within 900s, which is outside its recorded 390–469s range and has a plausible but
+**unestablished** link to T7.1's kafka heap cap.
+
+**Triage is unchanged.** Five of six scenarios score identically to S5 once S5 is rescored under
+the current scorer — the raw stored figures appear to improve only because T7.3 fixed the
+blast-radius exclusion after S5 ran.
+
+### The figures below were measured against a world that no longer exists
 
 T7.1 changed four things about the world — kafka's heap is capped, `otel-col`'s limit is 600M,
 Prometheus keeps 15 days instead of 6 hours, and the flag-service stub variants are renamed — and

@@ -258,6 +258,15 @@ CREATE TABLE IF NOT EXISTS trajectory_retrievals (
 );
 
 CREATE INDEX IF NOT EXISTS trajectories_incident_idx ON trajectories (incident_id);
+
+-- Additive columns must ALTER as well as appear above. `CREATE TABLE IF NOT EXISTS` does
+-- nothing to a table that already exists, so a column added to the CREATE never reaches a
+-- database created before it - which is exactly how T7.9's `rendered` shipped and then failed
+-- the first investigation run against a live store, mid-sweep. `create_schema` is called on
+-- every start, so these run every time and must stay idempotent.
+ALTER TABLE trajectory_retrievals
+    ADD COLUMN IF NOT EXISTS rendered JSONB NOT NULL DEFAULT '[]'::jsonb;
+ALTER TABLE trajectory_retrievals ADD COLUMN IF NOT EXISTS rendered_sha256 TEXT;
 """
 
 

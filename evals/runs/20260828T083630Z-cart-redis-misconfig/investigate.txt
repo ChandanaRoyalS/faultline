@@ -1,0 +1,29 @@
+incident bb1dfc54-9640-4089-af4a-24d7d871d6e0  state triaging  anchor 08:39:00
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 80c4dc85-59f7-46a1-b49c-5b766d0e2a03
+investigation: 2 round(s), 8 dispatch(es), 21 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_c79fcc3e7be2, tr_0972cafc180e, tr_0010aaceab9b, tr_a2f3dadb7f03, tr_4ab1a3c62db5, tr_424ff96c2052, tr_e05bd27b0000, tr_00b04094cd40
+  root cause  : At 08:36:31 an automated platform actor set a cartservice environment variable that points the service at its Redis cart store on a different port than the one previously in effect (recorded prior value unset; the connection string cartservice now logs targets redis-cart:6380) [tr_c79fcc3e7be2]. From roughly 08:39:57 onward cartservice cannot open that connection: every startup attempt to redis-cart:6380 fails and throws an unhandled exception out of the Redis cart-store initialization called from Main, producing at least five connect-fail-crash-restart cycles through 08:42:15 with no successful connection [tr_0972cafc180e]. Because the process dies during initialization it never serves requests and emits no span metrics at all — cartservice's calls_total series is empty in both numerator and denominator for the window [tr_0010aaceab9b]. Callers see immediate rejection: frontend CartService/GetCart and AddItem spans error in 0.2-2.6ms, and checkout's PlaceOrder aborts inside prepareOrderItemsAndShippingQuoteFromCart at the GetCart call, which is why the checkout error surfaces at checkoutservice and frontend without either of them being at fault [tr_a2f3dadb7f03, tr_4ab1a3c62db5, tr_424ff96c2052, tr_e05bd27b0000]. The failing mechanism is the configuration value itself: it names an endpoint that does not accept the connection, and the wrongness of that value is what breaks every cart request.
+  OPEN        : It was never verified from the Redis side which port redis-cart actually listens on. If Redis was intentionally moved to 6380 and the automation was correcting cartservice, the correct fix is on the Redis/service side, not a revert of the cart variable.
+  OPEN        : Why platform-automation applied this change, and whether it will re-apply it after a manual revert — the prior value is recorded as unset, suggesting a template or defaulting change upstream that no dispatch examined.
+  OPEN        : No change query was run against the other five checkoutservice dependencies or against any service outside the 08:29-08:44 window, so a second concurrent change elsewhere is unexcluded.
+  OPEN        : cartservice log coverage is truncated between 08:29 and ~08:39:57 and stops at 08:42:15; the exact first failure and the state after 08:42 (including whether the crash loop is still running) are unobserved.
+  OPEN        : Frontend p95/p99 latency and per-dependency breakdowns were never retrieved, so a concurrent secondary degradation on a non-cart path cannot be fully excluded — though all sampled non-cart spans were clean.
+  OPEN        : The bursty error pattern at frontend (~33% peak) and checkoutservice (~66% peak) with returns to zero is only partly explained by a crash-restart cycle; whether cart briefly served between restarts, or whether some replicas retained the old config, is unsettled.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T083630Z-cart-redis-misconfig/bb1dfc54-9640-4089-af4a-24d7d871d6e0-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260828T083630Z-cart-redis-misconfig/bb1dfc54-9640-4089-af4a-24d7d871d6e0-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 12168.02it/s]

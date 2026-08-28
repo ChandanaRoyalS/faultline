@@ -400,3 +400,31 @@ def test_an_older_trajectory_reads_as_text_not_kept_never_as_nothing_retrieved()
 
     assert older.returned, "the run did retrieve something"
     assert older.rendered == [], "and what it read was not kept"
+
+
+def test_every_additive_column_has_a_migration_not_just_a_create() -> None:
+    """`CREATE TABLE IF NOT EXISTS` is not a migration, and T7.9 learned that mid-sweep.
+
+    T7.9 added `rendered` and `rendered_sha256` to the CREATE for `trajectory_retrievals`. The
+    table already existed in the live store, so the CREATE did nothing, the columns never
+    arrived, and the first investigation run against that store died on
+    `UndefinedColumn` - discarding a scenario. The unit tests passed throughout because, as
+    `PostgresTrajectoryStore`'s own docstring says, they use the in-memory double.
+
+    This cannot verify the live database from `make check`. What it can verify is the thing
+    that was actually missing: a column added to a CREATE after the table first shipped must
+    also appear in an idempotent ALTER, or it reaches only fresh databases.
+    """
+    from faultline.agents.trajectory import SCHEMA
+
+    added_after_first_ship = {"rendered", "rendered_sha256"}
+    for column in added_after_first_ship:
+        assert f"ADD COLUMN IF NOT EXISTS {column}" in SCHEMA, (
+            f"{column} is in a CREATE TABLE IF NOT EXISTS and nothing else, so it will never "
+            "reach a database that already has the table. Add an idempotent ALTER beside it."
+        )
+
+    # Idempotent, because create_schema runs on every start and not once per deployment.
+    assert SCHEMA.count("ADD COLUMN IF NOT EXISTS") == SCHEMA.count("ALTER TABLE"), (
+        "every ALTER must be ADD COLUMN IF NOT EXISTS - create_schema is called on every start"
+    )
