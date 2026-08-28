@@ -14,6 +14,15 @@
     "target": "currencyservice"
   },
   "origin": "scenario:currency-cpu-throttle",
+  "reachability": {
+    "answers_idle_or_absent": [
+      "logs"
+    ],
+    "derived_from": "the bundle's own captures (T7.5)",
+    "none_can_answer": false,
+    "runtime_series": 0,
+    "target_log_lines": 456
+  },
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,

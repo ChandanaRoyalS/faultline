@@ -63,6 +63,7 @@ expected_evidence:
       data - which distinguishes a dead consumer from a dropped dependency
 expected_remediation_class: config_revert
 rehearsed: true
+answers_idle_or_absent: [runtime, logs]
 
 # Rehearsal hint, not a fault parameter - it stays out of `injection`, so it does not enter
 # scenario_fingerprint and is not compared against injector.catalog.

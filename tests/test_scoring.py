@@ -372,3 +372,64 @@ def test_the_budget_travels_with_the_figure_and_not_inside_the_stamp() -> None:
     report = scored.report()
     assert "BUDGET" in report and "'changes': 8" in report
     assert "prompts:x" in report, "and the stamp is still there, beside it"
+
+
+# --- reachability is reported and never acted on (T7.5) -----------------------
+
+
+def _scored(reachability: dict[str, object]) -> ScoredRun:
+    """One run, identical in every way except what its target could have answered."""
+    return ScoredRun(
+        run_id="r",
+        scenario_id="s",
+        trajectory_id="t",
+        triage=score_triage(
+            {"cartservice"},
+            [{"service": "cartservice", "began_after_revert": False}],
+            unmeasured_edges=0,
+        ),
+        fault_class=score_label("s", "bad_config", "unknown"),
+        fix_class=score_label("s", "config_revert", "none"),
+        reachability=reachability,
+    )
+
+
+def test_reachability_changes_no_figure_at_all() -> None:
+    """The whole point of recording it rather than acting on it.
+
+    An abstention on a scenario whose target can answer nothing is a different event from one
+    where the evidence was there, and a reader should see which. But nothing is forgiven: two
+    runs with the same verdict and different reachability score identically, to the byte.
+    """
+    blind = _scored({"answers_idle_or_absent": [], "none_can_answer": True, "target_log_lines": 0})
+    sighted = _scored({"answers_idle_or_absent": ["runtime", "logs"], "none_can_answer": False})
+
+    for field_name in ("triage", "fault_class", "fix_class"):
+        assert getattr(blind, field_name).as_dict() == getattr(sighted, field_name).as_dict()
+    assert blind.reached_a_class == sighted.reached_a_class, "coverage is untouched"
+    assert blind.fault_class.abstained and sighted.fault_class.abstained
+
+    scores = [
+        {k: v for k, v in run.as_dict().items() if k != "reachability"} for run in (blind, sighted)
+    ]
+    assert scores[0] == scores[1], "every scored field but reachability itself is identical"
+
+
+def test_a_zero_class_scenario_says_so_in_its_report_without_excusing_itself() -> None:
+    """Visible, and explicitly not a mitigation."""
+    report = _scored(
+        {"answers_idle_or_absent": [], "none_can_answer": True, "target_log_lines": 0}
+    ).report()
+
+    assert "NO evidence class can answer" in report
+    assert "still counts exactly as one" in report, "the report refuses to soften the result"
+    assert "ABSTAINED (excluded from accuracy; counted in coverage)" in report
+
+
+def test_a_scenario_with_classes_available_lists_them() -> None:
+    report = _scored(
+        {"answers_idle_or_absent": ["runtime", "logs"], "none_can_answer": False}
+    ).report()
+
+    assert "reachability answerable by: runtime, logs" in report
+    assert "NO evidence class" not in report

@@ -9,7 +9,8 @@ from evalharness.scenario import Scenario, Split, load_catalog
 from injector.catalog import by_id
 from injector.world import same_service
 
-EXAMPLES = Path(__file__).parent.parent / "evals" / "scenarios" / "examples"
+REPO_ROOT = Path(__file__).parent.parent
+EXAMPLES = REPO_ROOT / "evals" / "scenarios" / "examples"
 SCENARIO_DIR = Path(__file__).parent.parent / "evals" / "scenarios"
 
 
@@ -124,3 +125,65 @@ def test_rehearsed_scenarios_carry_no_pre_rehearsal_markers() -> None:
             "bundle, correct anything the rehearsal falsified, and remove the marker - or "
             "leave rehearsed: false until that is done."
         )
+
+
+# --- the reachability gate (T7.5) ---------------------------------------------
+
+ANSWERING_CLASSES = frozenset({"runtime", "logs"})
+"""The only two that can answer "was the target idle or absent". Span metrics and traces
+cannot - their absence *is* the ambiguity - and change history says what changed rather than
+what is running."""
+
+
+def test_a_declared_answering_class_must_be_one_that_can_answer() -> None:
+    """A scenario declaring `traces` would be declaring something impossible."""
+    for scenario in scored_scenarios():
+        declared = scenario.answers_idle_or_absent
+        if declared is None:
+            continue
+        unusable = sorted(set(declared) - ANSWERING_CLASSES)
+        assert not unusable, (
+            f"{scenario.id}: declares {unusable}, which cannot answer 'idle or absent'. "
+            "Span metrics and traces cannot - their absence is the question - and change "
+            "history says what changed, not what is running."
+        )
+
+
+def test_a_declaration_matches_what_its_bundle_actually_recorded() -> None:
+    """The gate's whole point: the claim is checked against the captures, not trusted.
+
+    Undeclared is permitted for the scenarios that predate the gate; a declaration that
+    disagrees with the recording is not, in either direction. Declaring more than the bundle
+    can produce is the failure the gate exists for; declaring less is a stale claim.
+    """
+    from evalharness.reachability import derive
+
+    for scenario in scored_scenarios():
+        if scenario.answers_idle_or_absent is None:
+            continue
+        for split in ("dev", "holdout"):
+            bundle = REPO_ROOT / "evals/scenarios/artifacts" / split / scenario.id
+            if not (bundle / "manifest.json").is_file():
+                continue
+            recorded = derive(bundle)["answers_idle_or_absent"]
+            assert sorted(scenario.answers_idle_or_absent) == sorted(recorded), (
+                f"{scenario.id}: declares {sorted(scenario.answers_idle_or_absent)} but its "
+                f"bundle records {sorted(recorded)}. The declaration is a claim about what "
+                "the target can produce and the bundle is the measurement."
+            )
+
+
+def test_every_recorded_bundle_carries_its_derived_reachability() -> None:
+    """Derived into every existing bundle at T7.5, which is not a backfilled claim.
+
+    ADR-0014 refused to backfill `compose_digest` because a digest asserts something about the
+    world outside the capture. This asserts nothing outside it: it is a reading of files the
+    bundle already contains, the way counting a log's lines is.
+    """
+    import json
+
+    for path in sorted((REPO_ROOT / "evals/scenarios/artifacts").glob("*/*/manifest.json")):
+        manifest = json.loads(path.read_text())
+        recorded = manifest.get("reachability")
+        assert recorded, f"{path.parent.name}: no reachability record"
+        assert recorded["none_can_answer"] == (not recorded["answers_idle_or_absent"])

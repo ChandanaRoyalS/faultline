@@ -552,6 +552,43 @@ Both are worth doing immediately **before** the next full re-record, when the bu
 being regenerated anyway and the digest change is free. Recorded here so the opportunity is
 not missed and neither change is made casually in between.
 
+## Before recording a new scenario: state what will answer "idle or absent"
+
+**A gate, added at T7.5 and owed to catalog growth.** Six of the twelve existing bundles were
+recorded before anyone asked whether their target could produce the evidence their narrative would
+go on to cite, and **two of them cannot answer the question at all** — a fact discovered at T7.4,
+long after those narratives were written and seeded into the corpus.
+
+Every new scenario declares `answers_idle_or_absent:` in its YAML **before it is rehearsed**.
+
+**Only two classes can answer it.** Runtime metrics: an idle process still reports its heap, a
+dead one reports nothing. Logs: a restarting process repeats itself, a never-created one leaves a
+stream that stops dead — decisive only if the service is talkative at rest, since a service that
+logs nothing normally is silent during a fault for reasons that have nothing to do with the fault.
+**Span metrics and traces cannot**: their absence *is* the ambiguity being resolved. **Change
+history cannot**: it says what changed, not what is running.
+
+Check the target before recording:
+
+```
+uv run python docs/evidence/t7.4-reachability/reachability.py   # the whole catalog
+```
+
+For a target not yet in the catalog, the two questions are whether Prometheus holds
+`{exported_job="<target>"}` runtime series — only four of nine current targets do, all under
+`exported_job` and never `service_name` — and whether the container logs at rest.
+
+**A scenario with no answering class is recordable, but only deliberately.** Declare
+`answers_idle_or_absent: []` and then hold its narrative to the consequence: **it must not turn on
+whether the target was idle or absent**, because no evidence the agent can reach will settle it.
+`product-catalog-flag-failure` is the standing example — T4.11 measured a 5/5 stable abstention on
+it, and T7.4 showed its target emits two log lines and no runtime series.
+
+The declaration is checked against the recording. `bundle.reachability` is **derived from the
+captures**, and `test_a_declaration_matches_what_its_bundle_actually_recorded` fails if the claim
+and the measurement disagree in either direction — over-claiming is the failure the gate exists
+for, and under-claiming is a stale claim.
+
 **The queue for T7.1, in one place** — every change that is right, cheap, and locked until
 the catalog is re-recorded against one world:
 

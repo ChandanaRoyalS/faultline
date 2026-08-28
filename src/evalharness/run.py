@@ -644,6 +644,9 @@ def main(argv: list[str] | None = None) -> int:
             run.run_id, args.scenario_id, bundle, artifact, facts, run.manifest["models"]
         )
         scored.budget = dict(run.manifest["budget"])
+        # Carried from the bundle so the run's own report shows what its target could have
+        # answered. Reported, never acted on - see ScoredRun.reachability.
+        scored.reachability = dict(bundle.get("reachability") or {})
         run.manifest["score"] = scored.as_dict()
         run.manifest["finished_at"] = datetime.now(UTC).isoformat()
         emit(
