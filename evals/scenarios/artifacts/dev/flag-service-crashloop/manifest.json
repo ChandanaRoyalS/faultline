@@ -1,43 +1,46 @@
 {
   "alerts_at_fire": [],
   "alerts_over_window": [],
-  "baseline_clear_at": "2026-08-23T11:15:46+00:00",
-  "bundle_schema_version": 1,
+  "baseline_clear_at": "2026-08-28T04:37:39+00:00",
+  "bundle_schema_version": 2,
+  "capture_set": 2,
   "expected_remediation_class": "rollback",
   "fault_class": "bad_deploy",
   "injection": {
     "method": "flag-service-crashloop",
     "params": {
-      "image": "faultline/ffs-stub:crashloop",
-      "server": "server_crash.py"
+      "image": "ffs-stub:3",
+      "server": "server_v3.py"
     },
     "target": "featureflagservice"
   },
   "origin": "scenario:flag-service-crashloop",
   "recorded_by": "evalharness.rehearse",
   "recorder": {
-    "git_dirty": false,
-    "git_sha": "4815610c81c8b2638124628d8cddd3c3dfba073f",
+    "git_dirty": true,
+    "git_sha": "07e516ee12ca3ff891b6e513bbc1d3a00df442b4",
     "tool": "evalharness.rehearse"
   },
-  "scenario_fingerprint": "574c43dba6a9a3f9d2c21757f67c007902f4122d31a241b578512ce2eea85694",
+  "scenario_fingerprint": "53869491cfa0917e1ba6d254e42bf1e4e75cbb29570cff2644f292d32a8b29a1",
   "scenario_id": "flag-service-crashloop",
   "seconds_of_steady_state": 300,
   "seconds_to_alert": null,
   "seconds_to_settle": 4,
   "split": "dev",
   "t_alert_firing": null,
-  "t_clear": "2026-08-23T11:27:54+00:00",
-  "t_inject": "2026-08-23T11:15:46+00:00",
-  "t_revert": "2026-08-23T11:27:50+00:00",
+  "t_clear": "2026-08-28T04:49:48+00:00",
+  "t_inject": "2026-08-28T04:37:39+00:00",
+  "t_revert": "2026-08-28T04:49:44+00:00",
   "title": "Feature flag service deploy serves correctly, then exits, over and over",
   "window": {
-    "end": "2026-08-23T11:29:54+00:00",
-    "start": "2026-08-23T11:10:46+00:00"
+    "end": "2026-08-28T04:51:48+00:00",
+    "start": "2026-08-28T04:32:39+00:00"
   },
   "world": {
+    "compose_digest": "299d791c5e0da43ec340f03c4908ecbfaf3e10e91b6a9340f98bd09827d76a6c",
     "docker_arch": "arm64",
-    "ffs_stub_image_id": "sha256:2764ea72cffb58aa6f89db16db4d180ee786530e5e40e7353d60ad1f64bbc9c0",
+    "ffs_stub_image_id": "sha256:e273759fb5c16938bbcf9df934650444642495d9bcebb3af841e015d946d377d",
+    "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
     "host_platform": "Darwin/arm64",
     "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice"
   }

@@ -1,0 +1,44 @@
+{
+  "alerts_at_fire": [],
+  "alerts_over_window": [],
+  "baseline_clear_at": "2026-08-23T11:15:46+00:00",
+  "bundle_schema_version": 1,
+  "expected_remediation_class": "rollback",
+  "fault_class": "bad_deploy",
+  "injection": {
+    "method": "flag-service-crashloop",
+    "params": {
+      "image": "faultline/ffs-stub:crashloop",
+      "server": "server_crash.py"
+    },
+    "target": "featureflagservice"
+  },
+  "origin": "scenario:flag-service-crashloop",
+  "recorded_by": "evalharness.rehearse",
+  "recorder": {
+    "git_dirty": false,
+    "git_sha": "4815610c81c8b2638124628d8cddd3c3dfba073f",
+    "tool": "evalharness.rehearse"
+  },
+  "scenario_fingerprint": "574c43dba6a9a3f9d2c21757f67c007902f4122d31a241b578512ce2eea85694",
+  "scenario_id": "flag-service-crashloop",
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": null,
+  "seconds_to_settle": 4,
+  "split": "dev",
+  "t_alert_firing": null,
+  "t_clear": "2026-08-23T11:27:54+00:00",
+  "t_inject": "2026-08-23T11:15:46+00:00",
+  "t_revert": "2026-08-23T11:27:50+00:00",
+  "title": "Feature flag service deploy serves correctly, then exits, over and over",
+  "window": {
+    "end": "2026-08-23T11:29:54+00:00",
+    "start": "2026-08-23T11:10:46+00:00"
+  },
+  "world": {
+    "docker_arch": "arm64",
+    "ffs_stub_image_id": "sha256:2764ea72cffb58aa6f89db16db4d180ee786530e5e40e7353d60ad1f64bbc9c0",
+    "host_platform": "Darwin/arm64",
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice"
+  }
+}

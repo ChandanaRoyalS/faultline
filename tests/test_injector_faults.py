@@ -254,9 +254,9 @@ def test_bad_deploy_builds_the_image_then_recreates_the_service(
         "docker",
         "build",
         "--tag",
-        "faultline/ffs-stub:broken",
+        "ffs-stub:2",
         "--build-arg",
-        "SERVER=server_broken.py",
+        "SERVER=server_v2.py",
         str(settings.ffs_stub_context),
     )
     assert runner.calls[0].args[1] == "build", "build before deploy, or compose pulls a stale tag"
@@ -264,7 +264,7 @@ def test_bad_deploy_builds_the_image_then_recreates_the_service(
     assert isinstance(outcome.restore, ComposeServiceRestore)
     override = Path(outcome.restore.override_file)
     body = yaml.safe_load(override.read_text())
-    assert body["services"]["featureflagservice"] == {"image": "faultline/ffs-stub:broken"}
+    assert body["services"]["featureflagservice"] == {"image": "ffs-stub:2"}
     assert str(override) in runner.argv("up")
 
 
@@ -305,14 +305,14 @@ def test_crashloop_builds_the_crashing_server_and_swaps_to_it(
         "docker",
         "build",
         "--tag",
-        "faultline/ffs-stub:crashloop",
+        "ffs-stub:3",
         "--build-arg",
-        "SERVER=server_crash.py",
+        "SERVER=server_v3.py",
         str(settings.ffs_stub_context),
     )
     assert isinstance(outcome.restore, ComposeServiceRestore)
     body = yaml.safe_load(Path(outcome.restore.override_file).read_text())
-    assert body["services"]["featureflagservice"] == {"image": "faultline/ffs-stub:crashloop"}
+    assert body["services"]["featureflagservice"] == {"image": "ffs-stub:3"}
 
 
 def test_crashloop_restores_the_same_way_as_the_other_image_swaps(
@@ -329,7 +329,7 @@ def test_crashloop_restores_the_same_way_as_the_other_image_swaps(
     recreate = runner.argv("up")
     files = [recreate[i + 1] for i, a in enumerate(recreate) if a == "-f"]
     assert files == list(settings.compose_files), (
-        "the flag service comes back on faultline/ffs-stub:1, as the world declares it"
+        "the flag service comes back on ffs-stub:1, as the world declares it"
     )
 
 
@@ -349,7 +349,7 @@ def test_every_bad_deploy_is_a_different_shape_of_failure(settings: InjectorSett
     assert len(images) == len(bad_deploys), "each has to deploy a distinct image, or two coincide"
 
     built = [f for f in bad_deploys if "server" in f.params]
-    assert {str(f.params["server"]) for f in built} == {"server_broken.py", "server_crash.py"}, (
+    assert {str(f.params["server"]) for f in built} == {"server_v2.py", "server_v3.py"}, (
         "the two built variants must come from different sources in the stub context"
     )
     # A bare image swap must say which way it is expected to go; inferring it mislabelled

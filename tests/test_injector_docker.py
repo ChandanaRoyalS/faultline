@@ -48,13 +48,13 @@ def test_container_exists_is_false_without_raising() -> None:
 
 def test_build_forwards_build_args() -> None:
     runner = FakeRunner()
-    DockerCli(runner).build("faultline/ffs-stub:broken", Path("/ctx"), {"SERVER": "s.py"})
+    DockerCli(runner).build("ffs-stub:2", Path("/ctx"), {"SERVER": "s.py"})
 
     assert runner.argv("build") == (
         "docker",
         "build",
         "--tag",
-        "faultline/ffs-stub:broken",
+        "ffs-stub:2",
         "--build-arg",
         "SERVER=s.py",
         "/ctx",

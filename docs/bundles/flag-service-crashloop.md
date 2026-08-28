@@ -18,7 +18,7 @@
 | injected at | `featureflagservice` via `flag-service-crashloop` |
 | time to page | — never paged |
 | steady state captured | 300s |
-| capture window | 2026-08-23T11:10:46+00:00 → 2026-08-23T11:29:54+00:00 |
+| capture window | 2026-08-28T04:32:39+00:00 → 2026-08-28T04:51:48+00:00 |
 
 The clock below runs from the moment the fault went in.
 
@@ -26,8 +26,8 @@ The clock below runs from the moment the fault went in.
 |---|---|
 | `t_inject` | T+0m00s |
 | first alert firing | — |
-| `t_revert` | T+12m04s |
-| all clear | T+12m08s |
+| `t_revert` | T+12m05s |
+| all clear | T+12m09s |
 
 ## What fired, and when
 
@@ -41,6 +41,7 @@ _No alert fired over the capture window._
 | `metrics/call-rate.json` | `sum by(service_name) (rate(calls_total[2m]))` |
 | `metrics/error-ratio.json` | `sum by(service_name) (rate(calls_total{status_code="STATUS_CODE_ERROR"}[2m])) / sum by(service_name) (rate(calls_total[2m]))` |
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
+| `metrics/runtime.json` | `{exported_job="featureflagservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
 `logs/feature-flag-service.txt` — 77 lines.
 
@@ -49,18 +50,18 @@ _No alert fired over the capture window._
 From `logs/feature-flag-service.txt` (71 lines):
 
 ```
-2026-08-23T11:16:10+00:00  ffs-stub (crash build): flag store connection lost, aborting
-2026-08-23T11:16:30+00:00  ffs-stub (crash build): flag store connection lost, aborting
-2026-08-23T11:16:51+00:00  ffs-stub (crash build): flag store connection lost, aborting
-2026-08-23T11:17:11+00:00  ffs-stub (crash build): flag store connection lost, aborting
-2026-08-23T11:17:31+00:00  ffs-stub (crash build): flag store connection lost, aborting
-2026-08-23T11:17:51+00:00  ffs-stub (crash build): flag store connection lost, aborting
-2026-08-23T11:18:12+00:00  ffs-stub (crash build): flag store connection lost, aborting
-2026-08-23T11:18:32+00:00  ffs-stub (crash build): flag store connection lost, aborting
-2026-08-23T11:18:52+00:00  ffs-stub (crash build): flag store connection lost, aborting
-2026-08-23T11:19:12+00:00  ffs-stub (crash build): flag store connection lost, aborting
-2026-08-23T11:19:32+00:00  ffs-stub (crash build): flag store connection lost, aborting
-2026-08-23T11:19:53+00:00  ffs-stub (crash build): flag store connection lost, aborting
+2026-08-28T04:38:04+00:00  ffs-stub (crash build): flag store connection lost, aborting
+2026-08-28T04:38:24+00:00  ffs-stub (crash build): flag store connection lost, aborting
+2026-08-28T04:38:44+00:00  ffs-stub (crash build): flag store connection lost, aborting
+2026-08-28T04:39:05+00:00  ffs-stub (crash build): flag store connection lost, aborting
+2026-08-28T04:39:25+00:00  ffs-stub (crash build): flag store connection lost, aborting
+2026-08-28T04:39:45+00:00  ffs-stub (crash build): flag store connection lost, aborting
+2026-08-28T04:40:05+00:00  ffs-stub (crash build): flag store connection lost, aborting
+2026-08-28T04:40:26+00:00  ffs-stub (crash build): flag store connection lost, aborting
+2026-08-28T04:40:46+00:00  ffs-stub (crash build): flag store connection lost, aborting
+2026-08-28T04:41:06+00:00  ffs-stub (crash build): flag store connection lost, aborting
+2026-08-28T04:41:26+00:00  ffs-stub (crash build): flag store connection lost, aborting
+2026-08-28T04:41:47+00:00  ffs-stub (crash build): flag store connection lost, aborting
 ```
 
 _59 further lines are in the bundle._

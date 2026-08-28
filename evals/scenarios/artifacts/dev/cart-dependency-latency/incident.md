@@ -2,19 +2,19 @@
 origin: scenario:cart-dependency-latency
 split: dev
 fault_class: dependency_latency
-recorded_from: 2026-08-23T15:16:15+00:00
-onset_to_page: 3m45s
+recorded_from: 2026-08-28T03:10:51+00:00
+onset_to_page: 3m49s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m16s
+fix_to_all_clear: 2m32s
 ---
 
 # Cart service network path acquires 300ms of delay
 
 ## What was observed
 
-Four `ServiceHighLatency` alerts fired in the same evaluation: **cartservice**,
-**checkoutservice**, **frontend** and **loadgenerator**. The page arrived 3m45s after
-things started slowing.
+The page named two services: `ServiceHighLatency` on **cartservice** and
+**loadgenerator**, 3m49s after things started slowing. **checkoutservice** and
+**frontend** followed fifteen seconds later, for four alerts across four services.
 
 No errors. Not one. Every request succeeded; they simply took longer. The storefront
 worked end to end — adding to a basket returned normally, just sluggishly.
@@ -70,7 +70,7 @@ p95 to rise by exactly 300ms would have doubted a correct measurement.
 ## Resolution
 
 Recreating the cart container cleared the shaping — the rule is bound to the container
-instance, so a new one comes up on a clean network path. Everything was quiet 2m16s
+instance, so a new one comes up on a clean network path. Everything was quiet 2m32s
 later.
 
 Class of fix: **restart**. Nothing was deployed and no configuration was wrong, so
@@ -78,14 +78,16 @@ there was nothing to roll back or revert; the container simply needed replacing.
 
 ## Detection notes
 
-- Onset to first page: **3m45s**, against a three-minute persistence clause. Detection
+- Onset to first page: **3m49s**, against a three-minute persistence clause. Detection
   is dominated by the clause, not by how long the signal took to appear — the underlying
   measurement crossed the threshold almost immediately.
-- Services alerting at the page: **4**. Over the whole incident: **4**. The blast radius
-  never grew, and all four alerts began in the same evaluation.
+- Services alerting at the page: **2**. Over the whole incident: **4**. The blast radius
+  never grew beyond cart and its callers.
 - Alerts that fired only during recovery: **none**.
 - **The culprit was named in the page**, unlike a fault that removes a service entirely
-  — a slow service still reports its own latency, so it appears in its own alert.
+  — a slow service still reports its own latency, so it appears in its own alert. Here it
+  was one of only two services named, alongside the synthetic client, which is as close to
+  being handed the answer as this system's alerting gets.
 - Did the loudest service turn out to be the culprit? **Yes**, and that is worth noting
   precisely because it is unusual. Latency propagates upward through callers, so the
   slowest service in the chain is the source.
@@ -97,8 +99,9 @@ there was nothing to roll back or revert; the container simply needed replacing.
   decays from about 100ms to 2ms over roughly four minutes after being recreated. Any
   comparison against "normal" must exclude that window, and a responder who samples
   inside it will conclude the service is far noisier than it is.
-- On clearing order: cart's alert cleared about fifteen seconds after its callers' did.
-  That is an observation about this incident and not a rule — clearing order is
-  dominated by how full each service's rolling window happens to be when the fault
-  stops, which has more to do with traffic rate than with causation. Do not read
-  causation into what cleared when.
+- On ordering, in both directions: cart and the synthetic client alerted fifteen seconds
+  before checkout and frontend, and cart's alert also cleared after its callers'. Neither
+  gap is causal. Both are dominated by how full each service's rolling window happens to
+  be at the moment the fault starts or stops, which has more to do with traffic rate than
+  with the direction of the failure — and reading the *firing* order as causal would have
+  been right here by luck, since cart genuinely was the source.

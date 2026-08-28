@@ -56,6 +56,34 @@ REQUIRED_METRICS = {
 
 RUNTIME_CAPTURE_FILE = f"{RUNTIME_CAPTURE}.json"
 
+NO_RUNTIME_METRICS = frozenset(
+    {
+        "currency-cpu-throttle",
+        "email-wrong-image",
+        "flag-service-crashloop",
+        "product-catalog-flag-failure",
+        "productcatalog-dependency-latency",
+        "shipping-wrong-image",
+    }
+)
+"""Bundles whose target exports no runtime metrics, so an empty `runtime.json` is the world
+speaking rather than a capture failing.
+
+**Measured at T7.1's uniform re-record, and invisible before it.** `runtime.json` arrived with
+capture set 2, so only the two bundles recorded after it carried the file at all; re-recording
+all twelve put the question to every target at once and six came back empty.
+
+The query is not at fault, which was the other hypothesis this guard names. Asking Prometheus
+directly, `process_runtime_*` exists for exactly four services - `adservice` 48 series,
+`frauddetectionservice` 38, `checkoutservice` 25, `cartservice` 20 - and `runtime_*` /
+`system_memory_*` adds `recommendationservice`. For the six below, `{exported_job="<target>"}`
+matches **nothing at all**, not merely no runtime family, so the label is right and the services
+are silent.
+
+Pinned rather than skipped, and asserted in both directions: an entry here whose capture is
+populated fails too, because the interesting direction is the world gaining instrumentation.
+"""
+
 CAPTURE_SETS: dict[int, set[str]] = {
     1: REQUIRED_METRICS,
     2: REQUIRED_METRICS | {RUNTIME_CAPTURE_FILE},
@@ -444,6 +472,14 @@ def test_no_metric_capture_is_silently_empty() -> None:
                     f"{bundle.name}: the manifest says alerts fired "
                     f"({manifest.get('alerts_at_fire')}) but alerts-firing.json is empty. "
                     "The capture failed - this is not a quiet world."
+                )
+                continue
+
+            if path.name == RUNTIME_CAPTURE_FILE and bundle.name in NO_RUNTIME_METRICS:
+                assert not populated, (
+                    f"{bundle.name}: its target is recorded as exporting no runtime metrics, "
+                    "but this capture has series. If the world gained instrumentation that is "
+                    "good news - take the entry out of NO_RUNTIME_METRICS."
                 )
                 continue
 
@@ -873,3 +909,28 @@ def test_metric_captures_have_no_holes() -> None:
                 "cause is the machine suspending mid-rehearsal: Docker stops, Prometheus "
                 "stops scraping, and the recorded window keeps advancing. Re-record it."
             )
+
+
+def test_a_re_record_cannot_delete_the_files_a_person_wrote(tmp_path: Path) -> None:
+    """T7.1's uniform re-record deleted both `INVALID.md` files: the marker was not on the
+    preserve list, so `--force` removed the only thing explaining why those two bundles are
+    empty. The guards caught it immediately, which is them working - but an alert-free bundle
+    whose marker has been deleted looks exactly like a capture failure nobody has explained,
+    and the file that says otherwise is the one the re-record just removed.
+    """
+    from evalharness.rehearse import clear_bundle
+
+    bundle = tmp_path / "a-bundle"
+    (bundle / "metrics").mkdir(parents=True)
+    (bundle / "superseded").mkdir()
+    for name in ("incident.md", "INVALID.md", "queries.md", "manifest.json"):
+        (bundle / name).write_text(name)
+    (bundle / "metrics" / "error-ratio.json").write_text("{}")
+    (bundle / "superseded" / "old.json").write_text("{}")
+
+    removed = clear_bundle(bundle)
+
+    assert (bundle / "incident.md").is_file(), "the narrative survives a re-record"
+    assert (bundle / "INVALID.md").is_file(), "so does the reason a bundle is not evidence"
+    assert (bundle / "superseded" / "old.json").is_file(), "and so does the archive"
+    assert sorted(removed) == ["manifest.json", "metrics", "queries.md"]

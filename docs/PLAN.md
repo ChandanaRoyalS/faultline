@@ -1469,6 +1469,137 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+**Scope note: this entry and the work done under the T7.1 name are two different things.**
+The entry above is catalog growth. What the tree has been calling "T7.1" everywhere else -
+`CATALOG.md`'s queue table, `ARTIFACTS.md`, ADR-0019, `RESULTS.md`'s open questions, and a test
+docstring - is the **digest-locked change queue and the uniform re-record it requires**. That is
+what was built; catalog growth is untouched and still owed. Recorded rather than silently merged,
+because a reader following either citation should land on the right thing.
+
+### T7.1 (the digest-locked queue) — the world moves *(stage 1 built)*
+Four changes taken together, since one digest change costs the same as four:
+
+| change | file | justified by |
+|---|---|---|
+| cap kafka's JVM heap at 400m | `world-arm64.override.yml` | CATALOG.md measured the trajectory: raised 1200M->2g at ~10:40, back to **90.2% of 2g by ~19:30**. Nine hours to consume the new headroom - unbounded growth, not undersizing. `paymentservice` and `quoteservice`, raised the same morning, both settled *below* their old ceilings, which is what a squeezed container looks like. A cap stops the growth; another raise buys hours. |
+| `otel-col` 300M -> 600M | `world-arm64.override.yml` | Measured at **291.7MiB of 300MiB - 97.2%** after ~a day, over the pre-flight gate's 90% threshold, and **a rehearsal was refused on it**. |
+| Prometheus retention 6h -> 15d | `compose/telemetry.yml` | Six hours already cost a backfill: `runtime.json` could not be added to the ten existing bundles because their windows were from 08-23 and Prometheus had started 08-24T08:53Z. The window was gone before the question was asked. |
+| stub variants renamed | `compose/ffs-stub/`, `src/injector/catalog.py` | ADR-0019: `faultline/ffs-stub:broken` and `:crashloop` made the **tag the answer key**, and `faultline/` gave away the harness besides. Now `ffs-stub:1/:2/:3` over `server.py`/`server_v2.py`/`server_v3.py`. |
+
+**`KNOWN_LEAKING_FAULTS` is now empty and pinned empty.** ADR-0019 tolerated two leaking change
+records because both scenarios were blocked and unreachable; T7.1 took the rename instead, because
+a leak tolerated for being unreachable is a leak waiting for the scenario to become reachable.
+
+**Digests moved, which is the point and the cost:**
+
+| | before | after |
+|---|---|---|
+| `world.compose_digest` | `4a7690c6fdda…1583e` | **`299d791c5e0d…6a6c`** |
+| `world.ffs_stub_source_digest` | `5d06a3668aa0…b9db` | **`8defed3104c4…7fde`** |
+
+**Every existing bundle was recorded under the old pair and stays recorded under it.** Nothing is
+backfilled: a backfilled digest would be a false claim that a capture was taken against a world
+that did not exist when it was taken (ADR-0014). The bundles are stale until stage 2 re-records
+them, and `test_bundles_match_the_label_they_were_recorded_against` says so out loud for
+`flag-service-crashloop`, whose injection params changed with the rename. ADR-0014 already named
+that state the correct one.
+
+#### Stage 2 — the uniform re-record, and what it surfaced
+
+Twelve bundles, one driver, **zero discards**. New digests, `capture_set` 2 with
+`metrics/runtime.json`, predecessors archived under `superseded/<t_inject>/`.
+
+Two driver defects, both caught by gates before anything was injected: a rebuilt `ffs-stub:1`
+left `feature-flag-service` on an orphaned image sha, and a fixed 120s inter-scenario gap is
+shorter than the 300s settle rule a revert triggers. The driver now waits for the gate.
+
+**`INVALID.md` was not on the recorder's preserve list**, so `--force` deleted both markers -
+the only files explaining why two bundles are empty. Recovered from git; `INVALID.md` now sits
+beside `incident.md` in `PRESERVED`, pinned by a test.
+
+**Six of twelve targets export no runtime metrics at all**, invisible until every target was
+asked at once. `process_runtime_*` exists for four services and `runtime_*`/`system_memory_*`
+adds a fifth; for the other six `{exported_job="<target>"}` matches nothing whatsoever, so the
+query is not at fault. Pinned as a measured set, asserted in both directions.
+
+**The retention hypothesis is refuted for both INVALID bundles.** Both fired nothing over a 420s
+wait and across the whole window, and both recorded reasons were re-verified against the rebuilt
+world rather than assumed: `featureflagservice` still emits no span metrics at all, and
+`currencyservice` idles at **0.04% CPU** so a quota ceiling has nothing to bind against. Neither
+reason was ever about retention. Both markers stay, and that closes the question.
+
+#### Stage 3 — narrative reconciliation
+
+Every narrative rewritten against its new manifest; corrections recorded in
+`docs/evidence/t7.1-reconciliation/README.md` rather than inside the narratives, which are corpus
+material written in a responder's voice. **Three observations were removed rather than softened**
+because the new captures no longer contain them - `ad-memory-squeeze`'s crosses-clears-crosses
+alert, `cart-bad-image-tag`'s two-wave split, and `recommendation-memory-squeeze`'s latency
+alerts. One inference was **refuted by the re-record itself**: `product-catalog-flag-failure`
+argued that a fast all-clear proves nothing restarted, and `frauddetection-memory-squeeze`, which
+*does* require a process to come back, now clears faster than it does.
+
+`email-wrong-image`'s central claim - that the broken service never alerted at all - is
+contradicted: it alerts, late and only on absence. That is the scenario T4.8 and T4.15 both built
+findings on, and those findings were about **planner behaviour**, not about this claim, so they
+stand.
+
+**Published figures were not re-measured**, deliberately: `RESULTS.md` and `README.md` now state
+that everything in them was measured against the old world and that comparing a future run to
+them compares across worlds. No sweep and no holdout entry ran in T7.1 - what the new world is
+worth measuring against is a decision with its own argument to make.
+
+#### Queued: the blast-radius exclusion is keyed on the service, not the alert
+
+Found at stage 3 and **not fixed**, because it changes triage numbers and T7.1 re-measures
+nothing. `score_triage` computes `alerted - after`, which drops a service from the blast radius
+entirely when it has *any* post-revert alert - including the alert it raised during the fault.
+That understates the radius.
+
+It was unreachable until now: every after-revert alert in the catalog belonged to a service that
+alerted *only* after the revert, so the two sets were disjoint. The re-record retired all three
+of those and produced the first overlap, `product-catalog-flag-failure`, where frontend alerts
+during the fault and again in recovery. **The fix is to exclude per alert rather than per
+service**, and it belongs with a decision to re-measure.
+
+#### Queued: a `memory_limiter` processor for otel-col — **600M is a timer, not a fix**
+
+Not taken at T7.1, and recorded here rather than left in a commit message because the raise will
+expire and whoever meets it next should find the reasoning rather than re-derive it.
+
+**What was actually fixed and what was not.** kafka's growth is *stopped* — a JVM heap cap is a
+ceiling the process cannot grow past. otel-col's is only *deferred*: nothing about 600M changes the
+collector's behaviour, it just takes longer to reach. The two changes look alike in the diff and
+are not alike.
+
+**Why it was not fixed here.** The collector config is not a `compose_digest` input, so unlike the
+other four this change was never locked to a re-record — it can be taken any day, and bundling it
+into a digest bump would hide a behavioural change inside a batch whose whole justification is
+"these had to move together". They did not.
+
+**What would tell us it ran out.** The signal is the one that caught it the first time: the
+rehearsal pre-flight gate refuses at 90% of the limit, so `otel-col` at **540MiB of 600M** is the
+tripwire, and it will surface as a refused rehearsal rather than as anything resembling a memory
+problem. Two numbers bound the wait — 291.7MiB after roughly a day at the old ceiling, and the
+measured start of 123.3MiB immediately after this rebuild — so if growth is linear in uptime the
+gate should hold for a week or two rather than a day. **That estimate is an extrapolation from two
+readings of a different ceiling and should be treated as one.** `docker stats --no-stream otel-col`
+between batches is the cheap check; CATALOG.md's operational section already tells a reader to run
+it.
+
+**What the fix looks like when taken.** A `memory_limiter` processor with `limit_mib` set below the
+container limit, so the collector sheds load and reports it rather than being OOM-killed — the
+difference between a world that says it is dropping telemetry and a world with a hole in it. That
+distinction is the whole reason this one matters more than kafka's: a kafka OOM writes a spurious
+incident into a bundle, a collector OOM writes nothing at all, and `test_metric_captures_have_no_holes`
+would catch it only after the run that lost the data.
+
+**The otel-col raise buys time and does not fix the growth**, and is taken anyway because
+`otel-col` is the path every metric and trace takes - a kafka OOM writes a spurious incident into
+a bundle, a collector OOM writes a hole. The real fix is a `memory_limiter` processor in the
+collector config, which is **not** a `compose_digest` input and so was never locked to this
+re-record; it is left for its own change rather than bundled into a digest bump.
+
 ### T7.2 — external benchmark confirmation
 Confirms the runtime interface ADR-0004 inferred from harness source.
 `docs/adr/0004:48`, `docs/adr/0004:55`

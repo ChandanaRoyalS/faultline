@@ -2,10 +2,10 @@
 origin: scenario:ad-memory-squeeze
 split: dev
 fault_class: resource_exhaustion
-recorded_from: 2026-08-24T10:05:13+00:00
-onset_to_page: 3m30s
+recorded_from: 2026-08-28T02:41:26+00:00
+onset_to_page: 3m45s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m15s
+fix_to_all_clear: 1m45s
 ---
 
 # Ad service memory limit cut below the working set its JVM was sized for
@@ -13,18 +13,14 @@ fix_to_all_clear: 2m15s
 ## What was observed
 
 The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,
-3m30s after onset. No service between them and the edge was named.
+3m45s after onset. No service between them and the edge was named, and both alerts then
+stayed up continuously for the rest of the incident.
 
-frontend's alert then did something worth recording: it dropped back under the
-threshold after thirty seconds, stayed clear for nearly three minutes, and fired again
-at **T+6m15s** for the rest of the incident. An error ratio that crosses, falls back,
-and crosses again is a partial failure hovering at the threshold — one dependency
-failing out of many — not a flapping monitor.
+Two and a half minutes later, at **T+6m00s**, `ServiceNoTraffic` fired on **adservice** —
+the first time anything named a service other than the edge, and the only alert in this
+incident that points inward.
 
-At the same moment frontend's alert returned, `ServiceNoTraffic` fired on
-**adservice** — the first time anything named a service other than the edge.
-
-Four alerts across three services. The storefront was mostly usable throughout:
+Three alerts across three services. The storefront was mostly usable throughout:
 product pages loaded, baskets worked, checkout completed. The advertisement panel was
 missing.
 
@@ -44,7 +40,7 @@ dependency, and the storefront said which one before the alerting did.
 both look like a call rate of zero. The runtime metrics can. adservice exports its own
 JVM heap series, and a process that is merely idle keeps exporting them. **Those
 series continued for the first four and a half minutes of the incident and then
-stopped entirely, not returning until after the fix.** A service that has stopped
+stopped entirely at T+4m30s, not returning until after the fix.** A service that has stopped
 reporting how much heap it is using does not have a heap. That is the moment the
 investigation stopped being about traffic and started being about the process.
 
@@ -76,30 +72,32 @@ traffic, of logs, and of the runtime metrics it publishes about itself.
 ## Resolution
 
 The memory limit was restored to its previous value. adservice came back and the ad
-panel returned. Everything was clear 2m15s after the fix.
+panel returned. Everything was clear 1m45s after the fix.
 
 Class of fix: **config_revert**. Nothing was deployed and nothing needed rolling back;
 one resource limit was wrong and was put back.
 
 ## Detection notes
 
-- Onset to first page: **3m30s**.
-- Services alerting at the page: **2**. Over the whole incident: **3**, across 4
+- Onset to first page: **3m45s**.
+- Services alerting at the page: **2**. Over the whole incident: **3**, across 3
   alerts.
 - Alerts that fired only during recovery: **none**.
-- **The page named the edge, twice over, and the culprit only as an absence three
-  minutes later.** The strongest early signal was not in the alerting at all: the
+- **The page named the edge, twice over, and the culprit only as an absence two and a
+  half minutes later.** The strongest early signal was not in the alerting at all: the
   storefront worked except for one panel.
-- Did the loudest service turn out to be the culprit? **No.** loadgenerator alerted
-  longest at seven minutes and is not a service in any meaningful sense.
-- **An alert that crosses, clears, and crosses again is a partial failure, not a flaky
-  monitor.** frontend's ratio hovered at the threshold because only the requests
-  touching the ad panel were failing. Dismissing the first thirty-second firing as
-  noise would have cost three minutes.
+- Did the loudest service turn out to be the culprit? **No.** frontend and loadgenerator
+  alerted longest at 6.8 minutes each, and one of them is not a service in any meaningful
+  sense.
+- **A partial failure can look completely ordinary in the alerting.** Only the requests
+  touching the ad panel were failing, and frontend's error ratio crossed the threshold
+  and stayed there like any total outage would. Nothing in the shape of that alert says
+  "one dependency out of many" — the storefront's own behaviour said it, and the metric
+  did not.
 - **A service's own runtime metrics disappearing is stronger evidence than its traffic
   disappearing.** An idle service still reports its heap; a dead one reports nothing.
-  This incident's bundle carries that evidence directly: the heap series run to
-  T+4m45s and stop.
+  This incident's record carries that evidence directly: the heap series run to
+  T+4m30s and stop.
 - **The runtime series also outlived the traffic.** The heap kept reporting for
   minutes after calls stopped being served — a process can be alive and useless. The
   reverse transition, from reporting to gone, is the one that dates the death.

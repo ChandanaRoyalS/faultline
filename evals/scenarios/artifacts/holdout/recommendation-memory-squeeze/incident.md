@@ -2,10 +2,10 @@
 origin: scenario:recommendation-memory-squeeze
 split: holdout
 fault_class: resource_exhaustion
-recorded_from: 2026-08-23T17:30:59+00:00
-onset_to_page: 5m26s
-page_to_fix: 6m52s
-fix_to_all_clear: 2m30s
+recorded_from: 2026-08-28T05:20:49+00:00
+onset_to_page: 4m30s
+page_to_fix: 5m00s
+fix_to_all_clear: 3m01s
 ---
 
 # Recommendation service memory limit cut below what its runtime needs to start
@@ -13,17 +13,15 @@ fix_to_all_clear: 2m30s
 ## What was observed
 
 The page was two alerts: `ServiceHighErrorRate` on **frontend** and **loadgenerator**.
-It arrived 5m26s after onset — the slowest detection of any incident recorded on this
-system.
+It arrived 4m30s after onset.
 
-Thirty seconds later both services also crossed `ServiceHighLatency`, and stayed over
-it for seven minutes.
+`ServiceNoTraffic` fired on **recommendationservice** at **T+6m15s**, a minute and
+three-quarters after the page and the only alert naming the broken service.
 
-At **T+1m00s**, `ServiceNoTraffic` fired on **recommendationservice**.
-
-Five alerts across three services. The storefront loaded, product pages rendered, the
-basket and checkout worked. The recommendation strip on the home page was empty and
-each page took noticeably longer to finish rendering.
+Three alerts across three services. The storefront loaded, product pages rendered, the
+basket and checkout worked. The recommendation strip on the home page was empty, and
+pages finished rendering without it — nothing in this incident crossed a latency
+threshold anywhere in the system.
 
 ## What was checked
 
@@ -82,16 +80,20 @@ one resource limit was wrong and was put back.
 
 ## Detection notes
 
-- Onset to first page: **5m26s**, the slowest on this system. A dependency whose
-  failure is tolerated by its caller takes longer to page than one whose failure is
-  fatal — partial degradation crosses a ratio threshold slowly.
-- Services alerting at the page: **2**. Over the whole incident: **3**, across 5 alerts.
+- Onset to first page: **4m30s**. A dependency whose failure is tolerated by its caller
+  takes longer to page than one whose failure is fatal — partial degradation crosses a
+  ratio threshold slowly.
+- Services alerting at the page: **2**. Over the whole incident: **3**, across 3 alerts.
 - Alerts that fired only during recovery: **none**.
 - **The page named neither the broken service nor anything adjacent to it.** frontend
-  and loadgenerator are the edge; the culprit appeared a minute later, and only as an
-  absence.
+  and loadgenerator are the edge; the culprit appeared a minute and three-quarters later,
+  and only as an absence.
 - Did the loudest service turn out to be the culprit? **No.** frontend and loadgenerator
-  alerted longest at 9m30s each and neither was broken.
+  alerted longest at 8.0 minutes each and neither was broken.
+- **Nothing here was slow, only missing.** No latency rule fired on any service. A
+  dependency that vanishes cheaply — one its caller can skip rather than wait for —
+  produces a failure with no latency signature at all, so a responder scanning latency
+  dashboards for the cause of a degraded storefront would find every one of them clean.
 - **Absence is the only alert this service can ever produce.** Its healthy p95 is around
   4ms against a 250ms threshold — sixty times of headroom. No amount of slowing down
   can reach the rule. If a fault on this service does not stop it serving, nothing in

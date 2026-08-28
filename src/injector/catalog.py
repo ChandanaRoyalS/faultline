@@ -90,7 +90,7 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
                 "and serves, then fails on the hot path - the cascade to recommendationservice "
                 "and the frontend that ADR-0006 measured."
             ),
-            params={"image": "faultline/ffs-stub:broken", "server": "server_broken.py"},
+            params={"image": "ffs-stub:2", "server": "server_v2.py"},
         ),
         FaultDefinition(
             id="flag-service-crashloop",
@@ -106,7 +106,7 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             # neither flag-service-bad-deploy (starts, then fails every call) nor
             # cart-bad-image-tag (never starts). An agent that has learned "bad_deploy
             # means steady 5xx" should get this one wrong.
-            params={"image": "faultline/ffs-stub:crashloop", "server": "server_crash.py"},
+            params={"image": "ffs-stub:3", "server": "server_v3.py"},
         ),
         FaultDefinition(
             id="cart-dependency-latency",

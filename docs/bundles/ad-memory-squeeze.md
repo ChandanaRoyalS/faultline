@@ -9,27 +9,26 @@
 | expected remediation | `config_revert` |
 | split | `dev` |
 | injected at | `ad-service` via `ad-memory-squeeze` |
-| time to page | 3m30s |
+| time to page | 3m45s |
 | steady state captured | 300s |
-| capture window | 2026-08-24T10:00:13+00:00 → 2026-08-24T10:17:58+00:00 |
+| capture window | 2026-08-28T02:36:26+00:00 → 2026-08-28T02:53:56+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+3m30s |
-| `t_revert` | T+8m30s |
-| all clear | T+10m45s |
+| first alert firing | T+3m45s |
+| `t_revert` | T+8m45s |
+| all clear | T+10m30s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m30s | `frontend` | ServiceHighErrorRate | 0.5 min | **paged** |
-| T+3m30s | `loadgenerator` | ServiceHighErrorRate | 7.0 min | **paged** |
-| T+6m15s | `adservice` | ServiceNoTraffic | 4.0 min | joined later |
-| T+6m15s | `frontend` | ServiceHighErrorRate | 4.5 min | **paged** |
+| T+3m30s | `frontend` | ServiceHighErrorRate | 6.8 min | **paged** |
+| T+3m30s | `loadgenerator` | ServiceHighErrorRate | 6.8 min | **paged** |
+| T+6m00s | `adservice` | ServiceNoTraffic | 4.0 min | joined later |
 
 ## What the bundle contains
 
@@ -41,28 +40,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="adservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/ad-service.txt` — 97 lines.
+`logs/ad-service.txt` — 137 lines.
 
 ## A look at the logs
 
-From `logs/ad-service.txt` (91 lines):
+From `logs/ad-service.txt` (131 lines):
 
 ```
-2026-08-24T10:00:20+00:00  2026-08-24 10:00:20 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=a463a1cf432c71f22a2a279aa72c219c span_id=c67f408706824cbf trace_flags=01
-2026-08-24T10:00:22+00:00  2026-08-24 10:00:22 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=84fa96308da7e457dfc19dad3f2beeda span_id=238c8ab7a98cdb68 trace_flags=01
-2026-08-24T10:00:30+00:00  2026-08-24 10:00:30 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=c51c5e01b44f842e18968cd3188ff168 span_id=0ed32d72627b8ef4 trace_flags=01
-2026-08-24T10:00:33+00:00  2026-08-24 10:00:33 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=a198c9cc5717e253c21bae69cd60ceb0 span_id=b8909a20194a3dc8 trace_flags=01
-2026-08-24T10:00:35+00:00  2026-08-24 10:00:35 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=e287fa4b589b09692a450f20ac12c9bd span_id=c93518ae7acb45a2 trace_flags=01
-2026-08-24T10:00:36+00:00  2026-08-24 10:00:36 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=11b6078a75758e5a1b9286fe92d02bf8 span_id=21033b8cab52cef1 trace_flags=01
-2026-08-24T10:00:38+00:00  2026-08-24 10:00:38 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=1f0a8700718691e265e840161964abff span_id=372d3f7739d2f48b trace_flags=01
-2026-08-24T10:00:41+00:00  2026-08-24 10:00:41 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=dded1ba4acb90a18a27b49a6b081e77c span_id=12a2895eb9c638d3 trace_flags=01
-2026-08-24T10:00:43+00:00  2026-08-24 10:00:43 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=21c0b04f3f003db7071ec233e25acdb4 span_id=973b58ae15478418 trace_flags=01
-2026-08-24T10:00:52+00:00  2026-08-24 10:00:52 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=526f07a4897eec1e6122c9749dd64ceb span_id=df6c0423d413a61b trace_flags=01
-2026-08-24T10:00:53+00:00  2026-08-24 10:00:53 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=ee456f83a105f7df2eaa6ac3a930ae4d span_id=598377bd58d23307 trace_flags=01
-2026-08-24T10:00:55+00:00  2026-08-24 10:00:55 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=72e3ec97160d3dd0897ff5db19edfd0d span_id=96c4ec260aebb620 trace_flags=01
+2026-08-28T02:41:26+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-28T02:41:26+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-28T02:41:26+00:00  [otel.javaagent 2026-08-28 02:41:26:874 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-08-28T02:41:29+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-28T02:41:30+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-28T02:41:30+00:00  [otel.javaagent 2026-08-28 02:41:30:194 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-08-28T02:41:33+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-28T02:41:33+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-28T02:41:34+00:00  [otel.javaagent 2026-08-28 02:41:34:129 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-08-28T02:41:37+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-28T02:41:37+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-28T02:41:38+00:00  [otel.javaagent 2026-08-28 02:41:38:078 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
 ```
 
-_79 further lines are in the bundle._
+_119 further lines are in the bundle._
 
 ## The incident record
 
@@ -80,18 +79,14 @@ bundle are the tiebreak.
 ### What was observed
 
 The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,
-3m30s after onset. No service between them and the edge was named.
+3m45s after onset. No service between them and the edge was named, and both alerts then
+stayed up continuously for the rest of the incident.
 
-frontend's alert then did something worth recording: it dropped back under the
-threshold after thirty seconds, stayed clear for nearly three minutes, and fired again
-at **T+6m15s** for the rest of the incident. An error ratio that crosses, falls back,
-and crosses again is a partial failure hovering at the threshold — one dependency
-failing out of many — not a flapping monitor.
+Two and a half minutes later, at **T+6m00s**, `ServiceNoTraffic` fired on **adservice** —
+the first time anything named a service other than the edge, and the only alert in this
+incident that points inward.
 
-At the same moment frontend's alert returned, `ServiceNoTraffic` fired on
-**adservice** — the first time anything named a service other than the edge.
-
-Four alerts across three services. The storefront was mostly usable throughout:
+Three alerts across three services. The storefront was mostly usable throughout:
 product pages loaded, baskets worked, checkout completed. The advertisement panel was
 missing.
 
@@ -111,7 +106,7 @@ dependency, and the storefront said which one before the alerting did.
 both look like a call rate of zero. The runtime metrics can. adservice exports its own
 JVM heap series, and a process that is merely idle keeps exporting them. **Those
 series continued for the first four and a half minutes of the incident and then
-stopped entirely, not returning until after the fix.** A service that has stopped
+stopped entirely at T+4m30s, not returning until after the fix.** A service that has stopped
 reporting how much heap it is using does not have a heap. That is the moment the
 investigation stopped being about traffic and started being about the process.
 
@@ -143,30 +138,32 @@ traffic, of logs, and of the runtime metrics it publishes about itself.
 ### Resolution
 
 The memory limit was restored to its previous value. adservice came back and the ad
-panel returned. Everything was clear 2m15s after the fix.
+panel returned. Everything was clear 1m45s after the fix.
 
 Class of fix: **config_revert**. Nothing was deployed and nothing needed rolling back;
 one resource limit was wrong and was put back.
 
 ### Detection notes
 
-- Onset to first page: **3m30s**.
-- Services alerting at the page: **2**. Over the whole incident: **3**, across 4
+- Onset to first page: **3m45s**.
+- Services alerting at the page: **2**. Over the whole incident: **3**, across 3
   alerts.
 - Alerts that fired only during recovery: **none**.
-- **The page named the edge, twice over, and the culprit only as an absence three
-  minutes later.** The strongest early signal was not in the alerting at all: the
+- **The page named the edge, twice over, and the culprit only as an absence two and a
+  half minutes later.** The strongest early signal was not in the alerting at all: the
   storefront worked except for one panel.
-- Did the loudest service turn out to be the culprit? **No.** loadgenerator alerted
-  longest at seven minutes and is not a service in any meaningful sense.
-- **An alert that crosses, clears, and crosses again is a partial failure, not a flaky
-  monitor.** frontend's ratio hovered at the threshold because only the requests
-  touching the ad panel were failing. Dismissing the first thirty-second firing as
-  noise would have cost three minutes.
+- Did the loudest service turn out to be the culprit? **No.** frontend and loadgenerator
+  alerted longest at 6.8 minutes each, and one of them is not a service in any meaningful
+  sense.
+- **A partial failure can look completely ordinary in the alerting.** Only the requests
+  touching the ad panel were failing, and frontend's error ratio crossed the threshold
+  and stayed there like any total outage would. Nothing in the shape of that alert says
+  "one dependency out of many" — the storefront's own behaviour said it, and the metric
+  did not.
 - **A service's own runtime metrics disappearing is stronger evidence than its traffic
   disappearing.** An idle service still reports its heap; a dead one reports nothing.
-  This incident's bundle carries that evidence directly: the heap series run to
-  T+4m45s and stop.
+  This incident's record carries that evidence directly: the heap series run to
+  T+4m30s and stop.
 - **The runtime series also outlived the traffic.** The heap kept reporting for
   minutes after calls stopped being served — a process can be alive and useless. The
   reverse transition, from reporting to gone, is the one that dates the death.

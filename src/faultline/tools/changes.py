@@ -167,27 +167,30 @@ line and visible.
 """
 
 
-KNOWN_LEAKING_FAULTS: frozenset[str] = frozenset(
-    {"flag-service-bad-deploy", "flag-service-crashloop"}
-)
-"""Faults that cannot be rendered as a non-leaking change record, and why that is tolerable.
+KNOWN_LEAKING_FAULTS: frozenset[str] = frozenset()
+"""**Empty since T7.1, and that is the point.** No fault in the catalog leaks its answer.
 
-Found by the guard rather than by review. Both deploy a stub image built for this harness,
-and the artifact is named after what it does: `faultline/ffs-stub:broken` and
-`faultline/ffs-stub:crashloop`. An honest image-change record has to name the image that was
-deployed, and the **tag is the answer key** - `crashloop` states the fault outright.
+It held `flag-service-bad-deploy` and `flag-service-crashloop` from ADR-0019 until T7.1. Both
+deploy a stub image, and the artifact used to be named after what it does -
+`faultline/ffs-stub:broken` and `faultline/ffs-stub:crashloop`. An honest image-change record
+has to name the image it deployed, so the **tag was the answer key**: `crashloop` stated the
+fault outright, and `faultline/` gave away the harness besides.
 
-Not exempted the way `FAULTLINE_ENABLED_FLAGS` is, because that would wave through a token
-that gives away the diagnosis rather than merely the harness's existence. Instead the two are
-pinned: `tests/test_tools.py` asserts these and only these leak, so a third one is a failure.
+The fix was locked behind `ffs_stub_source_digest` until the catalog was re-recorded against
+one world, which is exactly what T7.1 does. The variants are now numbered - `ffs-stub:1`
+healthy, `:2` and `:3` faulty, over entry points named to match - so a change record can say
+which image was deployed without describing what it does. The guard still asserts that this
+set is exactly what leaks, so it now asserts that **nothing** does.
 
-Tolerable today for one reason: **both scenarios are blocked** and can never be rehearsed -
+The original reasoning is kept below because it is the argument for why a number is enough,
+and because a future variant added carelessly would recreate the defect.
+
+Both scenarios were also **blocked** and could never be rehearsed -
 `featureflagservice` emits no span metrics, so no fault on it can page
 (`evals/scenarios/flag-service-crashloop.yaml:3`). No bundle exists and no scored run can
-reach them. If T7.0 or T7.1 makes the flag service observable, these tags have to be renamed
-before either scenario is rehearsed - and renaming them edits `compose/ffs-stub/`, which
-feeds `ffs_stub_source_digest`, so it belongs with the digest-locked changes queued for
-T7.1's re-record.
+reach them. That is no longer the load-bearing reason, and it should not be: a leak
+tolerated because nobody can reach it is a leak waiting for the scenario to become reachable.
+T7.1 took the rename rather than keeping the argument.
 """
 
 

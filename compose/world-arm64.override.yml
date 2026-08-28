@@ -26,7 +26,18 @@ services:
   # limit, with nothing injected. The T1.5 rehearsal pre-flight gate refuses to start
   # against a container above 90%, because one that OOMs mid-run writes a broad spurious
   # incident into the bundle as though it were the injected fault.
+  #
+  # T7.1: the limit was never the problem. CATALOG.md measured the trajectory - raised to
+  # 2g at ~10:40, back to 90.2% of 2g by ~19:30, roughly nine hours to consume the new
+  # headroom entirely. That is unbounded growth, not undersizing, and the contrast is
+  # paymentservice and quoteservice, raised the same morning, which both settled *below*
+  # their old ceilings. Raising a limit against unbounded growth buys hours and makes the
+  # eventual reset more expensive, so the heap is capped instead: the JVM stops growing
+  # rather than being periodically restarted. The 2g limit stays as the backstop it should
+  # always have been.
   kafka:
+    environment:
+      KAFKA_HEAP_OPTS: "-Xmx400m -Xms400m"
     deploy: { resources: { limits: { memory: 2g } } }
   loadgenerator:
     deploy: { resources: { limits: { memory: 300M } } }
@@ -47,8 +58,16 @@ services:
     deploy: { resources: { limits: { memory: 800M } } }
   shippingservice:
     deploy: { resources: { limits: { memory: 120M } } }
+  # 300M was measured at 291.7MiB after roughly a day up - 97.2%, over the rehearsal
+  # pre-flight gate's 90% threshold - and a rehearsal was refused on it before anything was
+  # injected. Same unbounded shape as kafka. **This raise buys time, it does not fix the
+  # growth**, and it is taken anyway because otel-col is the path every metric and trace
+  # takes: a kafka OOM writes a spurious incident into a bundle, a collector OOM writes a
+  # hole. The real fix is a memory_limiter processor in the collector config, which is not a
+  # compose_digest input and so is not locked to this re-record - deliberately left for its
+  # own change rather than bundled into a digest bump.
   otelcol:
-    deploy: { resources: { limits: { memory: 300M } } }
+    deploy: { resources: { limits: { memory: 600M } } }
   accountingservice:
     deploy: { resources: { limits: { memory: 300M } } }
   # The real service (Elixir/Erlang) segfaults under emulation and its native
@@ -56,4 +75,4 @@ services:
   # implements the same contract - see ADR-0005 and ADR-0006. Built by
   # `make ffs-stub`; compose runs with --no-build so this image is used as-is.
   featureflagservice:
-    image: faultline/ffs-stub:1
+    image: ffs-stub:1

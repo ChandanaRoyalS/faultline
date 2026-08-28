@@ -61,10 +61,10 @@ ffs-stub:
 	@mkdir -p $(dir $(FFS_STUB_STAMP))
 	@digest=$$(uv run python -c 'from evalharness.provenance import ffs_stub_source_digest; print(ffs_stub_source_digest())'); \
 	if [ "$$digest" = "$$(cat $(FFS_STUB_STAMP) 2>/dev/null)" ] \
-	   && docker image inspect faultline/ffs-stub:1 >/dev/null 2>&1; then \
+	   && docker image inspect ffs-stub:1 >/dev/null 2>&1; then \
 		echo "ffs-stub:1 already built from this source ($${digest})"; \
 	else \
-		docker build -t faultline/ffs-stub:1 compose/ffs-stub && printf '%s' "$$digest" > $(FFS_STUB_STAMP); \
+		docker build -t ffs-stub:1 compose/ffs-stub && printf '%s' "$$digest" > $(FFS_STUB_STAMP); \
 	fi
 
 world-up: world/.cloned ffs-stub

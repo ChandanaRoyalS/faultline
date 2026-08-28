@@ -23,15 +23,15 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 
 | scenario | fault class | what happened |
 |---|---|---|
-| [`ad-memory-squeeze`](ad-memory-squeeze.md) | `resource_exhaustion` | Ad service memory limit cut below the working set its JVM was sized for — 4 alerts over the window |
-| [`cart-bad-image-tag`](cart-bad-image-tag.md) | `bad_deploy` | Cart service deployed on an image tag that was never published — 11 alerts over the window |
+| [`ad-memory-squeeze`](ad-memory-squeeze.md) | `resource_exhaustion` | Ad service memory limit cut below the working set its JVM was sized for — 3 alerts over the window |
+| [`cart-bad-image-tag`](cart-bad-image-tag.md) | `bad_deploy` | Cart service deployed on an image tag that was never published — 10 alerts over the window |
 | [`cart-dependency-latency`](cart-dependency-latency.md) | `dependency_latency` | Cart service network path acquires 300ms of delay — 4 alerts over the window |
-| [`cart-redis-misconfig`](cart-redis-misconfig.md) | `bad_config` | Cart service pointed at the wrong Redis port — 11 alerts over the window |
+| [`cart-redis-misconfig`](cart-redis-misconfig.md) | `bad_config` | Cart service pointed at the wrong Redis port — 10 alerts over the window |
 | [`currency-cpu-throttle`](currency-cpu-throttle.md) | `resource_exhaustion` | **⚠ nothing fired** — the fault could not bind |
 | [`flag-service-crashloop`](flag-service-crashloop.md) | `bad_deploy` | **⚠ nothing fired** — the fault could not bind |
 | [`frauddetection-memory-squeeze`](frauddetection-memory-squeeze.md) | `resource_exhaustion` | Fraud detection service memory limit cut below its working set — 1 alerts over the window |
-| [`product-catalog-flag-failure`](product-catalog-flag-failure.md) | `bad_config` | A feature flag turned on at the flag service makes product catalog fail one product — 3 alerts over the window |
-| [`shipping-wrong-image`](shipping-wrong-image.md) | `bad_deploy` | Shipping service deployed with another service's image — 10 alerts over the window |
+| [`product-catalog-flag-failure`](product-catalog-flag-failure.md) | `bad_config` | A feature flag turned on at the flag service makes product catalog fail one product — 4 alerts over the window |
+| [`shipping-wrong-image`](shipping-wrong-image.md) | `bad_deploy` | Shipping service deployed with another service's image — 8 alerts over the window |
 
 ## Holdout split
 
@@ -40,9 +40,9 @@ pre-registered entry.
 
 | scenario | fault class | what happened |
 |---|---|---|
-| [`email-wrong-image`](email-wrong-image.md) | `bad_deploy` | Email service deployed with another service's image — 1 alerts over the window |
+| [`email-wrong-image`](email-wrong-image.md) | `bad_deploy` | Email service deployed with another service's image — 2 alerts over the window |
 | [`productcatalog-dependency-latency`](productcatalog-dependency-latency.md) | `dependency_latency` | Product catalog network path acquires 300ms of delay, slowing every caller — 5 alerts over the window |
-| [`recommendation-memory-squeeze`](recommendation-memory-squeeze.md) | `resource_exhaustion` | Recommendation service memory limit cut below what its runtime needs to start — 5 alerts over the window |
+| [`recommendation-memory-squeeze`](recommendation-memory-squeeze.md) | `resource_exhaustion` | Recommendation service memory limit cut below what its runtime needs to start — 3 alerts over the window |
 
 ---
 
