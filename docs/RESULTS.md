@@ -197,7 +197,7 @@ point.
 | `resource_exhaustion` | 1 | — / 0 | — / 0 | 1 |
 | `bad_config` · `scale` | 0 | no holdout scenario | | |
 
-Triage recall **1.00**, precision 0.32, 9 unmeasured edges. **Budget exhausted 2 of 3** — both
+Triage recall **1.00**, precision 0.32, 9 unmeasured edges — **unchanged by T7.3's rescore**, as every holdout figure is. **Budget exhausted 2 of 3** — both
 abstentions carry that signature, which is what entries 2 and 3 went on to chase. Flagged 0 ·
 failed-alone 0 · contradictions 0 · narrative refused 0. Cost $1.08 agent + $0.12 judge.
 
@@ -218,7 +218,7 @@ on scenarios they were developed against.
 | fault class, of answered | 4 / 7 | 4 / 4 |
 | coverage | 7 / 7 | 4 / 7 |
 | class of fix, of answered | 6 / 7 | 3 / 4 |
-| triage recall / precision | 0.94 / 0.56 | 0.95 / 0.57 |
+| triage recall / precision | ~~0.94 / 0.56~~ **0.94 / 0.60** | ~~0.95 / 0.57~~ **0.95 / 0.60** | _(rescored 2026-08-28 under T7.3's fixed per-episode exclusion; the original figures are struck)_
 | judge same / adjacent / different | 7 / 0 / 0 | 4 / 0 / 3 |
 | dead ends closed / missed | 42 / 35 | 31 / 29 |
 | traps taken | 1 | 3 |
@@ -250,7 +250,7 @@ every dev scenario was answered and every answer was right — on **47** tool ca
 | scenarios collapsed to ≤ 1 there | 0 | **3** | **0** |
 | evidence classes at the failing service | 20 | 17 | **25** |
 | judge same / different | 6 / 0 | 4 / 3 | **6 / 1** |
-| triage recall / precision | 0.91 / 0.54 | 0.92 / 0.56 | 0.90 / 0.54 |
+| triage recall / precision | ~~0.91 / 0.54~~ **0.92 / 0.58** | ~~0.92 / 0.56~~ **0.92 / 0.59** | ~~0.90 / 0.54~~ **0.91 / 0.57** | _(rescored 2026-08-28 under T7.3's fixed per-episode exclusion; the original figures are struck)_
 
 The **primary endpoint was registered ahead of coverage** — failing-service dispatches, because
 S4 measured that as what predicts the outcome — and it moved with the result on five of seven
@@ -285,7 +285,7 @@ must-not-regress scenarios falling to abstention.
 | coverage | **6 / 7** | **4 / 7** |
 | fault class, of answered | 6 / 6 | 4 / 4 |
 | judge same / different | 6 / 1 | 4 / 3 |
-| triage recall / precision | 0.91 / 0.54 | 0.92 / 0.56 |
+| triage recall / precision | ~~0.91 / 0.54~~ **0.92 / 0.58** | ~~0.92 / 0.56~~ **0.92 / 0.59** | _(rescored 2026-08-28 under T7.3's fixed per-episode exclusion; the original figures are struck)_
 | re-issues after silence | 4, in 3 runs | 2, in 2 runs |
 | runs calling `trace_query` | 3 / 7 | 5 / 7 |
 

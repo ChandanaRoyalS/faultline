@@ -147,7 +147,7 @@ Shown for context only. Same seven scenarios, two pipelines.
 | fault class, of answered | **4 / 7** | **4 / 4** |
 | coverage (reached a class) | 7 / 7 | 4 / 7 |
 | class of fix, of answered | 6 / 7 | 3 / 4 |
-| triage recall / precision | 0.94 / 0.56 | 0.95 / 0.57 |
+| triage recall / precision | ~~0.94 / 0.56~~ **0.94 / 0.60** | ~~0.95 / 0.57~~ **0.95 / 0.60** | _(rescored 2026-08-28 under T7.3's fixed per-episode exclusion; the original figures are struck)_
 | judge: same_mechanism / adjacent / different | **7 / 0 / 0** | 4 / 0 / 3 |
 | budget exhausted | 1 of 7 | 2 of 7 |
 | cost | $2.92 | $3.27 |

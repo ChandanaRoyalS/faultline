@@ -174,34 +174,44 @@ def score_triage(
 ) -> TriageScore:
     """Compare the blast radius to what actually alerted, minus the recovery phase.
 
-    ADR-0009: "the blast radius blames the fault for damage the fix did", so entries whose
-    `began_after_revert` is true are excluded from both sides. The flag is *omitted* rather
-    than false where there is no revert to compare against, so this reads it as
-    falsy-by-absence deliberately.
+    ADR-0009: "the blast radius blames the fault for damage the fix did", so **alert episodes**
+    whose `began_after_revert` is true are excluded. The flag is *omitted* rather than false
+    where there is no revert to compare against, so this reads it as falsy-by-absence
+    deliberately.
 
-    **Known defect, recorded at T7.1 and not fixed there.** The exclusion is keyed on the
-    *service*: `alerted - after` removes a service from the blast radius even when it also
-    alerted during the fault, which understates the radius. Until T7.1's re-record every
-    after-revert alert in the catalog belonged to a service that alerted *only* after the
-    revert - emailservice in two cart bundles, frontend in `shipping-wrong-image` - so the
-    sets were disjoint and the subtraction was harmless. The re-record retired all three and
-    produced the first overlapping case, `product-catalog-flag-failure`, where frontend
-    alerts during the fault and again in recovery.
+    **The exclusion is per episode, not per service (T7.3).** `began_after_revert` is a
+    property of one alert, and a service can raise two: one that the fault caused and one that
+    the fix caused. Such a service belongs in the blast radius on the strength of the first,
+    and excluding it wholesale understates the radius by blaming the fault for *less* than it
+    did - the mirror of the error ADR-0009 was guarding against.
 
-    The fix is to exclude per alert rather than per service. It changes triage numbers, so it
-    belongs with a decision to re-measure rather than with the task that moved the world.
+    **This was reachable from the first recordings, and T7.1 said otherwise.** That task
+    recorded the defect with the claim that every after-revert alert in the catalog belonged
+    to a service that alerted *only* after the revert, so the subtraction was harmless until
+    the re-record. The rescore at T7.3 falsifies it: `cart-redis-misconfig`'s original
+    recording has `emailservice` raising `ServiceNoTraffic` during the fault **and**
+    `ServiceHighErrorRate` in recovery, and the same shape appears in `cart-bad-image-tag` and
+    `shipping-wrong-image`. **24 of 55 stored runs were affected**, the earliest from
+    2026-08-26. T7.1 generalised from one test fixture losing its recovery alert to a claim
+    about the whole catalog without checking it.
+
+    `excluded_after_revert` therefore reports the services whose alerts were **entirely**
+    post-revert, which is what "excluded" now means; a service with one of each is not
+    excluded and is not listed.
     """
-    alerted: set[str] = set()
-    after: set[str] = set()
+    during: set[str] = set()
+    recovery: set[str] = set()
     for entry in alerts_over_window:
         service = entry.get("service")
         if not isinstance(service, str):
             continue
-        (after if entry.get("began_after_revert") else alerted).add(service)
+        # Filter episodes, *then* project to services. Projecting first is what collapsed the
+        # two episodes of one service into a single membership and lost the distinction.
+        (recovery if entry.get("began_after_revert") else during).add(service)
     return TriageScore(
         predicted=frozenset(predicted),
-        alerted=frozenset(alerted - after),
-        excluded_after_revert=frozenset(after),
+        alerted=frozenset(during),
+        excluded_after_revert=frozenset(recovery - during),
         unmeasured_edges=unmeasured_edges,
     )
 

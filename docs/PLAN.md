@@ -1549,7 +1549,18 @@ that everything in them was measured against the old world and that comparing a 
 them compares across worlds. No sweep and no holdout entry ran in T7.1 - what the new world is
 worth measuring against is a decision with its own argument to make.
 
-#### Queued: the blast-radius exclusion is keyed on the service, not the alert
+#### ~~Queued~~ **Fixed at T7.3**: the blast-radius exclusion is keyed on the service, not the alert
+
+Found at stage 3 and not fixed there, because it changes triage numbers and T7.1 re-measures
+nothing. **T7.3 fixed it and re-scored every stored run** - and falsified the account below, which
+is left standing with this correction rather than quietly edited.
+
+**The claim that it was unreachable until the re-record is wrong.** `cart-redis-misconfig`'s
+*original* recording has `emailservice` raising `ServiceNoTraffic` during the fault and
+`ServiceHighErrorRate` in recovery; the same shape is in `cart-bad-image-tag` and, on `frontend`,
+in `shipping-wrong-image`. **24 of 55 stored runs were affected, the earliest from 2026-08-26.**
+T7.1 generalised from one test fixture losing its recovery alert to a claim about the whole
+catalog without checking it, and the rescore is what caught that. The original reasoning follows.
 
 Found at stage 3 and **not fixed**, because it changes triage numbers and T7.1 re-measures
 nothing. `score_triage` computes `alerted - after`, which drops a service from the blast radius
@@ -1561,6 +1572,35 @@ alerted *only* after the revert, so the two sets were disjoint. The re-record re
 of those and produced the first overlap, `product-catalog-flag-failure`, where frontend alerts
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
+
+### T7.3 — the blast radius counts alerts, not services *(built)*
+The defect T7.1 recorded rather than fixed. **contract not written.** `score_triage` filtered alert
+episodes correctly and then projected to service names *before* subtracting, so `alerted - after`
+dropped any service holding both a during-fault alert and a recovery alert - understating the
+radius by blaming the fault for **less** than it did, the mirror of the error ADR-0009 guards
+against. The fix is to project after filtering. **Nothing else in the scorer makes the same error**:
+`prom.py` sets the flag per entry, `bundle_render.py` reads it per alert, and `rehearse.py` filters
+entries with comprehensions; `TriageScore` is consumed only as the `triage` key.
+
+**Every stored run was re-scored** by pure recomputation - no model calls, no live world - each
+against **the bundle recording current when it ran**, since T7.1 moved all twelve and scoring an
+August 26th run against an August 28th capture would mix the two changes
+(`docs/evidence/t7.3-rescore/`). **24 of 55 runs moved**, all in one direction: a service restored,
+`n_alerted` up one, recall held or rose, precision rose. `emailservice` in 18, `frontend` in 6.
+
+Per-table: S1 precision 0.56->0.60, S2 0.57->0.60, S3 0.54->0.58 with recall 0.91->0.92, S4
+0.56->0.59, S5 0.54->0.57 with recall 0.90->0.91, T4.10 0.58->0.67 with recall 0.78->0.80.
+**No holdout figure moved at all** - none of those three scenarios has an overlapping service - and
+T4.11 is unchanged. Every corrected table keeps its original number struck beside the new one,
+because a silently corrected figure is indistinguishable from one that was always right.
+
+**No verdict, coverage or fault-class figure is affected**, established from the code rather than
+assumed: `reached_a_class` reads `fault_class` alone, and `fault_class`, `fix_class` and
+`categories` never reference triage.
+
+**T4.10's finding survives its own correction.** All five repeats are the same scenario, so all
+five moved by the same amount in the same direction; the spread that experiment measured is
+identical.
 
 #### Queued: a `memory_limiter` processor for otel-col — **600M is a timer, not a fix**
 

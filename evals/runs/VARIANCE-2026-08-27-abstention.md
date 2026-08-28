@@ -44,7 +44,7 @@ its own.
 Both gates passed on the discarded attempt; the retry correctly declined, because a 529
 mid-investigation is not a failed start.
 
-Triage recall **1.0** on all four. Precision 0.43 on three, 0.25 on repeat 4.
+Triage recall **1.0** on all four. Precision 0.43 on three, 0.25 on repeat 4. **Unchanged by T7.3's rescore** — `product-catalog-flag-failure`'s recording at the time had no service alerting both during the fault and in recovery.
 
 Coverage **0 / 4**. With the prior byte-identical row, the abstention is **5 / 5**.
 

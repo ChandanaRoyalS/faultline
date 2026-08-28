@@ -41,7 +41,7 @@ the only delta here.** Holdout untouched.
 | fault class, of answered | 6 / 6 | 4 / 4 |
 | class of fix, of answered | 5 / 6 | 3 / 4 |
 | judge `same_mechanism` / `different` | 6 / 1 | **4 / 3** |
-| triage recall / precision | 0.91 / 0.54 | 0.92 / 0.56 |
+| triage recall / precision | ~~0.91 / 0.54~~ **0.92 / 0.58** | ~~0.92 / 0.56~~ **0.92 / 0.59** | _(rescored 2026-08-28 under T7.3's fixed per-episode exclusion; the original figures are struck)_
 | runs exhausting a bound | 2 (both `metrics`) | 1 (`metrics`) |
 | runs calling `trace_query` | 3 / 7 | **5 / 7** |
 | tool calls, total | 58 | 50 |
