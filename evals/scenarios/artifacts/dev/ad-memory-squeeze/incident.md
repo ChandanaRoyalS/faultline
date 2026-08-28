@@ -36,21 +36,22 @@ everything else flat. adservice itself: zero errors, then no data at all.
 narrowed it faster than any metric did — frontend's errors were confined to one
 dependency, and the storefront said which one before the alerting did.
 
-**Whether adservice was idle or absent.** `ServiceNoTraffic` cannot tell those apart:
-both look like a call rate of zero. The runtime metrics can. adservice exports its own
-JVM heap series, and a process that is merely idle keeps exporting them. **Those
-series continued for the first four and a half minutes of the incident and then
-stopped entirely at T+4m30s, not returning until after the fix.** A service that has stopped
-reporting how much heap it is using does not have a heap. That is the moment the
-investigation stopped being about traffic and started being about the process.
+**adservice's logs, which is where this one breaks open.** Ordinary request lines up to
+eighteen seconds before onset, and then, from T+0 onward, **sixteen startup attempts**
+inside the fault window — each a JVM banner, the OpenTelemetry agent announcing itself,
+and then nothing. The last begins at T+8m27s, eighteen seconds before the fix. No line
+explains a failure, because the process is being stopped before it can form an opinion
+about anything. **A truncated, repeating startup is a process being killed from
+outside**, and it is the strongest evidence in this incident.
 
-**adservice's logs, which say nothing at all.** Ordinary request lines up to seconds
-before onset, then total silence until two minutes after the fix. No error, no crash
-message, not even a startup banner from a restart attempt. **An empty log is not
-evidence of a healthy service; it is evidence that nothing survived long enough to
-speak.** The silence here is total where other incidents on this system have at least
-left truncated startup attempts — which restart supervision produces is not
-guaranteed, and its absence must not be read as the absence of restarts.
+**Whether adservice was idle or absent.** `ServiceNoTraffic` cannot tell those apart:
+both look like a call rate of zero. The runtime metrics can, with a caveat that matters.
+adservice exports its own JVM heap series, and a process that is merely idle keeps
+exporting them; these cease. **What they cannot do is date it.** The series remain
+visible until T+4m30s and then stop — but the metrics store serves a scrape forward for
+five minutes after the last one, so the true stop is anywhere in the five minutes before
+that, and the logs place the first kill at T+0. **The series answer *whether*, the logs
+answer *when*, and reading a stop time off a series overstates by up to five minutes.**
 
 **What changed.** Not the image, not the environment, not the code, not any
 dependency. The change history shows one edit: the container's memory ceiling was
@@ -62,12 +63,13 @@ new wall, was killed, and never got back up.
 
 adservice's container memory limit was reduced below the footprint its JVM was
 configured for. Nothing about the service changed — only the ceiling it was allowed to
-occupy. The process ran for a few minutes on the heap it had already committed, grew,
-was killed by the kernel, and could not complete a restart inside the new limit.
+occupy. From the first restart after the change, the runtime could not complete a startup
+inside the new limit: it was killed during initialisation, sixteen times over, and never
+served a request again until the ceiling was restored.
 
-This is why it produced no errors of its own: a process that is killed records no
-calls, and therefore no errored ones. Its evidence was absence, three times over — of
-traffic, of logs, and of the runtime metrics it publishes about itself.
+This is why it produced no errors of its own: a process that dies before it serves records
+no calls, and therefore no errored ones. Its evidence was absence in the metrics and
+repetition in the logs — nothing failing, and the same startup over and over.
 
 ## Resolution
 
@@ -96,16 +98,16 @@ one resource limit was wrong and was put back.
   did not.
 - **A service's own runtime metrics disappearing is stronger evidence than its traffic
   disappearing.** An idle service still reports its heap; a dead one reports nothing.
-  This incident's record carries that evidence directly: the heap series run to
-  T+4m30s and stop.
-- **The runtime series also outlived the traffic.** The heap kept reporting for
-  minutes after calls stopped being served — a process can be alive and useless. The
-  reverse transition, from reporting to gone, is the one that dates the death.
-- **Silence in the logs carries no timestamp of its cause and no cause at all.** This
-  run left no crash message and no restart banners — nothing between the last ordinary
-  request and the post-fix recovery. What filled that gap was the runtime metrics
-  stopping. The failure signature does not name its cause either way: only the change
-  history distinguishes a lowered ceiling from a service that grew.
+- **But a series' end is a soft edge, and this bundle shows how soft.** The heap series
+  remain visible until T+4m30s while the logs place the first kill at T+0 — because the
+  metrics store serves the last scrape forward for five minutes. **A series appearing is
+  sharp to one scrape; a series disappearing is late by up to five minutes.** Anything
+  dated off a disappearance carries that error, here and everywhere else.
+- **A truncated, repeating startup names the shape of the failure and not its cause.**
+  Sixteen JVM banners with nothing after them say the process is being killed from
+  outside. That is all they say: it does not distinguish "the ceiling came down" from
+  "the thing inside it got bigger", and those have opposite fixes. Only the change
+  history separates them.
 - **Blast radius shape was the useful clue.** Only adservice and its single consumer
   were affected. A leaf consumed by one caller produces exactly this narrow spread;
   nothing on the critical path can.
