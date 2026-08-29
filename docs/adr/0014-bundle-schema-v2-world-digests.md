@@ -92,3 +92,91 @@ without them.
 
 Revisit if: a third consumer needs world identity at a different granularity, or the world
 gains configuration outside those four paths.
+
+## Addendum (T7.15): the observability config is a sibling digest, not an extension
+
+**This is the revisit condition above, arriving.** *"Revisit if … the world gains configuration
+outside those four paths."* It had it all along: T7.14 found that `compose/prometheus/alert-rules.yml`
+is covered by nothing. The three compose files *name* it as a mount and say nothing about what is
+inside it, so editing a threshold changes every future bundle's alert set — which alerts fire, how
+fast, how wide the blast radius — and no manifest field moves. That is precisely the defect this
+ADR was written to fix, on a file outside its cover.
+
+### The decision, and why not the obvious one
+
+**Extending `compose_digest` to include these paths was rejected.** Adding a file to a digest's
+input set changes the value it computes. The twelve recorded bundles would keep asserting the old
+value while a recomputation produced a new one, and the guard on them
+(`test_bundles_agree_about_the_world_they_were_recorded_against`) rests on a property stated in its
+own comment: the digests *"are reproducible from the repository and move only when the world's
+definition moves."* Extending the input set breaks both halves at once — the recorded values stop
+being reproducible, and the digest moves for a reason that is not a world change.
+
+Worse, it is silent. Two bundles recorded either side of the redefinition would compare unequal on
+an unchanged world, and the guard would report a world change that never happened. **By this ADR's
+own bar — does the change make existing bundles false — extending fails.** The bundles would not be
+lying about what they recorded; they would stop meaning what a reader computes, which is the same
+damage arriving by a quieter route.
+
+**The decision is an additive sibling: `world.observability_digest`, with
+`world.observability_files` beside it.** Existing bundles honestly lack both. `compose_digest`
+keeps its definition and its value, and every recorded bundle stays reproducible.
+
+### Which kind of field is this — T7.5's test
+
+T7.5 separated a field that *reads what the capture contains* from one that *asserts something
+outside it*. `reachability` was the first kind: derivable from committed captures, so backfilling
+it was honest, because it only stated what the bundle already held. `answers_idle_or_absent` was
+the second: an author's claim that no capture could settle, so it was declared going forward and
+left absent on everything older.
+
+**An observability digest is the second kind, decisively.** A bundle does not contain the alert
+rules, the scrape config, or the collector pipeline. Nothing in a 2026-08-28 capture can tell you
+what `alert-rules.yml` said at the moment it was recorded. Computing today's digest and writing it
+into an older bundle would assert something unverifiable and probably untrue — the identical
+argument this ADR already made when it refused to backfill `compose_digest` into the three
+pre-change bundles.
+
+So: **absence means unknown, not unchanged.** No bundle is rewritten. The guard skips bundles
+without the field, and that is a scoping decision, not a loophole — the same one `valid_bundles()`
+already makes.
+
+### The whole hole, not the one that was tripped over
+
+T7.14 found `alert-rules.yml`. A survey of what is mounted found five more of the same kind, and
+all six are now under cover — the set and the reason each one matters live in
+`evalharness.provenance.OBSERVABILITY_FILES`. In short: the alert rules, the Prometheus scrape and
+evaluation config, the Alertmanager routing that decides whether an alert reaches the orchestrator
+at all, the Promtail config that decides which containers ship logs and under what label, and the
+two OpenTelemetry collector configs that decide whether `calls_total` and `latency_bucket` exist
+and what their bucket boundaries are.
+
+They belong in **one** digest rather than six, for the reason `compose_digest` covers three files
+rather than three fields: they are one pipeline, and a bundle is comparable to another only if the
+whole of it matched. The per-file map is what makes a mismatch legible — one value to compare, and
+enough detail to say which file moved.
+
+Three files were considered and excluded, named here so the exclusions are decisions:
+Grafana provisioning (a human reads it; no capture, tool or score does),
+`world/src/prometheus/prometheus-config.yaml` (**dead** — `telemetry.yml` points Prometheus at
+`--config.file=/etc/prometheus/faultline-prometheus.yaml`, so the demo's own config is mounted and
+never read), and the world's service source (already identified by `otel_demo_image` and the
+upstream tag).
+
+### What the guard does, and what it does not do yet
+
+It compares the recorded digest against the repository as it stands, not bundle against bundle,
+because the drift worth catching happens when somebody edits a rule — not months later when the
+next bundle is finally recorded. The failure names the file that moved, says what each file
+decides, and says what it means for bundles recorded before the change: not wrong about what
+happened, but no longer comparable with anything recorded after it. It also says explicitly not to
+edit the recorded digest to match, because that makes the bundle lie.
+
+**It is vacuous today and that is correct.** No existing bundle carries the field, so there is
+nothing yet to disagree with the tree; the guard goes live with the first bundle recorded after
+this addendum. What is live now is the shape test, which edits `alert-rules.yml` for real,
+asserts the digest moves, asserts that only that file's digest moves, and asserts the message
+names it — so the cover cannot silently stop covering the file that prompted all this.
+
+Revisit if: a bundle needs to record *which* rule fired it rather than which rule set existed, or
+the observability pipeline gains a component configured outside these six paths.

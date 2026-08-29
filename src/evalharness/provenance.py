@@ -111,6 +111,77 @@ def ffs_stub_source_digest(directory: Path = FFS_STUB_DIR) -> str | None:
     return _digest_of(sorted((p for p in directory.iterdir() if p.is_file()), key=lambda p: p.name))
 
 
+OBSERVABILITY_FILES: tuple[tuple[str, str], ...] = (
+    (
+        "compose/prometheus/alert-rules.yml",
+        "the three alert rules, their thresholds and their `for:` clauses - so this file "
+        "decides alerts_at_fire, alerts_over_window, seconds_to_alert, the blast radius, and "
+        "whether an incident opens at all",
+    ),
+    (
+        "compose/prometheus/prometheus-config.yaml",
+        "scrape_interval (5s), evaluation_interval and rule_files - the sampling resolution "
+        "of every capture. `evalharness.run.SCRAPE_INTERVAL_SECONDS` is pinned against it",
+    ),
+    (
+        "compose/prometheus/alertmanager.yml",
+        "routing, grouping and repeat to the ingest webhook - whether a firing alert reaches "
+        "the orchestrator at all, and how it is deduped (ADR-0015)",
+    ),
+    (
+        "compose/promtail-config.yml",
+        "which containers ship logs and under what `service` label - so it decides every "
+        "logql_query result, and T7.4's log-reachability census with it",
+    ),
+    (
+        "world/src/otelcollector/otelcol-config.yml",
+        "the spanmetrics connector: whether calls_total and latency_bucket exist, and (by not "
+        "overriding them) the histogram bucket boundaries T7.14's whole analysis turned on",
+    ),
+    (
+        "world/src/otelcollector/otelcol-config-extras.yml",
+        "the extras layer loaded onto the same collector pipeline by a second --config flag",
+    ),
+)
+"""Every file whose *content* decides what a bundle records, with why (T7.15).
+
+**None of these were under any digest until T7.15.** `compose_digest` covers the three layered
+compose files, which name these as mounts but say nothing about what is inside them - so editing
+a threshold changed every future bundle's alert set and no manifest field moved. That is the
+failure ADR-0014 was written to prevent, on files outside its cover.
+
+Deliberately excluded, and named so the exclusions are decisions rather than oversights:
+
+* `compose/grafana-loki-datasource.yml` and `world/src/grafana/**` - Grafana provisioning. A
+  human reads those; no capture, tool or score does.
+* `world/src/prometheus/prometheus-config.yaml` - **dead.** `compose/telemetry.yml` points
+  Prometheus at `--config.file=/etc/prometheus/faultline-prometheus.yaml`, so the demo's own
+  config is mounted by the demo's compose file and never read.
+* The world's service source and images - already identified by `otel_demo_image` and the
+  upstream tag the clone is pinned to.
+"""
+
+
+def observability_digests() -> dict[str, str | None]:
+    """sha256 per file, so a mismatch can say *which* file changed rather than that one did."""
+    return {name: _digest_of([REPO_ROOT / name]) for name, _ in OBSERVABILITY_FILES}
+
+
+def observability_digest() -> str | None:
+    """One value over every file in `OBSERVABILITY_FILES`, in the order declared.
+
+    A sibling of `compose_digest`, **not an extension of it**, and that is the whole decision -
+    see ADR-0014's T7.15 addendum. Adding these paths to `compose_digest` would change the value
+    it computes, and the twelve recorded bundles would stop being reproducible from the
+    repository - which is the one property the guard on them relies on.
+
+    `None` when any file is absent (an uncloned `world/`), matching `compose_digest`'s behaviour
+    rather than inventing a second convention.
+    """
+    paths = [REPO_ROOT / name for name, _ in OBSERVABILITY_FILES]
+    return _digest_of(paths)
+
+
 def world_provenance(reference_container: str, stub_image: str) -> dict[str, Any]:
     """What world this was recorded against.
 
@@ -119,6 +190,11 @@ def world_provenance(reference_container: str, stub_image: str) -> dict[str, Any
     """
     return {
         "compose_digest": compose_digest(),
+        # T7.15. Absent on every bundle recorded before it, and absence means unknown
+        # rather than unchanged: these digests are not derivable from a capture, so they
+        # could not be backfilled honestly. ADR-0014 T7.15 addendum.
+        "observability_digest": observability_digest(),
+        "observability_files": observability_digests(),
         "ffs_stub_source_digest": ffs_stub_source_digest(),
         "otel_demo_image": _run(
             ["docker", "inspect", reference_container, "--format", "{{.Config.Image}}"]

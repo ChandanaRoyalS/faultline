@@ -1573,6 +1573,58 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.15 — the rules were never under cover *(provenance; additive)*
+**Done.** T7.14's hole closed, and five more of the same kind found beside it.
+
+**The decision: an additive sibling, not an extension.** Adding these paths to `compose_digest`
+changes the value it computes, so the twelve recorded bundles would keep asserting the old value
+while a recomputation produced a new one. The guard on them rests on a property stated in its own
+comment - the digests *"are reproducible from the repository and move only when the world's
+definition moves"* - and extending breaks both halves: recorded values stop being reproducible, and
+the digest moves for something that is not a world change. Two bundles either side of the
+redefinition would compare unequal on an unchanged world. **By ADR-0014's own bar that is a change
+that makes existing bundles false**, arriving by a quieter route than usual.
+
+So: `world.observability_digest` plus `world.observability_files`, siblings of `compose_digest`.
+Nothing is rewritten and no bundle is invalidated.
+
+**Which kind of field, on T7.5's test: the asserting kind.** A bundle does not contain the alert
+rules, the scrape config or the collector pipeline, so nothing in a capture can settle what
+`alert-rules.yml` said when it was recorded. `reachability` was backfillable because it only read
+what the bundle already held; this cannot be, and computing today's digest into an older bundle
+would assert something unverifiable - the identical argument ADR-0014 already made refusing to
+backfill `compose_digest`. **Absence means unknown, not unchanged.**
+
+**Every hole found, all six now covered** (`provenance.OBSERVABILITY_FILES`): the alert rules
+(T7.14's); `prometheus-config.yaml` - `scrape_interval: 5s`, evaluation interval, `rule_files`, and
+`run.SCRAPE_INTERVAL_SECONDS` is pinned against it; `alertmanager.yml` - whether a firing alert
+reaches the orchestrator at all and how it is deduped (ADR-0015); `promtail-config.yml` - which
+containers ship logs and under what `service` label, so it decides every `logql_query` result and
+T7.4's log census with it; and both **otel collector configs** - the spanmetrics connector, which
+decides whether `calls_total` and `latency_bucket` exist and, by not overriding them, the histogram
+bucket boundaries **T7.14's entire analysis turned on**. One digest rather than six, because they
+are one pipeline; the per-file map is what makes a mismatch name the file.
+
+**Excluded, as decisions rather than oversights:** Grafana provisioning (human-only), the world's
+service source (covered by `otel_demo_image` and the upstream tag), and
+`world/src/prometheus/prometheus-config.yaml`, which is **dead** - `telemetry.yml` points Prometheus
+at `--config.file=/etc/prometheus/faultline-prometheus.yaml`, so the demo's own config is mounted
+and never read.
+
+**Noted while surveying:** `world/` is gitignored and is its own clone pinned at tag `v1.2.1`, so
+`compose_digest` already reaches outside this repository's version control for
+`world/docker-compose.yml`. The clone is not verified clean at its tag, and it currently carries an
+untracked extra file. Not fixed here; it is a different mechanism from a digest.
+
+**The guard fires where a person will see it** - against the repository as it stands, not
+bundle-against-bundle, because the drift worth catching happens when somebody edits a rule rather
+than months later at the next recording. It names the file that moved, says what each file decides,
+and says what it means for older bundles: not wrong about what happened, but no longer comparable
+with anything recorded after. **It is vacuous today and that is correct** - no existing bundle
+carries the field, so it goes live with the first bundle recorded after this. What is live now is
+the shape test: it edits `alert-rules.yml` for real, asserts the digest moves, asserts only that
+file's digest moves, and asserts the message names it.
+
 ### T7.14 — the rule that fires at rest *(diagnosis + gate-side fix)*
 **Done, and it corrects T7.13's diagnosis rather than building on it** (ADR-0025).
 
