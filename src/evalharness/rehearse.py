@@ -288,7 +288,22 @@ def require_settled_containers(threshold: int = MIN_CONTAINER_UPTIME_SECONDS) ->
 
 
 MEMORY_HEADROOM_PERCENT = 90.0
-"""Above this share of its limit, a container is close enough to OOM to spoil a rehearsal."""
+"""Above this share of its limit, a container is close enough to OOM to spoil a rehearsal.
+
+**If this refuses on `redis-cart`, the world is not broken and no scenario did it (T7.19).**
+`redis-cart` runs `maxmemory 0` with `noeviction` against a 20MiB ceiling and its keys carry no
+TTL (`expires=0`), so cart state accumulates monotonically in *cumulative* traffic rather than
+current load - measured at 0.192 keys/s over a 27.6-hour window, 204 bytes per key, linear. It
+reaches 90% on its own, without help, in a day or two of ordinary running, and every long sweep
+walks it closer. Flush it (`redis-cli FLUSHDB`) or recreate the container, then re-read.
+
+A bound belongs on the world and is queued rather than applied, because setting `maxmemory` moves
+`compose_digest` and needs the re-record that comes with it - see PLAN.md's digest-locked queue and
+ADR-0024's T7.19 addendum.
+
+Read from `docker stats`, which nets off most page cache. That matters here: the raw
+`memory.current` for this container sits far higher than its real occupancy because RDB bgsaves
+fill page cache, and reading *that* is what produced T7.13's retracted 90-minute figure."""
 
 
 def _docker_out(args: list[str]) -> str:
