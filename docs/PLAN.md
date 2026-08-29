@@ -1573,6 +1573,65 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.18 — the proposer, and what it would take to act *(design ADR; nothing built)*
+**Done** (ADR-0028). The design for ADR-0020's ninth role, and for the action plane that has never
+had a task number. No implementation, no world, no model calls.
+
+**Why now: T7.17.** Every fix-class number in this repository says the agent **named** a fix. Not
+one says a fix was carried out - and T7.17 had to establish by hand, over eight live injections,
+that one of the named fixes even works. A benchmark that scores remediation without ever executing
+one is scoring vocabulary.
+
+**Six marked decisions**, two of which revise ADR-0020's original sketch:
+
+1. **A proposal is a predicate, not a command string** - class, graph-resolved target,
+   `rests_on` by `result_id`, `expected_effect` as a predicate over the four tools' surfaces,
+   `confirm_within`, `if_wrong`. A command can be diffed against ground truth and nothing else; a
+   predicate can be *evaluated against the world*, which is the only thing that would make this
+   measure remediation rather than phrasing. **Revises ADR-0020's "a concrete action".**
+2. **The proposer does not act.** A separate executor, a human between them, per-proposal approval,
+   no confidence threshold - a threshold makes the model's own calibration the safety boundary,
+   which ADR-0020 declines to trust anywhere else. Argued from: no false-positive rate exists
+   because no proposal has ever been made; T7.17 shows the project's own fix understanding was
+   wrong for three stamps; and ADR-0013 measured what a wrong `restart` costs.
+3. **No write tool in the investigation runtime.** ADR-0019 §4 measured that read-only here is a
+   property of the **tool surface**, not the credential - Prometheus and Loki are unauthenticated.
+   So one write tool removes the property for the whole runtime, not for one role, and the four
+   specialists gain a capability by neighbourhood. The executor is a separate process outside the
+   runtime. **Revises ADR-0020's sketch of where the action plane lives.**
+4. **Four scored axes, never collapsed**: class (ADR-0027's accepted set), target, grounding, and
+   **prediction - decidable only by executing**. Until an executor exists the fourth is reported
+   **not measured**, not passed and not omitted. `unexecutable` is a scored outcome, not an error.
+   A proposal right by an untested route is **correct and a catalog defect**, and promotes to
+   `also_correct_remediation` only after a deliberate re-test - never from one run, because n=1
+   against a varying world is what T7.17 spent eight attempts avoiding.
+5. **A third contamination axis: the world as an oracle.** If a proposal can be executed and
+   observed, a propose-execute-observe loop converts diagnosis into search and would score well
+   without diagnosing anything. **One proposal per incident, executed at most once, and the outcome
+   never re-enters agent context.** Belongs in ADR-0008, which anticipated a further axis; folded
+   in when the role is built.
+6. **The stamp moves the moment `PROPOSER_SYSTEM` exists**, and the `Proposal` contract enters the
+   hash. Every recorded run becomes incomparable with everything after, which is the stamp working.
+   So the role lands **with** a re-sweep, as T7.10 re-founded the benchmark when the world moved.
+
+### The implementation this would need, and it is not queued
+Task numbers named so the shape is visible; none is started, and each is a separate decision.
+
+- **T8.1 - the proposal contract and the role.** `Proposal`, `PROPOSER_SYSTEM`, wired after the
+  synthesizer into the `PROPOSING` state ADR-0020 already reserves. Stamp moves here.
+- **T8.2 - the trajectory table.** `trajectory_proposals`, with an `ALTER` beside the
+  `CREATE TABLE IF NOT EXISTS` - T7.10 lost a scenario to `UndefinedColumn` because the in-memory
+  double the tests use does not catch a missing migration.
+- **T8.3 - the proposer's budget, measured.** A tenth per-agent bound, set from its first sweep
+  rather than guessed; T4.7 measured what a wrong bound costs.
+- **T8.4 - scoring on three axes**, with prediction reported `not measured`.
+- **T8.5 - the re-sweep**, because the stamp moved. Without it the record has a discontinuity
+  nobody measured.
+
+**Not queued at all, and deliberately: the executor, any write tool, any credential on the world,
+the approval interface, and the prediction axis.** ADR-0028 §3 is the argument for why those are a
+second system rather than a later commit in this one.
+
 ### T7.17 — which fix actually works *(experiment; 8 live attempts, pre-registered)*
 **Settled by measurement, and the register was wrong** (ADR-0027,
 `docs/evidence/t7.17-fix-class/`). Protocol registered and committed before the first injection.
