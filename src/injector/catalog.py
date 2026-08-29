@@ -179,6 +179,23 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"image": "ffs-stub:3", "server": "server_v3.py"},
         ),
         FaultDefinition(
+            id="ad-dependency-latency",
+            fault_class=FaultClass.DEPENDENCY_LATENCY,
+            target="ad-service",
+            description=(
+                "Add 300ms of network delay to the ad service. The frontend's ad panel slows "
+                "while the storefront keeps serving - a second dependency_latency target, on "
+                "the best-instrumented service in the world."
+            ),
+            # The same 300ms measured on cart-service, deliberately: ADR-0013 warns that a
+            # latency fault pushed past the caller's timeout inverts from a latency signal to
+            # an absence one and silently changes class, and 300ms is the magnitude already
+            # known to stay under it. adservice runs ~0.4 req/s against cart's ~3.2, so the 2m
+            # rate window fills more slowly and the onset is longer; alert_timeout_seconds on
+            # the scenario carries that.
+            params={"delay_ms": 300, "jitter_ms": 0, "duration": "1h", "interface": "eth0"},
+        ),
+        FaultDefinition(
             id="cart-dependency-latency",
             fault_class=FaultClass.DEPENDENCY_LATENCY,
             target="cart-service",
