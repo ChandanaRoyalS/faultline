@@ -11,13 +11,28 @@ import json
 import os
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
 import pytest
 
 from evalharness import gate
-from evalharness.run import ZERO_STEP_DISCARD, RunDir, RunError, WorldLock, bundle_for, score
+from evalharness.run import (
+    CORRELATE_CEILING_SECONDS,
+    CORRELATE_GAP_SECONDS,
+    CORRELATE_SCRAPES,
+    SCRAPE_INTERVAL_SECONDS,
+    ZERO_STEP_DISCARD,
+    NoAlertError,
+    RunDir,
+    RunError,
+    WorldLock,
+    WorldStoppedReportingError,
+    bundle_for,
+    score,
+    wait_for_incident,
+)
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -611,3 +626,207 @@ def test_the_judge_skips_demo_runs_unless_one_is_named(tmp_path: Path) -> None:
 
     (run_dir / "manifest.json").write_text(json.dumps({"score": scored}))
     assert load_run(run_dir) is not None, "an ordinary run is unaffected"
+
+
+# --- T7.12: the wait counts scrapes, not seconds ------------------------------------------
+
+
+class VirtualWorld:
+    """A world on a virtual clock, so a sixteen-minute outage is arithmetic, not sixteen minutes.
+
+    Scrapes accrue one per `SCRAPE_INTERVAL_SECONDS` while the world is reporting and not at all
+    while it is silent - which is the single property the whole mechanism turns on.
+    """
+
+    def __init__(
+        self,
+        *,
+        silent_from: float | None = None,
+        silent_until: float = float("inf"),
+        incident_at: float | None = None,
+    ) -> None:
+        self.t = 0.0
+        self.silent_from = silent_from
+        self.silent_until = silent_until
+        self.incident_at = incident_at
+        self.polls = 0
+
+    # the clock
+    def monotonic(self) -> float:
+        return self.t
+
+    def sleep(self, seconds: float) -> None:
+        self.t += seconds
+
+    def reporting_at(self, when: float) -> bool:
+        if self.silent_from is None:
+            return True
+        return not (self.silent_from <= when < self.silent_until)
+
+    def scrapes_over(self, window_seconds: int) -> int:
+        """Count the scrape ticks inside the trailing window that actually happened."""
+        low = max(0.0, self.t - window_seconds)
+        ticks = 0
+        tick = 0.0
+        while tick <= self.t:
+            if tick >= low and self.reporting_at(tick):
+                ticks += 1
+            tick += SCRAPE_INTERVAL_SECONDS
+        return ticks
+
+    # the database
+    def rows(self) -> list[tuple[str, int]]:
+        self.polls += 1
+        if self.incident_at is not None and self.t >= self.incident_at:
+            return [("incident-1", 2)]
+        return []
+
+
+class _FakeCursor:
+    def __init__(self, world: VirtualWorld) -> None:
+        self.world = world
+
+    def __enter__(self) -> _FakeCursor:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+    def execute(self, *args: object) -> None:
+        return None
+
+    def fetchall(self) -> list[tuple[str, int]]:
+        return self.world.rows()
+
+
+class _FakeConn:
+    def __init__(self, world: VirtualWorld) -> None:
+        self.world = world
+
+    def __enter__(self) -> _FakeConn:
+        return self
+
+    def __exit__(self, *exc: object) -> None:
+        return None
+
+    def cursor(self) -> _FakeCursor:
+        return _FakeCursor(self.world)
+
+
+def drive(world: VirtualWorld) -> str:
+    """Run the real `wait_for_incident` against the virtual world."""
+    fake_time = SimpleNamespace(monotonic=world.monotonic, sleep=world.sleep)
+    with (
+        patch("evalharness.run.time", fake_time),
+        patch("evalharness.run.scrapes_over", world.scrapes_over),
+        patch("psycopg.connect", lambda dsn: _FakeConn(world)),
+    ):
+        return wait_for_incident("dsn://test", NOW, min_episodes=2)
+
+
+def test_the_scrape_interval_matches_the_world_it_is_denominated_in() -> None:
+    """The constant is hand-held, so the config is what proves it right.
+
+    `SCRAPE_INTERVAL_SECONDS` is not read from the mounted config at runtime (see its docstring);
+    this is the pin that keeps it honest. Wrong here would silently shorten every wait.
+    """
+    config = (REPO_ROOT / "compose" / "prometheus" / "prometheus-config.yaml").read_text()
+    assert f"scrape_interval: {SCRAPE_INTERVAL_SECONDS}s" in config
+
+
+def test_a_sixteen_minute_gap_does_not_spend_the_budget_and_the_alert_still_lands() -> None:
+    """**T7.11's shape, which the wall-clock deadline turned into a discard.**
+
+    The world goes silent for sixteen minutes and then pages. Under the old 900s wall-clock
+    deadline the wait expired at T+900s - inside the gap, before the world had said anything -
+    and `frauddetection-memory-squeeze` was recorded as a fault that does not alert. It alerts.
+
+    Counting scrapes, those sixteen minutes cost nothing, because nothing happened in them.
+    """
+    world = VirtualWorld(silent_from=60.0, silent_until=1020.0, incident_at=1100.0)
+    assert drive(world) == "incident-1"
+
+    # The gap is longer than the deadline it replaced, which is exactly why the old unit failed.
+    assert 1020.0 - 60.0 > 900.0
+    # And the budget was nowhere near spent: silence buys the world no chances and costs it none.
+    assert world.scrapes_over(int(world.t) + 1) < CORRELATE_SCRAPES
+
+
+def test_a_world_that_stops_reporting_is_discarded_as_a_gap_not_as_a_quiet_fault() -> None:
+    """The distinction the whole task exists to make: nothing was measured about the scenario."""
+    world = VirtualWorld(silent_from=60.0)  # never comes back
+    with pytest.raises(WorldStoppedReportingError) as caught:
+        drive(world)
+
+    assert caught.value.discard_reason == "metrics-gap"
+    assert "stopped reporting" in str(caught.value)
+    # It says what it is NOT, because that is the mistake this replaces.
+    assert "NOT evidence that the fault does not alert" in str(caught.value)
+    # The backstop is what ended it, not the budget.
+    assert world.t >= CORRELATE_CEILING_SECONDS
+
+
+def test_a_reporting_world_that_never_pages_is_the_genuine_negative() -> None:
+    """The other path: the world had every one of its chances and the fault took none."""
+    world = VirtualWorld()  # reporting throughout, no incident ever
+    with pytest.raises(NoAlertError) as caught:
+        drive(world)
+
+    assert caught.value.discard_reason == "no-alert"
+    assert "no telemetry gap seen" in str(caught.value)
+    # The budget, not the ceiling, is what stopped it - the scrapes were really spent.
+    assert world.t < CORRELATE_CEILING_SECONDS
+    assert world.scrapes_over(int(world.t) + 1) >= CORRELATE_SCRAPES
+    # And on a healthy world the new unit spends its budget at exactly the old deadline, which
+    # is the point: 900s of coverage was never wrong, denominating it in wall clock was.
+    assert world.t == CORRELATE_SCRAPES * SCRAPE_INTERVAL_SECONDS == 900
+
+
+def test_the_two_discards_are_distinguishable_in_the_manifest(tmp_path: Path) -> None:
+    """`run.discard` records the carried reason, so the manifest says which finding this was."""
+    assert WorldStoppedReportingError.discard_reason != NoAlertError.discard_reason
+    for error, expected in (
+        (WorldStoppedReportingError("gap"), "metrics-gap"),
+        (NoAlertError("quiet"), "no-alert"),
+        (RunError("something else"), "run failed"),
+    ):
+        assert isinstance(error, RunError)
+        run = RunDir(tmp_path / expected)
+        run.discard(error.discard_reason, str(error))
+        manifest = json.loads((tmp_path / expected / "manifest.json").read_text())
+        assert manifest["discarded"]["reason"] == expected
+
+
+def test_the_budget_covers_the_longest_onset_ever_recorded() -> None:
+    """The derivation, pinned. 469s is the longest onset across every recording ever taken."""
+    longest_onset_ever_seen = 469
+    world_seconds = CORRELATE_SCRAPES * SCRAPE_INTERVAL_SECONDS
+    assert world_seconds == 900
+    assert world_seconds > 1.9 * longest_onset_ever_seen
+    # The ceiling is a backstop on a dead world, not a second budget: it must exceed the budget,
+    # and it must outlast T7.11's sixteen-minute gap plus the onset that followed it.
+    assert world_seconds < CORRELATE_CEILING_SECONDS
+    assert 960 + longest_onset_ever_seen < CORRELATE_CEILING_SECONDS
+    # A gap is twelve missed scrapes: jitter loses one or two, a suspended host loses all of them.
+    assert CORRELATE_GAP_SECONDS == 12 * SCRAPE_INTERVAL_SECONDS
+
+
+def test_the_correlate_budget_is_not_a_stamp_input() -> None:
+    """**T7.12 is harness-side, so `runtime_version` must not move** - and this is why.
+
+    The stamp hashes the role prompts and the contract schemas (`faultline.agents.stamp`); no
+    part of `evalharness` reaches it. Changing how long the harness is willing to wait changes
+    nothing a model saw, so runs recorded before and after T7.12 stay comparable. Same precedent
+    as T4.7, which kept budget bounds out of the stamp for the same reason.
+    """
+    from faultline.agents import stamp as stamp_module
+
+    before = stamp_module.prompt_digest()
+    stamp_module.prompt_digest.cache_clear()
+    with (
+        patch("evalharness.run.CORRELATE_SCRAPES", 1),
+        patch("evalharness.run.CORRELATE_GAP_SECONDS", 1),
+    ):
+        assert stamp_module.prompt_digest() == before
+    stamp_module.prompt_digest.cache_clear()
+    assert stamp_module.runtime_version() == "faultline/0.0.1+prompts:1b0e7cbb4c47"
