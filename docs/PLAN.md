@@ -1711,6 +1711,43 @@ advising a restart during a real incident is worse than silence. **The gate is u
 deliberately so:** the alert reports a true condition and refusing is right. What changes is that
 refusing no longer means waiting an unknown number of hours. T7.14 measured 12.6% duty; by T7.22 it
 ran ~95% across eight hours and cost this project a day.
+### T7.22 — recording A and C *(slots assigned, scenarios authored; RECORDING BLOCKED)*
+Stage 2 of T7.20, carried as far as the world allows. **Nothing recorded.**
+
+**Slots assigned by applying T7.21's rule, not by choosing.** Holdout sits at the highest indices
+and existing assignments are committed, so the arithmetic has no judgement in it:
+`dependency_latency` holds 3 dev + 1 holdout with `-1` dev and `-2` holdout committed, leaving `-3`
+and `-4` both dev -> **A takes `dependency_latency-3`, dev**. `bad_config` holds 4 dev + 2 holdout
+with `-1` and `-2` committed dev, leaving `-3`/`-4` dev and `-5`/`-6` holdout -> **C takes
+`bad_config-3`, dev**. **Both dev**, which contradicts T7.20's speculation that C would land in
+holdout - that assumed holdout took the next free slot, and T7.21 put it at the highest. The rule's
+output stands.
+
+**Remediations recorded as claims with their basis.** A carries `restart`, measured by T7.17 for
+this *mechanism* but on `cart-service`; `also_correct_remediation` is deliberately empty, because
+ADR-0027 already carries one scenario holding that field by inference and a third would make a
+measured field a habit. C carries `config_revert` on the mechanism - a configuration value with a
+known-good prior - and **explicitly not on a remediation measurement**, with `restart` named as the
+testable rival that should not work. Both declare `answers_idle_or_absent` evaluated **under the
+fault**, per the gate T7.21 added.
+
+**Blocked: the checkout excursion has escalated from intermittent to continuous.** T7.14 measured
+12.6% duty in episodes of 15-60 minutes; over the twelve hours before this task it ran **~95% duty
+across eight hours**, beginning at `01:43` - the same `activeAt` T7.14 recorded for the episode it
+measured as ending after 3630s. It did not end. Shape unchanged (92% of checkouts under 50ms, tail
+just over 5%, zero errors, every other service at baseline); duration changed. Recorded in
+CATALOG.md.
+
+**The recorder refuses and is right to.** `alerts_over_window` is ground truth, so a pre-existing
+alert would be recorded as the fault's. A probe could use a scoped relaxation because its
+observable was a qdisc or an error ratio a latency excursion cannot touch; **a recording has no
+honest equivalent.** Two containers were cycled as the memory guard instructed - `email-service` at
+99.8%, `jaeger` at 97.4% - which is the documented remedy, not a workaround.
+
+**Not done, and why:** the two bundles, their narratives, the rendered pages, corpus seeding,
+quarantine verification and the per-class table updates all depend on recordings that do not exist.
+A retry loop continues in the background and will take the next clean window; two opened in the
+preceding twelve hours.
 
 ### T7.21 — slots before scenarios *(allocation decision; no scenario assigned)*
 **Done.** SPLIT.md extended to n=20 with n=30 decided, by principle and **before any candidate was

@@ -877,3 +877,38 @@ appeared on `frontend` and `loadgenerator` at T+182s and T+304s — two of the t
 measured as carrying at-rest latency excursions. The second attempt, with more kills and no alerts
 at all, is what settled it. On this world an alert on `checkoutservice`, `frontend` or
 `loadgenerator` is not by itself evidence that an injected fault caused anything.
+
+## The checkout excursion has escalated, and it now blocks recording outright
+
+T7.14 characterised `ServiceHighLatency/checkoutservice` as an intermittent at-rest excursion:
+**two episodes in twelve hours, 3630s and 900s, 12.6% of wall clock**, on a service whose median
+p95 was its 37.8ms baseline. That characterisation no longer describes the world.
+
+Measured at T7.22 over the preceding twelve hours, at 15-minute resolution:
+
+| window | checkout p95 |
+|---|---|
+| 22:58 – 01:28 | clean, 36–38ms |
+| **01:43 – 09:43** | **over threshold continuously**, 1440–15000ms |
+| brief exceptions | 02:58 (71.9ms), 06:58–07:28 (5.6–9.9ms) |
+
+**Eight hours, roughly 95% duty, with two clean windows of about fifteen and thirty minutes.** The
+episode begins at `01:43` — the same `activeAt` T7.14 recorded for the longest episode in its own
+census, which it measured as ending after 3630s. It did not end.
+
+**The shape is unchanged**: 92% of checkouts still finish inside 50ms, the tail is still ~7.6%
+sitting just above the 5% the 95th percentile reads, errors are zero on every service, and every
+service outside the three known-tail ones sits at its 1.9–9.6ms baseline. What changed is duration,
+not mechanism.
+
+**The consequence is that recording is blocked, and the recorder is right to refuse.** A bundle's
+`alerts_over_window` is ground truth, so a pre-existing alert inside the window would be recorded as
+part of the injected fault. Unlike a probe — where T7.17 and T7.20 used a *scoped, written-down*
+relaxation because the observable was a qdisc or an error ratio that a latency excursion cannot
+touch — there is no honest relaxation for a recording. **Recording waits for a clean window or it
+does not happen.**
+
+Windows do open. A recorder left retrying will take one; it polls the baseline continuously, so a
+fifteen-minute clean stretch is enough. Budget hours, not minutes, and cycle the containers the
+memory-headroom guard names while waiting — `email-service` and `jaeger` both crossed 90% during
+T7.22's attempts, and cycling them is the documented remedy rather than a workaround.
