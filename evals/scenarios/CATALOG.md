@@ -943,3 +943,40 @@ warning about the caller's timeout.
 
 Both remaining `dependency_latency` scenarios satisfy it: `cartservice` calls redis,
 `productcatalogservice` is called through and calls onward. Neither is a leaf.
+
+### Where checkout's slow time actually goes: nowhere traced
+
+T7.14 left this open — *"why the checkout path has a multi-second slow mode"* — and T7.22 narrowed
+it while waiting for a clean window. It is not any dependency.
+
+A representative 18.14s `PlaceOrder`, span offsets from trace start:
+
+| offset | duration | span |
+|---|---|---|
+| +0.00s | 0.01s | `prepareOrderItemsAndShippingQuoteFromCart` |
+| +0.00s | 0.00s | cart `GetCart` → redis `HGET` |
+| +0.01s | 0.01s | shipping `GetQuote` → quote `/getquote` |
+| +0.01s | 0.00s | payment `Charge` |
+| +0.02s | 0.00s | cart `EmptyCart` → redis `HMSET` |
+| +0.02s | 0.00s | email `send_order_confirmation` |
+| +0.02s | 0.00s | **`orders send`** → accounting + frauddetection receive |
+| **+18.14s** | — | frontend resumes with its next catalog calls |
+
+**Every one of the 39 child spans completes inside 20 milliseconds.** The remaining 18.12 seconds
+sit inside checkoutservice's own `PlaceOrder` span with nothing traced in it, *after* all downstream
+work is finished.
+
+This rules out every dependency by measurement: Kafka (`orders send`, 0.00s — the produce is fast,
+which also falsifies the obvious guess), redis, payment, shipping, quote, currency, email and
+product catalog. Checkout's own logs agree — the largest gaps between its log lines fall *between*
+orders, not inside one.
+
+**So the tail is not a slow dependency and cannot be cleared by cycling a container.** What remains
+is time between checkout finishing its work and its response reaching the caller, which no span in
+this world covers. Naming it precisely needs instrumentation this world does not have; what is
+established is where it is *not*, which is everywhere anyone would look first.
+
+Practical consequence for anyone recording: **there is nothing to fix, so there is nothing to do but
+wait for a clean window.** They open — two in the twelve hours before T7.22, of about fifteen and
+thirty minutes — and a recorder left retrying will take one, because it polls the baseline
+continuously.
