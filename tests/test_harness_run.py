@@ -54,15 +54,26 @@ environment; `test_the_gate_reads_the_settle_window_from_the_orchestrator` is th
 checks the real wiring."""
 
 
+SAMPLES_IN_WINDOW = 12
+"""15s steps over the gate's 180s p95 window - what `_window_by_service` actually returns."""
+
+
 def reading_with(settled: Exception | None = None, **overrides: Any) -> gate.GateReading:
     world = {**QUIET, **overrides}
+    # A bare number means "this value for the whole window", which is what every test written
+    # before T7.14 meant by a p95 reading. A list is an explicit window, sample by sample.
+    windows = {
+        service: list(value) if isinstance(value, list) else [value] * SAMPLES_IN_WINDOW
+        for service, value in world["p95"].items()
+    }
     latest = {
-        gate.METRIC_QUERIES["latency-p95"]: world["p95"],
+        gate.METRIC_QUERIES["latency-p95"]: {s: v[-1] for s, v in windows.items()},
         gate.METRIC_QUERIES["call-rate"]: world["rates"],
     }
     with (
         patch.object(gate, "firing_alerts", return_value=world["firing_alerts"]),
         patch.object(gate, "_latest_by_service", side_effect=lambda q, **_: latest[q]),
+        patch.object(gate, "_window_by_service", side_effect=lambda q, **_: windows),
         patch.object(gate, "container_uptimes", return_value=world["uptimes"]),
         patch.object(gate, "require_settled_containers", side_effect=settled),
         patch.object(gate.baseline_mod, "active_injections", return_value=world["injections"]),
@@ -830,3 +841,116 @@ def test_the_correlate_budget_is_not_a_stamp_input() -> None:
         assert stamp_module.prompt_digest() == before
     stamp_module.prompt_digest.cache_clear()
     assert stamp_module.runtime_version() == "faultline/0.0.1+prompts:1b0e7cbb4c47"
+
+
+# --- T7.14: the rule that fires at rest ----------------------------------------------------
+
+BASELINE_P95_MS = 37.8
+"""checkoutservice's measured resting p95 over 12 hours - and its committed baseline (38ms)."""
+
+EXCURSION_P95_MS = 15000.0
+"""Where p95 lands when the slow tail crosses 5%: the top finite bucket of the demo's
+histogram. The same number T3.4 read as degradation and T7.13 read as a starved histogram."""
+
+
+def excursion_window(over: int, at: float = EXCURSION_P95_MS) -> list[float]:
+    """A p95 window with `over` of its samples in the tail and the rest at baseline."""
+    return [BASELINE_P95_MS] * (SAMPLES_IN_WINDOW - over) + [at] * over
+
+
+def test_the_characterised_excursion_still_refuses_and_is_recorded_as_sustained() -> None:
+    """**The shape T7.14 diagnosed, pinned.** checkoutservice sitting in its slow mode.
+
+    It still refuses - that is not softened. Injecting during an excursion would put a
+    pre-existing `ServiceHighLatency/checkoutservice` into the scenario's blast radius, and two
+    recorded bundles already carry that alert as genuine fault evidence.
+    """
+    reading = reading_with(p95={"checkoutservice": excursion_window(SAMPLES_IN_WINDOW)})
+
+    assert not reading.passed
+    excursion = reading.p95_excursions["checkoutservice"]
+    assert excursion.sustained
+    assert excursion.samples_over == excursion.samples == SAMPLES_IN_WINDOW
+    assert excursion.median_ms == EXCURSION_P95_MS
+    assert any("12 of 12 samples over, sustained" in why for why in reading.refusals)
+
+
+def test_a_refusal_on_the_known_tail_says_so_instead_of_saying_degraded() -> None:
+    """The whole point: two readers took this scalar for a degraded world (T3.4, T7.13).
+
+    The refusal now names the characterised excursion, and says both true things about it -
+    that it is real, and that it is not evidence the world is broken.
+    """
+    reading = reading_with(p95={"checkoutservice": excursion_window(SAMPLES_IN_WINDOW)})
+
+    note = [why for why in reading.refusals if why.startswith("note:")]
+    assert len(note) == 1
+    assert "checkoutservice" in note[0]
+    assert "not evidence the world is degraded" in note[0]
+    assert "would land in the injected fault's blast radius" in note[0]
+
+
+def test_a_spike_and_an_episode_refuse_alike_but_are_told_apart_afterwards() -> None:
+    """**Why this exists at all.** Four refusals were recorded before T7.14 and every one of
+    them stored a single scalar, so none can say whether the world spiked or had been slow for
+    an hour. Diagnosing them meant going to the live world, by which time the window was gone.
+    Both still refuse; the manifest can now tell them apart.
+    """
+    spike = reading_with(p95={"checkoutservice": excursion_window(1)})
+    episode = reading_with(p95={"checkoutservice": excursion_window(SAMPLES_IN_WINDOW)})
+
+    assert not spike.passed and not episode.passed
+    assert spike.p95_over_ceiling == episode.p95_over_ceiling  # the old record: identical
+    assert not spike.p95_excursions["checkoutservice"].sustained
+    assert episode.p95_excursions["checkoutservice"].sustained
+    assert spike.p95_excursions["checkoutservice"].median_ms == BASELINE_P95_MS
+    assert "intermittent" in spike.p95_excursions["checkoutservice"].describe()
+
+
+def test_a_service_with_no_measured_tail_gets_no_note() -> None:
+    """The note names a measured set, not any service that happens to be slow. A latency fault
+    on cartservice is a finding, and must not be labelled a known excursion."""
+    reading = reading_with(p95={"cartservice": excursion_window(SAMPLES_IN_WINDOW)})
+
+    assert not reading.passed
+    assert not any(why.startswith("note:") for why in reading.refusals)
+    assert "cartservice" not in gate.KNOWN_TAIL_SERVICES
+
+
+def test_a_genuinely_slow_service_still_pages() -> None:
+    """The check that keeps the fix from being a suppression.
+
+    `cart-dependency-latency` adds 300ms to cartservice and its bundle records
+    `ServiceHighLatency` on four services as ground truth. Nothing here may stop that firing:
+    the world's rule is untouched, and the gate refuses on a slow service exactly as before.
+    """
+    slow = reading_with(p95={"cartservice": 650.0, "checkoutservice": BASELINE_P95_MS})
+    assert slow.p95_over_ceiling == {}, "650ms is under the gate's 1000ms ceiling, as before"
+
+    very_slow = reading_with(p95={"cartservice": 15000.0})
+    assert not very_slow.passed
+    assert any("cartservice at 15000ms" in why for why in very_slow.refusals)
+
+
+def test_the_gate_still_passes_a_world_at_its_baseline() -> None:
+    """The three known-tail services at their measured resting p95 do not refuse anything."""
+    reading = reading_with(
+        p95={"checkoutservice": BASELINE_P95_MS, "frontend": 42.3, "loadgenerator": 48.0}
+    )
+    assert reading.passed
+    assert reading.p95_excursions == {}
+
+
+def test_the_excursion_reaches_the_manifest() -> None:
+    """A refusal is a measurement (GateReading's docstring), so it has to serialise."""
+    reading = reading_with(p95={"checkoutservice": excursion_window(SAMPLES_IN_WINDOW)})
+    recorded = json.loads(json.dumps(reading.as_dict()))
+
+    assert recorded["p95_excursions"]["checkoutservice"] == {
+        "samples_over": 12,
+        "samples": 12,
+        "sustained": True,
+        "median_ms": EXCURSION_P95_MS,
+        "max_ms": EXCURSION_P95_MS,
+    }
+    assert recorded["p95_over_ceiling_ms"] == {"checkoutservice": EXCURSION_P95_MS}
