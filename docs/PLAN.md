@@ -1573,6 +1573,51 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.25 — the pipeline has to be listening *(preflight; third discard reason)*
+**Done.** The gap T7.24 fell into: a run injected while `faultline-ingest` and
+`faultline-orchestrate` were down. The fault fired exactly on schedule - checkoutservice at 27.6%
+errors, four `ServiceNoTraffic` alerts on the board - and no incident opened, because nothing was
+listening at the webhook and nothing was consuming the stream. Left alone it would have recorded
+**`no-alert`**, which reads as a fact about the scenario. It was a fact about the harness.
+
+**Two checks, in the gate, before anything about the world is read** - because a world that alerts
+perfectly into a pipeline nobody is running is exactly the case that must not reach an injection.
+
+**Ingest: `GET /healthz`.** *Proves* a process is bound to the port, the ASGI app booted, and
+routing works. *Does not prove* that `POST /api/v1/alerts` succeeds - a different route that
+validates a payload and writes to Redis, which can fail while `/healthz` still answers. The
+stronger check would post a real alert, and that would put a fabricated episode into the store the
+run is about to measure, so it is deliberately not done.
+
+**Orchestrator: the consumer's `idle` from `XINFO CONSUMERS`.** *Proves* something is attached to
+the group and actively polling. *Does not prove* that an event would be processed once read - it
+could read and then fail on the database write - nor that the attached client is the orchestrator
+rather than something else using the same consumer name.
+
+**Why `idle` and not `inactive`, which is the whole point.** Redis keeps two clocks on a consumer.
+`idle` is time since the last *interaction*, which a blocking `XREADGROUP` refreshes whether or not
+it returns anything. `inactive` is time since the last *successful read*, and it grows on any world
+with nothing to say. **Measured on the live world:** orchestrator up, `idle` **93-905ms** against a
+5000ms block while `inactive` stood at **737,918ms** because no alert had arrived in twelve minutes.
+**Reading `inactive` would refuse every quiet world** - and a quiet world is the normal state before
+an injection.
+
+**`idle` was verified to be a liveness signal, not inferred.** Killed the orchestrator and watched
+it grow 1:1 with wall clock: **6963, 17001, 29046ms**. Ceiling is `6 x block_ms`, read from the
+orchestrator's own settings rather than copied, for T4.13's reason - a deployment that changes the
+block interval moves this with it.
+
+**Verified against T7.24's exact case:** both services stopped, and the gate named both, with the
+command to start each, and raised `PipelineDownError` carrying `discard_reason: pipeline-down`.
+
+**Three discard reasons, pinned distinct.** `no-alert` - the world had its chances and the fault did
+not page. `metrics-gap` - the world stopped reporting, so nothing was measured. **`pipeline-down`** -
+the world was fine and nobody was listening. A test asserts all five reasons are unique, and a
+separate one asserts **a quiet world cannot produce the new refusal**, which is the conflation the
+check exists to prevent. `PipelineDownError` subclasses `GateRefusedError` so it still flows through
+the existing handler; `run.py` now records the reason the exception carries rather than a hardcoded
+label.
+
 ### T7.23 — where the checkout time goes *(investigation; remedy found, mechanism partly open)*
 **Done** (ADR-0025's T7.23 addendum). T7.14 left the mechanism open, T7.22 narrowed it to *nowhere
 traced*, and this closes it far enough to act on.

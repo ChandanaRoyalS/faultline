@@ -71,6 +71,10 @@ def reading_with(settled: Exception | None = None, **overrides: Any) -> gate.Gat
         gate.METRIC_QUERIES["call-rate"]: world["rates"],
     }
     with (
+        # The pipeline checks reach the ingest app and Redis, so every test stubs them healthy
+        # by default and the T7.25 tests override them. Hermetic: no socket, no Redis.
+        patch.object(gate, "ingest_accepting", return_value=world.get("ingest", True)),
+        patch.object(gate, "consumer_idle_ms", return_value=world.get("idle_ms", 100)),
         patch.object(gate, "firing_alerts", return_value=world["firing_alerts"]),
         patch.object(gate, "_latest_by_service", side_effect=lambda q, **_: latest[q]),
         patch.object(gate, "_window_by_service", side_effect=lambda q, **_: windows),
@@ -1000,3 +1004,117 @@ def test_the_remedy_is_silent_on_anything_that_is_not_the_stall() -> None:
         == ""
     )
     assert set(CHECKOUT_STALL_SERVICES) == {"checkoutservice", "frontend", "loadgenerator"}
+
+
+# --- T7.25: the pipeline has to be listening ------------------------------------------------
+
+
+def pipeline(
+    ingest: bool | None = True, idle_ms: int | None = 100, **overrides: Any
+) -> gate.GateReading:
+    """Read the gate with the pipeline in a stated state, everything else quiet."""
+    return reading_with(ingest=ingest, idle_ms=idle_ms, **overrides)
+
+
+def test_a_quiet_world_with_a_live_pipeline_passes() -> None:
+    """The control. Nothing firing, ingest answering, a consumer polling."""
+    reading = pipeline()
+    assert reading.pipeline_down == []
+    assert reading.passed
+
+
+def test_a_quiet_world_cannot_produce_the_pipeline_refusal() -> None:
+    """**The distinction the whole check rests on (T7.25).**
+
+    Redis keeps two clocks on a consumer and only one is a liveness signal. `idle` is time since
+    the last *interaction*, which a blocking `XREADGROUP` refreshes whether or not it returns
+    anything. `inactive` is time since the last *successful* read, and it grows on any world with
+    nothing to say.
+
+    Reading `inactive` would refuse every quiet world - which is precisely the conflation this
+    check exists to prevent, since a quiet world is the normal state before an injection. Measured
+    on the live world: orchestrator up, `idle` 93-905ms against a 5000ms block, while `inactive`
+    stood at 737,918ms because no alert had arrived in twelve minutes.
+    """
+    # A world so quiet that nothing has been read for hours, with the consumer polling throughout.
+    reading = pipeline(idle_ms=120, firing_alerts=[])
+    assert reading.pipeline_down == []
+    assert reading.passed, "a quiet world must never look like a down pipeline"
+
+
+def test_a_dead_consumer_is_caught_and_a_slow_one_is_not() -> None:
+    """`idle` grows 1:1 with wall clock once the consumer stops. Measured: 6963, 17001, 29046ms
+    after a kill, against 93-905ms while alive."""
+    from faultline.orchestrator.settings import OrchestratorSettings
+
+    ceiling = gate.PIPELINE_IDLE_MULTIPLE * OrchestratorSettings().block_ms
+
+    assert pipeline(idle_ms=ceiling - 1).pipeline_down == [], "a slow ack is not a dead consumer"
+    dead = pipeline(idle_ms=ceiling + 1)
+    assert len(dead.pipeline_down) == 1
+    assert "not polling" in dead.pipeline_down[0]
+    assert "faultline-orchestrate" in dead.pipeline_down[0]
+
+
+def test_no_consumer_at_all_is_caught() -> None:
+    """`None` covers no consumer, no group and no stream. All of them are 'not consuming'."""
+    reading = pipeline(idle_ms=None)
+    assert any("no consumer is attached" in w for w in reading.pipeline_down)
+
+
+def test_ingest_not_accepting_is_caught_and_names_the_command() -> None:
+    """Both a refused connection (`None`) and a non-2xx (`False`) are down."""
+    for answer in (None, False):
+        reading = pipeline(ingest=answer)
+        assert any("ingest is not accepting" in w for w in reading.pipeline_down)
+        assert any("faultline-ingest" in w for w in reading.pipeline_down)
+
+
+def test_t7_24s_exact_case_refuses_with_its_own_type() -> None:
+    """Both halves down, which is what T7.24 injected into."""
+    reading = pipeline(ingest=None, idle_ms=None)
+    assert len(reading.pipeline_down) == 2
+    assert not reading.passed
+    assert any("NOT the world failing to alert" in why for why in reading.refusals)
+
+
+def test_the_three_discard_reasons_are_distinct() -> None:
+    """**T7.12 defined two; this is the third, and no two may share a label.**
+
+    `no-alert` says the world had its chances and the fault did not page. `metrics-gap` says the
+    world stopped reporting so nothing was measured. `pipeline-down` says the world was fine and
+    nobody was listening. Conflating the third with the first is what T7.24 would have recorded:
+    a fact about the harness written down as a fact about the scenario.
+    """
+    from evalharness.run import NoAlertError, RunError, WorldStoppedReportingError
+
+    reasons = [
+        NoAlertError.discard_reason,
+        WorldStoppedReportingError.discard_reason,
+        gate.PipelineDownError.discard_reason,
+        gate.GateRefusedError.discard_reason,
+        RunError.discard_reason,
+    ]
+    assert reasons == [
+        "no-alert",
+        "metrics-gap",
+        "pipeline-down",
+        "baseline gate refused",
+        "run failed",
+    ]
+    assert len(set(reasons)) == len(reasons), "every discard reason must be distinct"
+
+
+def test_the_pipeline_refusal_is_still_a_gate_refusal() -> None:
+    """It must keep flowing through the existing handler, or a run would crash instead of
+    discarding. `run.main` catches `GateRefusedError` and records whatever reason it carries."""
+    assert issubclass(gate.PipelineDownError, gate.GateRefusedError)
+    assert gate.PipelineDownError.discard_reason != gate.GateRefusedError.discard_reason
+
+
+def test_the_readings_reach_the_manifest() -> None:
+    """A refusal is a measurement, so what the checks saw has to serialise."""
+    recorded = json.loads(json.dumps(pipeline(ingest=None, idle_ms=None).as_dict()))
+    assert recorded["ingest_accepting"] is None
+    assert recorded["consumer_idle_ms"] is None
+    assert len(recorded["pipeline_down"]) == 2
