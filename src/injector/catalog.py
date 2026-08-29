@@ -82,6 +82,27 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"memory": "32m"},
         ),
         FaultDefinition(
+            id="storefront-load-surge",
+            fault_class=FaultClass.BAD_CONFIG,
+            target="loadgenerator",
+            description=(
+                "Raise the offered load fiftyfold. Nothing in the storefront is changed or "
+                "broken - the shops simply get more customers than they can serve, which is "
+                "what separates a scale fault from a resource-exhaustion one."
+            ),
+            # 500 users against the world's default 10. The mechanism is BAD_CONFIG only
+            # because setting an environment variable is how the load driver is steered;
+            # the *scenario* built on it is not a misconfiguration, and its ground truth
+            # says so. `LOCUST_USERS=500` is a legitimate value that breaks no invariant.
+            #
+            # T7.13 MEASURED THIS AND IT DOES NOT ALERT. 50x offered load holds the world
+            # at a 102 req/s throughput plateau for 20 minutes with no rule tripping: the
+            # scenario built on it carries `blocked: true` and the numbers are in ADR-0024.
+            # The definition is kept because the fault is real and injectable - what it is
+            # not is observable through this world's alert path.
+            params={"env_var": "LOCUST_USERS", "value": "500"},
+        ),
+        FaultDefinition(
             id="flag-service-bad-deploy",
             fault_class=FaultClass.BAD_DEPLOY,
             target="featureflagservice",

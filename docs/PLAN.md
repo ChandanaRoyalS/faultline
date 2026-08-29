@@ -1573,6 +1573,64 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.13 — the scale class gets a scenario *(design + measurement; nothing recorded)*
+**Authored and blocked, on measurement.** Set out to record the catalog's first `scale` scenario.
+The design stands, the recording does not exist, and the reason is measured (ADR-0024).
+
+**`scale` is not a fault class.** `FaultClass` has four members in the scenario schema and the
+same four plus `unknown` in the agent contract; SPLIT.md allocates slots by fault class and has no
+`scale` slot. It exists only as a `RemediationClass`. The `scale` row in the taxonomy sweep's
+*fault class* table is a mislabelled row, corrected here. Adding `scale` to `FaultClass` is not
+the fix: the enum is hashed into `runtime_version` via `contracts.model_json_schema()`, so it
+would move the stamp and break comparability with every recorded run - its own decision, not a
+side effect of authoring a scenario.
+
+**The boundary, stated so it does not import a second dispute.** `scale` and `resource_exhaustion`
+are on different axes - the first is what fixes it, the second is what happened, and this scenario
+is both. The boundary that matters is between remediations: **`config_revert` when the constrained
+resource was changed, `scale` when it was not.** It is decidable by a tool call rather than by
+reading - `change_history` against the service that is failing to serve shows a change in the
+first case and nothing in the second. That is what makes it unlike the change-versus-symptom
+dispute, where change and symptom sit on the same service and both readings are defensible.
+It also forces the design demand-side: any fault that removes capacity from the target is
+reversible by construction, so its honest remediation is `config_revert`.
+
+**T7.5's gate, applied before recording**, measured live because a scenario with no bundle has no
+captures for T7.4's census to read: `cartservice` 20 runtime series and 4738 log lines/hour (2
+classes), `redis-cart` 0 and 72 (1 class), `loadgenerator` 0 and absent from Loki's `service` set
+(0 classes). Declared `[]` with the plain statement the gate asks for: **this narrative must not
+turn on idle-or-absent** - not because the evidence is unreachable but because nothing goes idle
+or absent under this fault.
+
+**The blocker: 50x offered load for twenty minutes tripped no alert.** Throughput saturated at
+**102.4 req/s** and stopped responding to load - 100 to 500 concurrent shoppers bought 11% more
+throughput, which is a capacity ceiling. Behind it cart-service went 70%→83% of its 400MiB and
+settled; frontend 67%→76% and settled; no OOM, no restart, frontend CPU 22.9% of one core of ten.
+All three alert rules are structurally blind to this shape: saturation queues rather than errors,
+span metrics score only requests that completed (ADR-0013 from the other direction), and traffic
+plateaus rather than stopping. **A fault that opens no incident can never dispatch an agent.**
+
+**A third obstacle, found trying to commit it: the schema cannot express it either.**
+`test_scenario_injections_match_the_fault_they_cite` binds a scenario's `fault_class` to the
+injector definition's, and `injector.catalog` is authoritative. The only way to steer the load
+driver is an env var, which is `BadConfigFault` - so a demand-side scale scenario can only be
+committed as `bad_config`, i.e. as a claim that the load generator was misconfigured. It was not,
+and the boundary argument above depends on that being true. **No scenario file is committed**: the
+guard is right and the label would be false. `blocked: true` was not the right home either - that
+flag is for injectable-but-not-observable, and this is that *and* unlabellable. SPLIT.md unchanged.
+**`scale` stays n=0, now with a reason rather than an absence.** The injector keeps the load-surge
+mechanism so the 90-minute `redis-cart` path in ADR-0024 is reproducible.
+
+Two things found on the way. A pre-existing `ServiceHighLatency/checkoutservice` fires at baseline
+from histogram degeneracy at 0.66 req/s and **cleared under load** - a false positive that can
+refuse the baseline gate. And `redis-cart` is a latent capacity defect in the committed world:
+`noeviction`, no `maxmemory`, 20MiB ceiling, monotonic in cumulative traffic - it stepped 46%→59%
+across the probe and did not come back down.
+
+**Not exercised: T7.12's scrape-counted wait.** The probe was manual, so `wait_for_incident` never
+ran. Recording this scenario would have been its first live exercise and would have ended in a
+`no-alert` discard - correctly, and distinguishably, which is the point of T7.12.
+
 ### T7.12 — the wait counts scrapes, not seconds *(mechanism; harness-side)*
 **Done.** The deadline mechanism T7.11 queued. The correlate wait was denominated in wall-clock
 seconds, so a suspended host spent the budget while the world produced less evidence than the

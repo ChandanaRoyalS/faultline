@@ -39,7 +39,14 @@ Accuracy is over **answered** runs; abstentions leave the ratio and appear as co
 | `bad_deploy` | 2 | 2/2 | **1/1** | 2/2 | 1/1 | 1 |
 | `dependency_latency` | 1 | **0/1** | **1/1** | 0/1 | **0/1** | 0 |
 | `resource_exhaustion` | 2 | **0/2** | **1/1** | 2/2 | 1/1 | 1 |
-| `scale` | 0 | — | — | — | — | — |
+| ~~`scale`~~ | 0 | — | — | — | — | — |
+
+**The `scale` row is a mislabel, corrected at T7.13.** `scale` is a `RemediationClass`, not
+a `FaultClass` - it is not in the scenario schema's enum, not in the agent's answer space, and
+has no slot in SPLIT.md. It never belonged in a fault-class table. The remediation class is
+genuinely empty, and ADR-0024 records why this world cannot fill it: 50x offered load for
+twenty minutes saturates throughput at 102 req/s and trips no alert rule, so a scale fault
+opens no incident and can never be scored.
 
 | | sweep 1 | sweep 2 |
 |---|---|---|
