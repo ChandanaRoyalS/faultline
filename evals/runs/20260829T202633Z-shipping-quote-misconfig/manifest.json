@@ -1,0 +1,65 @@
+{
+  "run_id": "20260829T202633Z-shipping-quote-misconfig",
+  "scenario_id": "shipping-quote-misconfig",
+  "split": "dev",
+  "scenario_fingerprint": "42e4b92cc3e46410b9b1b9a968a0c246c923bc410f6f576eb083686206b659f8",
+  "started_at": "2026-08-29T20:26:33.195312+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "1ab176017d77ddf54e145601355a1f2a15956c5c",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": false,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "shipping-service",
+      315
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [
+      {
+        "incident_id": "56728683-8f20-4f9e-904c-872fd04b5d16",
+        "resolved_at": "2026-08-29T20:22:56.183224+00:00",
+        "seconds_remaining": 83
+      }
+    ],
+    "refusals": [
+      "incident 56728683-8f20-4f9e-904c-872fd04b5d16 resolved at 2026-08-29T20:22:56.183224+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 83s."
+    ]
+  },
+  "discarded": {
+    "reason": "baseline gate refused",
+    "at": "2026-08-29T20:26:33.895816+00:00"
+  }
+}

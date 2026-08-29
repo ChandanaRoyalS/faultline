@@ -1665,6 +1665,58 @@ separate one asserts **a quiet world cannot produce the new refusal**, which is 
 check exists to prevent. `PipelineDownError` subclasses `GateRefusedError` so it still flows through
 the existing handler; `run.py` now records the reason the exception carries rather than a hardcoded
 label.
+### T7.24 — the first investigation of a silent culprit *(one scored run, pre-registered, judged)*
+**Done** (`evals/runs/RUN-2026-08-29-shipping-quote-misconfig.md`). The first agent run against
+T7.22's scenario, whose evidence shape nothing else in the catalog has.
+
+**Verdict correct on every axis.** Fault class `bad_config` ✔, fix class `config_revert` ✔, faulty
+service **`shippingservice`** ✔, confidence high, judge `same_mechanism` (6 dead ends closed / 3
+missed). Triage recall **1.00** (2/2), precision 0.17 (2/12). **$0.6857 agent + $0.0328 judge.**
+
+**The ledger: five of six confirmed, and P3 falsified.** P1 (localizes first to `checkoutservice`)
+held in the planner's own words. P2 held - two round-2 dispatches against shipping. P4 held -
+`change_history` on shipping is the verdict's first citation and the only evidence naming
+`QUOTE_SERVICE_ADDR`. P5 and P6 held.
+
+**P3 said it would reach shipping by the dependency graph. It reached it by the trace.** The
+round-2 planner: *"Traces localized the failure to the checkoutservice client span for
+ShippingService/GetQuote while the shipping server handler succeeds."* A client span carries the
+callee's name, so a trace on the **alerting** service names the silent one. My prediction
+enumerated metrics, logs and the graph and omitted traces - the class T7.4's census records as
+used in only **2 of 10** investigations, and the one this run needed.
+
+**The registered falsifier did not fire.** It was *answers `checkoutservice` or abstains while never
+dispatching against `shippingservice`*. On this run, T4.14's return-to-locus carried the agent from
+an alerting caller to a silent culprit. The judge scored the registered near-misses as avoided by
+name, including *"treating shipping logs showing healthy activity as proof shipping was healthy"*.
+
+**Contamination verified from the retrieval rows**, not inferred: `exclude_origin =
+'scenario:shipping-quote-misconfig'`, and the three that came back are `shipping-wrong-image`,
+`cart-redis-misconfig`, `cart-bad-image-tag`. The scenario's own narrative did not return.
+
+**The report carries `reachability answerable by: logs`** - the first run scored against a bundle
+whose reachability was derived correctly after T7.22's recorder fix. Had that bug stood, this report
+would have called the evidence unanswerable while the agent was reading it.
+
+**Three discards, all recorded rather than tidied.** `20260829T202633Z` is an ordinary gate
+refusal, recorded by the harness itself (a resolved incident inside the settle window - T4.13
+working). The other two are mine. `20260829T200129Z`: I misread a malformed `pgrep` as a dead
+process and reverted the fault out from under a live run. `20260829T200937Z`: **`faultline-ingest`
+and `faultline-orchestrate` were not running**, so alerts fired and nothing turned them into an
+incident.
+
+**That second one is a finding worth keeping.** Left alone it would have waited out T7.12's budget
+and recorded a **`no-alert` discard** - which reads as a fact about the scenario. It is not: the
+fault fired on schedule, checkout hit 27.6% errors, four `ServiceNoTraffic` alerts were on the
+board. T7.12 separated `no-alert` from `metrics-gap` because they are different findings; **this is
+a third** - the world alerted, the metrics were fine, and the platform was not assembled. **Nothing
+in the harness checks before injecting that the ingest endpoint is listening or the orchestrator is
+consuming**, so the failure presents as a silent scenario rather than a missing service. A preflight
+of the same shape as the existing world-side checks would refuse in a second instead of injecting
+and waiting. **Queued, not built** - it is a harness change and this task was an agent run.
+
+**n=1.** One observation, not a rate. It cannot separate capability from a lucky draw and is not
+averaged into any sweep figure.
 
 ### T7.23 — where the checkout time goes *(investigation; remedy found, mechanism partly open)*
 **Done** (ADR-0025's T7.23 addendum). T7.14 left the mechanism open, T7.22 narrowed it to *nowhere

@@ -1,0 +1,219 @@
+{
+  "run_id": "20260829T202910Z-shipping-quote-misconfig",
+  "scenario_id": "shipping-quote-misconfig",
+  "split": "dev",
+  "scenario_fingerprint": "42e4b92cc3e46410b9b1b9a968a0c246c923bc410f6f576eb083686206b659f8",
+  "started_at": "2026-08-29T20:29:10.881397+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "1ab176017d77ddf54e145601355a1f2a15956c5c",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "shipping-service",
+      473
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-29T20:29:11.278590+00:00",
+  "incident_id": "29845f25-b6a0-42fe-aa95-ccb321ab7f3e",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-29T20:39:43.364560+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "shipping-service",
+      302
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260829T202910Z-shipping-quote-misconfig",
+    "scenario_id": "shipping-quote-misconfig",
+    "trajectory_id": "1fc88639-67f9-48d7-8cc3-a51496844853",
+    "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": true,
+    "reachability": {
+      "answers_idle_or_absent": [
+        "logs"
+      ],
+      "derived_from": "the bundle's own captures (T7.5)",
+      "none_can_answer": false,
+      "runtime_series": 0,
+      "target_log_lines": 126
+    },
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.16666666666666666,
+      "matched": [
+        "checkoutservice",
+        "loadgenerator"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "accountingservice",
+        "adservice",
+        "cartservice",
+        "currencyservice",
+        "emailservice",
+        "frontend",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice",
+        "shippingservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 2,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "bad_config",
+      "returned": "bad_config",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "config_revert",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 51798,
+    "tokens_out": 17067,
+    "cost_usd": 0.6857,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-29T20:44:46.976707+00:00",
+  "judge": {
+    "scenario_id": "shipping-quote-misconfig",
+    "run_id": "20260829T202910Z-shipping-quote-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: shipping's QUOTE_SERVICE_ADDR was misconfigured to point at a non-existent host, causing shipping to fail requests that checkout then rejects.",
+    "dead_ends_closed": [
+      "checkoutservice's own dependencies were all fast and succeeding",
+      "checkout's change history returned empty",
+      "productcatalogservice change history empty",
+      "not a crash or upstream traffic collapse",
+      "not a timing/deadline problem",
+      "payment, email, and fulfillment not broken"
+    ],
+    "dead_ends_missed": [
+      "cartservice and other synchronous dependencies never checked for change history",
+      "whether the config change took effect without pod restart",
+      "three-minute gap between config apply and error onset"
+    ],
+    "traps": [
+      {
+        "trap": "shipping reported no errors and logged nothing to suggest failure",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "looking at change history only on the alerting service (checkout)",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "treating shipping logs showing healthy activity as proof shipping was healthy",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative is more cautious than recorded narrative, explicitly naming three unresolved questions (mechanism inference from span timing, intermittent vs deterministic error ratio contradiction, environment variable reload behavior) that the recorded narrative does not mention, showing appropriate epistemic humility about gaps in observability.",
+    "tokens_in": 4618,
+    "tokens_out": 389
+  }
+}
