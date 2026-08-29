@@ -954,3 +954,49 @@ def test_the_excursion_reaches_the_manifest() -> None:
         "max_ms": EXCURSION_P95_MS,
     }
     assert recorded["p95_over_ceiling_ms"] == {"checkoutservice": EXCURSION_P95_MS}
+
+
+# --- T7.23: the checkout stall's remedy ------------------------------------------------------
+
+
+def test_the_checkout_stall_remedy_fires_on_its_signature_and_nothing_else() -> None:
+    """**The signature is ServiceHighLatency on those three and nothing else (T7.23).**
+
+    Measured: `checkout-service`'s `PlaceOrder` handler completes in ~20ms while the span reports
+    15-30s, and the two services that wait on it inherit the number. Restarting that one container
+    returned all three to their committed baselines within a scrape.
+
+    The remedy is named at the refusal because waiting it out has cost this project whole days -
+    the condition ran at ~95% duty across eight hours - and because the memory-headroom guard
+    already sets the precedent of printing the container and the command.
+    """
+    from evalharness.rehearse import checkout_stall_remedy
+
+    remedy = checkout_stall_remedy(
+        ["ServiceHighLatency/checkoutservice", "ServiceHighLatency/loadgenerator"]
+    )
+    assert "docker restart checkout-service" in remedy
+    assert "not a fault" in remedy
+
+
+def test_the_remedy_is_silent_on_anything_that_is_not_the_stall() -> None:
+    """A restart is the wrong advice for a real fault, so the match has to be exact.
+
+    Any error-rate alert, or a latency alert on a service outside the measured three, means this
+    is something else - and telling somebody to restart a container in the middle of a real
+    incident is worse than saying nothing.
+    """
+    from evalharness.rehearse import CHECKOUT_STALL_SERVICES, checkout_stall_remedy
+
+    assert checkout_stall_remedy([]) == ""
+    assert checkout_stall_remedy(["ServiceHighErrorRate/checkoutservice"]) == ""
+    assert checkout_stall_remedy(["ServiceHighLatency/cartservice"]) == ""
+    assert checkout_stall_remedy(["ServiceNoTraffic/checkoutservice"]) == ""
+    # One in-set service plus one outside it is not the signature either.
+    assert (
+        checkout_stall_remedy(
+            ["ServiceHighLatency/checkoutservice", "ServiceHighLatency/adservice"]
+        )
+        == ""
+    )
+    assert set(CHECKOUT_STALL_SERVICES) == {"checkoutservice", "frontend", "loadgenerator"}

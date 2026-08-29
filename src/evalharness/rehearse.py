@@ -448,7 +448,38 @@ def wait_for_clean_baseline(
         f"aborting before injection: {', '.join(blocking)} still firing after "
         f"{timeout_seconds}s. Injecting now would time this fault's alert against a "
         "previous incident's and record a bundle whose timings are meaningless. Let the "
-        "world settle, or raise --baseline-timeout."
+        "world settle, or raise --baseline-timeout." + checkout_stall_remedy(blocking)
+    )
+
+
+CHECKOUT_STALL_SERVICES = ("checkoutservice", "frontend", "loadgenerator")
+"""The three services the checkout stall makes slow. See `checkout_stall_remedy` and ADR-0025."""
+
+
+def checkout_stall_remedy(blocking: list[str]) -> str:
+    """The one-line remedy for the stall that has blocked recording for whole days (T7.23).
+
+    `ServiceHighLatency` on these three and nothing else is the signature of accumulated state
+    inside a long-running `checkout-service`: its `PlaceOrder` handler finishes in ~20ms while
+    the span reports 15-30s, and the two services that wait on it inherit the number. Measured,
+    the remedy is a restart of that one container - all three returned to their committed
+    baselines within one scrape.
+
+    Written here rather than left in an ADR because this is where somebody meets it, and the
+    memory-headroom guard already sets the precedent of naming the container and the command.
+    """
+    slow = {a.split("/")[-1] for a in blocking if a.startswith("ServiceHighLatency/")}
+    if not slow or not slow <= set(CHECKOUT_STALL_SERVICES):
+        return ""
+    return (
+        "\n\nThis is the checkout stall (T7.23, ADR-0025): ServiceHighLatency on "
+        f"{', '.join(sorted(slow))} and nothing else, with no errors anywhere. It is "
+        "accumulated state in a long-running checkout-service, not a fault, and waiting it out "
+        "can take hours - it has run at ~95% duty across eight. Restarting the one container "
+        "cleared it within a scrape and held:\n"
+        "    docker restart checkout-service\n"
+        "Then wait out MIN_CONTAINER_UPTIME_SECONDS and retry. Check the world is otherwise "
+        "quiet first - this remedy is for a slow world, never a broken one."
     )
 
 
