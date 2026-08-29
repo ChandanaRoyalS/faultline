@@ -1610,11 +1610,39 @@ lean on runtime metrics. The alerting gate is *plausible but unmeasured*: whethe
 `GetQuote` surfaces as an error rate depends on how `checkoutservice` handles it, and nothing in
 the record says.
 
-**Verdict: one of three survives all four gates on measured evidence.** B and C share the same open
-gate - alerting, the one that killed the scale attempt - and each is settled by a probe of a few
-minutes that records nothing. That is the gates working: two scenarios have already been proposed
-and abandoned late, and finding this out now costs two short probes rather than two recording
-sessions.
+**Stage 1b - the probes are run, and the verdict is two of three** (five injections, nothing
+recorded, `docs/evidence/t7.20-probes/`).
+
+**C PASSES, reproducibly.** `ServiceHighErrorRate/checkoutservice` at **T+240s** in both attempts,
+checkout holding 22-28% errors, well inside T7.12's budget. **And the answer to the open question
+is better than the design assumed: a failed `GetQuote` produces no error at `shippingservice` at
+all** - its own error rate stays 0.000 for the whole fault, and the failure surfaces at its
+*caller*. The alerting service is not the faulty one, and the faulty one looks clean by error rate,
+which makes its logs-only reachability load-bearing rather than a formality. Blast radius: checkout
+errors, then `ServiceNoTraffic` on quoteservice, accountingservice, emailservice and
+frauddetectionservice at T+420s.
+
+**B FAILS at both magnitudes probed, and the predicted failure mode was wrong.** At 200m the
+container *is* killed and restarted - `RestartCount` 0->1, then 1->2->3, with .NET's
+`gc_collections` counter resetting as the restart's fingerprint - and **nothing alerts**: zero
+errors on every service and cart p95 flat at 1.9ms across two seven-minute attempts. Not the GC
+surviving by collecting harder, as designed; the container comes back **faster than detection**,
+the shape already recorded for `recommendation-memory-squeeze` at 48m. **B1 looked like a pass and
+was not** - its alerts were on `frontend` and `loadgenerator`, two of T7.14's three known-tail
+services, and B2 settles it with more kills and no alerts at all.
+
+Following that scenario's own remedy to 32m makes it alert - and disqualifies it. **Its runtime
+evidence goes null under its own fault**: `gc_heap_size` and `gc_collections_count` stop exporting
+from T+300s because the container never runs long enough, so the 20 runtime series B passed T7.5's
+gate on do not exist while it is faulted. It also becomes hard to separate from
+`cart-bad-image-tag`. An interval may exist between 200m and 32m, but ADR-0013's rule applies:
+hunting a number in an interval that narrow tunes to today's load rather than to the service.
+
+**A gate the record did not have, and now does: reachability must be evaluated under the fault,
+not at rest.** Nothing before this said so, and B is the case that shows why.
+
+That is the gates working. Two scenarios have already been proposed and abandoned late; this cost
+five probe injections and no recording session.
 
 **A prerequisite none of them can skip: SPLIT.md has no free slots.** All ten `n=10` slots are
 filled; these need `dependency_latency-3`, `resource_exhaustion-4`, `bad_config-3`, which do not

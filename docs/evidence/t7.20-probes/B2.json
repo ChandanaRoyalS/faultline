@@ -1,0 +1,181 @@
+{
+ "probe": "B",
+ "attempt": "2",
+ "fault": "cart-memory-squeeze",
+ "started": "06:39:10Z",
+ "gate": "RELAXED|1 alert(s) firing; p95 above 1000ms: checkoutservice at 3600ms (13 of 13 samples over, sustained, median 3950ms, max 7000ms), frontend at 2222ms (4 of",
+ "before": {
+  "inspect": "running|false|1|419430400",
+  "stats": "209.4MiB / 400MiB|52.34%",
+  "heap_bytes": 126184.0,
+  "gc_collections": 2.0,
+  "errors": {
+   "shippingservice": "0.000/0.496 = 0.0%",
+   "checkoutservice": "0.000/2.296 = 0.0%",
+   "frontend": "0.000/8.852 = 0.0%",
+   "quoteservice": "0.000/0.330 = 0.0%"
+  },
+  "cart_p95_ms": 1.9,
+  "frontend_p95_ms": 2344.4
+ },
+ "alerts_before": [
+  "ServiceHighLatency/checkoutservice"
+ ],
+ "inject_rc": 0,
+ "timeline": [
+  {
+   "t": "T+59s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice"
+   ],
+   "inspect": "running|false|2|209715200",
+   "stats": "171.2MiB / 200MiB|85.58%",
+   "heap_bytes": 126184.0,
+   "gc_collections": 2.0,
+   "errors": {
+    "shippingservice": "0.000/0.443 = 0.0%",
+    "checkoutservice": "0.000/2.035 = 0.0%",
+    "frontend": "0.000/8.235 = 0.0%",
+    "quoteservice": "0.000/0.278 = 0.0%"
+   },
+   "cart_p95_ms": 5.3,
+   "frontend_p95_ms": 443.3,
+   "new_alerts": []
+  },
+  {
+   "t": "T+121s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice"
+   ],
+   "inspect": "running|false|2|209715200",
+   "stats": "183.5MiB / 200MiB|91.77%",
+   "heap_bytes": 72856.0,
+   "gc_collections": 1.0,
+   "errors": {
+    "shippingservice": "0.000/0.339 = 0.0%",
+    "checkoutservice": "0.000/1.531 = 0.0%",
+    "frontend": "0.000/7.862 = 0.0%",
+    "quoteservice": "0.000/0.244 = 0.0%"
+   },
+   "cart_p95_ms": 5.8,
+   "frontend_p95_ms": 49.6,
+   "new_alerts": []
+  },
+  {
+   "t": "T+182s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice"
+   ],
+   "inspect": "running|false|2|209715200",
+   "stats": "188.6MiB / 200MiB|94.30%",
+   "heap_bytes": 72856.0,
+   "gc_collections": 1.0,
+   "errors": {
+    "shippingservice": "0.000/0.417 = 0.0%",
+    "checkoutservice": "0.000/1.913 = 0.0%",
+    "frontend": "0.000/8.575 = 0.0%",
+    "quoteservice": "0.000/0.278 = 0.0%"
+   },
+   "cart_p95_ms": 1.9,
+   "frontend_p95_ms": 49.9,
+   "new_alerts": []
+  },
+  {
+   "t": "T+243s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice"
+   ],
+   "inspect": "running|false|2|209715200",
+   "stats": "197.8MiB / 200MiB|98.92%",
+   "heap_bytes": 72856.0,
+   "gc_collections": 1.0,
+   "errors": {
+    "shippingservice": "0.000/0.417 = 0.0%",
+    "checkoutservice": "0.000/2.017 = 0.0%",
+    "frontend": "0.000/9.627 = 0.0%",
+    "quoteservice": "0.000/0.296 = 0.0%"
+   },
+   "cart_p95_ms": 1.9,
+   "frontend_p95_ms": 15000.0,
+   "new_alerts": []
+  },
+  {
+   "t": "T+304s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice"
+   ],
+   "inspect": "running|false|3|209715200",
+   "stats": "173.1MiB / 200MiB|86.57%",
+   "heap_bytes": 72856.0,
+   "gc_collections": 1.0,
+   "errors": {
+    "shippingservice": "0.000/0.470 = 0.0%",
+    "checkoutservice": "0.000/2.191 = 0.0%",
+    "frontend": "0.035/9.409 = 0.4%",
+    "quoteservice": "0.000/0.313 = 0.0%"
+   },
+   "cart_p95_ms": 4.0,
+   "frontend_p95_ms": 15000.0,
+   "new_alerts": []
+  },
+  {
+   "t": "T+365s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice"
+   ],
+   "inspect": "running|false|3|209715200",
+   "stats": "181.7MiB / 200MiB|90.85%",
+   "heap_bytes": 72856.0,
+   "gc_collections": 1.0,
+   "errors": {
+    "shippingservice": "0.000/0.391 = 0.0%",
+    "checkoutservice": "0.000/1.687 = 0.0%",
+    "frontend": "0.035/8.504 = 0.4%",
+    "quoteservice": "0.000/0.261 = 0.0%"
+   },
+   "cart_p95_ms": 4.8,
+   "frontend_p95_ms": 305.0,
+   "new_alerts": []
+  },
+  {
+   "t": "T+426s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice"
+   ],
+   "inspect": "running|false|3|209715200",
+   "stats": "187.9MiB / 200MiB|93.95%",
+   "heap_bytes": 72856.0,
+   "gc_collections": 1.0,
+   "errors": {
+    "shippingservice": "0.000/0.313 = 0.0%",
+    "checkoutservice": "0.000/1.478 = 0.0%",
+    "frontend": "0.000/8.121 = 0.0%",
+    "quoteservice": "0.000/0.209 = 0.0%"
+   },
+   "cart_p95_ms": 2.0,
+   "frontend_p95_ms": 48.0,
+   "new_alerts": []
+  }
+ ],
+ "fired": false,
+ "revert_rc": 0,
+ "revert_out": "reverted cart-memory-squeeze\n  - docker update: cart-service memory limit restored to 400M",
+ "after": {
+  "inspect": "running|false|3|419430400",
+  "stats": "190.6MiB / 400MiB|47.66%",
+  "heap_bytes": 130304.0,
+  "gc_collections": 2.0,
+  "errors": {
+   "shippingservice": "0.000/0.365 = 0.0%",
+   "checkoutservice": "0.000/1.704 = 0.0%",
+   "frontend": "0.000/8.513 = 0.0%",
+   "quoteservice": "0.000/0.243 = 0.0%"
+  },
+  "cart_p95_ms": 1.9,
+  "frontend_p95_ms": 49.2
+ },
+ "alerts_after": [
+  "ServiceHighLatency/checkoutservice"
+ ],
+ "finished": "06:47:06Z"
+}

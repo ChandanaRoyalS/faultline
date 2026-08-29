@@ -82,6 +82,55 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"memory": "32m"},
         ),
         FaultDefinition(
+            id="cart-memory-squeeze",
+            fault_class=FaultClass.RESOURCE_EXHAUSTION,
+            target="cart-service",
+            description=(
+                "Shrink the cart service's memory limit below its working set. A .NET service "
+                "rather than the JVMs the other two squeezes target, which is the point: its GC "
+                "reads the cgroup limit and may respond by collecting harder instead of dying."
+            ),
+            # NO SCENARIO USES THIS. T7.20 probed it at two magnitudes and it failed the
+            # alerting gate at both, for different reasons - kept because the measurement is
+            # worth reproducing, not because a scenario is coming.
+            #
+            # At 200m the container is killed and restarted (RestartCount 0->1, then 1->2->3
+            # on the second attempt; .NET's gc_collections counter resets, which is how the
+            # restart is visible) and **nothing alerts**: zero errors on every service, cart
+            # p95 flat at 1.9ms, across two seven-minute attempts. The restart is faster than
+            # detection. Exactly the shape recorded for recommendation-memory-squeeze at 48m.
+            #
+            # At 32m it is OOM-killed before startup completes - 16 restarts in seven minutes,
+            # never reaching a serving state - and alerts far too much: eleven, including
+            # ServiceNoTraffic on seven services. Worse for the catalog, cartservice's runtime
+            # metrics **disappear while the fault is live** (heap and gc go null), so the
+            # evidence class the scenario passed T7.5's reachability gate on does not exist
+            # under its own fault. And it is then hard to tell from cart-bad-image-tag.
+            params={"memory": "200m"},
+        ),
+        FaultDefinition(
+            id="shipping-quote-misconfig",
+            fault_class=FaultClass.BAD_CONFIG,
+            target="shippingservice",
+            description=(
+                "Point the shipping service at a quote service that does not resolve. A third "
+                "bad_config shape: a broken service-to-service address rather than a wrong "
+                "backing store or a wrong flag."
+            ),
+            # The real value is http://quoteservice:8090.
+            #
+            # T7.20 probed the open alerting gate twice and it PASSES, reproducibly:
+            # ServiceHighErrorRate/checkoutservice fires at T+240s in both attempts, with
+            # checkout's error ratio holding 24-28%.
+            #
+            # The answer to the question the gate was open on: a failed GetQuote does **not**
+            # surface as an error at shippingservice - its own error rate stays 0.000 for the
+            # whole fault. It surfaces at its *caller*. So the alerting service is not the
+            # faulty one, and shipping looks clean by error rate; the only class that reaches
+            # it is its logs, which is the one class T7.4's census gives it.
+            params={"env_var": "QUOTE_SERVICE_ADDR", "value": "http://quoteservice-gone:8090"},
+        ),
+        FaultDefinition(
             id="storefront-load-surge",
             fault_class=FaultClass.BAD_CONFIG,
             target="loadgenerator",

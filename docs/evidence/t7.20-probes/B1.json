@@ -1,0 +1,125 @@
+{
+ "probe": "B",
+ "attempt": "1",
+ "fault": "cart-memory-squeeze",
+ "started": "06:29:14Z",
+ "gate": "RELAXED|1 alert(s) firing; p95 above 1000ms: checkoutservice at 3620ms (12 of 13 samples over, intermittent, median 3200ms, max 3900ms), frontend at 15000ms (",
+ "before": {
+  "inspect": "running|false|0|419430400",
+  "stats": "259.5MiB / 400MiB|64.88%",
+  "heap_bytes": 126184.0,
+  "gc_collections": 8.0
+ },
+ "alerts_before": [
+  "ServiceHighLatency/checkoutservice"
+ ],
+ "inject_rc": 0,
+ "timeline": [
+  {
+   "t": "T+60s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice"
+   ],
+   "inspect": "running|false|1|209715200",
+   "stats": "168.8MiB / 200MiB|84.41%",
+   "heap_bytes": 126184.0,
+   "gc_collections": 8.0,
+   "new_alerts": []
+  },
+  {
+   "t": "T+121s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice"
+   ],
+   "inspect": "running|false|1|209715200",
+   "stats": "181.1MiB / 200MiB|90.53%",
+   "heap_bytes": 72856.0,
+   "gc_collections": 1.0,
+   "new_alerts": []
+  },
+  {
+   "t": "T+182s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice",
+    "ServiceHighLatency/frontend"
+   ],
+   "inspect": "running|false|1|209715200",
+   "stats": "188.5MiB / 200MiB|94.23%",
+   "heap_bytes": 72856.0,
+   "gc_collections": 1.0,
+   "new_alerts": [
+    "ServiceHighLatency/frontend"
+   ]
+  },
+  {
+   "t": "T+243s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice",
+    "ServiceHighLatency/frontend"
+   ],
+   "inspect": "running|false|1|209715200",
+   "stats": "197.6MiB / 200MiB|98.78%",
+   "heap_bytes": 126184.0,
+   "gc_collections": 2.0,
+   "new_alerts": [
+    "ServiceHighLatency/frontend"
+   ]
+  },
+  {
+   "t": "T+304s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice",
+    "ServiceHighLatency/loadgenerator"
+   ],
+   "inspect": "running|false|1|209715200",
+   "stats": "198.7MiB / 200MiB|99.36%",
+   "heap_bytes": 126184.0,
+   "gc_collections": 2.0,
+   "new_alerts": [
+    "ServiceHighLatency/loadgenerator"
+   ]
+  },
+  {
+   "t": "T+365s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice",
+    "ServiceHighLatency/loadgenerator"
+   ],
+   "inspect": "running|false|1|209715200",
+   "stats": "199.2MiB / 200MiB|99.62%",
+   "heap_bytes": 126184.0,
+   "gc_collections": 2.0,
+   "new_alerts": [
+    "ServiceHighLatency/loadgenerator"
+   ]
+  },
+  {
+   "t": "T+426s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice"
+   ],
+   "inspect": "running|false|1|209715200",
+   "stats": "200MiB / 200MiB|99.98%",
+   "heap_bytes": 126184.0,
+   "gc_collections": 2.0,
+   "new_alerts": []
+  }
+ ],
+ "first_alert_seconds": 182,
+ "first_alerts": [
+  "ServiceHighLatency/frontend"
+ ],
+ "fired": true,
+ "revert_rc": 0,
+ "revert_out": "reverted cart-memory-squeeze\n  - docker update: cart-service memory limit restored to 400M",
+ "after": {
+  "inspect": "running|false|1|419430400",
+  "stats": "204.1MiB / 400MiB|51.02%",
+  "heap_bytes": 126184.0,
+  "gc_collections": 2.0
+ },
+ "alerts_after": [
+  "ServiceHighLatency/checkoutservice"
+ ],
+ "finished": "06:37:10Z"
+}

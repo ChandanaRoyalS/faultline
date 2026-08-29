@@ -1,0 +1,195 @@
+{
+ "probe": "C",
+ "attempt": "1",
+ "fault": "shipping-quote-misconfig",
+ "started": "06:49:06Z",
+ "gate": "RELAXED|1 alert(s) firing; p95 above 1000ms: checkoutservice at 3463ms (13 of 13 samples over, sustained, median 3400ms, max 7500ms), frontend at 2425ms (4 of",
+ "before": {
+  "shippingservice": "0.000/0.548 = 0.0%",
+  "checkoutservice": "0.000/2.417 = 0.0%",
+  "frontend": "0.000/8.548 = 0.0%",
+  "quoteservice": "0.000/0.365 = 0.0%"
+ },
+ "alerts_before": [
+  "ServiceHighLatency/checkoutservice"
+ ],
+ "inject_rc": 0,
+ "timeline": [
+  {
+   "t": "T+60s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice"
+   ],
+   "errors": {
+    "shippingservice": "0.000/0.357 = 0.0%",
+    "checkoutservice": "0.070/1.635 = 4.3%",
+    "frontend": "0.104/9.113 = 1.1%",
+    "quoteservice": "0.000/0.174 = 0.0%"
+   },
+   "new_alerts": []
+  },
+  {
+   "t": "T+120s",
+   "alerts": [],
+   "errors": {
+    "shippingservice": "0.000/0.191 = 0.0%",
+    "checkoutservice": "0.174/0.643 = 27.0%",
+    "frontend": "0.261/8.078 = 3.2%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "new_alerts": []
+  },
+  {
+   "t": "T+180s",
+   "alerts": [],
+   "errors": {
+    "shippingservice": "0.000/0.243 = 0.0%",
+    "checkoutservice": "0.261/1.026 = 25.4%",
+    "frontend": "0.391/8.426 = 4.6%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "new_alerts": []
+  },
+  {
+   "t": "T+240s",
+   "alerts": [
+    "ServiceHighErrorRate/checkoutservice"
+   ],
+   "errors": {
+    "shippingservice": "0.000/0.313 = 0.0%",
+    "checkoutservice": "0.278/1.113 = 25.0%",
+    "frontend": "0.470/9.052 = 5.2%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "new_alerts": [
+    "ServiceHighErrorRate/checkoutservice"
+   ]
+  },
+  {
+   "t": "T+300s",
+   "alerts": [
+    "ServiceHighErrorRate/checkoutservice"
+   ],
+   "errors": {
+    "shippingservice": "0.000/0.209 = 0.0%",
+    "checkoutservice": "0.209/0.835 = 25.0%",
+    "frontend": "0.313/8.208 = 3.8%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "new_alerts": [
+    "ServiceHighErrorRate/checkoutservice"
+   ]
+  },
+  {
+   "t": "T+360s",
+   "alerts": [
+    "ServiceHighErrorRate/checkoutservice"
+   ],
+   "errors": {
+    "shippingservice": "0.000/0.087 = 0.0%",
+    "checkoutservice": "0.087/0.313 = 27.8%",
+    "frontend": "0.157/7.391 = 2.1%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "new_alerts": [
+    "ServiceHighErrorRate/checkoutservice"
+   ]
+  },
+  {
+   "t": "T+420s",
+   "alerts": [
+    "ServiceHighErrorRate/checkoutservice",
+    "ServiceNoTraffic/accountingservice",
+    "ServiceNoTraffic/emailservice",
+    "ServiceNoTraffic/frauddetectionservice",
+    "ServiceNoTraffic/quoteservice"
+   ],
+   "errors": {
+    "shippingservice": "0.000/0.122 = 0.0%",
+    "checkoutservice": "0.122/0.400 = 30.4%",
+    "frontend": "0.183/7.296 = 2.5%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "new_alerts": [
+    "ServiceHighErrorRate/checkoutservice",
+    "ServiceNoTraffic/accountingservice",
+    "ServiceNoTraffic/emailservice",
+    "ServiceNoTraffic/frauddetectionservice",
+    "ServiceNoTraffic/quoteservice"
+   ]
+  },
+  {
+   "t": "T+480s",
+   "alerts": [
+    "ServiceHighErrorRate/checkoutservice",
+    "ServiceNoTraffic/accountingservice",
+    "ServiceNoTraffic/emailservice",
+    "ServiceNoTraffic/frauddetectionservice",
+    "ServiceNoTraffic/quoteservice"
+   ],
+   "errors": {
+    "shippingservice": "0.000/0.191 = 0.0%",
+    "checkoutservice": "0.191/0.765 = 25.0%",
+    "frontend": "0.287/8.687 = 3.3%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "new_alerts": [
+    "ServiceHighErrorRate/checkoutservice",
+    "ServiceNoTraffic/accountingservice",
+    "ServiceNoTraffic/emailservice",
+    "ServiceNoTraffic/frauddetectionservice",
+    "ServiceNoTraffic/quoteservice"
+   ]
+  },
+  {
+   "t": "T+540s",
+   "alerts": [
+    "ServiceHighErrorRate/checkoutservice",
+    "ServiceNoTraffic/accountingservice",
+    "ServiceNoTraffic/emailservice",
+    "ServiceNoTraffic/frauddetectionservice",
+    "ServiceNoTraffic/quoteservice"
+   ],
+   "errors": {
+    "shippingservice": "0.000/0.243 = 0.0%",
+    "checkoutservice": "0.226/0.939 = 24.1%",
+    "frontend": "0.365/8.956 = 4.1%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "new_alerts": [
+    "ServiceHighErrorRate/checkoutservice",
+    "ServiceNoTraffic/accountingservice",
+    "ServiceNoTraffic/emailservice",
+    "ServiceNoTraffic/frauddetectionservice",
+    "ServiceNoTraffic/quoteservice"
+   ]
+  }
+ ],
+ "first_alert_seconds": 240,
+ "first_alerts": [
+  "ServiceHighErrorRate/checkoutservice"
+ ],
+ "checkout_logs_under_fault": [
+  "{\"message\":\"[PlaceOrder] user_id=\\\"cfaf6fa4-a376-11f1-8c4e-9e12df7a2593\\\" user_currency=\\\"USD\\\"\",\"severity\":\"info\",\"timestamp\":\"2026-08-29T06:56:51.145274215Z\"}",
+  "{\"message\":\"[PlaceOrder] user_id=\\\"e3c62ba4-a376-11f1-8c4e-9e12df7a2593\\\" user_currency=\\\"USD\\\"\",\"severity\":\"info\",\"timestamp\":\"2026-08-29T06:57:24.878589341Z\"}",
+  "{\"message\":\"[PlaceOrder] user_id=\\\"e6280b38-a376-11f1-8c4e-9e12df7a2593\\\" user_currency=\\\"USD\\\"\",\"severity\":\"info\",\"timestamp\":\"2026-08-29T06:57:28.850132385Z\"}",
+  "{\"message\":\"[PlaceOrder] user_id=\\\"eb3b0256-a376-11f1-8c4e-9e12df7a2593\\\" user_currency=\\\"USD\\\"\",\"severity\":\"info\",\"timestamp\":\"2026-08-29T06:57:37.362321041Z\"}",
+  "{\"message\":\"[PlaceOrder] user_id=\\\"f5db8064-a376-11f1-8c4e-9e12df7a2593\\\" user_currency=\\\"USD\\\"\",\"severity\":\"info\",\"timestamp\":\"2026-08-29T06:57:55.226866717Z\"}",
+  "{\"message\":\"[PlaceOrder] user_id=\\\"f7abe032-a376-11f1-8c4e-9e12df7a2593\\\" user_currency=\\\"CAD\\\"\",\"severity\":\"info\",\"timestamp\":\"2026-08-29T06:57:58.22704726Z\"}",
+  "{\"message\":\"[PlaceOrder] user_id=\\\"f7f9487c-a376-11f1-8c4e-9e12df7a2593\\\" user_currency=\\\"USD\\\"\",\"severity\":\"info\",\"timestamp\":\"2026-08-29T06:57:58.780396677Z\"}",
+  "{\"message\":\"[PlaceOrder] user_id=\\\"fb410bdc-a376-11f1-8c4e-9e12df7a2593\\\" user_currency=\\\"USD\\\"\",\"severity\":\"info\",\"timestamp\":\"2026-08-29T06:58:04.240863721Z\"}"
+ ],
+ "fired": true,
+ "revert_rc": 0,
+ "revert_out": "e: shippingservice recreated from the base world definition\n  - removed override /Users/chandana/dev/faultline/.faultline/overrides/shipping-quote-misconfig.yml",
+ "after": {
+  "shippingservice": "0.000/0.357 = 0.0%",
+  "checkoutservice": "0.122/1.443 = 8.4%",
+  "frontend": "0.183/7.913 = 2.3%",
+  "quoteservice": "0.000/0.174 = 0.0%"
+ },
+ "alerts_after": [
+  "ServiceHighErrorRate/checkoutservice"
+ ],
+ "finished": "06:58:59Z"
+}
