@@ -125,3 +125,95 @@ refuse, and that it is not evidence the world is degraded. Naming is not exempti
   it against.
 - **Queued: bring the alert rules under a digest.** Their content is load-bearing for every
   bundle's `alerts_over_window` and no manifest field would show a change to them.
+
+## Addendum (T7.23): where the time goes — measured, and it is not a slow dependency
+
+This ADR closed with the mechanism open: *"why the checkout path has a multi-second slow mode …
+is a property of the world worth understanding."* T7.22 narrowed it to *nowhere traced*. T7.23
+found what it is, ruled out what it is not, and has a remedy.
+
+### What was ruled out, and how
+
+**Kafka — falsified, and it was the leading hypothesis.** Kafka was recreated at `01:41`, two
+minutes before the excursion's `activeAt` of `01:43`, and `PlaceOrder`'s last act is a synchronous
+produce: `sendToPostProcessor` pushes to `Input()` and then **blocks on `<-Successes()`**, a shared
+channel. Three independent measurements kill it:
+
+- the `orders send` span is **0.00s**;
+- timing checkout's own log lines across 30 orders, the `email → "Successful to write message"`
+  step — which brackets exactly that blocking receive — is **0.001s mean, 0.00s max**;
+- the producer's error-drain goroutine (`for err := range producer.Errors()`) had been idle
+  **747 minutes**, so no produce has ever failed.
+
+**A blocked goroutine inside the handler — falsified.** A `SIGQUIT` dump taken while the excursion
+was active shows **zero** goroutines in `PlaceOrder` or `sendToPostProcessor`. At ~0.14 orders/s
+against an 18s span, about 2.5 should have been in flight. 46 goroutines total, so no leak either.
+
+**A synchronous flush, deferred call or lock after the last child span — falsified.** The only code
+after `sendToPostProcessor` is `return resp, nil`, every logged step completes within 25ms, and the
+dump shows nothing parked there.
+
+**Work before the first child span — falsified.** `log.Infof("[PlaceOrder] …")` is the handler's
+first statement, and the first child span starts at +0.00s from the parent's start.
+
+### What is established
+
+**The handler finishes in ~20–25ms while its span reports 15–30 seconds**, and no goroutine is
+executing it during the stall. The two services that wait on checkout — `frontend` and
+`loadgenerator` — report the same number because they are waiting; that is why the affected set is
+exactly those three and why every other service sits at its 1.9–9.6ms baseline with zero errors.
+
+**It is accumulated in-process state.** The dumped process had been up **27 hours**
+(`goroutine 1 [IO wait, 1646 minutes]`). Restarting that one container returned all three services
+to their committed baselines **within a single scrape**, and they held there:
+
+| | during | after `docker restart checkout-service` |
+|---|---|---|
+| checkoutservice p95 | 1440–15000ms | **37.0–37.5ms** (committed baseline 38ms) |
+| frontend | 932–2090ms | **41.6–42.0ms** (baseline 42ms) |
+| loadgenerator | 1336ms | **47.6–48.3ms** |
+| errors, all services | 0.000/s | 0.000/s |
+
+### What is not established, stated as such
+
+**The mechanism inside the process.** What survives the eliminations is a span held open after the
+handler returns — consistent with the gRPC instrumentation ending the span on RPC completion rather
+than on handler return, with the response path stalled. That is a hypothesis, not a measurement,
+and it is not acted on here.
+
+**Whether the state is checkout's or the frontend↔checkout connection's.** A checkout restart
+clears both, so this experiment cannot separate them. **The test for next time: restart `frontend`
+instead.** If the excursion clears, the state is in the connection or the caller; if it does not,
+it is in checkout.
+
+### The decision: operational, not a code or config change
+
+**The remedy is `docker restart checkout-service`.** It is honest — the condition is accumulated
+runtime state, and a restart is what clears accumulated runtime state — and it is local, touching
+no compose file, no digest, and no stamp.
+
+**It will return.** This is not a fix; the process accumulates it again over roughly a day of
+uptime. That is the operational finding worth writing down rather than rediscovering: the excursion
+is not weather, it has a cause and a one-command remedy.
+
+The alternatives were considered and not taken. A periodic recycle of `checkoutservice` is a
+compose change: **digest-locked**, so it queues beside the `memory_limiter`, the kafka retention
+change and the `redis-cart` bound rather than landing. Fixing the demo's own code is out of scope —
+`world/` is a pinned upstream clone and ADR-0026 records that its source is not ours.
+
+### What it means for the recorder, the gate, and anyone recording
+
+**For the recorder: the refusal now names the remedy.** `ServiceHighLatency` on those three and
+nothing else, with no errors, is the signature, and the baseline refusal prints the container and
+the command — the same shape the memory-headroom guard already uses. Matching is exact: any
+error-rate alert, or a latency alert on a fourth service, prints nothing, because telling someone
+to restart a container during a real incident is worse than silence.
+
+**For the gate: nothing changes, and that is deliberate.** T7.14's reading stands — the alert
+reports a true condition and the gate is right to refuse on it. What changes is that refusing no
+longer means waiting an unknown number of hours.
+
+**For anyone recording: do not wait it out.** T7.14 measured 12.6% duty in 15–60 minute episodes;
+by T7.22 it ran ~95% duty across eight hours and cost this project a day. Restart the container,
+wait `MIN_CONTAINER_UPTIME_SECONDS`, and record. Check the world is otherwise quiet first — the
+remedy is for a slow world, never a broken one.

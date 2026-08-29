@@ -1573,6 +1573,52 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.23 — where the checkout time goes *(investigation; remedy found, mechanism partly open)*
+**Done** (ADR-0025's T7.23 addendum). T7.14 left the mechanism open, T7.22 narrowed it to *nowhere
+traced*, and this closes it far enough to act on.
+
+**Kafka is falsified, and it was the leading hypothesis.** Kafka was recreated at `01:41`, two
+minutes before the excursion's `activeAt` of `01:43`, and `PlaceOrder`'s last act **blocks on
+`<-Successes()`**, a shared channel - a genuinely suspicious shape. Three measurements kill it: the
+`orders send` span is 0.00s; timing checkout's own logs across 30 orders puts the step that
+brackets that blocking receive at **0.001s mean, 0.00s max**; and the producer's error-drain
+goroutine had been idle **747 minutes**, so no produce has ever failed.
+
+**A blocked goroutine in the handler is falsified too.** A `SIGQUIT` dump taken while the excursion
+was live shows **zero** goroutines in `PlaceOrder` or `sendToPostProcessor` - about 2.5 should have
+been in flight at 0.14 orders/s against an 18s span. 46 goroutines total, no leak. Also ruled out:
+a flush or lock after the last child span (only `return resp, nil` follows, and nothing is parked
+there), and work before the first (the first log **is** the handler's first statement).
+
+**Established: the handler finishes in ~20-25ms while its span reports 15-30s, with nothing
+executing it.** `frontend` and `loadgenerator` report the same number because they are waiting on
+it, which is exactly why the affected set is those three and everything else sits at baseline with
+zero errors.
+
+**It is accumulated in-process state, and a restart clears it.** The dumped process had been up
+**27 hours**. `docker restart checkout-service` returned all three services to their committed
+baselines **within one scrape** - checkout 1440-15000ms -> **37.0-37.5ms** against a committed 38ms,
+frontend -> 41.8ms, loadgen -> 47.8ms, zero errors - and held for the ten minutes watched.
+
+**Stated as not established:** the mechanism inside the process (what survives the eliminations is
+a span held open after the handler returns, which is a hypothesis and is not acted on), and whether
+the state is checkout's or the frontend<->checkout connection's - a checkout restart clears both.
+**The test for next time is to restart `frontend` instead.**
+
+**The remedy is operational and it will return.** No code or config change: a periodic recycle
+would be a compose edit and is **digest-locked**, queuing beside `memory_limiter`, kafka retention
+and the `redis-cart` bound; fixing the demo's own code is out of scope under ADR-0026. The process
+re-accumulates over roughly a day, so this is a remedy rather than a fix - which is the operational
+finding worth recording rather than rediscovering.
+
+**The recorder now names it at the refusal**, the same shape the memory-headroom guard uses:
+`ServiceHighLatency` on those three and nothing else, no errors, prints the container and the
+command. Matching is exact - an error-rate alert or a fourth slow service prints nothing, because
+advising a restart during a real incident is worse than silence. **The gate is unchanged and
+deliberately so:** the alert reports a true condition and refusing is right. What changes is that
+refusing no longer means waiting an unknown number of hours. T7.14 measured 12.6% duty; by T7.22 it
+ran ~95% across eight hours and cost this project a day.
+
 ### T7.20 — three more scenarios, gated before recording *(stage 1: design only; STOPPED for review)*
 PLAN.md's original T7.1 (catalog growth), begun. **Nothing recorded, no injection, no agent**
 (`docs/design/t7.20-three-scenarios.md`).
