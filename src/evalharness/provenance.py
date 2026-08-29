@@ -182,6 +182,40 @@ def observability_digest() -> str | None:
     return _digest_of(paths)
 
 
+def image_content_digest(container: str) -> str | None:
+    """The registry content digest of the image a container is actually running (T7.16).
+
+    **`otel_demo_image` records a tag, and a tag is mutable.** Every demo image is *pulled* -
+    `make world-up` passes `--no-build` - so what runs is whatever `ghcr.io/open-telemetry/demo:
+    v1.2.1-cartservice` resolved to on the day it was pulled. If upstream ever republished that
+    tag, every bundle would go on claiming the same world while running different code, and no
+    recorded field would move. The `sha256:` digest is the immutable half of that reference.
+
+    Deliberately unlike `ffs_stub_image_id`, which ADR-0014 records but refuses to compare: the
+    stub is **built here**, so a rebuild churns its id from unchanged source. These are pulled,
+    never built, so their digest is stable and *is* a content identifier. Same principle - prefer
+    content over build artifact - reaching the opposite conclusion because the situation is
+    opposite.
+
+    One image, matching `otel_demo_image`'s existing choice of a single reference container. The
+    limitation is real and worth stating: the demo publishes its sixteen service images from one
+    release, so this is a proxy for that release rather than proof of the other fifteen.
+    """
+    image = _run(["docker", "inspect", container, "--format", "{{.Config.Image}}"])
+    if not image:
+        return None
+    raw = _run(["docker", "image", "inspect", image, "--format", "{{json .RepoDigests}}"])
+    if not raw:
+        return None
+    try:
+        digests = json.loads(raw)
+    except json.JSONDecodeError:
+        return None
+    # Empty for an image that was never pulled from a registry, which is not an error here -
+    # it is the honest answer that this image has no content digest to record.
+    return str(digests[0]) if isinstance(digests, list) and digests else None
+
+
 def world_provenance(reference_container: str, stub_image: str) -> dict[str, Any]:
     """What world this was recorded against.
 
@@ -199,6 +233,10 @@ def world_provenance(reference_container: str, stub_image: str) -> dict[str, Any
         "otel_demo_image": _run(
             ["docker", "inspect", reference_container, "--format", "{{.Config.Image}}"]
         ),
+        # T7.16. The immutable half of the line above. Absent on bundles recorded before it,
+        # and absence means unknown rather than unchanged - the digest is not derivable from a
+        # capture, so it could not be backfilled honestly. ADR-0026.
+        "otel_demo_image_digest": image_content_digest(reference_container),
         # Informational only, and deliberately not compared between bundles: a rebuild
         # produces a new id from unchanged source, so disagreement here means nothing.
         "ffs_stub_image_id": _run(

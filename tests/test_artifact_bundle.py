@@ -7,6 +7,7 @@ but everything that is mechanically checkable is checked.
 
 from __future__ import annotations
 
+import inspect
 import json
 import re
 from datetime import UTC, datetime
@@ -1136,3 +1137,132 @@ def test_every_file_under_cover_exists_and_is_actually_mounted() -> None:
             f"{name} is under digest cover but no compose file mounts it - a digest over a "
             "file the world never reads records nothing"
         )
+
+
+# --- T7.16: the world is somebody else's repository -----------------------------------------
+
+
+def test_bundles_agree_about_the_image_they_ran() -> None:
+    """**The mutable half of `otel_demo_image`, guarded (T7.16).**
+
+    Every demo image is pulled rather than built (`--no-build`), so a bundle's
+    `otel_demo_image` names a tag that upstream can republish. Two bundles could then claim the
+    same world, byte-for-byte identical in every other provenance field, while having run
+    different code. The content digest is what makes that visible.
+
+    Bundle-against-bundle rather than against the live daemon, so this runs without Docker.
+    Bundles recorded before T7.16 carry no digest and are skipped: absence means unknown.
+    """
+    seen: dict[str, list[str]] = {}
+    for bundle in valid_bundles():
+        world = manifest_of(bundle).get("world", {})
+        digest = world.get("otel_demo_image_digest")
+        if digest:
+            seen.setdefault(digest, []).append(bundle.name)
+
+    assert len(seen) <= 1, image_digest_drift_message(seen)
+
+
+def image_digest_drift_message(seen: dict[str, list[str]]) -> str:
+    """Say what moved, and what it means for the bundles on either side of it."""
+    lines = [
+        "valid bundles ran different images while claiming the same world.",
+        "",
+        "The demo's images are pulled, never built here, so `otel_demo_image` records a tag "
+        "and a tag can be republished upstream. These bundles disagree about what that tag "
+        "actually resolved to:",
+        "",
+    ]
+    for digest, names in sorted(seen.items()):
+        lines.append(f"  {digest}")
+        lines.append(f"      {', '.join(sorted(names))}")
+    lines += [
+        "",
+        "What this means: their numbers are not comparable, and the fields that would normally "
+        "show a world change - compose_digest, ffs_stub_source_digest, observability_digest - "
+        "will all agree, because none of them describes the image contents.",
+        "",
+        "Resolve it as ADR-0014 resolves a world change: re-record, or mark the older bundles "
+        "invalid with the reason. Do NOT edit the recorded digest to match.",
+    ]
+    return "\n".join(lines)
+
+
+def test_the_guard_reproduces_the_shape_a_republished_tag_makes() -> None:
+    """A tag republished upstream: same tag string, different content, every other field equal.
+
+    The failure this field exists for, walked through - and the message has to say the thing a
+    reader would otherwise get wrong, which is that the other digests agreeing proves nothing.
+    """
+    before = "ghcr.io/open-telemetry/demo@sha256:" + "a" * 64
+    after = "ghcr.io/open-telemetry/demo@sha256:" + "b" * 64
+
+    message = image_digest_drift_message(
+        {before: ["cart-redis-misconfig"], after: ["ad-memory-squeeze"]}
+    )
+
+    assert before in message and after in message
+    assert "cart-redis-misconfig" in message and "ad-memory-squeeze" in message
+    assert "a tag can be republished upstream" in message
+    assert "will all agree, because none of them describes the image contents" in message
+    assert "Do NOT edit the recorded digest to match" in message
+
+
+def test_a_recorded_image_digest_is_a_content_digest_not_a_tag() -> None:
+    """The field is only worth anything if it is the immutable form."""
+    for bundle in valid_bundles():
+        digest = manifest_of(bundle).get("world", {}).get("otel_demo_image_digest")
+        if digest:
+            assert "@sha256:" in digest, (
+                f"{bundle.name}: otel_demo_image_digest is {digest!r}, which is a tag. The "
+                "field exists because tags are mutable; recording one defeats it."
+            )
+
+
+def test_the_clone_is_recorded_by_nothing_and_that_is_the_decision() -> None:
+    """**T7.16 decided to record nothing about the world clone.** This pins the decision.
+
+    The clone is not the source of what runs: images are pulled, and the only three clone files
+    that shape a bundle are already covered by content digests - `world/docker-compose.yml` by
+    `compose_digest`, and both collector configs by `observability_digest`. A commit SHA, a
+    dirty flag or an untracked-file digest would each catch nothing those digests miss, and the
+    last would churn on a Docker mount artifact that reappears on every `world-up`. See ADR-0026.
+
+    If a later task adds a clone field, this test fails and sends the reader to the argument
+    rather than letting it in by habit.
+    """
+    from evalharness.provenance import world_provenance
+
+    source = inspect.getsource(world_provenance)
+    for banned in ("world_git_sha", "world_dirty", "world_untracked", "clone_sha"):
+        assert banned not in source, (
+            f"{banned} was added to world provenance. T7.16 argued the clone should be "
+            "recorded by nothing - if that has changed, change ADR-0026 with it."
+        )
+
+
+def test_the_covered_clone_files_are_the_only_ones_that_can_reach_a_bundle() -> None:
+    """The premise the decision rests on, made checkable.
+
+    Three files inside the clone shape what a bundle records, and all three are already
+    digested. Everything else in the clone is build context for images that are never built.
+    """
+    from injector.settings import InjectorSettings
+
+    from_clone_in_compose = [
+        f for f in InjectorSettings().compose_files if not str(f).startswith("..")
+    ]
+    assert [str(f) for f in from_clone_in_compose] == ["docker-compose.yml"], (
+        "compose_digest's clone-resident inputs changed; ADR-0026's argument counts them"
+    )
+    from_clone_in_observability = [n for n, _ in OBSERVABILITY_FILES if n.startswith("world/")]
+    assert from_clone_in_observability == [
+        "world/src/otelcollector/otelcol-config.yml",
+        "world/src/otelcollector/otelcol-config-extras.yml",
+    ]
+
+    makefile = (REPO_ROOT / "Makefile").read_text()
+    assert "--no-build" in makefile, (
+        "the world is now built from the clone rather than pulled, which invalidates ADR-0026: "
+        "the clone's source would then be the source of what runs"
+    )

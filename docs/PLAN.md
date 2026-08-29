@@ -1573,6 +1573,55 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.16 — the world is somebody else's repository *(provenance; one field added, the clone gets none)*
+**Done** (ADR-0026). T7.15's last set-aside hole, and it turned out not to be the hole.
+
+**The facts.** The clone is exactly at `v1.2.1` (`9d9056d3…`) with **no tracked file modified**.
+The untracked file is `world/src/grafana/provisioning/datasources/loki.yml` and it is **empty, 0
+bytes** - a Docker mount point, not something anyone wrote. The demo's Grafana bind-mounts
+`src/grafana/provisioning/` as a directory and `telemetry.yml` mounts a single file at
+`datasources/loki.yml` inside it; Docker materialises that target and, the parent being a host
+bind mount, the empty file lands in the clone. Verified from the container's mount table: Grafana
+reads the real content from `compose/grafana-loki-datasource.yml`, which overlays it. **Nothing
+reads the empty file.** The other untracked file is `.cloned`, our own marker.
+
+**What `compose_digest` covers by residence:** one of its three inputs lives in the clone
+(`world/docker-compose.yml`), two in this repo. `observability_digest` adds four here and two more
+in the clone. So **three clone-resident files reach a bundle and all three are already content-
+digested.**
+
+**And the clone is not the source of what runs** - `make world-up` passes `--no-build`, so all
+sixteen demo images are pulled. The clone's service source and Dockerfiles are inert.
+
+**Decision 1: record nothing about the clone.** A commit SHA catches nothing a bundle can see - a
+commit touching any of the three digested files already moves a digest, and one touching anything
+else touched inert build context. A dirty flag is redundant where it matters and noise where it
+does not. An untracked-file count would be **actively harmful**: it would flip on a Docker artifact
+that reappears every `world-up`, which is the `ffs_stub_image_id` failure ADR-0014 already names.
+**This was untidy, not a provenance gap.**
+
+**Decision 2: the real gap is that `otel_demo_image` records a mutable tag.** What runs is a pulled
+image identified as `...demo:v1.2.1-cartservice`. If upstream republished that tag, every bundle
+would claim the same world while running different code and **nothing recorded would move** -
+`compose_digest`, `ffs_stub_source_digest` and `observability_digest` would all agree, because none
+describes image contents. Added `world.otel_demo_image_digest` (`...demo@sha256:97d55955…`),
+additive, absence meaning unknown. This does not contradict ADR-0014's refusal to compare
+`ffs_stub_image_id`: the stub is **built** here so its id churns; these are **pulled**, so the
+digest is stable and is a content identifier. Same principle, opposite situation.
+
+**Honest about the odds:** a released tag being republished is unlikely, and the field records one
+image as a proxy for a release published atomically, not proof of the other fifteen. Recorded
+because it is free, stable, and the last mutable link - not because it is expected.
+
+**Decision 3: the untracked file is documented, not removed or adopted.** Removal is a no-op the
+next `world-up` undoes; adoption is wrong for an empty file Docker made and nothing reads. The
+explanation sits in the Makefile beside the clone target, where someone checking the clone will be.
+
+**Pinned:** a test fails if a clone SHA or dirty flag is ever added, sending the reader to the
+argument rather than letting it in by habit; and a test pins the premise - `--no-build` must stay,
+and the clone-resident digest inputs must stay the three named. **If the world is ever built from
+the clone rather than pulled, ADR-0026 is invalid** and the SHA argument reverses.
+
 ### T7.15 — the rules were never under cover *(provenance; additive)*
 **Done.** T7.14's hole closed, and five more of the same kind found beside it.
 

@@ -44,6 +44,17 @@ demo:
 OTEL_DEMO_VERSION := v1.2.1
 OTEL_DEMO_REPO := https://github.com/open-telemetry/opentelemetry-demo.git
 
+# The clone carries exactly two untracked files and both are expected (T7.16, ADR-0026):
+#
+#   .cloned                                        this marker
+#   src/grafana/provisioning/datasources/loki.yml  EMPTY, created by Docker
+#
+# The second is a mount point, not a file anyone wrote. The demo's grafana bind-mounts
+# src/grafana/provisioning/ as a directory, and compose/telemetry.yml mounts a single file
+# at datasources/loki.yml inside it; Docker has to materialise that target, and because the
+# parent is a host bind mount the empty file lands here. The container reads the real
+# content from compose/grafana-loki-datasource.yml, which overlays it. Deleting it
+# accomplishes nothing - the next `make world-up` recreates it.
 world/.cloned:
 	git clone --depth 1 --branch $(OTEL_DEMO_VERSION) $(OTEL_DEMO_REPO) world
 	touch world/.cloned
