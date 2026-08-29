@@ -1573,6 +1573,76 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.14 — the rule that fires at rest *(diagnosis + gate-side fix)*
+**Done, and it corrects T7.13's diagnosis rather than building on it** (ADR-0025).
+
+**T7.13 said degenerate histogram; it is a real tail.** `checkoutservice` at rest carries ~136
+observations, not too few: 93% of checkouts finish inside 50ms and the rest are genuinely slow,
+~1.5% over fifteen seconds. That tail sits within a percentage point of 5%, which is where p95
+reads - so p95 lands at ~38ms or in the thousands depending on which side of 5% it fell, and the
+jump is three orders of magnitude because the buckets up there run 1000→5000→10000→15000→∞.
+**A min-sample guard would not have suppressed one of these firings.**
+
+**Which services, how often.** Twelve hours at 15s: `checkoutservice` median **37.8ms** with 11.0%
+of samples over the gate's ceiling, `frontend` 42.3ms / 3.9%, `loadgenerator` 48.0ms / 4.8%. The
+other eleven services: **zero** samples over 250ms. All three are the checkout path, and their
+medians are their committed baseline (`20260824T033742Z`: checkout 38ms, frontend 42ms). The
+excursions are episodes - **two in twelve hours, 3630s and 900s, 12.6% of wall clock** - and the
+first begins at `01:43:03Z`, the `activeAt` of the alert T7.13 saw.
+
+**Yes, a past refusal traces to this.** Both 2026-08-27 gate refusals recorded
+`p95_over_ceiling_ms: {checkoutservice: 15000.0}` beside their genuine causes (a silent
+`accountingservice`, a stranded incident). Those causes were repaired; this one was never
+diagnosed and hid inside "world not quiet". It goes back further: `evalharness.gate`'s own
+docstring cites T3.4 finding the world *"already degraded (checkoutservice and frontend pinned at
+15000ms p95)"* as founding evidence. The `accountingservice` half of that reading was real; the
+p95 half was this, and the docstring now says so.
+
+**Fixed gate-side, and the rule is deliberately untouched.** The rule reports a true condition, and
+changing it would falsify two recorded bundles - `cart-dependency-latency` and
+`productcatalog-dependency-latency` carry `ServiceHighLatency/checkoutservice` as genuine fault
+evidence (all 9 latency entries in the catalog come from those two). The gate is not softened
+either: it still refuses, because injecting during an excursion would put a pre-existing alert into
+the fault's blast radius. Roughly one attempt in eight is refused and retried.
+
+**A robust statistic was tried and rejected on measurement**: median-over-window moves the refusal
+rate 11.3% → 11.1%, because the excursions are sustained and there is nothing to smooth.
+
+**What changed is that the gate records the window it already fetched.** `_latest_by_service`
+pulled 180s of p95 and threw away eleven of twelve samples; four refusals were recorded as one
+scalar each, so none of them can say spike or episode - diagnosing them meant a live probe, and by
+then the windows were gone. `p95_excursions` now records samples-over, samples, sustained, median
+and max per service, and a refusal on one of the three measured services says it is the
+characterised excursion rather than degradation. **Naming is not exemption.**
+
+**`alert-rules.yml` is not digest-locked**, and that is the problem rather than the reassurance:
+`compose_digest` covers three compose files only, so an alert-rule change would silently alter
+every future bundle's `alerts_over_window` with no manifest field to show it - the exact failure
+ADR-0014 was written to prevent, on a file outside its cover. Queued, not fixed here.
+
+**Open: why the checkout path has a multi-second slow mode.** It is not in the 2026-08-24 baseline
+and the world changed at T7.1, but the pre-change series is gone, so that is a correlation and
+stays labelled one.
+
+### T7.x — redis-cart's capacity ceiling *(open decision; recorded, not acted on)*
+**Recorded at T7.14, deliberately not acted on.** `redis-cart` runs `redis:alpine` with
+`maxmemory: 0` and `maxmemory_policy: noeviction` against a **20MiB** container ceiling and
+`restart: always`. Nothing evicts, so usage is monotonic in *cumulative* traffic rather than
+current load: measured stepping 46% → 59% across T7.13's 20-minute probe and not returning when
+load fell. At rest it grows ~39 B/s.
+
+It is the one resource in the world a sustained surge does drive to a page - extrapolating, **~90
+minutes**, an order of magnitude past the catalog's 166-390s onset range. That makes it the only
+known route to a real `scale`-class scenario, the class ADR-0024 records as otherwise unreachable
+here.
+
+**The decision is open.** ADR-0024 §5 lays out the three options - a saturation alert rule, a long
+scenario, or accepting the class stays empty as ADR-0013 left CPU throttling. **What would settle
+it:** one measurement, whether sustained 50x load actually OOM-kills `redis-cart` and what the page
+looks like when it does. That is a ~2h unattended run and nobody has taken it. Until then the 90
+minutes is an extrapolation from a 20-minute slope, not an observation, and should be quoted that
+way.
+
 ### T7.13 — the scale class gets a scenario *(design + measurement; nothing recorded)*
 **Authored and blocked, on measurement.** Set out to record the catalog's first `scale` scenario.
 The design stands, the recording does not exist, and the reason is measured (ADR-0024).

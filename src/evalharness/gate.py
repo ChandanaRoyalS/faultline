@@ -11,6 +11,15 @@ at 15000ms p95, accountingservice at 0.000 req/s) and the check that caught it w
 deciding to look; T3.4b, T3.4c and T3.5 all repeated it by hand. Three consecutive tasks doing
 the same manual check is a specification.
 
+**Half of that founding reading was misread, and T7.14 corrected it.** `accountingservice` at
+0.000 req/s was a real fault. `checkoutservice and frontend pinned at 15000ms` was not
+degradation: those two services, and `loadgenerator` behind them, carry a low-rate population of
+genuinely slow requests that sits within a percentage point of the 95th percentile at the world's
+resting throughput, so p95 lands either at its 38ms baseline or in the thousands depending on
+which side of 5% the tail fell. Measured at rest over 12 hours: two excursions, 60 and 15 minutes
+long, 12.6% of wall clock, on a world whose median p95 was 37.8ms - its committed baseline. The
+gate still refuses on them, and should. It no longer calls them degradation. See ADR-0025.
+
 Two facts have to be encoded or the gate fails on a healthy world, and both are measured:
 
 1. **`frontend-proxy` sits at 0.000 req/s when everything is fine.** The committed clean
@@ -40,6 +49,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
+from statistics import median
 from typing import Any
 
 from evalharness import baseline as baseline_mod
@@ -85,6 +95,7 @@ class GateReading:
 
     firing_alerts: list[str] = field(default_factory=list)
     p95_over_ceiling: dict[str, float] = field(default_factory=dict)
+    p95_excursions: dict[str, Excursion] = field(default_factory=dict)
     silent_services: list[str] = field(default_factory=list)
     unexpected_silent: list[str] = field(default_factory=list)
     services_reporting: int = 0
@@ -103,6 +114,7 @@ class GateReading:
             "passed": self.passed,
             "firing_alerts": self.firing_alerts,
             "p95_over_ceiling_ms": self.p95_over_ceiling,
+            "p95_excursions": {s: e.as_dict() for s, e in self.p95_excursions.items()},
             "silent_services": self.silent_services,
             "unexpected_silent": self.unexpected_silent,
             "services_reporting": self.services_reporting,
@@ -116,16 +128,72 @@ class GateReading:
         }
 
 
-def _latest_by_service(query: str, window_seconds: int = 180) -> dict[str, float]:
-    """The last sample per service over a short window. One shape, two callers."""
+def _window_by_service(query: str, window_seconds: int = 180) -> dict[str, list[float]]:
+    """Every sample per service over a short window."""
     from datetime import timedelta
 
     from evalharness.prom import series_points
 
     end = now()
     payload = query_range(query, end - timedelta(seconds=window_seconds), end, 15, base=PROMETHEUS)
+    return {
+        service: [v for _, v in points]
+        for service, points in series_points(payload).items()
+        if points
+    }
 
-    return {service: points[-1][1] for service, points in series_points(payload).items() if points}
+
+def _latest_by_service(query: str, window_seconds: int = 180) -> dict[str, float]:
+    """The last sample per service over a short window. One shape, two callers."""
+    return {s: v[-1] for s, v in _window_by_service(query, window_seconds).items()}
+
+
+@dataclass(frozen=True)
+class Excursion:
+    """What a p95 window looked like, not just where it ended (T7.14).
+
+    **The gate refused four times before this existed and recorded one scalar each time.** None
+    of those manifests can say whether the world was spiking or had been slow for an hour, so
+    diagnosing them meant going to the live world - and by then the window was gone. Twice a
+    reader took the scalar for evidence that the world was degraded: T3.4's smoke, which this
+    module's docstring still cites as founding evidence, and T7.13, which called it a
+    sample-starved histogram. It is neither. See `docs/adr/0025`.
+    """
+
+    samples_over: int
+    samples: int
+    median_ms: float
+    max_ms: float
+
+    @property
+    def sustained(self) -> bool:
+        """Over the ceiling for the whole window - an episode, not a spike."""
+        return self.samples_over == self.samples
+
+    def describe(self) -> str:
+        shape = "sustained" if self.sustained else "intermittent"
+        return (
+            f"{self.samples_over} of {self.samples} samples over, {shape}, "
+            f"median {self.median_ms:.0f}ms, max {self.max_ms:.0f}ms"
+        )
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "samples_over": self.samples_over,
+            "samples": self.samples,
+            "sustained": self.sustained,
+            "median_ms": self.median_ms,
+            "max_ms": self.max_ms,
+        }
+
+
+KNOWN_TAIL_SERVICES = frozenset({"checkoutservice", "frontend", "loadgenerator"})
+"""Services measured to enter multi-minute p95 excursions on a world at rest (T7.14).
+
+Named so a refusal can say "this is the characterised one" instead of leaving the next reader to
+rediscover it. **They are not exempted from anything** - the gate still refuses, because injecting
+during an excursion would put a pre-existing alert into the scenario's blast radius. Naming is not
+forgiveness; see ADR-0025 for why de-sensitising the rule would falsify two recorded bundles."""
 
 
 def read(
@@ -147,11 +215,33 @@ def read(
     if reading.firing_alerts:
         reading.refusals.append(f"{len(reading.firing_alerts)} alert(s) firing")
 
-    p95 = _latest_by_service(METRIC_QUERIES["latency-p95"])
-    reading.p95_over_ceiling = {s: v for s, v in p95.items() if v > P95_CEILING_MS}
+    windows = _window_by_service(METRIC_QUERIES["latency-p95"])
+    reading.p95_over_ceiling = {
+        s: v[-1] for s, v in windows.items() if v and v[-1] > P95_CEILING_MS
+    }
+    reading.p95_excursions = {
+        s: Excursion(
+            samples_over=sum(1 for x in v if x > P95_CEILING_MS),
+            samples=len(v),
+            median_ms=median(v),
+            max_ms=max(v),
+        )
+        for s in reading.p95_over_ceiling
+        for v in [windows[s]]
+    }
     if reading.p95_over_ceiling:
-        worst = ", ".join(f"{s} at {v:.0f}ms" for s, v in sorted(reading.p95_over_ceiling.items()))
+        worst = ", ".join(
+            f"{s} at {v:.0f}ms ({reading.p95_excursions[s].describe()})"
+            for s, v in sorted(reading.p95_over_ceiling.items())
+        )
         reading.refusals.append(f"p95 above {P95_CEILING_MS:.0f}ms: {worst}")
+        known = sorted(set(reading.p95_over_ceiling) & KNOWN_TAIL_SERVICES)
+        if known:
+            reading.refusals.append(
+                f"note: {', '.join(known)} - the characterised at-rest excursion (ADR-0025), "
+                "not evidence the world is degraded. Real, and a real reason to refuse: it "
+                "would land in the injected fault's blast radius. Wait it out and retry."
+            )
 
     rates = _latest_by_service(METRIC_QUERIES["call-rate"])
     reading.services_reporting = len(rates)
