@@ -17,7 +17,13 @@ from typing import Any
 import yaml
 
 from evalharness.prom import PROMETHEUS, RUNTIME_CAPTURE, alert_intervals, get_json
-from evalharness.provenance import BUNDLE_SCHEMA_VERSION, scenario_fingerprint
+from evalharness.provenance import (
+    BUNDLE_SCHEMA_VERSION,
+    OBSERVABILITY_FILES,
+    observability_digest,
+    observability_digests,
+    scenario_fingerprint,
+)
 from evalharness.rehearse import SUPERSEDED, duration, superseded_name
 from evalharness.scenario import Scenario, Split
 from injector.world import SERVICE_CONTAINERS
@@ -1013,3 +1019,120 @@ def test_the_capability_inputs_are_read_from_the_code_not_written_down() -> None
     from evalharness.capability import tool_surface
 
     assert tool_surface() == ["change_history", "logql_query", "promql_query", "trace_query"]
+
+
+# --- T7.15: the observability config is under cover -----------------------------------------
+
+
+def test_bundles_that_record_an_observability_digest_agree_with_the_repository() -> None:
+    """**The guard T7.14's hole needed, and the one that fires where a person will see it.**
+
+    Editing a threshold in `alert-rules.yml` changes what every future bundle records - which
+    alerts fire, how fast, how wide the blast radius is - and until T7.15 no manifest field
+    moved when it happened. `compose_digest` covers the compose files, which *name* these as
+    mounts and say nothing about what is inside them.
+
+    The check is against the repository as it stands now, not bundle-against-bundle, because
+    the drift to catch happens at the moment somebody edits a rule, not months later when the
+    next bundle is finally recorded.
+
+    **Bundles recorded before T7.15 have no such field and are skipped.** That is not a
+    loophole: the digest is not derivable from a capture, so it could not be backfilled
+    honestly, and absence means unknown rather than agreed.
+    """
+    current = observability_digest()
+    assert current, "the observability files are missing - is world/ cloned?"
+
+    recorded: dict[str, list[str]] = {}
+    for bundle in valid_bundles():
+        world = manifest_of(bundle).get("world", {})
+        digest = world.get("observability_digest")
+        if digest:
+            recorded.setdefault(digest, []).append(bundle.name)
+
+    stale = {d: names for d, names in recorded.items() if d != current}
+    assert not stale, observability_drift_message(stale)
+
+
+def observability_drift_message(stale: dict[str, list[str]]) -> str:
+    """Say what changed and what it means for bundles recorded before it."""
+    per_file = observability_digests()
+    lines = [
+        "the observability config changed since these bundles were recorded, so what they "
+        "record is no longer what this repository would record.",
+        "",
+        "Files under cover, and their digests now:",
+    ]
+    for name, why in OBSERVABILITY_FILES:
+        digest = per_file.get(name)
+        lines.append(f"  {(digest or 'MISSING')[:12]}  {name}")
+        lines.append(f"                {why}")
+    lines += [
+        "",
+        f"current combined digest: {observability_digest()}",
+        "recorded by these bundles:",
+    ]
+    for digest, names in sorted(stale.items()):
+        lines.append(f"  {digest[:12]}  {', '.join(sorted(names))}")
+    lines += [
+        "",
+        "What this means for them: their alert timings, blast radius and log evidence were "
+        "measured against a different observability pipeline than the one in the tree now. "
+        "They are not wrong about what happened; they are no longer comparable with anything "
+        "recorded after the change.",
+        "",
+        "Resolve it the way ADR-0014 resolves a world change - re-record, or mark the bundles "
+        "invalid with the reason. Do NOT edit the recorded digest to match: it is a claim "
+        "about the pipeline that produced the capture, and rewriting it makes the bundle lie.",
+    ]
+    return "\n".join(lines)
+
+
+def test_the_guard_reproduces_the_shape_a_rule_edit_makes() -> None:
+    """A rule is edited, the digest moves, and the mismatch surfaces naming the file.
+
+    The whole failure T7.14 described, walked end to end against the real files rather than a
+    fixture - so the test fails if the digest ever stops covering `alert-rules.yml`.
+    """
+    rules = REPO_ROOT / "compose" / "prometheus" / "alert-rules.yml"
+    before, before_files = observability_digest(), observability_digests()
+    original = rules.read_bytes()
+    try:
+        # The edit T7.14 argued against: move ServiceHighLatency's threshold.
+        rules.write_bytes(original.replace(b") > 250", b") > 500"))
+        after, after_files = observability_digest(), observability_digests()
+
+        assert after != before, "editing a threshold must move the digest"
+        moved = [n for n in after_files if after_files[n] != before_files[n]]
+        assert moved == ["compose/prometheus/alert-rules.yml"], (
+            "only the edited file's digest may move, so a mismatch names what changed"
+        )
+
+        # And the message a person actually reads names the file and says what it means.
+        message = observability_drift_message({before: ["some-recorded-bundle"]})
+        assert "compose/prometheus/alert-rules.yml" in message
+        assert "no longer comparable" in message
+        assert "makes the bundle lie" in message
+    finally:
+        rules.write_bytes(original)
+
+    assert observability_digest() == before, "the test must leave the rules file untouched"
+
+
+def test_every_file_under_cover_exists_and_is_actually_mounted() -> None:
+    """A digest over a path that no longer exists silently degrades to None and covers nothing.
+
+    Also pins the mount: each file is named in a compose file that mounts it into the running
+    world, so the set cannot drift into covering something the world never reads - which is
+    exactly what `world/src/prometheus/prometheus-config.yaml` turned out to be.
+    """
+    mounts = "\n".join(
+        (REPO_ROOT / f).read_text() for f in ("compose/telemetry.yml", "world/docker-compose.yml")
+    )
+    for name, why in OBSERVABILITY_FILES:
+        assert (REPO_ROOT / name).is_file(), f"{name} is under digest cover but does not exist"
+        assert why.strip(), f"{name} must say what it decides"
+        assert Path(name).name in mounts, (
+            f"{name} is under digest cover but no compose file mounts it - a digest over a "
+            "file the world never reads records nothing"
+        )
