@@ -437,6 +437,7 @@ NARRATIVE_EVIDENCE: dict[str, set[str]] = {
     "cart-redis-misconfig": {"metrics", "traces", "logs", "changes"},
     "frauddetection-memory-squeeze": {"metrics", "logs", "changes"},
     "product-catalog-flag-failure": {"metrics", "changes", "dependencies"},
+    "shipping-quote-misconfig": {"metrics", "logs", "changes"},
     "shipping-wrong-image": {"metrics", "logs", "changes"},
     "email-wrong-image": {"metrics", "logs", "changes"},
     "productcatalog-dependency-latency": {"metrics", "changes", "container_state"},
@@ -492,10 +493,15 @@ def test_every_evidence_kind_the_narratives_cite_has_a_tool() -> None:
 def test_change_history_is_needed_by_every_single_investigation() -> None:
     """The finding that reordered ADR-0019: change history is the first tool, not the third.
 
-    Consulted in **10 of 10** - more often than metrics or logs - and in four the
+    Consulted in **11 of 11** - more often than metrics or logs - and in four the
     load-bearing answer is that something did not change.
+
+    `shipping-quote-misconfig` (T7.22) is the sharpest case yet and is why the count moved:
+    it is the *only* class that identifies its faulty service at all. Metrics name the wrong
+    service and its logs, which do reach it, carry no error and no mention of what it could
+    not reach.
     """
-    assert len(NARRATIVE_EVIDENCE) == 10
+    assert len(NARRATIVE_EVIDENCE) == 11
     assert all("changes" in kinds for kinds in NARRATIVE_EVIDENCE.values())
     assert len(NEGATIVE_CHANGE_ANSWER) == 4
     assert set(NARRATIVE_EVIDENCE) >= NEGATIVE_CHANGE_ANSWER

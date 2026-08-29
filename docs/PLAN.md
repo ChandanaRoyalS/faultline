@@ -1769,8 +1769,44 @@ do and `adservice` does not.
 target* - twice, firing at T+240s both times - which is exactly the distinction the rule above
 draws. Blocked only by the excursion, with a retry loop running.
 
-**Not done:** C's bundle, both narratives, rendered pages, corpus seeding, quarantine verification
-and the per-class table updates.
+**C RECORDED. Onset 169s**, `ServiceHighErrorRate/checkoutservice` at fire - matching both probes
+(240s at 60s polling granularity). `capture_set` 2, current digests including
+`observability_digest` and `otel_demo_image_digest`, one driver, dev split. Checkout ran **23-29%
+errors** for the fault; `alerts_over_window` is checkout 6.5m and loadgenerator 0.2m. The probes'
+`ServiceNoTraffic` alerts at T+420s fell outside the 469s fault window and are not in the bundle.
+
+**The recording corrected the scenario's own design, which is the point of recording it.** C was
+authored claiming shipping's logs were "the load-bearing evidence... the address it is failing to
+reach". **They are not.** The capture holds 126 shipping log lines and every one is an incoming
+`GetQuoteRequest` at the ordinary rate - no error line, no retry, no mention of the unreachable
+host. So the logs are **exculpatory, not diagnostic**: they establish shipping is alive and being
+asked for quotes, and rule out the first thing anyone checks. `change_history` is the only class
+that identifies the faulty service at all, which makes this the sharpest case in the catalog for
+ADR-0019's "change history is the first tool" finding. Scenario file and narrative both corrected
+to what was measured.
+
+**A recorder bug found by recording, and it had never fired before.** The manifest recorded
+`reachability: {target_log_lines: 0, none_can_answer: true}` on a bundle holding 126 log lines.
+`write_bundle` derives that field from the bundle directory and was called **before** the metrics
+and logs were written, so it read an empty one. It went unnoticed because **no bundle had been
+recorded since T7.5 added the field** - every existing value was derived over an already-finished
+bundle. **A false `none_can_answer` is the worst direction for this field to be wrong in**: T7.5
+added it so a scorer could tell an abstention nothing could have answered from one caused by
+reasoning. Write order fixed, C's manifest re-derived, and pinned by a test that re-derives every
+bundle's reachability and compares.
+
+**Rendered, seeded, quarantine verified.** 13 bundle pages rendered; corpus seeds **8 documents,
+40 chunks** from `artifacts/dev/` alone, with `currency-cpu-throttle` and `flag-service-crashloop`
+skipped as INVALID. **`holdout_chunks` 0** - no holdout origin appears.
+
+**Per-class n: `bad_config` gains a third dev scenario and the tables do not move.** It is
+**recorded but not yet run by any agent**, so it contributes no accuracy to any cell; the n in
+those tables counts scored runs, not catalog entries. Annotated in place. Running the agent on it
+is a separate pre-registered task and was not done here.
+
+**Occupancy:** `bad_config-3` filled; **`dependency_latency-3` is free again**, since A took it and
+then failed. `dependency_latency` still stands at one recorded dev scenario - the thing the
+extension was meant to fix, still unfixed.
 
 ### T7.21 — slots before scenarios *(allocation decision; no scenario assigned)*
 **Done.** SPLIT.md extended to n=20 with n=30 decided, by principle and **before any candidate was

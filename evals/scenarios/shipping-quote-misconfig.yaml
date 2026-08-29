@@ -24,12 +24,18 @@ ground_truth:
     and the page, while shipping looks healthy by every metric the alert rules read.
   category: bad_config
 expected_evidence:
+  - class: change_history
+    detail: >
+      A configuration change on shippingservice, in the window - and this is the ONLY evidence
+      that identifies the faulty service. Measured at recording: shipping's error ratio never
+      leaves zero, and its logs contain no error line and no mention of the address it cannot
+      reach. Corrected from the authored version, which claimed its logs would show the address:
+      they do not. See the recorded bundle.
   - class: logs
     detail: >
-      shippingservice's own logs are the load-bearing evidence and the only class that reaches
-      the faulty service at all. Measured: its error rate stays at 0.000 for the entire fault,
-      so metrics cannot find it and the investigation has to read its logs to see the address
-      it is failing to reach.
+      shippingservice logging incoming GetQuoteRequest at its ordinary rate throughout - which
+      establishes that it is alive and being asked for quotes, and rules out the first thing
+      anyone checks. It is real evidence and it is exculpatory, not diagnostic.
   - class: metrics
     detail: >
       checkoutservice error ratio rising to 22-28% and holding, with shippingservice's own at
@@ -38,11 +44,11 @@ expected_evidence:
     detail: >
       quoteservice's request rate falling to zero, because the only service that calls it has
       stopped being able to.
-  - class: change_history
+  - class: metrics
     detail: >
-      A configuration change on shippingservice, in the window. This is the discriminator: the
-      question must be asked of the service that is NOT alerting, which is what makes this
-      scenario different from one where the two coincide.
+      change_history asked of checkoutservice - the service that alerted - returns nothing. The
+      question has to move to the services around the failure, which is what makes this scenario
+      different from one where the alerting and faulty services coincide.
 expected_remediation_class: config_revert
 # RECORDED ON THE MECHANISM, NOT ON A REMEDIATION MEASUREMENT.
 #
@@ -56,15 +62,16 @@ expected_remediation_class: config_revert
 # `restart` is a plausible rival - restarting shipping under the bad address changes nothing,
 # so it should NOT work, and that is testable. Until it is tested, `also_correct_remediation`
 # stays empty because an entry there means measured, not plausible.
-rehearsed: false
+rehearsed: true
 alert_timeout_seconds: 900
 # Probed twice at T7.20: ServiceHighErrorRate/checkoutservice fired at T+240s both times.
 # 900s is T7.12's budget and leaves ample margin.
 answers_idle_or_absent:
   - logs
-# Declared before recording and verified UNDER THE FAULT per the gate T7.21 added.
-# shippingservice exports 0 runtime series at rest and 0 under the fault - it is a Go service
-# with no runtime instrumentation in this world - so logs are the only class that can answer
-# whether it was idle or absent, and they survive the fault because the service keeps running
-# and keeps logging. It is running, it is not idle, and it is failing outward: exactly the
-# question this field exists for, answerable by exactly one class.
+# Declared before recording and CONFIRMED against the recorded bundle: 0 runtime series and
+# 126 log lines under the fault, so `logs` is the one class that answers it and it survives the
+# fault, because the service keeps running and keeps logging incoming requests.
+#
+# What the recording corrected is what those logs are *for*. They answer idle-or-absent - the
+# service is neither - and they contain no error and no mention of the unreachable address, so
+# they are exculpatory rather than diagnostic. `change_history` is what identifies the fault.
