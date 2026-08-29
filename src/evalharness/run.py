@@ -843,7 +843,7 @@ def main(argv: list[str] | None = None) -> int:
         run.manifest["baseline_gate"] = gate.read(
             open_incidents(dsn), settling_incidents(dsn)
         ).as_dict()
-        run.discard("baseline gate refused", str(refused))
+        run.discard(getattr(refused, "discard_reason", "baseline gate refused"), str(refused))
         print(f"REFUSED: {refused}")
         return 3
     except (RunError, subprocess.TimeoutExpired) as failure:

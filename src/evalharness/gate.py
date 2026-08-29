@@ -47,6 +47,8 @@ gate with it and no edit here is needed.
 
 from __future__ import annotations
 
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field
 from datetime import datetime, timedelta
 from statistics import median
@@ -81,8 +83,109 @@ def settle_window() -> timedelta:
     return timedelta(seconds=OrchestratorSettings().settle_window_seconds)
 
 
+INGEST_HEALTH_PATH = "/healthz"
+PIPELINE_IDLE_MULTIPLE = 6
+"""How many `block_ms` a live consumer may sit idle before it counts as gone.
+
+`idle` is time since the consumer last *interacted* with Redis, and a blocking `XREADGROUP`
+refreshes it every `block_ms`, so a healthy consumer's idle is bounded by roughly that interval
+plus whatever it spends processing. Six is generous enough not to fire on a slow ack and tight
+enough to notice a dead consumer inside half a minute.
+
+Read as a multiple of the orchestrator's own `block_ms` rather than as a fixed number of seconds,
+for T4.13's reason: a deployment that changes the block interval moves this with it, and no edit
+here is needed."""
+
+
+def ingest_base_url() -> str:
+    """Where the harness reaches ingest, from its own side of the network.
+
+    `IngestSettings.host` is what the server binds - typically `0.0.0.0`, which is an address to
+    listen on and not one to connect to. Alertmanager reaches the same app at
+    `host.docker.internal` because it is inside a container; the harness is on the host, so it
+    uses loopback and the configured port.
+    """
+    from faultline.ingest.settings import IngestSettings
+
+    return f"http://localhost:{IngestSettings().port}"
+
+
+def ingest_accepting(url: str) -> bool | None:
+    """Does the ingest app answer on its health route?
+
+    **Proves:** a process is bound to the port, the ASGI app booted, and routing works.
+    **Does not prove** that `POST /api/v1/alerts` succeeds - that is a different route which
+    validates a payload and writes to Redis, and it can fail while `/healthz` still answers.
+    A stronger check would have to post a real alert, which would put a fabricated episode into
+    the store the run is about to measure, so it is deliberately not done.
+
+    `None` means the question could not be asked at all, which the caller treats as down: the
+    reason this check exists is that nothing was listening.
+    """
+    try:
+        with urllib.request.urlopen(f"{url.rstrip('/')}{INGEST_HEALTH_PATH}", timeout=5) as r:
+            return bool(200 <= r.status < 300)
+    except (urllib.error.URLError, OSError, ValueError):
+        return None
+
+
+def consumer_idle_ms() -> int | None:
+    """Milliseconds since the orchestrator's consumer last spoke to Redis.
+
+    **Proves:** something is attached to the consumer group and actively polling it. Measured:
+    with the orchestrator up, `idle` sat at 93-905ms against a 5000ms block; killed, it grew 1:1
+    with wall clock - 6963, 17001, 29046ms.
+
+    **Does not prove** that an event would be processed successfully once read - the consumer could
+    read and then fail on the database write - nor that the attached client is the orchestrator
+    rather than something else using the same consumer name.
+
+    **It cannot be produced by a quiet world, which is the point.** Redis tracks two clocks here
+    and only one of them is a liveness signal: `idle` is time since the last interaction, which a
+    blocking read refreshes whether or not it returns anything, while `inactive` is time since the
+    last *successful* read and grows whenever the world has nothing to say. Reading `inactive`
+    would fire on every quiet world - exactly the conflation this check exists to avoid.
+
+    `None` means no consumer, no group, or no stream: all of them are "not consuming".
+    """
+    from faultline.orchestrator.settings import OrchestratorSettings
+
+    settings = OrchestratorSettings()
+    try:
+        import redis
+
+        client = redis.Redis.from_url(settings.redis_url, socket_timeout=5)
+        consumers = client.xinfo_consumers(settings.stream, settings.group)
+    except Exception:
+        return None
+    idles = [int(c["idle"]) for c in consumers if "idle" in c]
+    return min(idles) if idles else None
+
+
 class GateRefusedError(RuntimeError):
-    """The world is not fit to inject into. **Nothing was injected.**"""
+    """The world is not fit to inject into. **Nothing was injected.**
+
+    `discard_reason` is what the manifest records. Subclasses narrow it so a refusal that means
+    something different is distinguishable afterwards rather than sharing one label - the same
+    shape T7.12 gave `RunError`. See `PipelineDownError`.
+    """
+
+    discard_reason = "baseline gate refused"
+
+
+class PipelineDownError(GateRefusedError):
+    """The alert pipeline is not assembled, which is not the world failing to alert (T7.25).
+
+    **A third refusal, distinct from both of T7.12's discard reasons and from an ordinary gate
+    refusal.** T7.24 injected while `faultline-ingest` and `faultline-orchestrate` were down. The
+    fault fired exactly on schedule - checkoutservice reached 27.6% errors and four
+    `ServiceNoTraffic` alerts stood on the board - and no incident was ever opened, because nothing
+    was listening at the webhook and nothing was consuming the stream. Left alone that run would
+    have waited out the correlate budget and recorded `no-alert`, which reads as a fact about the
+    scenario. It was a fact about the harness.
+    """
+
+    discard_reason = "pipeline-down"
 
 
 @dataclass
@@ -96,6 +199,9 @@ class GateReading:
     firing_alerts: list[str] = field(default_factory=list)
     p95_over_ceiling: dict[str, float] = field(default_factory=dict)
     p95_excursions: dict[str, Excursion] = field(default_factory=dict)
+    ingest_accepting: bool | None = None
+    consumer_idle_ms: int | None = None
+    pipeline_down: list[str] = field(default_factory=list)
     silent_services: list[str] = field(default_factory=list)
     unexpected_silent: list[str] = field(default_factory=list)
     services_reporting: int = 0
@@ -115,6 +221,9 @@ class GateReading:
             "firing_alerts": self.firing_alerts,
             "p95_over_ceiling_ms": self.p95_over_ceiling,
             "p95_excursions": {s: e.as_dict() for s, e in self.p95_excursions.items()},
+            "ingest_accepting": self.ingest_accepting,
+            "consumer_idle_ms": self.consumer_idle_ms,
+            "pipeline_down": self.pipeline_down,
             "silent_services": self.silent_services,
             "unexpected_silent": self.unexpected_silent,
             "services_reporting": self.services_reporting,
@@ -211,6 +320,37 @@ def read(
     """
     reading = GateReading(open_incidents=list(open_incidents or []))
 
+    # **Before anything about the world**, because a world that alerts perfectly into a pipeline
+    # nobody is running produces a run that looks like a scenario that does not alert (T7.24).
+    from faultline.orchestrator.settings import OrchestratorSettings
+
+    ingest_url = ingest_base_url()
+    reading.ingest_accepting = ingest_accepting(ingest_url)
+    reading.consumer_idle_ms = consumer_idle_ms()
+    ceiling = PIPELINE_IDLE_MULTIPLE * OrchestratorSettings().block_ms
+    if reading.ingest_accepting is not True:
+        reading.pipeline_down.append(
+            f"ingest is not accepting on {ingest_url}{INGEST_HEALTH_PATH} "
+            "- start it with `uv run faultline-ingest`"
+        )
+    if reading.consumer_idle_ms is None:
+        reading.pipeline_down.append(
+            "no consumer is attached to the orchestrator's group - start it with "
+            "`uv run faultline-orchestrate`"
+        )
+    elif reading.consumer_idle_ms > ceiling:
+        reading.pipeline_down.append(
+            f"the orchestrator's consumer last spoke to Redis {reading.consumer_idle_ms}ms ago, "
+            f"over the {ceiling}ms ceiling - it is attached but not polling. Restart it with "
+            "`uv run faultline-orchestrate`"
+        )
+    if reading.pipeline_down:
+        reading.refusals.append(
+            "the alert pipeline is not assembled: " + "; ".join(reading.pipeline_down) + ". "
+            "This is NOT the world failing to alert - the fault would fire and no incident would "
+            "open, which records as `no-alert` and reads as a fact about the scenario (T7.24)."
+        )
+
     reading.firing_alerts = firing_alerts()
     if reading.firing_alerts:
         reading.refusals.append(f"{len(reading.firing_alerts)} alert(s) firing")
@@ -303,7 +443,10 @@ def require(
     reading = read(open_incidents, resolved_incidents)
     if not reading.passed:
         detail = "\n".join(f"  - {why}" for why in reading.refusals)
-        raise GateRefusedError(
+        # A pipeline that is not assembled gets its own type, so the discard says which of the
+        # three things went wrong rather than collapsing into "the world was not quiet".
+        error = PipelineDownError if reading.pipeline_down else GateRefusedError
+        raise error(
             f"baseline gate refused; nothing was injected.\n{detail}\n"
             f"The world must be quiet before a scored run, or the run measures the world's "
             f"prior state as well as the fault (ADR-0022 §3.1). Containers settle in "
