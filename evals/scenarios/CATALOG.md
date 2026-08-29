@@ -769,3 +769,57 @@ the scenario is harder than it was designed to be as a result.
 
 The remaining caveat stands: this is one rehearsal, and its detection time is one sample
 (see the caveat at the top of this document).
+
+## The scale class is empty, and the reason is measured
+
+**There is no scale scenario, and after T7.13 there is a measured reason for that.** Fifty times
+the offered load, sustained for twenty minutes, saturates the world at a **102 req/s throughput
+plateau** and trips no alert rule. The design, the boundary argument and the numbers are in
+ADR-0024; the load-surge mechanism it used is in `injector.catalog` as `storefront-load-surge`.
+
+**The plateau is the fault, and it is real.** Going from 100 to 500 concurrent shoppers — five
+times the offered load — bought 11% more throughput. Behind it, cart-service's heap went 70% →
+83% of its 400MiB limit and settled; frontend 67% → 76% and settled. No OOM kill, no restart, no
+CPU quota reached.
+
+**All three rules are structurally blind to it.** `ServiceHighErrorRate` — saturation queues
+rather than erroring. `ServiceHighLatency` — span metrics are emitted on completion, so the
+percentile is computed from the requests that finished, which is ADR-0013's finding arriving from
+the other direction. `ServiceNoTraffic` — traffic plateaus, it does not stop. A fault that opens
+no incident can never dispatch an agent, so there is nothing to score.
+
+Read the empty `scale` cell in every per-class table as **"this world cannot page on one"**, not
+as "nobody has written one yet".
+
+**And no file could be committed for it.** `injector.catalog` is authoritative for a scenario's
+`fault_class`, and the only mechanism that steers the load driver is the env-var handler - so a
+demand-side scale scenario can only be labelled `bad_config`, a claim that the load generator was
+misconfigured. It was not. The guard is right and the label would be false, so the design lives in
+ADR-0024 rather than in a YAML that says the wrong thing to pass a test.
+
+### `scale` is a remediation class, not a fault class
+
+Worth stating because a per-class table implied otherwise for two sweeps. `FaultClass` has four
+members; `RemediationClass` has `scale`. The boundary that matters is between *remediations*:
+**`config_revert` when the constrained resource was changed, `scale` when it was not** — decidable
+by running `change_history` against the service that is failing to serve, rather than by reading.
+
+### `redis-cart` is a latent capacity defect in the committed world
+
+Found while measuring the above, and recorded because it will eventually matter. `redis-cart` runs
+`redis:alpine` with **`maxmemory: 0` and `maxmemory_policy: noeviction`** against a **20MiB**
+container ceiling and `restart: always`. Nothing evicts, so its usage is monotonic in *cumulative*
+traffic rather than in current load: it stepped from 46% to 59% across the 20-minute probe and did
+not come back down when load did. At baseline it grows ~39 B/s.
+
+It is the one resource in the world that a sustained surge does drive to a page — extrapolating,
+in roughly 90 minutes. That is a real scale fault with a real alert at the end of it, and an onset
+an order of magnitude beyond this catalog's current 166–390s range.
+
+### A baseline-gate false positive
+
+`ServiceHighLatency/checkoutservice` was firing before the probe began, from histogram degeneracy
+at 0.66 req/s: `histogram_quantile` lands in the `+Inf` bucket when a sparse service contributes
+few samples, reporting p95 as 1.5e4 seconds while the service places orders normally. **It cleared
+under load** once the histogram had enough samples. The baseline gate can refuse on this, and it
+is a property of the rule at low request rates rather than of the world's health.
