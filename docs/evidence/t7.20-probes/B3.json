@@ -1,0 +1,234 @@
+{
+ "probe": "B",
+ "attempt": "3",
+ "fault": "cart-memory-squeeze",
+ "started": "07:21:23Z",
+ "gate": "RELAXED|2 alert(s) firing; p95 above 1000ms: checkoutservice at 3500ms (13 of 13 samples over, sustained, median 3950ms, max 5000ms), frontend at 15000ms (7 o",
+ "before": {
+  "inspect": "running|false|3|419430400",
+  "stats": "225MiB / 400MiB|56.26%",
+  "heap_bytes": 130304.0,
+  "gc_collections": 4.0,
+  "errors": {
+   "shippingservice": "0.000/0.391 = 0.0%",
+   "checkoutservice": "0.000/1.826 = 0.0%",
+   "frontend": "0.000/9.026 = 0.0%",
+   "quoteservice": "0.000/0.261 = 0.0%"
+  },
+  "cart_p95_ms": 1.9,
+  "frontend_p95_ms": 15000.0
+ },
+ "alerts_before": [
+  "ServiceHighLatency/checkoutservice",
+  "ServiceHighLatency/loadgenerator"
+ ],
+ "inject_rc": 0,
+ "timeline": [
+  {
+   "t": "T+59s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice",
+    "ServiceHighLatency/loadgenerator"
+   ],
+   "inspect": "restarting|true|13|33554432",
+   "stats": "0B / 0B|0.00%",
+   "heap_bytes": 130304.0,
+   "gc_collections": 4.0,
+   "errors": {
+    "shippingservice": "0.000/0.209 = 0.0%",
+    "checkoutservice": "0.000/0.974 = 0.0%",
+    "frontend": "0.061/5.461 = 1.1%",
+    "quoteservice": "0.000/0.139 = 0.0%"
+   },
+   "cart_p95_ms": 1.9,
+   "frontend_p95_ms": 15000.0,
+   "new_alerts": []
+  },
+  {
+   "t": "T+120s",
+   "alerts": [
+    "ServiceHighLatency/checkoutservice"
+   ],
+   "inspect": "restarting|true|14|33554432",
+   "stats": "0B / 0B|0.00%",
+   "heap_bytes": 130304.0,
+   "gc_collections": 4.0,
+   "errors": {
+    "shippingservice": "0.000/0.000 = 0.0%",
+    "checkoutservice": "0.000/0.000 = 0.0%",
+    "frontend": "0.061/0.852 = 7.1%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "cart_p95_ms": NaN,
+   "frontend_p95_ms": 680.0,
+   "new_alerts": []
+  },
+  {
+   "t": "T+180s",
+   "alerts": [],
+   "inspect": "restarting|true|15|33554432",
+   "stats": "0B / 0B|0.00%",
+   "heap_bytes": 130304.0,
+   "gc_collections": 4.0,
+   "errors": {
+    "shippingservice": "0.000/0.000 = 0.0%",
+    "checkoutservice": "0.139/0.209 = 66.7%",
+    "frontend": "0.800/2.044 = 39.1%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "cart_p95_ms": NaN,
+   "frontend_p95_ms": 15000.0,
+   "new_alerts": []
+  },
+  {
+   "t": "T+240s",
+   "alerts": [],
+   "inspect": "restarting|true|16|33554432",
+   "stats": "0B / 0B|0.00%",
+   "heap_bytes": 130304.0,
+   "gc_collections": 4.0,
+   "errors": {
+    "shippingservice": "0.000/0.000 = 0.0%",
+    "checkoutservice": "0.313/0.470 = 66.7%",
+    "frontend": "2.357/6.304 = 37.4%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "cart_p95_ms": NaN,
+   "frontend_p95_ms": 11250.0,
+   "new_alerts": []
+  },
+  {
+   "t": "T+300s",
+   "alerts": [
+    "ServiceHighErrorRate/checkoutservice",
+    "ServiceHighErrorRate/frontend",
+    "ServiceHighErrorRate/loadgenerator"
+   ],
+   "inspect": "restarting|true|17|33554432",
+   "stats": "0B / 0B|0.00%",
+   "heap_bytes": null,
+   "gc_collections": null,
+   "errors": {
+    "shippingservice": "0.000/0.000 = 0.0%",
+    "checkoutservice": "0.261/0.391 = 66.7%",
+    "frontend": "2.278/7.383 = 30.9%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "cart_p95_ms": NaN,
+   "frontend_p95_ms": 3963.8,
+   "new_alerts": [
+    "ServiceHighErrorRate/checkoutservice",
+    "ServiceHighErrorRate/frontend",
+    "ServiceHighErrorRate/loadgenerator"
+   ]
+  },
+  {
+   "t": "T+360s",
+   "alerts": [
+    "ServiceHighErrorRate/checkoutservice",
+    "ServiceHighErrorRate/frontend",
+    "ServiceHighErrorRate/loadgenerator",
+    "ServiceHighLatency/frontend",
+    "ServiceHighLatency/loadgenerator"
+   ],
+   "inspect": "restarting|true|18|33554432",
+   "stats": "0B / 0B|0.00%",
+   "heap_bytes": null,
+   "gc_collections": null,
+   "errors": {
+    "shippingservice": "0.000/0.000 = 0.0%",
+    "checkoutservice": "0.226/0.339 = 66.7%",
+    "frontend": "1.896/6.765 = 28.0%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "cart_p95_ms": NaN,
+   "frontend_p95_ms": 3940.0,
+   "new_alerts": [
+    "ServiceHighErrorRate/checkoutservice",
+    "ServiceHighErrorRate/frontend",
+    "ServiceHighErrorRate/loadgenerator",
+    "ServiceHighLatency/frontend"
+   ]
+  },
+  {
+   "t": "T+420s",
+   "alerts": [
+    "ServiceHighErrorRate/checkoutservice",
+    "ServiceHighErrorRate/frontend",
+    "ServiceHighErrorRate/loadgenerator",
+    "ServiceHighLatency/frontend",
+    "ServiceHighLatency/loadgenerator",
+    "ServiceNoTraffic/accountingservice",
+    "ServiceNoTraffic/cartservice",
+    "ServiceNoTraffic/currencyservice",
+    "ServiceNoTraffic/emailservice",
+    "ServiceNoTraffic/frauddetectionservice",
+    "ServiceNoTraffic/quoteservice",
+    "ServiceNoTraffic/shippingservice"
+   ],
+   "inspect": "restarting|true|19|33554432",
+   "stats": "0B / 0B|0.00%",
+   "heap_bytes": null,
+   "gc_collections": null,
+   "errors": {
+    "shippingservice": "0.000/0.000 = 0.0%",
+    "checkoutservice": "0.191/0.287 = 66.7%",
+    "frontend": "1.730/6.522 = 26.5%",
+    "quoteservice": "0.000/0.000 = 0.0%"
+   },
+   "cart_p95_ms": NaN,
+   "frontend_p95_ms": 4655.4,
+   "new_alerts": [
+    "ServiceHighErrorRate/checkoutservice",
+    "ServiceHighErrorRate/frontend",
+    "ServiceHighErrorRate/loadgenerator",
+    "ServiceHighLatency/frontend",
+    "ServiceNoTraffic/accountingservice",
+    "ServiceNoTraffic/cartservice",
+    "ServiceNoTraffic/currencyservice",
+    "ServiceNoTraffic/emailservice",
+    "ServiceNoTraffic/frauddetectionservice",
+    "ServiceNoTraffic/quoteservice",
+    "ServiceNoTraffic/shippingservice"
+   ]
+  }
+ ],
+ "first_alert_seconds": 300,
+ "first_alerts": [
+  "ServiceHighErrorRate/checkoutservice",
+  "ServiceHighErrorRate/frontend",
+  "ServiceHighErrorRate/loadgenerator"
+ ],
+ "fired": true,
+ "revert_rc": 0,
+ "revert_out": "reverted cart-memory-squeeze\n  - docker update: cart-service memory limit restored to 400M",
+ "after": {
+  "inspect": "restarting|true|19|419430400",
+  "stats": "0B / 0B|0.00%",
+  "heap_bytes": null,
+  "gc_collections": null,
+  "errors": {
+   "shippingservice": "0.000/0.000 = 0.0%",
+   "checkoutservice": "0.157/0.235 = 66.7%",
+   "frontend": "1.565/6.165 = 25.4%",
+   "quoteservice": "0.000/0.000 = 0.0%"
+  },
+  "cart_p95_ms": NaN,
+  "frontend_p95_ms": 4734.9
+ },
+ "alerts_after": [
+  "ServiceHighErrorRate/checkoutservice",
+  "ServiceHighErrorRate/frontend",
+  "ServiceHighErrorRate/loadgenerator",
+  "ServiceHighLatency/frontend",
+  "ServiceHighLatency/loadgenerator",
+  "ServiceNoTraffic/accountingservice",
+  "ServiceNoTraffic/cartservice",
+  "ServiceNoTraffic/currencyservice",
+  "ServiceNoTraffic/emailservice",
+  "ServiceNoTraffic/frauddetectionservice",
+  "ServiceNoTraffic/quoteservice",
+  "ServiceNoTraffic/shippingservice"
+ ],
+ "finished": "07:29:11Z"
+}
