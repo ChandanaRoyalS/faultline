@@ -1573,6 +1573,53 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.27 — where the kafka memory lives *(measurement only; no digest moves)*
+**Done** ([`docs/evidence/t7.27-kafka-memory/`](evidence/t7.27-kafka-memory/)). NMT enabled through
+a temporary override outside the repository, container restored afterwards, `compose_digest`
+verified unmoved.
+
+**The restart is the first result:** **1.949 GiB / 97.44% -> 570.1 MiB / 27.84%**. The growth is
+real, accumulates with uptime, and a restart clears all of it. It was already past the recorder's
+90% pre-flight guard.
+
+**No NMT category holds the bulk, and that is the finding.** At baseline NMT accounts for ~97% of
+resident anon (`committed=584,958KB` against 590,905,344 bytes), with **Java Heap 409,600KB sitting
+exactly at its `-Xmx400m` cap**. But filling *every* category to its reserved ceiling caps the JVM
+at **0.87 GiB**, against **1.86 GiB** observed at 1.5 days - **at least 0.99 GiB is outside every
+NMT category**. **NMT's own overhead is ~2 MB** and is not a finding.
+
+**Watched in the act:** the gap between cgroup `anon` and NMT-committed went **-2 MB -> +23 MB in 25
+minutes**, ~55 MB/hour outside NMT, extrapolating to ~1.3 GB/day - which matches 1.86 GiB at 1.5
+days. The `summary.diff` names what moved *inside*: **`Other` +4 KB** (direct/mapped ByteBuffers
+**ruled out**), **`Thread` +56 KB** with the count flat at 97 (**ruled out**), GC +229 KB (**ruled
+out**), Class +2,513 KB (real, tiny), Code +10,047 KB (JIT warmup, bounded by 249 MB reserved - not
+the gigabyte), **Java Heap 0 KB**.
+
+**It is the allocator.** RHEL 8.6, **glibc 2.28**, 97 threads, and **68 anonymous regions of exactly
+63.9 MB** - the per-thread arena signature - for 7,413 MB of mapped anon address space, against a
+default `M_ARENA_MAX` of 8x10 cores. Arenas retain freed pages instead of returning them. **The JVM
+is not leaking; glibc is holding freed pages.**
+
+**The lever engages, and that is all that was shown.** `MALLOC_ARENA_MAX=2`: arenas **68 -> 0**,
+mapped address space **7,413 -> 2,456 MB**. **Not shown: that it bounds the long-run growth** - that
+needs ~1.5 days under the setting and was not run. Re-measure at 24 hours after it lands.
+
+**Digest-locked: yes.** It is a container env var in `compose/world-arm64.override.yml`, a
+`compose_digest` input. **A smaller consequence:** kafka's growth is characterised in prose inside
+that same file, so **even correcting that comment moves the digest** - which is why this addendum is
+here rather than beside the thing it explains.
+
+**Not a sizing problem, which changes the fix.** 2 GB against ~600 MB of genuine JVM footprint is
+nearly 3x headroom, and T7.1 already recorded that 1200M -> 2g bought about nine hours. Unbounded
+growth consumes any ceiling. **A bounded-allocator problem, not a limit problem.**
+
+**Two operational findings.** Restarting kafka **strands `accountingservice`** - it sat at 0.000
+req/s until restarted, while `frauddetectionservice` reconnected on its own. And **checkout's stall
+returned on schedule**, ~1 day after its restart, cleared again by ADR-0025's prescribed remedy.
+
+**World left healthy:** no alerts firing, both Kafka consumers serving, kafka fresh at 26.85% with
+no leftover env, temporary override deleted.
+
 ### T7.26 — the queue, specified *(specification only; nothing lands, no digest moves)*
 **Done** ([`docs/design/t7.26-queue-specification.md`](design/t7.26-queue-specification.md)). File,
 line, before, after and verification for each queued item, so the sitting that cashes the queue is
@@ -2476,6 +2523,15 @@ changing how every scored run decides it has waited long enough deserves its own
 > twelve re-records, and fixed nothing. **Replaced by a measurement task** — run Native Memory
 > Tracking and find which arena holds the 1.4 GiB the heap does not. See
 > [`docs/design/t7.26-queue-specification.md`](../design/t7.26-queue-specification.md) item 2.
+>
+> **ANSWERED at T7.27, and the compose change T7.26 was waiting for now exists.** No NMT category
+> holds it: filling every one to its reserved ceiling caps the JVM at **0.87 GiB** against
+> **1.86 GiB** observed, and the heap sits exactly at its 400m cap. Measured in the act, ~55 MB/hour
+> accumulates **outside NMT entirely**. The container is glibc 2.28 with 97 threads and **68
+> anonymous regions of 63.9 MB** - the per-thread arena signature. **The JVM is not leaking; glibc
+> is holding freed pages.** `MALLOC_ARENA_MAX=2` takes the arenas 68 -> 0 and mapped address space
+> 7,413 -> 2,456 MB. It is a `compose_digest` input, so it is digest-locked. Full breakdown:
+> [`docs/evidence/t7.27-kafka-memory/`](../evidence/t7.27-kafka-memory/).
 
 The original entry, kept because the reasoning that produced it is the record:
 
