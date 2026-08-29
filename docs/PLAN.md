@@ -1573,6 +1573,39 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.12 — the wait counts scrapes, not seconds *(mechanism; harness-side)*
+**Done.** The deadline mechanism T7.11 queued. The correlate wait was denominated in wall-clock
+seconds, so a suspended host spent the budget while the world produced less evidence than the
+seconds implied - and a clock cannot notice. T7.11 cost `frauddetection-memory-squeeze` to exactly
+this: a sixteen-minute telemetry gap inside a 900s deadline, on a scenario that pages at T+390s.
+
+**The budget is now scrapes.** `CORRELATE_SCRAPES = 180`, derived from the catalog rather than
+guessed: recorded onsets run 166-390s across the twelve current bundles and 165-469s across every
+recording ever archived (n=20), and the longest `for:` clause is 3m. 180 scrapes is 900s of world
+time - 1.9x the longest onset ever seen. Deliberately the same coverage the old deadline intended:
+**the value was never the problem, the unit was.** On a healthy world the wait still ends at
+exactly 900s; a test pins that equivalence.
+
+Scrapes are counted as `max(count_over_time(up[Ns]))` - `up` is synthetic, present per target, and
+appended once per scrape, so counting it counts chances to alert. (Not `prometheus_tsdb_head_*`:
+this deployment does not scrape Prometheus itself, and that counter is absent.)
+
+**A gap no longer ends the wait - it fails to advance it.** T7.11's sixteen minutes now cost zero
+of the 180 scrapes, so the world resumes and the alert lands inside the budget.
+`CORRELATE_CEILING_SECONDS = 1800` is the wall-clock backstop on a world that never returns;
+`CORRELATE_GAP_SECONDS = 60` (twelve intervals) is what distinguishes a hole from jitter.
+
+**Two discards, not one.** `WorldStoppedReportingError` records `metrics-gap`; `NoAlertError`
+records `no-alert`. The manifest says which, because they are different findings and T7.11's was
+recorded under the wrong one. Only `no-alert` is evidence about a scenario.
+
+**The stamp does not move** - `1b0e7cbb4c47`, unchanged. The stamp hashes role prompts and
+contract schemas; no part of `evalharness` reaches it, so runs before and after T7.12 stay
+comparable. Same precedent as T4.7 excluding budget bounds. Pinned by a test.
+
+Not re-run: `frauddetection-memory-squeeze`'s S6 discard stands as recorded (T7.11's position).
+This changes how the *next* sweep behaves, not what the last one measured.
+
 ### T7.11 — the control that did not page *(characterisation; no agent, no model calls)*
 T7.10's discard, explained. **contract not written.** Two direct injections with the alert path
 watched, plus the historical record Prometheus still holds

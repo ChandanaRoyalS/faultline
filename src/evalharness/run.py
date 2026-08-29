@@ -31,6 +31,7 @@ from pathlib import Path
 from typing import Any
 
 from evalharness import gate
+from evalharness.prom import PROMETHEUS, QueryError, get_json
 from evalharness.provenance import recorder_provenance
 from evalharness.scoring import Categories, ScoredRun, score_label, score_triage
 
@@ -41,7 +42,54 @@ LOCK_PATH = REPO_ROOT / ".faultline" / "harness.lock"
 USD_PER_MTOK_IN = 5.0
 USD_PER_MTOK_OUT = 25.0
 
-CORRELATE_TIMEOUT_SECONDS = 900
+SCRAPE_INTERVAL_SECONDS = 5
+"""Prometheus's scrape interval, from `compose/prometheus/prometheus-config.yaml`.
+
+The unit the correlate wait is denominated in. Not read from that file at runtime because it is
+mounted into a container this process does not necessarily have, and a wrong-by-default constant
+here would silently shorten every wait - so it is pinned by a test against the config instead."""
+
+CORRELATE_SCRAPES = 180
+"""How many scrapes the world gets to produce an alert before "no incident" is honest.
+
+**The wait counts scrapes, not seconds (T7.12).** What it is really asking is whether the world
+has had enough chances to alert, and a scrape is that chance. A wall-clock deadline answers a
+different question and gets it wrong whenever the two diverge - which they did at T7.11, where a
+suspended host let a 900s deadline expire while the world produced sixteen minutes less evidence
+than those seconds implied. The scenario was three minutes from paging; the run discarded it.
+
+Derived from what the catalog needs rather than chosen:
+
+* An onset decomposes into the time for the rule's condition to become true plus its `for:`
+  clause. T7.11 measured both exactly on `frauddetection-memory-squeeze`: the rate window emptied
+  at T+201s, `for: 3m` elapsed, and it fired at T+381s.
+* Recorded onsets across all twelve current bundles run **166s to 390s**. Across every recording
+  ever archived, **165s to 469s** (n=20).
+* The longest `for:` clause in `alert-rules.yml` is **3m**, on `ServiceHighLatency` and
+  `ServiceNoTraffic`.
+
+180 scrapes is **900s of world time**: 1.9x the longest onset ever recorded and 2.3x the longest
+in the current catalog. That is deliberately the same coverage the old 900s deadline intended -
+**the value was never the problem, the unit was** - so this changes when the wait ends without
+changing how much evidence it demands.
+"""
+
+CORRELATE_CEILING_SECONDS = 1800
+"""Wall-clock backstop, so a world that never scrapes again cannot wait forever.
+
+Twice the scrape budget in seconds, which fixes what it can absorb: after T7.11's sixteen-minute
+gap, 840s of wall clock remains. That is short of the full 900s allowance but longer than the
+longest onset ever recorded (469s), so every scenario in the catalog can still page after an
+outage of that size - while a world that has genuinely stopped is bounded at half an hour rather
+than forever. A gap longer than about twenty-two minutes exceeds what the ceiling can absorb, and
+such a run is discarded as `metrics-gap` - correctly, since it measured nothing either way."""
+
+CORRELATE_GAP_SECONDS = 60
+"""No new scrape samples for this long means the world stopped reporting, not that it is quiet.
+
+Twelve scrape intervals. Jitter and a slow scrape lose one or two; losing twelve consecutively is
+a different event. T7.11's hole was sixteen minutes across all fifteen services at once."""
+
 CORRELATE_POLL_SECONDS = 20
 SETTLE_AFTER_ALERT_SECONDS = 90
 """Once the first episodes land, wait this long before investigating.
@@ -118,7 +166,14 @@ def emit(enabled: bool, event: str, **fields: Any) -> None:
 
 
 class RunError(RuntimeError):
-    """The run cannot continue. The reason is recorded as a discard before this escapes."""
+    """The run cannot continue. The reason is recorded as a discard before this escapes.
+
+    `discard_reason` is what the manifest records. Subclasses narrow it so that outcomes which
+    mean different things are distinguishable after the fact rather than sharing one label -
+    see `WorldStoppedReportingError` and `NoAlertError` (T7.12).
+    """
+
+    discard_reason = "run failed"
 
 
 class WorldLock:
@@ -238,12 +293,80 @@ def expected_episodes(bundle: dict[str, Any]) -> int:
     return min(2, max(1, len(services)))
 
 
+class WorldStoppedReportingError(RunError):
+    """The world stopped producing telemetry for long enough that the wait proved nothing.
+
+    **A different finding from "the fault did not fire", and until T7.12 they shared a message.**
+    A run that ends this way measured nothing about its scenario: the fault may have been about
+    to page, as T7.11 established it was. Recorded with its own discard reason so the two are
+    distinguishable in the manifest afterwards.
+    """
+
+    discard_reason = "metrics-gap"
+
+
+class NoAlertError(RunError):
+    """The world reported throughout its scrape budget and the fault still did not page.
+
+    The genuine negative result, and the only one of the two that says anything about the
+    scenario. T7.11's discard was recorded under this meaning while actually being the other one.
+    """
+
+    discard_reason = "no-alert"
+
+
+def scrapes_over(window_seconds: int) -> int | None:
+    """How many scrape samples any target produced over the trailing window.
+
+    `up` is synthetic, present for every target, and appended once per scrape - so counting its
+    samples counts scrapes directly, which is the quantity the wait actually cares about. `max`
+    across targets rather than `sum`, so the number stays in units of scrapes as targets come and
+    go. Measured at 12 per minute against the 5s interval (T7.12).
+
+    Deliberately not `prometheus_tsdb_head_samples_appended_total`: this deployment does not
+    scrape Prometheus itself, so that counter is absent here. `None` means the question could not
+    be asked at all, which is not the same as zero and the caller treats it differently.
+    """
+    try:
+        payload = get_json(
+            PROMETHEUS,
+            "/api/v1/query",
+            {"query": f"max(count_over_time(up[{window_seconds}s]))"},
+        )
+        result = payload.get("data", {}).get("result", [])
+        return int(float(result[0]["value"][1])) if result else 0
+    except (QueryError, OSError, KeyError, IndexError, ValueError):
+        return None
+
+
 def wait_for_incident(dsn: str, after: datetime, min_episodes: int = 2) -> str:
-    """Poll for an incident the orchestrator opened after the injection."""
+    """Poll for an incident the orchestrator opened after the injection.
+
+    **The budget is scrapes, not seconds (T7.12).** What the wait is really asking is whether the
+    world has had enough chances to alert, and a chance is a scrape. Denominated in wall clock,
+    the wait spends its budget while a suspended host produces nothing - which is precisely how
+    T7.11 lost `frauddetection-memory-squeeze`, a scenario that pages reliably at T+390s, to a
+    sixteen-minute telemetry gap inside a 900s deadline. A clock cannot notice that; a scrape
+    count cannot miss it.
+
+    So a gap does not end the wait - it fails to advance it. The same sixteen minutes now costs
+    zero of the 180 scrapes, the world resumes, and the alert arrives inside the budget. Two
+    things bound the wait besides: `CORRELATE_CEILING_SECONDS` so a dead world cannot hold the
+    harness forever, and the gap accounting below so that when the ceiling *is* what stopped us,
+    the run is discarded as `metrics-gap` rather than as evidence about the fault.
+
+    Harness-side only: this function reads no prompt and no contract, so `runtime_version` does
+    not move. See `faultline.agents.stamp`.
+    """
     import psycopg
 
-    deadline = time.monotonic() + CORRELATE_TIMEOUT_SECONDS
-    while time.monotonic() < deadline:
+    started = time.monotonic()
+    ceiling = started + CORRELATE_CEILING_SECONDS
+    last_advance_at = started
+    scrapes = 0
+    longest_gap = 0.0
+
+    while True:
         with psycopg.connect(dsn) as conn, conn.cursor() as cur:
             cur.execute(
                 "SELECT i.id, count(e.*) FROM incidents i "
@@ -255,11 +378,39 @@ def wait_for_incident(dsn: str, after: datetime, min_episodes: int = 2) -> str:
                 if episodes >= min_episodes:
                     print(f"  incident {incident_id} with {episodes} episode(s)")
                     return str(incident_id)
+
+        now_mono = time.monotonic()
+        elapsed = now_mono - started
+        # Ask over the whole elapsed wait rather than per-poll, so nothing is double-counted or
+        # dropped at a window boundary. Range windows this size are cheap and the number is
+        # monotonic by construction.
+        seen = scrapes_over(max(SCRAPE_INTERVAL_SECONDS, int(elapsed) + 1))
+        if seen is not None and seen > scrapes:
+            scrapes = seen
+            last_advance_at = now_mono
+        longest_gap = max(longest_gap, now_mono - last_advance_at)
+
+        if scrapes >= CORRELATE_SCRAPES:
+            break  # the world had its chances and did not take them
+        if now_mono >= ceiling:
+            break  # backstop: the world is not coming back
+
         time.sleep(CORRELATE_POLL_SECONDS)
-    raise RunError(
-        f"no incident reached {min_episodes} episode(s) within {CORRELATE_TIMEOUT_SECONDS}s. "
-        "The fault may not alert on this world - check the bundle's alerts_over_window, and "
-        "note that a sparse service can take far longer than a busy one to trip a rule "
+
+    waited = time.monotonic() - started
+    if scrapes < CORRELATE_SCRAPES or longest_gap >= CORRELATE_GAP_SECONDS:
+        raise WorldStoppedReportingError(
+            f"the world stopped reporting: {scrapes} of {CORRELATE_SCRAPES} scrapes in "
+            f"{waited:.0f}s wall clock, longest gap {longest_gap:.0f}s. This run measured nothing "
+            "about its scenario and is NOT evidence that the fault does not alert - T7.11 found a "
+            "sixteen-minute telemetry gap behind exactly this shape, on a scenario that pages "
+            "reliably at T+390s. Check whether the host suspended."
+        )
+    raise NoAlertError(
+        f"no incident reached {min_episodes} episode(s) within {CORRELATE_SCRAPES} scrapes "
+        f"({waited:.0f}s wall clock, no telemetry gap seen - the world was reporting throughout). "
+        "The fault may not alert on this world - check the bundle's alerts_over_window, and note "
+        "that a sparse service can take far longer than a busy one to trip a rule "
         "(evals/scenarios/CATALOG.md)."
     )
 
@@ -674,7 +825,8 @@ def main(argv: list[str] | None = None) -> int:
         print(f"REFUSED: {refused}")
         return 3
     except (RunError, subprocess.TimeoutExpired) as failure:
-        run.discard("run failed", str(failure))
+        reason = getattr(failure, "discard_reason", "run failed")
+        run.discard(reason, str(failure))
         print(f"DISCARDED: {failure}")
         print(f"recorded, not deleted: {run.path / 'DISCARDED.md'}")
         return 4
