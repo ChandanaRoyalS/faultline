@@ -35,9 +35,31 @@ services:
   # eventual reset more expensive, so the heap is capped instead: the JVM stops growing
   # rather than being periodically restarted. The 2g limit stays as the backstop it should
   # always have been.
+  #
+  # T7.11 then measured 1866 MiB against that 400m cap, and the paragraph above turned out to
+  # be half right: the heap stopped growing and the process did not. T7.27 found where the rest
+  # lives, and it is not the JVM.
+  #
+  #   * No NMT category holds it. Filling every one to its reserved ceiling caps the JVM at
+  #     0.87 GiB; 1.86 GiB was observed, with Java Heap sitting exactly at 409,600KB.
+  #   * Measured in the act, ~55 MB/hour accumulates OUTSIDE NMT entirely. Ruled out from the
+  #     summary diff: direct/mapped ByteBuffers (Other +4KB), thread stacks (Thread +56KB,
+  #     count flat at 97), GC (+229KB). Code moved +10MB and is JIT warmup bounded by its
+  #     249 MB reserve.
+  #   * glibc 2.28, 97 threads, and 68 anonymous regions of exactly 63.9 MB - the per-thread
+  #     arena signature - for 7,413 MB of mapped address space, against a default M_ARENA_MAX
+  #     of 8 x 10 cores. Arenas retain freed pages instead of returning them.
+  #
+  # So: the JVM is not leaking, glibc is holding freed pages, and the lever is the allocator.
+  # MALLOC_ARENA_MAX=2 was measured to take the arenas 68 -> 0 and mapped space 7,413 -> 2,456 MB.
+  #
+  # NOT YET SHOWN: that it bounds the long-run growth. That needs ~24h of uptime under the
+  # setting and is queued as a re-measure, not claimed here. If kafka is still climbing a day
+  # after this lands, the arenas were not the whole story.
   kafka:
     environment:
       KAFKA_HEAP_OPTS: "-Xmx400m -Xms400m"
+      MALLOC_ARENA_MAX: "2"
     deploy: { resources: { limits: { memory: 2g } } }
   loadgenerator:
     deploy: { resources: { limits: { memory: 300M } } }
@@ -47,6 +69,27 @@ services:
     deploy: { resources: { limits: { memory: 320M } } }
   productcatalogservice:
     deploy: { resources: { limits: { memory: 120M } } }
+  # T7.19: `redis:alpine` with no `maxmemory` and `noeviction` against a 20M ceiling, and no key
+  # carries a TTL - `expires=0`, measured and re-measured. Cart state therefore accumulates in
+  # *cumulative* traffic rather than current load: 0.192 keys/s over a 27.6-hour window, ~55
+  # hours to the ceiling at rest, and it trips the recorder's 90% pre-flight guard in 23-46
+  # hours - naming a container no scenario touches, in the middle of an unrelated sweep.
+  #
+  # `allkeys-lru`, not `volatile-lru`, and the distinction is not stylistic: a `volatile-*`
+  # policy evicts only among keys that carry a TTL, and with `expires=0` there are none, so it
+  # would degrade to `noeviction` and writes would fail with OOM - the same failure arriving as
+  # cart errors instead of a container kill.
+  #
+  # 12mb against the 20M container. Redis's `maxmemory` governs `used_memory`, which T7.19
+  # measured at roughly a third of container RSS (3.93 MB used against 13.19 MiB reported) at a
+  # `mem_fragmentation_ratio` of 2.67, so 12 MB of data sits inside 20 MiB of container with
+  # room for the fragmentation already measured.
+  #
+  # This makes cart contents lossy under pressure, which they were not before. No recorded
+  # scenario reads back old cart state, but it is a behavioural change and it lands with the
+  # re-record rather than being slipped in.
+  redis-cart:
+    command: ["redis-server", "--maxmemory", "12mb", "--maxmemory-policy", "allkeys-lru"]
   # 120M sat inside the working set: measured at 95.8MiB of 120MiB, 79.8%, idle - the
   # highest in the world and ten points from the rehearsal pre-flight gate, which refuses
   # to start against a container above 90%. Raised before it blocks a rehearsal mid-catalog

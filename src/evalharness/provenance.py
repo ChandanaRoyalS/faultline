@@ -134,13 +134,22 @@ OBSERVABILITY_FILES: tuple[tuple[str, str], ...] = (
         "logql_query result, and T7.4's log-reachability census with it",
     ),
     (
+        "compose/otelcol-extras.yml",
+        "the collector's second `--config`, mounted over the demo's own extras path by "
+        "`telemetry.yml` (T7.28). It carries the `memory_limiter`, so it decides what the "
+        "collector does under memory pressure - refuse and drop, or grow until it is killed. "
+        "Covered here rather than the clone's stub file, because this is the one in effect",
+    ),
+    (
         "world/src/otelcollector/otelcol-config.yml",
         "the spanmetrics connector: whether calls_total and latency_bucket exist, and (by not "
         "overriding them) the histogram bucket boundaries T7.14's whole analysis turned on",
     ),
     (
         "world/src/otelcollector/otelcol-config-extras.yml",
-        "the extras layer loaded onto the same collector pipeline by a second --config flag",
+        "the demo's own extras stub. **Mounted over by `compose/otelcol-extras.yml` since T7.28**, "
+        "so it no longer reaches the collector - kept under cover because a change here would "
+        "mean the mount had been removed, which is worth catching",
     ),
 )
 """Every file whose *content* decides what a bundle records, with why (T7.15).
