@@ -1573,6 +1573,48 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.19 — the slow fault the catalog cannot hold *(measurement; ADR-0024 closed)*
+**Done.** ADR-0024's open decision is closed: **the `scale` class stays empty, with a reason.**
+No agent, no injection - the world watched as it normally runs
+(`docs/evidence/t7.19-redis-growth/`).
+
+**The extrapolation was tested first, and it measured the wrong quantity.** T7.13's ~90 minutes
+came from `docker stats`, which counts page cache. `redis-cart` runs RDB persistence
+(`save 3600 1 300 100 60 10000`), so every bgsave writes a multi-megabyte `dump.rdb` into cache;
+the kernel reclaims that before it OOM-kills. What binds is `anon + slab` - **8.1 MiB of 20 MiB,
+38.7%** - on a container reading **96.2%** on `memory.current`.
+
+**The slope, measured.** Growth is **linear**, not decelerating and not bounded: `expires=0`, every
+TTL `-1`, `maxmemory 0`, `noeviction`, 204 bytes/key. Keys **+0.192/s over 27.6 hours** (container
+uptime, 0 restarts) and +0.31/s over a fresh 11 minutes; `anon` **+64.8 B/s** lifetime.
+**≈55 hours to the ceiling at rest**; ≈4 hours under sustained 50x load, scaling by the world's
+*measured* 102 req/s throughput ceiling - 12x baseline, not 50x - and **labelled an extrapolation**.
+
+**And T7.13's supporting claim is falsified.** It said the surge left redis "permanently 11 points
+higher" and that it "did not come back down when load did." Over 11 minutes at rest
+`memory.current` fell at **-2060 B/s** as cache drained. It came back down; T7.13 looked once.
+
+**Decision: it does not belong.** Four constraints, the last fatal alone. T7.12's correlate budget
+is 180 scrapes (900s) from a catalog whose onsets run 166-390s - even 4 hours needs **16x** it, and
+the recorder is sized to match (`DEFAULT_ALERT_TIMEOUT` 420s, `CLEAR_TIMEOUT` 600s). Seven
+scenarios already take over two hours, and every stamp move re-pays the sweep. T7.14 measured the
+gate refusing ~11% of readings at rest in 15-60 minute episodes, so over four hours the question is
+how many, not whether. **And the fault does not revert**: only `FLUSHDB` or recreating the container
+clears it, so the world after is not the world before - which contradicts the catalog's central
+claim and no digest can see it, since it is accumulated runtime state rather than file content.
+
+**An empty class with a stated reason is a result** - ADR-0013's precedent, retired on measurement
+rather than retuned against an interval the evidence says is empty.
+
+**If anyone revisits it, the remediation is unknown too.** `FLUSHDB`, recreating the container, and
+raising `maxmemory` are three candidates spanning two classes, and T7.17 showed what guessing costs
+- a ground truth that stood wrong for three stamps. Any label here needs T7.17's treatment first.
+
+**Queued, not left:** a bound on `redis-cart` joins the digest-locked queue beside `memory_limiter`
+and the kafka retention change (above), because `maxmemory` edits `world/docker-compose.yml` and
+moves `compose_digest`. The immediate consequence is documented at
+`rehearse.MEMORY_HEADROOM_PERCENT`, where it will fire.
+
 ### T7.18 — the proposer, and what it would take to act *(design ADR; nothing built)*
 **Done** (ADR-0028). The design for ADR-0020's ninth role, and for the action plane that has never
 had a task number. No implementation, no world, no model calls.
@@ -2384,6 +2426,27 @@ assumed: `reached_a_class` reads `fault_class` alone, and `fault_class`, `fix_cl
 **T4.10's finding survives its own correction.** All five repeats are the same scenario, so all
 five moved by the same amount in the same direction; the spread that experiment measured is
 identical.
+
+#### Queued: a bound on `redis-cart` — **it fills on its own, and the recorder will refuse first**
+
+Measured at T7.19, queued rather than applied because setting `maxmemory` edits
+`world/docker-compose.yml` and moves `compose_digest`, obsoleting the comparability of every
+current bundle. It batches with the `memory_limiter` and kafka changes and lands with one
+re-record, as T7.1 did.
+
+`redis-cart` runs `maxmemory 0` with `noeviction` against a **20MiB** ceiling and its keys carry no
+TTL (`expires=0`). Cart state therefore accumulates in *cumulative* traffic rather than current
+load: **0.192 keys/s over a 27.6-hour window**, 204 bytes per key, `anon` +64.8 B/s, linear across
+windows from 90 seconds to 27.6 hours. It reaches the 20MiB ceiling in **≈55 hours at rest** with
+nobody doing anything, and every long sweep walks it closer.
+
+**The recorder refuses before the container dies.** `MEMORY_HEADROOM_PERCENT = 90.0` refuses a
+rehearsal when any container passes 90% of its limit, and `redis-cart` gets there in **23-46
+hours**. The refusal will name a container no scenario touches, in the middle of an unrelated
+sweep. Documented at that constant so it is found where it fires.
+
+**Interim, and not a fix:** flush `redis-cart` before a long sweep. It discards accumulated cart
+state, so it is itself a world change - one no digest records. Say so in the run notes.
 
 #### Queued: a `memory_limiter` processor for otel-col — **600M is a timer, not a fix**
 

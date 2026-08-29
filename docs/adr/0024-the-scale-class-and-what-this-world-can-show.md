@@ -170,3 +170,110 @@ taken here because each is a larger decision than authoring a scenario:
   and its usage is monotonic in cumulative traffic rather than in current load.
 - The `scale` row in the taxonomy table is corrected: it is a remediation class, and a fault-class
   table should not have had a row for it.
+
+## Addendum (T7.19): the open decision is closed — the scale class stays empty
+
+§5 left three options and took none. T7.19 measured the one they all rested on and closes it.
+
+### The measurement retires the figure the options were weighed against
+
+T7.13 offered `redis-cart` as "the only known route to a real `scale`-class scenario", at roughly
+90 minutes to page, and flagged that as an extrapolation from a 20-minute slope. It is worse than
+an extrapolation: **it extrapolated the wrong quantity.**
+
+`redis-cart` runs RDB persistence (`save 3600 1 300 100 60 10000`). Every bgsave writes a
+multi-megabyte `dump.rdb` into page cache, which `docker stats` counts. The kernel reclaims page
+cache before it OOM-kills, so what binds is `anon + slab` — **8.1 MiB of 20 MiB, 38.7%**, on a
+container whose `memory.current` reads 96.2%.
+
+Measured at rest, and the growth **is** real and **is** linear — `expires=0`, every TTL `-1`,
+`maxmemory 0`, `noeviction`, 204 bytes per key:
+
+| window | keys | anon |
+|---|---:|---:|
+| 11 minutes | +0.31 /s | +129.9 B/s |
+| **27.6 hours** (container uptime) | **+0.192 /s** | **+64.8 B/s** |
+
+**Time to the ceiling: ≈ 55 hours at rest.** Under sustained 50x load, scaling by the world's
+*measured* throughput ceiling of 102 req/s (12x baseline, not 50x): **≈ 4 hours** — still an
+extrapolation, and labelled one. Not 90 minutes.
+
+**And T7.13's supporting claim is falsified.** It reported the surge left redis "permanently 11
+points higher" and that it "did not come back down when load did." Over 11 minutes at rest,
+`memory.current` fell at **−2060 B/s** as page cache drained. It came back down; T7.13 looked once.
+Full evidence in `docs/evidence/t7.19-redis-growth/`.
+
+### The decision, against the harness rather than in the abstract
+
+**The catalog is shaped for fast-onset, reversible faults. This one is neither. `scale` stays
+empty, with a reason.**
+
+Four constraints, and the last is fatal on its own:
+
+**The wait.** T7.12 set the correlate budget at 180 scrapes — 900s of world time — derived from a
+catalog whose onsets run 166–390s. Even the optimistic 4-hour figure needs ~2,880 scrapes, **16x**
+the budget; the at-rest 55 hours needs 40,000. The recorder is sized the same way:
+`DEFAULT_ALERT_TIMEOUT` 420s, `CLEAR_TIMEOUT` 600s.
+
+**The sweep.** Seven scenarios already run over two hours. One scenario at four hours triples the
+sweep, and every re-sweep after every stamp move pays it again — and stamp moves are routine here
+(ADR-0028 §6 has the next one queued).
+
+**The gate between scenarios.** T7.14 measured `ServiceHighLatency/checkoutservice` refusing ~11%
+of gate readings at rest, in episodes lasting 15–60 minutes. Over a four-hour run the question is
+not whether an excursion occurs but how many; and `MIN_CONTAINER_UPTIME_SECONDS` plus the settle
+window have to be satisfied *after* it.
+
+**The fault does not revert, and this alone disqualifies it.** Every other fault in the catalog is
+undone by removing what was added. This one is undone only by `FLUSHDB` or recreating the
+container — the keys written during the run do not leave. **The world after the scenario is not the
+world before it**, which contradicts the catalog's central claim that its scenarios were measured
+under the same conditions, and would invalidate the bundles recorded around it. A digest cannot see
+it, either: `compose_digest` covers file content, and this is accumulated runtime state.
+
+### On §5's three options
+
+1. **A saturation alert rule** — still the smallest change that would make the class *scoreable*,
+   and it is unaffected by this measurement, because it addresses T7.13's throughput plateau rather
+   than redis. Not taken here; it changes the alert path every recorded bundle was measured
+   against (T7.14's argument, and T7.15's digest now covers the file).
+2. **A long scenario built on `redis-cart`** — **rejected**, on the four constraints above.
+3. **Accept the class stays empty** — **taken**, as ADR-0013 left CPU throttling: retired on
+   measurement rather than retuned against an interval the evidence says is empty.
+
+**An empty class with a stated reason is a result.** `scale` reads: this world cannot page on one
+inside any window the harness is built to wait, and the one candidate that eventually would is not
+reversible.
+
+### If anyone revisits it, the remediation is not known either
+
+Nobody has tested what fixes it. There are at least three candidates — `FLUSHDB`, recreating the
+container, raising `maxmemory` with an eviction policy — and they are not obviously the same class:
+the first two are `restart`-shaped, the third `scale`-shaped, and T7.17 showed that guessing which
+of several plausible fixes is "the" one produces a ground truth that stands wrong for three stamps.
+**Any ground truth here needs T7.17's treatment first**: each candidate applied to a live
+injection, several attempts, measured for whether the fault clears and stays cleared.
+
+### What must not be left as it is
+
+**`redis-cart` accumulating unbounded against a hard ceiling is a property of this world, and every
+long run walks toward it.** Two consequences, one immediate:
+
+**The recorder will begin refusing rehearsals, and it will look like something else.**
+`MEMORY_HEADROOM_PERCENT = 90.0` refuses when any container exceeds 90% of its limit.
+`redis-cart` reaches that on its own in **23–46 hours** at the measured rates. The refusal will
+name a container no scenario touches, during a sweep that has nothing to do with it. Documented at
+that constant, so whoever hits it finds the explanation where it fires rather than here.
+
+**A bound belongs in the digest-locked queue, beside the otel-col `memory_limiter` and the kafka
+retention change.** `maxmemory` with an eviction policy, or a `--save ''`-style change, is a change
+to `world/docker-compose.yml`: it moves `compose_digest` and obsoletes the comparability of every
+current bundle. That is precisely why it is queued rather than applied — it batches with the other
+queued world changes and lands with one re-record, as T7.1 did.
+
+**Interim, and it is not a fix:** flush `redis-cart` before a long sweep. That is a workaround with
+a real cost — it discards accumulated cart state, so it is itself a world change, just one no digest
+records. Say it in the run notes when it is done.
+
+Revisit if: the queued world changes land (the bound goes in with them), or a saturation alert rule
+makes the class scoreable by a route that does not involve redis.
