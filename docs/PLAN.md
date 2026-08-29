@@ -1744,10 +1744,33 @@ observable was a qdisc or an error ratio a latency excursion cannot touch; **a r
 honest equivalent.** Two containers were cycled as the memory guard instructed - `email-service` at
 99.8%, `jaeger` at 97.4% - which is the documented remedy, not a workaround.
 
-**Not done, and why:** the two bundles, their narratives, the rendered pages, corpus seeding,
-quarantine verification and the per-class table updates all depend on recordings that do not exist.
-A retry loop continues in the background and will take the next clean window; two opened in the
-preceding twelve hours.
+**A window opened, A was recorded against - and A FAILED.** Injected cleanly (pumba sidecar up,
+netem applied), held for the full 900s alert budget plus 300s of steady state, reverted cleanly -
+and **adservice p95 never left 1.9ms. No rule fired. No bundle written.**
+
+**And T7.20's gate finding on A was wrong.** It claimed A passed the alerting gate *on measured
+evidence*: the identical mechanism at the identical magnitude took cartservice 1.9 -> ~650ms and
+fired. That evidence does not transfer. **`tc netem` delays egress, and `adservice` is a leaf** -
+its logs read `received ad request` and nothing else, because it serves from memory and calls no
+one - so its delayed egress lands *after* its server span has closed and never enters its own span
+metrics. cartservice moves because it makes downstream calls and the delay sits inside its span
+while it waits. **The magnitude is irrelevant**: there is no downstream call for the delay to sit
+inside. A is marked `blocked`, which releases `dependency_latency-3`.
+
+**Third disqualification, second of the same kind, and now a rule.** B passed reachability on a
+*healthy* world and lost its evidence under its own fault; A passed alerting on a *different
+target* with the same mechanism. Both validated a property somewhere it held and assumed it here.
+CATALOG.md now carries it: **a gate passed on one target is evidence about that target** - name the
+property the result depended on and check *that*. For `dependency_latency` the property is whether
+the target makes a downstream call inside the span being measured, which both surviving scenarios
+do and `adservice` does not.
+
+**C is still being recorded.** It is the one candidate whose alerting gate was probed *on its own
+target* - twice, firing at T+240s both times - which is exactly the distinction the rule above
+draws. Blocked only by the excursion, with a retry loop running.
+
+**Not done:** C's bundle, both narratives, rendered pages, corpus seeding, quarantine verification
+and the per-class table updates.
 
 ### T7.21 — slots before scenarios *(allocation decision; no scenario assigned)*
 **Done.** SPLIT.md extended to n=20 with n=30 decided, by principle and **before any candidate was

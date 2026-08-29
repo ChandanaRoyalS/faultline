@@ -912,3 +912,34 @@ Windows do open. A recorder left retrying will take one; it polls the baseline c
 fifteen-minute clean stretch is enough. Budget hours, not minutes, and cycle the containers the
 memory-headroom guard names while waiting — `email-service` and `jaeger` both crossed 90% during
 T7.22's attempts, and cycling them is the documented remedy rather than a workaround.
+
+## A gate result does not transfer between targets on the same mechanism
+
+Three candidates have now been disqualified by measurement after passing a gate on paper, and two
+of them failed the same way: **a property was validated somewhere it held and assumed to hold
+here.**
+
+**`cart-memory-squeeze`** passed T7.5's reachability gate on 20 runtime series read from a *healthy*
+world, and those series stop exporting under its own fault. The rule that followed: evaluate
+reachability under the fault (above).
+
+**`ad-dependency-latency`** passed T7.20's alerting gate on *measured evidence* — the identical
+mechanism at the identical magnitude took `cartservice` from 1.9ms to ~650ms and fired. Injected on
+`ad-service` it produced **nothing**: 900s of alert budget plus 300s of steady state, p95 never off
+1.9ms, no rule fired, no bundle written.
+
+**The mechanism is fine; the target is not.** `tc netem` delays *egress*. `adservice` is a leaf —
+its logs say `received ad request` and nothing else, because it serves from memory and calls no
+one — so its delayed egress lands *after* its server span has closed and never enters its own span
+metrics. `cartservice` moves because it makes downstream calls, and the delay sits inside its span
+while it waits. Lowering or raising the magnitude cannot fix this: there is no downstream call for
+the delay to sit inside.
+
+**The rule:** a gate passed on one target is evidence about that target. Before reusing it, name the
+property of the target the result actually depended on and check *that*. For `dependency_latency`
+the property is **does the target make a downstream call inside the span being measured** — and
+that is now the question to ask of any new target for this mechanism, alongside ADR-0013's existing
+warning about the caller's timeout.
+
+Both remaining `dependency_latency` scenarios satisfy it: `cartservice` calls redis,
+`productcatalogservice` is called through and calls onward. Neither is a leaf.

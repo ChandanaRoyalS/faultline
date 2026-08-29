@@ -1,4 +1,22 @@
-# dependency_latency-3 (dev) - see SPLIT.md. Slot assigned by T7.21's rule, applied and not
+# BLOCKED ON MEASUREMENT (T7.22). The fault is injectable and NOT OBSERVABLE.
+#
+# Recorded: injected cleanly (pumba sidecar up, netem applied), held for the full 900s alert
+# budget plus 300s of steady state, reverted cleanly - and adservice p95 never left 1.9ms.
+# No rule fired. No bundle was written.
+#
+# Why, and it is the part worth keeping: **adservice is a leaf.** `tc netem` delays egress, and
+# a leaf's delayed egress lands AFTER its server span has closed, so its own span metrics never
+# move. cartservice shows ~650ms under the identical mechanism because it makes downstream calls
+# whose delayed egress extends its own span. adservice's logs say so directly - "received ad
+# request" and nothing else; it serves from memory and calls no one.
+#
+# So the T7.20 gate finding that this "passes the alerting gate on measured evidence" was wrong.
+# The evidence was cartservice's behaviour under the same mechanism, and **a mechanism's
+# observability is a property of the target, not of the mechanism.** See CATALOG.md.
+#
+# It does NOT occupy its slot (Scenario.blocked), so dependency_latency-3 is free again.
+#
+# dependency_latency-3 (dev) - see SPLIT.md. Slot was assigned by T7.21's rule, applied and not
 # chosen: the class holds 3 dev + 1 holdout, `-1` (dev) and `-2` (holdout) were committed at
 # n=10, so the remaining `-3` and `-4` are both dev. Nothing about this scenario entered that.
 #
@@ -55,6 +73,7 @@ expected_remediation_class: restart
 # If someone wants it here, measure the qdisc delete on ad-service first - T7.17's protocol,
 # three attempts - and then set it.
 rehearsed: false
+blocked: true
 alert_timeout_seconds: 900
 # A rehearsal hint, not a fault parameter. adservice serves ~0.4 req/s against cartservice's
 # ~3.2, so its 2m rate window fills far more slowly and its onset is expected longer than

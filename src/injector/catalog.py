@@ -187,12 +187,17 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
                 "while the storefront keeps serving - a second dependency_latency target, on "
                 "the best-instrumented service in the world."
             ),
-            # The same 300ms measured on cart-service, deliberately: ADR-0013 warns that a
-            # latency fault pushed past the caller's timeout inverts from a latency signal to
-            # an absence one and silently changes class, and 300ms is the magnitude already
-            # known to stay under it. adservice runs ~0.4 req/s against cart's ~3.2, so the 2m
-            # rate window fills more slowly and the onset is longer; alert_timeout_seconds on
-            # the scenario carries that.
+            # NO SCENARIO USES THIS. T7.22 injected it and measured it invisible: 900s of
+            # alert budget plus 300s of steady state, and adservice p95 never left 1.9ms. No
+            # rule fired. Kept because the measurement is worth reproducing.
+            #
+            # `tc netem` delays egress, and adservice is a leaf - it serves ads from memory and
+            # calls nothing - so its delayed egress lands after its server span has closed and
+            # never enters its own span metrics. cartservice moves to ~650ms under the identical
+            # mechanism because it makes downstream calls whose delayed egress extends its span.
+            #
+            # The magnitude is not the problem and lowering or raising it will not help: the
+            # target has no downstream call for the delay to sit inside.
             params={"delay_ms": 300, "jitter_ms": 0, "duration": "1h", "interface": "eth0"},
         ),
         FaultDefinition(
