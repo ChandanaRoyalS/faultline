@@ -1573,6 +1573,69 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.20 — three more scenarios, gated before recording *(stage 1: design only; STOPPED for review)*
+PLAN.md's original T7.1 (catalog growth), begun. **Nothing recorded, no injection, no agent**
+(`docs/design/t7.20-three-scenarios.md`).
+
+**What is actually thin: seven valid dev bundles**, not thirteen scenarios - three authored
+scenarios are `blocked` and two of those also carry `INVALID.md`. Per class:
+`dependency_latency` **1**, and `bad_config` / `bad_deploy` / `resource_exhaustion` **2** each.
+
+**Three proposals, four gates each** (T7.5 reachability against T7.4's census; T7.13 alerting;
+injector capability without a new handler; T7.12's 180-scrape onset budget).
+
+**A - `ad-dependency-latency`** (`dependency_latency`). Pumba netem 300ms on `ad-service`, raising
+the thinnest class. **Survives all four on measured evidence**: 48 runtime series + 731 log
+lines/hr (2 classes, the best-instrumented target in the census); p95 1.9ms at rest with **0 of
+2398 samples over 250ms** in T7.14's census; existing handler; onset estimated 250-450s against a
+measured 229s precedent. **Its remediation ships as `restart` only** - T7.17 measured
+`config_revert` on this *mechanism* but on `cart-service`, and ADR-0027 already carries one
+scenario holding that field by inference. A third would make a measured field a habit.
+
+**B - `cart-memory-squeeze`** (`resource_exhaustion`). 200m against a 400MiB ceiling, 258.8MiB
+resting. Adds a **third runtime** (.NET vs two JVMs) with directly relevant evidence
+(`process_runtime_dotnet_gc_heap_size`, `gc_committed_memory_size`) and completes a four-class
+discrimination set on cartservice. **Survives three of four.** The alerting gate is *plausible but
+unmeasured*: .NET's Server GC reads the cgroup limit and may **collect harder and survive** rather
+than OOM, which is exactly the shape ADR-0013 retired CPU throttling for - the mechanism applies
+and nothing observable happens. The JVM precedents do not transfer, because a JVM sizes its heap at
+startup. Also named rather than buried: it adds n to the class already carrying the most disputed
+register rows.
+
+**C - `shipping-quote-misconfig`** (`bad_config`). `QUOTE_SERVICE_ADDR` pointed at an address that
+does not resolve - a third `bad_config` shape, breaking a service-to-service address rather than a
+backing store or a flag. **Survives three of four.** Reachability passes *weakly*: **0 runtime
+series**, logs only, so it must declare `answers_idle_or_absent: [logs]` and its narrative must not
+lean on runtime metrics. The alerting gate is *plausible but unmeasured*: whether a failed
+`GetQuote` surfaces as an error rate depends on how `checkoutservice` handles it, and nothing in
+the record says.
+
+**Verdict: one of three survives all four gates on measured evidence.** B and C share the same open
+gate - alerting, the one that killed the scale attempt - and each is settled by a probe of a few
+minutes that records nothing. That is the gates working: two scenarios have already been proposed
+and abandoned late, and finding this out now costs two short probes rather than two recording
+sessions.
+
+**A prerequisite none of them can skip: SPLIT.md has no free slots.** All ten `n=10` slots are
+filled; these need `dependency_latency-3`, `resource_exhaustion-4`, `bad_config-3`, which do not
+exist. SPLIT.md's rules make the extension a *separate, earlier decision* - "committed before
+authoring, do not edit to accommodate a scenario", and slots fill alphabetically with "no judgement
+in it". **So the split of these three is not ours to choose**, and proposing all three as dev would
+be choosing it. `bad_config` has zero holdout representation and SPLIT.md's rationale sends holdout
+capacity to classes that lack it, so a principled extension is *likely* to make `bad_config-3`
+holdout - which would make C a holdout scenario. The extension must land first, against unnamed
+slots, and decide that without these three in view. It is the task SPLIT.md already names.
+
+**Queued for stage 2**, on approval: probe B and C's alerting gate; extend SPLIT.md against unnamed
+slots; then rehearse and record whatever survives, per ADR-0014 with current digests and one
+driver, narratives to ADR-0009 and the current capability stamp, pages rendered, corpus seeded.
+**The agent is not run on them** - that is a separate pre-registered task.
+
+**World note (T7.19 asked this be recorded when done): `redis-cart` was flushed just before this
+task** - 35,105 keys / 7.16MB down to 17 keys / 1.78MB, by `FLUSHDB` rather than a recreate
+(`RestartCount` still 0, container up since 2026-08-28T02:20:03Z). An unrecorded world change: no
+digest covers accumulated runtime state, so it is written here instead.
+
 ### T7.19 — the slow fault the catalog cannot hold *(measurement; ADR-0024 closed)*
 **Done.** ADR-0024's open decision is closed: **the `scale` class stays empty, with a reason.**
 No agent, no injection - the world watched as it normally runs
