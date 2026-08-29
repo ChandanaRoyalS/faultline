@@ -100,6 +100,21 @@ class Scenario(BaseModel):
     refused for new ones - see `CATALOG.md`. **A scenario declaring `[]` is recordable**, but
     only deliberately: its narrative must not rest on a question its target cannot answer."""
 
+    also_correct_remediation: list[RemediationClass] = Field(default_factory=list)
+    """Other remediations **measured** to fix this fault durably (T7.17, ADR-0027).
+
+    `expected_remediation_class` stays the labelled fix and stays in `scenario_fingerprint`;
+    this is additive and deliberately **not** fingerprinted, so recording that a second fix works
+    invalidates no bundle. A bundle is a recording of what the fault did to the world, and it is
+    not made wrong by a later discovery about how to undo it.
+
+    **The bar is measurement, not plausibility.** An entry here means the remediation was applied
+    to a live injection and the fault verifiably cleared and stayed cleared. For the two
+    `dependency_latency` scenarios that is `config_revert`: deleting the netem qdisc from the
+    target's interface clears the delay durably, without restarting the container and with the
+    pumba sidecar still running - 3/3 attempts, evidence in `docs/evidence/t7.17-fix-class/`.
+    """
+
     blocked: bool = False
     """This scenario cannot be rehearsed and does not occupy its slot.
 

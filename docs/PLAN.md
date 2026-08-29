@@ -1573,6 +1573,57 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.17 — which fix actually works *(experiment; 8 live attempts, pre-registered)*
+**Settled by measurement, and the register was wrong** (ADR-0027,
+`docs/evidence/t7.17-fix-class/`). Protocol registered and committed before the first injection.
+
+**Both fixes work, 3/3 each.** Read from the qdisc directly rather than inferred from a percentile
+that lags two minutes: `restart` clears the netem durably 3/3, and so does **deleting the qdisc**
+(`tc qdisc del dev eth0 root`) with the container never restarted and the pumba sidecar still `Up`
+at +120s. Pumba applies its rule once and waits out `--duration` rather than reconciling, so
+nothing reapplies it. p95 642-671ms under fault; back to **1.9ms**, the committed baseline, on all
+three qdisc-delete attempts. The injector's own revert (control) 2/2.
+
+**So `config_revert` names something real here, and the register said it did not.** Its entry was
+resolved against the agent on the premise *"there is no configuration to revert"*. There is: the
+network configuration on the affected service. It is also the **less disruptive** fix - it restores
+p95 to exactly 1.9ms where restart leaves 3.8-4.8ms, the post-restart warming CATALOG.md documents.
+
+**Neither label is wrong; ADR-0022 §1.2's tiebreak just cannot decide.** It says the class is
+decided by which remediation works, and assumes one does. Two do. Scoring against whichever the
+author wrote first is grading on taste, not on the rule.
+
+**What the scorer does now:** `Scenario.also_correct_remediation`, a list of remediations
+**measured** to fix the fault durably; `LabelScore.correct` accepts the labelled class or any
+member; `correct_by_alternative` keeps it visible that the answer was right by the second route.
+Deliberately **not** in `scenario_fingerprint` - `expected_remediation_class` is unchanged and the
+fingerprint verified identical (`c982653939a5c1ff`), so **no bundle is invalidated**.
+
+**The register keeps both entries.** The fix-class one is resolved *for the agent*, kept rather
+than deleted because it records a disagreement settled wrongly for three stamps. The fault-class
+one keeps `dependency_latency` and **loses its reasoning**: it was resolved by the same fix test,
+which both readings now pass, so it discriminates nothing. It stands on other grounds - nothing on
+cartservice was *set wrong*. Corrected rather than left, because a falsified premise under a
+conclusion one agrees with is how a register stops being evidence.
+
+**Tables corrected, originals struck and visible** (T7.3's precedent). RESULTS.md S6 class of fix
+**4/5 -> 5/5**; SWEEP-2026-08-26 **6/7 -> 7/7**; taxonomy `dependency_latency` fix **0/1 -> 1/1**
+in both sweeps and totals **6/7 -> 7/7**, **3/4 -> 4/4**; evidence and locus arms **5/6 -> 6/6**,
+**3/4 -> 4/4**, **6/7 -> 7/7**. **The holdout moves too**: `productcatalog-dependency-latency` ran
+the same mechanism, so held-out fix class goes **2/3 -> 3/3** and entry 1 **0/1 -> 1/1**. A
+correction that improves a headline deserves more scepticism than one that worsens it, which is
+why it rests on eight recorded attempts and a protocol registered first.
+
+**Stated rather than buried:** every attempt ran with the gate **RELAXED, not PASS** -
+`ServiceHighLatency/checkoutservice` (T7.14's characterised excursion) fired throughout, 90+
+minutes. The relaxation was written before it was used and is scoped: proceed only when every
+refusal is that excursion on services other than the target and `cartservice` is at baseline,
+which it was, 1.9ms before every injection. A checkout latency excursion cannot put or remove a
+qdisc on cartservice. **And `productcatalog-dependency-latency` was not tested directly** - it
+carries the field by inference from the identical mechanism, which is what was tested. **The agent
+still performed no remediation**; it holds four read-only tools. This settles whether the label was
+true, not whether the agent could carry the fix out.
+
 ### T7.16 — the world is somebody else's repository *(provenance; one field added, the clone gets none)*
 **Done** (ADR-0026). T7.15's last set-aside hole, and it turned out not to be the hole.
 

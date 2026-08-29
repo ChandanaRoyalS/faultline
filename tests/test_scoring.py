@@ -433,3 +433,99 @@ def test_a_scenario_with_classes_available_lists_them() -> None:
 
     assert "reachability answerable by: runtime, logs" in report
     assert "NO evidence class" not in report
+
+
+# --- T7.17: a fault with two working fixes --------------------------------------------------
+
+
+def test_a_measured_second_fix_counts_correct() -> None:
+    """**ADR-0027.** `dependency_latency` has two remediations measured to work, 3/3 each.
+
+    ADR-0022 §1.2 decides a fix class by which remediation actually works and assumes one does.
+    Where two do, scoring against whichever the author wrote down first grades on taste.
+    """
+    score = score_label(
+        "cart-dependency-latency", "restart", "config_revert", frozenset({"config_revert"})
+    )
+    assert score.correct
+    assert score.correct_by_alternative, "right by the second route, and the record says so"
+    assert not score.abstained
+
+
+def test_the_labelled_fix_is_still_correct_and_is_not_flagged_as_alternative() -> None:
+    score = score_label(
+        "cart-dependency-latency", "restart", "restart", frozenset({"config_revert"})
+    )
+    assert score.correct
+    assert not score.correct_by_alternative
+
+
+def test_an_answer_in_neither_set_is_still_wrong() -> None:
+    """The set is an accepted list, not an amnesty."""
+    score = score_label(
+        "cart-dependency-latency", "restart", "rollback", frozenset({"config_revert"})
+    )
+    assert not score.correct
+
+
+def test_scenarios_without_a_measured_second_fix_are_unaffected() -> None:
+    """The default is empty, so nothing else in the catalog loosens."""
+    score = score_label("cart-redis-misconfig", "config_revert", "restart")
+    assert not score.correct
+    assert score.also_correct == frozenset()
+
+
+def test_abstention_is_still_neither_right_nor_wrong() -> None:
+    score = score_label(
+        "cart-dependency-latency", "restart", "unknown", frozenset({"config_revert"})
+    )
+    assert score.abstained
+    assert not score.correct
+    assert not score.correct_by_alternative
+
+
+def test_the_applied_set_reaches_the_record() -> None:
+    """A report has to say which accepted set it scored under, not leave it to be inferred."""
+    recorded = score_label(
+        "cart-dependency-latency", "restart", "config_revert", frozenset({"config_revert"})
+    ).as_dict()
+    assert recorded["also_correct"] == ["config_revert"]
+    assert recorded["correct"] is True
+    assert recorded["correct_by_alternative"] is True
+
+
+def test_only_the_dependency_latency_scenarios_carry_a_second_fix() -> None:
+    """The bar is measurement. T7.17 tested one mechanism; two scenarios share it."""
+    from pathlib import Path
+
+    from evalharness.scenario import load_catalog
+
+    root = Path(__file__).resolve().parents[1] / "evals" / "scenarios"
+    carrying = {s.id for s in load_catalog(root) if s.also_correct_remediation}
+    assert carrying == {"cart-dependency-latency", "productcatalog-dependency-latency"}
+
+
+def test_recording_a_second_fix_does_not_move_the_scenario_fingerprint() -> None:
+    """**The reason it is a separate field.** `expected_remediation_class` is fingerprinted and is
+    unchanged, so no bundle is invalidated by discovering that a second remediation works."""
+    import json
+    from pathlib import Path
+
+    from evalharness.provenance import scenario_fingerprint
+    from evalharness.scenario import Scenario
+
+    root = Path(__file__).resolve().parents[1]
+    for name in ("cart-dependency-latency", "productcatalog-dependency-latency"):
+        scenario = Scenario.from_yaml(root / "evals/scenarios" / f"{name}.yaml")
+        assert scenario.also_correct_remediation, f"{name} should carry the measured second fix"
+        paths = [
+            root / "evals/scenarios/artifacts" / split / name / "manifest.json"
+            for split in ("dev", "holdout")
+        ]
+        found = next((p for p in paths if p.exists()), None)
+        assert found is not None, f"{name}: no recorded bundle in either split"
+        bundle = json.loads(found.read_text())
+        assert scenario_fingerprint(scenario) == bundle["scenario_fingerprint"], (
+            f"{name}: recording a second working fix moved the fingerprint, which would "
+            "invalidate the bundle. It must stay out of the fingerprint (ADR-0027)."
+        )

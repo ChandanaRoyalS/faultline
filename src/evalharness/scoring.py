@@ -59,20 +59,39 @@ CLASS_DISPUTES: tuple[ClassDispute, ...] = (
         scenario_id="cart-dependency-latency",
         truth="dependency_latency",
         returned="bad_config",
-        resolved_by="ADR-0022 §1.2",
+        resolved_by="ADR-0022 §1.2, reasoning corrected by ADR-0027 (T7.17)",
         why=(
             "A shaping rule on a container's network namespace reads as either 'a dependency "
-            "got slow' or 'something was configured wrong'. Resolved against the agent by the "
-            "fix test, which was measured: pumba binds to the container present, so a restart "
-            "durably clears the delay while there is no configuration to revert."
+            "got slow' or 'something was configured wrong'. **The conclusion stands and its "
+            "original reasoning does not.** It was resolved against the agent by the fix test - "
+            "'a restart durably clears the delay while there is no configuration to revert' - "
+            "and T7.17 measured both halves: restart clears it 3/3, and so does deleting the "
+            "netem qdisc, 3/3. A test that both readings pass discriminates nothing, so it "
+            "cannot carry this entry. What does: `bad_config` in this catalog means a "
+            "configuration value was set wrong, and nothing on cartservice was. Traffic shaping "
+            "was added alongside it, and the service then behaved as a slow dependency - which "
+            "is what `dependency_latency` names. Corrected rather than deleted, because leaving "
+            "a falsified premise in place under a conclusion one happens to agree with is how "
+            "a register stops being evidence."
         ),
     ),
     ClassDispute(
         scenario_id="cart-dependency-latency",
         truth="restart",
         returned="config_revert",
-        resolved_by="ADR-0022 §1.2",
-        why="The class of fix follows the same fork, and by the same measurement.",
+        resolved_by="ADR-0027 (T7.17) - RESOLVED FOR THE AGENT, by measurement",
+        why=(
+            "**Not a miss.** This entry was resolved against the agent on the premise that "
+            "'there is no configuration to revert'. T7.17 tested it: deleting the netem qdisc "
+            "from the target's interface clears the delay durably - 3/3 attempts, container "
+            "never restarted, pumba sidecar still running and not reapplying, p95 back to its "
+            "1.9ms baseline. Restart also works, 3/3. The fault has two working fixes, so "
+            "ADR-0022 §1.2's tiebreak - which assumes one - cannot decide it, and "
+            "`config_revert` is a correct answer. Kept in the register rather than deleted: it "
+            "is the record of a disagreement that was settled wrongly for three stamps, and "
+            "deleting it would hide that. `also_correct_remediation` is what makes the scorer "
+            "count it right."
+        ),
     ),
     ClassDispute(
         scenario_id="ad-memory-squeeze",
@@ -227,10 +246,27 @@ class LabelScore:
     returned: str | None
     abstained: bool
     dispute: ClassDispute | None
+    also_correct: frozenset[str] = frozenset()
+    """Other answers measured to be right for this scenario (T7.17).
+
+    **ADR-0022 §1.2 decides a fix class by which remediation actually works, and assumes exactly
+    one does.** For `dependency_latency` two do, measured: see ADR-0027. Grading on which of two
+    working fixes the agent happened to name is grading on taste, so both count.
+
+    Empty for every other scenario, and it is meant to stay that way - an entry here is a claim
+    that a remediation was *tested and worked*, not that it sounds reasonable.
+    """
 
     @property
     def correct(self) -> bool:
-        return not self.abstained and self.returned == self.truth
+        return not self.abstained and (
+            self.returned == self.truth or self.returned in self.also_correct
+        )
+
+    @property
+    def correct_by_alternative(self) -> bool:
+        """Right, but not by the labelled fix. Kept visible so the headline cannot hide it."""
+        return self.correct and self.returned != self.truth
 
     @property
     def counts_toward_accuracy(self) -> bool:
@@ -242,18 +278,26 @@ class LabelScore:
             "truth": self.truth,
             "returned": self.returned,
             "correct": self.correct,
+            "correct_by_alternative": self.correct_by_alternative,
+            "also_correct": sorted(self.also_correct),
             "abstained": self.abstained,
             "dispute": None if self.dispute is None else self.dispute.resolved_by,
         }
 
 
-def score_label(scenario_id: str, truth: str, returned: str | None) -> LabelScore:
+def score_label(
+    scenario_id: str,
+    truth: str,
+    returned: str | None,
+    also_correct: frozenset[str] = frozenset(),
+) -> LabelScore:
     abstained = returned in (None, ABSTENTION, NO_REMEDIATION)
     return LabelScore(
         truth=truth,
         returned=returned,
         abstained=abstained,
         dispute=None if abstained else dispute_for(scenario_id, truth, returned or ""),
+        also_correct=also_correct,
     )
 
 
