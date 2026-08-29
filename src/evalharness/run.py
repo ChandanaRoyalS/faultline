@@ -441,6 +441,25 @@ def bundle_for(scenario_id: str) -> dict[str, Any]:
     raise RunError(f"no recorded bundle for {scenario_id}")
 
 
+def also_correct_fixes(scenario_id: str) -> frozenset[str]:
+    """Remediations besides the labelled one that were **measured** to fix this fault (T7.17).
+
+    Read from the scenario file at scoring time rather than from the bundle, because it is a
+    scoring policy and not a property of the recording: no bundle carries it, and none is
+    re-recorded to gain it. Deliberately outside `scenario_fingerprint` for the same reason - the
+    labelled `expected_remediation_class` is unchanged, so no bundle is invalidated by this.
+
+    The applied set is written into the scored output, so a report says which one it used rather
+    than leaving a reader to infer it from the catalog as it stands today.
+    """
+    path = REPO_ROOT / "evals/scenarios" / f"{scenario_id}.yaml"
+    if not path.exists():
+        return frozenset()
+    from evalharness.scenario import Scenario
+
+    return frozenset(r.value for r in Scenario.from_yaml(path).also_correct_remediation)
+
+
 def read_trajectory_facts(dsn: str, trajectory_id: str) -> dict[str, Any]:
     import psycopg
 
@@ -501,7 +520,10 @@ def score(
         ),
         fault_class=score_label(scenario_id, bundle["fault_class"], verdict.get("fault_class")),
         fix_class=score_label(
-            scenario_id, bundle["expected_remediation_class"], verdict.get("remediation_class")
+            scenario_id,
+            bundle["expected_remediation_class"],
+            verdict.get("remediation_class"),
+            also_correct=also_correct_fixes(scenario_id),
         ),
         categories=Categories(
             # Disjoint on purpose: a budget-exhaustion flag and a contradiction flag each have

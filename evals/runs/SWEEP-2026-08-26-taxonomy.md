@@ -37,7 +37,7 @@ Accuracy is over **answered** runs; abstentions leave the ratio and appear as co
 |---|---|---|---|---|---|---|
 | `bad_config` | 2 | 2/2 | **1/1** | 2/2 | 1/1 | 1 |
 | `bad_deploy` | 2 | 2/2 | **1/1** | 2/2 | 1/1 | 1 |
-| `dependency_latency` | 1 | **0/1** | **1/1** | 0/1 | **0/1** | 0 |
+| `dependency_latency` | 1 | **0/1** | **1/1** | ~~0/1~~ **1/1** | ~~**0/1**~~ **1/1** | 0 |
 | `resource_exhaustion` | 2 | **0/2** | **1/1** | 2/2 | 1/1 | 1 |
 | ~~`scale`~~ | 0 | — | — | — | — | — |
 
@@ -52,7 +52,7 @@ opens no incident and can never be scored.
 |---|---|---|
 | fault class, of answered | **4/7** | **4/4** |
 | coverage (reached a class) | **7/7** | **4/7** |
-| class of fix, of answered | 6/7 | 3/4 |
+| class of fix, of answered | ~~6/7~~ **7/7** | ~~3/4~~ **4/4** |
 | distinct classes returned | `bad_config`, `bad_deploy` | **all four, plus `unknown`** |
 
 ## The three questions

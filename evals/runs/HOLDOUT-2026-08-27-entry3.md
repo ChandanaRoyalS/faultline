@@ -30,7 +30,7 @@ before any scenario ran, with the pipeline frozen in its own commit before that
 |---|---|---|
 | **coverage** | 1 / 3 | **3 / 3** |
 | fault class, of answered | 1 / 1 | **3 / 3** |
-| class of fix, of answered | 0 / 1 | **2 / 3** |
+| class of fix, of answered | ~~0 / 1~~ **1 / 1** | ~~**2 / 3**~~ **3 / 3** | _(rescored 2026-08-29 under T7.17: `config_revert` is a **measured** working fix for `dependency_latency`, so it is no longer a miss. Originals struck. See ADR-0027.)_
 | judge `same_mechanism` | 1 / 3 | **3 / 3** |
 | runs exhausting a bound | **2** | **0** |
 | triage recall | 0.93 avg | **1.00 on all three** |
@@ -69,7 +69,10 @@ resolved.
 **`bad_config` has n = 0 on holdout** and always has. The class the dev sweeps exercise most is
 the one holdout cannot speak to at all.
 
-**The fix class is 2 of 3.** `productcatalog-dependency-latency` returned `config_revert` where
+~~**The fix class is 2 of 3.**~~ **Corrected at T7.17: 3 of 3.** Left as written below because
+it was the reading at the time; T7.17 measured `config_revert` to be a working fix for this
+fault class, so it was never a miss (ADR-0027). Original:
+`productcatalog-dependency-latency` returned `config_revert` where
 the truth is `restart` — the same miss as entry 1, and the same miss `cart-dependency-latency`
 makes on dev in every sweep. Unmoved by three stamps.
 

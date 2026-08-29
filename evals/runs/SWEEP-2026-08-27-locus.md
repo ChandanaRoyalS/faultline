@@ -37,7 +37,7 @@ the rejected one. Same world, same harness, same protocol, same budget. Holdout 
 |---|---|---|---|
 | **coverage** | 6 / 7 | 4 / 7 | **7 / 7** |
 | fault class, of answered | 6 / 6 | 4 / 4 | **7 / 7** |
-| class of fix, of answered | 5 / 6 | 3 / 4 | **6 / 7** |
+| class of fix, of answered | ~~5 / 6~~ **6 / 6** | ~~3 / 4~~ **4 / 4** | ~~**6 / 7**~~ **7 / 7** | _(rescored 2026-08-29 under T7.17: `config_revert` is a **measured** working fix for `dependency_latency`, so it is no longer a miss. Originals struck. See ADR-0027.)_
 | **failing-service dispatches, total** | 25 | 15 | **26** |
 | **scenarios collapsed to ≤ 1 there** | 0 | **3** | **0** |
 | distinct evidence classes at the failing service | 20 | 17 | **25** |
@@ -110,7 +110,11 @@ instruction.
   the judge scored its narrative `different` with 2 dead ends closed against 4 missed — its
   weakest row in any sweep. A right answer with a narrative the judge does not follow is worth
   saying out loud rather than rounding to a win.
-- **Class of fix is 6/7, not 7/7.** `cart-dependency-latency` returned `config_revert` where the
+- ~~**Class of fix is 6/7, not 7/7.**~~ **Corrected at T7.17: it is 7/7.** The line below is
+  left as written because it was the reading at the time, and it was wrong on a premise T7.17
+  measured: deleting the netem qdisc clears the delay durably, 3/3, so `config_revert` is a
+  working fix and not a miss (ADR-0027). Original:
+  `cart-dependency-latency` returned `config_revert` where the
   truth is a network-path fix — the same miss it has made in every sweep, unmoved by this stamp.
 - **Cost rose** to $3.83, the highest of the three, on 47 tool calls rather than more.
 

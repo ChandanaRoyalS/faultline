@@ -29,7 +29,7 @@ the only delta here.** Holdout untouched.
 |---|---|---|---|---|---|---|
 | ad-memory-squeeze | `resource_exhaustion` ✔ | `config_revert` ✔ | `resource_exhaustion` ✔ | `config_revert` ✔ | 2 → 2 | same → same |
 | cart-bad-image-tag | `bad_deploy` ✔ | `rollback` ✔ | **`unknown` ABST** | — | **3 → 0** | same → **different** |
-| cart-dependency-latency | `dependency_latency` ✔ | `config_revert` ✘ | `dependency_latency` ✔ | `config_revert` ✘ | 3 → 5 | same → same |
+| cart-dependency-latency | `dependency_latency` ✔ | `config_revert` ~~✘~~ **✔** | `dependency_latency` ✔ | `config_revert` ~~✘~~ **✔** | 3 → 5 | same → same |
 | cart-redis-misconfig | `bad_config` ✔ | `config_revert` ✔ | **`unknown` ABST** | — | **4 → 1** | same → **different** |
 | frauddetection-memory-squeeze | `resource_exhaustion` ✔ | `config_revert` ✔ | `resource_exhaustion` ✔ | `config_revert` ✔ | 4 → 4 | same → same |
 | product-catalog-flag-failure | `unknown` **ABST** | — | **`bad_config` ✔** | `config_revert` ✔ | 6 → 3 | different → **same** |
@@ -39,7 +39,7 @@ the only delta here.** Holdout untouched.
 |---|---|---|
 | **coverage** | **6 / 7** | **4 / 7** |
 | fault class, of answered | 6 / 6 | 4 / 4 |
-| class of fix, of answered | 5 / 6 | 3 / 4 |
+| class of fix, of answered | ~~5 / 6~~ **6 / 6** | ~~3 / 4~~ **4 / 4** | _(rescored 2026-08-29 under T7.17: `config_revert` is a **measured** working fix for `dependency_latency`, so it is no longer a miss. Originals struck. See ADR-0027.)_
 | judge `same_mechanism` / `different` | 6 / 1 | **4 / 3** |
 | triage recall / precision | ~~0.91 / 0.54~~ **0.92 / 0.58** | ~~0.92 / 0.56~~ **0.92 / 0.59** | _(rescored 2026-08-28 under T7.3's fixed per-episode exclusion; the original figures are struck)_
 | runs exhausting a bound | 2 (both `metrics`) | 1 (`metrics`) |

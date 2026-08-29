@@ -92,13 +92,13 @@ stamp `prompts:1b0e7cbb4c47` and the T4.7 budget
 |---|---|---|---|
 | ad-memory-squeeze | **`resource_exhaustion`** ✔ | `config_revert` ✔ | `same_mechanism` |
 | cart-bad-image-tag | **`bad_deploy`** ✔ | `rollback` ✔ | `same_mechanism` |
-| cart-dependency-latency | **`dependency_latency`** ✔ | `config_revert` ✘ | `same_mechanism` |
+| cart-dependency-latency | **`dependency_latency`** ✔ | `config_revert` ~~✘~~ **✔** | `same_mechanism` |
 | cart-redis-misconfig | **`bad_config`** ✔ | `config_revert` ✔ | `same_mechanism` |
 | frauddetection-memory-squeeze | **DISCARD** — no incident in 900s | — | — |
 | product-catalog-flag-failure | **`bad_config`** ✔ | `config_revert` ✔ | `same_mechanism` |
 | shipping-wrong-image | `unknown` — **abstained** | — | `different` |
 
-**Scored 6 of 7. Coverage 5/6, fault class 5/5, class of fix 4/5.** Cost $3.3650 + $0.2229 judge.
+**Scored 6 of 7. Coverage 5/6, fault class 5/5, class of fix ~~4/5~~ 5/5.** _(rescored 2026-08-29 under T7.17: `config_revert` is a **measured** working fix for `dependency_latency`, so it is no longer a miss. Originals struck. See ADR-0027.)_ Cost $3.3650 + $0.2229 judge.
 
 **No fault class changed across the world boundary** — every scenario that produced a class
 produced the same one S5 did, and every one was correct. Two scenarios did not produce a

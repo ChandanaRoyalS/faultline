@@ -52,5 +52,13 @@ expected_evidence:
 # is simply not re-shaped. Restarting the target is therefore a real fix and `restart`
 # is the correct label, not a least-bad reading of four options.
 expected_remediation_class: restart
+# T7.17 measured a second working fix. Deleting the netem qdisc from the target's
+# interface clears the delay durably - 3/3 attempts, container never restarted, pumba
+# sidecar still running and not reapplying. So `config_revert` is not a wrong answer
+# here, and the register entry that counted it as one was resolved on a premise
+# ("there is no configuration to revert") that is false. See ADR-0027.
+# Additive and not fingerprinted: the label above is unchanged, so no bundle moves.
+also_correct_remediation:
+  - config_revert
 rehearsed: true
 answers_idle_or_absent: [runtime, logs]
