@@ -25,11 +25,21 @@ SPLIT_DOC = SCENARIO_DIR / "SPLIT.md"
 # test_split_doc_matches_allocation asserts the two have not drifted.
 # (fault class) -> (dev slots, holdout slots)
 ALLOCATION: dict[FaultClass, tuple[int, int]] = {
-    FaultClass.BAD_DEPLOY: (2, 1),
-    FaultClass.DEPENDENCY_LATENCY: (1, 1),
-    FaultClass.RESOURCE_EXHAUSTION: (2, 1),
-    FaultClass.BAD_CONFIG: (2, 0),
+    FaultClass.BAD_DEPLOY: (4, 2),
+    FaultClass.DEPENDENCY_LATENCY: (3, 1),
+    FaultClass.RESOURCE_EXHAUSTION: (3, 1),
+    FaultClass.BAD_CONFIG: (4, 2),
 }
+"""**n=20 as of T7.21**, extended from n=10 by principle and before any candidate was assigned.
+
+The guards below are capacity checks: authoring may not exceed these, and must match exactly once
+a class is full. Extending them opens slots; it does not create scenarios, and which faults fill
+them is the separate earlier decision ADR-0008 requires. See SPLIT.md for the reasoning and for the
+n=30 allocation, which is decided but not yet opened here."""
+
+CAPACITY_HEADING = "### Current capacity"
+"""Where the drift check reads from. SPLIT.md keeps the n=10 table above it as committed history,
+so the check has to be anchored rather than matching the first table it finds."""
 
 
 def scenario_paths() -> list[Path]:
@@ -214,7 +224,9 @@ def test_cross_split_service_overlap_is_the_recorded_set() -> None:
 
 def test_split_doc_matches_allocation() -> None:
     """SPLIT.md is the human-readable copy. Drift between it and ALLOCATION is a bug."""
-    text = SPLIT_DOC.read_text()
+    whole = SPLIT_DOC.read_text()
+    assert CAPACITY_HEADING in whole, "SPLIT.md has no current-capacity table to check against"
+    text = whole.split(CAPACITY_HEADING, 1)[1]
     for fault_class, (dev_slots, holdout_slots) in ALLOCATION.items():
         pattern = rf"^\|\s*`{re.escape(fault_class.value)}`\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*$"
         match = re.search(pattern, text, re.MULTILINE)

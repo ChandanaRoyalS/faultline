@@ -1712,6 +1712,53 @@ deliberately so:** the alert reports a true condition and refusing is right. Wha
 refusing no longer means waiting an unknown number of hours. T7.14 measured 12.6% duty; by T7.22 it
 ran ~95% across eight hours and cost this project a day.
 
+### T7.21 — slots before scenarios *(allocation decision; no scenario assigned)*
+**Done.** SPLIT.md extended to n=20 with n=30 decided, by principle and **before any candidate was
+assigned** - the rule forbidding edits that accommodate a scenario means the extension is taken on
+its own terms (ADR-0008's T7.21 addendum).
+
+**What determines a class's share - four principles.** *Diagnosis paths, not equal shares*:
+`bad_deploy` has three documented shapes, `bad_config` at least three, `dependency_latency` one
+bounded mechanism. ***`resource_exhaustion` grows least, and that reverses this ADR's own view*** -
+CPU is retired (ADR-0013) and T7.20 measured the surviving memory mechanism as having a narrow
+usable band from both sides, so one mechanism with a narrow band does not earn proportional growth.
+*Per-class holdout*, `round(0.3 x slots)` minimum 1, because a global 30% that leaves `bad_config`
+at zero cannot support a per-class generalisation claim - which is the sentence SPLIT.md currently
+admits it cannot make. *Three dev per class as a **floor, not a sufficiency***:
+`cart-bad-image-tag` measured 197s and 301s on an unchanged world, so two samples cannot show a
+spread - and **n=20 does not retire the "direction, not magnitude" caveat.**
+
+**Also stated: slots are capacity, not a promise.** Three of thirteen authored scenarios are
+`blocked`, which releases the slot rather than consuming it, so the catalog is **10 valid - 7 dev,
+3 holdout** against 13 authored. Growth targets are in slots; the valid count trails them.
+
+| | n=20 | n=30 |
+|---|---|---|
+| `bad_deploy` | 6 (4 dev / 2 holdout) | 9 (6/3) |
+| `bad_config` | 6 (4/2) | 9 (6/3) |
+| `dependency_latency` | 4 (3/1) | 6 (4/2) |
+| `resource_exhaustion` | 4 (3/1) | 6 (4/2) |
+| **total** | **20**, 30% holdout | **30**, 33% |
+
+**Ten slots opened**, holdout taking the highest index in each class - mechanical, so the next
+extension needs no judgement either. The residual steering risk is **named rather than claimed
+away**: positional holdout plus alphabetical fill means an author choosing a fault *id* could
+steer, and the mitigation is ADR-0008's separation of the two decisions, not the rule being
+unguessable. `tests/test_contamination.py`'s mirror is updated to n=20 and its drift check is now
+anchored to a named capacity table, since SPLIT.md keeps the n=10 table as committed history.
+
+**Explicitly not decided here: whether any proposed scenario fits.** The slots were assigned with
+no candidate in view; a candidate that fits is a consequence of the table, not a reason for it.
+
+**Two findings from T7.20's probes folded into CATALOG.md.** **Reachability is evaluated *under the
+fault*, not at rest** - a candidate passed T7.5's gate on 20 runtime series that stop exporting
+from T+300s once faulted, and nothing in the record had said to check that; the census is computed
+from recorded bundle *windows*, which include the fault, so the error is checking a live healthy
+world when a scenario has no bundle yet. And **`cart-memory-squeeze`'s disqualification is recorded
+with its measurements** - invisible at 200m (killed and restarted, zero alerts, zero errors, cart
+p95 flat across two attempts), and at 32m alerting across seven services while its own runtime
+evidence goes null. The interval between them is refused on ADR-0013's rule.
+
 ### T7.20 — three more scenarios, gated before recording *(stage 1: design only; STOPPED for review)*
 PLAN.md's original T7.1 (catalog growth), begun. **Nothing recorded, no injection, no agent**
 (`docs/design/t7.20-three-scenarios.md`).
@@ -1802,7 +1849,6 @@ driver, narratives to ADR-0009 and the current capability stamp, pages rendered,
 task** - 35,105 keys / 7.16MB down to 17 keys / 1.78MB, by `FLUSHDB` rather than a recreate
 (`RestartCount` still 0, container up since 2026-08-28T02:20:03Z). An unrecorded world change: no
 digest covers accumulated runtime state, so it is written here instead.
-
 ### T7.19 — the slow fault the catalog cannot hold *(measurement; ADR-0024 closed)*
 **Done.** ADR-0024's open decision is closed: **the `scale` class stays empty, with a reason.**
 No agent, no injection - the world watched as it normally runs
