@@ -1573,6 +1573,54 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.26 — the queue, specified *(specification only; nothing lands, no digest moves)*
+**Done** ([`docs/design/t7.26-queue-specification.md`](design/t7.26-queue-specification.md)). File,
+line, before, after and verification for each queued item, so the sitting that cashes the queue is
+execution rather than design. **Two of the four did not survive re-measurement.**
+
+**Item 2, kafka retention: FALSIFIED. Removed from the queue.** The premise was that a heap cap
+bounds heap and not RSS, so bounding the log would bound the rest. Measured today: the log
+directory is **14 MB**, the container holds **1.78 GiB of `anon`** against **52 MB of page cache**,
+and the G1 heap sits exactly at its 400m cap. Retention cannot reclaim memory that is neither log
+nor cache. Executing it would have moved `compose_digest`, forced twelve re-records and fixed
+nothing. Replaced by a measurement task: run Native Memory Tracking.
+
+**Item 4, checkout recycle: leaves the queue.** T7.23 established what the stall is *not* and left
+the mechanism unidentified, so a periodic recycle **treats a symptom on a schedule** - it restarts
+the process before unknown state accumulates. The two in-world mechanisms are both worse than the
+problem (a sidecar with the docker socket enlarges the world's trust surface; a healthcheck rigged
+to fail on uptime makes every health reading a lie), so it stays **operational** and moves no
+digest. What would settle the mechanism is one command: **restart `frontend` instead** next time the
+stall is live, which separates checkout's state from the connection's - a distinction a checkout
+restart cannot make.
+
+**Item 3, redis: specified, and the policy choice settled.** `allkeys-lru`, not `volatile-lru`:
+`expires=0` still holds, so a `volatile-*` policy has nothing to evict and degrades to
+`noeviction`. `maxmemory 12mb` against the 20M container, sized from the measured 2.67
+fragmentation ratio.
+
+**Item 1, otel-col: specified, and its own queue entry corrected.** It goes in
+`otelcol-config-extras.yml`, the designed merge point, not the pinned clone's config. And the entry
+saying *"the collector config is not a `compose_digest` input… it can be taken any day"* is **stale**
+- T7.15 brought both collector configs under `observability_digest`. It still invalidates nothing
+today, because no bundle on `main` carries that field.
+
+**The cost, honestly.** As respecified, `observability_digest` moves (item 1) and `compose_digest`
+moves (item 3). **Twelve bundles re-recorded**, every narrative needing T7.7's reconciliation pass
+against new captures with logs read first, and every published figure returning to a superseded
+world. `shipping-quote-misconfig` rejoins the re-record; **T7.24's run becomes a measurement of a
+world that no longer exists** - not invalidated, and it was reported as n=1, so nothing aggregate
+breaks.
+
+**Recommendation: do not cash it now.** One item genuinely needs the re-record. A batch of one is a
+bad trade against twelve re-records and a reconciliation pass over every narrative. **Wait for a
+second `compose_digest` change to be genuinely needed** - the kafka native-memory finding is the
+likeliest source once measured - and cash items 1 and 3 together. If nothing arrives before
+`redis-cart` becomes a recurring obstruction, cash those two alone and accept the cost, because a
+recorder refusing on an unrelated container is worse than a stale figure. **Item 1 is the only one
+that could land alone without a re-record**, and it should not, because there is no pressure: the
+collector is at 24% of its limit after two days against a 540 MiB tripwire.
+
 ### T7.25 — the pipeline has to be listening *(preflight; third discard reason)*
 **Done.** The gap T7.24 fell into: a run injected while `faultline-ingest` and
 `faultline-orchestrate` were down. The fault fired exactly on schedule - checkoutservice at 27.6%
@@ -2225,7 +2273,18 @@ stopped reporting", which is a different finding from "the fault did not fire" a
 discard at all. Both are harness-side, neither moves the stamp, and **neither is built here** -
 changing how every scored run decides it has waited long enough deserves its own task.
 
-#### Queued: kafka's growth is not bounded by a heap cap — the real fix is retention
+#### ~~Queued: kafka's growth is not bounded by a heap cap — the real fix is retention~~
+
+> **FALSIFIED at T7.26 by re-measurement. Do not execute this.** Retention bounds log data; the log
+> directory is **14 MB**. The container holds **1.78 GiB of `anon`** against **52 MB of page cache**,
+> and the G1 heap is exactly at its 400m cap. The growth is JVM *native* memory, which neither a
+> heap cap nor a retention bound touches. Executing this would have moved `compose_digest`, forced
+> twelve re-records, and fixed nothing. **Replaced by a measurement task** — run Native Memory
+> Tracking and find which arena holds the 1.4 GiB the heap does not. See
+> [`docs/design/t7.26-queue-specification.md`](../design/t7.26-queue-specification.md) item 2.
+
+The original entry, kept because the reasoning that produced it is the record:
+
 
 **Digest-locked.** Bounding what kafka retains (`log.retention.bytes`, `log.segment.bytes`) so
 there is less on disk to map and cache edits the compose files feeding `world.compose_digest`, so
@@ -2611,6 +2670,12 @@ identical.
 
 #### Queued: a bound on `redis-cart` — **it fills on its own, and the recorder will refuse first**
 
+> **Specified at T7.26**, with the eviction policy settled: `allkeys-lru`, not `volatile-lru`.
+> `expires=0` still holds, so a `volatile-*` policy would have nothing to evict and would degrade to
+> `noeviction` — the same failure arriving as cart errors instead of a container kill. Exact file,
+> line, before/after and verification in
+> [`docs/design/t7.26-queue-specification.md`](../design/t7.26-queue-specification.md) item 3.
+
 Measured at T7.19, queued rather than applied because setting `maxmemory` edits
 `world/docker-compose.yml` and moves `compose_digest`, obsoleting the comparability of every
 current bundle. It batches with the `memory_limiter` and kafka changes and lands with one
@@ -2644,6 +2709,12 @@ are not alike.
 other four this change was never locked to a re-record — it can be taken any day, and bundling it
 into a digest bump would hide a behavioural change inside a batch whose whole justification is
 "these had to move together". They did not.
+
+> **Corrected at T7.26: that is no longer true.** T7.15 brought both collector configs under
+> `observability_digest`, so this change now moves a digest. It still invalidates nothing *today*,
+> because no bundle on `main` carries that field yet — but "it can be taken any day" is stale, and
+> the specification supersedes this paragraph. See
+> [`docs/design/t7.26-queue-specification.md`](../design/t7.26-queue-specification.md).
 
 **What would tell us it ran out.** The signal is the one that caught it the first time: the
 rehearsal pre-flight gate refuses at 90% of the limit, so `otel-col` at **540MiB of 600M** is the
