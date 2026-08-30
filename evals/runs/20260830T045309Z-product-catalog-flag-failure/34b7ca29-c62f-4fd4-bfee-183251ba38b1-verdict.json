@@ -1,0 +1,54 @@
+{
+  "incident_id": "34b7ca29-c62f-4fd4-bfee-183251ba38b1",
+  "trajectory_id": "707cb8a2-4b4a-407e-a7d3-b5fa122fc407",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "productcatalogservice is returning gRPC INTERNAL (code 13) on a fraction of hipstershop.ProductCatalogService/GetProduct calls because a failure-injection feature flag is enabled for that code path. Frontend client logs name exactly one failing dependency and carry a server-supplied error detail attributing the failure to a deliberately enabled 'fail' flag (tr_7599424c4726). Traces corroborate the mechanism structurally: every error-marked GetProduct span is accompanied by a productcatalogservice-issued FeatureFlagService/GetFlag call, while successful GetProduct spans have no such sibling, and the failures are fast (~1-2ms) rather than timeouts (tr_0794df107a9a). The wrong value is the failure: the flag state instructs the service to fail requests it would otherwise serve. Blast radius is exactly what that mechanism predicts \u2014 frontend browse traffic and one checkoutservice PlaceOrder chain error out on the propagated status, while ListProducts and recommendationservice are untouched (tr_0794df107a9a), and both frontend and productcatalogservice show partial, bursty error ratios in the ~10-11% band rather than a total outage (tr_480192ce5c22, tr_342a27201f51). The correct fix is to turn the flag off, not to roll back or restart anything.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_7599424c4726",
+      "tr_0794df107a9a",
+      "tr_342a27201f51",
+      "tr_480192ce5c22",
+      "tr_d3e954d71c61",
+      "tr_65b6677d9546",
+      "tr_50e413e55ac4"
+    ],
+    "reasoning": "Two independent sources converge on the same mechanism. The frontend log evidence (tr_7599424c4726) gives the error's own account of itself: status 13 INTERNAL with a server-supplied detail naming an enabled fail flag, with response metadata present \u2014 so the call reached the dependency and got an application-level answer, which rules out transport, DNS, connection-refused and deadline-exceeded explanations. The trace evidence (tr_0794df107a9a) independently shows the flag consultation in the call graph: GetFlag appears as a child only on failing GetProduct spans, and the GetFlag calls themselves are not error-marked, so featureflagservice is answering correctly \u2014 productcatalogservice is failing on the basis of the answer it gets. Latency-driven and exhaustion-driven explanations are excluded by the same result: failing spans complete in 1-2ms while the slowest GetProduct spans in the window succeed, so these are fast application-level refusals, not waits. Total-outage and instance-level explanations are excluded by successes interleaved with failures inside single traces (tr_0794df107a9a) and by error ratios that touch zero at points (tr_342a27201f51, tr_480192ce5c22). I chose bad_config over the alternatives because the flag value is itself the wrong value and the wrongness of that value is what breaks the request \u2014 no artifact is mismatched (bad_deploy), nothing is waiting (dependency_latency), and nothing has run out (resource_exhaustion). The remediation follows the mechanism rather than a change record: disable the flag. The change dispatches (tr_d3e954d71c61, tr_65b6677d9546) found nothing, but both only covered 04:46:45-05:01:45, and a flag governing productcatalogservice's behaviour may well be recorded against featureflagservice rather than productcatalogservice \u2014 so their empty result is weak negative evidence and does not undercut the mechanism, though it does explicitly rule out rollback as the fix.",
+    "open_questions": [
+      "The flag flip itself was never located. Both change dispatches covered only the incident window (04:46:45-05:01:45) and neither queried the requested preceding hour, nor did anyone query featureflagservice's own change log, where a flag governing productcatalogservice behaviour is likely recorded. Who enabled it, when, and whether it was intentional (chaos/load test) or accidental is unsettled.",
+      "Why the error ratio is only ~10-11% rather than near-total. A flag enabled service-wide would normally fail every GetProduct. The observed per-call selectivity suggests the flag is probabilistic, scoped to particular product IDs, or evaluated per-request \u2014 but nothing in the evidence establishes which.",
+      "Why GetFlag appears as a child only on failing spans and not on successful ones. This could mean the flag is consulted lazily on a specific branch, or it could indicate a sampling/instrumentation artifact; either way the exact evaluation logic in productcatalogservice was not examined.",
+      "productcatalogservice's own logs are entirely unavailable \u2014 the query returned zero lines of any level, consistent with a label-name mismatch ('product-catalog-service' vs 'productcatalogservice') or a logging gap (tr_50e413e55ac4). Server-side confirmation of the flag decision has therefore not been obtained directly from the failing service; the flag attribution rests on the client-visible status detail.",
+      "No latency percentiles or CPU/memory saturation data were retrieved for either frontend or productcatalogservice (tr_342a27201f51, tr_480192ce5c22). Traces make a saturation contribution unlikely, but it has not been checked at the metric level.",
+      "Triage reported 7 services in blast radius and one unmeasured edge crossed. Only frontend, productcatalogservice and (via traces) checkoutservice were examined. Whether the remaining services are merely downstream victims of the propagated error or carry an independent issue was not tested.",
+      "The true frontend error rate and total failure count are unknown \u2014 the log tool truncated the middle of the window and returned only the oldest 8 and newest 32 lines, so the visible bursts are a lower bound on the tail only (tr_7599424c4726)."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

@@ -1,0 +1,29 @@
+incident dd9981ed-4ba2-4e5d-89ee-4fe90945dd47  state triaging  anchor 04:37:00
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: b3e3da4e-f031-453e-8039-d9ed8641d94f
+investigation: 2 round(s), 5 dispatch(es), 15 step(s)
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_47c33dae0689, tr_c492396179a0, tr_159a8f48dfb0, tr_3d03a8a90a35, tr_e8cc3a6a0af7
+  root cause  : At 04:31:01Z platform-automation applied a resource_limits update to frauddetectionservice that set the container memory limit to 200m. The JVM's actual startup footprint exceeds that ceiling, so from that moment the container could not complete initialization inside its allowance: it is killed during or shortly after startup and restarted, producing a crash-restart loop. Logs show healthy Kafka order consumption through ~04:27:45, then nothing but a repeating three-line JVM startup triad from 04:31 onward on a ~62s cadence with no consumption lines and no application exception — the signature of a process dying from outside (kernel/kubelet enforcement) rather than an application fault. The service therefore emits no span metrics at all, which is why the canonical error-ratio expression returns no series: this is not a partial-failure/error-spike incident but a total loss of the instance. The 04:37 page is one iteration of a loop that began at 04:31, not the onset. The mechanism failing in the world is memory exhaustion against a ceiling the runtime cannot fit inside; the automation edit is how it started, not what is happening.
+  OPEN        : No container-memory telemetry was ever queried. container_memory_working_set_bytes, container_memory_failcnt, OOM-kill counters and kube_pod_container_status_restarts_total remain unmeasured, so the OOM-kill mechanism is inferred from timing and log shape, not directly observed. tr_e8cc3a6a0af7 explicitly flags that its result covers a different metric family.
+  OPEN        : The prior memory limit is not recoverable from the change record (before-value is empty in tr_c492396179a0), so the magnitude of the reduction — and therefore the correct value to restore — must be sourced from the deployment manifest or a prior revision, not from the change log.
+  OPEN        : The literal value '200m' is ambiguous: in Kubernetes resource syntax 'm' is the milli-suffix, so this may be a malformed unit rather than an intentional 200Mi ceiling. If the value is malformed rather than merely small, the framing shifts toward a wrong-value fault and changes what 'revert' means. Unresolved.
+  OPEN        : Whether the same automation run touched other services was never queried — tr_c492396179a0 was scoped to frauddetectionservice alone. Triage reports a blast radius of one service, but that may reflect scoping rather than true containment.
+  OPEN        : The absence of calls_total series is consistent with both a dead instance and a broken metrics pipeline for this service (tr_3d03a8a90a35, tr_e8cc3a6a0af7 both decline to distinguish these). The logs favour the dead-instance reading, but instrumentation health was never independently confirmed.
+  OPEN        : Log retrieval covered only the newest ~32 lines and may be truncated; a kill-reason or exit-status line outside that slice has not been excluded.
+
+flags: none
+
+retrieval: exclude_origin='scenario:frauddetection-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260830T043100Z-frauddetection-memory-squeeze/dd9981ed-4ba2-4e5d-89ee-4fe90945dd47-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260830T043100Z-frauddetection-memory-squeeze/dd9981ed-4ba2-4e5d-89ee-4fe90945dd47-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8955.69it/s]

@@ -1,0 +1,55 @@
+{
+  "incident_id": "f35e7eb9-29ba-4117-bb67-55d45c45674b",
+  "trajectory_id": "0dc908dd-5c17-4e74-b7b0-a5d9bd053f1d",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "adservice's container memory limit was lowered to 256m by platform-automation at 03:09:23 (tr_544c4ce9318d), roughly 22 seconds before the adservice log stream degenerates into a repeating JVM startup banner sequence with no application-level 'listening' line and no request handling, recurring on a ~60s cadence through at least 03:17:50 (tr_735518b6ae85). The JVM's footprint evidently exceeds the new ceiling, so the container is killed during or shortly after startup and restarted, never binding its gRPC listener long enough to serve. With no listener, frontend's gRPC client calls to adservice fail at connection establishment: frontend traces bottom out in a ~3092ms errored tcp.connect span under an errored AdService/GetAds span, with no server span on the callee side (tr_6c7e225f6668), and frontend logs show status 14 UNAVAILABLE with a connection-not-established detail rather than deadline or application-level errors (tr_23620050006d). adservice call metrics are entirely absent for the window \u2014 numerator and denominator both empty (tr_7a9e826bdab0, tr_f77a0fe24d5b) \u2014 consistent with a service that is not up to emit them. The user-visible impact is partial (frontend error ratio peaks near 9.1% and returns to zero, tr_8b8d12b8b6fb) because only ad-bearing page renders fail; checkout and catalog paths are healthy (tr_6c7e225f6668). The failing mechanism is the process running out of the memory it needs and being killed for it; the limit edit is how that started, not what is happening.",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_544c4ce9318d",
+      "tr_735518b6ae85",
+      "tr_6c7e225f6668",
+      "tr_23620050006d",
+      "tr_7a9e826bdab0",
+      "tr_f77a0fe24d5b",
+      "tr_8b8d12b8b6fb",
+      "tr_297a5fcc8ef3"
+    ],
+    "reasoning": "Three independent lines converge on adservice as the failing component and on a memory ceiling as the cause. (1) Timing: the only recorded change in the blast radius is the 256m limit reduction at 03:09:23 (tr_544c4ce9318d); frontend had no in-window change at all (tr_297a5fcc8ef3), so the trigger is not local to the alerting service. (2) Callee state: adservice serves normally until ~03:04:56 and then cycles through ten-plus startup sequences with no 'started/listening' line and no request handling (tr_735518b6ae85), and its call metrics vanish entirely including the unfiltered denominator (tr_7a9e826bdab0, tr_f77a0fe24d5b) \u2014 the signature of a process that is not up rather than one returning errors. (3) Caller symptom shape: frontend fails on connect, not on response. The errored trace is nearly all tcp.connect with no server span recorded for the callee (tr_6c7e225f6668), and every frontend log line is status 14 UNAVAILABLE with no deadline-class status (tr_23620050006d). That excludes a slow-but-reachable dependency and excludes an application-level rejection; it is reachability, which a crash-looping listener produces. The partial (<10%) frontend error ratio (tr_8b8d12b8b6fb) fits a single non-critical dependency failing rather than a total outage, matching the trace evidence that checkout, cart, catalog and recommendations are healthy. I classify this resource_exhaustion rather than bad_config because the service is failing by exceeding a memory bound and being terminated for it \u2014 the limit value is the origin of the condition, but exhaustion is the running mechanism. The fix is to restore the memory ceiling to a value the JVM's footprint fits within (config_revert); a restart alone would re-enter the same loop, and a rollback has no artifact to roll back to since no deploy occurred.",
+    "open_questions": [
+      "OOMKill is inferred, not confirmed. No exit-137, no OutOfMemoryError and no startup exception appear in adservice stdout (tr_735518b6ae85), and container_memory_working_set_bytes vs the 256m limit, kube_pod_container_status_restarts_total, and last-terminated-reason were never queried (tr_f77a0fe24d5b). A kubelet-level OOMKill would surface in pod events, which nobody retrieved. A different silent-termination cause (liveness-probe failure, a non-memory admission or cgroup rejection) is not excluded by the evidence in hand.",
+      "The prior memory limit value is not recorded (tr_544c4ce9318d), so it is unknown how large the reduction was or what value would be safe to restore. Confirming the JVM's actual working set is a prerequisite to picking the revert target.",
+      "The frontend log lines name no upstream target (tr_23620050006d); the adservice attribution rests on the trace evidence (tr_6c7e225f6668). Whether every status-14 burst in the window \u2014 including the ~03:09:40 lines \u2014 was directed at adservice, or whether a second dependency also went unreachable, is unsettled.",
+      "The triage noted one unmeasured edge crossed and it was never identified or probed. Whether a service outside the eight dispatches contributed is not addressed by any result.",
+      "Metric coverage is partial: the frontend series spans only 03:04:15\u201303:19:15 of the requested 03:00\u201303:30 (tr_8b8d12b8b6fb), and no result covers the period after 03:19. Whether the restart loop is still running now, and whether platform-automation will re-apply the 256m limit after a manual revert, is unknown.",
+      "adservice CPU, heap, thread-pool and GC dimensions were never measured (tr_7a9e826bdab0), so a contributing saturation factor beyond the memory ceiling is neither supported nor excluded.",
+      "loadgenerator alerted at 03:14:15 but was never dispatched against; its role is assumed to be synthetic client impact rather than an independent fault."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "frauddetection-memory-squeeze / Root cause: frauddetectionservice's container memory limit was reduced below the footprint its JVM\nrequires. Nothing about the service changed \u2014 only the ceiling. The kernel killed it,\nthe orchestrator restarted it, and it hit the same wall.",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m49s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **2**. Over the",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

@@ -1,0 +1,60 @@
+{
+  "incident_id": "0a88fd96-69b7-4164-98c2-6fde272da5f1",
+  "trajectory_id": "11ab1e0a-0fca-4cb1-8ed2-40f1bdc60f0c",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-bad-image-tag",
+  "verdict": {
+    "root_cause": "The 03:32:50Z platform-automation image-reference update on cartservice (a hotfix tag) is the artifact change that took cartservice out of service: its process logged an orderly hosting-lifetime shutdown at 03:32:49.713 and then emitted nothing at all for the remaining ~9.5 minutes of the window \u2014 no startup banner, no listener-bound line, no crash-loop stack traces (tr_098f5ebf0794, tr_7d6e0986b0f1). The replacement artifact never came up, so from 03:37:15 every checkoutservice PlaceOrder aborts on its very first outbound call: traces show a uniform 5-span shape where the deepest span, CartService/GetCart, carries ERROR and completes in 1.6\u20134.2ms, consuming nearly all of the parent duration, with no spans for any downstream checkout dependency beyond cart (tr_f43c876bb777). That fast-abort signature is what an unreachable/unstarted server looks like to its client, not a slow or erroring one. checkoutservice itself has no change record in the onset window and negligible self-time, so it is a victim propagating the cart failure upward to frontend and loadgenerator (tr_5113a2610f17, tr_f43c876bb777, tr_d2e1b8b3647c). The failing mechanism is therefore the deployed artifact: what should be running on cartservice is not running.",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_098f5ebf0794",
+      "tr_7d6e0986b0f1",
+      "tr_f43c876bb777",
+      "tr_5113a2610f17",
+      "tr_d2e1b8b3647c",
+      "tr_cabae0291e4e",
+      "tr_4f3150c39153"
+    ],
+    "reasoning": "Three independent lines converge on cartservice-as-absent rather than cartservice-as-erroring. (1) The only change anywhere in the blast radius is the cartservice image reference update at 03:32:50Z, ~4.5 minutes ahead of onset (tr_098f5ebf0794); checkoutservice has no change of any kind in the same window (tr_5113a2610f17). (2) cartservice logs stop at a graceful shutdown line and stay silent for the rest of the window with no restart sequence (tr_7d6e0986b0f1) \u2014 the old process was drained for the rollout and no successor logged a start. (3) Traces put the ERROR on the CartService/GetCart span itself, terminating in single-digit milliseconds with no downstream checkout spans reached (tr_f43c876bb777), which rules out latency-driven or checkoutservice-internal causes and matches a connection-level refusal from a server that is not listening. cartservice's flat-zero error ratio (tr_cabae0291e4e) is not counter-evidence: a service emitting no server-side spans cannot emit error-status spans, and the corpus's cart-redis-misconfig incident records exactly this reading being misread as health. checkoutservice's own logs are silent of errors and show order-placement lines without completion markers (tr_4f3150c39153), consistent with orders failing before the payment/email/broker steps are ever attempted. The fix is to put the previous cartservice artifact back; reverting a config value or scaling would not address an artifact that does not start.",
+    "open_questions": [
+      "The cartservice metrics query reports 61 continuous sample points with a defined (non-empty) error ratio through the post-rollout period, which requires a non-zero denominator \u2014 this directly contradicts total log silence after 03:32:49 (tr_cabae0291e4e vs tr_7d6e0986b0f1). Unresolved whether those samples are client-side spans, a surviving replica, or stale series; a surviving replica would change the picture from total outage to partial.",
+      "Why the new cartservice pod never started is unestablished: image pull failure, failed readiness, crash before logging, or never scheduled. No pod/kubernetes event, container status, or registry evidence was gathered.",
+      "The change record contains no prior image reference (tr_098f5ebf0794), so the rollback target version is not identified from this evidence and the delta introduced by the hotfix is unknown.",
+      "checkoutservice logs suggest hanging orders after 03:37 with no completion lines (tr_4f3150c39153) while traces show fast aborts (tr_f43c876bb777). These are in tension; possibly two request populations, or log-shipping stalled after 03:39:43. Not settled.",
+      "checkoutservice error ratio peaks at ~0.667, not 1.0 (tr_d2e1b8b3647c), yet every sampled trace shows the identical error path (tr_f43c876bb777). What the succeeding third of requests are doing is unexplained \u2014 sampling bias or a genuinely partial failure.",
+      "The change lookback for checkoutservice covered only 03:27:15\u201303:42:15, not the requested two hours (tr_5113a2610f17); changes between 01:37 and 03:27 anywhere in the graph remain unexamined.",
+      "Triage noted 4 unmeasured edges crossed; no specialist examined frontend, loadgenerator, or the other 9 services in the blast radius, so a second concurrent fault is not excluded.",
+      "No latency percentile or saturation (CPU, memory, connection/thread pool) data was collected for either service, so a resource-driven contribution is unmeasured rather than ruled out."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m48s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m48s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

@@ -1,0 +1,218 @@
+{
+  "run_id": "20260830T045309Z-product-catalog-flag-failure",
+  "scenario_id": "product-catalog-flag-failure",
+  "split": "dev",
+  "scenario_fingerprint": "78c464d798db218705fbd6f124c501902cbda526703cfc5355dc003ed2a0d645",
+  "started_at": "2026-08-30T04:53:09.163166+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "5599515b80ccb3d2a03aff72244678b2f3033d0d",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 3185,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "checkout-service",
+      330
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "injected_at": "2026-08-30T04:53:09.653986+00:00",
+  "incident_id": "34b7ca29-c62f-4fd4-bfee-183251ba38b1",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-30T05:02:30.640793+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 47,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "feature-flag-service",
+      303
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260830T045309Z-product-catalog-flag-failure",
+    "scenario_id": "product-catalog-flag-failure",
+    "trajectory_id": "707cb8a2-4b4a-407e-a7d3-b5fa122fc407",
+    "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": true,
+    "reachability": {
+      "answers_idle_or_absent": [],
+      "derived_from": "the bundle's own captures (T7.5)",
+      "none_can_answer": true,
+      "runtime_series": 0,
+      "target_log_lines": 2
+    },
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.5714285714285714,
+      "matched": [
+        "checkoutservice",
+        "frontend",
+        "loadgenerator",
+        "productcatalogservice"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "adservice",
+        "cartservice",
+        "recommendationservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 1,
+      "n_alerted": 4,
+      "n_predicted": 7
+    },
+    "fault_class": {
+      "truth": "bad_config",
+      "returned": "bad_config",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "config_revert",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 32208,
+    "tokens_out": 14787,
+    "cost_usd": 0.5307,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-30T05:07:34.375721+00:00",
+  "judge": {
+    "scenario_id": "product-catalog-flag-failure",
+    "run_id": "20260830T045309Z-product-catalog-flag-failure",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a feature flag enabled at the feature flag service that instructs productcatalogservice to fail requests for specific products, resulting in partial GetProduct failures while other operations succeed.",
+    "dead_ends_closed": [
+      "productcatalogservice deployment or configuration change",
+      "network problem or timeout",
+      "frontend bug",
+      "total outage or silent traffic drop",
+      "saturation or resource pressure",
+      "dependency outage (database, cache, other downstream services)"
+    ],
+    "dead_ends_missed": [
+      "when the flag was enabled and by whom",
+      "why error ratio is 10-11% rather than total failure",
+      "why GetFlag appears only on failing spans"
+    ],
+    "traps": [
+      {
+        "trap": "productcatalogservice itself must be broken because it's producing the errors",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the empty change log exonerates all configuration",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "a total outage or universal failure mode",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent narrative arrives at the correct root cause through frontend error logs and trace analysis. It explicitly documents several open questions and limitations (flag change source, partial failure rate, log gaps) rather than claiming completeness, matching the recorded narrative's emphasis on configuration living in an unobservable component.",
+    "tokens_in": 6919,
+    "tokens_out": 377
+  }
+}

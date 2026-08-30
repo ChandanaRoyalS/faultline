@@ -1,0 +1,26 @@
+incident fb6ad3cb-6e58-4ab7-bf62-0e5022e91784  state triaging  anchor 05:16:00
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 2c871309-f798-412b-8fe9-f2f7a3d37a0a
+investigation: 2 round(s), 8 dispatch(es), 21 step(s)
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : low
+  evidence    : tr_c49390dc4046, tr_35b8ab805d0d, tr_fc2ccaca02d1
+  root cause  : Checkout failures originate at the ShippingService/GetQuote call. Every sampled failing trace terminates at checkoutservice's client span for that call with ERROR status propagating up through PlaceOrder to the frontend, while cart/Redis, product catalog, feature flag and currency spans all complete cleanly, and no payment, email or broker span is ever reached (tr_c49390dc4046). The shippingservice server span itself completes in ~2ms without an error flag, so the callee answers fast and considers itself fine while the caller treats the response as an error — a fast error return, not a stall. That signature points to a wrong or incompatible shippingservice artifact rather than latency or saturation. checkoutservice is a victim: it stayed up, kept accepting orders, logged no errors, and had no deploy or config change in the window (tr_fc2ccaca02d1, tr_eb8fbdfb53a8). The partial error ratio peaking near 27.8% with dips to zero is consistent with only part of the shipping replica set serving the bad artifact (tr_35b8ab805d0d). Critically, no dispatch ever examined shippingservice's own changes, metrics or logs, so the artifact hypothesis is inferred from trace shape and elimination, not observed.
+  OPEN        : No dispatch touched shippingservice itself — its change history, error rate, and logs are entirely unobserved, so the wrong-artifact mechanism is inferred, not confirmed; a bad config value or contract mismatch on shippingservice would look identical from the caller.
+  OPEN        : Change queries covered only 05:06-05:21 despite asking for two hours, so any change landing between 03:16 and 05:06 on any service is unexamined.
+  OPEN        : No latency, CPU, memory, connection- or thread-pool, or queue-depth series were ever returned for checkoutservice, and checkoutservice logs were truncated across roughly 05:06-05:17, leaving onset behavior and saturation unruled-out rather than excluded.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-quote-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260830T051304Z-shipping-quote-misconfig/fb6ad3cb-6e58-4ab7-bf62-0e5022e91784-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260830T051304Z-shipping-quote-misconfig/fb6ad3cb-6e58-4ab7-bf62-0e5022e91784-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11251.81it/s]

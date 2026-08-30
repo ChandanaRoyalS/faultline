@@ -1,0 +1,30 @@
+incident f35e7eb9-29ba-4117-bb67-55d45c45674b  state triaging  anchor 03:14:15
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 0dc908dd-5c17-4e74-b7b0-a5d9bd053f1d
+investigation: 2 round(s), 8 dispatch(es), 21 step(s)
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_544c4ce9318d, tr_735518b6ae85, tr_6c7e225f6668, tr_23620050006d, tr_7a9e826bdab0, tr_f77a0fe24d5b, tr_8b8d12b8b6fb, tr_297a5fcc8ef3
+  root cause  : adservice's container memory limit was lowered to 256m by platform-automation at 03:09:23 (tr_544c4ce9318d), roughly 22 seconds before the adservice log stream degenerates into a repeating JVM startup banner sequence with no application-level 'listening' line and no request handling, recurring on a ~60s cadence through at least 03:17:50 (tr_735518b6ae85). The JVM's footprint evidently exceeds the new ceiling, so the container is killed during or shortly after startup and restarted, never binding its gRPC listener long enough to serve. With no listener, frontend's gRPC client calls to adservice fail at connection establishment: frontend traces bottom out in a ~3092ms errored tcp.connect span under an errored AdService/GetAds span, with no server span on the callee side (tr_6c7e225f6668), and frontend logs show status 14 UNAVAILABLE with a connection-not-established detail rather than deadline or application-level errors (tr_23620050006d). adservice call metrics are entirely absent for the window — numerator and denominator both empty (tr_7a9e826bdab0, tr_f77a0fe24d5b) — consistent with a service that is not up to emit them. The user-visible impact is partial (frontend error ratio peaks near 9.1% and returns to zero, tr_8b8d12b8b6fb) because only ad-bearing page renders fail; checkout and catalog paths are healthy (tr_6c7e225f6668). The failing mechanism is the process running out of the memory it needs and being killed for it; the limit edit is how that started, not what is happening.
+  OPEN        : OOMKill is inferred, not confirmed. No exit-137, no OutOfMemoryError and no startup exception appear in adservice stdout (tr_735518b6ae85), and container_memory_working_set_bytes vs the 256m limit, kube_pod_container_status_restarts_total, and last-terminated-reason were never queried (tr_f77a0fe24d5b). A kubelet-level OOMKill would surface in pod events, which nobody retrieved. A different silent-termination cause (liveness-probe failure, a non-memory admission or cgroup rejection) is not excluded by the evidence in hand.
+  OPEN        : The prior memory limit value is not recorded (tr_544c4ce9318d), so it is unknown how large the reduction was or what value would be safe to restore. Confirming the JVM's actual working set is a prerequisite to picking the revert target.
+  OPEN        : The frontend log lines name no upstream target (tr_23620050006d); the adservice attribution rests on the trace evidence (tr_6c7e225f6668). Whether every status-14 burst in the window — including the ~03:09:40 lines — was directed at adservice, or whether a second dependency also went unreachable, is unsettled.
+  OPEN        : The triage noted one unmeasured edge crossed and it was never identified or probed. Whether a service outside the eight dispatches contributed is not addressed by any result.
+  OPEN        : Metric coverage is partial: the frontend series spans only 03:04:15–03:19:15 of the requested 03:00–03:30 (tr_8b8d12b8b6fb), and no result covers the period after 03:19. Whether the restart loop is still running now, and whether platform-automation will re-apply the 256m limit after a manual revert, is unknown.
+  OPEN        : adservice CPU, heap, thread-pool and GC dimensions were never measured (tr_7a9e826bdab0), so a contributing saturation factor beyond the memory ceiling is neither supported nor excluded.
+  OPEN        : loadgenerator alerted at 03:14:15 but was never dispatched against; its role is assumed to be synthetic client impact rather than an independent fault.
+
+flags: none
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260830T030922Z-ad-memory-squeeze/f35e7eb9-29ba-4117-bb67-55d45c45674b-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260830T030922Z-ad-memory-squeeze/f35e7eb9-29ba-4117-bb67-55d45c45674b-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9053.47it/s]

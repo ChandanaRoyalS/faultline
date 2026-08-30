@@ -1,0 +1,30 @@
+incident dd9cb6ec-4850-46ce-9d2d-7debaddd2670  state triaging  anchor 03:57:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 07c31477-d791-4e84-951e-088e5e72b885
+investigation: 2 round(s), 6 dispatch(es), 17 step(s)
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_bbac30367df9, tr_8bf12cc31348, tr_06e83135c0b3, tr_789c1de8dfa1, tr_5f66d89c5b74, tr_685c90555df7
+  root cause  : At 03:54:12 UTC a platform-automation principal attached a traffic-shaping container to the cart-service network namespace applying a fixed 300ms, zero-jitter egress delay on eth0 (tr_bbac30367df9). Every cartservice outbound call therefore pays a constant ~300ms toll: Redis egress spans (HGET, HMSET) cluster tightly at 300-307ms with nothing between the sub-millisecond baseline and 300ms, the penalty multiplies exactly by the number of egress calls per handler (~301ms for single-egress GetCart, ~603ms for two-egress AddItem), and in-process handler time remains under ~1ms (tr_8bf12cc31348). The failure is a wait, not a fault: cartservice's error ratio is flat zero across the whole window with no gaps (tr_06e83135c0b3, tr_789c1de8dfa1) and its logs show only successful handler activity, with add/get pairing stretching from milliseconds to about a second by 03:59-04:00 (tr_5f66d89c5b74). The alerts on frontend, checkoutservice and loadgenerator are the same delay surfacing upstream — checkoutservice makes two cart-facing legs per PlaceOrder and accumulates ~1.2s each, while non-cart spans stay in the 0-19ms range (tr_8bf12cc31348) — and frontend has no change of its own to explain it (tr_685c90555df7). The mechanism is injected delay on a dependency call path, so the fix is to remove the shaping rule, not to redeploy or restart anything.
+  OPEN        : No latency percentile, CPU, memory or connection-pool metrics were ever retrieved for cartservice (tr_06e83135c0b3, tr_789c1de8dfa1); the ~300ms step is established from traces alone and was never corroborated by a quantile series showing a clean step at 03:54.
+  OPEN        : The traces show additional ~300ms multiples consumed on the callers' egress paths — frontend's client span ~603ms against a ~301ms cart server span, checkoutservice's ~1204-1222ms against ~301ms (tr_8bf12cc31348). Whether the shaping was applied to more than the cart-service namespace, or whether the delay is being paid on both request and response legs, is unresolved and changes the scope of the fix.
+  OPEN        : checkoutservice's change history was never queried (tr_685c90555df7 covered frontend only), so a second concurrent injection or change on that side is not excluded.
+  OPEN        : Log coverage is truncated: roughly 03:47:38-03:59:35 was not returned and the window stops at 04:02:30 rather than 04:05 (tr_5f66d89c5b74), so the absence of errors is confirmed only for the head and tail, not the middle of the incident.
+  OPEN        : Cart-get entries near 03:59-04:00 carry an empty user identifier, a pattern absent earlier (tr_5f66d89c5b74). No dispatch explained this; it may be a benign artifact of timed-out or retried upstream sessions, or a separate correctness issue riding alongside the latency.
+  OPEN        : Redis itself was never examined directly. The uniform quantum makes an intrinsic Redis problem unlikely, but no evidence confirms the backing store is healthy underneath the injected delay.
+  OPEN        : The intent and lifetime of the platform-automation change are unknown — whether it is a scheduled chaos experiment with its own expiry, a traffic-management action, or an unintended attachment. This determines whether removal is safe to do unilaterally and whether it will recur.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260830T035407Z-cart-dependency-latency/dd9cb6ec-4850-46ce-9d2d-7debaddd2670-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260830T035407Z-cart-dependency-latency/dd9cb6ec-4850-46ce-9d2d-7debaddd2670-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8053.94it/s]

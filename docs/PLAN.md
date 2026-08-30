@@ -1573,6 +1573,62 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.29 — the benchmark, re-founded again *(one sweep, pre-registered, judged)*
+**Done** ([`SWEEP-2026-08-30-refound-again.md`](../evals/runs/SWEEP-2026-08-30-refound-again.md)).
+T7.28 left the bounded world with no measurement at all. This is T7.10's shape after T7.1: the
+world moved, so the benchmark is re-founded on the world that exists. Stamp unchanged at
+`1b0e7cbb4c47`, budget T4.7's — **not an experiment on the agent.**
+
+**Eight scenarios are runnable, not seven**, and the count was checked rather than assumed:
+`shipping-quote-misconfig` did not exist when S6 ran. The three that are not runnable are
+unchanged and none of it is a T7.28 blockage - `ad-dependency-latency` was disqualified at T7.22,
+and `currency-cpu-throttle` / `flag-service-crashloop` have carried an `INVALID.md` since T7.1.
+
+**8 of 8 scored, no discards, no refusals - the cleanest sweep the project has run.** Coverage
+**8/8**, fault class **7/8**, class of fix **7/8**, judge `same_mechanism` **7/8**.
+**$4.3652 agent + $0.3218 judge = $4.6870**, mean $0.546/scenario against a $0.55 budget.
+
+**The registered falsifier fired once.** `shipping-quote-misconfig` returned `bad_deploy` against a
+truth of `bad_config` - **low** confidence, **zero dispatches at the failing service**, judge
+`adjacent`. The agent named its own error in its open questions: a bad config value "would look
+identical from the caller". This is T4.12's dispatch collapse, the same mechanism behind S6's
+`shipping-wrong-image` abstention, **exiting as a wrong answer instead of an abstention** - and
+what selects between those two exits is not established here. Attribution is left open between a
+changed capture (2 -> 7 alerting services) and known planner instability; n=1 per side separates
+neither.
+
+**Two scenarios recovered.** `frauddetection-memory-squeeze`, S6's discard, paged and scored a
+perfect 1.00/1.00 triage - a second independent line of evidence for T7.11's falsification of the
+kafka-heap hypothesis, since a *more* memory-constrained kafka is exactly where that mechanism
+should have shown. `shipping-wrong-image` answered correctly after abstaining in S6.
+
+**The S6 rescore was necessary, and the check is now a standing one.** `scoring.py` moved at T7.17,
+after every S6 run - the T7.3 confound repeating. Exactly one label moved
+(`cart-dependency-latency`, correct by alternative), taking S6's class-of-fix 4/5 -> **5/5**. The
+sweep compares the rescored column; comparing the stored one would credit the world with a scorer
+fix.
+
+**Triage: four of six comparable scenarios identical to two decimals.** One movement traces to a
+documented capture difference and one does not, and the difference was measured rather than
+inferred - each bundle diffed against its own `superseded/` archive
+([`capture-differences.md`](evidence/t7.29-refound-again/capture-differences.md)). This **corrected
+the pre-registration**: it named four expected movers, and only two can move. Stage 3's corrections
+ran two things together - a changed *set* of alerting services (moves the triage denominator) and a
+corrected *prose claim about timing* (does not, because triage never read the prose).
+
+**The kafka question T7.27 queued, answered in the direction it could not reach.**
+`MALLOC_ARENA_MAX=2` **engaged and stayed engaged** - 64 MB arena regions **0 at both ends** - and
+**it does not bound long-run growth**: anon grew **+421 MB in 2h47m** and the container went
+**69.95% -> 90.69%**, crossing the recorder's 90% refusal threshold during the sweep, as the
+pre-registration warned it might. The premise that the setting had been live a day or more did not
+hold - kafka restarted at 22:12Z, and arena state is a property of process lifetime - so this is a
+~5h -> ~8h observation and **no rate comparison to T7.27's ~55 MB/h is claimed**, because that
+figure came from a near-idle world and this window ran eight injections. **Recycling kafka is now a
+precondition of recording, not an occasional fix.**
+
+**Holdout not re-entered.** README and RESULTS now lead with the current-world figures; older ones
+stay labelled.
+
 ### T7.28 — the queue cashed, and everything recorded against it *(all three stages done)*
 T7.26 said to wait for a second genuinely-needed `compose_digest` change; T7.27's kafka finding is
 it. **Stage 1 landed the three changes and the digests moved.**

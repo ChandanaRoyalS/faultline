@@ -1,0 +1,30 @@
+incident 34b7ca29-c62f-4fd4-bfee-183251ba38b1  state triaging  anchor 04:56:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 707cb8a2-4b4a-407e-a7d3-b5fa122fc407
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_7599424c4726, tr_0794df107a9a, tr_342a27201f51, tr_480192ce5c22, tr_d3e954d71c61, tr_65b6677d9546, tr_50e413e55ac4
+  root cause  : productcatalogservice is returning gRPC INTERNAL (code 13) on a fraction of hipstershop.ProductCatalogService/GetProduct calls because a failure-injection feature flag is enabled for that code path. Frontend client logs name exactly one failing dependency and carry a server-supplied error detail attributing the failure to a deliberately enabled 'fail' flag (tr_7599424c4726). Traces corroborate the mechanism structurally: every error-marked GetProduct span is accompanied by a productcatalogservice-issued FeatureFlagService/GetFlag call, while successful GetProduct spans have no such sibling, and the failures are fast (~1-2ms) rather than timeouts (tr_0794df107a9a). The wrong value is the failure: the flag state instructs the service to fail requests it would otherwise serve. Blast radius is exactly what that mechanism predicts — frontend browse traffic and one checkoutservice PlaceOrder chain error out on the propagated status, while ListProducts and recommendationservice are untouched (tr_0794df107a9a), and both frontend and productcatalogservice show partial, bursty error ratios in the ~10-11% band rather than a total outage (tr_480192ce5c22, tr_342a27201f51). The correct fix is to turn the flag off, not to roll back or restart anything.
+  OPEN        : The flag flip itself was never located. Both change dispatches covered only the incident window (04:46:45-05:01:45) and neither queried the requested preceding hour, nor did anyone query featureflagservice's own change log, where a flag governing productcatalogservice behaviour is likely recorded. Who enabled it, when, and whether it was intentional (chaos/load test) or accidental is unsettled.
+  OPEN        : Why the error ratio is only ~10-11% rather than near-total. A flag enabled service-wide would normally fail every GetProduct. The observed per-call selectivity suggests the flag is probabilistic, scoped to particular product IDs, or evaluated per-request — but nothing in the evidence establishes which.
+  OPEN        : Why GetFlag appears as a child only on failing spans and not on successful ones. This could mean the flag is consulted lazily on a specific branch, or it could indicate a sampling/instrumentation artifact; either way the exact evaluation logic in productcatalogservice was not examined.
+  OPEN        : productcatalogservice's own logs are entirely unavailable — the query returned zero lines of any level, consistent with a label-name mismatch ('product-catalog-service' vs 'productcatalogservice') or a logging gap (tr_50e413e55ac4). Server-side confirmation of the flag decision has therefore not been obtained directly from the failing service; the flag attribution rests on the client-visible status detail.
+  OPEN        : No latency percentiles or CPU/memory saturation data were retrieved for either frontend or productcatalogservice (tr_342a27201f51, tr_480192ce5c22). Traces make a saturation contribution unlikely, but it has not been checked at the metric level.
+  OPEN        : Triage reported 7 services in blast radius and one unmeasured edge crossed. Only frontend, productcatalogservice and (via traces) checkoutservice were examined. Whether the remaining services are merely downstream victims of the propagated error or carry an independent issue was not tested.
+  OPEN        : The true frontend error rate and total failure count are unknown — the log tool truncated the middle of the window and returned only the oldest 8 and newest 32 lines, so the visible bursts are a lower bound on the tail only (tr_7599424c4726).
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260830T045309Z-product-catalog-flag-failure/34b7ca29-c62f-4fd4-bfee-183251ba38b1-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260830T045309Z-product-catalog-flag-failure/34b7ca29-c62f-4fd4-bfee-183251ba38b1-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7825.62it/s]
