@@ -1,0 +1,30 @@
+run 20260830T051304Z-shipping-quote-misconfig   scenario shipping-quote-misconfig
+trajectory 2c871309-f798-412b-8fe9-f2f7a3d37a0a   runtime faultline/0.0.1+prompts:1b0e7cbb4c47
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.83  (5/6 alerted services predicted)
+  precision 0.45  (5/11 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): loadgenerator
+  extra  (predicted, not alerted): cartservice, currencyservice, frontend, paymentservice, productcatalogservice, shippingservice
+  unmeasured edges crossed: 5 - membership reached through one is not evidence at the same strength
+  excluded as recovery-phase (began_after_revert): frontend
+
+VERDICT
+  reachability answerable by: logs
+  fault class bad_deploy vs bad_config - WRONG
+  fix class   rollback vs config_revert - WRONG
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 37742 / out 14914 tokens   $0.5616
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'per_specialist_tool_calls': {'changes': 8}, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).

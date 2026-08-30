@@ -1,0 +1,30 @@
+incident fd0820f1-301e-4e2f-b230-b76d57ddceb5  state triaging  anchor 05:38:45
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 2a01ff86-a9c4-4009-acbc-70163ebb0b37
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : tr_df66fa544485, tr_ca4098866497, tr_83d5dc9c4c5f, tr_218fafc5435a, tr_d0a8db91e7c3, tr_21c77bd08c88, tr_4eeea7e06d09
+  root cause  : shippingservice is running the wrong artifact. At 05:36:07 UTC platform-automation applied an image-reference update to shippingservice pointing at a demo image tag whose name suffix refers to adservice, not shippingservice (tr_df66fa544485). From 05:36:31 onward the only output under the shippingservice label is a JVM/OpenTelemetry-javaagent boot triad repeating on a ~65s cadence at least ten times — a Java process boot loop, whereas the earlier healthy lines in the same window are Rust-style application logs from the real shippingservice handling GetQuote and ShipOrder (tr_ca4098866497). The container never reaches a serving state, so no server-side shippingservice span appears beneath checkout's GetQuote client spans and no shippingservice call telemetry is emitted at all (tr_83d5dc9c4c5f, tr_218fafc5435a). checkoutservice itself is healthy and unchanged (tr_21c77bd08c88): it keeps accepting orders through 05:42:39 but aborts every one at the shipping-quote step, with the sole ERROR child span being the outbound ShippingService/GetQuote call, failing in ~2ms — an immediate connection-boundary rejection, not a timeout (tr_83d5dc9c4c5f, tr_d0a8db91e7c3). The error propagates up through PlaceOrder to the frontend, producing the checkout/frontend/loadgenerator alert fan-out. The mechanism is a wrong-image deploy on shippingservice; nothing is exhausted and nothing is slow.
+  OPEN        : The shipping log stream is heterogeneous under one label, and the specialist flagged with low confidence that the JVM boot lines may come from a different process or container sharing the label. Confirming the crash-looping pod's identity and its actual image digest (kubectl describe / pod spec) would close the last gap between the change record and the observed loop.
+  OPEN        : The prior image value in the change record is unrecorded, so the correct rollback target is not established by this evidence and must be recovered from the deployment history or the pipeline that produced the 05:36:07 update.
+  OPEN        : There is a ~2.5 minute gap between the image change at 05:36:07 and the checkout alert at 05:38:45. Whether that is rollout/pod-replacement lag, a stale connection pool draining, or an unrelated second trigger is unconfirmed.
+  OPEN        : checkoutservice's error ratio peaks near 28% and returns to 0 at points in the window rather than pinning high. If every checkout requires a shipping quote, near-total failure would be expected; the partial ratio may reflect sampling, a surviving old replica, or mixed request types, and none of the dispatches settled this.
+  OPEN        : No shippingservice restart-count, OOMKill, or exit-code data was retrieved; the crash loop's proximate exit reason is inferred from log cadence alone and the container may be failing for a reason other than being the wrong binary.
+  OPEN        : The change window covers only 05:28:45-05:43:45. Changes to checkoutservice or to shipping's dependencies between 04:38 and 05:28 were never queried, and no dispatch searched for changes on any service other than checkout and shipping.
+  OPEN        : Why platform-automation applied an adservice-named tag to shippingservice is unexplained; if a pipeline is mismapping artifacts, other services may be carrying wrong images that have not yet surfaced.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260830T053604Z-shipping-wrong-image/fd0820f1-301e-4e2f-b230-b76d57ddceb5-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260830T053604Z-shipping-wrong-image/fd0820f1-301e-4e2f-b230-b76d57ddceb5-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7923.65it/s]

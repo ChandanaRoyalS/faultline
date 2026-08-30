@@ -1,0 +1,45 @@
+{
+  "incident_id": "dd9981ed-4ba2-4e5d-89ee-4fe90945dd47",
+  "trajectory_id": "b3e3da4e-f031-453e-8039-d9ed8641d94f",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origin": "scenario:frauddetection-memory-squeeze",
+  "verdict": {
+    "root_cause": "At 04:31:01Z platform-automation applied a resource_limits update to frauddetectionservice that set the container memory limit to 200m. The JVM's actual startup footprint exceeds that ceiling, so from that moment the container could not complete initialization inside its allowance: it is killed during or shortly after startup and restarted, producing a crash-restart loop. Logs show healthy Kafka order consumption through ~04:27:45, then nothing but a repeating three-line JVM startup triad from 04:31 onward on a ~62s cadence with no consumption lines and no application exception \u2014 the signature of a process dying from outside (kernel/kubelet enforcement) rather than an application fault. The service therefore emits no span metrics at all, which is why the canonical error-ratio expression returns no series: this is not a partial-failure/error-spike incident but a total loss of the instance. The 04:37 page is one iteration of a loop that began at 04:31, not the onset. The mechanism failing in the world is memory exhaustion against a ceiling the runtime cannot fit inside; the automation edit is how it started, not what is happening.",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_47c33dae0689",
+      "tr_c492396179a0",
+      "tr_159a8f48dfb0",
+      "tr_3d03a8a90a35",
+      "tr_e8cc3a6a0af7"
+    ],
+    "reasoning": "Three independent lines converge. (1) Change evidence (tr_47c33dae0689, tr_c492396179a0): exactly one change in the window \u2014 a memory limit reduction to 200m at 04:31:01 by platform-automation. Deploys, image/version rollouts, flag flips, dependency bumps and limit flapping were all explicitly ruled out, so no competing trigger exists. (2) Log evidence (tr_159a8f48dfb0): normal work stops before 04:31 and is replaced by at least nine JVM startup sequences on a fixed ~62s cadence, with three tightly spaced starts at 04:31:19/27/42 \u2014 a loop beginning within twenty seconds of the change. The OTel javaagent banner prints on every start, so agent attachment is not the crash point; no ERROR lines or stack frames appear, which is what an externally enforced kill looks like rather than an application exception. (3) Metric evidence (tr_3d03a8a90a35, tr_e8cc3a6a0af7): calls_total has no series at all \u2014 neither numerator nor denominator \u2014 which rules out the 'still serving traffic, elevated errors' shape and is consistent with a process that never reaches steady state to emit spans. Per the class definitions, a limit lowered until the process is killed for exceeding it is resource_exhaustion, not bad_config: the edit is the origin, exhaustion is the live mechanism. The fix is to restore the prior limit (or raise it above the JVM's real startup footprint) \u2014 reverting the automation's value, which is why remediation is config_revert rather than restart; restarts are already happening and are not resolving anything.",
+    "open_questions": [
+      "No container-memory telemetry was ever queried. container_memory_working_set_bytes, container_memory_failcnt, OOM-kill counters and kube_pod_container_status_restarts_total remain unmeasured, so the OOM-kill mechanism is inferred from timing and log shape, not directly observed. tr_e8cc3a6a0af7 explicitly flags that its result covers a different metric family.",
+      "The prior memory limit is not recoverable from the change record (before-value is empty in tr_c492396179a0), so the magnitude of the reduction \u2014 and therefore the correct value to restore \u2014 must be sourced from the deployment manifest or a prior revision, not from the change log.",
+      "The literal value '200m' is ambiguous: in Kubernetes resource syntax 'm' is the milli-suffix, so this may be a malformed unit rather than an intentional 200Mi ceiling. If the value is malformed rather than merely small, the framing shifts toward a wrong-value fault and changes what 'revert' means. Unresolved.",
+      "Whether the same automation run touched other services was never queried \u2014 tr_c492396179a0 was scoped to frauddetectionservice alone. Triage reports a blast radius of one service, but that may reflect scoping rather than true containment.",
+      "The absence of calls_total series is consistent with both a dead instance and a broken metrics pipeline for this service (tr_3d03a8a90a35, tr_e8cc3a6a0af7 both decline to distinguish these). The logs favour the dead-instance reading, but instrumentation health was never independently confirmed.",
+      "Log retrieval covered only the newest ~32 lines and may be truncated; a kill-reason or exit-status line outside that slice has not been excluded."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. From the first restart after the change, the runtime could not complete a startup\ninside the new limit: it",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m49s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **2**. Over the"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

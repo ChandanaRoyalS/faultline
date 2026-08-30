@@ -6,16 +6,27 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 
 **Agent `claude-opus-5` · judge `claude-haiku-4-5` · SHARED LINEAGE on every judged figure.**
 
-> **Every figure in this document describes a superseded world (T7.28).** All of them were
-> measured against `compose_digest 299d791c5e0d…`. On 2026-08-30 the world changed - kafka's
-> glibc allocator bounded, a `maxmemory`/`allkeys-lru` bound on redis-cart, and a
-> `memory_limiter` on the collector - and all eleven runnable scenarios were re-recorded under
-> `compose_digest f5bd108f…` / `observability_digest 857d95b4…`.
+> **The current-world result leads; everything else in this document is labelled.**
 >
-> **Nothing has been re-run against the new world, so there are no current-world figures.** The
-> numbers below are not stale in the sense of being wrong; they are correct about a world that no
-> longer exists, and they do not carry over. What is worth re-measuring is a separate
-> pre-registered decision, deliberately not taken in the task that moved the world.
+> **Dev sweep 7 (T7.29) is the current benchmark**, measured against `compose_digest f5bd108f…` /
+> `observability_digest 857d95b4…` — the world T7.28 built by bounding kafka's glibc allocator,
+> putting a `maxmemory`/`allkeys-lru` bound on redis-cart, and adding a `memory_limiter` to the
+> collector. Under stamp `prompts:1b0e7cbb4c47`: **8 of 8 scenarios scored with no discards,
+> coverage 8/8, fault class 7/8, class of fix 7/8, judge `same_mechanism` 7/8, $4.6870**
+> ([`SWEEP-2026-08-30-refound-again.md`](../evals/runs/SWEEP-2026-08-30-refound-again.md)).
+>
+> **The rest of this document describes earlier worlds** — most of it `299d791c5e0d…` (dev sweep 6)
+> and some of it `4a7690c6fdda…` before that. Those figures are not wrong; they are correct about
+> worlds that no longer exist, and they do not carry over. **Comparing a figure here against sweep
+> 7 compares worlds, not agents**, and sweep 7's own comparison to sweep 6 rescores sweep 6 first
+> so the two sides are like-for-like.
+>
+> **A method note that outlived its world.** Sweep 7 found that `scoring.py` had moved at T7.17,
+> after every sweep-6 run — so sweep 6's stored figures were computed by a scorer that did not know
+> two remediations work for `dependency_latency`. Rescoring moved sweep 6's class-of-fix from 4/5
+> to 5/5. This is the second time a scorer change has silently sat between two sweeps (T7.10 caught
+> the first, T7.3's blast-radius fix), and **any future comparison must check for it before
+> reporting a delta.**
 
 ---
 

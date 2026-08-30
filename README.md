@@ -90,25 +90,28 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 
 ## Results
 
-> **There is no current-world benchmark. The world moved again on 2026-08-30 (T7.28) and
-> nothing has been re-run since.** All eleven runnable scenarios were re-recorded under
-> `compose_digest f5bd108f…` / `observability_digest 857d95b4…`, and **every figure below and in
-> [`docs/RESULTS.md`](docs/RESULTS.md) describes the superseded `299d791c5e0d…` world.** They are
-> not wrong; they are correct about a world that no longer exists, and they do not carry over.
-> What is worth re-measuring is a separate pre-registered decision.
+> **The current benchmark — dev sweep 7, on the bounded world that exists now.** Under stamp
+> `prompts:1b0e7cbb4c47` against `compose_digest f5bd108f…` / `observability_digest 857d95b4…`:
+> **8 of 8 scenarios scored with no discards, coverage 8/8, fault class 7/8, class of fix 7/8**
+> ([`SWEEP-2026-08-30-refound-again.md`](evals/runs/SWEEP-2026-08-30-refound-again.md)). The
+> cleanest sweep the project has run, and the first measurement of any kind on this world.
 >
-> **The last measured benchmark — dev sweep 6, on the now-superseded world.** Under stamp
-> `prompts:1b0e7cbb4c47`: **6 of 7 scenarios scored, coverage 5/6, fault class 5/5**
-> ([`SWEEP-2026-08-28-refound.md`](evals/runs/SWEEP-2026-08-28-refound.md)). **No fault class
-> changed across the world boundary.** One scenario abstained and one discarded without alerting;
-> both are analysed there. The figures further down were measured on the **previous** world and
-> are labelled as such — comparing across that boundary compares worlds, not agents.
+> **One verdict was wrong.** `shipping-quote-misconfig` returned `bad_deploy` against a truth of
+> `bad_config`, at **low** confidence, with **zero dispatches at the failing service** — the
+> collapse T4.12 named. The agent wrote in its own open questions that a bad config value "would
+> look identical from the caller". Two explanations are available, a changed capture and a known
+> planner instability, and **n = 1 per side separates neither**; the sweep says so rather than
+> picking one.
 >
-> **The world moved on 2026-08-28.** T7.1 capped kafka's heap, raised `otel-col`'s limit, took
-> Prometheus retention from 6 hours to 15 days, and renamed the stub variants — then re-recorded
-> all twelve bundles against the result. **Every number below was measured against the previous
-> world and stands as measured; none of it was re-run.** A future result is not comparable to
-> these figures, because it would differ in the agent *and* the world. See
+> **Every figure below this banner, and in [`docs/RESULTS.md`](docs/RESULTS.md) except where it
+> says otherwise, was measured on an earlier world and is labelled as such.** Comparing across
+> those boundaries compares worlds, not agents. The immediately preceding world
+> (`299d791c5e0d…`, dev sweep 6) is the one most of them describe.
+>
+> **The world moved on 2026-08-28** (T7.1: kafka heap capped, `otel-col` raised, Prometheus
+> retention 6h → 15d, stub variants renamed) **and again on 2026-08-30** (T7.28: kafka's glibc
+> allocator bounded, a `maxmemory`/`allkeys-lru` bound on redis-cart, a `memory_limiter` on the
+> collector). Each move re-recorded every runnable bundle. See
 > [docs/RESULTS.md](docs/RESULTS.md) and the
 > [reconciliation record](docs/evidence/t7.1-reconciliation/README.md).
 

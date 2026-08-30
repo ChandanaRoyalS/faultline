@@ -1,0 +1,50 @@
+{
+  "incident_id": "fb6ad3cb-6e58-4ab7-bf62-0e5022e91784",
+  "trajectory_id": "2c871309-f798-412b-8fe9-f2f7a3d37a0a",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:shipping-quote-misconfig",
+  "verdict": {
+    "root_cause": "Checkout failures originate at the ShippingService/GetQuote call. Every sampled failing trace terminates at checkoutservice's client span for that call with ERROR status propagating up through PlaceOrder to the frontend, while cart/Redis, product catalog, feature flag and currency spans all complete cleanly, and no payment, email or broker span is ever reached (tr_c49390dc4046). The shippingservice server span itself completes in ~2ms without an error flag, so the callee answers fast and considers itself fine while the caller treats the response as an error \u2014 a fast error return, not a stall. That signature points to a wrong or incompatible shippingservice artifact rather than latency or saturation. checkoutservice is a victim: it stayed up, kept accepting orders, logged no errors, and had no deploy or config change in the window (tr_fc2ccaca02d1, tr_eb8fbdfb53a8). The partial error ratio peaking near 27.8% with dips to zero is consistent with only part of the shipping replica set serving the bad artifact (tr_35b8ab805d0d). Critically, no dispatch ever examined shippingservice's own changes, metrics or logs, so the artifact hypothesis is inferred from trace shape and elimination, not observed.",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "low",
+    "evidence": [
+      "tr_c49390dc4046",
+      "tr_35b8ab805d0d",
+      "tr_fc2ccaca02d1"
+    ],
+    "reasoning": "Trace evidence localizes the terminal error to the checkoutservice->shippingservice boundary with everything upstream healthy (tr_c49390dc4046), and zero server-side error ratios at cartservice and productcatalogservice remove the other checkout dependencies (tr_4e15d7efe181, tr_7161353dc65d). Logs corroborate the truncation point: orders start but never reach payment, email or the message write after ~05:17 (tr_fc2ccaca02d1). Mechanism follows from shape \u2014 failing traces finish in 8-15ms with the callee span at ~2ms, so nothing is waiting, excluding dependency_latency; no saturation signal and no crash or telemetry gap, so resource_exhaustion is unsupported (though CPU, memory and pool series were never queried, so it is unrefuted rather than excluded). With no change records on checkoutservice or paymentservice (tr_eb8fbdfb53a8, tr_448f1cc832db), the causing act sits in an unqueried service; a fast rejection by a callee that believes it succeeded fits a mismatched artifact better than a wrong config value, hence bad_deploy and rollback of shippingservice.",
+    "open_questions": [
+      "No dispatch touched shippingservice itself \u2014 its change history, error rate, and logs are entirely unobserved, so the wrong-artifact mechanism is inferred, not confirmed; a bad config value or contract mismatch on shippingservice would look identical from the caller.",
+      "Change queries covered only 05:06-05:21 despite asking for two hours, so any change landing between 03:16 and 05:06 on any service is unexamined.",
+      "No latency, CPU, memory, connection- or thread-pool, or queue-depth series were ever returned for checkoutservice, and checkoutservice logs were truncated across roughly 05:06-05:17, leaving onset behavior and saturation unruled-out rather than excluded."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m48s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m48s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}
