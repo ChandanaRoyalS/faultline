@@ -823,3 +823,57 @@ at 0.66 req/s: `histogram_quantile` lands in the `+Inf` bucket when a sparse ser
 few samples, reporting p95 as 1.5e4 seconds while the service places orders normally. **It cleared
 under load** once the histogram had enough samples. The baseline gate can refuse on this, and it
 is a property of the rule at low request rates rather than of the world's health.
+
+## Reachability is evaluated under the fault, not at rest
+
+**T7.5's gate asks which evidence class can answer "was the target idle or absent". T7.20 found
+that asking it of a healthy world is the wrong question, and nothing in the record had said so.**
+
+A proposed `resource_exhaustion` scenario on `cartservice` passed the gate on **20 runtime series**
+(`process_runtime_dotnet_*`) — the second-best instrumented target in T7.4's census. Probed at a
+magnitude that actually alerts, `process_runtime_dotnet_gc_heap_size` and
+`gc_collections_count` **stop exporting from T+300s**, because the container never runs long enough
+to emit them. The class the narrative would have cited does not exist while the scenario is live.
+
+This is general, not particular to that target. Any fault that kills, restarts or starves its
+target can remove the evidence the scenario was admitted on — and the census in
+`docs/evidence/t7.4-reachability/` is computed from *recorded bundle windows*, which include the
+fault, so it is the right instrument; the failure is in checking a *live, healthy* world instead
+when a scenario has no bundle yet.
+
+**The rule:** a scenario proposed without a bundle must have its reachability checked against the
+world **under its own fault**, not at rest, and the classes that survive the fault are the ones it
+may declare in `answers_idle_or_absent`. A class that vanishes when the fault fires is not
+reachable evidence; it is evidence of the healthy state.
+
+## Recorded so it is not re-proposed: `cart-memory-squeeze` failed at both magnitudes
+
+Probed at T7.20 and **disqualified**, with the measurement, so nobody rediscovers it. The injector
+definition is kept and says the same thing at the point of use.
+
+**At 200m** — below the 259MiB resting set, against a 400M ceiling — the fault is real and
+invisible. The container is killed and restarted (`RestartCount` 0→1, then 1→2→3 on the second
+attempt; .NET's `gc_collections` counter resetting is the restart made visible in telemetry), and
+across two seven-minute attempts **nothing alerted**: zero errors on every service, `cartservice`
+p95 flat at 1.9ms. The container returns faster than detection — the same shape already recorded
+for `recommendation-memory-squeeze` at 48m, *"the fault fired constantly and was invisible."*
+
+**The predicted failure mode was wrong**, which is worth keeping: the design expected .NET's Server
+GC to read the cgroup limit and survive by collecting harder. It does not. It dies.
+
+**At 32m** — following `recommendation-memory-squeeze`'s own remedy of going below what the runtime
+needs to start — it alerts and disqualifies itself twice over. `OOMKilled=true`, 16 restarts in
+seven minutes, never serving; by T+420s **eleven alerts** including `ServiceNoTraffic` on seven
+services. Its runtime evidence goes null under its own fault (the section above), and it becomes
+hard to separate from `cart-bad-image-tag` — container absent, same cascade, same page, with
+`change_history` the only discriminator.
+
+**An interval may exist between 200m and 32m. Hunting for it is refused on ADR-0013's rule**: a
+number found by searching an interval that narrow is tuned to today's load rather than to a
+property of the service, which is why container CPU throttling was retired rather than retuned.
+
+One caution for whoever reads the first probe: **its alerts were not its own.** `ServiceHighLatency`
+appeared on `frontend` and `loadgenerator` at T+182s and T+304s — two of the three services T7.14
+measured as carrying at-rest latency excursions. The second attempt, with more kills and no alerts
+at all, is what settled it. On this world an alert on `checkoutservice`, `frontend` or
+`loadgenerator` is not by itself evidence that an injected fault caused anything.

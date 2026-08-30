@@ -244,3 +244,60 @@ Revisit if: the catalog grows past ~30 and the ~70/30 ratio starts wasting scena
 would be worth more as dev-set signal, or if a fifth contamination axis appears (the
 likeliest candidate is judge contamination — an LLM judge that has seen the label rubric
 during its own prompt tuning).
+
+## Addendum (T7.21): the split allocation past n=10, decided by principle
+
+This ADR deferred the extension twice and named the condition both times — *"T7.1 grows the catalog
+past 30 and every class gets holdout representation there"* — while leaving what determines a
+class's share unstated. SPLIT.md now carries the tables for n=20 and n=30; this records the
+reasoning that produced them, because the numbers are worthless without it.
+
+**Decided before any candidate was assigned**, which the "do not edit to accommodate a scenario"
+rule requires and which is why the argument below cites classes and measurements rather than any
+proposed scenario.
+
+### Four principles, and one of them changes this ADR's view
+
+**Diagnosis paths, not equal shares.** Fault selection is already a diversity choice here; slot
+counts should follow it. The record now distinguishes the classes unevenly — `bad_deploy` has three
+documented shapes, `bad_config` at least three, `dependency_latency` one bounded mechanism.
+
+**`resource_exhaustion` grows least, and that is new.** This ADR wrote its three
+`resource_exhaustion` scenarios as the class where the catalog was richest. It is not: ADR-0013
+retired CPU, and T7.20 measured the surviving memory mechanism as having a narrow usable band — too
+gentle and the container restarts faster than detection with nothing alerting; too harsh and it
+never starts, alerts across seven services, and stops exporting the runtime evidence a narrative
+would cite. A class with one mechanism and a narrow band does not earn proportional growth.
+
+**Per-class holdout, not a global ratio.** `round(0.3 × slots)`, minimum 1, per class. A global 30%
+that leaves `bad_config` at zero cannot support a per-class generalisation claim, which is the
+sentence this ADR's own §"Why `bad_config` is dev-only at n=10" admits it cannot make. The global
+figure becomes a consequence and rounds to 33% at n=30; the per-class floor takes precedence.
+
+**Three dev per class is a floor and not a sufficiency.** `cart-bad-image-tag` recorded 197s and
+301s on an unchanged world — 53% spread — so two samples cannot show a distribution and three is
+where a spread is first visible. **n=20 does not retire the "direction, not magnitude" caveat** on
+per-class figures, and this addendum should not be cited as though it does.
+
+### On slot assignment, which is the decision that can bias the split
+
+Holdout takes the highest-numbered slots within each class: mechanical, and stated so the next
+extension needs no judgement either. **The residual risk is named rather than claimed away** —
+positional holdout plus alphabetical fill means an author who chose a fault *id* could steer a
+scenario across the boundary. The mitigation is the separation this ADR already requires, not the
+rule being unguessable: ids are set when the injector definition is written, which is the earlier
+and separately reviewable decision.
+
+### What this addendum does not decide
+
+**Whether any proposed scenario fits the new slots.** The slots were assigned without candidates in
+view. Which faults fill them is the fault-selection decision, which comes first and separately, and
+a candidate that happens to fit is a consequence of the table rather than a reason for it.
+
+### A related correction, for completeness
+
+Two claims in the body above have been overtaken and are corrected where they were made, not here:
+the `dependency_latency` remediation label is **not** settled at `restart` alone — ADR-0027
+measured `config_revert` to work as well — and the count of untested remediation classes is no
+longer "one of four: `scale`", since ADR-0024's T7.19 addendum closes `scale` as unreachable on
+this world with the reason recorded.
