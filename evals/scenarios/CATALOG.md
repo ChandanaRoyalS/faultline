@@ -877,3 +877,106 @@ appeared on `frontend` and `loadgenerator` at T+182s and T+304s — two of the t
 measured as carrying at-rest latency excursions. The second attempt, with more kills and no alerts
 at all, is what settled it. On this world an alert on `checkoutservice`, `frontend` or
 `loadgenerator` is not by itself evidence that an injected fault caused anything.
+
+## The checkout excursion has escalated, and it now blocks recording outright
+
+T7.14 characterised `ServiceHighLatency/checkoutservice` as an intermittent at-rest excursion:
+**two episodes in twelve hours, 3630s and 900s, 12.6% of wall clock**, on a service whose median
+p95 was its 37.8ms baseline. That characterisation no longer describes the world.
+
+Measured at T7.22 over the preceding twelve hours, at 15-minute resolution:
+
+| window | checkout p95 |
+|---|---|
+| 22:58 – 01:28 | clean, 36–38ms |
+| **01:43 – 09:43** | **over threshold continuously**, 1440–15000ms |
+| brief exceptions | 02:58 (71.9ms), 06:58–07:28 (5.6–9.9ms) |
+
+**Eight hours, roughly 95% duty, with two clean windows of about fifteen and thirty minutes.** The
+episode begins at `01:43` — the same `activeAt` T7.14 recorded for the longest episode in its own
+census, which it measured as ending after 3630s. It did not end.
+
+**The shape is unchanged**: 92% of checkouts still finish inside 50ms, the tail is still ~7.6%
+sitting just above the 5% the 95th percentile reads, errors are zero on every service, and every
+service outside the three known-tail ones sits at its 1.9–9.6ms baseline. What changed is duration,
+not mechanism.
+
+**The consequence is that recording is blocked, and the recorder is right to refuse.** A bundle's
+`alerts_over_window` is ground truth, so a pre-existing alert inside the window would be recorded as
+part of the injected fault. Unlike a probe — where T7.17 and T7.20 used a *scoped, written-down*
+relaxation because the observable was a qdisc or an error ratio that a latency excursion cannot
+touch — there is no honest relaxation for a recording. **Recording waits for a clean window or it
+does not happen.**
+
+Windows do open. A recorder left retrying will take one; it polls the baseline continuously, so a
+fifteen-minute clean stretch is enough. Budget hours, not minutes, and cycle the containers the
+memory-headroom guard names while waiting — `email-service` and `jaeger` both crossed 90% during
+T7.22's attempts, and cycling them is the documented remedy rather than a workaround.
+
+## A gate result does not transfer between targets on the same mechanism
+
+Three candidates have now been disqualified by measurement after passing a gate on paper, and two
+of them failed the same way: **a property was validated somewhere it held and assumed to hold
+here.**
+
+**`cart-memory-squeeze`** passed T7.5's reachability gate on 20 runtime series read from a *healthy*
+world, and those series stop exporting under its own fault. The rule that followed: evaluate
+reachability under the fault (above).
+
+**`ad-dependency-latency`** passed T7.20's alerting gate on *measured evidence* — the identical
+mechanism at the identical magnitude took `cartservice` from 1.9ms to ~650ms and fired. Injected on
+`ad-service` it produced **nothing**: 900s of alert budget plus 300s of steady state, p95 never off
+1.9ms, no rule fired, no bundle written.
+
+**The mechanism is fine; the target is not.** `tc netem` delays *egress*. `adservice` is a leaf —
+its logs say `received ad request` and nothing else, because it serves from memory and calls no
+one — so its delayed egress lands *after* its server span has closed and never enters its own span
+metrics. `cartservice` moves because it makes downstream calls, and the delay sits inside its span
+while it waits. Lowering or raising the magnitude cannot fix this: there is no downstream call for
+the delay to sit inside.
+
+**The rule:** a gate passed on one target is evidence about that target. Before reusing it, name the
+property of the target the result actually depended on and check *that*. For `dependency_latency`
+the property is **does the target make a downstream call inside the span being measured** — and
+that is now the question to ask of any new target for this mechanism, alongside ADR-0013's existing
+warning about the caller's timeout.
+
+Both remaining `dependency_latency` scenarios satisfy it: `cartservice` calls redis,
+`productcatalogservice` is called through and calls onward. Neither is a leaf.
+
+### Where checkout's slow time actually goes: nowhere traced
+
+T7.14 left this open — *"why the checkout path has a multi-second slow mode"* — and T7.22 narrowed
+it while waiting for a clean window. It is not any dependency.
+
+A representative 18.14s `PlaceOrder`, span offsets from trace start:
+
+| offset | duration | span |
+|---|---|---|
+| +0.00s | 0.01s | `prepareOrderItemsAndShippingQuoteFromCart` |
+| +0.00s | 0.00s | cart `GetCart` → redis `HGET` |
+| +0.01s | 0.01s | shipping `GetQuote` → quote `/getquote` |
+| +0.01s | 0.00s | payment `Charge` |
+| +0.02s | 0.00s | cart `EmptyCart` → redis `HMSET` |
+| +0.02s | 0.00s | email `send_order_confirmation` |
+| +0.02s | 0.00s | **`orders send`** → accounting + frauddetection receive |
+| **+18.14s** | — | frontend resumes with its next catalog calls |
+
+**Every one of the 39 child spans completes inside 20 milliseconds.** The remaining 18.12 seconds
+sit inside checkoutservice's own `PlaceOrder` span with nothing traced in it, *after* all downstream
+work is finished.
+
+This rules out every dependency by measurement: Kafka (`orders send`, 0.00s — the produce is fast,
+which also falsifies the obvious guess), redis, payment, shipping, quote, currency, email and
+product catalog. Checkout's own logs agree — the largest gaps between its log lines fall *between*
+orders, not inside one.
+
+**So the tail is not a slow dependency and cannot be cleared by cycling a container.** What remains
+is time between checkout finishing its work and its response reaching the caller, which no span in
+this world covers. Naming it precisely needs instrumentation this world does not have; what is
+established is where it is *not*, which is everywhere anyone would look first.
+
+Practical consequence for anyone recording: **there is nothing to fix, so there is nothing to do but
+wait for a clean window.** They open — two in the twelve hours before T7.22, of about fifteen and
+thirty minutes — and a recorder left retrying will take one, because it polls the baseline
+continuously.

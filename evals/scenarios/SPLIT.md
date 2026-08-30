@@ -136,6 +136,16 @@ committed record of what was decided first.
 
 **Totals:** 14 dev / 6 holdout (30% holdout).
 
+### Occupancy (T7.22)
+
+| Slot | Scenario | State |
+|------|----------|-------|
+| `bad_config-3` | `shipping-quote-misconfig` | **recorded**, dev |
+| `dependency_latency-3` | — | **free again**: `ad-dependency-latency` took it, then failed on measurement and is `blocked`, which releases the slot |
+
+Nine slots of twenty remain unfilled. `dependency_latency` still stands at **one recorded dev
+scenario**, which is what the extension was meant to fix and has not yet.
+
 ### The slots this creates
 
 Ten new slots. **Holdout takes the highest-numbered slots within each class** — a mechanical rule,

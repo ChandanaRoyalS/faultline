@@ -1197,10 +1197,19 @@ def rehearse(
         if (out / HAND_WRITTEN).exists():
             print(f"  kept {HAND_WRITTEN} - a re-record does not overwrite your writing")
 
-    write_bundle(scenario, facts, out, queries)
+    # **The captures are written BEFORE the manifest, and the order is load-bearing (T7.22).**
+    # `write_bundle` derives `reachability` from this directory, so deriving it first read an
+    # empty one and recorded `target_log_lines: 0, none_can_answer: true` onto a bundle holding
+    # 126 log lines. It went unnoticed because no bundle had been recorded since T7.5 added the
+    # field - the existing values were derived over finished bundles, not produced by this path.
+    # A false `none_can_answer` is the worst possible direction for that field to be wrong in:
+    # T7.5 added it so a scorer could tell an excusable abstention from a reasoning failure.
+    (out / "metrics").mkdir(parents=True, exist_ok=True)
+    (out / "logs").mkdir(parents=True, exist_ok=True)
     for name, series in captured.items():
         (out / "metrics" / f"{name}.json").write_text(json.dumps(series, indent=2) + "\n")
     (out / "logs" / f"{container}.txt").write_text(captured_logs)
+    write_bundle(scenario, facts, out, queries)
     print(f"  wrote {len(captured)} metric file(s) and logs/{container}.txt")
 
     if t_fire is None:

@@ -1,0 +1,77 @@
+# bad_config-3 (dev) - see SPLIT.md. Slot assigned by T7.21's rule, applied and not chosen: the
+# class holds 4 dev + 2 holdout with holdout at the highest indices, `-1` and `-2` were committed
+# at n=10, so `-3` is dev. T7.20 speculated this would likely land in holdout because bad_config
+# had none; the rule T7.21 actually adopted puts holdout at `-5` and `-6`, so it did not.
+#
+# Gated before recording (T7.20 stage 1) and probed twice for its one open gate, which passed.
+id: shipping-quote-misconfig
+title: Shipping service pointed at a quote service that does not resolve
+fault_class: bad_config
+split: dev
+injection:
+  target: shippingservice
+  method: shipping-quote-misconfig
+  params:
+    env_var: QUOTE_SERVICE_ADDR
+    value: "http://quoteservice-gone:8090"
+ground_truth:
+  root_cause: >
+    The shipping service's QUOTE_SERVICE_ADDR was changed to an address that does not resolve.
+    Shipping cannot price a delivery, so every checkout that reaches the quote step fails.
+
+    The service that was misconfigured is not the service that alerts. Shipping reports no
+    errors of its own - it fails upward, into its caller - so checkout carries the error rate
+    and the page, while shipping looks healthy by every metric the alert rules read.
+  category: bad_config
+expected_evidence:
+  - class: change_history
+    detail: >
+      A configuration change on shippingservice, in the window - and this is the ONLY evidence
+      that identifies the faulty service. Measured at recording: shipping's error ratio never
+      leaves zero, and its logs contain no error line and no mention of the address it cannot
+      reach. Corrected from the authored version, which claimed its logs would show the address:
+      they do not. See the recorded bundle.
+  - class: logs
+    detail: >
+      shippingservice logging incoming GetQuoteRequest at its ordinary rate throughout - which
+      establishes that it is alive and being asked for quotes, and rules out the first thing
+      anyone checks. It is real evidence and it is exculpatory, not diagnostic.
+  - class: metrics
+    detail: >
+      checkoutservice error ratio rising to 22-28% and holding, with shippingservice's own at
+      zero throughout - the pair is what says the alerting service is not the faulty one.
+  - class: metrics
+    detail: >
+      quoteservice's request rate falling to zero, because the only service that calls it has
+      stopped being able to.
+  - class: metrics
+    detail: >
+      change_history asked of checkoutservice - the service that alerted - returns nothing. The
+      question has to move to the services around the failure, which is what makes this scenario
+      different from one where the alerting and faulty services coincide.
+expected_remediation_class: config_revert
+# RECORDED ON THE MECHANISM, NOT ON A REMEDIATION MEASUREMENT.
+#
+# T7.17's warning applies and is not discharged here. `config_revert` is recorded because the
+# injected change is a configuration value with a known-good prior value, and restoring it is
+# what the injector's own revert does - the same basis as cart-redis-misconfig and the three
+# memory squeezes. But no one has applied a candidate remediation to a live injection of THIS
+# fault and measured whether it clears and stays cleared, which is what T7.17 did for
+# dependency_latency and what turned a three-stamp-old register entry over.
+#
+# `restart` is a plausible rival - restarting shipping under the bad address changes nothing,
+# so it should NOT work, and that is testable. Until it is tested, `also_correct_remediation`
+# stays empty because an entry there means measured, not plausible.
+rehearsed: true
+alert_timeout_seconds: 900
+# Probed twice at T7.20: ServiceHighErrorRate/checkoutservice fired at T+240s both times.
+# 900s is T7.12's budget and leaves ample margin.
+answers_idle_or_absent:
+  - logs
+# Declared before recording and CONFIRMED against the recorded bundle: 0 runtime series and
+# 126 log lines under the fault, so `logs` is the one class that answers it and it survives the
+# fault, because the service keeps running and keeps logging incoming requests.
+#
+# What the recording corrected is what those logs are *for*. They answer idle-or-absent - the
+# service is neither - and they contain no error and no mention of the unreachable address, so
+# they are exculpatory rather than diagnostic. `change_history` is what identifies the fault.

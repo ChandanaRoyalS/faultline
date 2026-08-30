@@ -1711,6 +1711,102 @@ advising a restart during a real incident is worse than silence. **The gate is u
 deliberately so:** the alert reports a true condition and refusing is right. What changes is that
 refusing no longer means waiting an unknown number of hours. T7.14 measured 12.6% duty; by T7.22 it
 ran ~95% across eight hours and cost this project a day.
+### T7.22 — recording A and C *(slots assigned, scenarios authored; RECORDING BLOCKED)*
+Stage 2 of T7.20, carried as far as the world allows. **Nothing recorded.**
+
+**Slots assigned by applying T7.21's rule, not by choosing.** Holdout sits at the highest indices
+and existing assignments are committed, so the arithmetic has no judgement in it:
+`dependency_latency` holds 3 dev + 1 holdout with `-1` dev and `-2` holdout committed, leaving `-3`
+and `-4` both dev -> **A takes `dependency_latency-3`, dev**. `bad_config` holds 4 dev + 2 holdout
+with `-1` and `-2` committed dev, leaving `-3`/`-4` dev and `-5`/`-6` holdout -> **C takes
+`bad_config-3`, dev**. **Both dev**, which contradicts T7.20's speculation that C would land in
+holdout - that assumed holdout took the next free slot, and T7.21 put it at the highest. The rule's
+output stands.
+
+**Remediations recorded as claims with their basis.** A carries `restart`, measured by T7.17 for
+this *mechanism* but on `cart-service`; `also_correct_remediation` is deliberately empty, because
+ADR-0027 already carries one scenario holding that field by inference and a third would make a
+measured field a habit. C carries `config_revert` on the mechanism - a configuration value with a
+known-good prior - and **explicitly not on a remediation measurement**, with `restart` named as the
+testable rival that should not work. Both declare `answers_idle_or_absent` evaluated **under the
+fault**, per the gate T7.21 added.
+
+**Blocked: the checkout excursion has escalated from intermittent to continuous.** T7.14 measured
+12.6% duty in episodes of 15-60 minutes; over the twelve hours before this task it ran **~95% duty
+across eight hours**, beginning at `01:43` - the same `activeAt` T7.14 recorded for the episode it
+measured as ending after 3630s. It did not end. Shape unchanged (92% of checkouts under 50ms, tail
+just over 5%, zero errors, every other service at baseline); duration changed. Recorded in
+CATALOG.md.
+
+**The recorder refuses and is right to.** `alerts_over_window` is ground truth, so a pre-existing
+alert would be recorded as the fault's. A probe could use a scoped relaxation because its
+observable was a qdisc or an error ratio a latency excursion cannot touch; **a recording has no
+honest equivalent.** Two containers were cycled as the memory guard instructed - `email-service` at
+99.8%, `jaeger` at 97.4% - which is the documented remedy, not a workaround.
+
+**A window opened, A was recorded against - and A FAILED.** Injected cleanly (pumba sidecar up,
+netem applied), held for the full 900s alert budget plus 300s of steady state, reverted cleanly -
+and **adservice p95 never left 1.9ms. No rule fired. No bundle written.**
+
+**And T7.20's gate finding on A was wrong.** It claimed A passed the alerting gate *on measured
+evidence*: the identical mechanism at the identical magnitude took cartservice 1.9 -> ~650ms and
+fired. That evidence does not transfer. **`tc netem` delays egress, and `adservice` is a leaf** -
+its logs read `received ad request` and nothing else, because it serves from memory and calls no
+one - so its delayed egress lands *after* its server span has closed and never enters its own span
+metrics. cartservice moves because it makes downstream calls and the delay sits inside its span
+while it waits. **The magnitude is irrelevant**: there is no downstream call for the delay to sit
+inside. A is marked `blocked`, which releases `dependency_latency-3`.
+
+**Third disqualification, second of the same kind, and now a rule.** B passed reachability on a
+*healthy* world and lost its evidence under its own fault; A passed alerting on a *different
+target* with the same mechanism. Both validated a property somewhere it held and assumed it here.
+CATALOG.md now carries it: **a gate passed on one target is evidence about that target** - name the
+property the result depended on and check *that*. For `dependency_latency` the property is whether
+the target makes a downstream call inside the span being measured, which both surviving scenarios
+do and `adservice` does not.
+
+**C is still being recorded.** It is the one candidate whose alerting gate was probed *on its own
+target* - twice, firing at T+240s both times - which is exactly the distinction the rule above
+draws. Blocked only by the excursion, with a retry loop running.
+
+**C RECORDED. Onset 169s**, `ServiceHighErrorRate/checkoutservice` at fire - matching both probes
+(240s at 60s polling granularity). `capture_set` 2, current digests including
+`observability_digest` and `otel_demo_image_digest`, one driver, dev split. Checkout ran **23-29%
+errors** for the fault; `alerts_over_window` is checkout 6.5m and loadgenerator 0.2m. The probes'
+`ServiceNoTraffic` alerts at T+420s fell outside the 469s fault window and are not in the bundle.
+
+**The recording corrected the scenario's own design, which is the point of recording it.** C was
+authored claiming shipping's logs were "the load-bearing evidence... the address it is failing to
+reach". **They are not.** The capture holds 126 shipping log lines and every one is an incoming
+`GetQuoteRequest` at the ordinary rate - no error line, no retry, no mention of the unreachable
+host. So the logs are **exculpatory, not diagnostic**: they establish shipping is alive and being
+asked for quotes, and rule out the first thing anyone checks. `change_history` is the only class
+that identifies the faulty service at all, which makes this the sharpest case in the catalog for
+ADR-0019's "change history is the first tool" finding. Scenario file and narrative both corrected
+to what was measured.
+
+**A recorder bug found by recording, and it had never fired before.** The manifest recorded
+`reachability: {target_log_lines: 0, none_can_answer: true}` on a bundle holding 126 log lines.
+`write_bundle` derives that field from the bundle directory and was called **before** the metrics
+and logs were written, so it read an empty one. It went unnoticed because **no bundle had been
+recorded since T7.5 added the field** - every existing value was derived over an already-finished
+bundle. **A false `none_can_answer` is the worst direction for this field to be wrong in**: T7.5
+added it so a scorer could tell an abstention nothing could have answered from one caused by
+reasoning. Write order fixed, C's manifest re-derived, and pinned by a test that re-derives every
+bundle's reachability and compares.
+
+**Rendered, seeded, quarantine verified.** 13 bundle pages rendered; corpus seeds **8 documents,
+40 chunks** from `artifacts/dev/` alone, with `currency-cpu-throttle` and `flag-service-crashloop`
+skipped as INVALID. **`holdout_chunks` 0** - no holdout origin appears.
+
+**Per-class n: `bad_config` gains a third dev scenario and the tables do not move.** It is
+**recorded but not yet run by any agent**, so it contributes no accuracy to any cell; the n in
+those tables counts scored runs, not catalog entries. Annotated in place. Running the agent on it
+is a separate pre-registered task and was not done here.
+
+**Occupancy:** `bad_config-3` filled; **`dependency_latency-3` is free again**, since A took it and
+then failed. `dependency_latency` still stands at one recorded dev scenario - the thing the
+extension was meant to fix, still unfixed.
 
 ### T7.21 — slots before scenarios *(allocation decision; no scenario assigned)*
 **Done.** SPLIT.md extended to n=20 with n=30 decided, by principle and **before any candidate was

@@ -18,6 +18,7 @@ from typing import Any
 import pytest
 import yaml
 
+from evalharness import reachability
 from evalharness.prom import PROMETHEUS, RUNTIME_CAPTURE, alert_intervals, get_json
 from evalharness.provenance import (
     BUNDLE_SCHEMA_VERSION,
@@ -71,6 +72,7 @@ NO_RUNTIME_METRICS = frozenset(
         "flag-service-crashloop",
         "product-catalog-flag-failure",
         "productcatalog-dependency-latency",
+        "shipping-quote-misconfig",
         "shipping-wrong-image",
     }
 )
@@ -1282,3 +1284,31 @@ def test_the_covered_clone_files_are_the_only_ones_that_can_reach_a_bundle() -> 
         "the world is now built from the clone rather than pulled, which invalidates ADR-0026: "
         "the clone's source would then be the source of what runs"
     )
+
+
+def test_recorded_reachability_matches_the_captures_beside_it() -> None:
+    """**The manifest's `reachability` is derived, so it must agree with a re-derivation (T7.22).**
+
+    It did not. `write_bundle` derives the field from the bundle directory, and the recorder
+    called it *before* writing the metrics and logs — so it read an empty directory and stamped
+    `target_log_lines: 0, none_can_answer: true` onto a bundle holding 126 log lines.
+
+    It went unnoticed because no bundle had been recorded since T7.5 introduced the field: every
+    existing value was derived over an already-finished bundle rather than produced by this path.
+
+    **A false `none_can_answer` is the worst direction for this field to be wrong in.** T7.5 added
+    it so a scorer could tell an abstention nothing could have answered from one caused by
+    reasoning, and this would have marked a scenario unanswerable when its evidence was sitting
+    in the same directory.
+    """
+    for bundle in valid_bundles():
+        recorded = manifest_of(bundle).get("reachability")
+        if recorded is None:
+            continue  # predates the field, which is permitted
+        assert recorded == reachability.derive(bundle), (
+            f"{bundle.name}: manifest reachability disagrees with a re-derivation from its own "
+            f"captures.\n  recorded:   {recorded}\n  re-derived: {reachability.derive(bundle)}\n"
+            "The field is derived, not asserted, so a disagreement means it was computed against "
+            "a different set of files than the ones stored here - check the recorder's write "
+            "order (T7.22)."
+        )

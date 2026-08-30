@@ -41,6 +41,11 @@ Accuracy is over **answered** runs; abstentions leave the ratio and appear as co
 | `resource_exhaustion` | 2 | **0/2** | **1/1** | 2/2 | 1/1 | 1 |
 | ~~`scale`~~ | 0 | — | — | — | — | — |
 
+**`bad_config` gains a third dev scenario at T7.22 — `shipping-quote-misconfig` — and the
+n above does not move.** It is **recorded but not yet run by any agent**, so it contributes
+no accuracy to any cell here. The n in this table counts scored runs, not catalog entries,
+and it will move when a sweep includes it and not before.
+
 **The `scale` row is a mislabel, corrected at T7.13.** `scale` is a `RemediationClass`, not
 a `FaultClass` - it is not in the scenario schema's enum, not in the agent's answer space, and
 has no slot in SPLIT.md. It never belonged in a fault-class table. The remediation class is

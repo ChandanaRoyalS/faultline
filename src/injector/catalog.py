@@ -179,6 +179,28 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"image": "ffs-stub:3", "server": "server_v3.py"},
         ),
         FaultDefinition(
+            id="ad-dependency-latency",
+            fault_class=FaultClass.DEPENDENCY_LATENCY,
+            target="ad-service",
+            description=(
+                "Add 300ms of network delay to the ad service. The frontend's ad panel slows "
+                "while the storefront keeps serving - a second dependency_latency target, on "
+                "the best-instrumented service in the world."
+            ),
+            # NO SCENARIO USES THIS. T7.22 injected it and measured it invisible: 900s of
+            # alert budget plus 300s of steady state, and adservice p95 never left 1.9ms. No
+            # rule fired. Kept because the measurement is worth reproducing.
+            #
+            # `tc netem` delays egress, and adservice is a leaf - it serves ads from memory and
+            # calls nothing - so its delayed egress lands after its server span has closed and
+            # never enters its own span metrics. cartservice moves to ~650ms under the identical
+            # mechanism because it makes downstream calls whose delayed egress extends its span.
+            #
+            # The magnitude is not the problem and lowering or raising it will not help: the
+            # target has no downstream call for the delay to sit inside.
+            params={"delay_ms": 300, "jitter_ms": 0, "duration": "1h", "interface": "eth0"},
+        ),
+        FaultDefinition(
             id="cart-dependency-latency",
             fault_class=FaultClass.DEPENDENCY_LATENCY,
             target="cart-service",

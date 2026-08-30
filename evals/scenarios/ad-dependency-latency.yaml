@@ -1,0 +1,88 @@
+# BLOCKED ON MEASUREMENT (T7.22). The fault is injectable and NOT OBSERVABLE.
+#
+# Recorded: injected cleanly (pumba sidecar up, netem applied), held for the full 900s alert
+# budget plus 300s of steady state, reverted cleanly - and adservice p95 never left 1.9ms.
+# No rule fired. No bundle was written.
+#
+# Why, and it is the part worth keeping: **adservice is a leaf.** `tc netem` delays egress, and
+# a leaf's delayed egress lands AFTER its server span has closed, so its own span metrics never
+# move. cartservice shows ~650ms under the identical mechanism because it makes downstream calls
+# whose delayed egress extends its own span. adservice's logs say so directly - "received ad
+# request" and nothing else; it serves from memory and calls no one.
+#
+# So the T7.20 gate finding that this "passes the alerting gate on measured evidence" was wrong.
+# The evidence was cartservice's behaviour under the same mechanism, and **a mechanism's
+# observability is a property of the target, not of the mechanism.** See CATALOG.md.
+#
+# It does NOT occupy its slot (Scenario.blocked), so dependency_latency-3 is free again.
+#
+# dependency_latency-3 (dev) - see SPLIT.md. Slot was assigned by T7.21's rule, applied and not
+# chosen: the class holds 3 dev + 1 holdout, `-1` (dev) and `-2` (holdout) were committed at
+# n=10, so the remaining `-3` and `-4` are both dev. Nothing about this scenario entered that.
+#
+# Authored at T7.22 to raise the thinnest per-class n: dependency_latency had one dev scenario.
+# Gated before recording (T7.20 stage 1) on reachability, alerting, injector capability and the
+# onset budget; the alerting gate passed on measured evidence rather than a probe - adservice
+# sat at 1.9ms p95 with 0 of 2398 samples over 250ms across T7.14's twelve-hour census, and the
+# identical mechanism at the identical magnitude took cartservice to ~650ms and fired.
+id: ad-dependency-latency
+title: Ad service network delay slows the storefront's ad panel
+fault_class: dependency_latency
+split: dev
+injection:
+  target: ad-service
+  method: ad-dependency-latency
+  params:
+    delay_ms: 300
+    jitter_ms: 0
+    duration: "1h"
+    interface: "eth0"
+ground_truth:
+  root_cause: >
+    300ms of network delay was applied to the ad service's interface. Nothing on the service
+    was reconfigured and nothing was deployed: its image, its memory limit and its environment
+    are unchanged, and it keeps serving every request it is given. What changed is how long
+    each of those requests spends on the wire.
+
+    The frontend calls it for the ad panel on page render, so the delay appears there first
+    and as latency rather than as errors - the requests complete, they just complete slowly.
+  category: dependency_latency
+expected_evidence:
+  - class: metrics
+    detail: >
+      adservice p95 rising from its 1.9ms baseline to several hundred milliseconds and staying
+      there for the length of the fault, with its request rate unchanged - the shape that
+      separates a slow dependency from a failing one.
+  - class: change_history
+    detail: >
+      Nothing on adservice. The question has to be asked rather than assumed: a service that
+      slows without a change on it is the discriminator between this class and bad_config.
+  - class: logs
+    detail: >
+      adservice continues logging normally throughout. Its logs are what answer "was it idle
+      or absent" - it is neither, which is the point.
+expected_remediation_class: restart
+# RECORDED ON MEASUREMENT, FOR THIS MECHANISM BUT NOT THIS TARGET.
+#
+# T7.17 measured both `restart` and `config_revert` to durably clear a pumba netem delay, 3/3
+# each, on cart-service. `restart` is recorded here because it is measured for the mechanism.
+#
+# `also_correct_remediation` is deliberately NOT set. ADR-0027 already carries one scenario
+# (productcatalog-dependency-latency) holding that field by inference from the mechanism rather
+# than by measurement on its own target, and a third would turn a measured field into a habit.
+# If someone wants it here, measure the qdisc delete on ad-service first - T7.17's protocol,
+# three attempts - and then set it.
+rehearsed: false
+blocked: true
+alert_timeout_seconds: 900
+# A rehearsal hint, not a fault parameter. adservice serves ~0.4 req/s against cartservice's
+# ~3.2, so its 2m rate window fills far more slowly and its onset is expected longer than
+# cart-dependency-latency's recorded 229s. 900s is T7.12's correlate budget, used here as the
+# recorder's ceiling for the same reason.
+answers_idle_or_absent:
+  - runtime
+  - logs
+# Declared before recording and verified UNDER THE FAULT, per the gate T7.21 added to
+# CATALOG.md after a candidate passed this check at rest on runtime series that stopped
+# exporting once faulted. adservice keeps serving under a latency fault - it is delayed, not
+# dead - so both classes survive it. Checked against the recorded bundle, not assumed.
