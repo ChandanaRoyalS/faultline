@@ -15,6 +15,7 @@ from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
+import pytest
 import yaml
 
 from evalharness.prom import PROMETHEUS, RUNTIME_CAPTURE, alert_intervals, get_json
@@ -1025,6 +1026,19 @@ def test_the_capability_inputs_are_read_from_the_code_not_written_down() -> None
 # --- T7.15: the observability config is under cover -----------------------------------------
 
 
+WORLD_CLONE = REPO_ROOT / "world"
+needs_world_clone = pytest.mark.skipif(
+    not (WORLD_CLONE / "docker-compose.yml").is_file(),
+    reason=(
+        "world/ is not cloned. It is gitignored (ADR-0026 - a pinned clone of somebody else's "
+        "repository), so CI does not have it, and every digest that reads a file inside it is "
+        "`None` there by design. Skipping is correct: these guards compare digests, and a digest "
+        "nobody can compute is not a disagreement. Run them locally after `make world-up`."
+    ),
+)
+
+
+@needs_world_clone
 def test_bundles_that_record_an_observability_digest_agree_with_the_repository() -> None:
     """**The guard T7.14's hole needed, and the one that fires where a person will see it.**
 
@@ -1089,6 +1103,7 @@ def observability_drift_message(stale: dict[str, list[str]]) -> str:
     return "\n".join(lines)
 
 
+@needs_world_clone
 def test_the_guard_reproduces_the_shape_a_rule_edit_makes() -> None:
     """A rule is edited, the digest moves, and the mismatch surfaces naming the file.
 
@@ -1120,6 +1135,7 @@ def test_the_guard_reproduces_the_shape_a_rule_edit_makes() -> None:
     assert observability_digest() == before, "the test must leave the rules file untouched"
 
 
+@needs_world_clone
 def test_every_file_under_cover_exists_and_is_actually_mounted() -> None:
     """A digest over a path that no longer exists silently degrades to None and covers nothing.
 
