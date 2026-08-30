@@ -17,7 +17,7 @@ from unittest.mock import patch
 
 import pytest
 
-from evalharness import gate
+from evalharness import gate, rehearse
 from evalharness.run import (
     CORRELATE_CEILING_SECONDS,
     CORRELATE_GAP_SECONDS,
@@ -79,6 +79,13 @@ def reading_with(settled: Exception | None = None, **overrides: Any) -> gate.Gat
         patch.object(gate, "_latest_by_service", side_effect=lambda q, **_: latest[q]),
         patch.object(gate, "_window_by_service", side_effect=lambda q, **_: windows),
         patch.object(gate, "container_uptimes", return_value=world["uptimes"]),
+        # T7.31: kafka defaults to plenty of headroom so existing tests keep asserting what
+        # they were written to assert; the T7.31 tests override it.
+        patch.object(
+            gate,
+            "container_memory_usage",
+            return_value=world.get("memory", [("kafka", 30.0, "0.6GiB / 2GiB")]),
+        ),
         patch.object(gate, "require_settled_containers", side_effect=settled),
         patch.object(gate.baseline_mod, "active_injections", return_value=world["injections"]),
         patch.object(gate, "now", return_value=world.get("now", NOW)),
@@ -1118,3 +1125,158 @@ def test_the_readings_reach_the_manifest() -> None:
     assert recorded["ingest_accepting"] is None
     assert recorded["consumer_idle_ms"] is None
     assert len(recorded["pipeline_down"]) == 2
+
+
+# --- T7.31: the kafka precondition refuses instead of sitting in a PLAN entry ----------------
+
+
+def test_the_run_budget_is_pinned_to_the_constants_it_claims_to_sum() -> None:
+    """The default duration is derived, so it must break loudly if any input moves.
+
+    Same idea as `SCRAPE_INTERVAL_SECONDS` being pinned against the Prometheus config: a derived
+    constant that silently stops matching its derivation is worse than a literal.
+    """
+    from evalharness.run import (
+        CORRELATE_CEILING_SECONDS,
+        RECOVERY_TIMEOUT_SECONDS,
+        SETTLE_AFTER_ALERT_SECONDS,
+    )
+    from faultline.agents.budget import Budget
+
+    assert (
+        CORRELATE_CEILING_SECONDS
+        + SETTLE_AFTER_ALERT_SECONDS
+        + Budget().wall_clock_seconds
+        + RECOVERY_TIMEOUT_SECONDS
+    ) == gate.RUN_BUDGET_SECONDS
+
+
+def test_the_threshold_is_computed_from_the_guard_and_not_a_chosen_number() -> None:
+    """threshold == guard - (rate * hours / limit), exactly. No taste anywhere in it."""
+    h = gate.headroom_for(expected_run_hours=1.0, usage=[("kafka", 50.0, "1GiB / 2GiB")])
+    assert h is not None
+    expected_growth_percent = gate.HEADROOM_GROWTH_MB_PER_HOUR * 1.0 / 2048.0 * 100.0
+    assert h.growth_percent == pytest.approx(expected_growth_percent)
+    assert h.threshold_percent == pytest.approx(
+        rehearse.MEMORY_HEADROOM_PERCENT - expected_growth_percent
+    )
+
+
+def test_the_limit_is_read_from_the_container_rather_than_assumed() -> None:
+    """A bigger container gets a more permissive threshold, with no code change.
+
+    The same start percentage is safe in a 4 GB container and not in a 1 GB one, because the
+    same absolute growth is a different share of each.
+    """
+    small = gate.headroom_for(expected_run_hours=1.0, usage=[("kafka", 80.0, "0.8GiB / 1GiB")])
+    large = gate.headroom_for(expected_run_hours=1.0, usage=[("kafka", 80.0, "3.2GiB / 4GiB")])
+    assert small is not None and large is not None
+    assert small.limit_mb == pytest.approx(1024.0)
+    assert large.limit_mb == pytest.approx(4096.0)
+    assert small.threshold_percent < large.threshold_percent
+    assert not small.fits and large.fits
+
+
+def test_a_longer_expected_run_demands_more_headroom() -> None:
+    short = gate.headroom_for(expected_run_hours=0.25, usage=[("kafka", 75.0, "1.5GiB / 2GiB")])
+    sweep = gate.headroom_for(expected_run_hours=2.78, usage=[("kafka", 75.0, "1.5GiB / 2GiB")])
+    assert short is not None and sweep is not None
+    assert short.fits
+    assert not sweep.fits
+
+
+def test_t729_would_have_been_refused_at_its_start_had_it_declared_its_duration() -> None:
+    """The worked example. T7.29 began at 69.95% and ended at 90.69% over 2.78 hours.
+
+    Declaring the real duration, the gate refuses at the start - and its projection lands within
+    half a point of what actually happened, which is the check on the rate itself.
+    """
+    h = gate.headroom_for(expected_run_hours=2.78, usage=[("kafka", 69.95, "1.399GiB / 2GiB")])
+    assert h is not None
+    assert not h.fits
+    assert h.projected_percent == pytest.approx(90.69, abs=0.5)
+
+
+def test_at_the_default_duration_no_run_passes_and_then_crosses_the_guard() -> None:
+    """The falsifier for the threshold: a false *pass* would mean it is set wrong.
+
+    Replays T7.29's measured trajectory run by run. A false refusal is a cost and is recorded in
+    PLAN.md; a false pass would be a defect, so it is asserted against here.
+    """
+    start, end, runs = 69.95, 90.69, 8
+    step = (end - start) / runs
+    for i in range(runs):
+        begins = start + step * i
+        finishes = begins + step
+        h = gate.headroom_for(usage=[("kafka", begins, "1.399GiB / 2GiB")])
+        assert h is not None
+        crossed = finishes > rehearse.MEMORY_HEADROOM_PERCENT
+        assert not (h.fits and crossed), f"run {i + 1} passed the gate and then crossed the guard"
+
+
+def test_a_world_with_no_kafka_is_not_refused() -> None:
+    """Absence is not a hazard. The check is about one container and must not block without it."""
+    assert gate.headroom_for(usage=[("frontend", 12.0, "24MiB / 200MiB")]) is None
+
+
+def test_an_unparseable_limit_declines_to_refuse_rather_than_guessing() -> None:
+    assert gate.headroom_for(usage=[("kafka", 99.0, "1.9GiB")]) is None
+    assert gate.headroom_for(usage=[("kafka", 99.0, "1.9GiB / unknown")]) is None
+
+
+def test_the_reading_is_recorded_whether_it_passes_or_refuses() -> None:
+    """Provenance is the second half of the task: a later discard must be diagnosable."""
+    reading = gate.GateReading()
+    reading.headroom = gate.headroom_for(
+        expected_run_hours=1.0, usage=[("kafka", 42.0, "0.82GiB / 2GiB")]
+    )
+    recorded = reading.as_dict()["headroom"]
+    assert recorded is not None
+    assert recorded["container"] == "kafka"
+    assert recorded["percent_now"] == pytest.approx(42.0)
+    assert recorded["guard_percent"] == rehearse.MEMORY_HEADROOM_PERCENT
+    assert recorded["fits"] is True
+
+
+def test_the_refusal_is_an_ordinary_gate_refusal_and_not_a_sixth_discard_reason() -> None:
+    """Decided rather than assumed: the existing label already covers it.
+
+    Nothing was injected and the world was unfit, which is exactly what `baseline gate refused`
+    means. `pipeline-down` earned its own subclass because it was the *harness* failing while
+    looking like the world; this is the world, so it stays under the general label and the
+    attribution comes from the recorded reading instead.
+    """
+    assert gate.GateRefusedError.discard_reason == "baseline gate refused"
+    assert not issubclass(gate.PipelineDownError, type(None))
+    reading = gate.GateReading(refusals=["kafka is at 95.0% ..."])
+    assert not reading.passed
+    assert not reading.pipeline_down
+
+
+def test_docker_sizes_parse_across_the_units_stats_actually_emits() -> None:
+    assert gate._parse_docker_size("2GiB") == pytest.approx(2048.0)
+    assert gate._parse_docker_size("512MiB") == pytest.approx(512.0)
+    assert gate._parse_docker_size("1.399GiB") == pytest.approx(1432.6, abs=0.5)
+    assert gate._parse_docker_size("nonsense") is None
+
+
+def test_a_hot_kafka_refuses_the_whole_gate_end_to_end() -> None:
+    """Not just the arithmetic - the gate itself must refuse, in a world that is otherwise clean.
+
+    This is the difference between a precondition and a PLAN entry: everything else here is fine,
+    and the run still does not start.
+    """
+    reading = reading_with(memory=[("kafka", 88.0, "1.76GiB / 2GiB")])
+    assert not reading.passed
+    assert any("kafka" in why and "guard" in why for why in reading.refusals)
+    assert reading.headroom is not None and not reading.headroom.fits
+    # It is the world being unfit, not the harness being absent.
+    assert not reading.pipeline_down
+
+
+def test_the_same_world_passes_once_kafka_has_been_recycled() -> None:
+    """The refusal names a remedy, so the remedy has to actually clear it."""
+    assert not reading_with(memory=[("kafka", 88.0, "1.76GiB / 2GiB")]).passed
+    recycled = reading_with(memory=[("kafka", 26.3, "0.53GiB / 2GiB")])
+    assert recycled.passed
+    assert recycled.headroom is not None and recycled.headroom.fits

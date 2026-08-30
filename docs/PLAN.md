@@ -1573,6 +1573,85 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.31 — make the kafka precondition refuse *(gate logic; no digest moves)*
+**Done** (`src/evalharness/gate.py`, thirteen tests). T7.30 ended by making "recycle kafka before
+recording" a precondition, and a precondition that lives in a PLAN entry is the failure mode this
+arc has spent ten tasks pricing: true when written, silently unmet later, and the run that violates
+it produces a bundle that looks fine.
+
+**No digest moves, confirmed by enumeration rather than assumed.** `compose_digest` is three compose
+files; `observability_digest` is seven named files under `compose/` and `world/src/otelcollector/`;
+`ffs_stub_source_digest` is `compose/ffs-stub/`; the pipeline stamp is the package version plus role
+`*_SYSTEM` prompts, `UNTRUSTED_RULE` and contract schemas; `CAPABILITY_VERSION` is the tool surface,
+`CAPTURE_SET` and `TOOL_BEHAVIOUR_REVISION`. **`gate.py` is an input to none of them.** Gate logic is
+product, not world - and the check reads the memory limit from the container rather than hardcoding
+2 GB, so it does not smuggle a world constant into product code either.
+
+**The gap it closes is bigger than it looks: scored runs have never had a memory check at all.**
+`require_memory_headroom` is called from exactly one place, `rehearse.py` - the recorder. `run.py`
+calls `gate.require` and nothing else, and the two paths share no preflight. That is why T7.29 could
+start at 69.95%, pass every check that existed, and finish at 90.69%.
+
+**The threshold is computed, never chosen.** A run starting at `percent_now` and growing at a
+measured rate for its expected duration either ends under the recorder's existing 90% guard or it
+does not:
+
+```
+growth_mb      = HEADROOM_GROWTH_MB_PER_HOUR * expected_run_hours
+growth_percent = growth_mb / limit_mb * 100
+threshold      = MEMORY_HEADROOM_PERCENT - growth_percent
+refuse         if percent_now > threshold
+```
+
+**Rate: 151 MB/h**, from T7.29 - `anon` 1,462,681,600 -> 1,903,943,680 over 2h47m = 421 MB / 2.78 h.
+**T7.30's 221 MB/h is deliberately not used**: it came from a 0.22-hour window containing a single
+128 MB translation-block allocation, and a rate that predicts over hours must be estimated over a
+comparable window. At rest the rate is 6.2 MB/h, so this check is near-inert on an idle world.
+
+**Duration: the assumption is explicit, and it is a parameter.** The gate cannot know how long the
+run will be, so `expected_run_hours` defaults to `RUN_BUDGET_SECONDS` = **2910s = 0.81h**, summed
+from the harness's own committed bounds - `CORRELATE_CEILING_SECONDS` 1800 + `SETTLE_AFTER_ALERT_
+SECONDS` 90 + the T4.7 budget's `wall_clock_seconds` 600 + `RECOVERY_TIMEOUT_SECONDS` 420 - and
+**pinned to those four by test** so it breaks loudly rather than drifting. That is a *bound*, not a
+typical run: T7.29's runs averaged ~0.34h. A caller that knows better passes its own figure.
+
+At the default, against a 2 GB kafka: growth 122 MB = 5.96 points, **threshold 84.04%**.
+
+**The honesty check, replaying T7.29's measured trajectory run by run** (69.95% -> 90.69%, 8 runs):
+
+| | gate at default | what actually happened | |
+|---|---|---|---|
+| runs 1-6 | PASS | stayed under 90% | correct |
+| run 7 (85.5% -> 88.1%) | **REFUSE** | stayed under 90% | **false refusal - one scenario** |
+| run 8 (88.1% -> 90.7%) | **REFUSE** | **crossed 90%** | correct |
+
+**No false pass**, which is the condition that would mean the threshold is wrong, and it is asserted
+against by a test rather than argued. **One false refusal, and it is a real cost** - a scenario lost
+to a recycle that was not yet needed. It is the price of defaulting to the harness's worst case
+instead of its typical case, and a sweep driver that passes its measured duration does not pay it.
+
+**Declaring the real duration refuses at the start, which is the right answer.** With
+`expected_run_hours=2.78`, the threshold is 69.50% and T7.29's 69.95% start is refused before run 1
+- and the projection lands at **90.4% against an actual 90.69%**, within 0.3 points, which is the
+check on the rate itself rather than on the gate.
+
+**The reading is recorded on every run, passing or refusing** - `percent_now`, `limit_mb`,
+`projected_percent`, `threshold_percent`, `guard_percent`, `fits` - inside `GateReading`, which
+already goes into the run manifest verbatim next to the other preconditions.
+
+**No sixth discard reason, and the decision is deliberate.** Nothing was injected and the world was
+unfit, which is exactly what **`baseline gate refused`** already means. `pipeline-down` earned its
+own subclass because it was the *harness* failing while looking like the world; this is the world.
+The attribution the task wanted comes from the recorded reading instead: a run that later dies on
+the 90% guard can be asked what it started at, without a new label.
+
+**What this does not do.** It stops a run starting doomed. **It does not stop kafka growing** - the
+growth is Rosetta translation cache, driven by work (ADR-0005's T7.30 addendum), and no gate reaches
+it. The real fixes are unchanged: **recycle kafka before recording**, or **native arm64 images**,
+which is the only one that removes the mechanism rather than managing it. It is also single-run
+scoped by default: a sweep's problem is cumulative, and the gate sees each run alone unless the
+caller tells it otherwise.
+
 ### T7.30 — the lever that engaged and did not hold *(measurement only; no digest moves)*
 **Done** ([`docs/evidence/t7.30-kafka-lever/`](evidence/t7.30-kafka-lever/), ADR-0005 addendum).
 T7.29's passive measurement partly falsified T7.27's diagnosis; this establishes what replaces it.

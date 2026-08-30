@@ -57,8 +57,10 @@ from typing import Any
 from evalharness import baseline as baseline_mod
 from evalharness.prom import METRIC_QUERIES, PROMETHEUS, firing_alerts, now, query_range
 from evalharness.rehearse import (
+    MEMORY_HEADROOM_PERCENT,
     MIN_CONTAINER_UPTIME_SECONDS,
     RehearsalError,
+    container_memory_usage,
     container_uptimes,
     require_settled_containers,
 )
@@ -188,6 +190,136 @@ class PipelineDownError(GateRefusedError):
     discard_reason = "pipeline-down"
 
 
+# --- T7.31: the kafka precondition, derived rather than chosen ------------------------------
+
+HEADROOM_CONTAINER = "kafka"
+"""The one container whose growth is measured, load-driven and unbounded (T7.30).
+
+Not a general check. `require_memory_headroom` already refuses on *any* container that is
+**already** past the guard; this one asks a different question about a specific container whose
+growth rate has been measured: will it still be under the guard when this run *finishes*."""
+
+HEADROOM_GROWTH_MB_PER_HOUR = 151.0
+"""kafka's measured growth rate under load, in MB/h. **Measured, not assumed.**
+
+T7.29's sweep: cgroup `anon` 1,462,681,600 -> 1,903,943,680 over 2h47m = **421 MB / 2.78 h**.
+
+**T7.30 also measured 221 MB/h**, and that figure is deliberately *not* used here. It came from a
+0.22-hour window containing a single 128 MB translation-block allocation, and a rate used to predict
+over a horizon of hours must be estimated over a window of comparable length - annualising a
+thirteen-minute burst overstates sustained growth. T7.29's window is 2.78 h, the same order as the
+thing being predicted, so it is the right estimator. n = 1 either way, which is why the parameter
+below exists.
+
+At rest the rate is **6.2 MB/h** (T7.30), so this check is near-inert on an idle world and bites
+exactly when work is happening - which is when a run is about to happen."""
+
+RUN_BUDGET_SECONDS = 1800 + 90 + 600 + 420
+"""Worst-case wall clock for one scored run, summed from the harness's own committed bounds.
+
+`CORRELATE_CEILING_SECONDS` (1800) + `SETTLE_AFTER_ALERT_SECONDS` (90) + the T4.7 budget's
+`wall_clock_seconds` (600) + `RECOVERY_TIMEOUT_SECONDS` (420). **Pinned against `evalharness.run`
+and `faultline.agents.budget` by test**, in the same way `SCRAPE_INTERVAL_SECONDS` is pinned against
+the Prometheus config - if any of those four move, the test fails rather than this drifting.
+
+This is a *bound*, not a typical duration: T7.29's runs averaged ~0.34 h including settle, against
+the 0.81 h this describes. The gate cannot know which it is getting, so it assumes the bound the
+harness permits and lets a caller who knows better say so - see `expected_run_hours`."""
+
+
+def _parse_docker_size(text: str) -> float | None:
+    """`docker stats` sizes ("1.399GiB", "512MiB", "2GB") to MB. None if unparseable."""
+    text = text.strip()
+    for suffix, factor in (
+        ("GiB", 1024.0),
+        ("MiB", 1.0),
+        ("KiB", 1.0 / 1024.0),
+        ("GB", 1000.0 / 1.048576 / 1000.0 * 1024.0),
+        ("MB", 1000.0 / 1.048576 / 1000.0),
+        ("kB", 1.0 / 1024.0),
+        ("B", 1.0 / 1048576.0),
+    ):
+        if text.endswith(suffix):
+            try:
+                return float(text[: -len(suffix)]) * factor
+            except ValueError:
+                return None
+    return None
+
+
+@dataclass(frozen=True)
+class Headroom:
+    """Whether `HEADROOM_CONTAINER` can survive the run that is about to start."""
+
+    percent_now: float
+    limit_mb: float
+    expected_run_hours: float
+    growth_mb: float
+    growth_percent: float
+    threshold_percent: float
+
+    @property
+    def projected_percent(self) -> float:
+        return self.percent_now + self.growth_percent
+
+    @property
+    def fits(self) -> bool:
+        return self.percent_now <= self.threshold_percent
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "container": HEADROOM_CONTAINER,
+            "percent_now": round(self.percent_now, 2),
+            "limit_mb": round(self.limit_mb, 1),
+            "expected_run_hours": round(self.expected_run_hours, 4),
+            "growth_mb_per_hour": HEADROOM_GROWTH_MB_PER_HOUR,
+            "growth_mb": round(self.growth_mb, 1),
+            "projected_percent": round(self.projected_percent, 2),
+            "threshold_percent": round(self.threshold_percent, 2),
+            "guard_percent": MEMORY_HEADROOM_PERCENT,
+            "fits": self.fits,
+        }
+
+
+def headroom_for(
+    expected_run_hours: float | None = None,
+    usage: list[tuple[str, float, str]] | None = None,
+) -> Headroom | None:
+    """Project `HEADROOM_CONTAINER` forward to the end of the run. None if it is not running.
+
+    **The threshold is computed, never chosen.** A run that starts at `percent_now` and grows at
+    `HEADROOM_GROWTH_MB_PER_HOUR` for `expected_run_hours` ends at `projected_percent`, and the
+    question is only whether that is under the recorder's existing guard:
+
+        growth_mb        = rate * hours
+        growth_percent   = growth_mb / limit_mb * 100
+        threshold        = MEMORY_HEADROOM_PERCENT - growth_percent
+        refuse           if percent_now > threshold
+
+    `limit_mb` is read from the container rather than assumed, so raising the limit moves the
+    threshold on its own and this does not silently encode a 2 GB world.
+    """
+    hours = RUN_BUDGET_SECONDS / 3600 if expected_run_hours is None else expected_run_hours
+    rows = container_memory_usage() if usage is None else usage
+    for name, percent, human in rows:
+        if name != HEADROOM_CONTAINER:
+            continue
+        limit_mb = _parse_docker_size(human.split("/")[-1]) if "/" in human else None
+        if limit_mb is None or limit_mb <= 0:
+            return None
+        growth_mb = HEADROOM_GROWTH_MB_PER_HOUR * hours
+        growth_percent = growth_mb / limit_mb * 100.0
+        return Headroom(
+            percent_now=percent,
+            limit_mb=limit_mb,
+            expected_run_hours=hours,
+            growth_mb=growth_mb,
+            growth_percent=growth_percent,
+            threshold_percent=MEMORY_HEADROOM_PERCENT - growth_percent,
+        )
+    return None
+
+
 @dataclass
 class GateReading:
     """Every check the gate made and what it saw. Goes into the run manifest verbatim.
@@ -209,6 +341,7 @@ class GateReading:
     active_injections: str = ""
     open_incidents: list[str] = field(default_factory=list)
     settling_incidents: list[dict[str, Any]] = field(default_factory=list)
+    headroom: Headroom | None = None
     refusals: list[str] = field(default_factory=list)
 
     @property
@@ -233,6 +366,10 @@ class GateReading:
             "active_injections": self.active_injections,
             "open_incidents": self.open_incidents,
             "settling_incidents": self.settling_incidents,
+            # Recorded on every run, passing or refusing. **Provenance, not a new discard
+            # reason**: when a later run dies on the recorder's 90% guard, its manifest can
+            # say what it started at, which is what makes that discard diagnosable (T7.31).
+            "headroom": self.headroom.as_dict() if self.headroom else None,
             "refusals": self.refusals,
         }
 
@@ -308,6 +445,7 @@ forgiveness; see ADR-0025 for why de-sensitising the rule would falsify two reco
 def read(
     open_incidents: list[str] | None = None,
     resolved_incidents: list[tuple[str, datetime]] | None = None,
+    expected_run_hours: float | None = None,
 ) -> GateReading:
     """Take every reading. **Does not raise** - `require` decides what the readings mean.
 
@@ -317,6 +455,11 @@ def read(
     `resolved_incidents` is `(id, resolved_at)` for incidents that have already reached a
     terminal state. The gate decides which of them are still settling; the caller does not
     need to know the window.
+
+    `expected_run_hours` is how long the caller expects the run to take. It defaults to
+    `RUN_BUDGET_SECONDS`, the worst case the harness permits, because **the gate cannot know in
+    advance** - a caller that does know (a sweep driver with measured per-scenario timings) should
+    say so rather than let this assume the bound.
     """
     reading = GateReading(open_incidents=list(open_incidents or []))
 
@@ -432,15 +575,41 @@ def read(
             f"run's alerts would be attributed to the previous one. "
             f"Wait {settling['seconds_remaining']}s."
         )
+
+    # **Forward-looking, and the last reading taken** - it is the only one that depends on how long
+    # the run will be, so it reads after everything that decides whether there will be a run at all.
+    #
+    # `require_memory_headroom` (the recorder's) asks "is anything already past 90%". This asks
+    # "will kafka be past 90% when this run *finishes*", which is a question the static check
+    # cannot answer and which T7.29 walked straight into: it started at 69.95%, passed every check
+    # there was - scored runs have never had a memory check at all - and ended at 90.69%.
+    reading.headroom = headroom_for(expected_run_hours)
+    if reading.headroom is not None and not reading.headroom.fits:
+        h = reading.headroom
+        reading.refusals.append(
+            f"{HEADROOM_CONTAINER} is at {h.percent_now:.1f}% of its {h.limit_mb:.0f}MB limit and "
+            f"would reach ~{h.projected_percent:.1f}% by the end of a {h.expected_run_hours:.2f}h "
+            f"run, past the {MEMORY_HEADROOM_PERCENT:.0f}% guard the recorder refuses at.\n"
+            f"    threshold {h.threshold_percent:.1f}% = {MEMORY_HEADROOM_PERCENT:.0f}% - "
+            f"({HEADROOM_GROWTH_MB_PER_HOUR:.0f}MB/h x {h.expected_run_hours:.2f}h / "
+            f"{h.limit_mb:.0f}MB), growth measured under load at T7.29.\n"
+            f"    Recycle it first, and its consumers with it or they never reconnect (T7.27):\n"
+            f"      docker restart {HEADROOM_CONTAINER} && docker restart accounting-service "
+            f"frauddetection-service checkout-service\n"
+            f"    A restart clears this completely - T7.30 measured 99.87% -> 26.27%. Raising the "
+            f"limit is not the remedy: the growth is Rosetta translation cache and is driven by "
+            f"work, not bounded by a ceiling (ADR-0005's T7.30 addendum)."
+        )
     return reading
 
 
 def require(
     open_incidents: list[str] | None = None,
     resolved_incidents: list[tuple[str, datetime]] | None = None,
+    expected_run_hours: float | None = None,
 ) -> GateReading:
     """Read, then refuse if anything is wrong. The readings travel on the exception."""
-    reading = read(open_incidents, resolved_incidents)
+    reading = read(open_incidents, resolved_incidents, expected_run_hours)
     if not reading.passed:
         detail = "\n".join(f"  - {why}" for why in reading.refusals)
         # A pipeline that is not assembled gets its own type, so the discard says which of the
