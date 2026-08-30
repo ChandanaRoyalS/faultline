@@ -49,6 +49,10 @@ own in [`RUN-2026-08-29-shipping-quote-misconfig.md`](RUN-2026-08-29-shipping-qu
 **Its result, stated where the class lives and not folded into any sweep figure:** fault class
 `bad_config` ✔, fix class `config_revert` ✔, faulty service `shippingservice` ✔, judge
 `same_mechanism`. **n=1 — an observation, not a rate**, and it is not averaged with anything.
+The scenario's ground truth is unchanged by T7.28 - `fault_class: bad_config`,
+`expected_remediation_class: config_revert` - so these axes still read against the labels they were
+scored on. **The bundle the agent saw was re-recorded**, though, so the run is superseded in its
+evidence; the run report carries the banner.
 
 **The `scale` row is a mislabel, corrected at T7.13.** `scale` is a `RemediationClass`, not
 a `FaultClass` - it is not in the scenario schema's enum, not in the agent's answer space, and

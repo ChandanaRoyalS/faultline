@@ -1,5 +1,16 @@
 # T7.24 — the first investigation of a silent culprit
 
+> **World: superseded (T7.28).** Every figure on this page was measured against
+> `compose_digest 299d791c5e0d…`. The world moved on 2026-08-30 - kafka's allocator bounded, a
+> `maxmemory`/`allkeys-lru` bound on redis-cart, and a `memory_limiter` on the collector - and the
+> catalog was re-recorded under `compose_digest f5bd108f…` / `observability_digest 857d95b4…`.
+>
+> **This run is additionally superseded in its subject, not only its world.** T7.28 re-recorded
+> `shipping-quote-misconfig` itself, so the bundle scored below no longer exists in that form. The
+> verdict, the ledger and the six-of-six axes describe the old bundle in the old world, and
+> **nothing has been re-run against the new one.** Whether to re-run it is a separate
+> pre-registered decision.
+
 One scored run of `shipping-quote-misconfig`, the scenario T7.22 recorded and nobody had
 investigated. Pre-registered in
 [`docs/evidence/t7.24-silent-culprit/PREREGISTRATION.md`](../../docs/evidence/t7.24-silent-culprit/PREREGISTRATION.md),
