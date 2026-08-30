@@ -190,6 +190,45 @@ class PipelineDownError(GateRefusedError):
     discard_reason = "pipeline-down"
 
 
+class HeadroomExhaustedError(GateRefusedError):
+    """kafka has not got room for the work still to come. **The operator can clear this.**
+
+    Separated from an ordinary refusal because it is the one gate condition with a known, cheap,
+    complete remedy: a restart returns kafka to ~26% (T7.30 measured 99.87% -> 26.27%). Every other
+    refusal says the world is not fit and leaves the operator to work out why; this one says
+    exactly what to do.
+
+    **`is_pause` is the point.** Nothing was injected, and the scenario has not been attempted -
+    so this must not become a discard. A discard is a run that happened and produced no result;
+    this is a run that has not started. Recording it as a discard would inflate the discard count
+    with events that cost nothing and were resolved in a minute, and ADR-0022 §3.3 keeps discards
+    visible precisely so that number means something.
+
+    **Why the harness does not recycle by itself.** It could - the remedy is two `docker restart`
+    calls and the gate already knows it is needed. It does not, for three reasons that point the
+    same way:
+
+    1. **One driver of the world at a time.** A harness that restarts containers mid-sweep is
+       driving the world, and the whole point of the world lock is that exactly one thing is.
+       Deciding to also drive it from inside a gate is the kind of exception that makes the rule
+       unenforceable.
+    2. **The repository already says not to.** `require_memory_headroom` tells the operator to
+       cycle "between batches and never during one". A gate that recycles mid-sweep would be
+       contradicting a committed instruction from the same subsystem.
+    3. **The remedy is two steps, and half of it is worse than none.** Restarting kafka strands
+       `accountingservice`, which does not self-heal (T7.27). An automatic recycle that forgets the
+       consumers leaves the world quietly broken in a way the next gate will not catch, because a
+       stranded consumer is silent rather than alerting.
+
+    So it stops and tells the operator, and the operator restarts the sweep from where it paused.
+    **If that trade is ever revisited, the thing to weigh is not convenience but who is driving.**
+    """
+
+    discard_reason = "baseline gate refused"
+    is_pause = True
+    """Not a discard: nothing was injected and the scenario has not been attempted."""
+
+
 # --- T7.31: the kafka precondition, derived rather than chosen ------------------------------
 
 HEADROOM_CONTAINER = "kafka"
@@ -213,6 +252,19 @@ below exists.
 
 At rest the rate is **6.2 MB/h** (T7.30), so this check is near-inert on an idle world and bites
 exactly when work is happening - which is when a run is about to happen."""
+
+SWEEP_RUN_HOURS = 2.78 / 8
+"""Wall clock for one run *inside a sweep*, measured: T7.29 ran 8 scenarios in 2h47m.
+
+**Why this is not `RUN_BUDGET_SECONDS`.** That constant is the worst case a single run may reach,
+and it is the right assumption when the gate is asked about one run in isolation, because a single
+observation cannot be averaged. Applying it to *N* remaining runs asserts that every one of them
+maxes out - 8 x 0.81h = 6.5h, which would refuse almost any sweep on any world and is pessimism
+compounded N times rather than a bound.
+
+For multi-run work the honest estimator is N x the measured mean, and this is that mean, including
+the inter-scenario settle. **Pinned to T7.29's published figures by test.** n = 1 sweep, which is
+why `expected_run_hours` remains available for a caller with better numbers."""
 
 RUN_BUDGET_SECONDS = 1800 + 90 + 600 + 420
 """Worst-case wall clock for one scored run, summed from the harness's own committed bounds.
@@ -257,6 +309,7 @@ class Headroom:
     growth_mb: float
     growth_percent: float
     threshold_percent: float
+    runs_remaining: int | None = None
 
     @property
     def projected_percent(self) -> float:
@@ -272,6 +325,10 @@ class Headroom:
             "percent_now": round(self.percent_now, 2),
             "limit_mb": round(self.limit_mb, 1),
             "expected_run_hours": round(self.expected_run_hours, 4),
+            # **The sweep's position, not just this run's.** Two consecutive runs whose
+            # `percent_now` falls rather than rises is a recycle, and that is the only way a
+            # reader can tell kafka was not constant across the sweep (T7.32).
+            "runs_remaining": self.runs_remaining,
             "growth_mb_per_hour": HEADROOM_GROWTH_MB_PER_HOUR,
             "growth_mb": round(self.growth_mb, 1),
             "projected_percent": round(self.projected_percent, 2),
@@ -284,6 +341,7 @@ class Headroom:
 def headroom_for(
     expected_run_hours: float | None = None,
     usage: list[tuple[str, float, str]] | None = None,
+    runs_remaining: int | None = None,
 ) -> Headroom | None:
     """Project `HEADROOM_CONTAINER` forward to the end of the run. None if it is not running.
 
@@ -298,8 +356,19 @@ def headroom_for(
 
     `limit_mb` is read from the container rather than assumed, so raising the limit moves the
     threshold on its own and this does not silently encode a 2 GB world.
+
+    **`runs_remaining` is the sweep binding (T7.32), and it is remaining work rather than total.**
+    A static sweep bound is wrong in the other direction: it refuses at run 1 for work that a
+    recycle would have made fine, and it grows more wrong with every run completed. Run 1 of eight
+    asks for eight runs' headroom; run 7 asks for two. Same rate, same formula - only the horizon
+    moves.
     """
-    hours = RUN_BUDGET_SECONDS / 3600 if expected_run_hours is None else expected_run_hours
+    if runs_remaining is not None:
+        hours = runs_remaining * SWEEP_RUN_HOURS
+    elif expected_run_hours is not None:
+        hours = expected_run_hours
+    else:
+        hours = RUN_BUDGET_SECONDS / 3600
     rows = container_memory_usage() if usage is None else usage
     for name, percent, human in rows:
         if name != HEADROOM_CONTAINER:
@@ -316,6 +385,7 @@ def headroom_for(
             growth_mb=growth_mb,
             growth_percent=growth_percent,
             threshold_percent=MEMORY_HEADROOM_PERCENT - growth_percent,
+            runs_remaining=runs_remaining,
         )
     return None
 
@@ -446,6 +516,7 @@ def read(
     open_incidents: list[str] | None = None,
     resolved_incidents: list[tuple[str, datetime]] | None = None,
     expected_run_hours: float | None = None,
+    runs_remaining: int | None = None,
 ) -> GateReading:
     """Take every reading. **Does not raise** - `require` decides what the readings mean.
 
@@ -583,13 +654,19 @@ def read(
     # "will kafka be past 90% when this run *finishes*", which is a question the static check
     # cannot answer and which T7.29 walked straight into: it started at 69.95%, passed every check
     # there was - scored runs have never had a memory check at all - and ended at 90.69%.
-    reading.headroom = headroom_for(expected_run_hours)
+    reading.headroom = headroom_for(expected_run_hours, runs_remaining=runs_remaining)
     if reading.headroom is not None and not reading.headroom.fits:
         h = reading.headroom
+        scope = (
+            f"the {h.runs_remaining} run(s) still to come"
+            if h.runs_remaining is not None
+            else "this run"
+        )
         reading.refusals.append(
             f"{HEADROOM_CONTAINER} is at {h.percent_now:.1f}% of its {h.limit_mb:.0f}MB limit and "
-            f"would reach ~{h.projected_percent:.1f}% by the end of a {h.expected_run_hours:.2f}h "
-            f"run, past the {MEMORY_HEADROOM_PERCENT:.0f}% guard the recorder refuses at.\n"
+            f"would reach ~{h.projected_percent:.1f}% across {scope} "
+            f"({h.expected_run_hours:.2f}h), past the {MEMORY_HEADROOM_PERCENT:.0f}% guard the "
+            f"recorder refuses at.\n"
             f"    threshold {h.threshold_percent:.1f}% = {MEMORY_HEADROOM_PERCENT:.0f}% - "
             f"({HEADROOM_GROWTH_MB_PER_HOUR:.0f}MB/h x {h.expected_run_hours:.2f}h / "
             f"{h.limit_mb:.0f}MB), growth measured under load at T7.29.\n"
@@ -598,7 +675,9 @@ def read(
             f"frauddetection-service checkout-service\n"
             f"    A restart clears this completely - T7.30 measured 99.87% -> 26.27%. Raising the "
             f"limit is not the remedy: the growth is Rosetta translation cache and is driven by "
-            f"work, not bounded by a ceiling (ADR-0005's T7.30 addendum)."
+            f"work, not bounded by a ceiling (ADR-0005's T7.30 addendum).\n"
+            f"    THIS IS A PAUSE, NOT A DISCARD - nothing was injected and this scenario has "
+            f"not been attempted. Recycle, then start again from here."
         )
     return reading
 
@@ -607,14 +686,23 @@ def require(
     open_incidents: list[str] | None = None,
     resolved_incidents: list[tuple[str, datetime]] | None = None,
     expected_run_hours: float | None = None,
+    runs_remaining: int | None = None,
 ) -> GateReading:
     """Read, then refuse if anything is wrong. The readings travel on the exception."""
-    reading = read(open_incidents, resolved_incidents, expected_run_hours)
+    reading = read(open_incidents, resolved_incidents, expected_run_hours, runs_remaining)
     if not reading.passed:
         detail = "\n".join(f"  - {why}" for why in reading.refusals)
         # A pipeline that is not assembled gets its own type, so the discard says which of the
         # three things went wrong rather than collapsing into "the world was not quiet".
-        error = PipelineDownError if reading.pipeline_down else GateRefusedError
+        # Order matters: a pipeline that is not assembled is the harness, and is not clearable
+        # by recycling, so it keeps priority. Headroom is only reached when everything else that
+        # could be wrong is right - which is exactly when "recycle and continue" is the answer.
+        if reading.pipeline_down:
+            error: type[GateRefusedError] = PipelineDownError
+        elif reading.headroom is not None and not reading.headroom.fits:
+            error = HeadroomExhaustedError
+        else:
+            error = GateRefusedError
         raise error(
             f"baseline gate refused; nothing was injected.\n{detail}\n"
             f"The world must be quiet before a scored run, or the run measures the world's "

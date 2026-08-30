@@ -557,7 +557,9 @@ def parser() -> argparse.ArgumentParser:
         epilog=(
             "Exit codes: 0 the run completed and was scored; 3 the baseline gate refused and "
             "nothing was injected; 4 the run was discarded, and the reason is in the run "
-            "directory's DISCARDED.md. A discarded run is never deleted."
+            "directory's DISCARDED.md. A discarded run is never deleted. 5 the run was PAUSED "
+            "on a clearable precondition - nothing was injected, nothing was discarded, and the "
+            "message says the remedy; clear it and start this scenario again."
         ),
     )
     p.add_argument("scenario_id")
@@ -584,6 +586,16 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="emit one machine-readable @@EVENT line per phase alongside the human output, "
         "so a narrator can follow the run without scraping prose (T5.3)",
+    )
+    p.add_argument(
+        "--runs-remaining",
+        type=int,
+        default=None,
+        metavar="N",
+        help="how many runs of this sweep are still to come, including this one (T7.32). "
+        "The baseline gate projects kafka's memory forward over that much work instead of "
+        "over one run, so a sweep is refused at its start rather than partway through. "
+        "Remaining work, not total: pass 8 on the first of eight, 2 on the seventh.",
     )
     p.add_argument(
         "--holdout",
@@ -743,7 +755,11 @@ def main(argv: list[str] | None = None) -> int:
     try:
         with WorldLock():
             print("baseline gate...")
-            reading = gate.require(open_incidents(dsn), settling_incidents(dsn))
+            reading = gate.require(
+                open_incidents(dsn),
+                settling_incidents(dsn),
+                runs_remaining=args.runs_remaining,
+            )
             run.manifest["baseline_gate"] = reading.as_dict()
             print(f"  clean: {reading.services_reporting} services reporting, 0 alerts")
             emit(
@@ -841,8 +857,21 @@ def main(argv: list[str] | None = None) -> int:
 
     except gate.GateRefusedError as refused:
         run.manifest["baseline_gate"] = gate.read(
-            open_incidents(dsn), settling_incidents(dsn)
+            open_incidents(dsn), settling_incidents(dsn), runs_remaining=args.runs_remaining
         ).as_dict()
+        # **A pause is not a discard.** Nothing was injected and the scenario has not been
+        # attempted, so it must not be counted as a run that produced no result - that number is
+        # kept honest precisely so it means something (ADR-0022 §3.3). The directory still holds
+        # the gate reading, so what kafka was at when it paused is recorded either way.
+        if getattr(refused, "is_pause", False):
+            run.manifest["paused"] = {
+                "reason": "clearable precondition",
+                "at": datetime.now(UTC).isoformat(),
+                "detail": str(refused),
+            }
+            run.save_manifest()
+            print(f"PAUSED: {refused}")
+            return 5
         run.discard(getattr(refused, "discard_reason", "baseline gate refused"), str(refused))
         print(f"REFUSED: {refused}")
         return 3
