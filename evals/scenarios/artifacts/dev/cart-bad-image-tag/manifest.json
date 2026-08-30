@@ -8,85 +8,101 @@
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:00:10+00:00",
-      "last_seen": "2026-08-28T03:06:55+00:00",
-      "minutes_firing": 7.0,
+      "first_seen": "2026-08-29T23:15:15+00:00",
+      "last_seen": "2026-08-29T23:21:45+00:00",
+      "minutes_firing": 6.8,
       "service": "checkoutservice"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:00:10+00:00",
-      "last_seen": "2026-08-28T03:06:55+00:00",
+      "first_seen": "2026-08-29T23:15:15+00:00",
+      "last_seen": "2026-08-29T23:22:00+00:00",
       "minutes_firing": 7.0,
       "service": "frontend"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:00:10+00:00",
-      "last_seen": "2026-08-28T03:07:10+00:00",
-      "minutes_firing": 7.2,
+      "first_seen": "2026-08-29T23:15:15+00:00",
+      "last_seen": "2026-08-29T23:22:00+00:00",
+      "minutes_firing": 7.0,
+      "service": "loadgenerator"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-08-29T23:16:15+00:00",
+      "last_seen": "2026-08-29T23:17:45+00:00",
+      "minutes_firing": 1.8,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-08-29T23:16:15+00:00",
+      "last_seen": "2026-08-29T23:17:45+00:00",
+      "minutes_firing": 1.8,
       "service": "loadgenerator"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:02:40+00:00",
-      "last_seen": "2026-08-28T03:05:40+00:00",
-      "minutes_firing": 3.2,
+      "first_seen": "2026-08-29T23:16:45+00:00",
+      "last_seen": "2026-08-29T23:20:45+00:00",
+      "minutes_firing": 4.2,
       "service": "accountingservice"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:02:40+00:00",
-      "last_seen": "2026-08-28T03:05:40+00:00",
-      "minutes_firing": 3.2,
+      "first_seen": "2026-08-29T23:16:45+00:00",
+      "last_seen": "2026-08-29T23:20:30+00:00",
+      "minutes_firing": 4.0,
       "service": "cartservice"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:02:40+00:00",
-      "last_seen": "2026-08-28T03:05:40+00:00",
-      "minutes_firing": 3.2,
+      "first_seen": "2026-08-29T23:16:45+00:00",
+      "last_seen": "2026-08-29T23:20:45+00:00",
+      "minutes_firing": 4.2,
       "service": "currencyservice"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:02:40+00:00",
-      "last_seen": "2026-08-28T03:05:40+00:00",
-      "minutes_firing": 3.2,
+      "first_seen": "2026-08-29T23:16:45+00:00",
+      "last_seen": "2026-08-29T23:20:45+00:00",
+      "minutes_firing": 4.2,
       "service": "emailservice"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:02:40+00:00",
-      "last_seen": "2026-08-28T03:05:40+00:00",
-      "minutes_firing": 3.2,
+      "first_seen": "2026-08-29T23:16:45+00:00",
+      "last_seen": "2026-08-29T23:20:45+00:00",
+      "minutes_firing": 4.2,
       "service": "frauddetectionservice"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:02:40+00:00",
-      "last_seen": "2026-08-28T03:05:40+00:00",
-      "minutes_firing": 3.2,
+      "first_seen": "2026-08-29T23:16:45+00:00",
+      "last_seen": "2026-08-29T23:20:45+00:00",
+      "minutes_firing": 4.2,
       "service": "quoteservice"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:02:40+00:00",
-      "last_seen": "2026-08-28T03:05:40+00:00",
-      "minutes_firing": 3.2,
+      "first_seen": "2026-08-29T23:16:45+00:00",
+      "last_seen": "2026-08-29T23:20:45+00:00",
+      "minutes_firing": 4.2,
       "service": "shippingservice"
     }
   ],
-  "baseline_clear_at": "2026-08-28T02:56:25+00:00",
+  "baseline_clear_at": "2026-08-29T23:10:30+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "rollback",
@@ -113,30 +129,41 @@
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "07e516ee12ca3ff891b6e513bbc1d3a00df442b4",
+    "git_sha": "95e3e8c07907a9c68bdae5357d5c84574fd6fc91",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "d4b9a16337b55bfe9feb260c5e6c3173f6cf8b23fec2724198a472bd26481ada",
   "scenario_id": "cart-bad-image-tag",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 242,
-  "seconds_to_settle": 135,
+  "seconds_to_alert": 286,
+  "seconds_to_settle": 121,
   "split": "dev",
-  "t_alert_firing": "2026-08-28T03:00:27+00:00",
-  "t_clear": "2026-08-28T03:07:42+00:00",
-  "t_inject": "2026-08-28T02:56:25+00:00",
-  "t_revert": "2026-08-28T03:05:27+00:00",
+  "t_alert_firing": "2026-08-29T23:15:16+00:00",
+  "t_clear": "2026-08-29T23:22:17+00:00",
+  "t_inject": "2026-08-29T23:10:30+00:00",
+  "t_revert": "2026-08-29T23:20:16+00:00",
   "title": "Cart service deployed on an image tag that was never published",
   "window": {
-    "end": "2026-08-28T03:09:42+00:00",
-    "start": "2026-08-28T02:51:25+00:00"
+    "end": "2026-08-29T23:24:17+00:00",
+    "start": "2026-08-29T23:05:30+00:00"
   },
   "world": {
-    "compose_digest": "299d791c5e0da43ec340f03c4908ecbfaf3e10e91b6a9340f98bd09827d76a6c",
+    "compose_digest": "f5bd108f4f70f460836f090ecbff4259626cc9264b102a0851b6bb4a4ceda44b",
     "docker_arch": "arm64",
     "ffs_stub_image_id": "sha256:e273759fb5c16938bbcf9df934650444642495d9bcebb3af841e015d946d377d",
     "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
     "host_platform": "Darwin/arm64",
-    "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice"
+    "observability_digest": "857d95b4d174ec43b1f64bbb84bdf3438bc7425c1360a0e6e7dd771c4e77cb60",
+    "observability_files": {
+      "compose/otelcol-extras.yml": "c1cdb85343770302a80e6153c9fafcdce3821d870676cbf48f5f05536df84dcf",
+      "compose/prometheus/alert-rules.yml": "ae69d142bc571db5bd697f31368b8e7d5e533a3d0eecd4661ea2b29b7ea8672e",
+      "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+      "compose/prometheus/prometheus-config.yaml": "230505c37ddc4f95aa9ec1b085bf1ea32a98346e27e5f6f813aef230f3def749",
+      "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+      "world/src/otelcollector/otelcol-config-extras.yml": "7f3afd57cd82f28d5c5948e843d7d594e60dfb0133611c540ff31fa31804ee92",
+      "world/src/otelcollector/otelcol-config.yml": "cf1645d90cc88effcb493edd196238bf73a14d1b30dc654325d25045be0377e5"
+    },
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice",
+    "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994"
   }
 }

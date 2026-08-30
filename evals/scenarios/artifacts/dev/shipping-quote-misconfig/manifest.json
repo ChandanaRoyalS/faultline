@@ -6,21 +6,61 @@
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-29T18:42:39+00:00",
-      "last_seen": "2026-08-29T18:48:54+00:00",
-      "minutes_firing": 6.5,
+      "first_seen": "2026-08-30T01:23:48+00:00",
+      "last_seen": "2026-08-30T01:30:48+00:00",
+      "minutes_firing": 7.2,
       "service": "checkoutservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-30T01:27:03+00:00",
+      "last_seen": "2026-08-30T01:29:18+00:00",
+      "minutes_firing": 2.5,
+      "service": "accountingservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-30T01:27:03+00:00",
+      "last_seen": "2026-08-30T01:29:18+00:00",
+      "minutes_firing": 2.5,
+      "service": "emailservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-30T01:27:03+00:00",
+      "last_seen": "2026-08-30T01:29:18+00:00",
+      "minutes_firing": 2.5,
+      "service": "frauddetectionservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-30T01:27:03+00:00",
+      "last_seen": "2026-08-30T01:29:18+00:00",
+      "minutes_firing": 2.5,
+      "service": "quoteservice"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-29T18:46:24+00:00",
-      "last_seen": "2026-08-29T18:46:24+00:00",
-      "minutes_firing": 0.2,
+      "first_seen": "2026-08-30T01:29:03+00:00",
+      "last_seen": "2026-08-30T01:29:48+00:00",
+      "minutes_firing": 1.0,
       "service": "loadgenerator"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": true,
+      "first_seen": "2026-08-30T01:29:33+00:00",
+      "last_seen": "2026-08-30T01:29:33+00:00",
+      "minutes_firing": 0.2,
+      "service": "frontend"
     }
   ],
-  "baseline_clear_at": "2026-08-29T18:39:54+00:00",
+  "baseline_clear_at": "2026-08-30T01:20:48+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "config_revert",
@@ -41,37 +81,38 @@
     "derived_from": "the bundle's own captures (T7.5)",
     "none_can_answer": false,
     "runtime_series": 0,
-    "target_log_lines": 126
+    "target_log_lines": 387
   },
   "recorded_by": "evalharness.rehearse",
   "recorder": {
-    "git_dirty": false,
-    "git_sha": "4b5d4864611135cefbdae9bad3d0aa03b46f7953",
+    "git_dirty": true,
+    "git_sha": "95e3e8c07907a9c68bdae5357d5c84574fd6fc91",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "42e4b92cc3e46410b9b1b9a968a0c246c923bc410f6f576eb083686206b659f8",
   "scenario_id": "shipping-quote-misconfig",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 169,
-  "seconds_to_settle": 94,
+  "seconds_to_alert": 198,
+  "seconds_to_settle": 139,
   "split": "dev",
-  "t_alert_firing": "2026-08-29T18:42:43+00:00",
-  "t_clear": "2026-08-29T18:49:17+00:00",
-  "t_inject": "2026-08-29T18:39:54+00:00",
-  "t_revert": "2026-08-29T18:47:43+00:00",
+  "t_alert_firing": "2026-08-30T01:24:06+00:00",
+  "t_clear": "2026-08-30T01:31:25+00:00",
+  "t_inject": "2026-08-30T01:20:48+00:00",
+  "t_revert": "2026-08-30T01:29:06+00:00",
   "title": "Shipping service pointed at a quote service that does not resolve",
   "window": {
-    "end": "2026-08-29T18:51:17+00:00",
-    "start": "2026-08-29T18:34:54+00:00"
+    "end": "2026-08-30T01:33:25+00:00",
+    "start": "2026-08-30T01:15:48+00:00"
   },
   "world": {
-    "compose_digest": "299d791c5e0da43ec340f03c4908ecbfaf3e10e91b6a9340f98bd09827d76a6c",
+    "compose_digest": "f5bd108f4f70f460836f090ecbff4259626cc9264b102a0851b6bb4a4ceda44b",
     "docker_arch": "arm64",
     "ffs_stub_image_id": "sha256:e273759fb5c16938bbcf9df934650444642495d9bcebb3af841e015d946d377d",
     "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
     "host_platform": "Darwin/arm64",
-    "observability_digest": "3d061a2793b1cd578f1fed9f7e65abe68f1d7ea26aecb9d7af8cf829ef37fec2",
+    "observability_digest": "857d95b4d174ec43b1f64bbb84bdf3438bc7425c1360a0e6e7dd771c4e77cb60",
     "observability_files": {
+      "compose/otelcol-extras.yml": "c1cdb85343770302a80e6153c9fafcdce3821d870676cbf48f5f05536df84dcf",
       "compose/prometheus/alert-rules.yml": "ae69d142bc571db5bd697f31368b8e7d5e533a3d0eecd4661ea2b29b7ea8672e",
       "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
       "compose/prometheus/prometheus-config.yaml": "230505c37ddc4f95aa9ec1b085bf1ea32a98346e27e5f6f813aef230f3def749",

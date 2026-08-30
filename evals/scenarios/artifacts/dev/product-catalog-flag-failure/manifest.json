@@ -6,37 +6,37 @@
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:56:52+00:00",
-      "last_seen": "2026-08-28T04:03:22+00:00",
-      "minutes_firing": 6.8,
+      "first_seen": "2026-08-30T00:36:03+00:00",
+      "last_seen": "2026-08-30T00:41:33+00:00",
+      "minutes_firing": 5.8,
       "service": "loadgenerator"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:57:22+00:00",
-      "last_seen": "2026-08-28T04:00:52+00:00",
-      "minutes_firing": 3.8,
+      "first_seen": "2026-08-30T00:36:18+00:00",
+      "last_seen": "2026-08-30T00:41:33+00:00",
+      "minutes_firing": 5.5,
       "service": "frontend"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:57:22+00:00",
-      "last_seen": "2026-08-28T04:03:22+00:00",
-      "minutes_firing": 6.2,
+      "first_seen": "2026-08-30T00:36:18+00:00",
+      "last_seen": "2026-08-30T00:41:33+00:00",
+      "minutes_firing": 5.5,
       "service": "productcatalogservice"
     },
     {
       "alert": "ServiceHighErrorRate",
-      "began_after_revert": true,
-      "first_seen": "2026-08-28T04:03:22+00:00",
-      "last_seen": "2026-08-28T04:03:22+00:00",
-      "minutes_firing": 0.2,
-      "service": "frontend"
+      "began_after_revert": false,
+      "first_seen": "2026-08-30T00:39:48+00:00",
+      "last_seen": "2026-08-30T00:40:18+00:00",
+      "minutes_firing": 0.8,
+      "service": "checkoutservice"
     }
   ],
-  "baseline_clear_at": "2026-08-28T03:53:07+00:00",
+  "baseline_clear_at": "2026-08-30T00:32:33+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "config_revert",
@@ -60,30 +60,41 @@
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "07e516ee12ca3ff891b6e513bbc1d3a00df442b4",
+    "git_sha": "95e3e8c07907a9c68bdae5357d5c84574fd6fc91",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "78c464d798db218705fbd6f124c501902cbda526703cfc5355dc003ed2a0d645",
   "scenario_id": "product-catalog-flag-failure",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 244,
-  "seconds_to_settle": 94,
+  "seconds_to_alert": 229,
+  "seconds_to_settle": 48,
   "split": "dev",
-  "t_alert_firing": "2026-08-28T03:57:11+00:00",
-  "t_clear": "2026-08-28T04:03:45+00:00",
-  "t_inject": "2026-08-28T03:53:07+00:00",
-  "t_revert": "2026-08-28T04:02:11+00:00",
+  "t_alert_firing": "2026-08-30T00:36:22+00:00",
+  "t_clear": "2026-08-30T00:42:10+00:00",
+  "t_inject": "2026-08-30T00:32:33+00:00",
+  "t_revert": "2026-08-30T00:41:22+00:00",
   "title": "A feature flag turned on at the flag service makes product catalog fail one product",
   "window": {
-    "end": "2026-08-28T04:05:45+00:00",
-    "start": "2026-08-28T03:48:07+00:00"
+    "end": "2026-08-30T00:44:10+00:00",
+    "start": "2026-08-30T00:27:33+00:00"
   },
   "world": {
-    "compose_digest": "299d791c5e0da43ec340f03c4908ecbfaf3e10e91b6a9340f98bd09827d76a6c",
+    "compose_digest": "f5bd108f4f70f460836f090ecbff4259626cc9264b102a0851b6bb4a4ceda44b",
     "docker_arch": "arm64",
     "ffs_stub_image_id": "sha256:e273759fb5c16938bbcf9df934650444642495d9bcebb3af841e015d946d377d",
     "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
     "host_platform": "Darwin/arm64",
-    "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice"
+    "observability_digest": "857d95b4d174ec43b1f64bbb84bdf3438bc7425c1360a0e6e7dd771c4e77cb60",
+    "observability_files": {
+      "compose/otelcol-extras.yml": "c1cdb85343770302a80e6153c9fafcdce3821d870676cbf48f5f05536df84dcf",
+      "compose/prometheus/alert-rules.yml": "ae69d142bc571db5bd697f31368b8e7d5e533a3d0eecd4661ea2b29b7ea8672e",
+      "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+      "compose/prometheus/prometheus-config.yaml": "230505c37ddc4f95aa9ec1b085bf1ea32a98346e27e5f6f813aef230f3def749",
+      "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+      "world/src/otelcollector/otelcol-config-extras.yml": "7f3afd57cd82f28d5c5948e843d7d594e60dfb0133611c540ff31fa31804ee92",
+      "world/src/otelcollector/otelcol-config.yml": "cf1645d90cc88effcb493edd196238bf73a14d1b30dc654325d25045be0377e5"
+    },
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice",
+    "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994"
   }
 }

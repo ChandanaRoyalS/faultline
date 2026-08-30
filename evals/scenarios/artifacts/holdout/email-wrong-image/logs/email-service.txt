@@ -1,191 +1,171 @@
 # target container: email-service
 # loki labels: service, stream
 # selector: {service="email-service"}
-# 186 lines
+# 166 lines
 
-2026-08-28T04:50:14+00:00  172.18.0.20 - - [28/Aug/2026:04:50:14 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:50:16+00:00  172.18.0.20 - - [28/Aug/2026:04:50:16 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:50:19+00:00  172.18.0.20 - - [28/Aug/2026:04:50:19 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:50:19+00:00  172.18.0.20 - - [28/Aug/2026:04:50:19 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:50:22+00:00  172.18.0.20 - - [28/Aug/2026:04:50:22 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0015
-2026-08-28T04:50:35+00:00  172.18.0.20 - - [28/Aug/2026:04:50:35 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:50:45+00:00  172.18.0.20 - - [28/Aug/2026:04:50:45 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
-2026-08-28T04:50:55+00:00  172.18.0.20 - - [28/Aug/2026:04:50:55 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:50:59+00:00  172.18.0.20 - - [28/Aug/2026:04:50:59 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
-2026-08-28T04:51:08+00:00  172.18.0.20 - - [28/Aug/2026:04:51:08 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0027
-2026-08-28T04:51:08+00:00  172.18.0.20 - - [28/Aug/2026:04:51:08 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:51:12+00:00  172.18.0.20 - - [28/Aug/2026:04:51:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-28T04:51:12+00:00  172.18.0.20 - - [28/Aug/2026:04:51:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:51:24+00:00  172.18.0.20 - - [28/Aug/2026:04:51:24 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-28T04:51:37+00:00  172.18.0.20 - - [28/Aug/2026:04:51:37 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:51:43+00:00  172.18.0.20 - - [28/Aug/2026:04:51:43 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-28T04:52:01+00:00  172.18.0.20 - - [28/Aug/2026:04:52:01 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0015
-2026-08-28T04:52:07+00:00  172.18.0.20 - - [28/Aug/2026:04:52:07 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0015
-2026-08-28T04:52:18+00:00  172.18.0.20 - - [28/Aug/2026:04:52:18 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:52:18+00:00  172.18.0.20 - - [28/Aug/2026:04:52:18 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-28T04:52:28+00:00  172.18.0.20 - - [28/Aug/2026:04:52:28 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-28T04:52:30+00:00  172.18.0.20 - - [28/Aug/2026:04:52:30 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
-2026-08-28T04:52:35+00:00  172.18.0.20 - - [28/Aug/2026:04:52:35 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:52:54+00:00  172.18.0.20 - - [28/Aug/2026:04:52:54 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:53:02+00:00  172.18.0.20 - - [28/Aug/2026:04:53:02 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
-2026-08-28T04:53:03+00:00  172.18.0.20 - - [28/Aug/2026:04:53:03 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
-2026-08-28T04:53:06+00:00  172.18.0.20 - - [28/Aug/2026:04:53:06 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
-2026-08-28T04:53:07+00:00  172.18.0.20 - - [28/Aug/2026:04:53:07 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
-2026-08-28T04:53:12+00:00  172.18.0.20 - - [28/Aug/2026:04:53:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-28T04:53:37+00:00  172.18.0.20 - - [28/Aug/2026:04:53:37 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
-2026-08-28T04:53:39+00:00  172.18.0.20 - - [28/Aug/2026:04:53:39 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:53:50+00:00  172.18.0.20 - - [28/Aug/2026:04:53:50 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
-2026-08-28T04:53:50+00:00  172.18.0.20 - - [28/Aug/2026:04:53:50 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-28T04:53:58+00:00  172.18.0.20 - - [28/Aug/2026:04:53:58 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:54:00+00:00  172.18.0.20 - - [28/Aug/2026:04:54:00 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:54:17+00:00  172.18.0.20 - - [28/Aug/2026:04:54:17 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:54:18+00:00  172.18.0.20 - - [28/Aug/2026:04:54:18 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-28T04:54:22+00:00  172.18.0.20 - - [28/Aug/2026:04:54:22 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
-2026-08-28T04:54:32+00:00  172.18.0.20 - - [28/Aug/2026:04:54:32 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0113
-2026-08-28T04:54:38+00:00  172.18.0.20 - - [28/Aug/2026:04:54:38 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0087
-2026-08-28T04:54:51+00:00  172.18.0.20 - - [28/Aug/2026:04:54:51 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
-2026-08-28T04:54:55+00:00  172.18.0.20 - - [28/Aug/2026:04:54:55 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-28T04:54:58+00:00  == Sinatra has ended his set (crowd applauds)
-2026-08-28T04:54:59+00:00  [Fri Aug 28 04:54:59.131633 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:54:59+00:00  [Fri Aug 28 04:54:59.133394 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:54:59+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:54:59+00:00  Port must be specified
-2026-08-28T04:54:59+00:00  [Fri Aug 28 04:54:59.441009 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:54:59+00:00  [Fri Aug 28 04:54:59.442659 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:54:59+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:54:59+00:00  Port must be specified
-2026-08-28T04:54:59+00:00  [Fri Aug 28 04:54:59.849772 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:54:59+00:00  [Fri Aug 28 04:54:59.851657 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:54:59+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:54:59+00:00  Port must be specified
-2026-08-28T04:55:00+00:00  [Fri Aug 28 04:55:00.492850 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:00+00:00  [Fri Aug 28 04:55:00.494468 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:00+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:55:00+00:00  Port must be specified
-2026-08-28T04:55:01+00:00  [Fri Aug 28 04:55:01.524044 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:01+00:00  [Fri Aug 28 04:55:01.525703 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:01+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:55:01+00:00  Port must be specified
-2026-08-28T04:55:03+00:00  [Fri Aug 28 04:55:03.352875 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:03+00:00  [Fri Aug 28 04:55:03.354509 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:03+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:55:03+00:00  Port must be specified
-2026-08-28T04:55:06+00:00  [Fri Aug 28 04:55:06.784355 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:06+00:00  [Fri Aug 28 04:55:06.785993 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:06+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:55:06+00:00  Port must be specified
-2026-08-28T04:55:13+00:00  [Fri Aug 28 04:55:13.423024 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:13+00:00  [Fri Aug 28 04:55:13.424645 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:13+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:55:13+00:00  Port must be specified
-2026-08-28T04:55:26+00:00  [Fri Aug 28 04:55:26.448947 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:26+00:00  [Fri Aug 28 04:55:26.450705 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:26+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:55:26+00:00  Port must be specified
-2026-08-28T04:55:52+00:00  [Fri Aug 28 04:55:52.287734 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:52+00:00  [Fri Aug 28 04:55:52.289390 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:55:52+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:55:52+00:00  Port must be specified
-2026-08-28T04:56:43+00:00  [Fri Aug 28 04:56:43.695214 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:56:43+00:00  [Fri Aug 28 04:56:43.696823 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:56:43+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:56:43+00:00  Port must be specified
-2026-08-28T04:57:43+00:00  [Fri Aug 28 04:57:43.927215 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:57:43+00:00  [Fri Aug 28 04:57:43.928870 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:57:43+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:57:43+00:00  Port must be specified
-2026-08-28T04:58:44+00:00  [Fri Aug 28 04:58:44.163574 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:58:44+00:00  [Fri Aug 28 04:58:44.165384 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:58:44+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:58:44+00:00  Port must be specified
-2026-08-28T04:59:44+00:00  [Fri Aug 28 04:59:44.404967 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:59:44+00:00  [Fri Aug 28 04:59:44.406855 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T04:59:44+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T04:59:44+00:00  Port must be specified
-2026-08-28T05:00:44+00:00  [Fri Aug 28 05:00:44.637365 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T05:00:44+00:00  [Fri Aug 28 05:00:44.639025 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T05:00:44+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T05:00:44+00:00  Port must be specified
-2026-08-28T05:01:44+00:00  [Fri Aug 28 05:01:44.859214 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T05:01:44+00:00  [Fri Aug 28 05:01:44.861009 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T05:01:44+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T05:01:44+00:00  Port must be specified
-2026-08-28T05:02:45+00:00  [Fri Aug 28 05:02:45.075087 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T05:02:45+00:00  [Fri Aug 28 05:02:45.076753 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T05:02:45+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T05:02:45+00:00  Port must be specified
-2026-08-28T05:03:45+00:00  [Fri Aug 28 05:03:45.298844 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T05:03:45+00:00  [Fri Aug 28 05:03:45.300483 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
-2026-08-28T05:03:45+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
-2026-08-28T05:03:45+00:00  Port must be specified
-2026-08-28T05:04:00+00:00  == Sinatra (v2.2.0) has taken the stage on 6060 for production with backup from Puma
-2026-08-28T05:04:05+00:00  172.18.0.20 - - [28/Aug/2026:05:04:05 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0944
-2026-08-28T05:04:17+00:00  172.18.0.20 - - [28/Aug/2026:05:04:17 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
-2026-08-28T05:04:25+00:00  172.18.0.20 - - [28/Aug/2026:05:04:25 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-28T05:04:30+00:00  172.18.0.20 - - [28/Aug/2026:05:04:30 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0015
-2026-08-28T05:05:07+00:00  172.18.0.20 - - [28/Aug/2026:05:05:07 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-28T05:05:25+00:00  172.18.0.20 - - [28/Aug/2026:05:05:25 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T05:05:27+00:00  172.18.0.20 - - [28/Aug/2026:05:05:27 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0015
-2026-08-28T05:05:27+00:00  172.18.0.20 - - [28/Aug/2026:05:05:27 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
-2026-08-28T05:05:37+00:00  172.18.0.20 - - [28/Aug/2026:05:05:37 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0015
-2026-08-28T04:50:14+00:00  Order confirmation email sent to: bill@example.com
-2026-08-28T04:50:16+00:00  Order confirmation email sent to: bill@example.com
-2026-08-28T04:50:19+00:00  Order confirmation email sent to: steve@example.com
-2026-08-28T04:50:19+00:00  Order confirmation email sent to: bill@example.com
-2026-08-28T04:50:22+00:00  Order confirmation email sent to: jack@example.com
-2026-08-28T04:50:35+00:00  Order confirmation email sent to: tobias@example.com
-2026-08-28T04:50:45+00:00  Order confirmation email sent to: reed@example.com
-2026-08-28T04:50:55+00:00  Order confirmation email sent to: jeff@example.com
-2026-08-28T04:50:59+00:00  Order confirmation email sent to: mark@example.com
-2026-08-28T04:51:08+00:00  Order confirmation email sent to: larry_sergei@example.com
-2026-08-28T04:51:08+00:00  Order confirmation email sent to: reed@example.com
-2026-08-28T04:51:12+00:00  Order confirmation email sent to: mark@example.com
-2026-08-28T04:51:12+00:00  Order confirmation email sent to: tobias@example.com
-2026-08-28T04:51:24+00:00  Order confirmation email sent to: jack@example.com
-2026-08-28T04:51:37+00:00  Order confirmation email sent to: moore@example.com
-2026-08-28T04:51:43+00:00  Order confirmation email sent to: jack@example.com
-2026-08-28T04:52:01+00:00  Order confirmation email sent to: mark@example.com
-2026-08-28T04:52:07+00:00  Order confirmation email sent to: larry_sergei@example.com
-2026-08-28T04:52:18+00:00  Order confirmation email sent to: steve@example.com
-2026-08-28T04:52:18+00:00  Order confirmation email sent to: jack@example.com
-2026-08-28T04:52:28+00:00  Order confirmation email sent to: reed@example.com
-2026-08-28T04:52:30+00:00  Order confirmation email sent to: mark@example.com
-2026-08-28T04:52:35+00:00  Order confirmation email sent to: moore@example.com
-2026-08-28T04:52:54+00:00  Order confirmation email sent to: larry_sergei@example.com
-2026-08-28T04:53:02+00:00  Order confirmation email sent to: bill@example.com
-2026-08-28T04:53:03+00:00  Order confirmation email sent to: jeff@example.com
-2026-08-28T04:53:06+00:00  Order confirmation email sent to: larry_sergei@example.com
-2026-08-28T04:53:07+00:00  Order confirmation email sent to: steve@example.com
-2026-08-28T04:53:12+00:00  Order confirmation email sent to: mark@example.com
-2026-08-28T04:53:37+00:00  Order confirmation email sent to: larry_sergei@example.com
-2026-08-28T04:53:39+00:00  Order confirmation email sent to: bill@example.com
-2026-08-28T04:53:50+00:00  Order confirmation email sent to: larry_sergei@example.com
-2026-08-28T04:53:50+00:00  Order confirmation email sent to: reed@example.com
-2026-08-28T04:53:58+00:00  Order confirmation email sent to: reed@example.com
-2026-08-28T04:54:00+00:00  Order confirmation email sent to: reed@example.com
-2026-08-28T04:54:17+00:00  Order confirmation email sent to: reed@example.com
-2026-08-28T04:54:18+00:00  Order confirmation email sent to: reed@example.com
-2026-08-28T04:54:22+00:00  Order confirmation email sent to: larry_sergei@example.com
-2026-08-28T04:54:32+00:00  Order confirmation email sent to: steve@example.com
-2026-08-28T04:54:38+00:00  Order confirmation email sent to: steve@example.com
-2026-08-28T04:54:51+00:00  Order confirmation email sent to: jeff@example.com
-2026-08-28T04:54:55+00:00  Order confirmation email sent to: larry_sergei@example.com
-2026-08-28T04:54:58+00:00  - Gracefully stopping, waiting for requests to finish
-2026-08-28T05:04:00+00:00  I, [2026-08-28T05:04:00.176145 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {}
-2026-08-28T05:04:00+00:00  Puma starting in single mode...
-2026-08-28T05:04:00+00:00  * Puma version: 5.6.4 (ruby 3.1.2-p20) ("Birdie's Version")
-2026-08-28T05:04:00+00:00  *  Min threads: 0
-2026-08-28T05:04:00+00:00  *  Max threads: 5
-2026-08-28T05:04:00+00:00  *  Environment: production
-2026-08-28T05:04:00+00:00  *          PID: 1
-2026-08-28T05:04:00+00:00  * Listening on http://0.0.0.0:6060
-2026-08-28T05:04:00+00:00  Use Ctrl-C to stop
-2026-08-28T05:04:05+00:00  Order confirmation email sent to: reed@example.com
-2026-08-28T05:04:17+00:00  Order confirmation email sent to: jeff@example.com
-2026-08-28T05:04:25+00:00  Order confirmation email sent to: mark@example.com
-2026-08-28T05:04:30+00:00  Order confirmation email sent to: jeff@example.com
-2026-08-28T05:05:07+00:00  Order confirmation email sent to: tobias@example.com
-2026-08-28T05:05:25+00:00  Order confirmation email sent to: bill@example.com
-2026-08-28T05:05:27+00:00  Order confirmation email sent to: moore@example.com
-2026-08-28T05:05:27+00:00  Order confirmation email sent to: tobias@example.com
-2026-08-28T05:05:37+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-08-29T23:55:16+00:00  172.18.0.20 - - [29/Aug/2026:23:55:16 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0037
+2026-08-29T23:55:25+00:00  172.18.0.20 - - [29/Aug/2026:23:55:25 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
+2026-08-29T23:55:27+00:00  172.18.0.20 - - [29/Aug/2026:23:55:27 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
+2026-08-29T23:55:48+00:00  172.18.0.20 - - [29/Aug/2026:23:55:48 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0021
+2026-08-29T23:56:07+00:00  172.18.0.20 - - [29/Aug/2026:23:56:07 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0022
+2026-08-29T23:56:09+00:00  172.18.0.20 - - [29/Aug/2026:23:56:09 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:56:37+00:00  172.18.0.20 - - [29/Aug/2026:23:56:37 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
+2026-08-29T23:57:02+00:00  172.18.0.20 - - [29/Aug/2026:23:57:02 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:57:26+00:00  172.18.0.20 - - [29/Aug/2026:23:57:26 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:57:28+00:00  172.18.0.20 - - [29/Aug/2026:23:57:28 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0021
+2026-08-29T23:57:31+00:00  172.18.0.20 - - [29/Aug/2026:23:57:31 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:57:33+00:00  172.18.0.20 - - [29/Aug/2026:23:57:33 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
+2026-08-29T23:57:41+00:00  172.18.0.20 - - [29/Aug/2026:23:57:41 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:58:03+00:00  172.18.0.20 - - [29/Aug/2026:23:58:03 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:58:11+00:00  172.18.0.20 - - [29/Aug/2026:23:58:11 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0022
+2026-08-29T23:58:12+00:00  172.18.0.20 - - [29/Aug/2026:23:58:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0021
+2026-08-29T23:58:14+00:00  172.18.0.20 - - [29/Aug/2026:23:58:14 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
+2026-08-29T23:58:20+00:00  172.18.0.20 - - [29/Aug/2026:23:58:20 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0179
+2026-08-29T23:58:26+00:00  172.18.0.20 - - [29/Aug/2026:23:58:26 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0114
+2026-08-29T23:58:29+00:00  172.18.0.20 - - [29/Aug/2026:23:58:29 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0140
+2026-08-29T23:58:37+00:00  172.18.0.20 - - [29/Aug/2026:23:58:37 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0022
+2026-08-29T23:58:39+00:00  172.18.0.20 - - [29/Aug/2026:23:58:39 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
+2026-08-29T23:58:41+00:00  172.18.0.20 - - [29/Aug/2026:23:58:41 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:58:41+00:00  172.18.0.20 - - [29/Aug/2026:23:58:41 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
+2026-08-29T23:58:54+00:00  172.18.0.20 - - [29/Aug/2026:23:58:54 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:58:54+00:00  172.18.0.20 - - [29/Aug/2026:23:58:54 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
+2026-08-29T23:59:02+00:00  172.18.0.20 - - [29/Aug/2026:23:59:02 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
+2026-08-29T23:59:07+00:00  172.18.0.20 - - [29/Aug/2026:23:59:07 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:59:26+00:00  172.18.0.20 - - [29/Aug/2026:23:59:26 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:59:27+00:00  172.18.0.20 - - [29/Aug/2026:23:59:27 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
+2026-08-29T23:59:36+00:00  172.18.0.20 - - [29/Aug/2026:23:59:36 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
+2026-08-29T23:59:40+00:00  172.18.0.20 - - [29/Aug/2026:23:59:40 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
+2026-08-29T23:59:48+00:00  172.18.0.20 - - [29/Aug/2026:23:59:48 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
+2026-08-29T23:59:52+00:00  172.18.0.20 - - [29/Aug/2026:23:59:52 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-08-30T00:00:10+00:00  == Sinatra has ended his set (crowd applauds)
+2026-08-30T00:00:11+00:00  [Sun Aug 30 00:00:11.039507 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:11+00:00  [Sun Aug 30 00:00:11.041241 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:11+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:00:11+00:00  Port must be specified
+2026-08-30T00:00:11+00:00  [Sun Aug 30 00:00:11.339954 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:11+00:00  [Sun Aug 30 00:00:11.341630 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:11+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:00:11+00:00  Port must be specified
+2026-08-30T00:00:11+00:00  [Sun Aug 30 00:00:11.747928 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:11+00:00  [Sun Aug 30 00:00:11.749648 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:11+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:00:11+00:00  Port must be specified
+2026-08-30T00:00:12+00:00  [Sun Aug 30 00:00:12.387022 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:12+00:00  [Sun Aug 30 00:00:12.388687 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:12+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:00:12+00:00  Port must be specified
+2026-08-30T00:00:13+00:00  [Sun Aug 30 00:00:13.414560 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:13+00:00  [Sun Aug 30 00:00:13.416208 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:13+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:00:13+00:00  Port must be specified
+2026-08-30T00:00:15+00:00  [Sun Aug 30 00:00:15.229340 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:15+00:00  [Sun Aug 30 00:00:15.230979 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:15+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:00:15+00:00  Port must be specified
+2026-08-30T00:00:18+00:00  [Sun Aug 30 00:00:18.660265 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:18+00:00  [Sun Aug 30 00:00:18.661887 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:18+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:00:18+00:00  Port must be specified
+2026-08-30T00:00:25+00:00  [Sun Aug 30 00:00:25.291150 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:25+00:00  [Sun Aug 30 00:00:25.292863 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:25+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:00:25+00:00  Port must be specified
+2026-08-30T00:00:38+00:00  [Sun Aug 30 00:00:38.329031 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:38+00:00  [Sun Aug 30 00:00:38.330673 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:00:38+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:00:38+00:00  Port must be specified
+2026-08-30T00:01:04+00:00  [Sun Aug 30 00:01:04.161723 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:01:04+00:00  [Sun Aug 30 00:01:04.163365 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:01:04+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:01:04+00:00  Port must be specified
+2026-08-30T00:01:55+00:00  [Sun Aug 30 00:01:55.603210 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:01:55+00:00  [Sun Aug 30 00:01:55.604880 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:01:55+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:01:55+00:00  Port must be specified
+2026-08-30T00:02:55+00:00  [Sun Aug 30 00:02:55.846250 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:02:55+00:00  [Sun Aug 30 00:02:55.848010 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:02:55+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:02:55+00:00  Port must be specified
+2026-08-30T00:03:56+00:00  [Sun Aug 30 00:03:56.074648 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:03:56+00:00  [Sun Aug 30 00:03:56.076350 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:03:56+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:03:56+00:00  Port must be specified
+2026-08-30T00:04:56+00:00  [Sun Aug 30 00:04:56.285610 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:04:56+00:00  [Sun Aug 30 00:04:56.287255 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:04:56+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:04:56+00:00  Port must be specified
+2026-08-30T00:05:56+00:00  [Sun Aug 30 00:05:56.490311 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:05:56+00:00  [Sun Aug 30 00:05:56.491967 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:05:56+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:05:56+00:00  Port must be specified
+2026-08-30T00:06:56+00:00  [Sun Aug 30 00:06:56.727878 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:06:56+00:00  [Sun Aug 30 00:06:56.729560 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:06:56+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:06:56+00:00  Port must be specified
+2026-08-30T00:07:56+00:00  [Sun Aug 30 00:07:56.940595 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:07:56+00:00  [Sun Aug 30 00:07:56.942223 2026] [core:warn] [pid 1] AH00111: Config variable ${QUOTE_SERVICE_PORT} is not defined
+2026-08-30T00:07:56+00:00  AH00526: Syntax error on line 5 of /etc/apache2/ports.conf:
+2026-08-30T00:07:56+00:00  Port must be specified
+2026-08-30T00:08:57+00:00  == Sinatra (v2.2.0) has taken the stage on 6060 for production with backup from Puma
+2026-08-30T00:09:00+00:00  172.18.0.20 - - [30/Aug/2026:00:09:00 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0858
+2026-08-30T00:09:13+00:00  172.18.0.20 - - [30/Aug/2026:00:09:13 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-30T00:09:13+00:00  172.18.0.20 - - [30/Aug/2026:00:09:13 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
+2026-08-30T00:09:13+00:00  172.18.0.20 - - [30/Aug/2026:00:09:13 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0015
+2026-08-30T00:09:18+00:00  172.18.0.20 - - [30/Aug/2026:00:09:18 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-08-30T00:09:21+00:00  172.18.0.20 - - [30/Aug/2026:00:09:21 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0015
+2026-08-30T00:09:36+00:00  172.18.0.20 - - [30/Aug/2026:00:09:36 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
+2026-08-30T00:09:39+00:00  172.18.0.20 - - [30/Aug/2026:00:09:39 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-08-30T00:09:41+00:00  172.18.0.20 - - [30/Aug/2026:00:09:41 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0014
+2026-08-29T23:55:16+00:00  Order confirmation email sent to: bill@example.com
+2026-08-29T23:55:25+00:00  Order confirmation email sent to: bill@example.com
+2026-08-29T23:55:27+00:00  Order confirmation email sent to: moore@example.com
+2026-08-29T23:55:48+00:00  Order confirmation email sent to: jack@example.com
+2026-08-29T23:56:07+00:00  Order confirmation email sent to: jack@example.com
+2026-08-29T23:56:09+00:00  Order confirmation email sent to: bill@example.com
+2026-08-29T23:56:37+00:00  Order confirmation email sent to: steve@example.com
+2026-08-29T23:57:02+00:00  Order confirmation email sent to: bill@example.com
+2026-08-29T23:57:26+00:00  Order confirmation email sent to: bill@example.com
+2026-08-29T23:57:28+00:00  Order confirmation email sent to: bill@example.com
+2026-08-29T23:57:31+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-08-29T23:57:33+00:00  Order confirmation email sent to: mark@example.com
+2026-08-29T23:57:41+00:00  Order confirmation email sent to: jeff@example.com
+2026-08-29T23:58:03+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-08-29T23:58:11+00:00  Order confirmation email sent to: jack@example.com
+2026-08-29T23:58:12+00:00  Order confirmation email sent to: jack@example.com
+2026-08-29T23:58:14+00:00  Order confirmation email sent to: jack@example.com
+2026-08-29T23:58:20+00:00  Order confirmation email sent to: jack@example.com
+2026-08-29T23:58:26+00:00  Order confirmation email sent to: mark@example.com
+2026-08-29T23:58:29+00:00  Order confirmation email sent to: bill@example.com
+2026-08-29T23:58:37+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-08-29T23:58:39+00:00  Order confirmation email sent to: moore@example.com
+2026-08-29T23:58:41+00:00  Order confirmation email sent to: tobias@example.com
+2026-08-29T23:58:41+00:00  Order confirmation email sent to: reed@example.com
+2026-08-29T23:58:54+00:00  Order confirmation email sent to: mark@example.com
+2026-08-29T23:58:54+00:00  Order confirmation email sent to: tobias@example.com
+2026-08-29T23:59:02+00:00  Order confirmation email sent to: jack@example.com
+2026-08-29T23:59:07+00:00  Order confirmation email sent to: tobias@example.com
+2026-08-29T23:59:26+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-08-29T23:59:27+00:00  Order confirmation email sent to: moore@example.com
+2026-08-29T23:59:36+00:00  Order confirmation email sent to: moore@example.com
+2026-08-29T23:59:40+00:00  Order confirmation email sent to: steve@example.com
+2026-08-29T23:59:48+00:00  Order confirmation email sent to: larry_sergei@example.com
+2026-08-29T23:59:52+00:00  Order confirmation email sent to: reed@example.com
+2026-08-30T00:00:10+00:00  - Gracefully stopping, waiting for requests to finish
+2026-08-30T00:08:57+00:00  I, [2026-08-30T00:08:57.156715 #1]  INFO -- : Instrumentation: OpenTelemetry::Instrumentation::Sinatra was successfully installed with the following options {}
+2026-08-30T00:08:57+00:00  Puma starting in single mode...
+2026-08-30T00:08:57+00:00  * Puma version: 5.6.4 (ruby 3.1.2-p20) ("Birdie's Version")
+2026-08-30T00:08:57+00:00  *  Min threads: 0
+2026-08-30T00:08:57+00:00  *  Max threads: 5
+2026-08-30T00:08:57+00:00  *  Environment: production
+2026-08-30T00:08:57+00:00  *          PID: 1
+2026-08-30T00:08:57+00:00  * Listening on http://0.0.0.0:6060
+2026-08-30T00:08:57+00:00  Use Ctrl-C to stop
+2026-08-30T00:09:00+00:00  Order confirmation email sent to: jack@example.com
+2026-08-30T00:09:13+00:00  Order confirmation email sent to: jeff@example.com
+2026-08-30T00:09:13+00:00  Order confirmation email sent to: jeff@example.com
+2026-08-30T00:09:13+00:00  Order confirmation email sent to: reed@example.com
+2026-08-30T00:09:18+00:00  Order confirmation email sent to: moore@example.com
+2026-08-30T00:09:21+00:00  Order confirmation email sent to: mark@example.com
+2026-08-30T00:09:36+00:00  Order confirmation email sent to: jack@example.com
+2026-08-30T00:09:39+00:00  Order confirmation email sent to: tobias@example.com
+2026-08-30T00:09:41+00:00  Order confirmation email sent to: steve@example.com

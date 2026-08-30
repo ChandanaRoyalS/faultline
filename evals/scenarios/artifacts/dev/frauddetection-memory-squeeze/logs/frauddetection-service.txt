@@ -1,226 +1,232 @@
 # target container: frauddetection-service
 # loki labels: service, stream
 # selector: {service="frauddetection-service"}
-# 221 lines
+# 227 lines
 
-2026-08-28T03:35:27+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:35:28+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:35:28+00:00  [otel.javaagent 2026-08-28 03:35:28:188 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:35:30+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:35:30+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:35:30+00:00  [otel.javaagent 2026-08-28 03:35:30:644 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:35:32+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:35:33+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:35:33+00:00  [otel.javaagent 2026-08-28 03:35:33:234 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:35:35+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:35:36+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:35:36+00:00  [otel.javaagent 2026-08-28 03:35:36:242 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:35:39+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:35:39+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:35:40+00:00  [otel.javaagent 2026-08-28 03:35:40:090 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:35:45+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:35:45+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:35:45+00:00  [otel.javaagent 2026-08-28 03:35:45:520 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:35:53+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:35:53+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:35:54+00:00  [otel.javaagent 2026-08-28 03:35:54:117 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:36:08+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:36:08+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:36:09+00:00  [otel.javaagent 2026-08-28 03:36:09:109 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:36:36+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:36:36+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:36:36+00:00  [otel.javaagent 2026-08-28 03:36:36:904 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:37:29+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:37:30+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:37:30+00:00  [otel.javaagent 2026-08-28 03:37:30:286 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:38:32+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:38:32+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:38:32+00:00  [otel.javaagent 2026-08-28 03:38:32:468 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:39:34+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:39:34+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:39:34+00:00  [otel.javaagent 2026-08-28 03:39:34:658 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:40:36+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:40:36+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:40:36+00:00  [otel.javaagent 2026-08-28 03:40:36:872 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:41:38+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:41:38+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:41:39+00:00  [otel.javaagent 2026-08-28 03:41:39:074 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:42:40+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:42:41+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:42:41+00:00  [otel.javaagent 2026-08-28 03:42:41:287 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:43:43+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:43:43+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:43:43+00:00  [otel.javaagent 2026-08-28 03:43:43:459 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:44:45+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:44:45+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:44:45+00:00  [otel.javaagent 2026-08-28 03:44:45:673 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:45:47+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:45:47+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:45:47+00:00  [otel.javaagent 2026-08-28 03:45:47:832 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:46:49+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:46:49+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:46:50+00:00  [otel.javaagent 2026-08-28 03:46:50:065 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:47:51+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T03:47:52+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T03:47:52+00:00  [otel.javaagent 2026-08-28 03:47:52:294 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-08-28T03:47:54+00:00  SLF4J: No SLF4J providers were found.
-2026-08-28T03:47:54+00:00  SLF4J: Defaulting to no-operation (NOP) logger implementation
-2026-08-28T03:47:54+00:00  SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
-2026-08-28T03:30:29+00:00  Consumed record with orderId: d0b24c9b-a290-11f1-885b-e2666d40a543, and updated total count to: 494
-2026-08-28T03:30:29+00:00  Consumed record with orderId: d0e426ce-a290-11f1-885b-e2666d40a543, and updated total count to: 495
-2026-08-28T03:30:29+00:00  Consumed record with orderId: d1784b89-a290-11f1-885b-e2666d40a543, and updated total count to: 496
-2026-08-28T03:30:31+00:00  Consumed record with orderId: d2b1e650-a290-11f1-885b-e2666d40a543, and updated total count to: 497
-2026-08-28T03:30:32+00:00  Consumed record with orderId: d302913b-a290-11f1-885b-e2666d40a543, and updated total count to: 498
-2026-08-28T03:30:33+00:00  Consumed record with orderId: d3d955a9-a290-11f1-885b-e2666d40a543, and updated total count to: 499
-2026-08-28T03:31:01+00:00  Consumed record with orderId: e424d0c8-a290-11f1-885b-e2666d40a543, and updated total count to: 500
-2026-08-28T03:31:12+00:00  Consumed record with orderId: eabb34f7-a290-11f1-885b-e2666d40a543, and updated total count to: 501
-2026-08-28T03:31:14+00:00  Consumed record with orderId: ec3eee81-a290-11f1-885b-e2666d40a543, and updated total count to: 502
-2026-08-28T03:31:19+00:00  Consumed record with orderId: eef08b82-a290-11f1-885b-e2666d40a543, and updated total count to: 503
-2026-08-28T03:31:39+00:00  Consumed record with orderId: fadc7fda-a290-11f1-885b-e2666d40a543, and updated total count to: 504
-2026-08-28T03:31:41+00:00  Consumed record with orderId: fc0708ee-a290-11f1-885b-e2666d40a543, and updated total count to: 505
-2026-08-28T03:32:00+00:00  Consumed record with orderId: 07a2edf0-a291-11f1-885b-e2666d40a543, and updated total count to: 506
-2026-08-28T03:32:01+00:00  Consumed record with orderId: 082b3bfc-a291-11f1-885b-e2666d40a543, and updated total count to: 507
-2026-08-28T03:32:13+00:00  Consumed record with orderId: 0f09e26c-a291-11f1-885b-e2666d40a543, and updated total count to: 508
-2026-08-28T03:32:19+00:00  Consumed record with orderId: 12f02712-a291-11f1-885b-e2666d40a543, and updated total count to: 509
-2026-08-28T03:32:21+00:00  Consumed record with orderId: 13c41b33-a291-11f1-885b-e2666d40a543, and updated total count to: 510
-2026-08-28T03:32:28+00:00  Consumed record with orderId: 182328d6-a291-11f1-885b-e2666d40a543, and updated total count to: 511
-2026-08-28T03:32:33+00:00  Consumed record with orderId: 1b1fdc9b-a291-11f1-885b-e2666d40a543, and updated total count to: 512
-2026-08-28T03:32:43+00:00  Consumed record with orderId: 211874d4-a291-11f1-885b-e2666d40a543, and updated total count to: 513
-2026-08-28T03:32:48+00:00  Consumed record with orderId: 23e71909-a291-11f1-885b-e2666d40a543, and updated total count to: 514
-2026-08-28T03:32:56+00:00  Consumed record with orderId: 29130248-a291-11f1-885b-e2666d40a543, and updated total count to: 515
-2026-08-28T03:32:57+00:00  Consumed record with orderId: 29accc64-a291-11f1-885b-e2666d40a543, and updated total count to: 516
-2026-08-28T03:32:58+00:00  Consumed record with orderId: 2a1656ec-a291-11f1-885b-e2666d40a543, and updated total count to: 517
-2026-08-28T03:33:37+00:00  Consumed record with orderId: 410d8b11-a291-11f1-885b-e2666d40a543, and updated total count to: 518
-2026-08-28T03:33:41+00:00  Consumed record with orderId: 4366d70a-a291-11f1-885b-e2666d40a543, and updated total count to: 519
-2026-08-28T03:33:42+00:00  Consumed record with orderId: 4492651a-a291-11f1-885b-e2666d40a543, and updated total count to: 520
-2026-08-28T03:33:46+00:00  Consumed record with orderId: 46dd31c2-a291-11f1-885b-e2666d40a543, and updated total count to: 521
-2026-08-28T03:33:47+00:00  Consumed record with orderId: 46ff9715-a291-11f1-885b-e2666d40a543, and updated total count to: 522
-2026-08-28T03:33:54+00:00  Consumed record with orderId: 4b7ef8c9-a291-11f1-885b-e2666d40a543, and updated total count to: 523
-2026-08-28T03:34:02+00:00  Consumed record with orderId: 50058891-a291-11f1-885b-e2666d40a543, and updated total count to: 524
-2026-08-28T03:34:02+00:00  Consumed record with orderId: 50212412-a291-11f1-885b-e2666d40a543, and updated total count to: 525
-2026-08-28T03:34:04+00:00  Consumed record with orderId: 51610b60-a291-11f1-885b-e2666d40a543, and updated total count to: 526
-2026-08-28T03:34:09+00:00  Consumed record with orderId: 548ce5e2-a291-11f1-885b-e2666d40a543, and updated total count to: 527
-2026-08-28T03:34:12+00:00  Consumed record with orderId: 5601ba92-a291-11f1-885b-e2666d40a543, and updated total count to: 528
-2026-08-28T03:34:12+00:00  Consumed record with orderId: 56117536-a291-11f1-885b-e2666d40a543, and updated total count to: 529
-2026-08-28T03:34:13+00:00  Consumed record with orderId: 56aad2b2-a291-11f1-885b-e2666d40a543, and updated total count to: 530
-2026-08-28T03:34:26+00:00  Consumed record with orderId: 5e5a4085-a291-11f1-885b-e2666d40a543, and updated total count to: 531
-2026-08-28T03:34:34+00:00  Consumed record with orderId: 63030f8d-a291-11f1-885b-e2666d40a543, and updated total count to: 532
-2026-08-28T03:34:36+00:00  Consumed record with orderId: 643193e4-a291-11f1-885b-e2666d40a543, and updated total count to: 533
-2026-08-28T03:34:37+00:00  Consumed record with orderId: 64c8c268-a291-11f1-885b-e2666d40a543, and updated total count to: 534
-2026-08-28T03:34:45+00:00  Consumed record with orderId: 6a1e343d-a291-11f1-885b-e2666d40a543, and updated total count to: 535
-2026-08-28T03:34:49+00:00  Consumed record with orderId: 6c33ea2b-a291-11f1-885b-e2666d40a543, and updated total count to: 536
-2026-08-28T03:34:56+00:00  Consumed record with orderId: 709f99d1-a291-11f1-885b-e2666d40a543, and updated total count to: 537
-2026-08-28T03:35:01+00:00  Consumed record with orderId: 732eb893-a291-11f1-885b-e2666d40a543, and updated total count to: 538
-2026-08-28T03:35:05+00:00  Consumed record with orderId: 75e59219-a291-11f1-885b-e2666d40a543, and updated total count to: 539
-2026-08-28T03:35:10+00:00  Consumed record with orderId: 78b59b99-a291-11f1-885b-e2666d40a543, and updated total count to: 540
-2026-08-28T03:35:15+00:00  Consumed record with orderId: 7bbfc80c-a291-11f1-885b-e2666d40a543, and updated total count to: 541
-2026-08-28T03:35:22+00:00  Consumed record with orderId: 7fb30cd0-a291-11f1-885b-e2666d40a543, and updated total count to: 542
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 84a6b16c-a291-11f1-885b-e2666d40a543, and updated total count to: 1
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 91a2415b-a291-11f1-885b-e2666d40a543, and updated total count to: 2
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 92c02601-a291-11f1-885b-e2666d40a543, and updated total count to: 3
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 97a2e2a1-a291-11f1-885b-e2666d40a543, and updated total count to: 4
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 9a61f357-a291-11f1-885b-e2666d40a543, and updated total count to: 5
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 9c357f91-a291-11f1-885b-e2666d40a543, and updated total count to: 6
-2026-08-28T03:47:55+00:00  Consumed record with orderId: a10421d3-a291-11f1-885b-e2666d40a543, and updated total count to: 7
-2026-08-28T03:47:55+00:00  Consumed record with orderId: a5cc0b74-a291-11f1-885b-e2666d40a543, and updated total count to: 8
-2026-08-28T03:47:55+00:00  Consumed record with orderId: a72781b1-a291-11f1-885b-e2666d40a543, and updated total count to: 9
-2026-08-28T03:47:55+00:00  Consumed record with orderId: afb16029-a291-11f1-885b-e2666d40a543, and updated total count to: 10
-2026-08-28T03:47:55+00:00  Consumed record with orderId: b3260abd-a291-11f1-885b-e2666d40a543, and updated total count to: 11
-2026-08-28T03:47:55+00:00  Consumed record with orderId: b3c6908d-a291-11f1-885b-e2666d40a543, and updated total count to: 12
-2026-08-28T03:47:55+00:00  Consumed record with orderId: b4bd031f-a291-11f1-885b-e2666d40a543, and updated total count to: 13
-2026-08-28T03:47:55+00:00  Consumed record with orderId: b665079c-a291-11f1-885b-e2666d40a543, and updated total count to: 14
-2026-08-28T03:47:55+00:00  Consumed record with orderId: b75b2aa2-a291-11f1-885b-e2666d40a543, and updated total count to: 15
-2026-08-28T03:47:55+00:00  Consumed record with orderId: b9791be6-a291-11f1-885b-e2666d40a543, and updated total count to: 16
-2026-08-28T03:47:55+00:00  Consumed record with orderId: c16d43ee-a291-11f1-885b-e2666d40a543, and updated total count to: 17
-2026-08-28T03:47:55+00:00  Consumed record with orderId: c42e2d31-a291-11f1-885b-e2666d40a543, and updated total count to: 18
-2026-08-28T03:47:55+00:00  Consumed record with orderId: ca096d8b-a291-11f1-885b-e2666d40a543, and updated total count to: 19
-2026-08-28T03:47:55+00:00  Consumed record with orderId: cacbfde6-a291-11f1-885b-e2666d40a543, and updated total count to: 20
-2026-08-28T03:47:55+00:00  Consumed record with orderId: d3d1b968-a291-11f1-885b-e2666d40a543, and updated total count to: 21
-2026-08-28T03:47:55+00:00  Consumed record with orderId: d447560c-a291-11f1-885b-e2666d40a543, and updated total count to: 22
-2026-08-28T03:47:55+00:00  Consumed record with orderId: da80c973-a291-11f1-885b-e2666d40a543, and updated total count to: 23
-2026-08-28T03:47:55+00:00  Consumed record with orderId: e0a09932-a291-11f1-885b-e2666d40a543, and updated total count to: 24
-2026-08-28T03:47:55+00:00  Consumed record with orderId: e4837a5a-a291-11f1-885b-e2666d40a543, and updated total count to: 25
-2026-08-28T03:47:55+00:00  Consumed record with orderId: e564d897-a291-11f1-885b-e2666d40a543, and updated total count to: 26
-2026-08-28T03:47:55+00:00  Consumed record with orderId: f15cfb1d-a291-11f1-885b-e2666d40a543, and updated total count to: 27
-2026-08-28T03:47:55+00:00  Consumed record with orderId: f820e30c-a291-11f1-885b-e2666d40a543, and updated total count to: 28
-2026-08-28T03:47:55+00:00  Consumed record with orderId: fe023775-a291-11f1-885b-e2666d40a543, and updated total count to: 29
-2026-08-28T03:47:55+00:00  Consumed record with orderId: ff9b8e63-a291-11f1-885b-e2666d40a543, and updated total count to: 30
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 069374e6-a292-11f1-885b-e2666d40a543, and updated total count to: 31
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 0c871291-a292-11f1-885b-e2666d40a543, and updated total count to: 32
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 14ed8f8f-a292-11f1-885b-e2666d40a543, and updated total count to: 33
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 17b2be48-a292-11f1-885b-e2666d40a543, and updated total count to: 34
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 1aaee2c3-a292-11f1-885b-e2666d40a543, and updated total count to: 35
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 1e463a94-a292-11f1-885b-e2666d40a543, and updated total count to: 36
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 1e513ce2-a292-11f1-885b-e2666d40a543, and updated total count to: 37
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 1f3d2e6e-a292-11f1-885b-e2666d40a543, and updated total count to: 38
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 2c59397a-a292-11f1-885b-e2666d40a543, and updated total count to: 39
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 2d6db83b-a292-11f1-885b-e2666d40a543, and updated total count to: 40
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 2fa9296a-a292-11f1-885b-e2666d40a543, and updated total count to: 41
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 304eb509-a292-11f1-885b-e2666d40a543, and updated total count to: 42
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 3a15a69c-a292-11f1-885b-e2666d40a543, and updated total count to: 43
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 3f44061e-a292-11f1-885b-e2666d40a543, and updated total count to: 44
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 485d5822-a292-11f1-885b-e2666d40a543, and updated total count to: 45
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 4a96289d-a292-11f1-885b-e2666d40a543, and updated total count to: 46
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 4f46ec4a-a292-11f1-885b-e2666d40a543, and updated total count to: 47
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 50fb99f9-a292-11f1-885b-e2666d40a543, and updated total count to: 48
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 53c46f9f-a292-11f1-885b-e2666d40a543, and updated total count to: 49
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 5e1a580a-a292-11f1-885b-e2666d40a543, and updated total count to: 50
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 63ddf217-a292-11f1-885b-e2666d40a543, and updated total count to: 51
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 6826a5e8-a292-11f1-885b-e2666d40a543, and updated total count to: 52
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 6ea38e64-a292-11f1-885b-e2666d40a543, and updated total count to: 53
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 736e3d2f-a292-11f1-885b-e2666d40a543, and updated total count to: 54
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 7ed921de-a292-11f1-885b-e2666d40a543, and updated total count to: 55
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 8222a4d2-a292-11f1-885b-e2666d40a543, and updated total count to: 56
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 83ac82ba-a292-11f1-885b-e2666d40a543, and updated total count to: 57
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 83b0db98-a292-11f1-885b-e2666d40a543, and updated total count to: 58
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 8becdcf5-a292-11f1-885b-e2666d40a543, and updated total count to: 59
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 8caac55a-a292-11f1-885b-e2666d40a543, and updated total count to: 60
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 903e373b-a292-11f1-885b-e2666d40a543, and updated total count to: 61
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 931455eb-a292-11f1-885b-e2666d40a543, and updated total count to: 62
-2026-08-28T03:47:55+00:00  Consumed record with orderId: a6b3ff12-a292-11f1-885b-e2666d40a543, and updated total count to: 63
-2026-08-28T03:47:55+00:00  Consumed record with orderId: a8fb2dff-a292-11f1-885b-e2666d40a543, and updated total count to: 64
-2026-08-28T03:47:55+00:00  Consumed record with orderId: aa86d629-a292-11f1-885b-e2666d40a543, and updated total count to: 65
-2026-08-28T03:47:55+00:00  Consumed record with orderId: afe37aee-a292-11f1-885b-e2666d40a543, and updated total count to: 66
-2026-08-28T03:47:55+00:00  Consumed record with orderId: b1f6042b-a292-11f1-885b-e2666d40a543, and updated total count to: 67
-2026-08-28T03:47:55+00:00  Consumed record with orderId: b4145d6b-a292-11f1-885b-e2666d40a543, and updated total count to: 68
-2026-08-28T03:47:55+00:00  Consumed record with orderId: b9866a66-a292-11f1-885b-e2666d40a543, and updated total count to: 69
-2026-08-28T03:47:55+00:00  Consumed record with orderId: bad19f8b-a292-11f1-885b-e2666d40a543, and updated total count to: 70
-2026-08-28T03:47:55+00:00  Consumed record with orderId: c6b21a60-a292-11f1-885b-e2666d40a543, and updated total count to: 71
-2026-08-28T03:47:55+00:00  Consumed record with orderId: c7c396c3-a292-11f1-885b-e2666d40a543, and updated total count to: 72
-2026-08-28T03:47:55+00:00  Consumed record with orderId: ca0e91ac-a292-11f1-885b-e2666d40a543, and updated total count to: 73
-2026-08-28T03:47:55+00:00  Consumed record with orderId: cc23c01c-a292-11f1-885b-e2666d40a543, and updated total count to: 74
-2026-08-28T03:47:55+00:00  Consumed record with orderId: dff3c2da-a292-11f1-885b-e2666d40a543, and updated total count to: 75
-2026-08-28T03:47:55+00:00  Consumed record with orderId: e38b61a4-a292-11f1-885b-e2666d40a543, and updated total count to: 76
-2026-08-28T03:47:55+00:00  Consumed record with orderId: e56e4229-a292-11f1-885b-e2666d40a543, and updated total count to: 77
-2026-08-28T03:47:55+00:00  Consumed record with orderId: e585d153-a292-11f1-885b-e2666d40a543, and updated total count to: 78
-2026-08-28T03:47:55+00:00  Consumed record with orderId: e60c3a79-a292-11f1-885b-e2666d40a543, and updated total count to: 79
-2026-08-28T03:47:55+00:00  Consumed record with orderId: e6d5072a-a292-11f1-885b-e2666d40a543, and updated total count to: 80
-2026-08-28T03:47:55+00:00  Consumed record with orderId: eae6ffe2-a292-11f1-885b-e2666d40a543, and updated total count to: 81
-2026-08-28T03:47:55+00:00  Consumed record with orderId: ec43e498-a292-11f1-885b-e2666d40a543, and updated total count to: 82
-2026-08-28T03:47:55+00:00  Consumed record with orderId: ee8e0451-a292-11f1-885b-e2666d40a543, and updated total count to: 83
-2026-08-28T03:47:55+00:00  Consumed record with orderId: f472868f-a292-11f1-885b-e2666d40a543, and updated total count to: 84
-2026-08-28T03:47:55+00:00  Consumed record with orderId: f4b3c7c9-a292-11f1-885b-e2666d40a543, and updated total count to: 85
-2026-08-28T03:47:55+00:00  Consumed record with orderId: f88e58fd-a292-11f1-885b-e2666d40a543, and updated total count to: 86
-2026-08-28T03:47:55+00:00  Consumed record with orderId: fadda47e-a292-11f1-885b-e2666d40a543, and updated total count to: 87
-2026-08-28T03:47:55+00:00  Consumed record with orderId: fcb2ae2d-a292-11f1-885b-e2666d40a543, and updated total count to: 88
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 023bd8e5-a293-11f1-885b-e2666d40a543, and updated total count to: 89
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 026b2076-a293-11f1-885b-e2666d40a543, and updated total count to: 90
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 0582285b-a293-11f1-885b-e2666d40a543, and updated total count to: 91
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 10544e77-a293-11f1-885b-e2666d40a543, and updated total count to: 92
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 13f443a3-a293-11f1-885b-e2666d40a543, and updated total count to: 93
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 15306c2f-a293-11f1-885b-e2666d40a543, and updated total count to: 94
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 1685495b-a293-11f1-885b-e2666d40a543, and updated total count to: 95
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 188d015d-a293-11f1-885b-e2666d40a543, and updated total count to: 96
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 2547aa43-a293-11f1-885b-e2666d40a543, and updated total count to: 97
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 2aff252a-a293-11f1-885b-e2666d40a543, and updated total count to: 98
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 2b7ea91a-a293-11f1-885b-e2666d40a543, and updated total count to: 99
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 32c5a1bb-a293-11f1-885b-e2666d40a543, and updated total count to: 100
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 359e35c7-a293-11f1-885b-e2666d40a543, and updated total count to: 101
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 372ed89c-a293-11f1-885b-e2666d40a543, and updated total count to: 102
-2026-08-28T03:47:55+00:00  Consumed record with orderId: 3dfd5c9e-a293-11f1-885b-e2666d40a543, and updated total count to: 103
-2026-08-28T03:47:59+00:00  Consumed record with orderId: 4362c6c7-a293-11f1-885b-e2666d40a543, and updated total count to: 104
-2026-08-28T03:48:01+00:00  Consumed record with orderId: 440d80c6-a293-11f1-885b-e2666d40a543, and updated total count to: 105
-2026-08-28T03:48:11+00:00  Consumed record with orderId: 4a04dcd9-a293-11f1-885b-e2666d40a543, and updated total count to: 106
-2026-08-28T03:48:11+00:00  Consumed record with orderId: 4a1d876c-a293-11f1-885b-e2666d40a543, and updated total count to: 107
-2026-08-28T03:48:17+00:00  Consumed record with orderId: 4dd4d5c8-a293-11f1-885b-e2666d40a543, and updated total count to: 108
-2026-08-28T03:48:22+00:00  Consumed record with orderId: 50952482-a293-11f1-885b-e2666d40a543, and updated total count to: 109
+2026-08-30T00:15:07+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:15:07+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:15:07+00:00  [otel.javaagent 2026-08-30 00:15:07:929 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:15:09+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:15:10+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:15:10+00:00  [otel.javaagent 2026-08-30 00:15:10:396 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:15:12+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:15:12+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:15:13+00:00  [otel.javaagent 2026-08-30 00:15:13:095 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:15:15+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:15:16+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:15:16+00:00  [otel.javaagent 2026-08-30 00:15:16:159 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:15:19+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:15:19+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:15:19+00:00  [otel.javaagent 2026-08-30 00:15:19:962 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:15:25+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:15:25+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:15:25+00:00  [otel.javaagent 2026-08-30 00:15:25:408 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:15:33+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:15:33+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:15:34+00:00  [otel.javaagent 2026-08-30 00:15:34:066 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:15:48+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:15:49+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:15:49+00:00  [otel.javaagent 2026-08-30 00:15:49:151 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:16:16+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:16:16+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:16:17+00:00  [otel.javaagent 2026-08-30 00:16:17:005 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:17:10+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:17:10+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:17:10+00:00  [otel.javaagent 2026-08-30 00:17:10:432 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:18:12+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:18:12+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:18:12+00:00  [otel.javaagent 2026-08-30 00:18:12:691 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:19:14+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:19:14+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:19:14+00:00  [otel.javaagent 2026-08-30 00:19:14:902 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:20:16+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:20:16+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:20:17+00:00  [otel.javaagent 2026-08-30 00:20:17:117 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:21:18+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:21:19+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:21:19+00:00  [otel.javaagent 2026-08-30 00:21:19:384 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:22:21+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:22:21+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:22:21+00:00  [otel.javaagent 2026-08-30 00:22:21:617 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:23:23+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:23:23+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:23:23+00:00  [otel.javaagent 2026-08-30 00:23:23:744 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:24:25+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:24:25+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:24:25+00:00  [otel.javaagent 2026-08-30 00:24:25:956 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:25:27+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:25:28+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:25:28+00:00  [otel.javaagent 2026-08-30 00:25:28:200 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:26:30+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T00:26:30+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T00:26:30+00:00  [otel.javaagent 2026-08-30 00:26:30:495 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-08-30T00:26:32+00:00  SLF4J: No SLF4J providers were found.
+2026-08-30T00:26:32+00:00  SLF4J: Defaulting to no-operation (NOP) logger implementation
+2026-08-30T00:26:32+00:00  SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
+2026-08-30T00:10:11+00:00  Consumed record with orderId: 2ad0be1a-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 6993
+2026-08-30T00:10:15+00:00  Consumed record with orderId: 2d0a89da-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 6994
+2026-08-30T00:10:19+00:00  Consumed record with orderId: 2f5c353d-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 6995
+2026-08-30T00:10:30+00:00  Consumed record with orderId: 36522101-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 6996
+2026-08-30T00:10:31+00:00  Consumed record with orderId: 36a0acd9-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 6997
+2026-08-30T00:10:48+00:00  Consumed record with orderId: 40c4b02c-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 6998
+2026-08-30T00:11:00+00:00  Consumed record with orderId: 47c297fc-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 6999
+2026-08-30T00:11:11+00:00  Consumed record with orderId: 4e7321cb-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7000
+2026-08-30T00:11:12+00:00  Consumed record with orderId: 4f4ef129-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7001
+2026-08-30T00:11:23+00:00  Consumed record with orderId: 5572c9a9-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7002
+2026-08-30T00:11:27+00:00  Consumed record with orderId: 583487fa-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7003
+2026-08-30T00:11:41+00:00  Consumed record with orderId: 60765613-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7004
+2026-08-30T00:11:42+00:00  Consumed record with orderId: 60f7ee94-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7005
+2026-08-30T00:11:44+00:00  Consumed record with orderId: 62800e33-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7006
+2026-08-30T00:11:53+00:00  Consumed record with orderId: 67bfca41-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7007
+2026-08-30T00:11:58+00:00  Consumed record with orderId: 6a87a10f-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7008
+2026-08-30T00:12:04+00:00  Consumed record with orderId: 6e32d4fa-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7009
+2026-08-30T00:12:09+00:00  Consumed record with orderId: 70f70e98-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7010
+2026-08-30T00:12:11+00:00  Consumed record with orderId: 721840eb-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7011
+2026-08-30T00:12:15+00:00  Consumed record with orderId: 74ad027d-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7012
+2026-08-30T00:12:31+00:00  Consumed record with orderId: 7e6377e1-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7013
+2026-08-30T00:12:36+00:00  Consumed record with orderId: 80f1068e-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7014
+2026-08-30T00:12:38+00:00  Consumed record with orderId: 821ffc70-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7015
+2026-08-30T00:12:38+00:00  Consumed record with orderId: 826fc98f-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7016
+2026-08-30T00:12:43+00:00  Consumed record with orderId: 85612678-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7017
+2026-08-30T00:12:48+00:00  Consumed record with orderId: 881f3d78-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7018
+2026-08-30T00:12:50+00:00  Consumed record with orderId: 899dac11-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7019
+2026-08-30T00:12:52+00:00  Consumed record with orderId: 8a8de5a4-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7020
+2026-08-30T00:13:06+00:00  Consumed record with orderId: 93050218-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7021
+2026-08-30T00:13:12+00:00  Consumed record with orderId: 9693864a-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7022
+2026-08-30T00:13:14+00:00  Consumed record with orderId: 97ddb92d-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7023
+2026-08-30T00:13:31+00:00  Consumed record with orderId: a1e4d3ee-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7024
+2026-08-30T00:13:49+00:00  Consumed record with orderId: ace6ab37-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7025
+2026-08-30T00:13:53+00:00  Consumed record with orderId: af0132a3-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7026
+2026-08-30T00:13:58+00:00  Consumed record with orderId: b24d39ad-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7027
+2026-08-30T00:14:20+00:00  Consumed record with orderId: bf0e42b0-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7028
+2026-08-30T00:14:30+00:00  Consumed record with orderId: c55c71b0-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7029
+2026-08-30T00:14:34+00:00  Consumed record with orderId: c748a702-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7030
+2026-08-30T00:14:39+00:00  Consumed record with orderId: ca8dbd6c-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7031
+2026-08-30T00:14:47+00:00  Consumed record with orderId: cf0b15a9-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7032
+2026-08-30T00:14:51+00:00  Consumed record with orderId: d1a9d54c-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7033
+2026-08-30T00:14:52+00:00  Consumed record with orderId: d20fe59b-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7034
+2026-08-30T00:14:52+00:00  Consumed record with orderId: d28cdcc7-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7035
+2026-08-30T00:14:58+00:00  Consumed record with orderId: d5f1b4e8-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7036
+2026-08-30T00:15:05+00:00  Consumed record with orderId: da194451-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7037
+2026-08-30T00:26:33+00:00  Consumed record with orderId: da194451-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 1
+2026-08-30T00:26:33+00:00  Consumed record with orderId: e29eefa7-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 2
+2026-08-30T00:26:33+00:00  Consumed record with orderId: e4a17160-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 3
+2026-08-30T00:26:33+00:00  Consumed record with orderId: e910cfc1-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 4
+2026-08-30T00:26:33+00:00  Consumed record with orderId: ed9a2c50-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 5
+2026-08-30T00:26:33+00:00  Consumed record with orderId: ee433bf4-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 6
+2026-08-30T00:26:33+00:00  Consumed record with orderId: f2fd0b38-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 7
+2026-08-30T00:26:33+00:00  Consumed record with orderId: f32a93dd-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 8
+2026-08-30T00:26:33+00:00  Consumed record with orderId: f4bfde2d-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 9
+2026-08-30T00:26:33+00:00  Consumed record with orderId: fb783194-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 10
+2026-08-30T00:26:33+00:00  Consumed record with orderId: fdc30053-a407-11f1-8e0b-5ad1fa6b9455, and updated total count to: 11
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 01f60937-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 12
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 040a81a7-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 13
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 064fac60-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 14
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 07e15459-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 15
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 0ee973f4-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 16
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 108c7e8b-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 17
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 118901e6-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 18
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 11b1f2b4-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 19
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 1224183c-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 20
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 1b802e30-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 21
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 1d427df1-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 22
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 249c9c88-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 23
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 2cca23bc-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 24
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 30402015-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 25
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 36ada080-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 26
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 40ab33bc-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 27
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 4aa03fc7-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 28
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 59f40f14-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 29
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 5c9cb0eb-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 30
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 619dfb41-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 31
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 61e9d463-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 32
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 62c31f48-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 33
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 641f351a-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 34
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 64780af4-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 35
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 653cbab8-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 36
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 65f58727-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 37
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 683d03f6-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 38
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 69888b47-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 39
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 6c272494-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 40
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 6cda32f0-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 41
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 701f7aa2-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 42
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 73fde45d-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 43
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 76844584-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 44
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 76b7c1ca-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 45
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 7771a5a1-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 46
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 7c921555-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 47
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 7d537615-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 48
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 829add95-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 49
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 83858651-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 50
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 8d75868b-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 51
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 8dfee383-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 52
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 94518b05-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 53
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 99fa51f7-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 54
+2026-08-30T00:26:33+00:00  Consumed record with orderId: a99dce3b-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 55
+2026-08-30T00:26:33+00:00  Consumed record with orderId: aad86063-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 56
+2026-08-30T00:26:33+00:00  Consumed record with orderId: aad91ca8-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 57
+2026-08-30T00:26:33+00:00  Consumed record with orderId: ada08407-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 58
+2026-08-30T00:26:33+00:00  Consumed record with orderId: b6fbc43e-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 59
+2026-08-30T00:26:33+00:00  Consumed record with orderId: b7a67faa-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 60
+2026-08-30T00:26:33+00:00  Consumed record with orderId: b9349afd-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 61
+2026-08-30T00:26:33+00:00  Consumed record with orderId: baed31a1-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 62
+2026-08-30T00:26:33+00:00  Consumed record with orderId: bb3ab35c-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 63
+2026-08-30T00:26:33+00:00  Consumed record with orderId: c57f0a31-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 64
+2026-08-30T00:26:33+00:00  Consumed record with orderId: c70a185c-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 65
+2026-08-30T00:26:33+00:00  Consumed record with orderId: cd25eb2d-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 66
+2026-08-30T00:26:33+00:00  Consumed record with orderId: d3656a89-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 67
+2026-08-30T00:26:33+00:00  Consumed record with orderId: d816b824-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 68
+2026-08-30T00:26:33+00:00  Consumed record with orderId: d9ca63dc-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 69
+2026-08-30T00:26:33+00:00  Consumed record with orderId: ddb87d6d-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 70
+2026-08-30T00:26:33+00:00  Consumed record with orderId: e0e8fdbe-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 71
+2026-08-30T00:26:33+00:00  Consumed record with orderId: e6c300db-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 72
+2026-08-30T00:26:33+00:00  Consumed record with orderId: e712b6a3-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 73
+2026-08-30T00:26:33+00:00  Consumed record with orderId: e7bab8e4-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 74
+2026-08-30T00:26:33+00:00  Consumed record with orderId: e87fc1da-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 75
+2026-08-30T00:26:33+00:00  Consumed record with orderId: f0f927be-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 76
+2026-08-30T00:26:33+00:00  Consumed record with orderId: f8ce9124-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 77
+2026-08-30T00:26:33+00:00  Consumed record with orderId: fa89dbfc-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 78
+2026-08-30T00:26:33+00:00  Consumed record with orderId: ffb86256-a408-11f1-8e0b-5ad1fa6b9455, and updated total count to: 79
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 0151f188-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 80
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 03c9fd03-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 81
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 07e746e0-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 82
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 08d71a7e-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 83
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 0a21a71c-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 84
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 0fc92507-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 85
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 104dac32-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 86
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 1198da88-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 87
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 11e827da-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 88
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 169313c9-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 89
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 16cbb22e-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 90
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 18d808ec-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 91
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 1c45a712-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 92
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 23a1233e-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 93
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 273deb5c-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 94
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 285e942d-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 95
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 29cabf1c-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 96
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 2a07d229-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 97
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 2fdd5b7a-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 98
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 34a95a8e-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 99
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 35026bb1-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 100
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 37f1a12b-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 101
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 3ad30772-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 102
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 3ecba980-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 103
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 3fd92163-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 104
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 419ede2e-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 105
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 46d3a03d-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 106
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 481ad062-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 107
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 52b74a66-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 108
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 55a9d14b-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 109
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 57ea56df-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 110
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 58afb33e-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 111
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 622b14ba-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 112
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 665bb65b-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 113
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 68c7e897-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 114
+2026-08-30T00:26:33+00:00  Consumed record with orderId: 6c484935-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 115
+2026-08-30T00:26:39+00:00  Consumed record with orderId: 77c58a21-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 116
+2026-08-30T00:26:39+00:00  Consumed record with orderId: 77dbb491-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 117
+2026-08-30T00:26:49+00:00  Consumed record with orderId: 7d643ce7-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 118
+2026-08-30T00:26:55+00:00  Consumed record with orderId: 8164424c-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 119
+2026-08-30T00:26:56+00:00  Consumed record with orderId: 8210d9a2-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 120
+2026-08-30T00:26:57+00:00  Consumed record with orderId: 829e9f05-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 121
+2026-08-30T00:27:03+00:00  Consumed record with orderId: 85ca06a9-a409-11f1-8e0b-5ad1fa6b9455, and updated total count to: 122
