@@ -1,0 +1,60 @@
+{
+  "incident_id": "29845f25-b6a0-42fe-aa95-ccb321ab7f3e",
+  "trajectory_id": "1fc88639-67f9-48d7-8cc3-a51496844853",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:shipping-quote-misconfig",
+  "verdict": {
+    "root_cause": "At 20:29:14Z platform-automation applied an environment/config update to shippingservice that set QUOTE_SERVICE_ADDR \u2014 previously unset \u2014 to an address naming a decommissioned/non-existent quote backend (tr_8eb4ad4bdd98). Roughly three minutes later checkout began failing. Every failing trace stamps the error on checkoutservice's client span for ShippingService/GetQuote and on nothing else; cart/Redis, productcatalog/featureflag and currency edges are all clean, and the trace aborts before any later checkout stage (tr_a391b01a5a02). Shippingservice itself never errors: it keeps accepting well-formed GetQuote requests but stops emitting the quote-response line carrying an amount that accompanied every request earlier in the window (tr_c10985a9dc78), and its server span returns success in ~2ms. The consistent reading is that shippingservice, now pointed at a quote backend that does not exist, silently produces an empty/invalid quote and returns it as a nominal success; checkoutservice rejects that response at its client boundary and aborts the order before payment, email or fulfilment \u2014 matching checkout logs where order-placement start lines continue with none of the completion lines that followed them at 20:22 (tr_02e778da6175). The wrong address value is itself the failure mechanism: it is fast, not slow (no span exceeds ~4ms end to end), and no artifact or image changed anywhere (tr_8eb4ad4bdd98, tr_0fc36111a604, tr_f25e4e507bbf, tr_79f505a13285).",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_8eb4ad4bdd98",
+      "tr_a391b01a5a02",
+      "tr_c10985a9dc78",
+      "tr_02e778da6175",
+      "tr_0fc36111a604",
+      "tr_f25e4e507bbf",
+      "tr_79f505a13285",
+      "tr_62e1cffccb80"
+    ],
+    "reasoning": "Three independent lines converge on the same edge. Traces localise the error to exactly one boundary \u2014 checkoutservice's client span for ShippingService/GetQuote \u2014 with all other measured downstream edges healthy and no later checkout stage reached (tr_a391b01a5a02). Shipping logs show the behavioural change on that same path: identical, well-formed inbound requests, but the response-side quote amount line disappears, with no WARN/ERROR/crash lines, so the degradation is silent output corruption rather than a crash or refusal (tr_c10985a9dc78). Change history supplies the only mutation in the system in the onset window and it is on precisely that path: a newly introduced QUOTE_SERVICE_ADDR pointing at a host that appears decommissioned (tr_8eb4ad4bdd98). Change queries for checkoutservice and productcatalogservice are empty for the alert window, removing the competing deploy/flag hypotheses on the caller side (tr_0fc36111a604, tr_f25e4e507bbf, tr_79f505a13285). The class is bad_config rather than dependency_latency because there is no waiting anywhere \u2014 failing roots complete in single-digit-to-low-teens milliseconds with no span over ~4ms (tr_a391b01a5a02); it is not bad_deploy because no image or version entry exists, only an environment variable (tr_8eb4ad4bdd98); it is not resource_exhaustion because the process stays up, logs continuously, and most calls still succeed (tr_02e778da6175, tr_62e1cffccb80). The remedy is to restore QUOTE_SERVICE_ADDR to its prior unset state (or point it at a live backend), not to roll back an artifact \u2014 no artifact moved. Note the corpus pattern here: as in cart-redis-misconfig and cart-bad-image-tag, the culprit service reports clean error rates and clean spans while its caller carries all the errors, so a service-level error-rate reading would again have exonerated the wrong service.",
+    "open_questions": [
+      "Mechanism inside shippingservice is inferred, not observed: its outbound HTTP client span completes successfully in ~2ms, which is not what a call to a genuinely unresolvable host normally looks like. Whether the quote failure is swallowed and converted to an empty/zero response, or the outbound span belongs to a different call entirely, was never established.",
+      "The ~3-minute gap between the 20:29:14 config apply and 20:32 onset is unexplained \u2014 pod rollout, env reload cadence, or cache expiry are all untested.",
+      "Exact onset is unpinned: both checkout and shipping log results are truncated, discarding roughly 20:22\u201320:33 in each (tr_02e778da6175, tr_c10985a9dc78). No error-filtered query was run over that middle interval.",
+      "Metrics show an intermittent 0\u201330% error ratio (tr_62e1cffccb80) while every sampled trace shows an identical deterministic failure shape (tr_a391b01a5a02). Whether the surviving 70% take a different path (cached quote, retry, different item set) is unresolved and matters for whether a revert alone is sufficient.",
+      "Triage crossed 4 unmeasured edges; no specialist covered cartservice change history or the other synchronous dependencies' change logs, so a second concurrent config push cannot be formally excluded.",
+      "The 18:32\u201320:22 lookback for checkoutservice was never executed \u2014 both change dispatches ran the same 15-minute window (tr_0fc36111a604, tr_f25e4e507bbf).",
+      "Whether reverting the variable takes effect without restarting shippingservice pods (env vars are typically read at process start) is unverified and determines whether config_revert alone restores service."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m48s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

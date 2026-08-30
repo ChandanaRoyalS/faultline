@@ -1,0 +1,30 @@
+incident 29845f25-b6a0-42fe-aa95-ccb321ab7f3e  state triaging  anchor 20:32:00
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 1fc88639-67f9-48d7-8cc3-a51496844853
+investigation: 2 round(s), 8 dispatch(es), 21 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_8eb4ad4bdd98, tr_a391b01a5a02, tr_c10985a9dc78, tr_02e778da6175, tr_0fc36111a604, tr_f25e4e507bbf, tr_79f505a13285, tr_62e1cffccb80
+  root cause  : At 20:29:14Z platform-automation applied an environment/config update to shippingservice that set QUOTE_SERVICE_ADDR — previously unset — to an address naming a decommissioned/non-existent quote backend (tr_8eb4ad4bdd98). Roughly three minutes later checkout began failing. Every failing trace stamps the error on checkoutservice's client span for ShippingService/GetQuote and on nothing else; cart/Redis, productcatalog/featureflag and currency edges are all clean, and the trace aborts before any later checkout stage (tr_a391b01a5a02). Shippingservice itself never errors: it keeps accepting well-formed GetQuote requests but stops emitting the quote-response line carrying an amount that accompanied every request earlier in the window (tr_c10985a9dc78), and its server span returns success in ~2ms. The consistent reading is that shippingservice, now pointed at a quote backend that does not exist, silently produces an empty/invalid quote and returns it as a nominal success; checkoutservice rejects that response at its client boundary and aborts the order before payment, email or fulfilment — matching checkout logs where order-placement start lines continue with none of the completion lines that followed them at 20:22 (tr_02e778da6175). The wrong address value is itself the failure mechanism: it is fast, not slow (no span exceeds ~4ms end to end), and no artifact or image changed anywhere (tr_8eb4ad4bdd98, tr_0fc36111a604, tr_f25e4e507bbf, tr_79f505a13285).
+  OPEN        : Mechanism inside shippingservice is inferred, not observed: its outbound HTTP client span completes successfully in ~2ms, which is not what a call to a genuinely unresolvable host normally looks like. Whether the quote failure is swallowed and converted to an empty/zero response, or the outbound span belongs to a different call entirely, was never established.
+  OPEN        : The ~3-minute gap between the 20:29:14 config apply and 20:32 onset is unexplained — pod rollout, env reload cadence, or cache expiry are all untested.
+  OPEN        : Exact onset is unpinned: both checkout and shipping log results are truncated, discarding roughly 20:22–20:33 in each (tr_02e778da6175, tr_c10985a9dc78). No error-filtered query was run over that middle interval.
+  OPEN        : Metrics show an intermittent 0–30% error ratio (tr_62e1cffccb80) while every sampled trace shows an identical deterministic failure shape (tr_a391b01a5a02). Whether the surviving 70% take a different path (cached quote, retry, different item set) is unresolved and matters for whether a revert alone is sufficient.
+  OPEN        : Triage crossed 4 unmeasured edges; no specialist covered cartservice change history or the other synchronous dependencies' change logs, so a second concurrent config push cannot be formally excluded.
+  OPEN        : The 18:32–20:22 lookback for checkoutservice was never executed — both change dispatches ran the same 15-minute window (tr_0fc36111a604, tr_f25e4e507bbf).
+  OPEN        : Whether reverting the variable takes effect without restarting shippingservice pods (env vars are typically read at process start) is unverified and determines whether config_revert alone restores service.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-quote-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260829T202910Z-shipping-quote-misconfig/29845f25-b6a0-42fe-aa95-ccb321ab7f3e-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260829T202910Z-shipping-quote-misconfig/29845f25-b6a0-42fe-aa95-ccb321ab7f3e-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9873.46it/s]
