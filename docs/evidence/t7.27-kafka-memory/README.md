@@ -71,6 +71,35 @@ The `summary.diff` over that window names what moved *inside* the JVM — 13.4 M
 | code cache | +10,047 KB | JIT warmup after restart, bounded by 249 MB reserved — not the gigabyte |
 | **Java Heap** | **0 KB** | capped and behaving |
 
+> **Corrected 2026-08-30 (T7.30). The section below is falsified in its conclusion, and left in
+> place because a hypothesis that was tested and failed is worth more in the record than one quietly
+> removed.**
+>
+> **What survives:** 68 anonymous regions of 63.9 MB existed, they are the glibc arena signature, and
+> `MALLOC_ARENA_MAX=2` collapsed them to zero. Every observation here was reproduced.
+>
+> **What is wrong:** the attribution. **kafka runs an x86-64 image under Rosetta emulation** — image
+> `arch: amd64`, host `arm64`, `uname -m` returning `x86_64`, and `/run/rosetta/rosetta` mapped into
+> PID 1. The memory that grows is **the emulator's JIT translation cache**: at 14 h uptime, 1,429 MB
+> of *executable* (`rwxp`) anonymous memory, 1,408 MB of it in ten fully-resident, fully-dirty
+> blocks — **with arena regions at zero throughout.**
+>
+> **The decisive measurement:** with the lever live and arenas at 0, the anon-versus-NMT gap opens
+> to **+23 MB by 25 minutes** — against the **+23 MB at 30 minutes** recorded below with 68 arenas.
+> Same trajectory, opposite arena counts. Arena retention cannot produce a gap that opens identically
+> in a process with no arenas.
+>
+> **And the ~55 MB/h below is a warm-up rate.** It was sampled across 5 → 30 minutes, the JIT
+> warm-up phase. Measured past warm-up, the idle rate is **6.2 MB/h**; under load it is
+> **221 MB/h**. The growth tracks work, not uptime — so extrapolating the warm-up rate to ~1.3 GB/day
+> "matching" 1.86 GiB in 1.5 days was arithmetic that happened to land, not a confirmed mechanism.
+>
+> See [`../t7.30-kafka-lever/README.md`](../t7.30-kafka-lever/README.md). ADR-0005 already recorded
+> that ~20 demo images run under Rosetta and that measured usage under emulation sat at its ceilings;
+> this investigation did not read its own container against that ADR.
+
+### The original reasoning, now falsified
+
 ## What it is: the allocator, not the JVM
 
 The container is **RHEL 8.6 on glibc 2.28** with **97 threads**. Its memory map carries **68
@@ -105,6 +134,12 @@ re-record T7.26 specifies.
 **A smaller consequence worth naming:** kafka's growth is characterised in prose *inside that same
 file*, in the T7.1 comment. **Even correcting that comment moves the digest**, so this addendum
 lives in PLAN.md instead — the explanation cannot be filed next to the thing it explains.
+
+> **Corrected 2026-08-30 (T7.30).** The conclusion below — *"a bounded-allocator problem, not a
+> limit problem"* — is wrong on the first half. It is an **emulation** problem: the growth is
+> Rosetta's translation cache, and no malloc tunable reaches it. The second half stands and is
+> strengthened: a further raise still buys time and nothing else, because the growth is driven by
+> work rather than bounded by a ceiling.
 
 ## Is the container simply sized wrong
 

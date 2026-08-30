@@ -1,0 +1,92 @@
+=== kafka grown state, lever ON, uptime 14.12h, 2026-08-30T12:20:02Z ===
+container: 1.997GiB / 2GiB 99.87%
+--- cgroup memory.stat (key lines) ---
+anon 2123079680
+file 253952
+kernel_stack 1605632
+sock 0
+shmem 0
+anon_thp 1962934272
+slab 8103168
+pgfault 10568954
+pgmajfault 4185
+--- memory.current / max ---
+2147405824
+2147483648
+--- threads ---
+98
+--- MALLOC_ARENA_MAX ---
+KAFKA_HEAP_OPTS=-Xmx400m -Xms400m
+MALLOC_ARENA_MAX=2
+=== smaps_rollup ===
+Rss:             2087492 kB
+Pss:             2085787 kB
+Pss_Dirty:       2058984 kB
+Pss_Anon:        2065000 kB
+Pss_File:          20787 kB
+Pss_Shmem:             0 kB
+Shared_Clean:       2820 kB
+Shared_Dirty:         16 kB
+Private_Dirty:   2058976 kB
+Anonymous:       2065000 kB
+AnonHugePages:   1923072 kB
+Shared_Hugetlb:        0 kB
+Swap:              67964 kB
+SwapPss:           67964 kB
+
+=== largest anon mappings (top 12 by size) ===
+1017 MB 100700000-140000000 ---p
+407 MB e7000000-100700000 rw-p
+280.914 MB efffffff8000-f000118e2000 rw-p
+256 MB efffe3671000-effff3671000 rwxp
+128 MB effff7ff8000-efffffff8000 rwxp
+128 MB efffdb271000-efffe3271000 rwxp
+128 MB efffd2c71000-efffdac71000 rwxp
+128 MB efffca071000-efffd2071000 rwxp
+128 MB efffc1c71000-efffc9c71000 rwxp
+128 MB efffb9471000-efffc1471000 rwxp
+128 MB efffb0e70000-efffb8e70000 rwxp
+128 MB efffa8670000-efffb0670000 rwxp
+
+=== count + total of anon mappings by size band ===
+anon regions=3018 total=3829 MB | >=64MB:15 1-64MB:70 <1MB:2933
+=== anon mappings by permission ===
+rwxp  count=1165  total=1429 MB
+---p  count=310   total=1254 MB
+rw-p  count=932   total=1129 MB
+r-xp  count=1154  total=13 MB
+r--p  count=1     total=0 MB
+
+=== rwxp regions: sizes ===
+      1 256
+      9 128
+      1 0.933594
+      1 0.550781
+      1 0.292969
+      1 0.210938
+      1 0.183594
+      1 0.179688
+      3 0.136719
+      1 0.125
+=== smaps detail for the large rwxp regions ===
+--- region efff9fc6f000-efffa7c6f000
+   Size:             131072 kB
+   Rss:              131060 kB
+   Pss:              131060 kB
+   Private_Dirty:    131060 kB
+   Anonymous:        131060 kB
+   AnonHugePages:    129024 kB
+--- region efffa8670000-efffb0670000
+   Size:             131072 kB
+   Rss:              131060 kB
+   Pss:              131060 kB
+   Private_Dirty:    131060 kB
+   Anonymous:        131060 kB
+   AnonHugePages:    129024 kB
+--- region efffb0e70000-efffb8e70000
+   Size:             131072 kB
+   Rss:              131060 kB
+   Pss:              131060 kB
+   Private_Dirty:    131060 kB
+   Anonymous:        131060 kB
+   AnonHugePages:    129024 kB
