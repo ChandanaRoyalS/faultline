@@ -163,3 +163,86 @@ looks like.
 
 Revisit if: the project moves to x86 hardware (all of this disappears), or a later demo
 release publishes arm64 images for the affected services.
+
+## Addendum (2026-08-30, T7.30): emulation is also where kafka's unbounded memory comes from
+
+**This ADR's "Memory" paragraph was more load-bearing than it looked.** It recorded that emulated
+containers sit at ceilings tuned for native x86 and that limits were raised in response. What it did
+not say — because it was not yet known — is that **emulation introduces a source of memory growth
+that no container limit bounds.**
+
+### What was found
+
+T7.27 investigated kafka reaching 97.44% of a 2 GB limit and diagnosed **glibc arena
+fragmentation**: 68 anonymous regions of exactly 63.9 MB, the per-thread arena signature. It shipped
+`MALLOC_ARENA_MAX=2` in `compose/world-arm64.override.yml`, which moved `compose_digest` and forced
+T7.28 to re-record all eleven runnable bundles.
+
+**T7.29 then measured, with the lever live and arena regions at zero throughout, 421 MB of anon
+growth in 2h47m — crossing the recorder's 90% guard.** T7.30 established why:
+
+**kafka runs an `amd64` image on an `arm64` host under Rosetta** — `uname -m` returns `x86_64` and
+`/run/rosetta/rosetta` is mapped into PID 1. The memory that grows is **the emulator's JIT
+translation cache**. At 14 h uptime: **1,429 MB of executable (`rwxp`) anonymous memory**, 1,408 MB
+of it in ten fully-resident, fully-dirty, THP-backed blocks of 128–256 MB, with **0 arena regions**.
+
+The JVM cannot own it: NMT reports `Code (reserved=248994KB)`, so **243 MB is the most the JVM's code
+cache can ever be**, leaving at least 1,186 MB of executable memory outside it.
+
+### Why the original diagnosis looked right
+
+The arena observation was real and reproducible, and the lever genuinely collapsed mapped anonymous
+address space from 7,413 MB to 2,456 MB. **What was wrong was the attribution:** arenas held
+*address space*, not the growing *resident* memory. Two allocators, two kinds of memory, and the
+growth of one was attributed to the other.
+
+The decisive comparison, same method and cadence on both sides:
+
+| | T7.27, **68 arenas** | T7.30, **0 arenas** |
+|---|---:|---:|
+| anon at ~25–30 min | 616,168 KB | **617,388 KB** |
+| anon-vs-NMT gap | **+23 MB** | **+23 MB** |
+
+### It is driven by work, not uptime
+
+Measured within a single process, so age and configuration are constant:
+
+| window | anon rate | translation cache |
+|---|---:|---:|
+| at rest, post-warm-up (1.42 h) | **+6.2 MB/h** | **+0 MB** |
+| under load, client churn (0.22 h) | **+221 MB/h** | **+128 MB — one new block** |
+
+A **36× difference**. This is what a translation cache does: it fills when new code paths execute,
+and a fault injection is an instruction to run error paths normal traffic never reaches. It also
+explains why the growth never saturates in this project's use — every scenario exercises new code.
+
+### Consequences for this ADR's decisions
+
+1. **Raising memory limits does not solve emulated-service memory growth, only delays it.** T7.1
+   measured 1200M → 2g buying about nine hours. Any ceiling is a delay when growth is work-driven.
+   The original decision to raise limits remains correct for its actual purpose — keeping tuned-for-x86
+   ceilings from OOM-killing services and polluting the baseline — but it is not a fix for this.
+2. **Recycling an emulated long-running JVM is an operational precondition, not a workaround.** A
+   restart clears the translation cache completely (99.87% → 26.27%). For kafka this is now required
+   before recording, and T7.27's rule still applies: restarting kafka strands `accountingservice`,
+   which must be restarted after it.
+3. **The "revisit if" clause at the bottom of this ADR gains a second, independent reason.** Native
+   arm64 images would remove this mechanism outright rather than managing it. Moving to x86 hardware
+   would do the same.
+
+### On `MALLOC_ARENA_MAX=2`, which is now in the world
+
+**It is kept, and it is kept for a different reason than it was added.** It does not bound the
+growth; it has no measured downside; and removing it would cost a second digest move, a second full
+re-record, and would invalidate dev sweep 7 — the only current-world benchmark. **The honest position
+is that it stays because removal is expensive and its effect is nil, not because it works.**
+
+**It should be dropped the next time the world moves for an independent reason**, when the re-record
+is already being paid for. Keeping it must not be recorded as evidence that it helped.
+
+### Standing rule this produces
+
+**A memory finding in an emulated container names the emulation before it names the allocator.**
+Roughly twenty services here run under Rosetta, and any of them can grow this way. The check is two
+commands — compare the image's `Architecture` to the host's, and look for `rwxp` anonymous regions
+that the JVM's `Code` reservation cannot account for.

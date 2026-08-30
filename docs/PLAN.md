@@ -1573,6 +1573,53 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.30 — the lever that engaged and did not hold *(measurement only; no digest moves)*
+**Done** ([`docs/evidence/t7.30-kafka-lever/`](evidence/t7.30-kafka-lever/), ADR-0005 addendum).
+T7.29's passive measurement partly falsified T7.27's diagnosis; this establishes what replaces it.
+
+**kafka runs an `amd64` image under Rosetta emulation on an `arm64` host** - `uname -m` returns
+`x86_64` and `/run/rosetta/rosetta` is mapped into PID 1. **The memory that grows is the emulator's
+JIT translation cache**, not glibc arenas. At 14.12h uptime and 99.87% of its limit: **1,429 MB of
+executable (`rwxp`) anonymous memory**, 1,408 MB of it in ten fully-resident, fully-dirty, THP-backed
+blocks, with **arena regions at 0**. The JVM cannot own it - NMT's `Code` reserves **243 MB** at
+most, leaving >=1,186 MB outside it.
+
+**Which of the three it was: a real but secondary effect, and separately a different, load-driven
+mechanism.** Not a symptom of the same allocation - two allocators holding two kinds of memory. The
+arenas were real and the lever collapsed them; they held *address space* (7,413 -> 2,456 MB), never
+the growing resident memory.
+
+**The decisive measurement, same method and cadence as T7.27:** with arenas at **0**, the
+anon-vs-NMT gap opens to **+23 MB at 25 min**, against T7.27's **+23 MB at 30 min** with **68**
+arenas. Identical trajectory, opposite arena counts. NMT itself is unchanged by the lever - total
+committed 586,971 KB against T7.27's 584,958 KB, Java Heap identical.
+
+**Load separates cleanly from time, measured within one process** so age and config are constant:
+**+6.2 MB/h at rest** (`rwxp` +0 MB) against **+221 MB/h under load** (`rwxp` **+128 MB - one new
+translation block, caught in the act**). A **36x** difference; T7.29's 151 MB/h sits between them.
+**T7.27's ~55 MB/h was a warm-up rate** sampled over 5->30 min; extrapolating it to ~1.3 GB/day
+"matched" 1.86 GiB in 1.5 days by arithmetic coincidence - at the true idle rate that takes ~12 days.
+
+**The queued item, answered honestly: `MALLOC_ARENA_MAX=2` stays, for a different reason than it was
+added.** It moved a digest and forced T7.28's eleven-bundle re-record for a benefit not demonstrated
+in resident memory. It has no measured downside, and removing it would cost a second digest move, a
+second re-record, and would invalidate dev sweep 7 - the only current-world benchmark. **It stays
+because removal is expensive and its effect is nil, not because it works**, and it should be dropped
+the next time the world moves for an independent reason. The real fixes are recycling kafka before
+recording (now a precondition), or native arm64 images - ADR-0005's own exit clause, which this gives
+a second independent reason to want.
+
+**What is not established:** Rosetta's internals were not instrumented - the attribution rests on a
+ceiling argument, the executable permission bit, address ranges, and a 128 MB block appearing under
+load. The load proxy was client churn, not the sweep's eight injections, and no equivalence is
+claimed. **The lever-off-under-load cell is missing** and getting it would mean restoring the old
+config, moving the digest and invalidating the catalog - so the lever is isolated **at rest only**,
+where its effect is nil.
+
+**World left healthy:** 15 services reporting, no alerts, kafka fresh at 26.27%, `accounting-service`
+restarted after the kafka cycle per T7.27's rule, temporary NMT override deleted, **both digests
+verified unmoved**.
+
 ### T7.29 — the benchmark, re-founded again *(one sweep, pre-registered, judged)*
 **Done** ([`SWEEP-2026-08-30-refound-again.md`](../evals/runs/SWEEP-2026-08-30-refound-again.md)).
 T7.28 left the bounded world with no measurement at all. This is T7.10's shape after T7.1: the
@@ -1752,6 +1799,16 @@ the gigabyte), **Java Heap 0 KB**.
 default `M_ARENA_MAX` of 8x10 cores. Arenas retain freed pages instead of returning them. **The JVM
 is not leaking; glibc is holding freed pages.**
 
+> **Corrected 2026-08-30 (T7.30) - the attribution above is falsified; the observation is not.**
+> The 68 arena regions were real and the lever collapsed them to zero. But **kafka runs an amd64
+> image under Rosetta emulation** (`uname -m` = `x86_64`, `/run/rosetta/rosetta` mapped into PID 1),
+> and the memory that grows is **the emulator's JIT translation cache** - 1,429 MB of executable
+> `rwxp` anonymous memory at 14h, with arena regions at **0**. The JVM cannot own it: NMT's `Code`
+> reserves 243 MB at most. With arenas at zero the anon-vs-NMT gap still opens to **+23 MB by 25
+> minutes**, against **+23 MB at 30 minutes** with 68 arenas - same trajectory, opposite arena
+> counts. The ~55 MB/h below is a **warm-up** rate; past warm-up it is **6.2 MB/h** at rest and
+> **221 MB/h** under load. Growth tracks work, not uptime. See ADR-0005's T7.30 addendum.
+
 **The lever engages, and that is all that was shown.** `MALLOC_ARENA_MAX=2`: arenas **68 -> 0**,
 mapped address space **7,413 -> 2,456 MB**. **Not shown: that it bounds the long-run growth** - that
 needs ~1.5 days under the setting and was not run. Re-measure at 24 hours after it lands.
@@ -1763,7 +1820,10 @@ here rather than beside the thing it explains.
 
 **Not a sizing problem, which changes the fix.** 2 GB against ~600 MB of genuine JVM footprint is
 nearly 3x headroom, and T7.1 already recorded that 1200M -> 2g bought about nine hours. Unbounded
-growth consumes any ceiling. **A bounded-allocator problem, not a limit problem.**
+growth consumes any ceiling. ~~**A bounded-allocator problem, not a limit problem.**~~
+**Corrected (T7.30): an *emulation* problem.** No malloc tunable reaches it. The half about a
+raise buying only time stands, and is strengthened - growth is driven by work, not bounded by a
+ceiling.
 
 **Two operational findings.** Restarting kafka **strands `accountingservice`** - it sat at 0.000
 req/s until restarted, while `frauddetectionservice` reconnected on its own. And **checkout's stall
