@@ -1573,6 +1573,86 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.33 — close the opt-in hole, and record the recycle as a fact *(gate logic; no digest moves)*
+**Done** (`run.py`, `gate.py`, `demo.py`, nine tests). Two items T7.32's own entry left open.
+
+**There is no committed sweep driver, so the fix is the other one.** Searched before choosing:
+nothing in the repository loops scenarios. `demo.py` shells out to `faultline-eval` for a *single*
+scenario, the sweep reports describe running "through `faultline-eval`" with one human holding the
+world lock, and T7.29's own driver was a scratchpad script that was never committed. **Sweeps are
+run by hand.** So there is nothing to teach to pass the flag, and making the protection a property
+of running a sweep means making the harness refuse a run that has not said what it is.
+
+**`faultline-eval` now requires the declaration: `--single-run` or `--runs-remaining N`.** Neither
+is not a default, it is an unanswered question - the gate projects kafka forward over the work still
+to come and cannot do that without being told what the work is. **Exit 2, nothing injected, and it
+is not a discard**, because the run never started.
+
+**The precedent is `--holdout`**, which this repository already refuses to run without, "because a
+holdout run is a different experiment and should be hard to start by accident". A sweep run and a
+single run are likewise different experiments with different headroom needs, and the weaker check
+should not be what you get for forgetting. `--demo` passes `--single-run` explicitly rather than
+being special-cased, so the demo keeps working and says what it is (a demo is one run by
+definition).
+
+**The recycle is now an event with a cause, not a discontinuity to be inferred from.** T7.32
+recorded `percent_now` and said a recycle was visible as a percentage that fell rather than rose.
+That is inference, and it fails exactly where it matters: it cannot tell a recycle from a missing
+sample, a reordered manifest, or a container that restarted for a reason nobody chose. **kafka's
+uptime is recorded instead**, and an uptime that resets is unambiguous. Pairing it with the previous
+run's outcome names *why*:
+
+| what the manifest says | what it means |
+|---|---|
+| uptime rose | **continuous** - the same kafka instance as the previous run |
+| uptime reset, previous run **paused** | **deliberate recycle** - the operator clearing a refusal the gate asked for |
+| uptime reset, nothing paused | **a restart nobody recorded** - surfaced rather than smoothed over |
+| no previous run, or no reading in it | **unknown** - said plainly, not assumed continuous |
+
+It lands in **`manifest["world_continuity"]` at the top level**, not nested inside the gate reading,
+so a reader of what a run measured meets it without going looking.
+
+**Does a sweep containing a recycle threaten comparability? No, and it should not be marked in
+RESULTS.md.** Taking the question seriously rather than hedging it:
+
+1. **The provenance family defines the world as code and configuration.** `compose_digest` is three
+   compose files, `observability_digest` seven config files, plus the stub source and the demo image.
+   **Memory occupancy is an input to none of them.** Two runs with identical digests are the same
+   world by every definition this project actually uses and can check. Marking a recycled sweep
+   would assert a notion of "world" the provenance family does not have - an unverifiable claim in
+   the document that exists to carry verifiable ones.
+2. **Occupancy was never constant within a sweep anyway.** T7.29's kafka moved **69.95% -> 90.69%
+   across eight runs with no recycle at all.** If a varying kafka level threatened comparability,
+   every sweep this project has run would already be incomparable and the S5/S6/S7 comparisons would
+   all be void. A recycle is a discontinuity in a quantity that has always varied; it does not
+   introduce the variation.
+3. **The baseline gate is the operative definition of "fit to compare", and it is per run.** Each
+   run independently establishes no alerts firing, expected services reporting, containers settled,
+   pipeline assembled, and now enough headroom for the work ahead. A recycled kafka that passes the
+   gate is exactly as fit as one that has not been recycled.
+4. **The old-world banner marks something categorically different.** It marks a change to the
+   world's *definition*, which invalidates recorded bundles - their captures describe code and config
+   that no longer exist. **A recycle invalidates no bundle**; every artifact recorded before it still
+   describes this world accurately and nothing needs re-recording. Using one device for both would
+   flatten the distinction the provenance family exists to draw.
+5. **And there is no measured effect.** T7.30 found the JVM's own footprint identical across the
+   range - NMT committed 586,971 KB against T7.27's 584,958 KB, Java Heap pinned at 409,600 KB - and
+   what grows is Rosetta translation cache, which is not a functional path through Kafka. T7.29's
+   `frauddetection-memory-squeeze` ran clean at the high end of that range.
+
+**Where the claim stops.** It is an argument from mechanism plus absence of a measured effect, not a
+controlled experiment: **nobody has run one scenario at 30% and at 85% and compared outcomes.** And
+there is certainly a level at which memory does matter - that is what the 90% guard is for. So the
+claim is precisely *below the guard, comparable*, with the guard enforced per run. **If someone runs
+that experiment and outcomes differ below the guard, this argument fails and marking becomes
+necessary.** Recording continuity per run is what makes that experiment possible later, which is the
+other reason to record it.
+
+**What remains unaddressed.** Still bounding damage rather than stopping growth. And the declaration
+is only as good as what the operator types: `--runs-remaining` is checked for presence, **not for
+truth** - a hand-driven sweep that says 2 when eight remain gets a projection for two, and nothing
+can catch that from inside a single run.
+
 ### T7.32 — bind the gate to the sweep, and make refusal actionable *(gate logic; no digest moves)*
 **Done** (`gate.py`, `run.py`, twelve tests). T7.31's gate is correct per run and blind to the
 sweep, and its own entry said so. T7.29 is the proof: every run passed a single-run check and the

@@ -233,6 +233,72 @@ class RunDir:
         )
 
 
+def previous_run_manifest(before: str, root: Path = RUN_ROOT) -> dict[str, Any] | None:
+    """The manifest of the most recent run started before `before`. None if there is not one.
+
+    Run directories are `<UTC timestamp>-<scenario>`, so lexical order is chronological.
+    """
+    if not root.is_dir():
+        return None
+    for path in sorted((d for d in root.iterdir() if d.is_dir() and d.name < before), reverse=True):
+        manifest = path / "manifest.json"
+        if not manifest.is_file():
+            continue
+        try:
+            loaded: dict[str, Any] = json.loads(manifest.read_text())
+        except (OSError, json.JSONDecodeError):
+            continue
+        return loaded
+    return None
+
+
+def _kafka_uptime(manifest: dict[str, Any] | None) -> int | None:
+    if not manifest:
+        return None
+    headroom = (manifest.get("baseline_gate") or {}).get("headroom") or {}
+    seconds = headroom.get("uptime_seconds")
+    return int(seconds) if isinstance(seconds, int) else None
+
+
+def world_continuity(run_id: str, uptime_now: int | None, root: Path = RUN_ROOT) -> dict[str, Any]:
+    """Whether the world this run measures is the same instance the previous run measured.
+
+    **A recorded event with a cause, not a discontinuity to be inferred from (T7.33).** T7.32 left
+    a recycle visible only as a `percent_now` that fell rather than rose, which cannot be told
+    apart from a missing sample, a reordered manifest, or a restart nobody chose. An uptime that
+    resets is unambiguous, and pairing it with the previous run's outcome names *why*:
+
+    - the previous run **paused** on the headroom gate, and kafka is younger -> a deliberate
+      recycle, the operator clearing a refusal the gate asked them to clear;
+    - kafka is younger and nothing paused -> **a restart nobody recorded**, which is worth
+      surfacing rather than smoothing over;
+    - no previous run, or no reading in it -> `unknown`, said plainly instead of assumed continuous.
+    """
+    previous = previous_run_manifest(run_id, root)
+    before = _kafka_uptime(previous)
+    restarted = None if (before is None or uptime_now is None) else uptime_now < before
+    if restarted is None:
+        cause = "unknown - no comparable reading in the previous run"
+    elif not restarted:
+        cause = "continuous - same kafka instance as the previous run"
+    elif previous is not None and previous.get("paused"):
+        cause = "deliberate recycle - the previous run paused on the headroom gate and was cleared"
+    else:
+        cause = "restarted, and no run recorded a pause before it - cause not established here"
+    return {
+        "kafka_uptime_seconds": uptime_now,
+        "kafka_uptime_seconds_previous_run": before,
+        "previous_run_id": None if previous is None else previous.get("run_id"),
+        "kafka_restarted_since_previous_run": restarted,
+        "cause": cause,
+        "note": (
+            "A sweep spanning a restart did not run every scenario against the same kafka "
+            "instance. That is a resource level, not a code or config change - no digest moves "
+            "and the runs describe the same world (T7.33)."
+        ),
+    }
+
+
 def _sh(args: list[str], env: dict[str, str] | None = None, timeout: int = 1800) -> tuple[int, str]:
     merged = {**os.environ, **(env or {})}
     result = subprocess.run(
@@ -598,6 +664,14 @@ def parser() -> argparse.ArgumentParser:
         "Remaining work, not total: pass 8 on the first of eight, 2 on the seventh.",
     )
     p.add_argument(
+        "--single-run",
+        action="store_true",
+        help="this is one run, not part of a sweep (T7.33). Required unless "
+        "--runs-remaining is given: the gate's headroom projection depends on how much work "
+        "is coming, and defaulting silently to the weaker per-run check is a guard that "
+        "protects you only if you remembered it.",
+    )
+    p.add_argument(
         "--holdout",
         action="store_true",
         help="permit a holdout scenario. Refused without it, because a holdout run is a "
@@ -692,6 +766,23 @@ def _investigate_with_retry(
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
+
+    # **Neither flag is not a default, it is an unanswered question (T7.33).** The gate projects
+    # kafka's memory over the work still to come, so it has to be told what that work is. T7.32
+    # made the sweep binding opt-in and its own entry admitted the hole: a driver that forgets
+    # `--runs-remaining` silently gets the weaker per-run check. Same shape as `--holdout`, which
+    # is refused without it because a different experiment should be hard to start by accident.
+    if not args.single_run and args.runs_remaining is None:
+        print(
+            "REFUSED: say whether this is one run or part of a sweep.\n"
+            "  --single-run           one run, projected over the harness's worst-case bound\n"
+            "  --runs-remaining N     part of a sweep, projected over the N runs still to come\n"
+            "                         (remaining, not total: 8 on the first of eight, 2 on the "
+            "seventh)\n"
+            "Nothing was injected. This is not a discard - the run never started."
+        )
+        return 2
+
     from faultline.agents.settings import AgentSettings
     from faultline.context.settings import ContextSettings
 
@@ -761,6 +852,11 @@ def main(argv: list[str] | None = None) -> int:
                 runs_remaining=args.runs_remaining,
             )
             run.manifest["baseline_gate"] = reading.as_dict()
+            # Top level, not nested inside the gate reading: a reader looking at what this run
+            # measured lands on it without going looking (T7.33).
+            run.manifest["world_continuity"] = world_continuity(
+                run.run_id, reading.headroom.uptime_seconds if reading.headroom else None
+            )
             print(f"  clean: {reading.services_reporting} services reporting, 0 alerts")
             emit(
                 ev,
