@@ -1280,3 +1280,139 @@ def test_the_same_world_passes_once_kafka_has_been_recycled() -> None:
     recycled = reading_with(memory=[("kafka", 26.3, "0.53GiB / 2GiB")])
     assert recycled.passed
     assert recycled.headroom is not None and recycled.headroom.fits
+
+
+# --- T7.32: the gate bound to the sweep, and refusal made actionable ------------------------
+
+
+def test_the_sweep_run_hour_is_pinned_to_the_measurement_it_claims() -> None:
+    """T7.29 ran 8 scenarios in 2.78 h. If that citation changes, this fails rather than drifts."""
+    assert pytest.approx(2.78 / 8) == gate.SWEEP_RUN_HOURS
+
+
+def test_remaining_work_shrinks_the_ask_as_the_sweep_progresses() -> None:
+    """Run 1 of eight asks for eight runs' headroom; run 7 asks for two.
+
+    This is the whole point of scoping to remaining work rather than total: a static sweep bound
+    gets more wrong with every run completed.
+    """
+    first = gate.headroom_for(usage=[("kafka", 50.0, "1GiB / 2GiB")], runs_remaining=8)
+    seventh = gate.headroom_for(usage=[("kafka", 50.0, "1GiB / 2GiB")], runs_remaining=2)
+    assert first is not None and seventh is not None
+    assert first.threshold_percent < seventh.threshold_percent
+    assert first.expected_run_hours == pytest.approx(8 * gate.SWEEP_RUN_HOURS)
+    assert seventh.expected_run_hours == pytest.approx(2 * gate.SWEEP_RUN_HOURS)
+
+
+def test_one_declared_sweep_run_is_more_permissive_than_the_undeclared_default() -> None:
+    """Declaring "one typical run" should beat "I do not know, assume the harness bound".
+
+    Not a contradiction: `RUN_BUDGET_SECONDS` is the worst case a run may reach, and is the right
+    assumption only when nobody has said otherwise.
+    """
+    declared = gate.headroom_for(usage=[("kafka", 50.0, "1GiB / 2GiB")], runs_remaining=1)
+    default = gate.headroom_for(usage=[("kafka", 50.0, "1GiB / 2GiB")])
+    assert declared is not None and default is not None
+    assert declared.threshold_percent > default.threshold_percent
+
+
+def test_t729_is_refused_at_run_one_when_it_declares_the_work_still_to_come() -> None:
+    """The worked example. Every run of T7.29 passed T7.31's per-run check and the sweep was
+    already doomed at run 1; scoped to remaining work, run 1 is where it stops."""
+    h = gate.headroom_for(usage=[("kafka", 69.95, "1.399GiB / 2GiB")], runs_remaining=8)
+    assert h is not None
+    assert not h.fits
+    assert h.projected_percent == pytest.approx(90.69, abs=0.5)
+
+
+def test_after_the_recycle_the_whole_t729_sweep_fits() -> None:
+    """T7.30 measured a restart returning kafka to 26.27%. From there all eight runs pass and
+    the sweep finishes far below the guard - which is what makes the refusal a pause."""
+    percent, step = 26.27, (90.69 - 69.95) / 8
+    for remaining in range(8, 0, -1):
+        h = gate.headroom_for(
+            usage=[("kafka", percent, "1.399GiB / 2GiB")], runs_remaining=remaining
+        )
+        assert h is not None and h.fits, f"refused with {remaining} runs left at {percent:.2f}%"
+        percent += step
+    assert percent < rehearse.MEMORY_HEADROOM_PERCENT
+
+
+def test_run_seven_is_still_refused_and_that_is_now_the_right_answer() -> None:
+    """**Remaining-work scoping does not recover T7.31's false refusal on run 7.**
+
+    It reclassifies it. Run 7 alone stayed under the guard, so refusing it as a single run was
+    wrong. Runs 7 and 8 together cross it, so refusing it as "two runs still to come" is right.
+    The verdict is the same and the question is not; no improvement is claimed here.
+    """
+    seventh = gate.headroom_for(usage=[("kafka", 85.50, "1.75GiB / 2GiB")], runs_remaining=2)
+    assert seventh is not None and not seventh.fits
+    # ... and the two remaining runs really did cross: 85.50 -> 88.10 -> 90.69.
+    assert rehearse.MEMORY_HEADROOM_PERCENT < 90.69
+
+
+def test_the_false_pass_window_is_bounded_and_cannot_widen_unnoticed() -> None:
+    """**A real limit, asserted rather than hidden.**
+
+    The published rate is 151.0 MB/h; T7.29's actual was 421/2.78 = 151.44. The gate is therefore
+    ~0.3% optimistic, which over eight runs is a quarter of a point - so a sweep starting just
+    under the threshold can still finish marginally over the guard. It is narrow and it is real,
+    and this pins the width so a future rate edit cannot widen it silently.
+    """
+    threshold = gate.headroom_for(usage=[("kafka", 0.0, "0GiB / 2GiB")], runs_remaining=8)
+    assert threshold is not None
+    actual_per_run = (90.69 - 69.95) / 8
+    crosses_above = rehearse.MEMORY_HEADROOM_PERCENT - actual_per_run * 8
+    window = threshold.threshold_percent - crosses_above
+    assert 0 < window < 0.3, f"false-pass window is {window:.3f} points"
+
+
+def test_a_headroom_refusal_is_a_pause_and_never_a_discard() -> None:
+    """A discard is a run that happened and produced no result. This is one that never started."""
+    assert issubclass(gate.HeadroomExhaustedError, gate.GateRefusedError)
+    assert gate.HeadroomExhaustedError.is_pause is True
+    assert getattr(gate.GateRefusedError, "is_pause", False) is False
+    assert getattr(gate.PipelineDownError, "is_pause", False) is False
+
+
+def test_the_headroom_refusal_raises_its_own_type_and_names_the_remedy() -> None:
+    hot = reading_with(memory=[("kafka", 95.0, "1.9GiB / 2GiB")])
+    with (
+        patch.object(gate, "read", return_value=hot),
+        pytest.raises(gate.HeadroomExhaustedError) as caught,
+    ):
+        gate.require()
+    message = str(caught.value)
+    assert "docker restart kafka" in message
+    assert "accounting-service" in message  # T7.27: the consumers, or they never reconnect
+    assert "PAUSE, NOT A DISCARD" in message
+
+
+def test_a_pipeline_that_is_down_outranks_headroom() -> None:
+    """Priority is deliberate: a missing harness is not clearable by recycling a container."""
+    broken = reading_with(ingest=False, memory=[("kafka", 95.0, "1.9GiB / 2GiB")])
+    with patch.object(gate, "read", return_value=broken), pytest.raises(gate.PipelineDownError):
+        gate.require()
+
+
+def test_the_sweep_position_is_recorded_so_a_recycle_is_visible_afterwards() -> None:
+    """Provenance: kafka is not constant across a sweep that paused and was recycled, and the
+    only way a reader can see that is two consecutive runs whose percent falls rather than rises.
+    """
+    reading = gate.GateReading()
+    reading.headroom = gate.headroom_for(
+        usage=[("kafka", 44.0, "0.88GiB / 2GiB")], runs_remaining=3
+    )
+    recorded = reading.as_dict()["headroom"]
+    assert recorded is not None
+    assert recorded["runs_remaining"] == 3
+    assert recorded["percent_now"] == pytest.approx(44.0)
+
+
+def test_the_runs_remaining_flag_is_accepted_and_defaults_to_unset() -> None:
+    from evalharness.run import parser
+
+    assert parser().parse_args(["cart-redis-misconfig"]).runs_remaining is None
+    assert (
+        parser().parse_args(["cart-redis-misconfig", "--runs-remaining", "8"]).runs_remaining == 8
+    )

@@ -1573,6 +1573,87 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.32 — bind the gate to the sweep, and make refusal actionable *(gate logic; no digest moves)*
+**Done** (`gate.py`, `run.py`, twelve tests). T7.31's gate is correct per run and blind to the
+sweep, and its own entry said so. T7.29 is the proof: every run passed a single-run check and the
+sweep was already doomed at run 1.
+
+**No digest moves - re-enumerated rather than carried forward from T7.31.** `compose_digest` is
+`docker-compose.yml` + `../compose/world-arm64.override.yml` + `../compose/telemetry.yml`, taken
+from `InjectorSettings.compose_files`; `observability_digest` is its seven named files;
+`ffs_stub_source_digest` is `compose/ffs-stub/`; the stamp is package version + role `*_SYSTEM`
+prompts + `UNTRUSTED_RULE` + contract schemas; `CAPABILITY_VERSION` is `{tools, capture_set,
+tool_behaviour_revision}`. **Neither `gate.py` nor `run.py` is an input to any of them.** The answer
+matches T7.31's, which is the point of checking rather than assuming it.
+
+**Change 1 - the sweep declares remaining work, not total.** `--runs-remaining N` on
+`faultline-eval`, recomputed every run: run 1 of eight asks for eight runs' headroom, run 7 asks
+for two. Same rate, same formula, only the horizon moves. A static sweep bound would be wrong in
+the other direction - refusing at run 1 for work a recycle would have made fine, and growing more
+wrong with every run completed.
+
+The duration for multi-run work is **`SWEEP_RUN_HOURS` = 2.78/8 = 0.3475h**, T7.29's measured mean
+including settle, pinned to that citation by test. It is deliberately *not* `RUN_BUDGET_SECONDS`:
+that is the worst case one run may reach, right when a single run cannot be averaged, but applying
+it to N remaining runs asserts every one maxes out - 8 x 0.81h = 6.5h, which refuses any sweep on
+any world. **A consequence worth stating: `--runs-remaining 1` is more permissive than passing no
+flag at all** (87.4% against 84.0%), because declaring "one typical run" is better information than
+"assume the bound".
+
+**Change 2 - a refusal that names its remedy, and pauses instead of discarding.**
+`HeadroomExhaustedError` is the one gate condition with a known, cheap, complete fix: a restart
+returns kafka to ~26% (T7.30). **It is a pause, not a discard** - nothing was injected and the
+scenario was never attempted, so counting it as a run that produced no result would inflate the
+number ADR-0022 §3.3 keeps honest. `faultline-eval` returns **exit 5**, writes `paused` into the
+manifest, and writes no `DISCARDED.md`.
+
+**The harness does not recycle by itself, and that is a decision rather than an omission.** It
+could; it does not, for three reasons pointing the same way. **One driver of the world at a time** -
+a harness restarting containers mid-sweep is driving the world, which is what the world lock exists
+to prevent. **The repository already says not to** - `require_memory_headroom` tells the operator to
+cycle "between batches and never during one", and a gate that recycles mid-sweep contradicts a
+committed instruction from the same subsystem. **And the remedy is two steps** - restarting kafka
+strands `accountingservice`, which does not self-heal (T7.27), so a half-applied automatic remedy
+leaves the world quietly broken in a way the next gate cannot catch, because a stranded consumer is
+silent rather than alerting. Where convenience and the one-driver rule conflict, this chooses the
+operator.
+
+**The honesty check, T7.29 replayed run by run under the new binding:**
+
+| | scoped to remaining work |
+|---|---|
+| runs 1-8, **no recycle** | **every one refuses** - correct; the sweep never fits from 69.95% |
+| run 1 **after a recycle** to 26.27% | passes, and so do all eight; sweep ends at **47.0%** |
+
+**It does not recover T7.31's false refusal on run 7, and no such improvement is claimed.** Run 7
+still refuses. What changes is that the refusal becomes *correct*: run 7 alone stayed under the
+guard, so refusing it as a single run was wrong, but runs 7 and 8 together do cross it, so refusing
+it as "two runs still to come" is right. Same verdict, different question, and a test says so.
+
+**The improvement that the replay does show** is where the stop lands. T7.31 ran six scenarios,
+then refused the seventh wrongly and the eighth rightly, having already reached 90.69%. T7.32 stops
+at run 1, when nothing has been spent, and after a one-minute remedy all eight complete with the
+guard never approached.
+
+**A real limit, asserted rather than hidden: a false-pass window 0.243 points wide.** The published
+rate is 151.0 MB/h and T7.29's actual was 421/2.78 = **151.44**, so the model is ~0.3% optimistic -
+a quarter of a point over eight runs. A sweep starting in **(69.26%, 69.50%]** passes the gate and
+still finishes marginally over 90%. The rate is left at the published figure rather than tuned to
+close the window, and a test pins the width so a future edit cannot widen it silently.
+
+**Provenance: kafka is no longer constant across a sweep that paused.** If the operator recycles
+and continues, the sweep's runs no longer share a kafka state, and that is a fact the bundles must
+carry. `runs_remaining` is recorded next to T7.31's fields in `GateReading`, so **two consecutive
+runs whose `percent_now` falls rather than rises is a recycle** - the only way a reader can see the
+discontinuity afterwards.
+
+**What remains unaddressed.** This **bounds the damage; it does not stop the growth.** kafka still
+fills at 151 MB/h under load, the mechanism is still Rosetta translation cache (ADR-0005's T7.30
+addendum), and no gate reaches it. The real fixes are unchanged: recycle between batches, or native
+arm64 images - the only one that removes the mechanism. The binding is also **opt-in**: a sweep that
+does not pass `--runs-remaining` gets T7.31's per-run behaviour and its blindness, so this is a
+tool the driver must pick up rather than a property of the harness.
+
 ### T7.31 — make the kafka precondition refuse *(gate logic; no digest moves)*
 **Done** (`src/evalharness/gate.py`, thirteen tests). T7.30 ended by making "recycle kafka before
 recording" a precondition, and a precondition that lives in a PLAN entry is the failure mode this
