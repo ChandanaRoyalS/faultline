@@ -11,7 +11,7 @@
 | injected at | `product-catalog-service` via `productcatalog-dependency-latency` |
 | time to page | 3m49s |
 | steady state captured | 300s |
-| capture window | 2026-08-28T05:04:23+00:00 → 2026-08-28T05:22:44+00:00 |
+| capture window | 2026-08-30T00:42:36+00:00 → 2026-08-30T01:00:26+00:00 |
 
 The clock below runs from the moment the fault went in.
 
@@ -20,17 +20,17 @@ The clock below runs from the moment the fault went in.
 | `t_inject` | T+0m00s |
 | first alert firing | T+3m49s |
 | `t_revert` | T+8m49s |
-| all clear | T+11m21s |
+| all clear | T+10m50s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m30s | `checkoutservice` | ServiceHighLatency | 6.8 min | **paged** |
-| T+3m30s | `frontend` | ServiceHighLatency | 7.2 min | **paged** |
 | T+3m30s | `loadgenerator` | ServiceHighLatency | 7.2 min | **paged** |
-| T+3m30s | `recommendationservice` | ServiceHighLatency | 7.5 min | **paged** |
-| T+4m30s | `productcatalogservice` | ServiceHighLatency | 6.2 min | joined later |
+| T+3m45s | `frontend` | ServiceHighLatency | 7.0 min | joined later |
+| T+3m45s | `productcatalogservice` | ServiceHighLatency | 6.8 min | joined later |
+| T+3m45s | `recommendationservice` | ServiceHighLatency | 7.0 min | joined later |
+| T+4m00s | `checkoutservice` | ServiceHighLatency | 6.5 min | joined later |
 
 ## What the bundle contains
 
@@ -42,7 +42,7 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="productcatalogservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/product-catalog-service.txt` — 7 lines.
+`logs/product-catalog-service.txt` — 9 lines.
 
 ## The incident record
 
@@ -59,8 +59,9 @@ bundle are the tiebreak.
 
 ### What was observed
 
-Four `ServiceHighLatency` alerts fired together: **checkoutservice**, **frontend**,
-**loadgenerator** and **recommendationservice**. The page arrived 3m49s after things
+The page was a single alert: `ServiceHighLatency` on **loadgenerator**. **frontend**,
+**productcatalogservice** and **recommendationservice** joined fifteen seconds later, and
+**checkoutservice** fifteen seconds after that — five alerts across five services. The page arrived 3m49s after things
 started slowing.
 
 **productcatalogservice** — the service the delay was actually on — joined a full minute

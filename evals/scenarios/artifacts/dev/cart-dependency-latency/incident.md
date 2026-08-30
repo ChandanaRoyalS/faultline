@@ -2,20 +2,20 @@
 origin: scenario:cart-dependency-latency
 split: dev
 fault_class: dependency_latency
-recorded_from: 2026-08-28T03:10:51+00:00
+recorded_from: 2026-08-29T23:27:42+00:00
 capability: cap:9c416e0a
-onset_to_page: 3m49s
+onset_to_page: 3m50s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m32s
+fix_to_all_clear: 2m16s
 ---
 
 # Cart service network path acquires 300ms of delay
 
 ## What was observed
 
-The page named two services: `ServiceHighLatency` on **cartservice** and
-**loadgenerator**, 3m49s after things started slowing. **checkoutservice** and
-**frontend** followed fifteen seconds later, for four alerts across four services.
+The page named three services in the same evaluation: `ServiceHighLatency` on
+**cartservice**, **frontend** and **loadgenerator**, 3m50s after things started slowing.
+**checkoutservice** followed fifteen seconds later, for four alerts across four services.
 
 No errors. Not one. Every request succeeded; they simply took longer. The storefront
 worked end to end — adding to a basket returned normally, just sluggishly.
@@ -80,7 +80,7 @@ there was nothing to roll back or revert; the container simply needed replacing.
 
 ## Detection notes
 
-- Onset to first page: **3m49s**, against a three-minute persistence clause. Detection
+- Onset to first page: **3m50s**, against a three-minute persistence clause. Detection
   is dominated by the clause, not by how long the signal took to appear — the underlying
   measurement crossed the threshold almost immediately.
 - Services alerting at the page: **2**. Over the whole incident: **4**. The blast radius

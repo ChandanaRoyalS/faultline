@@ -9,25 +9,25 @@
 | expected remediation | `rollback` |
 | split | `holdout` |
 | injected at | `emailservice` via `email-wrong-image` |
-| time to page | 4m01s |
+| time to page | 3m46s |
 | steady state captured | 300s |
-| capture window | 2026-08-28T04:49:58+00:00 → 2026-08-28T05:07:44+00:00 |
+| capture window | 2026-08-29T23:55:10+00:00 → 2026-08-30T00:11:41+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+4m01s |
-| `t_revert` | T+9m01s |
-| all clear | T+10m46s |
+| first alert firing | T+3m46s |
+| `t_revert` | T+8m46s |
+| all clear | T+9m31s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m45s | `checkoutservice` | ServiceHighErrorRate | 6.8 min | **paged** |
-| T+6m15s | `emailservice` | ServiceNoTraffic | 3.2 min | joined later |
+| T+3m30s | `checkoutservice` | ServiceHighErrorRate | 6.0 min | **paged** |
+| T+6m00s | `emailservice` | ServiceNoTraffic | 3.2 min | joined later |
 
 ## What the bundle contains
 
@@ -39,28 +39,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="emailservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/email-service.txt` — 192 lines.
+`logs/email-service.txt` — 172 lines.
 
 ## A look at the logs
 
-From `logs/email-service.txt` (186 lines):
+From `logs/email-service.txt` (166 lines):
 
 ```
-2026-08-28T04:50:14+00:00  172.18.0.20 - - [28/Aug/2026:04:50:14 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:50:16+00:00  172.18.0.20 - - [28/Aug/2026:04:50:16 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:50:19+00:00  172.18.0.20 - - [28/Aug/2026:04:50:19 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:50:19+00:00  172.18.0.20 - - [28/Aug/2026:04:50:19 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:50:22+00:00  172.18.0.20 - - [28/Aug/2026:04:50:22 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0015
-2026-08-28T04:50:35+00:00  172.18.0.20 - - [28/Aug/2026:04:50:35 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:50:45+00:00  172.18.0.20 - - [28/Aug/2026:04:50:45 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
-2026-08-28T04:50:55+00:00  172.18.0.20 - - [28/Aug/2026:04:50:55 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:50:59+00:00  172.18.0.20 - - [28/Aug/2026:04:50:59 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
-2026-08-28T04:51:08+00:00  172.18.0.20 - - [28/Aug/2026:04:51:08 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0027
-2026-08-28T04:51:08+00:00  172.18.0.20 - - [28/Aug/2026:04:51:08 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
-2026-08-28T04:51:12+00:00  172.18.0.20 - - [28/Aug/2026:04:51:12 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
+2026-08-29T23:55:16+00:00  172.18.0.20 - - [29/Aug/2026:23:55:16 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0037
+2026-08-29T23:55:25+00:00  172.18.0.20 - - [29/Aug/2026:23:55:25 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
+2026-08-29T23:55:27+00:00  172.18.0.20 - - [29/Aug/2026:23:55:27 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
+2026-08-29T23:55:48+00:00  172.18.0.20 - - [29/Aug/2026:23:55:48 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0021
+2026-08-29T23:56:07+00:00  172.18.0.20 - - [29/Aug/2026:23:56:07 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0022
+2026-08-29T23:56:09+00:00  172.18.0.20 - - [29/Aug/2026:23:56:09 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:56:37+00:00  172.18.0.20 - - [29/Aug/2026:23:56:37 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
+2026-08-29T23:57:02+00:00  172.18.0.20 - - [29/Aug/2026:23:57:02 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:57:26+00:00  172.18.0.20 - - [29/Aug/2026:23:57:26 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:57:28+00:00  172.18.0.20 - - [29/Aug/2026:23:57:28 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0021
+2026-08-29T23:57:31+00:00  172.18.0.20 - - [29/Aug/2026:23:57:31 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
+2026-08-29T23:57:33+00:00  172.18.0.20 - - [29/Aug/2026:23:57:33 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
 ```
 
-_174 further lines are in the bundle._
+_154 further lines are in the bundle._
 
 ## The incident record
 
@@ -77,7 +77,7 @@ bundle are the tiebreak.
 
 ### What was observed
 
-The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 4m01s after
+The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m46s after
 onset.
 
 On the storefront, browsing, search and basket operations were normal. Checkout failed.
@@ -147,7 +147,7 @@ fix was to put the previous one back.
 
 ### Detection notes
 
-- Onset to first page: **4m01s**.
+- Onset to first page: **3m46s**.
 - Services alerting at the page: **1**. Over the whole incident: **2**, across 2 alerts.
 - Alerts that fired only during recovery: **none**.
 - **The broken service alerted last, and on absence rather than failure.** Its only alert

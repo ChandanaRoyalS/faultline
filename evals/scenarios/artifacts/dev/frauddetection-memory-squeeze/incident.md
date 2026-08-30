@@ -2,18 +2,18 @@
 origin: scenario:frauddetection-memory-squeeze
 split: dev
 fault_class: resource_exhaustion
-recorded_from: 2026-08-28T03:35:27+00:00
+recorded_from: 2026-08-30T00:15:07+00:00
 capability: cap:9c416e0a
-onset_to_page: 6m30s
+onset_to_page: 6m15s
 page_to_fix: 5m00s
-fix_to_all_clear: 1m31s
+fix_to_all_clear: 45s
 ---
 
 # Fraud detection service memory limit cut below its working set
 
 ## What was observed
 
-One alert. `ServiceNoTraffic` on **frauddetectionservice**, 6m30s after onset. Nothing
+One alert. `ServiceNoTraffic` on **frauddetectionservice**, 6m15s after onset. Nothing
 else fired for the entire incident.
 
 The storefront was perfect throughout. Product pages, search, basket, checkout, payment
@@ -83,7 +83,7 @@ one resource limit was wrong and was put back.
 
 ## Detection notes
 
-- Onset to first page: **6m30s**, the slowest on this system, and it is a function of
+- Onset to first page: **6m15s**, the slowest on this system, and it is a function of
   traffic rate rather than of severity. At one call every ten seconds a two-minute rate
   window empties slowly and the persistence clause starts late. The same fault on a
   busy service pages in under three minutes. The figure is also the least stable one

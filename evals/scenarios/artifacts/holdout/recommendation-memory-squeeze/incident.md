@@ -2,19 +2,20 @@
 origin: scenario:recommendation-memory-squeeze
 split: holdout
 fault_class: resource_exhaustion
-recorded_from: 2026-08-28T05:20:49+00:00
+recorded_from: 2026-08-30T01:03:52+00:00
 capability: cap:9c416e0a
-onset_to_page: 4m30s
+onset_to_page: 4m45s
 page_to_fix: 5m00s
-fix_to_all_clear: 3m01s
+fix_to_all_clear: 1m45s
 ---
 
 # Recommendation service memory limit cut below what its runtime needs to start
 
 ## What was observed
 
-The page was two alerts: `ServiceHighErrorRate` on **frontend** and **loadgenerator**.
-It arrived 4m30s after onset.
+The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, with **frontend**
+joining fifteen seconds later.
+It arrived 4m45s after onset.
 
 `ServiceNoTraffic` fired on **recommendationservice** at **T+6m15s**, a minute and
 three-quarters after the page and the only alert naming the broken service.
@@ -85,7 +86,7 @@ one resource limit was wrong and was put back.
 
 ## Detection notes
 
-- Onset to first page: **4m30s**. A dependency whose failure is tolerated by its caller
+- Onset to first page: **4m45s**. A dependency whose failure is tolerated by its caller
   takes longer to page than one whose failure is fatal — partial degradation crosses a
   ratio threshold slowly.
 - Services alerting at the page: **2**. Over the whole incident: **3**, across 3 alerts.

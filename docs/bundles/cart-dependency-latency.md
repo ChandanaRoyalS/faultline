@@ -9,27 +9,27 @@
 | expected remediation | `restart` |
 | split | `dev` |
 | injected at | `cart-service` via `cart-dependency-latency` |
-| time to page | 3m49s |
+| time to page | 3m50s |
 | steady state captured | 300s |
-| capture window | 2026-08-28T03:05:51+00:00 → 2026-08-28T03:24:12+00:00 |
+| capture window | 2026-08-29T23:22:42+00:00 → 2026-08-29T23:40:48+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+3m49s |
-| `t_revert` | T+8m49s |
-| all clear | T+11m21s |
+| first alert firing | T+3m50s |
+| `t_revert` | T+8m50s |
+| all clear | T+11m06s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m30s | `cartservice` | ServiceHighLatency | 7.5 min | **paged** |
-| T+3m30s | `loadgenerator` | ServiceHighLatency | 7.2 min | **paged** |
-| T+3m45s | `checkoutservice` | ServiceHighLatency | 7.0 min | joined later |
-| T+3m45s | `frontend` | ServiceHighLatency | 7.0 min | joined later |
+| T+3m45s | `cartservice` | ServiceHighLatency | 7.2 min | **paged** |
+| T+3m45s | `frontend` | ServiceHighLatency | 7.2 min | **paged** |
+| T+3m45s | `loadgenerator` | ServiceHighLatency | 7.2 min | **paged** |
+| T+4m00s | `checkoutservice` | ServiceHighLatency | 6.8 min | joined later |
 
 ## What the bundle contains
 
@@ -48,18 +48,18 @@ The clock below runs from the moment the fault went in.
 From `logs/cart-service.txt` (500 lines):
 
 ```
-2026-08-28T03:05:55+00:00  AddItemAsync called with userId=627d5eee-a28d-11f1-ac74-5e36fd0150fc, productId=6E92ZMYYFZ, quantity=1
-2026-08-28T03:05:55+00:00  GetCartAsync called with userId=627d5eee-a28d-11f1-ac74-5e36fd0150fc
-2026-08-28T03:05:55+00:00  GetCartAsync called with userId=627d5eee-a28d-11f1-ac74-5e36fd0150fc
-2026-08-28T03:05:55+00:00  EmptyCartAsync called with userId=627d5eee-a28d-11f1-ac74-5e36fd0150fc
-2026-08-28T03:05:56+00:00  GetCartAsync called with userId=
-2026-08-28T03:05:56+00:00  AddItemAsync called with userId=6342d4b2-a28d-11f1-ac74-5e36fd0150fc, productId=L9ECAV7KIM, quantity=1
-2026-08-28T03:05:56+00:00  GetCartAsync called with userId=6342d4b2-a28d-11f1-ac74-5e36fd0150fc
-2026-08-28T03:05:56+00:00  AddItemAsync called with userId=6342d4b2-a28d-11f1-ac74-5e36fd0150fc, productId=1YMWWN1N4O, quantity=1
-2026-08-28T03:05:56+00:00  GetCartAsync called with userId=6342d4b2-a28d-11f1-ac74-5e36fd0150fc
-2026-08-28T03:05:56+00:00  GetCartAsync called with userId=6342d4b2-a28d-11f1-ac74-5e36fd0150fc
-2026-08-28T03:05:56+00:00  EmptyCartAsync called with userId=6342d4b2-a28d-11f1-ac74-5e36fd0150fc
-2026-08-28T03:05:57+00:00  AddItemAsync called with userId=63ce5fdc-a28d-11f1-ac74-5e36fd0150fc, productId=L9ECAV7KIM, quantity=2
+2026-08-29T23:22:42+00:00  AddItemAsync called with userId=88a22f22-a400-11f1-8c4e-9e12df7a2593, productId=0PUK6V6EV0, quantity=3
+2026-08-29T23:22:42+00:00  GetCartAsync called with userId=88a22f22-a400-11f1-8c4e-9e12df7a2593
+2026-08-29T23:22:42+00:00  GetCartAsync called with userId=88a22f22-a400-11f1-8c4e-9e12df7a2593
+2026-08-29T23:22:42+00:00  EmptyCartAsync called with userId=88a22f22-a400-11f1-8c4e-9e12df7a2593
+2026-08-29T23:22:44+00:00  AddItemAsync called with userId=89da3600-a400-11f1-8c4e-9e12df7a2593, productId=66VCHSJNUP, quantity=5
+2026-08-29T23:22:44+00:00  GetCartAsync called with userId=89da3600-a400-11f1-8c4e-9e12df7a2593
+2026-08-29T23:22:44+00:00  GetCartAsync called with userId=89da3600-a400-11f1-8c4e-9e12df7a2593
+2026-08-29T23:22:44+00:00  EmptyCartAsync called with userId=89da3600-a400-11f1-8c4e-9e12df7a2593
+2026-08-29T23:22:48+00:00  AddItemAsync called with userId=8c076f60-a400-11f1-8c4e-9e12df7a2593, productId=1YMWWN1N4O, quantity=2
+2026-08-29T23:22:48+00:00  GetCartAsync called with userId=8c076f60-a400-11f1-8c4e-9e12df7a2593
+2026-08-29T23:22:48+00:00  AddItemAsync called with userId=8c076f60-a400-11f1-8c4e-9e12df7a2593, productId=OLJCESPC7Z, quantity=4
+2026-08-29T23:22:48+00:00  GetCartAsync called with userId=8c076f60-a400-11f1-8c4e-9e12df7a2593
 ```
 
 _488 further lines are in the bundle._
@@ -79,9 +79,9 @@ bundle are the tiebreak.
 
 ### What was observed
 
-The page named two services: `ServiceHighLatency` on **cartservice** and
-**loadgenerator**, 3m49s after things started slowing. **checkoutservice** and
-**frontend** followed fifteen seconds later, for four alerts across four services.
+The page named three services in the same evaluation: `ServiceHighLatency` on
+**cartservice**, **frontend** and **loadgenerator**, 3m50s after things started slowing.
+**checkoutservice** followed fifteen seconds later, for four alerts across four services.
 
 No errors. Not one. Every request succeeded; they simply took longer. The storefront
 worked end to end — adding to a basket returned normally, just sluggishly.
@@ -146,7 +146,7 @@ there was nothing to roll back or revert; the container simply needed replacing.
 
 ### Detection notes
 
-- Onset to first page: **3m49s**, against a three-minute persistence clause. Detection
+- Onset to first page: **3m50s**, against a three-minute persistence clause. Detection
   is dominated by the clause, not by how long the signal took to appear — the underlying
   measurement crossed the threshold almost immediately.
 - Services alerting at the page: **2**. Over the whole incident: **4**. The blast radius

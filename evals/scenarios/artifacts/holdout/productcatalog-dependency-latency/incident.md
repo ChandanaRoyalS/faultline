@@ -2,19 +2,20 @@
 origin: scenario:productcatalog-dependency-latency
 split: holdout
 fault_class: dependency_latency
-recorded_from: 2026-08-28T05:09:23+00:00
+recorded_from: 2026-08-30T00:47:36+00:00
 capability: cap:9c416e0a
 onset_to_page: 3m49s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m32s
+fix_to_all_clear: 2m01s
 ---
 
 # Product catalog network path acquires 300ms of delay, slowing every caller
 
 ## What was observed
 
-Four `ServiceHighLatency` alerts fired together: **checkoutservice**, **frontend**,
-**loadgenerator** and **recommendationservice**. The page arrived 3m49s after things
+The page was a single alert: `ServiceHighLatency` on **loadgenerator**. **frontend**,
+**productcatalogservice** and **recommendationservice** joined fifteen seconds later, and
+**checkoutservice** fifteen seconds after that — five alerts across five services. The page arrived 3m49s after things
 started slowing.
 
 **productcatalogservice** — the service the delay was actually on — joined a full minute

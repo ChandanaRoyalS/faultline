@@ -1,5 +1,14 @@
 # Dev sweep 4 — 2026-08-27, the evidence-class instruction
 
+> **World: superseded (T7.28).** Every figure on this page was measured against
+> `compose_digest 299d791c5e0d…`. The world moved on 2026-08-30 - kafka's allocator bounded, a
+> `maxmemory`/`allkeys-lru` bound on redis-cart, and a `memory_limiter` on the collector - and the
+> catalog was re-recorded under `compose_digest f5bd108f…` / `observability_digest 857d95b4…`.
+>
+> **These numbers describe the old world and nothing has been re-run against the new one.** They
+> are not current-world figures; there are no current-world figures. What is worth measuring
+> against the new world is a separate pre-registered decision.
+
 The experiment T4.11 named, with its mechanism registered in advance
 ([`PREREGISTRATION-2026-08-27-evidence.md`](PREREGISTRATION-2026-08-27-evidence.md), committed
 before any scenario ran).

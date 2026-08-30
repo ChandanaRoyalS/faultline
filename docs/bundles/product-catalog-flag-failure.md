@@ -9,27 +9,27 @@
 | expected remediation | `config_revert` |
 | split | `dev` |
 | injected at | `featureflagservice` via `product-catalog-flag-failure` |
-| time to page | 4m04s |
+| time to page | 3m49s |
 | steady state captured | 300s |
-| capture window | 2026-08-28T03:48:07+00:00 → 2026-08-28T04:05:45+00:00 |
+| capture window | 2026-08-30T00:27:33+00:00 → 2026-08-30T00:44:10+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+4m04s |
-| `t_revert` | T+9m04s |
-| all clear | T+10m38s |
+| first alert firing | T+3m49s |
+| `t_revert` | T+8m49s |
+| all clear | T+9m37s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m45s | `loadgenerator` | ServiceHighErrorRate | 6.8 min | **paged** |
-| T+4m15s | `frontend` | ServiceHighErrorRate | 3.8 min | joined later |
-| T+4m15s | `productcatalogservice` | ServiceHighErrorRate | 6.2 min | joined later |
-| T+10m15s | `frontend` | ServiceHighErrorRate | 0.2 min | began after the revert |
+| T+3m30s | `loadgenerator` | ServiceHighErrorRate | 5.8 min | **paged** |
+| T+3m45s | `frontend` | ServiceHighErrorRate | 5.5 min | joined later |
+| T+3m45s | `productcatalogservice` | ServiceHighErrorRate | 5.5 min | joined later |
+| T+7m15s | `checkoutservice` | ServiceHighErrorRate | 0.8 min | joined later |
 
 ## What the bundle contains
 
@@ -48,8 +48,8 @@ The clock below runs from the moment the fault went in.
 From `logs/feature-flag-service.txt` (2 lines):
 
 ```
-2026-08-28T03:53:11+00:00  ffs-stub listening on :50053; enabled flags: productCatalogFailure
-2026-08-28T04:02:15+00:00  ffs-stub listening on :50053; enabled flags: none
+2026-08-30T00:32:37+00:00  ffs-stub listening on :50053; enabled flags: productCatalogFailure
+2026-08-30T00:41:25+00:00  ffs-stub listening on :50053; enabled flags: none
 ```
 
 
@@ -68,12 +68,12 @@ bundle are the tiebreak.
 
 ### What was observed
 
-The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, 4m04s after
-onset. Fifteen seconds later **frontend** and **productcatalogservice** joined it.
+The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, 3m49s after
+onset. Fifteen seconds later **frontend** and **productcatalogservice** joined it, and
+**checkoutservice** almost four minutes after that.
 
-Three services alerted during the failure and the set never grew. A fourth alert fired
-after the fix: frontend crossed the threshold again for about twelve seconds during
-recovery, on a service that had already been alerting throughout.
+Four services alerted during the failure and the set never grew. Nothing fired after the
+fix.
 
 On the storefront most product pages rendered normally. One did not — it returned an
 error every time, while everything around it worked. Baskets, checkout and payment were
@@ -132,7 +132,7 @@ back to; one configuration value was wrong and was set back.
 
 ### Detection notes
 
-- Onset to first page: **4m04s**.
+- Onset to first page: **3m49s**.
 - Services alerting at the page: **1**. Over the whole incident: **3**, across 4 alerts.
 - Alerts that fired only during recovery: **1** — frontend, about twelve seconds, after
   the fix had already gone in. It names a service that was genuinely part of the failure,

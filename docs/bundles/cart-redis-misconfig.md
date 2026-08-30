@@ -9,33 +9,33 @@
 | expected remediation | `config_revert` |
 | split | `dev` |
 | injected at | `cartservice` via `cart-redis-misconfig` |
-| time to page | 2m46s |
+| time to page | 3m01s |
 | steady state captured | 300s |
-| capture window | 2026-08-28T03:17:17+00:00 → 2026-08-28T03:34:49+00:00 |
+| capture window | 2026-08-29T23:39:13+00:00 → 2026-08-29T23:56:44+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+2m46s |
-| `t_revert` | T+7m46s |
-| all clear | T+10m32s |
+| first alert firing | T+3m01s |
+| `t_revert` | T+8m01s |
+| all clear | T+10m31s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+2m30s | `loadgenerator` | ServiceHighErrorRate | 7.8 min | **paged** |
-| T+2m45s | `checkoutservice` | ServiceHighErrorRate | 7.0 min | joined later |
-| T+2m45s | `frontend` | ServiceHighErrorRate | 7.5 min | joined later |
-| T+6m00s | `accountingservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m00s | `currencyservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m00s | `emailservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m00s | `frauddetectionservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m00s | `quoteservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m00s | `shippingservice` | ServiceNoTraffic | 2.5 min | joined later |
+| T+3m00s | `frontend` | ServiceHighErrorRate | 7.2 min | **paged** |
+| T+3m00s | `loadgenerator` | ServiceHighErrorRate | 7.5 min | **paged** |
+| T+3m15s | `checkoutservice` | ServiceHighErrorRate | 6.8 min | joined later |
+| T+6m15s | `accountingservice` | ServiceNoTraffic | 2.2 min | joined later |
 | T+6m15s | `cartservice` | ServiceNoTraffic | 2.2 min | joined later |
+| T+6m15s | `currencyservice` | ServiceNoTraffic | 2.2 min | joined later |
+| T+6m15s | `emailservice` | ServiceNoTraffic | 2.5 min | joined later |
+| T+6m15s | `frauddetectionservice` | ServiceNoTraffic | 2.2 min | joined later |
+| T+6m15s | `quoteservice` | ServiceNoTraffic | 2.2 min | joined later |
+| T+6m15s | `shippingservice` | ServiceNoTraffic | 2.2 min | joined later |
 
 ## What the bundle contains
 
@@ -54,18 +54,18 @@ The clock below runs from the moment the fault went in.
 From `logs/cart-service.txt` (500 lines):
 
 ```
-2026-08-28T03:22:59+00:00  Unhandled exception. System.ApplicationException: Wasn't able to connect to redis
-2026-08-28T03:22:59+00:00     at cartservice.cartstore.RedisCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 89
-2026-08-28T03:22:59+00:00     at cartservice.cartstore.RedisCartStore.InitializeAsync() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 62
-2026-08-28T03:22:59+00:00     at Program.<Main>$(String[] args) in /usr/src/app/src/Program.cs:line 39
-2026-08-28T03:23:36+00:00  Unhandled exception. System.ApplicationException: Wasn't able to connect to redis
-2026-08-28T03:23:36+00:00     at cartservice.cartstore.RedisCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 89
-2026-08-28T03:23:36+00:00     at cartservice.cartstore.RedisCartStore.InitializeAsync() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 62
-2026-08-28T03:23:36+00:00     at Program.<Main>$(String[] args) in /usr/src/app/src/Program.cs:line 39
-2026-08-28T03:24:07+00:00  Unhandled exception. System.ApplicationException: Wasn't able to connect to redis
-2026-08-28T03:24:07+00:00     at cartservice.cartstore.RedisCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 89
-2026-08-28T03:24:07+00:00     at cartservice.cartstore.RedisCartStore.InitializeAsync() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 62
-2026-08-28T03:24:07+00:00     at Program.<Main>$(String[] args) in /usr/src/app/src/Program.cs:line 39
+2026-08-29T23:44:45+00:00  Unhandled exception. System.ApplicationException: Wasn't able to connect to redis
+2026-08-29T23:44:45+00:00     at cartservice.cartstore.RedisCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 89
+2026-08-29T23:44:45+00:00     at cartservice.cartstore.RedisCartStore.InitializeAsync() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 62
+2026-08-29T23:44:45+00:00     at Program.<Main>$(String[] args) in /usr/src/app/src/Program.cs:line 39
+2026-08-29T23:45:16+00:00  Unhandled exception. System.ApplicationException: Wasn't able to connect to redis
+2026-08-29T23:45:16+00:00     at cartservice.cartstore.RedisCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 89
+2026-08-29T23:45:16+00:00     at cartservice.cartstore.RedisCartStore.InitializeAsync() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 62
+2026-08-29T23:45:16+00:00     at Program.<Main>$(String[] args) in /usr/src/app/src/Program.cs:line 39
+2026-08-29T23:45:58+00:00  Unhandled exception. System.ApplicationException: Wasn't able to connect to redis
+2026-08-29T23:45:58+00:00     at cartservice.cartstore.RedisCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 89
+2026-08-29T23:45:58+00:00     at cartservice.cartstore.RedisCartStore.InitializeAsync() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 62
+2026-08-29T23:45:58+00:00     at Program.<Main>$(String[] args) in /usr/src/app/src/Program.cs:line 39
 ```
 
 _488 further lines are in the bundle._
@@ -85,8 +85,9 @@ bundle are the tiebreak.
 
 ### What was observed
 
-The page named one service: `ServiceHighErrorRate` on **loadgenerator**, 2m46s after the
-first bad request. **frontend** and **checkoutservice** joined fifteen seconds later.
+The page named two services together: `ServiceHighErrorRate` on **loadgenerator** and
+**frontend**, 3m01s after the first bad request. **checkoutservice** joined fifteen seconds
+later.
 
 On the storefront, product pages rendered normally. Adding anything to a basket failed.
 
@@ -158,14 +159,14 @@ was an absence of data, not an absence of problems.
 
 `REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and
 the no-traffic alerts cleared — those six services had never been broken, only starved.
-Everything was clear at **T+10m32s**, 2m46s after the fix.
+Everything was clear at **T+10m32s**, 3m01s after the fix.
 
 Class of fix: **config_revert**. Nothing had been deployed and there was no version to
 roll back to — one environment value was wrong.
 
 ### Detection notes
 
-- Onset to first page: **2m46s**.
+- Onset to first page: **3m01s**.
 - Services alerting at the page: **1**. Over the whole incident: **10**, across 10
   alerts.
 - Alerts that fired only during recovery: **none**. Every alert in this window belongs

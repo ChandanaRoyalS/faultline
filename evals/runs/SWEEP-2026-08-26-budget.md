@@ -1,5 +1,14 @@
 # Dev sweep 3 — 2026-08-26, the `changes` bound raised
 
+> **World: superseded (T7.28).** Every figure on this page was measured against
+> `compose_digest 299d791c5e0d…`. The world moved on 2026-08-30 - kafka's allocator bounded, a
+> `maxmemory`/`allkeys-lru` bound on redis-cart, and a `memory_limiter` on the collector - and the
+> catalog was re-recorded under `compose_digest f5bd108f…` / `observability_digest 857d95b4…`.
+>
+> **These numbers describe the old world and nothing has been re-run against the new one.** They
+> are not current-world figures; there are no current-world figures. What is worth measuring
+> against the new world is a separate pre-registered decision.
+
 The manipulation that separates the confound
 [HOLDOUT-2026-08-26.md](HOLDOUT-2026-08-26.md) left open: on holdout, abstention lined up exactly
 with `changes`-budget exhaustion; on dev it did not. **Same stamp, same harness, same protocol —

@@ -1,5 +1,14 @@
 # Variance on the abstention path — `product-catalog-flag-failure`, five repeats
 
+> **World: superseded (T7.28).** Every figure on this page was measured against
+> `compose_digest 299d791c5e0d…`. The world moved on 2026-08-30 - kafka's allocator bounded, a
+> `maxmemory`/`allkeys-lru` bound on redis-cart, and a `memory_limiter` on the collector - and the
+> catalog was re-recorded under `compose_digest f5bd108f…` / `observability_digest 857d95b4…`.
+>
+> **These numbers describe the old world and nothing has been re-run against the new one.** They
+> are not current-world figures; there are no current-world figures. What is worth measuring
+> against the new world is a separate pre-registered decision.
+
 T4.11. The complement to [T4.10](VARIANCE-2026-08-27.md), which measured run-to-run
 variance on a scenario the agent answers. This measures it on a scenario the agent
 does not.
