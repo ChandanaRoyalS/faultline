@@ -36,15 +36,15 @@ Accuracy is over **answered** runs; abstentions leave the ratio and appear as co
 | fault class | n | S1 fault | S2 fault | S1 fix | S2 fix | S2 abstained |
 |---|---|---|---|---|---|---|
 | `bad_config` | 2 | 2/2 | **1/1** | 2/2 | 1/1 | 1 |
+| `bad_deploy` | 2 | 2/2 | **1/1** | 2/2 | 1/1 | 1 |
+| `dependency_latency` | 1 | **0/1** | **1/1** | ~~0/1~~ **1/1** | ~~**0/1**~~ **1/1** | 0 |
+| `resource_exhaustion` | 2 | **0/2** | **1/1** | 2/2 | 1/1 | 1 |
+| ~~`scale`~~ | 0 | — | — | — | — | — |
 
 **`bad_config` gains a third dev scenario at T7.22 — `shipping-quote-misconfig` — and the
 n above does not move.** It is **recorded but not yet run by any agent**, so it contributes
 no accuracy to any cell here. The n in this table counts scored runs, not catalog entries,
 and it will move when a sweep includes it and not before.
-| `bad_deploy` | 2 | 2/2 | **1/1** | 2/2 | 1/1 | 1 |
-| `dependency_latency` | 1 | **0/1** | **1/1** | ~~0/1~~ **1/1** | ~~**0/1**~~ **1/1** | 0 |
-| `resource_exhaustion` | 2 | **0/2** | **1/1** | 2/2 | 1/1 | 1 |
-| ~~`scale`~~ | 0 | — | — | — | — | — |
 
 **The `scale` row is a mislabel, corrected at T7.13.** `scale` is a `RemediationClass`, not
 a `FaultClass` - it is not in the scenario schema's enum, not in the agent's answer space, and
