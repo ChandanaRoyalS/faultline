@@ -64,6 +64,12 @@ services:
   # question was asked, and that is what settled ARTIFACTS.md's decision not to re-record
   # the existing ten. Fifteen days is chosen so a bundle stays queryable across a whole
   # phase of work rather than a working day.
+  # T7.28: the collector's second --config, supplied from this repository rather than from the
+  # pinned clone. See compose/otelcol-extras.yml for why it cannot live at the demo's own path.
+  otelcol:
+    volumes:
+      - ../compose/otelcol-extras.yml:/etc/otelcol-config-extras.yml:ro
+
   prometheus:
     volumes:
       - ../compose/prometheus/prometheus-config.yaml:/etc/prometheus/faultline-prometheus.yaml:ro

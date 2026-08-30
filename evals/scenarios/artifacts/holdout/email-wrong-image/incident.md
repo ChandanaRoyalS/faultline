@@ -2,18 +2,18 @@
 origin: scenario:email-wrong-image
 split: holdout
 fault_class: bad_deploy
-recorded_from: 2026-08-28T04:54:58+00:00
+recorded_from: 2026-08-30T00:00:10+00:00
 capability: cap:9c416e0a
-onset_to_page: 4m01s
+onset_to_page: 3m46s
 page_to_fix: 5m00s
-fix_to_all_clear: 1m45s
+fix_to_all_clear: 45s
 ---
 
 # Email service deployed with another service's image
 
 ## What was observed
 
-The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 4m01s after
+The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m46s after
 onset.
 
 On the storefront, browsing, search and basket operations were normal. Checkout failed.
@@ -83,7 +83,7 @@ fix was to put the previous one back.
 
 ## Detection notes
 
-- Onset to first page: **4m01s**.
+- Onset to first page: **3m46s**.
 - Services alerting at the page: **1**. Over the whole incident: **2**, across 2 alerts.
 - Alerts that fired only during recovery: **none**.
 - **The broken service alerted last, and on absence rather than failure.** Its only alert

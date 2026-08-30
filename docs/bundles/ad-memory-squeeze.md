@@ -9,25 +9,25 @@
 | expected remediation | `config_revert` |
 | split | `dev` |
 | injected at | `ad-service` via `ad-memory-squeeze` |
-| time to page | 3m45s |
+| time to page | 3m30s |
 | steady state captured | 300s |
-| capture window | 2026-08-28T02:36:26+00:00 → 2026-08-28T02:53:56+00:00 |
+| capture window | 2026-08-29T22:49:04+00:00 → 2026-08-29T23:07:04+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+3m45s |
-| `t_revert` | T+8m45s |
-| all clear | T+10m30s |
+| first alert firing | T+3m30s |
+| `t_revert` | T+8m30s |
+| all clear | T+11m00s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m30s | `frontend` | ServiceHighErrorRate | 6.8 min | **paged** |
-| T+3m30s | `loadgenerator` | ServiceHighErrorRate | 6.8 min | **paged** |
+| T+3m15s | `frontend` | ServiceHighErrorRate | 7.5 min | **paged** |
+| T+3m15s | `loadgenerator` | ServiceHighErrorRate | 7.5 min | **paged** |
 | T+6m00s | `adservice` | ServiceNoTraffic | 4.0 min | joined later |
 
 ## What the bundle contains
@@ -40,28 +40,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="adservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/ad-service.txt` — 137 lines.
+`logs/ad-service.txt` — 151 lines.
 
 ## A look at the logs
 
-From `logs/ad-service.txt` (131 lines):
+From `logs/ad-service.txt` (145 lines):
 
 ```
-2026-08-28T02:41:26+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T02:41:26+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T02:41:26+00:00  [otel.javaagent 2026-08-28 02:41:26:874 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-08-28T02:41:29+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T02:41:30+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T02:41:30+00:00  [otel.javaagent 2026-08-28 02:41:30:194 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-08-28T02:41:33+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T02:41:33+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T02:41:34+00:00  [otel.javaagent 2026-08-28 02:41:34:129 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-08-28T02:41:37+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T02:41:37+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T02:41:38+00:00  [otel.javaagent 2026-08-28 02:41:38:078 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-08-29T22:54:04+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-29T22:54:04+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-29T22:54:04+00:00  [otel.javaagent 2026-08-29 22:54:04:974 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-08-29T22:54:07+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-29T22:54:07+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-29T22:54:08+00:00  [otel.javaagent 2026-08-29 22:54:08:079 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-08-29T22:54:11+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-29T22:54:11+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-29T22:54:11+00:00  [otel.javaagent 2026-08-29 22:54:11:518 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-08-29T22:54:14+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-29T22:54:15+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-29T22:54:15+00:00  [otel.javaagent 2026-08-29 22:54:15:213 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
 ```
 
-_119 further lines are in the bundle._
+_133 further lines are in the bundle._
 
 ## The incident record
 
@@ -79,7 +79,7 @@ bundle are the tiebreak.
 ### What was observed
 
 The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,
-3m45s after onset. No service between them and the edge was named, and both alerts then
+3m30s after onset. No service between them and the edge was named, and both alerts then
 stayed up continuously for the rest of the incident.
 
 Two and a half minutes later, at **T+6m00s**, `ServiceNoTraffic` fired on **adservice** —
@@ -105,7 +105,7 @@ dependency, and the storefront said which one before the alerting did.
 **adservice's logs, which is where this one breaks open.** Ordinary request lines up to
 eighteen seconds before onset, and then, from T+0 onward, **sixteen startup attempts**
 inside the fault window — each a JVM banner, the OpenTelemetry agent announcing itself,
-and then nothing. The last begins at T+8m27s, eighteen seconds before the fix. No line
+and then nothing. The last begins at T+8m27s, three seconds before the fix. No line
 explains a failure, because the process is being stopped before it can form an opinion
 about anything. **A truncated, repeating startup is a process being killed from
 outside**, and it is the strongest evidence in this incident.
@@ -147,7 +147,7 @@ one resource limit was wrong and was put back.
 
 ### Detection notes
 
-- Onset to first page: **3m45s**.
+- Onset to first page: **3m30s**.
 - Services alerting at the page: **2**. Over the whole incident: **3**, across 3
   alerts.
 - Alerts that fired only during recovery: **none**.

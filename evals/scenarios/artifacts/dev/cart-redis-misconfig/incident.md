@@ -2,19 +2,20 @@
 origin: scenario:cart-redis-misconfig
 split: dev
 fault_class: bad_config
-recorded_from: 2026-08-28T03:22:17+00:00
+recorded_from: 2026-08-29T23:44:13+00:00
 capability: cap:9c416e0a
-onset_to_page: 2m46s
+onset_to_page: 3m01s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m46s
+fix_to_all_clear: 2m30s
 ---
 
 # Cart service pointed at the wrong Redis port
 
 ## What was observed
 
-The page named one service: `ServiceHighErrorRate` on **loadgenerator**, 2m46s after the
-first bad request. **frontend** and **checkoutservice** joined fifteen seconds later.
+The page named two services together: `ServiceHighErrorRate` on **loadgenerator** and
+**frontend**, 3m01s after the first bad request. **checkoutservice** joined fifteen seconds
+later.
 
 On the storefront, product pages rendered normally. Adding anything to a basket failed.
 
@@ -86,14 +87,14 @@ was an absence of data, not an absence of problems.
 
 `REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and
 the no-traffic alerts cleared — those six services had never been broken, only starved.
-Everything was clear at **T+10m32s**, 2m46s after the fix.
+Everything was clear at **T+10m32s**, 3m01s after the fix.
 
 Class of fix: **config_revert**. Nothing had been deployed and there was no version to
 roll back to — one environment value was wrong.
 
 ## Detection notes
 
-- Onset to first page: **2m46s**.
+- Onset to first page: **3m01s**.
 - Services alerting at the page: **1**. Over the whole incident: **10**, across 10
   alerts.
 - Alerts that fired only during recovery: **none**. Every alert in this window belongs

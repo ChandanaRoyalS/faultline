@@ -6,6 +6,17 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 
 **Agent `claude-opus-5` · judge `claude-haiku-4-5` · SHARED LINEAGE on every judged figure.**
 
+> **Every figure in this document describes a superseded world (T7.28).** All of them were
+> measured against `compose_digest 299d791c5e0d…`. On 2026-08-30 the world changed - kafka's
+> glibc allocator bounded, a `maxmemory`/`allkeys-lru` bound on redis-cart, and a
+> `memory_limiter` on the collector - and all eleven runnable scenarios were re-recorded under
+> `compose_digest f5bd108f…` / `observability_digest 857d95b4…`.
+>
+> **Nothing has been re-run against the new world, so there are no current-world figures.** The
+> numbers below are not stale in the sense of being wrong; they are correct about a world that no
+> longer exists, and they do not carry over. What is worth re-measuring is a separate
+> pre-registered decision, deliberately not taken in the task that moved the world.
+
 ---
 
 ## Method

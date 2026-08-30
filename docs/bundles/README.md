@@ -24,14 +24,14 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | scenario | fault class | what happened |
 |---|---|---|
 | [`ad-memory-squeeze`](ad-memory-squeeze.md) | `resource_exhaustion` | Ad service memory limit cut below the working set its JVM was sized for — 3 alerts over the window |
-| [`cart-bad-image-tag`](cart-bad-image-tag.md) | `bad_deploy` | Cart service deployed on an image tag that was never published — 10 alerts over the window |
+| [`cart-bad-image-tag`](cart-bad-image-tag.md) | `bad_deploy` | Cart service deployed on an image tag that was never published — 12 alerts over the window |
 | [`cart-dependency-latency`](cart-dependency-latency.md) | `dependency_latency` | Cart service network path acquires 300ms of delay — 4 alerts over the window |
 | [`cart-redis-misconfig`](cart-redis-misconfig.md) | `bad_config` | Cart service pointed at the wrong Redis port — 10 alerts over the window |
 | [`currency-cpu-throttle`](currency-cpu-throttle.md) | `resource_exhaustion` | **⚠ nothing fired** — the fault could not bind |
 | [`flag-service-crashloop`](flag-service-crashloop.md) | `bad_deploy` | **⚠ nothing fired** — the fault could not bind |
 | [`frauddetection-memory-squeeze`](frauddetection-memory-squeeze.md) | `resource_exhaustion` | Fraud detection service memory limit cut below its working set — 1 alerts over the window |
 | [`product-catalog-flag-failure`](product-catalog-flag-failure.md) | `bad_config` | A feature flag turned on at the flag service makes product catalog fail one product — 4 alerts over the window |
-| [`shipping-quote-misconfig`](shipping-quote-misconfig.md) | `bad_config` | Checkout failed a quarter of its orders, and the service at fault reported nothing — 2 alerts over the window |
+| [`shipping-quote-misconfig`](shipping-quote-misconfig.md) | `bad_config` | Checkout failed a quarter of its orders, and the service at fault reported nothing — 7 alerts over the window |
 | [`shipping-wrong-image`](shipping-wrong-image.md) | `bad_deploy` | Shipping service deployed with another service's image — 8 alerts over the window |
 
 ## Holdout split

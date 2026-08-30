@@ -180,3 +180,50 @@ names it — so the cover cannot silently stop covering the file that prompted a
 
 Revisit if: a bundle needs to record *which* rule fired it rather than which rule set existed, or
 the observability pipeline gains a component configured outside these six paths.
+
+## Addendum (T7.28): the queue cashed, and what a digest bump actually costs
+
+The first bump this ADR's machinery has been used for deliberately, rather than to record a change
+already made. Three world changes landed together and both digests moved:
+
+| digest | before | after |
+|---|---|---|
+| `compose_digest` | `299d791c5e0da43e…` | **`f5bd108f4f70f460…`** |
+| `observability_digest` | `3d061a2793b1cd57…` | **`857d95b4d174ec43…`** |
+| `ffs_stub_source_digest` | `8defed3104c42adf…` | unchanged |
+
+**Eleven of fifteen scenarios re-recorded, four blocked, none discarded.** Every bundle carries an
+`archive_recording` copy of what it replaced under `superseded/`, so the superseded numbers stay
+checkable — which is the whole reason that directory exists and the reason a bump is affordable
+rather than destructive.
+
+### What the bump cost, stated because the next one will cost the same
+
+**The narratives were the expensive part, not the recordings.** Eleven recordings ran unattended in
+about three hours. Reconciling eleven narratives against new captures took a careful pass each, and
+**seven of them carried at least one claim the new captures contradict** — see PLAN.md for the list.
+The contradictions were not stylistic: three narratives described a page composition that no longer
+matched what fired, and one asserted a recovery alert the new recording does not contain.
+
+**A guard cannot do this.** CATALOG.md already records that no guard reads a sentence. What the
+guards caught was the front matter, `recorded_from`, and the rendered pages; every prose
+contradiction was found by reading `logs/` first and then the manifest, and would have survived a
+green `make check` otherwise.
+
+**One test moved from a live recording to an archived one.** `test_a_service_that_alerts_during_and
+_after_stays_in_the_blast_radius` pinned T7.3's fix against `product-catalog-flag-failure`, whose
+new recording has no after-revert alert at all. Its fixture now reads
+`superseded/20260828T035307Z/`. **A scorer test about an alert shape belongs against a recording
+that has the shape**, not against whichever recording is current — the test's own docstring had
+already predicted this, having made the same move once before.
+
+### Every published figure now names its world
+
+README, `docs/RESULTS.md` and eleven files under `evals/runs/` each carry a banner saying the
+figures describe `299d791c5e0d…` and **that nothing has been re-run against the new world, so there
+are no current-world figures**. The distinction matters and is stated rather than implied: those
+numbers are not wrong, they are correct about a world that no longer exists, and they do not carry
+over. What is worth re-measuring is a separate pre-registered decision, deliberately not taken here.
+
+Revisit if: a future bump changes the *shape* of a bundle rather than the world it describes, in
+which case `bundle_schema_version` is the mechanism and this addendum does not apply.

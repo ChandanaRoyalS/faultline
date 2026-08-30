@@ -90,8 +90,15 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 
 ## Results
 
-> **Current-world benchmark — dev sweep 6.** On the re-recorded world (`299d791c5e0d…`) under
-> stamp `prompts:1b0e7cbb4c47`: **6 of 7 scenarios scored, coverage 5/6, fault class 5/5**
+> **There is no current-world benchmark. The world moved again on 2026-08-30 (T7.28) and
+> nothing has been re-run since.** All eleven runnable scenarios were re-recorded under
+> `compose_digest f5bd108f…` / `observability_digest 857d95b4…`, and **every figure below and in
+> [`docs/RESULTS.md`](docs/RESULTS.md) describes the superseded `299d791c5e0d…` world.** They are
+> not wrong; they are correct about a world that no longer exists, and they do not carry over.
+> What is worth re-measuring is a separate pre-registered decision.
+>
+> **The last measured benchmark — dev sweep 6, on the now-superseded world.** Under stamp
+> `prompts:1b0e7cbb4c47`: **6 of 7 scenarios scored, coverage 5/6, fault class 5/5**
 > ([`SWEEP-2026-08-28-refound.md`](evals/runs/SWEEP-2026-08-28-refound.md)). **No fault class
 > changed across the world boundary.** One scenario abstained and one discarded without alerting;
 > both are analysed there. The figures further down were measured on the **previous** world and

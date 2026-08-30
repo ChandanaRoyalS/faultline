@@ -2,9 +2,9 @@
 origin: scenario:shipping-wrong-image
 split: dev
 fault_class: bad_deploy
-recorded_from: 2026-08-28T04:07:24+00:00
+recorded_from: 2026-08-30T01:36:51+00:00
 capability: cap:9c416e0a
-onset_to_page: 2m48s
+onset_to_page: 3m18s
 page_to_fix: 5m00s
 fix_to_all_clear: 2m01s
 ---
@@ -13,7 +13,7 @@ fix_to_all_clear: 2m01s
 
 ## What was observed
 
-The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m48s after
+The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18s after
 onset. The fastest page this system has produced, and unusually it named a service one
 hop from the problem rather than the edge.
 
@@ -93,7 +93,7 @@ diagnose than a container that cannot start.
 
 ## Detection notes
 
-- Onset to first page: **2m48s**, the fastest on this system. A dependency whose failure
+- Onset to first page: **3m18s**, the fastest on this system. A dependency whose failure
   is fatal to its caller pages quickly; one whose failure is tolerated does not.
 - Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.
 - Alerts that fired only during recovery: **none**.

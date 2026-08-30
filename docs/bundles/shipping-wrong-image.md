@@ -9,31 +9,31 @@
 | expected remediation | `rollback` |
 | split | `dev` |
 | injected at | `shippingservice` via `shipping-wrong-image` |
-| time to page | 2m48s |
+| time to page | 3m18s |
 | steady state captured | 300s |
-| capture window | 2026-08-28T04:02:24+00:00 → 2026-08-28T04:19:13+00:00 |
+| capture window | 2026-08-30T01:31:51+00:00 → 2026-08-30T01:49:10+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+2m48s |
-| `t_revert` | T+7m48s |
-| all clear | T+9m49s |
+| first alert firing | T+3m18s |
+| `t_revert` | T+8m18s |
+| all clear | T+10m19s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+2m45s | `checkoutservice` | ServiceHighErrorRate | 7.0 min | **paged** |
-| T+6m00s | `quoteservice` | ServiceNoTraffic | 2.2 min | joined later |
-| T+6m15s | `accountingservice` | ServiceNoTraffic | 2.0 min | joined later |
-| T+6m15s | `emailservice` | ServiceNoTraffic | 2.0 min | joined later |
-| T+6m15s | `frauddetectionservice` | ServiceNoTraffic | 2.0 min | joined later |
-| T+6m15s | `shippingservice` | ServiceNoTraffic | 2.0 min | joined later |
-| T+6m30s | `frontend` | ServiceHighErrorRate | 2.0 min | joined later |
-| T+6m30s | `loadgenerator` | ServiceHighErrorRate | 2.0 min | joined later |
+| T+3m00s | `checkoutservice` | ServiceHighErrorRate | 7.0 min | **paged** |
+| T+6m15s | `accountingservice` | ServiceNoTraffic | 2.5 min | joined later |
+| T+6m15s | `emailservice` | ServiceNoTraffic | 2.5 min | joined later |
+| T+6m15s | `frauddetectionservice` | ServiceNoTraffic | 2.5 min | joined later |
+| T+6m15s | `loadgenerator` | ServiceHighErrorRate | 3.0 min | joined later |
+| T+6m15s | `quoteservice` | ServiceNoTraffic | 2.5 min | joined later |
+| T+6m15s | `shippingservice` | ServiceNoTraffic | 2.5 min | joined later |
+| T+9m00s | `frontend` | ServiceHighErrorRate | 0.2 min | began after the revert |
 
 ## What the bundle contains
 
@@ -45,28 +45,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="shippingservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/shipping-service.txt` — 293 lines.
+`logs/shipping-service.txt` — 364 lines.
 
 ## A look at the logs
 
-From `logs/shipping-service.txt` (287 lines):
+From `logs/shipping-service.txt` (358 lines):
 
 ```
-2026-08-28T04:07:27+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T04:07:28+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T04:07:28+00:00  [otel.javaagent 2026-08-28 04:07:28:178 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-08-28T04:07:32+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T04:07:32+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T04:07:32+00:00  [otel.javaagent 2026-08-28 04:07:32:994 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-08-28T04:07:38+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T04:07:38+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T04:07:38+00:00  [otel.javaagent 2026-08-28 04:07:38:494 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-08-28T04:07:43+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-28T04:07:43+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-28T04:07:43+00:00  [otel.javaagent 2026-08-28 04:07:43:932 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-08-30T01:36:54+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T01:36:55+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T01:36:55+00:00  [otel.javaagent 2026-08-30 01:36:55:216 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-08-30T01:37:00+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T01:37:00+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T01:37:00+00:00  [otel.javaagent 2026-08-30 01:37:00:534 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-08-30T01:37:05+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T01:37:05+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T01:37:06+00:00  [otel.javaagent 2026-08-30 01:37:06:071 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-08-30T01:37:11+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-08-30T01:37:11+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-08-30T01:37:11+00:00  [otel.javaagent 2026-08-30 01:37:11:554 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
 ```
 
-_275 further lines are in the bundle._
+_346 further lines are in the bundle._
 
 ## The incident record
 
@@ -83,7 +83,7 @@ bundle are the tiebreak.
 
 ### What was observed
 
-The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m48s after
+The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18s after
 onset. The fastest page this system has produced, and unusually it named a service one
 hop from the problem rather than the edge.
 
@@ -163,7 +163,7 @@ diagnose than a container that cannot start.
 
 ### Detection notes
 
-- Onset to first page: **2m48s**, the fastest on this system. A dependency whose failure
+- Onset to first page: **3m18s**, the fastest on this system. A dependency whose failure
   is fatal to its caller pages quickly; one whose failure is tolerated does not.
 - Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.
 - Alerts that fired only during recovery: **none**.

@@ -2,11 +2,11 @@
 origin: scenario:cart-bad-image-tag
 split: dev
 fault_class: bad_deploy
-recorded_from: 2026-08-28T02:56:25+00:00
+recorded_from: 2026-08-29T23:10:30+00:00
 capability: cap:9c416e0a
-onset_to_page: 4m02s
+onset_to_page: 4m46s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m15s
+fix_to_all_clear: 2m01s
 ---
 
 # Cart service deployed on an image tag that was never published
@@ -14,7 +14,7 @@ fix_to_all_clear: 2m15s
 ## What was observed
 
 The page named three services in the same evaluation: `ServiceHighErrorRate` on
-**frontend**, **loadgenerator** and **checkoutservice**. It arrived 4m02s after onset.
+**frontend**, **loadgenerator** and **checkoutservice**. It arrived 4m46s after onset.
 
 On the storefront, product pages rendered normally. Adding anything to a basket failed.
 
@@ -93,7 +93,7 @@ exist; the fix was to put the previous version back.
 
 ## Detection notes
 
-- Onset to first page: **4m02s**.
+- Onset to first page: **4m46s**.
 - Services alerting at the page: **3**. Over the whole incident: **10**, across 10
   alerts.
 - Alerts that fired only during recovery: **none**. Every alert in this window belongs

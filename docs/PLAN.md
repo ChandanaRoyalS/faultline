@@ -1573,6 +1573,102 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.28 — the queue cashed, and everything recorded against it *(all three stages done)*
+T7.26 said to wait for a second genuinely-needed `compose_digest` change; T7.27's kafka finding is
+it. **Stage 1 landed the three changes and the digests moved.**
+
+| digest | before | after |
+|---|---|---|
+| `compose_digest` | `299d791c5e0da43e…` | **`f5bd108f4f70f460…`** |
+| `observability_digest` | `3d061a2793b1cd57…` | **`857d95b4d174ec43…`** |
+| `ffs_stub_source_digest` | `8defed3104c42adf…` | **unchanged** - the stub was not touched |
+
+**All three verified live in the running containers, not merely present in a file.** kafka:
+`MALLOC_ARENA_MAX=2`, **64MB arena regions 68 -> 0**, mapped anon 7,413 -> **2,462 MB**. redis-cart:
+`maxmemory 12582912`, `maxmemory-policy allkeys-lru`. otel-col: the collector's own log shows
+`Processor started {"name": "memory_limiter", "pipeline": "traces"}` **and** the same for `metrics`.
+World up at 28 containers, 16.94 req/s, gate **PASS** (after ADR-0025's checkout remedy, which the
+full-world restart made necessary).
+
+**One deviation from T7.26's specification, and it was necessary.** The spec said to put the
+collector change in `world/src/otelcollector/otelcol-config-extras.yml`, the demo's designed merge
+point. **That file is gitignored** - `world/` is a clone (ADR-0026), so the edit could never be
+committed and the next `make world-up` on a fresh checkout would lose it. The config now lives in
+**`compose/otelcol-extras.yml`**, tracked here, mounted over the demo's path by `telemetry.yml`.
+`OBSERVABILITY_FILES` gains it, so the digest covers **the file actually in effect** rather than a
+stub that no longer reaches the collector; the stub stays under cover because a change there would
+mean the mount had been removed.
+
+**The stale-comment finding, acted on.** T7.26 noted that prose about kafka's growth sits inside
+`world-arm64.override.yml`, a digest input, so correcting it moves the digest. It was worth moving
+**because the comment was wrong** - it said the heap cap stopped the growth, and T7.11 then measured
+1866 MiB against that cap. Leaving a paragraph that says the problem is solved, directly above the
+setting that does not solve it, is how the next person re-derives T7.27 from scratch. The correction
+carries what was ruled out and, explicitly, **what was not shown**: that `MALLOC_ARENA_MAX` bounds
+long-run growth needs ~24h under the setting and is queued as a re-measure, not claimed.
+
+**Stage 2 — eleven of fifteen re-recorded, four blocked, none discarded.** Every bundle carries the
+new digests, `capture_set` 2, a `superseded/` archive of what it replaced, and a reachability field
+derived correctly after T7.22's fix - visible as 48rt/145log on `ad-memory-squeeze` rather than the
+0/0 the bug produced. One retry across the whole run, from a container-uptime clash.
+
+| scenario | split | onset | reachability |
+|---|---|---:|---|
+| ad-memory-squeeze | dev | 210s | 48rt / 145log |
+| cart-bad-image-tag | dev | 286s | 20rt / 500log |
+| cart-dependency-latency | dev | 230s | 20rt / 500log |
+| cart-redis-misconfig | dev | 181s | 20rt / 500log |
+| email-wrong-image | holdout | 226s | 0rt / 166log |
+| frauddetection-memory-squeeze | dev | 375s | 38rt / 227log |
+| product-catalog-flag-failure | dev | 229s | 0rt / 2log |
+| productcatalog-dependency-latency | holdout | 229s | 0rt / 0log |
+| recommendation-memory-squeeze | holdout | 285s | 13rt / 153log |
+| shipping-quote-misconfig | dev | 198s | 0rt / 387log |
+| shipping-wrong-image | dev | 198s | 0rt / 358log |
+
+**The checkout policy, decided before starting.** Recycle checkout at the **end** of each scenario,
+so its 300s uptime requirement elapses during the inter-scenario settle. Waiting for the gate to
+refuse and then applying ADR-0025's remedy costs a refused attempt, a restart and a 300s wait each
+time, and at ~12 minutes to stall it would have hit most of eleven scenarios. **`accountingservice`
+was checked before the first recording** rather than discovered mid-sweep (T7.27): stage 1's
+world-up had stranded it, reporting no series at all. Restarted, confirmed consuming, then began.
+
+**Stage 3 - seven of eleven narratives carried a claim the new captures contradict.**
+
+| narrative | contradiction | correction |
+|---|---|---|
+| `cart-dependency-latency` | said the page named **two** services with frontend joining later; frontend was **at fire** | three at fire, checkoutservice at +15s |
+| `cart-redis-misconfig` | said the page named **one**; frontend was **at fire** | two at fire, checkoutservice at +15s |
+| `productcatalog-dependency-latency` | said **four alerts fired together**; one did | single alert, three at +15s, checkout at +30s |
+| `recommendation-memory-squeeze` | said the page was **two alerts**; one | single alert, frontend at +15s |
+| `product-catalog-flag-failure` | said **three** services alerted, and that a **fourth alert fired after the fix** | four services; **the recovery-alert claim removed** - the new recording has no after-revert alert at all |
+| `shipping-quote-misconfig` | said **nothing else alerted**; seven alerts across seven services now | the `ServiceNoTraffic` cascade named |
+| `ad-memory-squeeze` | last restart **eighteen seconds** before the fix | three seconds |
+
+Plus onset durations in prose on ten of eleven. **`ad-memory-squeeze`'s "sixteen startup attempts"
+survives** - a first grep for `AdService starting` found one and would have produced a false
+correction; the restart evidence is the `JAVA_TOOL_OPTIONS` banner, and there are exactly sixteen
+inside the fault window. **`shipping-quote-misconfig`'s corrected design also survives**: zero error
+lines in 387 log lines, `GetQuoteRequest` throughout, and 80 quote requests against 2 ship orders
+inside the window - orders do abort before fulfilment. Its measured error band moved 23-29% to
+**25-29%**.
+
+**One test moved to an archive.** `test_a_service_that_alerts_during_and_after_stays_in_the_blast_radius`
+pinned T7.3's fix against `product-catalog-flag-failure`, whose new recording has no after-revert
+alert; its fixture now reads `superseded/20260828T035307Z/`, as its own docstring predicted.
+
+**Re-rendered, re-seeded, quarantine verified:** 13 pages, 8 documents / 40 chunks from `dev/`
+alone, **`holdout_chunks` 0**, all 13 narratives at `cap:9c416e0a`.
+
+**Every published figure now names its world.** README, RESULTS and eleven files under
+`evals/runs/` carry a banner: the figures describe `299d791c5e0d…`, **nothing has been re-run, and
+there are no current-world figures**. Not wrong - correct about a world that no longer exists.
+**No sweep, holdout entry or agent investigation was re-run here**; what to measure against the new
+world is a separate pre-registered decision. T7.24's run report was on an unmerged branch when this
+was written; it landed first and carries the banner, plus a second paragraph the others do not need -
+that run is superseded in its subject as well as its world, because stage 2 re-recorded the bundle
+it scored against.
+
 ### T7.27 — where the kafka memory lives *(measurement only; no digest moves)*
 **Done** ([`docs/evidence/t7.27-kafka-memory/`](evidence/t7.27-kafka-memory/)). NMT enabled through
 a temporary override outside the repository, container restored afterwards, `compose_digest`

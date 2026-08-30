@@ -1,43 +1,44 @@
 {
   "alerts_at_fire": [
-    "ServiceHighLatency/cartservice",
-    "ServiceHighLatency/loadgenerator"
+    "ServiceHighLatency/loadgenerator",
+    "ServiceHighLatency/frontend",
+    "ServiceHighLatency/cartservice"
   ],
   "alerts_over_window": [
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:14:21+00:00",
-      "last_seen": "2026-08-28T03:21:36+00:00",
-      "minutes_firing": 7.5,
+      "first_seen": "2026-08-29T23:31:27+00:00",
+      "last_seen": "2026-08-29T23:38:27+00:00",
+      "minutes_firing": 7.2,
       "service": "cartservice"
     },
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:14:21+00:00",
-      "last_seen": "2026-08-28T03:21:21+00:00",
+      "first_seen": "2026-08-29T23:31:27+00:00",
+      "last_seen": "2026-08-29T23:38:27+00:00",
+      "minutes_firing": 7.2,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-08-29T23:31:27+00:00",
+      "last_seen": "2026-08-29T23:38:27+00:00",
       "minutes_firing": 7.2,
       "service": "loadgenerator"
     },
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-08-28T03:14:36+00:00",
-      "last_seen": "2026-08-28T03:21:21+00:00",
-      "minutes_firing": 7.0,
+      "first_seen": "2026-08-29T23:31:42+00:00",
+      "last_seen": "2026-08-29T23:38:12+00:00",
+      "minutes_firing": 6.8,
       "service": "checkoutservice"
-    },
-    {
-      "alert": "ServiceHighLatency",
-      "began_after_revert": false,
-      "first_seen": "2026-08-28T03:14:36+00:00",
-      "last_seen": "2026-08-28T03:21:21+00:00",
-      "minutes_firing": 7.0,
-      "service": "frontend"
     }
   ],
-  "baseline_clear_at": "2026-08-28T03:10:51+00:00",
+  "baseline_clear_at": "2026-08-29T23:27:42+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "restart",
@@ -66,30 +67,41 @@
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "07e516ee12ca3ff891b6e513bbc1d3a00df442b4",
+    "git_sha": "95e3e8c07907a9c68bdae5357d5c84574fd6fc91",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "c982653939a5c1ff29bf570cf2e5b2760075c7cc0456a7471c22f585f3cb425b",
   "scenario_id": "cart-dependency-latency",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 229,
-  "seconds_to_settle": 152,
+  "seconds_to_alert": 230,
+  "seconds_to_settle": 136,
   "split": "dev",
-  "t_alert_firing": "2026-08-28T03:14:40+00:00",
-  "t_clear": "2026-08-28T03:22:12+00:00",
-  "t_inject": "2026-08-28T03:10:51+00:00",
-  "t_revert": "2026-08-28T03:19:40+00:00",
+  "t_alert_firing": "2026-08-29T23:31:32+00:00",
+  "t_clear": "2026-08-29T23:38:48+00:00",
+  "t_inject": "2026-08-29T23:27:42+00:00",
+  "t_revert": "2026-08-29T23:36:32+00:00",
   "title": "Cart service network path acquires 300ms of delay",
   "window": {
-    "end": "2026-08-28T03:24:12+00:00",
-    "start": "2026-08-28T03:05:51+00:00"
+    "end": "2026-08-29T23:40:48+00:00",
+    "start": "2026-08-29T23:22:42+00:00"
   },
   "world": {
-    "compose_digest": "299d791c5e0da43ec340f03c4908ecbfaf3e10e91b6a9340f98bd09827d76a6c",
+    "compose_digest": "f5bd108f4f70f460836f090ecbff4259626cc9264b102a0851b6bb4a4ceda44b",
     "docker_arch": "arm64",
     "ffs_stub_image_id": "sha256:e273759fb5c16938bbcf9df934650444642495d9bcebb3af841e015d946d377d",
     "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
     "host_platform": "Darwin/arm64",
-    "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice"
+    "observability_digest": "857d95b4d174ec43b1f64bbb84bdf3438bc7425c1360a0e6e7dd771c4e77cb60",
+    "observability_files": {
+      "compose/otelcol-extras.yml": "c1cdb85343770302a80e6153c9fafcdce3821d870676cbf48f5f05536df84dcf",
+      "compose/prometheus/alert-rules.yml": "ae69d142bc571db5bd697f31368b8e7d5e533a3d0eecd4661ea2b29b7ea8672e",
+      "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+      "compose/prometheus/prometheus-config.yaml": "230505c37ddc4f95aa9ec1b085bf1ea32a98346e27e5f6f813aef230f3def749",
+      "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+      "world/src/otelcollector/otelcol-config-extras.yml": "7f3afd57cd82f28d5c5948e843d7d594e60dfb0133611c540ff31fa31804ee92",
+      "world/src/otelcollector/otelcol-config.yml": "cf1645d90cc88effcb493edd196238bf73a14d1b30dc654325d25045be0377e5"
+    },
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice",
+    "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994"
   }
 }

@@ -1,0 +1,33 @@
+# T7.28 - merged into the collector's configuration as its second `--config`.
+#
+# THIS FILE, NOT THE CLONE'S. The demo ships `world/src/otelcollector/otelcol-config-extras.yml`
+# as the designed merge point, and T7.26 specified the change there. It cannot go there: `world/`
+# is gitignored (ADR-0026 - it is somebody else's repository, cloned at a tag), so an edit would
+# be lost by the next `make world-up` on a fresh checkout and could never be committed. This file
+# is mounted over that path by `compose/telemetry.yml` instead, so the change is versioned here
+# and `observability_digest` covers the file that is actually in effect.
+#
+# T7.1 recorded 600M for otel-col as "a timer, not a fix": the raise defers the ceiling and
+# changes nothing about the collector's behaviour. A memory_limiter does change it - under
+# pressure the collector refuses and drops rather than growing until the kernel kills it.
+#
+# Be clear what that buys. It converts an OOM into backpressure. It does NOT stop growth, and
+# dropped telemetry means gaps in captures - a better failure, not the absence of one.
+#
+# 450 MiB against the 600M container limit, with a 100 MiB spike allowance, so the soft limit is
+# 350 MiB. Measured headroom at the time of writing: 144 MiB after two days of uptime, against
+# the recorder's 540 MiB pre-flight tripwire.
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 450
+    spike_limit_mib: 100
+
+# memory_limiter MUST be first in every pipeline: it can only refuse data it sees before another
+# processor has buffered it.
+service:
+  pipelines:
+    traces:
+      processors: [memory_limiter, spanmetrics, batch]
+    metrics:
+      processors: [memory_limiter, batch]

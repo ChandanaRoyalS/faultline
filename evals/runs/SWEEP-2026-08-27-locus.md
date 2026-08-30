@@ -1,5 +1,14 @@
 # Dev sweep 5 — 2026-08-27, the return-to-locus instruction
 
+> **World: superseded (T7.28).** Every figure on this page was measured against
+> `compose_digest 299d791c5e0d…`. The world moved on 2026-08-30 - kafka's allocator bounded, a
+> `maxmemory`/`allkeys-lru` bound on redis-cart, and a `memory_limiter` on the collector - and the
+> catalog was re-recorded under `compose_digest f5bd108f…` / `observability_digest 857d95b4…`.
+>
+> **These numbers describe the old world and nothing has been re-run against the new one.** They
+> are not current-world figures; there are no current-world figures. What is worth measuring
+> against the new world is a separate pre-registered decision.
+
 The refined formulation T4.12's regressions decomposed, pre-registered in
 [`PREREGISTRATION-2026-08-27-locus.md`](PREREGISTRATION-2026-08-27-locus.md) and committed
 before any scenario ran.

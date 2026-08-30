@@ -1,0 +1,67 @@
+{
+  "alerts_at_fire": [
+    "ServiceNoTraffic/frauddetectionservice"
+  ],
+  "alerts_over_window": [
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-08-28T03:41:42+00:00",
+      "last_seen": "2026-08-28T03:48:12+00:00",
+      "minutes_firing": 6.8,
+      "service": "frauddetectionservice"
+    }
+  ],
+  "baseline_clear_at": "2026-08-28T03:35:27+00:00",
+  "bundle_schema_version": 2,
+  "capture_set": 2,
+  "expected_remediation_class": "config_revert",
+  "fault_class": "resource_exhaustion",
+  "injection": {
+    "method": "frauddetection-memory-squeeze",
+    "params": {
+      "memory": "200m"
+    },
+    "target": "frauddetection-service"
+  },
+  "origin": "scenario:frauddetection-memory-squeeze",
+  "reachability": {
+    "answers_idle_or_absent": [
+      "runtime",
+      "logs"
+    ],
+    "derived_from": "the bundle's own captures (T7.5)",
+    "none_can_answer": false,
+    "runtime_series": 38,
+    "target_log_lines": 221
+  },
+  "recorded_by": "evalharness.rehearse",
+  "recorder": {
+    "git_dirty": true,
+    "git_sha": "07e516ee12ca3ff891b6e513bbc1d3a00df442b4",
+    "tool": "evalharness.rehearse"
+  },
+  "scenario_fingerprint": "8309cd84c4bb1ce6d3965e942c8d37ad85b0a905eb2d3189d8981b0928037ef0",
+  "scenario_id": "frauddetection-memory-squeeze",
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": 390,
+  "seconds_to_settle": 91,
+  "split": "dev",
+  "t_alert_firing": "2026-08-28T03:41:57+00:00",
+  "t_clear": "2026-08-28T03:48:28+00:00",
+  "t_inject": "2026-08-28T03:35:27+00:00",
+  "t_revert": "2026-08-28T03:46:57+00:00",
+  "title": "Fraud detection service memory limit cut below its working set",
+  "window": {
+    "end": "2026-08-28T03:50:28+00:00",
+    "start": "2026-08-28T03:30:27+00:00"
+  },
+  "world": {
+    "compose_digest": "299d791c5e0da43ec340f03c4908ecbfaf3e10e91b6a9340f98bd09827d76a6c",
+    "docker_arch": "arm64",
+    "ffs_stub_image_id": "sha256:e273759fb5c16938bbcf9df934650444642495d9bcebb3af841e015d946d377d",
+    "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+    "host_platform": "Darwin/arm64",
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice"
+  }
+}

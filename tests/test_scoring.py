@@ -30,6 +30,25 @@ def bundle(scenario_id: str, split: str = "dev") -> dict:
     return json.loads(path.read_text())
 
 
+def archived_bundle(scenario_id: str, recording: str, split: str = "dev") -> dict:
+    """A superseded recording, for a shape the live world no longer produces.
+
+    `superseded/` exists so earlier numbers stay checkable (ADR-0014), and a scorer test about a
+    particular alert shape belongs against a recording that has it rather than against whichever
+    recording is current.
+    """
+    path = (
+        REPO_ROOT
+        / "evals/scenarios/artifacts"
+        / split
+        / scenario_id
+        / "superseded"
+        / recording
+        / "manifest.json"
+    )
+    return json.loads(path.read_text())
+
+
 # --- the stored verdicts, as fixtures ------------------------------------------
 #
 # scenario, trajectory, fault_class, remediation_class, evidence README.
@@ -158,10 +177,17 @@ def test_a_service_that_alerts_during_and_after_stays_in_the_blast_radius() -> N
     The historical case is the same shape on a different service: `cart-redis-misconfig`'s
     pre-T7.1 recording, archived at `superseded/20260824T044427Z/`, has `emailservice` raising
     `ServiceNoTraffic` while the fault is live and `ServiceHighErrorRate` during recovery. That
-    shape is behind 18 of the 24 re-scored runs, and it is not the fixture here only because
-    the live recording no longer contains it.
+    shape is behind 18 of the 24 re-scored runs.
+
+    **Read from an archive since T7.28, and the docstring above predicted why.** The live
+    `product-catalog-flag-failure` recording carried the shape until the re-record under the new
+    world, whose recording has no after-revert alert at all - so the fixture moved to the
+    archived recording that still has it, exactly as this test already had to do once for
+    `cart-redis-misconfig`. **The scorer's behaviour on the shape is what is under test**, not
+    whether today's world happens to produce it; pinning it to a live recording makes the test
+    a hostage to the weather.
     """
-    truth = bundle("product-catalog-flag-failure")
+    truth = archived_bundle("product-catalog-flag-failure", "20260828T035307Z")
     during = {a["service"] for a in truth["alerts_over_window"] if not a.get("began_after_revert")}
     after = {a["service"] for a in truth["alerts_over_window"] if a.get("began_after_revert")}
     assert during & after == {"frontend"}, "the committed recording this test is written against"

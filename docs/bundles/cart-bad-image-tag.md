@@ -9,33 +9,35 @@
 | expected remediation | `rollback` |
 | split | `dev` |
 | injected at | `cartservice` via `cart-bad-image-tag` |
-| time to page | 4m02s |
+| time to page | 4m46s |
 | steady state captured | 300s |
-| capture window | 2026-08-28T02:51:25+00:00 → 2026-08-28T03:09:42+00:00 |
+| capture window | 2026-08-29T23:05:30+00:00 → 2026-08-29T23:24:17+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+4m02s |
-| `t_revert` | T+9m02s |
-| all clear | T+11m17s |
+| first alert firing | T+4m46s |
+| `t_revert` | T+9m46s |
+| all clear | T+11m47s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m45s | `checkoutservice` | ServiceHighErrorRate | 7.0 min | **paged** |
-| T+3m45s | `frontend` | ServiceHighErrorRate | 7.0 min | **paged** |
-| T+3m45s | `loadgenerator` | ServiceHighErrorRate | 7.2 min | **paged** |
-| T+6m15s | `accountingservice` | ServiceNoTraffic | 3.2 min | joined later |
-| T+6m15s | `cartservice` | ServiceNoTraffic | 3.2 min | joined later |
-| T+6m15s | `currencyservice` | ServiceNoTraffic | 3.2 min | joined later |
-| T+6m15s | `emailservice` | ServiceNoTraffic | 3.2 min | joined later |
-| T+6m15s | `frauddetectionservice` | ServiceNoTraffic | 3.2 min | joined later |
-| T+6m15s | `quoteservice` | ServiceNoTraffic | 3.2 min | joined later |
-| T+6m15s | `shippingservice` | ServiceNoTraffic | 3.2 min | joined later |
+| T+4m45s | `checkoutservice` | ServiceHighErrorRate | 6.8 min | **paged** |
+| T+4m45s | `frontend` | ServiceHighErrorRate | 7.0 min | **paged** |
+| T+4m45s | `loadgenerator` | ServiceHighErrorRate | 7.0 min | **paged** |
+| T+5m45s | `frontend` | ServiceHighLatency | 1.8 min | joined later |
+| T+5m45s | `loadgenerator` | ServiceHighLatency | 1.8 min | joined later |
+| T+6m15s | `accountingservice` | ServiceNoTraffic | 4.2 min | joined later |
+| T+6m15s | `cartservice` | ServiceNoTraffic | 4.0 min | joined later |
+| T+6m15s | `currencyservice` | ServiceNoTraffic | 4.2 min | joined later |
+| T+6m15s | `emailservice` | ServiceNoTraffic | 4.2 min | joined later |
+| T+6m15s | `frauddetectionservice` | ServiceNoTraffic | 4.2 min | joined later |
+| T+6m15s | `quoteservice` | ServiceNoTraffic | 4.2 min | joined later |
+| T+6m15s | `shippingservice` | ServiceNoTraffic | 4.2 min | joined later |
 
 ## What the bundle contains
 
@@ -54,18 +56,18 @@ The clock below runs from the moment the fault went in.
 From `logs/cart-service.txt` (500 lines):
 
 ```
-2026-08-28T02:51:25+00:00  AddItemAsync called with userId=5c426ecc-a28b-11f1-ac74-5e36fd0150fc, productId=2ZYFJ3GM2N, quantity=2
-2026-08-28T02:51:25+00:00  GetCartAsync called with userId=5c426ecc-a28b-11f1-ac74-5e36fd0150fc
-2026-08-28T02:51:27+00:00  AddItemAsync called with userId=5d3fbd84-a28b-11f1-ac74-5e36fd0150fc, productId=L9ECAV7KIM, quantity=1
-2026-08-28T02:51:27+00:00  GetCartAsync called with userId=5d3fbd84-a28b-11f1-ac74-5e36fd0150fc
-2026-08-28T02:51:28+00:00  AddItemAsync called with userId=5de11594-a28b-11f1-ac74-5e36fd0150fc, productId=LS4PSXUNUM, quantity=10
-2026-08-28T02:51:28+00:00  GetCartAsync called with userId=5de11594-a28b-11f1-ac74-5e36fd0150fc
-2026-08-28T02:51:28+00:00  AddItemAsync called with userId=5de11594-a28b-11f1-ac74-5e36fd0150fc, productId=2ZYFJ3GM2N, quantity=2
-2026-08-28T02:51:28+00:00  GetCartAsync called with userId=5de11594-a28b-11f1-ac74-5e36fd0150fc
-2026-08-28T02:51:28+00:00  AddItemAsync called with userId=5de11594-a28b-11f1-ac74-5e36fd0150fc, productId=0PUK6V6EV0, quantity=4
-2026-08-28T02:51:28+00:00  GetCartAsync called with userId=5de11594-a28b-11f1-ac74-5e36fd0150fc
-2026-08-28T02:51:28+00:00  AddItemAsync called with userId=5de11594-a28b-11f1-ac74-5e36fd0150fc, productId=0PUK6V6EV0, quantity=3
-2026-08-28T02:51:28+00:00  GetCartAsync called with userId=5de11594-a28b-11f1-ac74-5e36fd0150fc
+2026-08-29T23:05:30+00:00  AddItemAsync called with userId=217c17f6-a3fe-11f1-8c4e-9e12df7a2593, productId=L9ECAV7KIM, quantity=5
+2026-08-29T23:05:30+00:00  GetCartAsync called with userId=217c17f6-a3fe-11f1-8c4e-9e12df7a2593
+2026-08-29T23:05:33+00:00  AddItemAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593, productId=0PUK6V6EV0, quantity=1
+2026-08-29T23:05:33+00:00  GetCartAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593
+2026-08-29T23:05:33+00:00  AddItemAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593, productId=66VCHSJNUP, quantity=4
+2026-08-29T23:05:33+00:00  GetCartAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593
+2026-08-29T23:05:33+00:00  AddItemAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593, productId=2ZYFJ3GM2N, quantity=10
+2026-08-29T23:05:33+00:00  GetCartAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593
+2026-08-29T23:05:33+00:00  AddItemAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593, productId=66VCHSJNUP, quantity=3
+2026-08-29T23:05:33+00:00  GetCartAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593
+2026-08-29T23:05:33+00:00  GetCartAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593
+2026-08-29T23:05:33+00:00  EmptyCartAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593
 ```
 
 _488 further lines are in the bundle._
@@ -86,7 +88,7 @@ bundle are the tiebreak.
 ### What was observed
 
 The page named three services in the same evaluation: `ServiceHighErrorRate` on
-**frontend**, **loadgenerator** and **checkoutservice**. It arrived 4m02s after onset.
+**frontend**, **loadgenerator** and **checkoutservice**. It arrived 4m46s after onset.
 
 On the storefront, product pages rendered normally. Adding anything to a basket failed.
 
@@ -165,7 +167,7 @@ exist; the fix was to put the previous version back.
 
 ### Detection notes
 
-- Onset to first page: **4m02s**.
+- Onset to first page: **4m46s**.
 - Services alerting at the page: **3**. Over the whole incident: **10**, across 10
   alerts.
 - Alerts that fired only during recovery: **none**. Every alert in this window belongs

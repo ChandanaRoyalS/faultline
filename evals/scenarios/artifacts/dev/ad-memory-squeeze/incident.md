@@ -2,11 +2,11 @@
 origin: scenario:ad-memory-squeeze
 split: dev
 fault_class: resource_exhaustion
-recorded_from: 2026-08-28T02:41:26+00:00
+recorded_from: 2026-08-29T22:54:04+00:00
 capability: cap:9c416e0a
-onset_to_page: 3m45s
+onset_to_page: 3m30s
 page_to_fix: 5m00s
-fix_to_all_clear: 1m45s
+fix_to_all_clear: 2m30s
 ---
 
 # Ad service memory limit cut below the working set its JVM was sized for
@@ -14,7 +14,7 @@ fix_to_all_clear: 1m45s
 ## What was observed
 
 The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,
-3m45s after onset. No service between them and the edge was named, and both alerts then
+3m30s after onset. No service between them and the edge was named, and both alerts then
 stayed up continuously for the rest of the incident.
 
 Two and a half minutes later, at **T+6m00s**, `ServiceNoTraffic` fired on **adservice** —
@@ -40,7 +40,7 @@ dependency, and the storefront said which one before the alerting did.
 **adservice's logs, which is where this one breaks open.** Ordinary request lines up to
 eighteen seconds before onset, and then, from T+0 onward, **sixteen startup attempts**
 inside the fault window — each a JVM banner, the OpenTelemetry agent announcing itself,
-and then nothing. The last begins at T+8m27s, eighteen seconds before the fix. No line
+and then nothing. The last begins at T+8m27s, three seconds before the fix. No line
 explains a failure, because the process is being stopped before it can form an opinion
 about anything. **A truncated, repeating startup is a process being killed from
 outside**, and it is the strongest evidence in this incident.
@@ -82,7 +82,7 @@ one resource limit was wrong and was put back.
 
 ## Detection notes
 
-- Onset to first page: **3m45s**.
+- Onset to first page: **3m30s**.
 - Services alerting at the page: **2**. Over the whole incident: **3**, across 3
   alerts.
 - Alerts that fired only during recovery: **none**.
