@@ -3,6 +3,7 @@ id: ad-memory-squeeze
 title: Ad service memory limit cut below the working set its JVM was sized for
 fault_class: resource_exhaustion
 split: dev
+slot: resource_exhaustion-1
 injection:
   target: ad-service
   method: ad-memory-squeeze

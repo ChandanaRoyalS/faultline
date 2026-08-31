@@ -115,6 +115,34 @@ class Scenario(BaseModel):
     pumba sidecar still running - 3/3 attempts, evidence in `docs/evidence/t7.17-fix-class/`.
     """
 
+    slot: str | None = None
+    """The SPLIT.md slot this scenario occupies, e.g. `bad_deploy-3`. **Recorded, then frozen.**
+
+    SPLIT.md's rule - "slots are filled alphabetically by injector fault id within each class" -
+    was enforced by nothing until T7.35: no scenario recorded a slot and the contamination guard
+    counted per class rather than checking identity. This field is what makes the rule executable.
+
+    **It is recorded rather than recomputed, and that is a decision with a measured reason.**
+    Re-deriving alphabetically on every read is stable under every operation this repository
+    performs *except the one that matters* - adding a scenario. Slot k goes to the k-th id
+    alphabetically, so a new id that sorts early shifts every later scenario down one slot and
+    **changes splits that have already been spent**: adding an `a...` id to `bad_deploy` moves
+    `email-wrong-image` from holdout to dev, after three holdout entries have used it, and
+    `cart-bad-image-tag` from dev to holdout after it has been tuned against. An anti-contamination
+    rule that recomputes would cause the contamination it exists to prevent.
+
+    So the derivation runs **once**, as a backfill, and is asserted against the recorded splits it
+    reproduces. Afterwards this field is authoritative and a new scenario takes the lowest-numbered
+    free slot in its class.
+
+    **Deliberately outside `scenario_fingerprint`**, for the same reason as
+    `also_correct_remediation` (T7.17): a bundle is evidence for what the fault does, and which
+    bookkeeping slot the scenario occupies changes nothing about that. Fingerprinting it would
+    invalidate every recorded bundle to record an allocation fact.
+
+    `None` on a `blocked` scenario, which releases its slot rather than consuming it.
+    """
+
     blocked: bool = False
     """This scenario cannot be rehearsed and does not occupy its slot.
 

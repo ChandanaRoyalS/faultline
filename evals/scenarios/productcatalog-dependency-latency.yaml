@@ -3,6 +3,7 @@ id: productcatalog-dependency-latency
 title: Product catalog network path acquires 300ms of delay, slowing every caller
 fault_class: dependency_latency
 split: holdout
+slot: dependency_latency-2
 injection:
   target: product-catalog-service
   method: productcatalog-dependency-latency

@@ -10,6 +10,7 @@ id: frauddetection-memory-squeeze
 title: Fraud detection service memory limit cut below its working set
 fault_class: resource_exhaustion
 split: dev
+slot: resource_exhaustion-2
 injection:
   target: frauddetection-service
   method: frauddetection-memory-squeeze

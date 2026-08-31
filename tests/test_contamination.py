@@ -235,3 +235,148 @@ def test_split_doc_matches_allocation() -> None:
             dev_slots,
             holdout_slots,
         ), f"SPLIT.md and ALLOCATION disagree on {fault_class.value}"
+
+
+# --- T7.35: the slot rule, made executable -------------------------------------------------
+
+SLOT_SPLITS: dict[FaultClass, tuple[Split, ...]] = {
+    FaultClass.BAD_DEPLOY: (
+        Split.DEV,
+        Split.HOLDOUT,
+        Split.DEV,
+        Split.DEV,
+        Split.DEV,
+        Split.HOLDOUT,
+    ),
+    FaultClass.BAD_CONFIG: (
+        Split.DEV,
+        Split.DEV,
+        Split.DEV,
+        Split.DEV,
+        Split.HOLDOUT,
+        Split.HOLDOUT,
+    ),
+    FaultClass.DEPENDENCY_LATENCY: (Split.DEV, Split.HOLDOUT, Split.DEV, Split.DEV),
+    FaultClass.RESOURCE_EXHAUSTION: (Split.DEV, Split.DEV, Split.HOLDOUT, Split.DEV),
+}
+"""Which split each numbered slot belongs to, from SPLIT.md's n=10 table plus T7.21's ten new slots.
+
+**Holdout takes the highest-numbered slots within each class** - the mechanical rule SPLIT.md states
+so that no extension needs judgement either. The totals here are the same numbers `ALLOCATION`
+carries; `test_slot_table_agrees_with_the_allocation` asserts the two cannot drift apart.
+"""
+
+
+def derived_slots() -> dict[str, str]:
+    """The backfill derivation: alphabetical by fault id within class, lowest free slot first.
+
+    **Run once and asserted, never used to overwrite.** See `Scenario.slot` for why recomputing
+    this on every read would cause the contamination it exists to prevent.
+    """
+    by_class: dict[FaultClass, list[Scenario]] = {}
+    for scenario in allocated():
+        by_class.setdefault(scenario.fault_class, []).append(scenario)
+    out: dict[str, str] = {}
+    for fault_class, scenarios in by_class.items():
+        for index, scenario in enumerate(sorted(scenarios, key=lambda s: s.id)):
+            out[scenario.id] = f"{fault_class.value}-{index + 1}"
+    return out
+
+
+def test_the_derivation_still_reproduces_every_recorded_split() -> None:
+    """**The loud check.** If the rule and the record ever disagree, that is a real finding.
+
+    T7.34 established that assigning each valid scenario to the lowest free slot of its class,
+    alphabetically, reproduces all eleven existing split assignments. That is the evidence the
+    backfill rests on, so it is asserted rather than assumed - and it fails with the disagreement
+    named, rather than the backfill quietly winning.
+    """
+    disagreements = []
+    for scenario in allocated():
+        slot = derived_slots()[scenario.id]
+        index = int(slot.rsplit("-", 1)[1]) - 1
+        belongs_to = SLOT_SPLITS[scenario.fault_class][index]
+        if belongs_to is not scenario.split:
+            disagreements.append(
+                f"{scenario.id}: recorded split={scenario.split.value}, but the rule puts it in "
+                f"{slot}, which is a {belongs_to.value} slot"
+            )
+    assert not disagreements, (
+        "THE SLOT RULE AND THE RECORDED SPLITS DISAGREE. This is a finding, not a fixture "
+        "problem - do not 'fix' it by editing the split, which is what the rule exists to "
+        "prevent:\n  " + "\n  ".join(disagreements)
+    )
+
+
+def test_every_scenario_that_occupies_a_slot_records_which_one() -> None:
+    missing = [s.id for s in allocated() if s.slot is None]
+    assert not missing, f"no slot recorded: {missing}. Authoring assigns one (SPLIT.md)."
+
+
+def test_a_blocked_scenario_records_no_slot_because_it_releases_it() -> None:
+    """`blocked` releases the slot rather than consuming it, so it must not also claim one."""
+    claiming = [s.id for s in catalog() if s.blocked and s.slot is not None]
+    assert not claiming, f"blocked but still claiming a slot: {claiming}"
+
+
+def test_the_recorded_slot_is_the_one_the_rule_assigns() -> None:
+    """Identity, not count. This is what a per-class count could not check."""
+    derived = derived_slots()
+    wrong = [
+        f"{s.id}: records {s.slot}, rule assigns {derived[s.id]}"
+        for s in allocated()
+        if s.slot != derived[s.id]
+    ]
+    assert not wrong, "\n  ".join(["slot does not match the rule:", *wrong])
+
+
+def test_no_two_scenarios_claim_the_same_slot() -> None:
+    seen: dict[str, str] = {}
+    for scenario in allocated():
+        assert scenario.slot is not None
+        assert scenario.slot not in seen, (
+            f"{scenario.id} and {seen[scenario.slot]} both claim {scenario.slot}"
+        )
+        seen[scenario.slot] = scenario.id
+
+
+def test_the_split_recorded_matches_the_split_that_slot_belongs_to() -> None:
+    """**The anti-steering check.** A scenario authored into the split its author preferred,
+    rather than the one its slot carries, fails here - where a per-class count passed it."""
+    for scenario in allocated():
+        assert scenario.slot is not None
+        fault_class, number = scenario.slot.rsplit("-", 1)
+        assert fault_class == scenario.fault_class.value
+        belongs_to = SLOT_SPLITS[scenario.fault_class][int(number) - 1]
+        assert scenario.split is belongs_to, (
+            f"{scenario.id} is in {scenario.slot}, a {belongs_to.value} slot, but records "
+            f"split={scenario.split.value}. The slot decides the split (ADR-0008); a scenario "
+            f"does not choose its side."
+        )
+
+
+def test_a_slot_number_is_inside_its_class_allocation() -> None:
+    for scenario in allocated():
+        assert scenario.slot is not None
+        number = int(scenario.slot.rsplit("-", 1)[1])
+        assert 1 <= number <= len(SLOT_SPLITS[scenario.fault_class]), (
+            f"{scenario.id} claims {scenario.slot}, outside the class's allocated slots"
+        )
+
+
+def test_slot_table_agrees_with_the_allocation() -> None:
+    """Two tables describing one decision. They may not drift."""
+    for fault_class, (dev_slots, holdout_slots) in ALLOCATION.items():
+        splits = SLOT_SPLITS[fault_class]
+        assert sum(1 for s in splits if s is Split.DEV) == dev_slots
+        assert sum(1 for s in splits if s is Split.HOLDOUT) == holdout_slots
+
+
+def test_the_slot_is_not_part_of_the_scenario_fingerprint() -> None:
+    """Recording an allocation fact must not invalidate every recorded bundle (T7.17's rule)."""
+    from evalharness.provenance import scenario_fingerprint
+
+    scenario = next(s for s in allocated() if s.slot is not None)
+    before = scenario_fingerprint(scenario)
+    moved = scenario.model_copy(update={"slot": "bad_deploy-6"})
+    assert scenario_fingerprint(moved) == before

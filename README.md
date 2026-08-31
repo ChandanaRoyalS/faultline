@@ -103,6 +103,13 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 > planner instability, and **n = 1 per side separates neither**; the sweep says so rather than
 > picking one.
 >
+> **On `n`: it is the number of slots filled, not the number allocated.** The catalog runs against
+> **11 valid scenarios** (8 dev / 3 holdout) of 20 allocated slots. One dev slot, `bad_deploy-5`, is
+> **deliberately empty** - the available mechanism space for that class is exhausted and a fourth
+> entry would add a row without adding anything the benchmark can tell apart
+> ([CATALOG.md](evals/scenarios/CATALOG.md)). Empty slots here are stated choices, not unfinished
+> work, and are not to be closed by inventing a scenario to fill them.
+>
 > **Every figure below this banner, and in [`docs/RESULTS.md`](docs/RESULTS.md) except where it
 > says otherwise, was measured on an earlier world and is labelled as such.** Comparing across
 > those boundaries compares worlds, not agents. The immediately preceding world

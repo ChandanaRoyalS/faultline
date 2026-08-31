@@ -3,6 +3,7 @@ id: cart-dependency-latency
 title: Cart service network path acquires 300ms of delay
 fault_class: dependency_latency
 split: dev
+slot: dependency_latency-1
 injection:
   target: cart-service
   method: cart-dependency-latency

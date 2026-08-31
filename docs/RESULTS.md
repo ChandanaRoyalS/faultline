@@ -15,6 +15,12 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 > coverage 8/8, fault class 7/8, class of fix 7/8, judge `same_mechanism` 7/8, $4.6870**
 > ([`SWEEP-2026-08-30-refound-again.md`](../evals/runs/SWEEP-2026-08-30-refound-again.md)).
 >
+> **What `n` counts.** Every scenario figure in this document is over **slots filled, not slots
+> allocated** - 11 valid scenarios against 20 allocated. `bad_deploy-5` is deliberately left empty
+> because that class's mechanism space is exhausted (T7.34, T7.35), and the reasoning is in
+> [CATALOG.md](../evals/scenarios/CATALOG.md). A gap between the two numbers is a recorded decision;
+> it is not a target to be closed by authoring filler.
+>
 > **The rest of this document describes earlier worlds** — most of it `299d791c5e0d…` (dev sweep 6)
 > and some of it `4a7690c6fdda…` before that. Those figures are not wrong; they are correct about
 > worlds that no longer exist, and they do not carry over. **Comparing a figure here against sweep

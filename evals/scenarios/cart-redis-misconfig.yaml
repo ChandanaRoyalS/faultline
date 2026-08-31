@@ -3,6 +3,7 @@ id: cart-redis-misconfig
 title: Cart service pointed at the wrong Redis port
 fault_class: bad_config
 split: dev
+slot: bad_config-1
 injection:
   target: cartservice
   method: cart-redis-misconfig

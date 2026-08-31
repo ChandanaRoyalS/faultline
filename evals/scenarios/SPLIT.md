@@ -136,15 +136,46 @@ committed record of what was decided first.
 
 **Totals:** 14 dev / 6 holdout (30% holdout).
 
-### Occupancy (T7.22)
+### Occupancy (T7.22, completed at T7.35)
 
-| Slot | Scenario | State |
-|------|----------|-------|
-| `bad_config-3` | `shipping-quote-misconfig` | **recorded**, dev |
-| `dependency_latency-3` | — | **free again**: `ad-dependency-latency` took it, then failed on measurement and is `blocked`, which releases the slot |
+**Every occupied slot, recorded on the scenario itself and asserted by
+`tests/test_contamination.py`.** Until T7.35 this table named 2 of 11 and no scenario carried its
+slot, so the rule below was enforced by nothing. **No allocation number changed here** - this
+records which slots are taken, not how many exist.
 
-Nine slots of twenty remain unfilled. `dependency_latency` still stands at **one recorded dev
-scenario**, which is what the extension was meant to fix and has not yet.
+| Slot | Split | Scenario |
+|------|-------|----------|
+| `bad_config-1` | dev | `cart-redis-misconfig` |
+| `bad_config-2` | dev | `product-catalog-flag-failure` |
+| `bad_config-3` | dev | `shipping-quote-misconfig` |
+| `bad_config-4` | dev | *free* |
+| `bad_config-5` | **holdout** | *free* |
+| `bad_config-6` | **holdout** | *free* |
+| `bad_deploy-1` | dev | `cart-bad-image-tag` |
+| `bad_deploy-2` | **holdout** | `email-wrong-image` |
+| `bad_deploy-3` | dev | `shipping-wrong-image` |
+| `bad_deploy-4` | dev | *free* |
+| `bad_deploy-5` | dev | ***deliberately empty*** — see CATALOG.md |
+| `bad_deploy-6` | **holdout** | *free* |
+| `dependency_latency-1` | dev | `cart-dependency-latency` |
+| `dependency_latency-2` | **holdout** | `productcatalog-dependency-latency` |
+| `dependency_latency-3` | dev | *free* — `ad-dependency-latency` took it, then failed on measurement and is `blocked`, which releases it |
+| `dependency_latency-4` | dev | *free* |
+| `resource_exhaustion-1` | dev | `ad-memory-squeeze` |
+| `resource_exhaustion-2` | dev | `frauddetection-memory-squeeze` |
+| `resource_exhaustion-3` | **holdout** | `recommendation-memory-squeeze` |
+| `resource_exhaustion-4` | dev | *free* |
+
+**Eleven filled, nine free** — six dev and three holdout. `dependency_latency` still stands at
+**one recorded dev scenario**, which is what the extension was meant to fix and has not yet.
+
+**The slot is recorded, then frozen.** T7.35 derived this table by the rule below and asserted that
+it reproduces all eleven recorded splits, then wrote the slot onto each scenario. It is not
+recomputed afterwards: slot *k* goes to the *k*-th id alphabetically, so a later scenario with an
+early-sorting id would shift every scenario after it and **change splits that have already been
+spent** — `email-wrong-image` from holdout to dev after three holdout entries used it. A rule that
+recomputes would cause the contamination it exists to prevent. New scenarios take the
+lowest-numbered free slot in their class.
 
 ### The slots this creates
 
