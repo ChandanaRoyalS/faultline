@@ -188,9 +188,13 @@ is visible in the capture rather than hidden. It does not reach an alert.
 **`bad_deploy-5` is deliberately left empty, and the catalog will not reach its allocated n=20.**
 
 T7.34 designed candidates for the six free dev slots and found that the available `bad_deploy`
-mechanism space is exhausted. The injector documents three shapes - never starts, starts then fails
-every call, flaps - and the first two are recorded (`cart-bad-image-tag`, `shipping-wrong-image`)
-while the third is a designed candidate. A **fourth** would be a third image swap on an unused
+mechanism space is exhausted. ~~The injector documents three shapes - never starts, starts then
+fails every call, flaps~~ — **corrected at T7.39: the injector documents two**, "one that starts and
+fails on the hot path, or one that never starts", both the same image swap. **"Flaps" was this
+project's own prose** (SPLIT.md §slot counts, and this file), never a property of `src/injector/`,
+and T7.34 asserted it by reading a document that had asserted it first. Both real shapes are
+recorded (`cart-bad-image-tag`, `shipping-wrong-image`); **the third was designed at T7.34 and
+disqualified at T7.39's desk checks** — see `docs/evidence/t7.39-flapping-deploy/DISCARD.md`. A **fourth** would be a third image swap on an unused
 service: a row in the count and nothing in the benchmark's discriminating power. The genuinely
 distinct fourth shape, a deploy that starts and returns wrong results without erroring, **cannot
 alert on this world** - the three rules are error rate, latency and no-traffic, and a fast
