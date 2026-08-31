@@ -1,0 +1,58 @@
+{
+  "incident_id": "2c81952d-00fe-46f4-b06b-42092f82e2d1",
+  "trajectory_id": "e49769bd-b733-48df-9369-ded7ed05beb4",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:redis-cart-dependency-latency",
+  "verdict": {
+    "root_cause": "cartservice is serving every request successfully but each cache round trip to its Redis-style backend takes a near-constant ~300ms, and cartservice handlers do essentially nothing but wait on those calls (handler spans exceed their child cache spans by only 1-3ms). Because AddItem makes two sequential cache calls it costs ~600ms, and the delay propagates unchanged up the call chain: checkoutservice PlaceOrder (~650ms) is almost entirely its GetCart and EmptyCart legs, and frontend POST spans reach ~900ms+ (tr_781267aff6ff). No errors are produced anywhere \u2014 cartservice and checkoutservice error ratios are real, populated zeros across the full window (tr_ae82f54828de, tr_2ffacf2eb0c4, tr_314c1e8e5e81) \u2014 and cartservice logs show continuous healthy request handling after onset with no dependency named (tr_3156839129b2). This is a latency-only impairment of the cache dependency, not an error, not a crash, and not the two past cart incidents in the corpus where the process was not running at all. The uniformity of the ~300ms across reads and writes, all trace ids, and all endpoints looks like a fixed stall floor rather than load-driven queueing, but no change record exists for cartservice to explain it (tr_024fd3194000).",
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_781267aff6ff",
+      "tr_ae82f54828de",
+      "tr_2ffacf2eb0c4",
+      "tr_3156839129b2",
+      "tr_314c1e8e5e81",
+      "tr_024fd3194000",
+      "tr_396164e67781"
+    ],
+    "reasoning": "The trace evidence localises virtually all added latency to named cache operation spans inside cartservice, with cartservice self-time in the single-digit milliseconds, and rules out the caller hop, cartservice's own logic, checkout orchestration, and every other downstream (all sub-20ms) (tr_781267aff6ff). The failure mechanism is therefore waiting on a dependency, which is dependency_latency \u2014 the service is not out of a resource it needs (no saturation metric was ever retrieved, but nothing failed for want of capacity), the artifact is running and serving (tr_3156839129b2, tr_ae82f54828de), and no wrong configuration value has been identified: the cartservice change log is empty for the window including cache/connection settings (tr_024fd3194000), so the bad_config path the corpus's cart-redis-misconfig incident suggests is not supported here \u2014 and in that past incident cart never came up at all, whereas here it serves traffic throughout. The flat-zero error ratios are corroborated as real zeros with populated denominators, which distinguishes this from the cart-bad-image-tag pattern where zero meant absence of data. Remediation is named for the mechanism: the cache tier must stop inserting the ~300ms stall, which for a fixed-delay stall floor most plausibly means restarting/restoring the cache backend rather than reverting a change that no log records.",
+    "open_questions": [
+      "The cache backend itself was never dispatched to. Its own latency, saturation, connection state, change history and any injected-delay/fault-injection configuration are entirely unestablished \u2014 the ~300ms is inferred from the client side only.",
+      "No latency percentile, CPU/memory, or connection-pool metrics were ever retrieved for cartservice despite two metric dispatches (tr_ae82f54828de, tr_2ffacf2eb0c4), so a pool-wait or saturation contribution to the ~300ms cannot be excluded and the exact onset inflection at 05:00:30 is unconfirmed by metrics.",
+      "The cartservice log result was truncated and omitted 04:50:34-05:02:46, which contains the 05:00:30 onset (tr_3156839129b2); no evidence covers what cartservice logged at the moment of transition, and the absence of lines after 05:03:13 is unexplained.",
+      "Change history was checked only for cartservice and productcatalogservice. The cache/Redis component, frontend, checkoutservice, and the sync-edge peers (adservice, recommendationservice, shippingservice) have no change coverage (tr_396164e67781), so an upstream edit elsewhere that introduced the delay remains open.",
+      "Because no change record explains the onset, the correct remediation is genuinely uncertain: restart of the cache tier is the best fit for a fixed stall floor, but if the delay comes from an unlogged config or fault-injection setting, config_revert would be the real fix.",
+      "Four unmeasured edges were crossed by triage and 8 of 12 affected services were never dispatched to; whether any of them show independent symptoms is unknown."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / Root cause: cartservice was configured with the wrong Redis port. The dependency was never\nunhealthy; only the address was wrong.\n\nBecause cart validates its Redis connection during startup rather than on first use, the\nwrong address stopped the process coming up at all. Cart did not degrade",
+    "cart-bad-image-tag / Root cause: cartservice was pointed at an image tag that had never been published, and the service\nceased to exist. Redis was fine, the network was fine, the code was fine \u2014 there was no\nrunning copy of the code for any of that to matter to.\n\nIts apparent zero error rate was an absence of da",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

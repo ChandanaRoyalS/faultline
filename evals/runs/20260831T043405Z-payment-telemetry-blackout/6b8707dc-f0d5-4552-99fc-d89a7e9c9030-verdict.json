@@ -1,0 +1,49 @@
+{
+  "incident_id": "6b8707dc-f0d5-4552-99fc-d89a7e9c9030",
+  "trajectory_id": "f4a83263-9aba-4997-93a8-1c7cc8290092",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "frontend",
+    "paymentservice"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origin": "scenario:payment-telemetry-blackout",
+  "verdict": {
+    "root_cause": "Not established. Every dispatch in this investigation targeted paymentservice, and paymentservice comes out of them exonerated rather than implicated: error ratio flat zero across 57 and 61 sample points with a defined (non-zero) denominator throughout, Charge server spans steady at ~0.2ms with caller-side checkout client spans at ~1.4\u20131.7ms, and post-gap logs showing continuous successful charge/completion pairs at sub-millisecond service times. The one change on the service \u2014 platform-automation setting the OTLP traces exporter endpoint to a loopback address at 04:34:08 \u2014 had its plausible failure modes (blocked export, export back-pressure inflating request latency) directly tested and contradicted: paymentservice spans are present in every sampled trace across the change boundary and an OTLP export span completed in 1.5ms. The only unexplained fact about paymentservice is a container replacement: the emitting hostname differs across the truncation gap (\u2026213d before ~04:31, \u20262c0f from 04:42:32), so the pod was replaced somewhere inside the ~11 minutes that log truncation destroyed \u2014 the same interval containing the 04:40 alert. Why it was replaced is not in evidence, because the memory, CPU, restart-counter and latency-percentile signals that were asked for were never returned, and the log lines that would carry an OOM, shutdown or startup message fall entirely inside the dropped range. Meanwhile the blast radius names three services and two unmeasured edges, and neither of the other two services was dispatched at all. The failing mechanism is most likely in that uninvestigated remainder; the trace evidence even points at where to look, placing the bulk of PlaceOrder latency in cart/catalog/currency preparation and the shipping\u2192quoteservice leg rather than in payment.",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_2a24fa1b031a",
+      "tr_b0620e4bc555",
+      "tr_7f2b1bef82dc",
+      "tr_6370536c70d9",
+      "tr_69e82a3c6592",
+      "tr_ba9891b98248"
+    ],
+    "reasoning": "Two independent metric queries (tr_b0620e4bc555, tr_69e82a3c6592) put the paymentservice error fraction at identically zero across the whole window with a defined denominator, which rules out both a total outage and a partial/intermittent error mode for this service. tr_6370536c70d9 corroborates from the trace side \u2014 payment spans present in every sampled trace, flat ~0.2ms server latency, healthy caller-side client spans, and completed downstream ShipOrder/EmptyCart/email spans indicating successful checkouts \u2014 and it specifically tests and rejects the two mechanisms by which the 04:34:08 loopback exporter endpoint (tr_2a24fa1b031a) could have broken the request path. That leaves the change record as an upstream act with no demonstrated mechanism, which is exactly the situation where classifying by the change would be wrong. The one live thread is the container replacement established independently by tr_7f2b1bef82dc and tr_ba9891b98248 via the hostname transition across the truncation gap; both dispatches are explicit that the interval which would explain it was discarded by truncation and that its silence carries no information. A restart is compatible with resource_exhaustion (an OOM kill), with a deployment action, or with routine rescheduling, and no returned signal discriminates among them \u2014 the restart counter and memory utilization were requested and not returned. The retrieved cart-bad-image-tag and cart-redis-misconfig incidents are a caution rather than a lead: in both, a flat-zero error rate on the service under the microscope was misread as health while the real fault sat on an adjacent, unexamined service. Here the flat zero is better supported (traffic confirmed flowing, work completing fast, downstream spans succeeding), but the structural warning stands \u2014 two of three services in the blast radius and both unmeasured edges were never dispatched. Naming a fault class on paymentservice evidence alone would be asserting more than six same-service dispatches can carry.",
+    "open_questions": [
+      "Why was the paymentservice container replaced between ~04:31 and ~04:42? An OOM kill, a liveness-probe failure, an eviction and a routine reschedule are all consistent with the hostname change and none is distinguished by returned evidence.",
+      "What do the two other services in the blast radius show? Neither was dispatched, and the 2 unmeasured edges crossed by triage were never characterized.",
+      "What is in the truncated 04:31\u201304:42 log interval \u2014 it contains the 04:40 alert point and any OOM, shutdown, startup or exporter-error lines. Re-query with a narrower time slice or pagination to recover it.",
+      "The requested-but-unreturned paymentservice signals: memory/CPU utilization, connection-pool saturation, container restart count, and p50/p95/p99 latency. Without them, resource_exhaustion around the restart is unfalsified rather than excluded.",
+      "Did the fleet-wide loopback OTLP endpoint change affect services other than paymentservice? It was applied by automation and may have landed elsewhere, where a local collector may not be listening \u2014 export worked for paymentservice, which does not generalize.",
+      "What actually triggered the 04:40 alert on paymentservice, given the error-rate series never left zero? tr_b0620e4bc555 rules out an error-rate threshold as the trigger, so the alerting condition is unidentified.",
+      "Was quoteservice or the cart/catalog/currency preparation path degraded? tr_6370536c70d9 places most end-to-end checkout latency there, but that leg was never dispatched."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m48s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

@@ -1,0 +1,42 @@
+{
+  "incident_id": "95bbe9cc-4d12-47c0-b87f-6fa8b8b8b023",
+  "trajectory_id": "02497794-ca89-4125-869c-46d92a626a72",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "frontend",
+    "paymentservice"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origin": "scenario:payment-telemetry-blackout",
+  "verdict": {
+    "root_cause": "The only substantiated abnormality is a configuration value: at 05:15:10, ~6 minutes before the 05:21 alert, platform-automation set paymentservice's OTLP traces exporter endpoint to a loopback address on port 4317 where no in-pod collector listens (tr_0523b5288237). The hostname change across the log gap (tr_a2a5e76337b4) indicates a container replacement between 05:11:19 and 05:24:12, consistent with the pod restarting to adopt that variable. But the payment request path itself is clean: error ratio is flat zero across the window on two independent queries (tr_785dc1362a64, tr_524fff9f82ca), charges complete in ~1ms on both sides of the gap (tr_004671248776), and every Charge span is sub-millisecond and unerrored (tr_05d27c7b7cdc). So the mechanism I can name is the misconfigured exporter endpoint itself \u2014 a value pointed at nothing, degrading telemetry and forcing a restart \u2014 not payment-tier failure. The critical multi-service severity almost certainly lives on the two unmeasured edges and is not settled here.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "low",
+    "evidence": [
+      "tr_0523b5288237",
+      "tr_05d27c7b7cdc",
+      "tr_a2a5e76337b4"
+    ],
+    "reasoning": "The exporter endpoint is wrong as a value \u2014 it names an unreachable address \u2014 and that wrongness is the mechanism, so bad_config over the alternatives. bad_deploy is out: the sole in-window change is an env-var update, no image or version rollout (tr_0523b5288237). dependency_latency is out for paymentservice: a blocking exporter would slow the call path, yet Charge spans are ~0.3ms and checkout's time sits in the shipping-quote leg (tr_05d27c7b7cdc). resource_exhaustion is unsupported: no memory, CPU, pool, or restart-count data was returned at all (tr_524fff9f82ca). Confidence is low because every symptom probe aimed at paymentservice came back healthy; the causal link to the critical severity rests on temporal proximity and sole-change-in-window. The cart corpus warning that flat-zero errors can mean 'not reached' does not apply, since logs and traces show payment actively serving.",
+    "open_questions": [
+      "What are the other two services in the blast radius and what is their behaviour? No dispatch left paymentservice, so the critical severity is unexplained.",
+      "The 05:18:00-05:22:30 interval around the alert was elided by truncation in both log queries (tr_004671248776, tr_a2a5e76337b4); no exporter or connection-refused line was ever actually observed.",
+      "Was the pod replacement a config-driven rolling restart or a crash/OOM? No restart-count, memory, or CPU series was returned (tr_524fff9f82ca)."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m48s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}
