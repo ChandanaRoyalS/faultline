@@ -1573,6 +1573,64 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.39 — D3 disqualified at the desk *(no world time, no money)*
+**Not built** ([`DISCARD.md`](evidence/t7.39-flapping-deploy/DISCARD.md), criteria committed first).
+**Four of seven criteria failed and the world was never touched** — no injection, no probe, no
+recording. The cheapest discard the project has produced, and it is a result rather than a failed
+task.
+
+**Check 1: the injector's third shape does not exist.** `BadDeployFault` documents **two** - *"one
+that starts and fails on the hot path, or one that never starts. Both are the same image swap"* -
+selected by a required `expect_start` param. There is no flap path.
+
+**"Flaps" traces to this project's own prose, not to the injector.** It appears in SPLIT.md's
+slot-count reasoning (T7.21) and in CATALOG.md (T7.34), and **nowhere in `src/injector/`**. **T7.34's
+audit asserted a property of the code by reading a document that had asserted it first** - which is
+the error the audit existed to catch, committed by the audit. **Both documents are corrected**, with
+the original struck rather than deleted.
+
+**The one prior attempt at the shape is blocked, for a reason that does not transfer.**
+`flag-service-crashloop` carries *"NO ALERT FIRED - AND NONE COULD HAVE"*, because featureflagservice
+emits no `calls_total` at all; `paymentservice` is on that same file's list of fifteen services that
+do. The precedent did not kill D3 - it is only what should have prompted reading the injector first.
+
+**Check 3: the page would near-duplicate `shipping-wrong-image`.** Read before probing: that
+scenario pages `ServiceHighErrorRate/checkoutservice` at fire plus a five-service `ServiceNoTraffic`
+cascade including its own target. A flapping `paymentservice` produces exactly that shape - caller
+errors at checkout while it is down, and the order path going quiet. **T7.38 ended with two items
+separated by one tool class; a third near-duplicate is worse than a gap.**
+
+**Check 4, the disqualifying one: the confusability is not in the recorded evidence.** D3 exists to
+be confusable with an OOM, and separating them needs an exit reason, a restart count, or memory
+behaviour. **None of the three is in a bundle.** Container state is not captured at all, and
+`cart-bad-image-tag`'s own narrative already says so: *"container was created and died instantly or
+never created at all is not visible from here."* **That is D3's distinguishing signature, recorded
+by the catalog as invisible.**
+
+And the memory contrast is absent **for this target specifically**: `ad-memory-squeeze`'s bundle
+carries **48 runtime series**; `paymentservice` exports **0**, measured live. A responder could
+neither rule an OOM in nor out from the bundle, so the distinction collapses to `change_history`
+alone - an image change against a memory-limit change. **That is not a hard item, it is an
+unanswerable one**, which the criteria named as disqualifying rather than difficult **before** the
+measurement.
+
+**Retargeting was deliberately not done.** A JVM target would carry the memory contrast and make the
+item answerable, but the JVM services are already the `resource_exhaustion` targets, which raises
+cross-split service overlap and puts one service behind two classes. And a flap still needs an image
+whose entrypoint exits under `restart: always`; **all seventeen demo images present locally are
+servers**, so producing one is new injector work outside this task's scope. Switching target to make
+a candidate pass is how three candidates were disqualified here after passing a gate on paper, and
+the criteria forbade it in advance.
+
+**What this leaves.** **`bad_deploy` dev stays at 2, below SPLIT.md's floor of 3**, holding **2 of 4
+allocated dev slots**. `bad_deploy-4` is unfilled with no candidate, and T7.35 already recorded
+`bad_deploy-5` as deliberately empty. The floor argument - *"two cannot show a spread"* - now applies
+to `bad_deploy` as it does to `dependency_latency`. **Catalog unchanged at 13 valid, 10 dev / 3
+holdout.**
+
+**Disqualified candidates: six of seventeen proposed (35%)**, up from the 31% T7.34 measured. The
+planning rate moves with it.
+
 ### T7.38 — D1 built: `redis-cart-dependency-latency` *(scenario; world time, no agent money)*
 **Done** (`dependency_latency-3`, dev, recorded). **The agent was not run against it.**
 

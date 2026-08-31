@@ -61,8 +61,13 @@ the reasoning below cites classes and the record, never a proposed scenario.
 diagnostic-diversity choice; slot counts should follow how many genuinely different investigation
 paths a class supports, and the record now measures that unevenly.
 
-`bad_deploy` has three documented shapes and the injector says so in as many words — never starts,
-starts then fails every call, flaps. `bad_config` has at least three: a wrong backing store, a
+`bad_deploy` has ~~three documented shapes and the injector says so in as many words — never
+starts, starts then fails every call, flaps~~ **two, corrected at T7.39** — never starts, or starts
+and fails on the hot path, both the same image swap. **The injector never said three**; this
+sentence was the origin of the claim, and T7.34's audit repeated it back as a property of the code.
+The allocation below is left as decided, because it was argued across all four classes and one class
+having one fewer shape does not re-open it — but `bad_deploy` now sits below its dev floor with no
+candidate, which `docs/evidence/t7.39-flapping-deploy/DISCARD.md` records. `bad_config` has at least three: a wrong backing store, a
 service that breaks without being the service that changed, and a broken service-to-service address
 where the **caller** alerts while the faulty service reports no errors at all. `dependency_latency`
 has one mechanism, and ADR-0007 bounds its magnitude — past the caller's timeout the signal inverts
