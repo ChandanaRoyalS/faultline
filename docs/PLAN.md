@@ -1573,6 +1573,72 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.40 — the capture set's boundary, decided *(decision only; no world time, no code)*
+**Done** ([`docs/design/t7.40-capture-set-boundary.md`](design/t7.40-capture-set-boundary.md)).
+**Decision: the exclusion of container state is deliberate and stops being treated as a gap.**
+
+**Chosen or never considered? Never considered - and T7.39 overstated the hole.** ADR-0009 fixes
+the bundle shape and nowhere weighs and rejects container capture; `CAPTURE_SET`'s docstring argues
+only about `runtime.json`. But **restart evidence is not absent**: ADR-0009 itself reads restarts out
+of captured logs, and measured across the two recorded OOM bundles, **`ad-memory-squeeze` carries 36
+startup banners and `frauddetection-memory-squeeze` 38, with zero mentions of OOM, killed or
+sigkill in either.** Logs carry *that* a container restarted and never *why*. **The real hole is
+narrower: the exit reason is absent, for every service, in every bundle.** T7.39's phrasing is
+corrected.
+
+**The case against closing is stronger than the case for, and it is about the benchmark rather than
+the cost.** What `ad-memory-squeeze` tests is exactly the step from *restarts plus a heap pinned at
+its ceiling* to *this is an OOM* - and the evidence is partial in precisely the way that creates the
+question. **A capture that prints `OOMKilled: true` does not make the item harder or fairer; it
+deletes it.** Three of thirteen valid items would be weakened. **And the gain is thinner than it
+looks: D3 did not fail only on capture** - it had no mechanism either, since `BadDeployFault` swaps
+an image and all seventeen demo images present locally are servers. **Closing the hole would not have
+made D3 buildable.**
+
+**The cost, stated precisely.** A `CAPTURE_SET` bump moves `CAPABILITY_VERSION` by construction
+(`capability_inputs` = `{capture_set, tool_behaviour_revision, tools}`). **15 narratives** carry a
+capability stamp and would need re-review; **13 bundles** would hold the old set with **no backfill
+possible** - the containers are gone; T7.28's eleven-bundle re-record is the precedent, at ~25-30
+min each, so **~6 hours** plus recycles and a 31-35% historical failure rate.
+
+**And the holdout does not recover.** The set has been entered **three times**, and **holdout entries
+cannot be re-run** - T4.15's addendum says so and the point of a holdout is that it is spent once.
+**A capability bump permanently strands every holdout figure this project has**, with nothing to
+compare the next entry against. That cost stays paid.
+
+**Not queued as digest-locked**, deliberately - that is the pattern for changes whose only obstacle
+is cost, and cost is not the objection.
+
+**What it does to the allocation, recorded beside the empty slots in SPLIT.md.** It does **not** cap
+the catalog at 13: `dependency_latency-4` and both `bad_config` holdout slots remain buildable.
+**`bad_deploy-4` and `-5` have no non-filler candidate**, because the distinct fourth shape needs the
+exit reason. **And a downstream correction to T7.34's list, found without world time: D6
+(`payment-memory-squeeze`) inherits D3's defect** - `paymentservice` exports zero runtime-family
+series, so an OOM there would carry restart banners with no memory evidence and no exit reason.
+**D6 as specified is disqualified for the same reason D3 was** and needs a target that exports
+runtime families. So `bad_deploy` stands at 2 dev against a floor of 3, and `resource_exhaustion` at
+2, with the allocation unedited - it is not editable to accommodate a scenario, nor the absence of
+one.
+
+**What would reverse it**, in order of likelihood: a capture recording *that* a container was
+replaced without recording *why* it died - which helps `cart-bad-image-tag`'s never-started case
+without handing `OOMKilled` to the three memory items, and is a different design rather than this one
+cheaper; a world move already forcing a re-record, though the holdout stranding would still need its
+own argument; evidence that agents reach "OOM" by some other route, which would mean this boundary
+protects nothing; or a candidate that needs container state, has a working mechanism, and is not
+trivialised by the capture - **D3 was none of the three.**
+
+**Does the audit have a second wrong premise? No - one, and the error class is identifiable.** Every
+load-bearing T7.34 claim re-checked against source: `dependency_latency` "one mechanism"
+**confirmed**; `bad_config`'s "three shapes" **holds**, being a claim about diagnosis paths rather
+than mechanisms (`BadConfigFault` is one mechanism); "CPU retired" **holds** as a statement about
+scenario usability proven by `currency-cpu-throttle`'s `INVALID.md`, **though the code still
+implements CPU quota** and "retired" must not be read as "removed"; slot derivation **verified at
+T7.35**; "no timeout env var" **checked against source when written**. **Of all the audit's claims,
+exactly one asserted what the code says, and that one was wrong.** The rule: a sentence claiming what
+the code does must be checked against the code when written; a sentence about what a scenario does is
+checked against a recording. SPLIT.md mixed both in one paragraph, and that is where the error lived.
+
 ### T7.39 — D3 disqualified at the desk *(no world time, no money)*
 **Not built** ([`DISCARD.md`](evidence/t7.39-flapping-deploy/DISCARD.md), criteria committed first).
 **Four of seven criteria failed and the world was never touched** — no injection, no probe, no

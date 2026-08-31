@@ -171,7 +171,23 @@ records which slots are taken, not how many exist.
 | `resource_exhaustion-3` | **holdout** | `recommendation-memory-squeeze` |
 | `resource_exhaustion-4` | dev | *free* |
 
-**Eleven filled, nine free** — six dev and three holdout. `dependency_latency` still stands at
+**Eleven filled, nine free** — six dev and three holdout.
+
+> **Two free slots have no candidate under the current capability (T7.40), and that is recorded
+> here beside them rather than left as an apparent to-do.** `bad_deploy-4` and `bad_deploy-5`
+> need a fourth distinct shape, and the only one available — a deploy that starts and dies
+> repeatedly — is not separable from an OOM kill in a bundle, because **the exit reason is not
+> captured for any service** and T7.40 decided that exclusion is deliberate. A third image swap
+> would fill the slot without adding anything the benchmark can tell apart.
+>
+> **The allocation is not edited for this.** It is not editable to accommodate a scenario, and it
+> is not editable to accommodate the absence of one either. `bad_deploy` therefore stands at **2
+> dev against a floor of 3**, and `resource_exhaustion` at 2 — T7.40 found that T7.34's candidate
+> for `resource_exhaustion-4` inherits the same defect, because `paymentservice` exports no
+> runtime-family series and an OOM there would carry no memory evidence.
+>
+> **What would change it:** a capture that records *that* a container was replaced without
+> recording *why* it died — see `docs/design/t7.40-capture-set-boundary.md` §5. `dependency_latency` still stands at
 **one recorded dev scenario**, which is what the extension was meant to fix and has not yet.
 
 **The slot is recorded, then frozen.** T7.35 derived this table by the rule below and asserted that
