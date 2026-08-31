@@ -27,12 +27,12 @@ from evalharness.run import (
     NoAlertError,
     RunDir,
     RunError,
-    WorldLock,
     WorldStoppedReportingError,
     bundle_for,
     score,
     wait_for_incident,
 )
+from injector.worldlock import TOKEN_ENV, WorldLock, WorldLockError
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 
@@ -296,13 +296,15 @@ def test_the_zero_step_row_is_an_explicit_discard_with_its_reason() -> None:
 
 def test_the_world_lock_does_not_wait(tmp_path: Path) -> None:
     """Waiting is how two harness processes interleave injections with nothing in either log
-    to show it."""
+    to show it.
+
+    The second driver is written directly rather than acquired in-process: a nested acquire in
+    one process is a *child* of the holder and is re-entrant by design (T7.37), so simulating a
+    genuine second driver means a lock file this process did not take.
+    """
     path = tmp_path / "harness.lock"
-    with (
-        WorldLock(path),
-        pytest.raises(RunError, match="another harness run holds"),
-        WorldLock(path),
-    ):
+    path.write_text(json.dumps({"pid": os.getpid(), "since": "now", "reason": "another run"}))
+    with pytest.raises(WorldLockError, match="another driver holds the world"), WorldLock(path):
         pass
 
 
@@ -1518,3 +1520,111 @@ def _write_prior_run(
     if paused:
         manifest["paused"] = {"reason": "clearable precondition"}
     (directory / "manifest.json").write_text(json.dumps(manifest))
+
+
+# --- T7.37: one driver of the world, enforced ----------------------------------------------
+
+
+def test_the_recorder_now_takes_the_same_lock_as_a_scored_run() -> None:
+    """**The T7.36 hole.** `WorldLock` existed and only `run.py` took it.
+
+    A lock one of two drivers takes is a lock the other route defeats, which is why it moved
+    below both of them into `injector`.
+    """
+    from evalharness import rehearse as rehearse_mod
+    from evalharness import run as run_mod
+
+    assert "WorldLock" in Path(rehearse_mod.__file__).read_text()
+    assert run_mod.WorldLock is rehearse_mod.WorldLock
+
+
+def test_a_dead_holder_is_reclaimed_without_a_flag(tmp_path: Path) -> None:
+    """Stranding the operator is the failure mode a lock most easily creates."""
+    path = tmp_path / "harness.lock"
+    dead = 999_999_999  # no such pid
+    path.write_text(json.dumps({"pid": dead, "since": "earlier", "reason": "a run that died"}))
+    with WorldLock(path, reason="new run") as lock:
+        assert lock.info()["acquired"] is True
+        assert lock.info()["reclaimed"]["pid"] == dead
+        assert lock.info()["reclaimed"]["was"] == "dead"
+
+
+def test_the_reclaim_is_recorded_rather_than_silent(tmp_path: Path) -> None:
+    """A stale lock and a live one look identical from the outside, so the difference is
+    written down instead of assumed."""
+    path = tmp_path / "harness.lock"
+    path.write_text(json.dumps({"pid": 999_999_999, "since": "earlier", "reason": "gone"}))
+    with WorldLock(path):
+        written = json.loads(path.read_text())
+    assert written["reclaimed"]["was"] == "dead"
+    assert written["reclaimed"]["reason"] == "gone"
+
+
+def test_a_live_holder_is_refused_and_the_message_names_who_and_since(tmp_path: Path) -> None:
+    path = tmp_path / "harness.lock"
+    path.write_text(
+        json.dumps(
+            {"pid": os.getpid(), "since": "2026-09-01T00:00:00Z", "reason": "rehearse cart-x"}
+        )
+    )
+    with pytest.raises(WorldLockError) as caught, WorldLock(path):
+        pass
+    message = str(caught.value)
+    assert str(os.getpid()) in message
+    assert "2026-09-01T00:00:00Z" in message
+    assert "rehearse cart-x" in message
+    assert "--force-lock" in message  # the documented way out, not an incantation
+    assert "Nothing was changed" in message
+
+
+def test_force_takes_a_live_holder_and_records_that_it_did(tmp_path: Path) -> None:
+    """Advisory rather than hard: the operator is also the only one who can fix a wedged world."""
+    path = tmp_path / "harness.lock"
+    path.write_text(json.dumps({"pid": os.getpid(), "since": "earlier", "reason": "a live run"}))
+    with WorldLock(path, force=True) as lock:
+        assert lock.info()["reclaimed"]["was"] == "forced"
+        assert json.loads(path.read_text())["reclaimed"]["was"] == "forced"
+
+
+def test_a_child_process_is_re_entrant_rather_than_locked_out_by_its_parent(
+    tmp_path: Path,
+) -> None:
+    """A run that shells out to `faultline-inject` must not be refused by its own lock."""
+    path = tmp_path / "harness.lock"
+    with WorldLock(path, reason="parent"):
+        assert os.environ.get(TOKEN_ENV)
+        with WorldLock(path, reason="child") as child:
+            assert child.info()["acquired"] is False
+            assert child.info()["held_by_parent"]
+        assert path.exists(), "the child must not release its parent's lock"
+    assert not path.exists()
+
+
+def test_an_unparseable_lock_is_treated_as_held_not_as_absent(tmp_path: Path) -> None:
+    """A hand-written lock file is a holder we cannot identify. Refusing is the safe reading."""
+    path = tmp_path / "harness.lock"
+    path.write_text("someone was here\n")
+    with pytest.raises(WorldLockError), WorldLock(path):
+        pass
+
+
+def test_releasing_does_not_delete_a_lock_somebody_forced_from_us(tmp_path: Path) -> None:
+    """If a second driver forced past, the first must not take their lock with it on the way out."""
+    path = tmp_path / "harness.lock"
+    lock = WorldLock(path, reason="first")
+    lock.__enter__()
+    path.write_text(json.dumps({"pid": os.getpid(), "since": "later", "token": "someone-else"}))
+    lock.__exit__()
+    assert path.exists(), "the forcing driver's lock was deleted by the driver it displaced"
+    path.unlink()
+
+
+def test_the_lock_state_reaches_the_run_record(tmp_path: Path) -> None:
+    """T7.33 recorded a recycle as a fact; a second driver is the same kind of fact."""
+    path = tmp_path / "harness.lock"
+    with WorldLock(path, reason="faultline-eval cart-x") as lock:
+        info = lock.info()
+    assert info["acquired"] is True
+    assert info["reason"] == "faultline-eval cart-x"
+    assert info["pid"] == os.getpid()
+    assert "since" in info and "token" in info

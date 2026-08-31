@@ -66,6 +66,7 @@ from evalharness.scenario import Scenario
 from injector.catalog import by_id as fault_by_id
 from injector.settings import InjectorSettings
 from injector.world import SERVICE_CONTAINERS, canonical_service, same_service
+from injector.worldlock import WorldLock, WorldLockError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_DIR = REPO_ROOT / "evals" / "scenarios"
@@ -848,6 +849,10 @@ def write_bundle(
         # scored fields change afterwards, this bundle is evidence for a question that is
         # no longer being asked, and the guards say so instead of scoring it anyway.
         "scenario_fingerprint": scenario_fingerprint(scenario),
+        # T7.37: who held the world while this was recorded. A clean acquisition is
+        # recorded too, so a bundle with no block is one written by a path that does
+        # not take the lock at all.
+        "world_lock": facts.get("world_lock"),
         "recorded_by": "evalharness.rehearse",
         "recorder": recorder_provenance("evalharness.rehearse", REPO_ROOT),
         "world": world_provenance(reference_container="cart-service", stub_image=STUB_IMAGE),
@@ -1066,6 +1071,30 @@ def rehearse(
     alert_timeout: int | None,
     force: bool,
     baseline_timeout: int = 300,
+    force_lock: bool = False,
+) -> int:
+    """Record one rehearsal bundle.
+
+    **Holds the world lock for the whole session (T7.37).** The recorder did not take it until
+    then, which is how T7.36 came within one sleep of recording a second injection behind a live
+    one. `require_no_active_faults` catches an overlap only at the moment of injection; it cannot
+    catch a second recorder that is still *waiting* for a clean baseline, and the waiting is the
+    long part - `wait_for_clean_baseline` blocks for up to `baseline_timeout` seconds rather than
+    refusing, which is precisely what was misread.
+    """
+    with WorldLock(reason=f"rehearse {scenario_id}", force=force_lock) as world:
+        return _rehearse_locked(
+            scenario_id, dwell, alert_timeout, force, baseline_timeout, world.info()
+        )
+
+
+def _rehearse_locked(
+    scenario_id: str,
+    dwell: int,
+    alert_timeout: int | None,
+    force: bool,
+    baseline_timeout: int,
+    lock_info: dict[str, Any],
 ) -> int:
     scenario = find_scenario(scenario_id)
     out = ARTIFACT_ROOT / scenario.split.value / scenario.id
@@ -1154,6 +1183,7 @@ def rehearse(
     print(f"  captured logs for {container}")
 
     facts: dict[str, Any] = {
+        "world_lock": lock_info,
         # Evidence that the world was quiet when this started, rather than an assumption.
         "baseline_clear_at": stamp(baseline_clear_at),
         "t_inject": stamp(t_inject),
@@ -1270,6 +1300,13 @@ def main(argv: list[str] | None = None) -> int:
         ),
     )
     parser.add_argument("--force", action="store_true", help="overwrite an existing bundle")
+    parser.add_argument(
+        "--force-lock",
+        action="store_true",
+        help="take the world even though another driver holds it (T7.37). Refused "
+        "without this. A dead holder is reclaimed automatically and needs no flag; this "
+        "is for a holder that is alive and wrong. **Recorded in the bundle manifest.**",
+    )
     args = parser.parse_args(argv)
     # Line-buffered: these runs are ten minutes long and are almost always watched
     # through a redirect, where block buffering makes a working recorder look hung.
@@ -1283,7 +1320,13 @@ def main(argv: list[str] | None = None) -> int:
             args.alert_timeout,
             args.force,
             args.baseline_timeout,
+            args.force_lock,
         )
+    except WorldLockError as busy:
+        # Distinct from a RehearsalError: nothing was checked, nothing was injected, and the
+        # remedy is about who is driving rather than about the world's state.
+        print(f"refused: {busy}", file=sys.stderr)
+        return 2
     except RehearsalError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
