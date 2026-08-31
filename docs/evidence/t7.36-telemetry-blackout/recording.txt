@@ -1,0 +1,67 @@
+=== waiting for containers to settle ===
+RECORDING START 02:32:16Z
+rehearsing payment-telemetry-blackout  [dev]  fault=payment-telemetry-blackout
+  baseline is not clean: 1 alert(s) firing - ServiceHighLatency/checkoutservice
+  … still waiting on ServiceHighLatency/checkoutservice
+  … still waiting on ServiceHighLatency/checkoutservice
+  … still waiting on ServiceHighLatency/checkoutservice
+=== attempt 2: settling after checkout remedy ===
+  … still waiting on ServiceHighLatency/checkoutservice
+  … still waiting on ServiceHighLatency/checkoutservice
+  … still waiting on ServiceHighLatency/checkoutservice
+  … still waiting on ServiceHighLatency/checkoutservice
+  … still waiting on ServiceHighLatency/checkoutservice
+  baseline clear; injecting
+injected payment-telemetry-blackout (bad_config) on paymentservice
+  - compose: paymentservice recreated with OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4317
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/payment-telemetry-blackout.yml
+revert with: faultline-inject stop payment-telemetry-blackout
+  waiting up to 900s for an alert (default is 420s)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  holding the fault for 300s of steady state after the alert
+reverted payment-telemetry-blackout
+  - compose: paymentservice recreated from the base world definition
+  - removed override /Users/chandana/dev/faultline/.faultline/overrides/payment-telemetry-blackout.yml
+  … waiting for alerts to clear (1 firing)
+  … waiting for alerts to clear (1 firing)
+  … waiting for alerts to clear (1 firing)
+  … waiting for alerts to clear (1 firing)
+  captured error-ratio
+  captured call-rate
+  captured latency-p95
+  captured alerts-firing
+  captured runtime
+  captured logs for payment-service
+  wrote 5 metric file(s) and logs/payment-service.txt
+
+bundle written to evals/scenarios/artifacts/dev/payment-telemetry-blackout
+
+  !! evals/scenarios/artifacts/dev/payment-telemetry-blackout/incident.md was written against no recorded capability; the current set is cap:9c416e0a.
+     Its claims about what a responder could reach may be stale. Review it against the captures - logs/ first - and then set `capability: cap:9c416e0a`.
+     `make check` fails until you do.
+next: write incident.md, then set `rehearsed: true` in the scenario YAML.
+RECORD EXIT 0 02:46:54Z

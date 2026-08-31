@@ -70,6 +70,10 @@ NO_RUNTIME_METRICS = frozenset(
         "currency-cpu-throttle",
         "email-wrong-image",
         "flag-service-crashloop",
+        # T7.36: paymentservice (Node) exports no process_runtime_*/runtime_*/system_memory_*
+        # family. Its blackout does not cause this - the capture reads empty on a healthy
+        # recording of this target too, which is why the scenario declares only `logs`.
+        "payment-telemetry-blackout",
         "product-catalog-flag-failure",
         "productcatalog-dependency-latency",
         "shipping-quote-misconfig",

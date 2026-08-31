@@ -1,0 +1,65 @@
+id: payment-telemetry-blackout
+title: Payment service healthy, serving, and invisible in the traffic metric
+fault_class: bad_config
+split: dev
+slot: bad_config-4
+injection:
+  target: paymentservice
+  method: payment-telemetry-blackout
+  params:
+    env_var: OTEL_EXPORTER_OTLP_TRACES_ENDPOINT
+    value: http://127.0.0.1:4317
+ground_truth:
+  root_cause: >
+    The payment service's OTEL_EXPORTER_OTLP_TRACES_ENDPOINT was repointed at a dead address.
+    The service itself is unaffected: it keeps accepting charges and its own
+    app_payment_transactions counter keeps incrementing throughout. Only its spans stop.
+    Because calls_total is produced from spans by the collector's spanmetrics connector, the
+    traffic metric for paymentservice drains to zero and ServiceNoTraffic fires on a service
+    that is working perfectly. The fault is in the telemetry path, not in the service.
+  category: bad_config
+expected_evidence:
+  - class: metrics
+    item: >
+      ServiceNoTraffic fires on paymentservice and on nothing else. No error-rate and no
+      latency alert fires anywhere, because nothing is failing and nothing is slow.
+  - class: logs
+    item: >
+      paymentservice logs "Charge request received." throughout the blackout - measured 111
+      charge lines between T+1m and T+12m at T7.36, steady across every minute the alert was
+      firing. This is the discriminator in the recorded bundle: a service that is actually
+      down logs nothing.
+  - class: traces
+    item: >
+      checkoutservice's client spans to paymentservice continue and continue to succeed.
+      There are simply no matching paymentservice server spans, because the caller exports
+      its own spans and the callee no longer exports its.
+  - class: metrics
+    item: >
+      app_payment_transactions{exported_job="paymentservice"} keeps incrementing live, because
+      OTEL_EXPORTER_OTLP_METRICS_ENDPOINT is deliberately not touched - measured 0 to 80 over
+      eight minutes at T7.36. Reachable by a live promql query during the incident. It is NOT
+      in the recorded bundle: runtime.json captures only RUNTIME_FAMILIES
+      (process_runtime_*, runtime_*, system_memory_*), and a business counter is not one.
+  - class: changes
+    item: >
+      OTEL_EXPORTER_OTLP_TRACES_ENDPOINT on paymentservice changed to a dead address. This
+      is the only class that names the change itself.
+expected_remediation_class: config_revert
+rehearsed: false
+alert_timeout_seconds: 900
+# Measured at T7.36: ServiceNoTraffic reached `pending` at T+2m19s and fired at T+5m19s
+# (319s), against a 3m `for:` clause. The 900s budget is ample; it is set explicitly rather
+# than left to the default because the onset depends on the 3m rate window draining, not on
+# anything the fault does quickly.
+answers_idle_or_absent: [logs]
+# **Measured, not declared.** The recorder derived `['logs']` with `runtime_series: 0` and
+# `target_log_lines: 328`, so `none_can_answer` is False and the scenario is scoreable.
+#
+# **The author's first draft said `[runtime, logs]` and was wrong.** `runtime.json` captures
+# only `RUNTIME_FAMILIES` - `process_runtime_*`, `runtime_*`, `system_memory_*` - and
+# paymentservice exports none of them at any time. `runtime_series: 0` is therefore a
+# property of this target, **not something the blackout causes**: it would read 0 on a
+# healthy recording too. Corrected against the recorder rather than argued with, which is
+# the whole point of deriving reachability under the fault (T7.5, and T7.22's false
+# none_can_answer in the worst possible direction).
