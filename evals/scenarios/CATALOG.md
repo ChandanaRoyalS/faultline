@@ -119,6 +119,13 @@ The guard in `test_scoring.py` caught the analogy.
 
 ## `payment-telemetry-blackout` — the culprit has no fault (T7.36)
 
+> **The single container replacement near onset is the config change taking effect, not a separate
+> event (T7.42).** `BadConfigFault` applies through a compose override and a recreate because an
+> environment variable cannot be changed on a running container. `change_history` records it with a
+> timestamp and the old and new values, so it is explicable from the evidence in one step — and the
+> apparatus signature is 2–6 startup lines, against 37–38 in the memory scenarios where the *fault*
+> restarts the container. See ADR-0009's T7.42 addendum.
+
 `bad_config` · `bad_config-4` · dev · recorded 2026-08-31 against `compose_digest f5bd108f…`,
 `capture_set` 2. **Onset 376s.** Not yet run by any agent.
 
@@ -253,6 +260,28 @@ service it targets.
 
 If such a mechanism is found, the slot is there and the split is already decided (dev). If it is
 not, the slot stays empty and every figure states n as what was filled.
+
+## The container replacement in a `bad_config` or `bad_deploy` bundle is the change, not the harness (T7.42)
+
+**Applies to all seven scenarios injected through a compose override**: `cart-bad-image-tag`,
+`email-wrong-image`, `shipping-wrong-image`, `cart-redis-misconfig`, `product-catalog-flag-failure`,
+`shipping-quote-misconfig`, `payment-telemetry-blackout`.
+
+Each of them replaces the target container once, near onset, because **an environment variable and
+an image cannot be changed on a running container** — `docker update` carries resource limits only.
+**The replacement is the change taking effect, and it is explicable from the evidence in one step**:
+the injector writes a change record for every injection, and `change_history` returns it with a
+timestamp and the old and new values.
+
+**The apparatus signature is the quiet one.** Startup lines in captured target logs: **2–6** for
+these seven, against **37 and 38** for `ad-memory-squeeze` and `frauddetection-memory-squeeze` —
+which do *not* recreate, and whose restarts are the fault killing the container repeatedly. **The
+loudest restart evidence in this catalog belongs to faults, not to the harness.**
+
+**Not treated as a confound**, and the reasoning is in
+[`docs/design/t7.42-injector-restart.md`](../../docs/design/t7.42-injector-restart.md): for
+`bad_deploy` the recreate *is* the fault, and for `bad_config` it is what a real config change does.
+The three memory scenarios and the three latency scenarios recreate nothing.
 
 ## Read every timing in this document as one sample
 

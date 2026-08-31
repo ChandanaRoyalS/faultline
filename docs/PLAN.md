@@ -1573,6 +1573,63 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.42 — the injector's restart, surveyed *(no money, minimal world time)*
+**Done** ([`docs/design/t7.42-injector-restart.md`](design/t7.42-injector-restart.md), ADR-0009
+addendum, CATALOG note). **Conclusion: it is not a confound**, and the concern that prompted the look
+does not survive the survey. **No mechanism change, no capture change.**
+
+**The prompting run does not support the concern, which is the first thing the check found.**
+T7.41's abstaining D5 run asked *"Why was the paymentservice container replaced?"* - and its **first
+tool call** was `change_history("paymentservice")`, which returned *"environment updated:
+OTEL_EXPORTER_OTLP_TRACES_ENDPOINT updated on paymentservice, None -> http://127.0.0.1:4317"*.
+**The agent was told why, in its first query, and listed it as an open question anyway.** Whatever
+produced that abstention, it was not an absence of evidence.
+
+**Scope, from the bundles: 7 of 13 recreate.** `BadDeployFault` (3 scenarios) and `BadConfigFault`
+(4) apply through a compose override and a recreate. The three memory squeezes use `docker update` on
+a live property and the three latency scenarios use a pumba sidecar - **none of those six touches the
+container**, and they are reported because a clean result is what bounds the finding.
+
+**The survey inverts the concern.** Startup lines in captured target logs:
+**`frauddetection-memory-squeeze` 38** and **`ad-memory-squeeze` 37** - both **non-recreating**,
+where the *fault* restarts the container repeatedly - against **2-6** for the seven whose recreate is
+the injector's. **The loudest restart evidence in this catalog belongs to faults, not to the
+harness.** `shipping-wrong-image` at 33 is also fault-driven: a deploy that starts and fails.
+
+**What kind of problem it would be, named rather than stretched.** Not contamination in ADR-0008's
+sense - nothing leaks. The category would be **a signature of the apparatus appearing in the
+measurement**. **But it does not belong to it**: for `bad_deploy` the recreate *is* the fault, since a
+real deploy replaces the container; and for `bad_config` the recreate is **faithful rather than
+artificial**, because an environment variable cannot be changed on a running container in this world
+or any orchestrator. A responder seeing *config changed, container replaced* is seeing the normal
+consequence of a config change.
+
+**Easier, harder, or neither: neither.** The restart is explicable from `change_history`, which every
+one of these scenarios records by construction, and the reader's step is *config changed at T ->
+container replaced at T* - **one inference, and a realistic one**. Not easier, because the record
+names the change and not the diagnosis. Not harder in any way that shows: the abstaining run had the
+record, and the other run with the same evidence answered correctly. **So there is no added
+difficulty to attribute to tooling** - had the survey come out the other way, that distinction would
+have mattered and belonged in the record.
+
+**Avoidable? No, not while the fault stays a config change.** `docker update` has **no `--env`**;
+env is fixed at container creation, and no demo service re-reads configuration at runtime (all 15
+take the endpoint from env at startup). A mechanism that changes what the service sees without
+replacing it - blackholing the collector's address - **models a network fault rather than a config
+one**, which is a different scenario and not the same one applied better. **And the cost would be
+paid twice**: `scenario_fingerprint` covers `injection`, so a mechanism swap moves the fingerprint on
+all four `bad_config` scenarios and invalidates their bundles.
+
+**Decision: recorded as a known property**, in ADR-0009's addendum and in a CATALOG section naming
+all seven affected scenarios, so a reader of a bundle knows the single replacement is the change
+taking effect and stops looking for a second cause.
+
+**And T7.41's framing is corrected rather than carried forward.** That entry called this *"a
+permanent unanswerable question sitting inside the evidence"*. **It is answerable**, by the first tool
+the abstaining run happened to call, and the phrase overstated a one-run observation into a property
+of the catalog. **n = 2 prompted the look; the survey is what settled it**, and nothing here claims
+more than the survey shows.
+
 ### T7.41 — the two new scenarios scored *(live experiment; cut short by billing)*
 **Done** ([`RUN-2026-08-31-two-new-scenarios.md`](../evals/runs/RUN-2026-08-31-two-new-scenarios.md)),
 pre-registered before any run. **Nothing was re-run.** Holdout untouched.
