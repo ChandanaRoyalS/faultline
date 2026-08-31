@@ -25,7 +25,7 @@ ARTIFACTS = Path(__file__).resolve().parents[1] / "evals" / "scenarios" / "artif
 DEV = ARTIFACTS / "dev"
 HOLDOUT = ARTIFACTS / "holdout"
 
-DEV_DOCUMENTS = 8
+DEV_DOCUMENTS = 9
 """Ten dev bundles, two marked INVALID. **Pinned so a new narrative is a conscious change**
 to this number - a corpus that silently grows is one nobody has read."""
 
@@ -45,7 +45,7 @@ def store() -> InMemoryPastIncidentStore:
 def test_every_dev_narrative_parses_into_the_same_five_sections() -> None:
     narratives = sorted(DEV.glob("*/incident.md"))
 
-    assert len(narratives) == 10, "ten dev bundles carry a narrative; two are INVALID"
+    assert len(narratives) == 11, "eleven dev bundles carry a narrative; two are INVALID"
     for path in narratives:
         narrative = parse_narrative(path)
         assert narrative.split == "dev"
@@ -122,7 +122,7 @@ def test_a_narrative_whose_origin_disagrees_with_its_manifest_refuses(tmp_path: 
 # --- seeding -------------------------------------------------------------------
 
 
-def test_seeding_the_dev_tree_yields_exactly_the_eight_valid_narratives() -> None:
+def test_seeding_the_dev_tree_yields_exactly_the_nine_valid_narratives() -> None:
     """Nine bundles, two INVALID - `currency-cpu-throttle` and `flag-service-crashloop` are
     blocked scenarios whose faults produced nothing observable. Seeding them would put two
     incidents in the corpus that never happened."""
@@ -266,7 +266,7 @@ def test_the_seed_cli_offers_no_way_to_point_at_the_holdout() -> None:
     assert not {"--split", "--holdout", "--all-splits"} & flags
 
 
-def test_the_seed_cli_dry_run_reproduces_the_eight_documents(
+def test_the_seed_cli_dry_run_reproduces_the_nine_documents(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """`--dry-run` applies every guard with no database and no model, so a new narrative can

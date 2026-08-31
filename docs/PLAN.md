@@ -1573,6 +1573,83 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.36 — D5 built: `payment-telemetry-blackout` *(scenario; world time, no agent money)*
+**Done** (`bad_config-4`, dev, recorded). The first scenario build since T7.34's audit. **The agent
+was not run against it**; that is a separate task with its own money.
+
+**Criteria committed before the world was touched**
+([`CRITERIA.md`](evidence/t7.36-telemetry-blackout/CRITERIA.md)): two variants then stop, no V3 and
+no switching service. **V1 passed**, so the discipline cost nothing this time - but three candidates
+have already died in this project by being adjusted until they passed.
+
+**A design change made at the desk, before any world time.** paymentservice carries *separate*
+`OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` and `..._METRICS_ENDPOINT` variables. Repointing **traces
+only** stops spanmetrics - which is what `calls_total` is built from, so `ServiceNoTraffic` becomes
+reachable - while leaving the metrics path alone. The mechanism is `BadConfigFault`, generic
+`env_var`/`value`, the same machinery `cart-redis-misconfig` uses: a generated, uncommitted compose
+override plus a recreate. **No digest moves.**
+
+**Check 1 - does anything alert? Yes, and it was established first rather than last.** Confirmed
+against the committed rules before probing: `ServiceNoTraffic` needs `rate(calls_total[3m])` to be
+**present and zero**, which is the condition that could have killed D5 outright. Two recorded
+bundles already showed a service that stopped exporting firing it (`cartservice` 4.0 min,
+`frauddetectionservice` 5.8 min). Measured in the V1 probe: rate 0.2087 -> 0.0783 -> **0.0 with the
+series present**, `pending` at T+2m19s, **firing at T+5m19s (319s)**, and **no error or latency
+alert anywhere**. Checkout's error ratio was 0.0 throughout apart from one 0.0047 sample at the
+recreate.
+
+**Check 3 - the remediation identifies the class.** Reverted at 02:21:47, **all alerts cleared
+02:22:17 (~30s)**, far inside the 420s timeout. `config_revert` -> `bad_config` -> **`bad_config-4`,
+dev**, checked against T7.35's frozen record rather than T7.34's audit, which predates the freeze.
+
+**Check 2 - reachability, and it corrected the author.** `none_can_answer: **False**` with
+`target_log_lines: 328`, so the scenario is scoreable. But **`runtime_series: 0`**, and the scenario
+had been authored declaring `[runtime, logs]`. **The declaration was wrong and was corrected against
+the recorder rather than argued with.** `runtime.json` captures only `RUNTIME_FAMILIES` -
+`process_runtime_*`, `runtime_*`, `system_memory_*` - and paymentservice exports none of them at any
+time, so that capture reads empty on a healthy recording too. **`runtime_series: 0` is a property of
+the target, not an effect of the blackout.** Second time reachability has caught a claim the author
+believed; T7.22 was the first, in the worst possible direction.
+
+**Criterion 6 held on its other limb, which is why it was written with two.** The pre-registered
+requirement was that *either* runtime series *or* target logs showing request handling must survive.
+Runtime did not; the logs did, decisively: **111 `Charge request received.` lines between T+1m and
+T+12m**, steady across every minute the alert was firing. Had criterion 6 been written around
+runtime alone, D5 would have been disqualified for a property of the target rather than a property
+of the scenario.
+
+**Recorded: onset 376s, one alert, `ServiceNoTraffic/paymentservice` alone for 6.0 minutes.** Every
+other `ServiceNoTraffic` in the catalog arrives inside a cascade - `cart-bad-image-tag` fires it on
+seven services behind three error alerts. **Here it is alone and nothing else is wrong.**
+
+**What separates the right answer from the wrong one**, stated in CATALOG.md because a benchmark
+item whose answers are indistinguishable is not scoreable. Right: *the telemetry is broken*. Wrong:
+*the service is down*. Both produce a firing `ServiceNoTraffic` and both drain `calls_total` to
+zero. **Two independent classes separate them, both in the bundle:** the target's own logs (111
+charges handled, against a dead process logging nothing) and the caller's error ratio (0.0, against
+elevated). A verdict of "payment is down" has to have ignored evidence that is present.
+
+**The build exposed a defect in T7.35's own guard, one task old.** `payment-telemetry-blackout`
+sorts *second* alphabetically in `bad_config`, so the standing re-derivation check wanted to hand it
+`bad_config-2` and shuffle two recorded scenarios down - **exactly the instability T7.35 documented
+and then encoded anyway.** The first scenario authored after the guard found it. Fixed: the
+alphabetical derivation is pinned to the eleven it was actually run over, and the forward rule is a
+**contiguous-prefix invariant** - occupied slots in a class must be `1..n` with no holes, which is
+what "lowest free slot" produces and is stable under addition. Verified by steering a scenario into
+a holdout slot past a free dev slot and watching it reject.
+
+**One operator error, caught before it did damage.** A retry recorder was queued on the assumption
+that the recorder *refuses* a dirty baseline. It does not - `wait_for_clean_baseline` **waits** - so
+attempt 1 was never dead, and the checkout restart applied as a remedy cleared its wait and let it
+inject. Both were briefly live; attempt 2 was killed before its sleep expired. **Two drivers of the
+world for about four minutes, and no second injection occurred.**
+
+**Catalog: 12 valid scenarios, 9 dev / 3 holdout.** `bad_config` dev is now full at 4.
+
+**World left healthy:** no alerts, payment's endpoint restored to `http://otelcol:4317`, kafka
+recycled to 27% before recording and `accounting-service`/`frauddetection-service` restarted after
+it (T7.27), no leftover override.
+
 ### T7.35 — make the slot rule executable *(guard; no digest moves)*
 **Done** (`scenario.py`, `test_contamination.py`, SPLIT.md, CATALOG.md, README, RESULTS). T7.34
 found the fourth instance of this arc's defect: SPLIT.md's anti-steering rule - the one with no

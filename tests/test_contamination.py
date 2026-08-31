@@ -267,6 +267,32 @@ carries; `test_slot_table_agrees_with_the_allocation` asserts the two cannot dri
 """
 
 
+BACKFILLED_AT_T735 = frozenset(
+    {
+        "ad-memory-squeeze",
+        "cart-bad-image-tag",
+        "cart-dependency-latency",
+        "cart-redis-misconfig",
+        "email-wrong-image",
+        "frauddetection-memory-squeeze",
+        "product-catalog-flag-failure",
+        "productcatalog-dependency-latency",
+        "recommendation-memory-squeeze",
+        "shipping-quote-misconfig",
+        "shipping-wrong-image",
+    }
+)
+"""The eleven the T7.35 derivation was run over. **A historical set, and it does not grow.**
+
+The alphabetical derivation is a *backfill*, not a standing rule, and T7.36 proved why by being the
+first scenario authored after it: `payment-telemetry-blackout` sorts second in `bad_config`, so
+re-deriving would take `bad_config-2` and shuffle two already-recorded scenarios down a slot. That
+is exactly the instability T7.35 documented - and then encoded in a standing check anyway. The
+check below is pinned to the set it was derived for; `test_slots_are_a_contiguous_prefix_per_class`
+is what constrains everything authored afterwards.
+"""
+
+
 def derived_slots() -> dict[str, str]:
     """The backfill derivation: alphabetical by fault id within class, lowest free slot first.
 
@@ -275,6 +301,11 @@ def derived_slots() -> dict[str, str]:
     """
     by_class: dict[FaultClass, list[Scenario]] = {}
     for scenario in allocated():
+        # **Derived over the backfilled set only.** Including anything authored later would
+        # re-sort the class and move slots that are frozen - the very instability this
+        # derivation is quarantined for (T7.36).
+        if scenario.id not in BACKFILLED_AT_T735:
+            continue
         by_class.setdefault(scenario.fault_class, []).append(scenario)
     out: dict[str, str] = {}
     for fault_class, scenarios in by_class.items():
@@ -293,6 +324,8 @@ def test_the_derivation_still_reproduces_every_recorded_split() -> None:
     """
     disagreements = []
     for scenario in allocated():
+        if scenario.id not in BACKFILLED_AT_T735:
+            continue
         slot = derived_slots()[scenario.id]
         index = int(slot.rsplit("-", 1)[1]) - 1
         belongs_to = SLOT_SPLITS[scenario.fault_class][index]
@@ -319,15 +352,39 @@ def test_a_blocked_scenario_records_no_slot_because_it_releases_it() -> None:
     assert not claiming, f"blocked but still claiming a slot: {claiming}"
 
 
-def test_the_recorded_slot_is_the_one_the_rule_assigns() -> None:
-    """Identity, not count. This is what a per-class count could not check."""
+def test_the_recorded_slot_is_the_one_the_rule_assigns_for_the_backfilled_set() -> None:
+    """Identity, not count - over the eleven the derivation was actually run on."""
     derived = derived_slots()
     wrong = [
-        f"{s.id}: records {s.slot}, rule assigns {derived[s.id]}"
+        f"{s.id}: records {s.slot}, backfill derived {derived[s.id]}"
         for s in allocated()
-        if s.slot != derived[s.id]
+        if s.id in BACKFILLED_AT_T735 and s.slot != derived[s.id]
     ]
-    assert not wrong, "\n  ".join(["slot does not match the rule:", *wrong])
+    assert not wrong, "\n  ".join(["backfilled slot does not match the derivation:", *wrong])
+
+
+def test_slots_are_a_contiguous_prefix_per_class() -> None:
+    """**The forward rule, and it is stable under addition.**
+
+    A new scenario takes the lowest-numbered free slot in its class, so the occupied numbers in
+    every class are always `1..n` with no holes. This is what catches steering without
+    re-deriving anything: an author who reaches past a free dev slot to author into a holdout
+    one leaves a hole, and the hole fails here.
+
+    `bad_deploy-5` is deliberately empty (T7.35) but it is the *last* dev slot of its class and
+    nothing follows it, so it makes no hole. If a scenario is ever authored into `bad_deploy-6`
+    while `-5` stands empty, that is a real steering event and this test is what says so.
+    """
+    by_class: dict[FaultClass, set[int]] = {}
+    for scenario in allocated():
+        assert scenario.slot is not None
+        by_class.setdefault(scenario.fault_class, set()).add(int(scenario.slot.rsplit("-", 1)[1]))
+    for fault_class, numbers in by_class.items():
+        assert numbers == set(range(1, len(numbers) + 1)), (
+            f"{fault_class.value} occupies {sorted(numbers)}, which is not a contiguous prefix. "
+            "A scenario reached past a free slot - which is how the split gets chosen rather "
+            "than assigned (ADR-0008)."
+        )
 
 
 def test_no_two_scenarios_claim_the_same_slot() -> None:

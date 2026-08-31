@@ -436,6 +436,17 @@ NARRATIVE_EVIDENCE: dict[str, set[str]] = {
     "cart-dependency-latency": {"metrics", "changes", "container_state"},
     "cart-redis-misconfig": {"metrics", "traces", "logs", "changes"},
     "frauddetection-memory-squeeze": {"metrics", "logs", "changes"},
+    # T7.36: the culprit has no fault, so what matters is the evidence that the service is
+    # alive - its own logs, 111 charges handled during the blackout - against the metric
+    # saying it serves nothing, plus changes, which names the exporter endpoint.
+    #
+    # **Traces are deliberately not listed.** The narrative cites them (checkout's client
+    # spans to payment keep succeeding) and they corroborate, but the diagnosis does not
+    # need them: logs and the caller's flat error ratio separate the right answer from the
+    # wrong one on their own. Listing traces here would inflate the justification for the
+    # fourth tool, which two narratives earned on the strength of it being their *first*
+    # narrowing step.
+    "payment-telemetry-blackout": {"metrics", "logs", "changes"},
     "product-catalog-flag-failure": {"metrics", "changes", "dependencies"},
     "shipping-quote-misconfig": {"metrics", "logs", "changes"},
     "shipping-wrong-image": {"metrics", "logs", "changes"},
@@ -501,7 +512,7 @@ def test_change_history_is_needed_by_every_single_investigation() -> None:
     service and its logs, which do reach it, carry no error and no mention of what it could
     not reach.
     """
-    assert len(NARRATIVE_EVIDENCE) == 11
+    assert len(NARRATIVE_EVIDENCE) == 12
     assert all("changes" in kinds for kinds in NARRATIVE_EVIDENCE.values())
     assert len(NEGATIVE_CHANGE_ANSWER) == 4
     assert set(NARRATIVE_EVIDENCE) >= NEGATIVE_CHANGE_ANSWER

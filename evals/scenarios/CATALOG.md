@@ -6,6 +6,92 @@ section is written from committed bundles, after rehearsal. Nothing here is a pr
 See `SCHEMA.md` for the file format, `SPLIT.md` for the dev/holdout allocation, and
 `ARTIFACTS.md` for what a rehearsal bundle contains.
 
+## `payment-telemetry-blackout` — the culprit has no fault (T7.36)
+
+`bad_config` · `bad_config-4` · dev · recorded 2026-08-31 against `compose_digest f5bd108f…`,
+`capture_set` 2. **Onset 376s.** Not yet run by any agent.
+
+**The fault is in the telemetry path, not in the service.** `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` on
+`paymentservice` points at a dead address. The service keeps accepting charges; only its spans stop.
+`calls_total` is built from spans by the collector's spanmetrics connector, so the traffic metric
+drains to zero and `ServiceNoTraffic` fires on a service that is working perfectly.
+
+### The page is one alert, and that is the first thing that is unusual
+
+| | |
+|---|---|
+| `alerts_at_fire` | **`ServiceNoTraffic/paymentservice`** |
+| `alerts_over_window` | the same one, alone, 6.0 minutes |
+| error-rate alerts | **none, anywhere** |
+| latency alerts | **none, anywhere** |
+
+Every other `ServiceNoTraffic` in this catalog arrives inside a cascade — `cart-bad-image-tag` fires
+it on seven services behind three error alerts, `shipping-quote-misconfig` on four. **Here it is
+alone and nothing else is wrong**, because checkout's calls to payment keep succeeding. Measured at
+T7.36: checkout's error ratio was **0.0** for the whole fault window, apart from a single 0.0047
+sample at the recreate.
+
+### Which classes can see it
+
+| class | what it sees |
+|---|---|
+| **logs** | **the discriminator.** 328 lines captured, **111 "Charge request received." between T+1m and T+12m** — steady across every minute the alert was firing. Logs travel by promtail over the docker socket, and no OTLP setting can silence them. |
+| **changes** | the only class that names the change itself: `OTEL_EXPORTER_OTLP_TRACES_ENDPOINT` set to a dead address on `paymentservice`. |
+| **traces** | `checkoutservice`'s **client** spans to payment continue and continue to succeed. There are no matching payment **server** spans, because the caller exports its own and the callee no longer exports its. |
+| **metrics** | `calls_total` for payment drains to 0 **with the series present** — that presence is what lets the rule fire at all. `app_payment_transactions` keeps incrementing and is reachable to a live query, because the *metrics* endpoint is untouched. |
+
+**Which class cannot: runtime.** `runtime_series` is **0**, and it is worth being precise about why,
+because it is not what it looks like. `runtime.json` captures only `RUNTIME_FAMILIES` —
+`process_runtime_*`, `runtime_*`, `system_memory_*` — and `paymentservice` exports none of them at
+any time. **That capture would read 0 on a healthy recording of this service too**, so it is a
+property of the target and not an effect of the fault. Reachability is `['logs']`,
+`none_can_answer: False`.
+
+> **The author's first draft of this scenario declared `[runtime, logs]` and was wrong.** It was
+> corrected against the recorder's derived field rather than argued with. This is the second time
+> reachability has caught a claim the author believed — T7.22 produced a false `none_can_answer` in
+> the worst possible direction — and it is why the field is derived from captures under the fault
+> rather than declared.
+
+### What a correct diagnosis has to notice
+
+**That the service is alive.** Not that it is slow, not that it is failing — that it is *working*,
+while the only alert on the board says it is serving nothing.
+
+The chain is: `ServiceNoTraffic` says payment serves nothing → but checkout's calls to payment
+**succeed**, and payment's own logs show it handling 111 charges during the window → so payment is
+up and serving → therefore what stopped is the *reporting*, not the service → and `change_history`
+names the exporter endpoint.
+
+### The right answer and the wrong answer, and what separates them in the evidence
+
+This matters more here than in any other entry, because the two are one step apart.
+
+| | **right: the telemetry is broken** | **wrong: the service is down** |
+|---|---|---|
+| `ServiceNoTraffic` | fires | fires |
+| payment's `calls_total` | drains to 0 | drains to 0 |
+| **payment's logs** | **111 charges handled during the window** | **silent — a dead process logs nothing** |
+| **caller's spans to payment** | **succeed, normal duration** | **fail or time out** |
+| caller's error rate | **0.0** | elevated |
+| remediation that works | `config_revert` | `restart` |
+
+**Two independent classes separate them**, and both are in the bundle: the target's own logs, and
+the caller's error ratio. A diagnosis that answers "payment is down" is not merely unlucky here —
+it has to have ignored evidence that is present, which is what makes this scoreable rather than a
+coin flip.
+
+**The closest existing neighbour is `shipping-quote-misconfig`**, where the faulty service also
+produced no errors and its logs were exculpatory. The difference is that there the service really
+was misbehaving and the logs failed to show it; **here the service is not misbehaving at all**, and
+the logs are not exculpatory but affirmative — they are the proof.
+
+### One honest wrinkle
+
+The injection recreates the container, so there is a **brief genuine outage at T+0** — one 0.0047
+error sample on checkout. `cart-redis-misconfig` has the same property for the same reason, and it
+is visible in the capture rather than hidden. It does not reach an alert.
+
 ## n is the number of slots filled, not the number SPLIT.md allocates (T7.35)
 
 **`bad_deploy-5` is deliberately left empty, and the catalog will not reach its allocated n=20.**

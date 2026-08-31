@@ -356,6 +356,37 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"env_var": "REDIS_ADDR", "value": "redis-cart:6380"},
         ),
         FaultDefinition(
+            id="payment-telemetry-blackout",
+            fault_class=FaultClass.BAD_CONFIG,
+            target="paymentservice",
+            description=(
+                "Repoint the payment service's OTLP *trace* exporter at a dead address. The "
+                "service keeps serving and keeps processing payments; only its spans stop. "
+                "`calls_total` is built from those spans by the collector's spanmetrics "
+                "connector, so the traffic metric drains to zero and `ServiceNoTraffic` fires on "
+                "a service that is working perfectly - a config-revert, not a restart."
+            ),
+            # **Traces only, and the metrics endpoint is deliberately left alone.** It is a
+            # separate variable, so `app_payment_transactions` keeps incrementing and stays
+            # reachable to a live promql query during the incident.
+            #
+            # **It is not the bundle's discriminator, and the first draft of this comment said
+            # it was.** `runtime.json` captures only `RUNTIME_FAMILIES`, and a business counter
+            # is not one; paymentservice exports no runtime family at all, so that capture reads
+            # empty on a healthy recording too. **The discriminator in the bundle is the logs**:
+            # 111 "Charge request received." lines across the fault window at T7.36, steady
+            # through every minute the alert was firing. Logs travel by promtail over the docker
+            # socket and no OTLP setting can silence them.
+            #
+            # 127.0.0.1:4317 inside the container has nothing listening, so the exporter fails
+            # fast and drops spans rather than blocking the request path - measured at T7.36:
+            # checkout error ratio stayed 0.0 for the whole fault window.
+            params={
+                "env_var": "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT",
+                "value": "http://127.0.0.1:4317",
+            },
+        ),
+        FaultDefinition(
             id="checkout-currency-misconfig",
             fault_class=FaultClass.BAD_CONFIG,
             target="checkoutservice",
