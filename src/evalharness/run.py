@@ -34,6 +34,7 @@ from evalharness import gate
 from evalharness.prom import PROMETHEUS, QueryError, get_json
 from evalharness.provenance import recorder_provenance
 from evalharness.scoring import Categories, ScoredRun, score_label, score_triage
+from injector.worldlock import WorldLock, WorldLockError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 RUN_ROOT = REPO_ROOT / "evals" / "runs"
@@ -174,33 +175,6 @@ class RunError(RuntimeError):
     """
 
     discard_reason = "run failed"
-
-
-class WorldLock:
-    """One driver of the world. **Does not wait.**
-
-    Waiting on a world lock is how two harness processes interleave injections with nothing in
-    either log to show it. An instruction to a human since T3.3; a file since T4.1.
-    """
-
-    def __init__(self, path: Path = LOCK_PATH) -> None:
-        self._path = path
-
-    def __enter__(self) -> WorldLock:
-        self._path.parent.mkdir(parents=True, exist_ok=True)
-        try:
-            handle = os.open(self._path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-        except FileExistsError:
-            raise RunError(
-                f"another harness run holds {self._path}: {self._path.read_text().strip()}. "
-                "Nothing was injected. Delete the file if that process is gone."
-            ) from None
-        os.write(handle, f"pid {os.getpid()} since {datetime.now(UTC).isoformat()}\n".encode())
-        os.close(handle)
-        return self
-
-    def __exit__(self, *exc: object) -> None:
-        self._path.unlink(missing_ok=True)
 
 
 class RunDir:
@@ -664,6 +638,13 @@ def parser() -> argparse.ArgumentParser:
         "Remaining work, not total: pass 8 on the first of eight, 2 on the seventh.",
     )
     p.add_argument(
+        "--force-lock",
+        action="store_true",
+        help="take the world even though another driver holds it (T7.37). Refused without "
+        "this. A dead holder is reclaimed automatically and needs no flag; this is for a "
+        "holder that is alive and wrong. **Recorded in the manifest.**",
+    )
+    p.add_argument(
         "--single-run",
         action="store_true",
         help="this is one run, not part of a sweep (T7.33). Required unless "
@@ -844,7 +825,10 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     try:
-        with WorldLock():
+        with WorldLock(
+            reason=f"faultline-eval {args.scenario_id}", force=bool(args.force_lock)
+        ) as world:
+            run.manifest["world_lock"] = world.info()
             print("baseline gate...")
             reading = gate.require(
                 open_incidents(dsn),
@@ -951,6 +935,11 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\nartifacts under {run.path}")
         return 0
 
+    except WorldLockError as busy:
+        # Not a discard and not a gate refusal: nothing was injected and this run never
+        # started. Same shape as T7.32's pause.
+        print(f"REFUSED: {busy}")
+        return 2
     except gate.GateRefusedError as refused:
         run.manifest["baseline_gate"] = gate.read(
             open_incidents(dsn), settling_incidents(dsn), runs_remaining=args.runs_remaining

@@ -24,6 +24,64 @@ above `runtime.json`. The ten bundles recorded before the fifth capture carry no
 The path is the quarantine (T1.6): `<split>` is the scenario's own split, and the guard
 tests in `tests/test_contamination.py` fail the build if a bundle lands on the wrong side.
 
+## Before you invoke the recorder: what it actually does (T7.37)
+
+**Read this before queueing anything.** T7.36 came within one sleep of recording a second
+injection behind a live one, and the missing lock was not the cause - **misreading the recorder's
+waiting behaviour as refusing** was. The lock is now there, but a contract nobody has read is how
+the next near-miss happens.
+
+### It waits on a dirty baseline. It does not refuse.
+
+`wait_for_clean_baseline` **blocks until the world is quiet**, for up to `--baseline-timeout`
+seconds (**default 300**), and only then injects. It aborts if the timeout expires.
+
+So an invocation that prints
+
+```
+baseline is not clean: 1 alert(s) firing - ServiceHighLatency/checkoutservice
+  … still waiting on ServiceHighLatency/checkoutservice
+```
+
+**has not failed and has not finished.** It is alive, it is holding the world, and it will inject
+the moment the alert clears - including if *you* clear it by hand while looking at the message.
+That is exactly what happened at T7.36: the operator read the message as a refusal, applied
+ADR-0025's checkout restart as a remedy, and the restart released the recorder's wait and let it
+inject.
+
+**Do not queue a retry against that message.** There is nothing to retry; the run is still going.
+
+### The order of checks, and which of them wait
+
+| step | on failure | waits? |
+|---|---|---|
+| **world lock** | refuses, exit 2 | **no** - refusing immediately is the point |
+| bundle already exists | aborts unless `--force` | no |
+| scenario matches catalog | aborts | no |
+| no active faults | aborts | no |
+| image coherence | aborts | no |
+| containers settled | aborts | no |
+| memory headroom | aborts | no |
+| **clean baseline** | aborts at timeout | **yes, up to `--baseline-timeout` (300s)** |
+| **alert to fire** | discards | **yes, up to the scenario's `alert_timeout_seconds`** |
+| steady-state dwell | — | **yes, `--dwell` (300s)** |
+| alerts to clear after revert | — | **yes** |
+
+**Only the lock check is instant.** Everything from the baseline wait down is minutes, and a
+recording that looks stuck is usually a recording that is working.
+
+### If you think a recorder is stuck
+
+1. **Look for the process** before concluding anything: `pgrep -fl evalharness.rehearse`.
+2. **Read `.faultline/harness.lock`** - it names the pid, the host, when it started and what it is
+   doing.
+3. **A dead holder needs nothing.** The lock reclaims itself and records that it did; there is no
+   file to delete and no incantation.
+4. **A live holder that is wrong** gets stopped, or overridden with `--force-lock`, which takes the
+   world and **records the takeover in the bundle manifest**. Deleting the lock by hand does the
+   same thing without the record, which is why the flag exists.
+
+
 ## The capture set changed, and the existing ten are not being re-recorded
 
 The original four `query_range` results — error ratio, call rate, p95, and the firing-alert

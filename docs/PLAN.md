@@ -1573,6 +1573,67 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.37 — make "one driver of the world" executable *(lock + contract; no digest moves)*
+**Done** (`injector/worldlock.py`, both drivers, nine tests). The fifth prose rule in this arc found
+enforced by nothing, and the one whose violation **corrupts a recording rather than mismeasuring
+one**.
+
+**No digest moves - enumerated again.** `compose_digest` is three files from
+`InjectorSettings.compose_files`; `observability_digest` seven; plus `compose/ffs-stub/`, the
+prompt/contract stamp, and capability's `{tools, capture_set, tool_behaviour_revision}`. **No digest
+reads source.** The one worth checking separately, as at T7.35: `scenario_fingerprint` hashes
+`fault_class`, `split`, `injection`, `ground_truth`, `expected_remediation_class` - a `world_lock`
+block in a *run* manifest is none of them.
+
+**The lowest layer was found rather than assumed, and it was not the recorder.** `WorldLock` already
+existed - and **only `run.py` took it**. The recorder never did, which is the actual T7.36 hole. Both
+harness drivers already import from `injector`, and `injector` imports neither, so the lock moved to
+**`injector/worldlock.py`**: one lock, taken by both, rather than a lock in one path that the other
+route defeats.
+
+**What the existing protection already covered, stated so this is not oversold.**
+`require_no_active_faults` refuses to inject while another fault is live, and its docstring records
+a *measured* incident - a rehearsal that started 99 seconds into another fault's run and recorded
+its timings against the other incident's cascade. It would probably have caught T7.36's second
+attempt at the moment of injection. **What it cannot catch is a second recorder still *waiting* for
+a clean baseline**, and the waiting is the long part.
+
+**What the lock does not cover, said plainly.** A script that calls `docker` or `docker compose`
+directly bypasses it completely - **T7.36's own probe did exactly that, and so did T7.30's.**
+Scratch probes cannot be made to take it, because what they share with the harness is Docker, not a
+Python module. **This makes the harness single-driver; it does not make the world single-driver.**
+
+**Advisory, and the reasoning is about who the operator is.** It refuses by default and
+`--force-lock` overrides, recorded. The operator here is one person who is also the only one who can
+fix a wedged world, so a lock they cannot get past is one they delete by hand in a hurry - and a
+lock cleared by an undocumented incantation is worse than none, because the next person learns the
+incantation instead of the reason. **A dead holder is reclaimed automatically and needs no flag**,
+because stranding is the failure mode a lock most easily creates; a stale lock and a live one look
+identical from outside, so the reclaim is **written into the new lock** naming the holder it
+displaced. Re-entrancy is by token in the environment, so a run that shells out to
+`faultline-inject` is not locked out by itself.
+
+**It goes in the run record**, for T7.33's reason: a second driver is the same kind of fact as a
+recycle. `world_lock` carries pid, host, since, reason, token, and `reclaimed` when there was one.
+**A clean acquisition is recorded too**, so a bundle with *no* `world_lock` block is identifiable as
+one written by a path that does not take the lock.
+
+**Verified end to end at zero world cost**: with a live holder planted, the recorder refused with
+the holder's pid, start time and activity, and **the world was untouched** - it refused before even
+the bundle-exists check that `--force` would have passed.
+
+**The procedural half, which is the actual cause.** T7.36's near-miss was not the missing lock - it
+was **reading the recorder's waiting as refusing**. `wait_for_clean_baseline` **blocks for up to
+`--baseline-timeout` (300s)** and then injects; the operator read "baseline is not clean" as a
+failure, applied ADR-0025's checkout restart as a remedy, and **the remedy released the wait and let
+the recorder inject.** `ARTIFACTS.md` now opens with the contract: which steps wait and for how
+long, that only the lock check is instant, that a recording which looks stuck is usually working,
+**and not to queue a retry against that message** - there is nothing to retry.
+
+**What remains uncovered.** Scratch scripts, as above. The lock is per-repository-checkout, so two
+clones driving one Docker daemon would not see each other. And it protects the *harness*, not the
+world: an operator with a terminal is still the thing that has to know not to.
+
 ### T7.36 — D5 built: `payment-telemetry-blackout` *(scenario; world time, no agent money)*
 **Done** (`bad_config-4`, dev, recorded). The first scenario build since T7.34's audit. **The agent
 was not run against it**; that is a separate task with its own money.
