@@ -1,0 +1,52 @@
+=== waiting for the probe's own alerts to clear ===
+baseline clear 03:47:28Z; settling 120s
+RECORDING START 03:49:28Z
+rehearsing redis-cart-dependency-latency  [dev]  fault=redis-cart-dependency-latency
+injected redis-cart-dependency-latency (dependency_latency) on redis-cart
+  - pumba gaiaadm/pumba:0.10.1: 300ms (+/-0ms) delay on redis-cart eth0
+  - sidecar faultline-pumba-redis-cart-dependency-latency holds the rule; it self-reverts after 1h
+revert with: faultline-inject stop redis-cart-dependency-latency
+  waiting up to 900s for an alert (default is 420s)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  … waiting for an alert to fire (0 firing)
+  holding the fault for 300s of steady state after the alert
+reverted redis-cart-dependency-latency
+  - pumba sidecar faultline-pumba-redis-cart-dependency-latency stopped; netem delay reverted
+  … waiting for alerts to clear (4 firing)
+  … waiting for alerts to clear (4 firing)
+  … waiting for alerts to clear (4 firing)
+  … waiting for alerts to clear (4 firing)
+  … waiting for alerts to clear (4 firing)
+  … waiting for alerts to clear (4 firing)
+  … waiting for alerts to clear (4 firing)
+  … waiting for alerts to clear (4 firing)
+  … waiting for alerts to clear (2 firing)
+  … waiting for alerts to clear (1 firing)
+  captured error-ratio
+  captured call-rate
+  captured latency-p95
+  captured alerts-firing
+  captured runtime
+  captured logs for redis-cart
+  wrote 5 metric file(s) and logs/redis-cart.txt
+
+bundle written to evals/scenarios/artifacts/dev/redis-cart-dependency-latency
+
+  !! evals/scenarios/artifacts/dev/redis-cart-dependency-latency/incident.md was written against no recorded capability; the current set is cap:9c416e0a.
+     Its claims about what a responder could reach may be stale. Review it against the captures - logs/ first - and then set `capability: cap:9c416e0a`.
+     `make check` fails until you do.
+next: write incident.md, then set `rehearsed: true` in the scenario YAML.
+RECORD EXIT 0 04:00:53Z

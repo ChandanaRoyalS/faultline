@@ -1,0 +1,66 @@
+id: redis-cart-dependency-latency
+title: Cart is slow because its datastore is, and the datastore has no spans
+fault_class: dependency_latency
+split: dev
+slot: dependency_latency-3
+injection:
+  target: redis-cart
+  method: redis-cart-dependency-latency
+  params:
+    delay_ms: 300
+    jitter_ms: 0
+    duration: 1h
+    interface: eth0
+ground_truth:
+  root_cause: >
+    A 300ms netem delay was applied to redis-cart's network interface, so every response
+    the cart service waits for arrives late. Cart itself is unmodified and error-free: its
+    handler simply blocks on a datastore that answers slowly, and that wait propagates to
+    checkout, the frontend and the load generator. The slow component is the datastore,
+    which emits no spans, exports no runtime metrics and appears in no service-level
+    metric - measured, zero Prometheus series match "redis" at all.
+  category: dependency_latency
+expected_evidence:
+  - class: metrics
+    item: >
+      cartservice p95 rises from a flat 1.9ms baseline to roughly 655ms and stays there,
+      well past the 250ms rule threshold. checkoutservice follows at ~525ms.
+  - class: metrics
+    item: >
+      The error ratio stays at 0.0 on every service throughout. Nothing fails; things wait.
+      This is what separates the class from bad_config, where the caller errors instead.
+  - class: metrics
+    item: >
+      Live only, not in the bundle - cartservice's SPAN_KIND_CLIENT p95 (~390ms) shows a
+      large share of its handler time sitting inside outbound calls, which is what says
+      "waiting on something downstream" rather than "this service's own code is slow".
+      The bundle's latency capture aggregates by service_name and le only, with no
+      span_kind, so this is reachable to a live promql query and not from the artifacts.
+  - class: changes
+    item: >
+      The netem qdisc was applied to redis-cart, not to cartservice. **This is the only
+      class in the bundle that names redis-cart at all**, and it is what separates this
+      scenario both from a broken cart service and from cart-dependency-latency, which
+      produces the same four alerts by delaying the other end of the same path.
+expected_remediation_class: restart
+rehearsed: false
+alert_timeout_seconds: 900
+# Measured at T7.38: four ServiceHighLatency alerts reached `pending` within a minute of
+# injection and fired at ~T+4m. The budget is set explicitly for the same reason as D5's -
+# the onset depends on the 2m rate window filling and the 3m `for:` clause, not on how fast
+# the fault bites, which is immediate.
+# **`also_correct_remediation` is deliberately NOT set, and it was set once and removed.**
+# The first draft carried `config_revert` by analogy with cart-dependency-latency, which is
+# exactly what T7.17's rule forbids: an entry there is a claim that a remediation was *tested
+# and worked on this scenario*, not that it sounds reasonable for the mechanism. ADR-0027
+# measured the qdisc delete on cart-service; nobody has measured it on redis-cart, and T7.34
+# already refused the same inference for ad-dependency-latency. Measure it first or leave it
+# empty. The guard in test_scoring.py is what caught the analogy.
+answers_idle_or_absent: [logs]
+# **From the recorder, not declared.** `runtime_series: 0` (redis exports no RUNTIME_FAMILIES)
+# and `target_log_lines: 18` against TALKATIVE_LINES=10, so `none_can_answer` is False.
+#
+# **It passes narrowly and on content that does not describe the fault.** All 18 lines are RDB
+# background-save chatter; zero mention latency, slowness, clients or errors. What they do
+# establish is the question reachability actually asks - was the target idle or absent - by
+# showing redis alive and saving keys throughout. They are not evidence of the delay.

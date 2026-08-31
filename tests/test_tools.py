@@ -447,6 +447,10 @@ NARRATIVE_EVIDENCE: dict[str, set[str]] = {
     # fourth tool, which two narratives earned on the strength of it being their *first*
     # narrowing step.
     "payment-telemetry-blackout": {"metrics", "logs", "changes"},
+    # T7.38: a narrow item by measurement. The page is identical to
+    # cart-dependency-latency's - same four alerts, same 230s onset - and in the bundle only
+    # change_history names redis-cart. metrics carry the latency but point at cartservice.
+    "redis-cart-dependency-latency": {"metrics", "changes"},
     "product-catalog-flag-failure": {"metrics", "changes", "dependencies"},
     "shipping-quote-misconfig": {"metrics", "logs", "changes"},
     "shipping-wrong-image": {"metrics", "logs", "changes"},
@@ -512,7 +516,7 @@ def test_change_history_is_needed_by_every_single_investigation() -> None:
     service and its logs, which do reach it, carry no error and no mention of what it could
     not reach.
     """
-    assert len(NARRATIVE_EVIDENCE) == 12
+    assert len(NARRATIVE_EVIDENCE) == 13
     assert all("changes" in kinds for kinds in NARRATIVE_EVIDENCE.values())
     assert len(NEGATIVE_CHANGE_ANSWER) == 4
     assert set(NARRATIVE_EVIDENCE) >= NEGATIVE_CHANGE_ANSWER
