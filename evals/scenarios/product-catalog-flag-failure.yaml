@@ -3,6 +3,7 @@ id: product-catalog-flag-failure
 title: A feature flag turned on at the flag service makes product catalog fail one product
 fault_class: bad_config
 split: dev
+slot: bad_config-2
 injection:
   target: featureflagservice
   method: product-catalog-flag-failure

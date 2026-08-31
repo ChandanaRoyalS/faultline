@@ -1573,6 +1573,63 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.35 — make the slot rule executable *(guard; no digest moves)*
+**Done** (`scenario.py`, `test_contamination.py`, SPLIT.md, CATALOG.md, README, RESULTS). T7.34
+found the fourth instance of this arc's defect: SPLIT.md's anti-steering rule - the one with no
+judgement in it - was enforced by nothing. **Zero of fifteen scenarios recorded a slot**, the guard
+counted per class, and the rule first bites at the seventh authored scenario.
+
+**No digest moves, re-enumerated.** `compose_digest` is three compose files from
+`InjectorSettings.compose_files`; `observability_digest` seven; plus `compose/ffs-stub/`, the
+prompt/contract stamp, and capability's `{tools, capture_set, tool_behaviour_revision}`. **Scenario
+YAML feeds none of them.** The one at risk was different this time and worth checking:
+`scenario_fingerprint` hashes exactly `fault_class`, `split`, `injection`, `ground_truth`,
+`expected_remediation_class` - **`slot` is deliberately not added to it**, on T7.17's rule, because a
+bundle is evidence for what a fault does and fingerprinting a bookkeeping field would invalidate
+every recorded bundle to record an allocation fact. A test asserts the fingerprint does not move when
+the slot does.
+
+**Authoring order turned out to be the wrong question.** SPLIT.md's rule is *alphabetical by injector
+fault id*, and `id == injection.method` on all fifteen scenarios, so the sort key is **a field in the
+file** - not commit order, not mtime, not filesystem order. It is stable under every operation this
+repository performs: rebase, squash-merge, clone, file moves.
+
+**But it is not stable under the operation that matters, and that is measured rather than argued.**
+Slot *k* goes to the *k*-th id alphabetically, so adding one scenario whose id sorts early shifts
+every later scenario down a slot. Adding an `a...` id to `bad_deploy` moves **`email-wrong-image`
+from holdout to dev - after three holdout entries have spent it** - and `cart-bad-image-tag` from dev
+to holdout after it has been tuned against. **A recomputing anti-contamination rule causes the
+contamination it exists to prevent.**
+
+**So: derive once, then freeze.** The derivation runs as a backfill, is asserted against the splits
+it reproduces, and the recorded slot is authoritative afterwards. New scenarios take the
+lowest-numbered free slot in their class. All eleven were backfilled by derivation, not by hand, and
+the reproduction is a test that fails loudly and names the disagreement rather than letting a
+backfill quietly win.
+
+**What the guard now catches that a per-class count did not.** The old checks were `dev <= dev_slots`
+and exact match once a class is full - satisfiable by any assignment with the right totals. Now:
+**slot identity** (the recorded slot is the one the rule assigns), **uniqueness** (no two scenarios
+claim one slot), **slot/split agreement** (the split recorded matches the split that slot carries),
+**range** (a slot number inside its class's allocation), **release** (a `blocked` scenario claims no
+slot), and **table agreement** (`SLOT_SPLITS` and `ALLOCATION` cannot drift). Concretely: **an author
+who writes `split: dev` on a scenario whose slot is holdout now fails**, where before the counts
+absorbed it as long as the class had a dev slot spare. Verified by steering a real scenario and
+watching the guard reject it.
+
+**`bad_deploy-5` is deliberately left empty, recorded where counts are read.** T7.34 recommended it
+and this records the consequence rather than leaving it implied: **the catalog's n is the number of
+slots filled, not the number allocated** - 11 valid against 20. Stated in CATALOG.md with the
+reasoning, and beside the figures in README and RESULTS.md so nobody reads 11-of-20 as unfinished
+work. **What would justify filling it is a real mechanism with a distinct evidence shape** - not a
+third image swap on an unused service, and not a slot that wants a tenant. The genuinely distinct
+fourth `bad_deploy` shape, a deploy that returns wrong results without erroring, **cannot alert on
+this world** and so can never be scored.
+
+**SPLIT.md's occupancy table is completed** - all twenty slots, eleven filled and nine free. **No
+allocation number changed**; it records which slots are taken, which is what the file could not say
+before.
+
 ### T7.34 — the catalog audited, and what fills it *(design only; no code, no world time)*
 **Done** ([`docs/design/t7.34-catalog-audit.md`](design/t7.34-catalog-audit.md)). The count, the
 candidates for the dev deficit, and what gating them costs. Nothing built.

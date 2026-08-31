@@ -6,6 +6,33 @@ section is written from committed bundles, after rehearsal. Nothing here is a pr
 See `SCHEMA.md` for the file format, `SPLIT.md` for the dev/holdout allocation, and
 `ARTIFACTS.md` for what a rehearsal bundle contains.
 
+## n is the number of slots filled, not the number SPLIT.md allocates (T7.35)
+
+**`bad_deploy-5` is deliberately left empty, and the catalog will not reach its allocated n=20.**
+
+T7.34 designed candidates for the six free dev slots and found that the available `bad_deploy`
+mechanism space is exhausted. The injector documents three shapes - never starts, starts then fails
+every call, flaps - and the first two are recorded (`cart-bad-image-tag`, `shipping-wrong-image`)
+while the third is a designed candidate. A **fourth** would be a third image swap on an unused
+service: a row in the count and nothing in the benchmark's discriminating power. The genuinely
+distinct fourth shape, a deploy that starts and returns wrong results without erroring, **cannot
+alert on this world** - the three rules are error rate, latency and no-traffic, and a fast
+correct-looking service trips none - so it can never be scored.
+
+**SPLIT.md says slots are capacity, not a promise.** This records the consequence plainly:
+
+> **The catalog's n is the number of slots actually filled. It is not the number allocated, and the
+> difference is a stated choice rather than unfinished work.**
+
+**This empty slot must not be closed by inventing a tenant for it.** What would justify filling
+`bad_deploy-5` is a **real mechanism with a distinct evidence shape** - something a correct
+diagnosis has to notice that no existing `bad_deploy` scenario requires. A third image swap does not
+qualify however carefully it is written up, and neither does a mechanism whose only novelty is the
+service it targets.
+
+If such a mechanism is found, the slot is there and the split is already decided (dev). If it is
+not, the slot stays empty and every figure states n as what was filled.
+
 ## Read every timing in this document as one sample
 
 **Every `seconds_to_alert` in every bundle is a single draw from a distribution nobody has
