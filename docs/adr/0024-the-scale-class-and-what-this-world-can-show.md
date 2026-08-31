@@ -265,6 +265,11 @@ long run walks toward it.** Two consequences, one immediate:
 name a container no scenario touches, during a sweep that has nothing to do with it. Documented at
 that constant, so whoever hits it finds the explanation where it fires rather than here.
 
+> **Landed at T7.28, noticed at T7.45's sweep.** `redis-cart` runs
+> `--maxmemory 12mb --maxmemory-policy allkeys-lru`, and T7.38 measured it holding at 3.65M of 12M
+> with zero evictions under a fault. The paragraph below is the reasoning that queued it and is kept
+> as the record of why; it is **no longer pending**. See `docs/QUEUE.md`.
+
 **A bound belongs in the digest-locked queue, beside the otel-col `memory_limiter` and the kafka
 retention change.** `maxmemory` with an eviction policy, or a `--save ''`-style change, is a change
 to `world/docker-compose.yml`: it moves `compose_digest` and obsoletes the comparability of every

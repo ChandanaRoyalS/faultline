@@ -424,7 +424,9 @@ An honest image-change record has to name the image deployed, and `crashloop` is
 outright. They are pinned rather than exempted — the guard asserts these and only these leak,
 so a third is a failure — and they are tolerable only because both scenarios are **blocked**
 and can never be rehearsed. Renaming the tags edits `compose/ffs-stub/`, which feeds
-`ffs_stub_source_digest`, so it joins the digest-locked queue for T7.1.
+`ffs_stub_source_digest`, so it joins the digest-locked queue for T7.1. **Landed at T7.1** - the
+variants are now `ffs-stub:1/:2/:3` over `server.py`/`server_v2.py`/`server_v3.py`. Recorded here
+because T7.45's sweep found this sentence still reading as pending.
 
 A third token is exempted rather than pinned: `FAULTLINE_ENABLED_FLAGS`, the variable
 `product-catalog-flag-failure` changes. It leaks this harness's existence and not the answer,

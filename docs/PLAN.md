@@ -1573,6 +1573,62 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.45 — the queue register *(sweep and decision; no money, no world time)*
+**Done** ([`docs/QUEUE.md`](../docs/QUEUE.md)). The deferral protocol only works if the queue can be
+enumerated when a world move comes, and until now each item lived in the PLAN entry of whoever
+deferred it.
+
+**Where a new item goes, stated in the file:** a task that defers a change **adds a row in the same
+commit as its PLAN entry**; a task that lands one strikes the row. **A PLAN entry saying "queued"
+with no row is the defect the register exists to catch.**
+
+**Five live items.** **Q1** capture the container exit reason (capability-locked; strands three
+holdout entries); **Q2** the synthesizer prompt change (stamp-locked; invalidates comparability with
+six dev sweeps and three holdout entries); **Q3** a warrant check against the unread
+`GroundTruth.root_cause` (scoring; re-score only); **Q4** Prometheus/Loki credentials (task-gated on
+T6.8); **Q5** detecting a container restart while a latency fault is live (caution only, and it has
+a real trigger - *"if a scenario ever needs"* one, which none does).
+
+**One item with no trigger, named rather than given one.** A `redis-cart` eviction scenario is
+digest-locked with **nothing stating what would revive it**. It is listed as a **rejected candidate,
+not a queued item** - if someone wants it, it needs a fresh argument.
+
+**Six items read as queued and were already done**, which is the sweep's main return and the failure
+mode the register prevents. **Each source is corrected in the same commit**, struck rather than
+deleted: alert rules under a digest (**closed by T7.15's `observability_digest`**, still reading
+"Queued" in ADR-0025); a `maxmemory` bound on `redis-cart` (**landed at T7.28**, ADR-0024 still
+saying it "belongs in the digest-locked queue"); the ffs-stub tag rename (**landed at T7.1**,
+ADR-0019 still saying it "joins the queue for T7.1"); the suspended-host correlate deadline
+(**T7.12**); the ingest/orchestrator preflight (**T7.25**); and `scale` as an injectable class
+(**resolved differently by ADR-0024** - retired as unfillable rather than built).
+
+**One item dropped rather than deferred, which was the judgement call.** **`MALLOC_ARENA_MAX=2`'s
+removal is off the register.** T7.30 measured that the lever does not bound growth and T7.40 kept it
+because removal costs a digest move while its effect is nil - so **the removal has no demonstrated
+benefit and the setting has no demonstrated harm**, and tracking a cosmetic tidy-up as pending
+misrepresents the queue. The reasoning stays in ADR-0005's addendum where a reader of the setting
+finds it, and **if a digest move happens for another reason, dropping the line then is free and needs
+no register entry to remember it.**
+
+**What batches, and it is not by lock type.** The grouping is **whether landing forces a
+re-record**: a `compose_digest` move and a `CAPTURE_SET` bump both invalidate every bundle and
+**neither can be backfilled**, so **Q1 batches with any future world move** - one re-record covers
+everything landing at once, as T7.1 and T7.28 demonstrated. **Q2 does not**: a stamp move invalidates
+*comparability of figures*, which no re-record repairs, only re-running them does. **Q3 costs no
+world time at all.** Holding Q2 or Q3 for a world move buys nothing.
+
+**Cost of the only group that batches:** **13 bundles at ~25-30 min ≈ 6 hours**, plus recycles,
+settles and a 31-35% candidate failure rate - and a capability bump adds **15 narrative re-reviews**
+and **permanently strands three spent holdout entries**, the cost that does not recover.
+
+**Q2 and Q3 share one trigger**: T7.43's traceability measurement, ~\$5.5 and unrun. Neither should
+land without it; if it runs, both become decidable at once.
+
+**A guard is not built, deliberately.** One could check that every PLAN entry saying "queued" has a
+row - but it would have caught **none** of the six closed items, whose sources are ADRs rather than
+PLAN entries. **The useful guard is broader than the obvious one and its shape is not yet clear from
+one sweep.** What would justify it is a second sweep finding items this one missed.
+
 ### T7.44 — what standard of evidence the benchmark rewards *(analysis only; no rule changed)*
 **Done** ([`docs/design/t7.44-standard-of-evidence.md`](design/t7.44-standard-of-evidence.md)).
 **No scoring rule is changed**, and §5 records why that is a conclusion rather than a deferral.
