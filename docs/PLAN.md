@@ -1573,6 +1573,63 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.41 — the two new scenarios scored *(live experiment; cut short by billing)*
+**Done** ([`RUN-2026-08-31-two-new-scenarios.md`](../evals/runs/RUN-2026-08-31-two-new-scenarios.md)),
+pre-registered before any run. **Nothing was re-run.** Holdout untouched.
+
+**The sweep was cut short by billing, not by design.** Six runs registered, **4 scored and 2
+discarded** — runs 5 and 6 both failed with *"Your credit balance is too low to access the Anthropic
+API"* and never made a model call. `discard_reason: run failed`, recorded not deleted. **They were
+not re-run**: the pre-registration fixed three attempts per scenario and forbade re-runs to improve
+a number, and that rule has no exception for an inconvenient discard. **So both scenarios report at
+n = 2**, below the registered 3 and below the catalog's own floor. **No judged figures** — judging is
+a model call and the account has none. **$2.1082 agent.**
+
+**D5 `payment-telemetry-blackout`: the prediction is falsified.** Registered *correct in >= 2 of 3*;
+**at most 1 of 3 was correct.** Coverage **1/2**, fault class of answered **1/1**, fix class **1/1**.
+
+**And the failure mode was not the registered one either.** The prediction named the plausible wrong
+answer - *the service is down*. **The agent did not fall for it; it abstained.** Run 1 dispatched to
+`paymentservice` and **exonerated it correctly** - *"error ratio flat zero across 57 and 61 sample
+points… post-gap logs showing continuous successful charge/completion pairs"* - reached the correct
+**intermediate** conclusion and declined the final step. Run 3 took it and named the mechanism
+exactly. Both answering runs held **low** confidence.
+
+**A design finding the scoring surfaced, recorded in CATALOG.** The abstaining run asked *"Why was
+the paymentservice container replaced?"* - and **that replacement is the injection mechanism, not the
+fault**, since `BadConfigFault` recreates the container to change an env var. **Every run of this
+scenario contains an unexplained restart the responder cannot account for**, because the exit reason
+is not captured - the boundary T7.40 deliberately kept, meeting a live run one task later. At n = 2
+it is **not** claimed to have caused the abstention.
+
+**D1 `redis-cart-dependency-latency`: the prediction is confirmed, including its mechanism.**
+Registered *class >= 2 of 3, faulty service <= 1 of 3*. **Class 2/2. Service 0/2.** The
+pre-registration said the failure would be *"not that it skips the tool but that it queries the wrong
+subject"* - and every `change_history` call went to **`cartservice`, `productcatalogservice`,
+`cartservice`**. **`redis-cart` was never asked about, by any tool, in either run.**
+
+**By the decision table fixed before the runs, that is an agent finding, not a scenario finding**:
+`canonical_service('redis-cart')` resolves, it is in `SERVICE_CONTAINERS`, and the change log holds
+**4 records** for it, all verified in advance. **The culprit was reachable and the agent did not
+ask.** It came close - run 2 found *"each cache round trip to its Redis-style backend"* at ~300ms
+with *"handler spans exceed their child cache spans by only 1-3ms"*, the exact discriminator T7.38
+identified, and never turned it into the container's name.
+
+**One fix-class miss stays a miss.** Run 4 answered `config_revert` against a truth of `restart`.
+`also_correct_remediation` is empty here because T7.38 removed it as unmeasured on this scenario -
+so a plausibly-working answer scores wrong. **That is the rule working, and the field is not being
+reinstated to improve the number.**
+
+**T7.32's sweep gate, first real use: behaved as designed and never refused.** The threshold relaxed
+as remaining work shrank - **74.6% at 6 runs remaining, 84.9% at 2, 87.4% at 1** - while kafka
+drifted **42.6% -> 50.0%** (~100 MB/h under load, matching T7.30's rate) and fit throughout. **No
+recycle was performed and none was requested**, decided by the gate rather than guessed.
+`runs_remaining` is in every manifest and the world lock was held on every run.
+
+**What this establishes:** both scenarios are answerable, and each was answered correctly at least
+once by an agent that had never seen them. **What it does not:** any rate. n = 2, no judged
+agreement, and the runs that would have said were stopped by billing.
+
 ### T7.40 — the capture set's boundary, decided *(decision only; no world time, no code)*
 **Done** ([`docs/design/t7.40-capture-set-boundary.md`](design/t7.40-capture-set-boundary.md)).
 **Decision: the exclusion of container state is deliberate and stops being treated as a gap.**

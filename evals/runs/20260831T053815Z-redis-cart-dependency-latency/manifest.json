@@ -1,0 +1,227 @@
+{
+  "run_id": "20260831T053815Z-redis-cart-dependency-latency",
+  "scenario_id": "redis-cart-dependency-latency",
+  "split": "dev",
+  "scenario_fingerprint": "89277f499b4b6dcbead07f4e74f9b50a8e443c688e7cd15409ab17229b51529f",
+  "started_at": "2026-08-31T05:38:15.782713+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "d86ee3cdcb6d80a3e08f7973af86e4766c6ba05d",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 39678,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-08-31T05:38:15.829608+00:00",
+    "reason": "faultline-eval redis-cart-dependency-latency",
+    "token": "39678-1788154695.829502"
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 2586,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "checkout-service",
+      330
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 50.02,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 1.0425,
+      "runs_remaining": 3,
+      "uptime_seconds": 11580,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 157.4,
+      "projected_percent": 57.71,
+      "threshold_percent": 82.31,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "world_continuity": {
+    "kafka_uptime_seconds": 11580,
+    "kafka_uptime_seconds_previous_run": 10190,
+    "previous_run_id": "20260831T051506Z-payment-telemetry-blackout",
+    "kafka_restarted_since_previous_run": false,
+    "cause": "continuous - same kafka instance as the previous run",
+    "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
+  },
+  "injected_at": "2026-08-31T05:38:18.399836+00:00",
+  "incident_id": "934af404-c871-4a01-8688-934815a46f6c",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-31T05:47:59.394217+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 4816,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "checkout-service",
+      1075
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 50.05,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 12325,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 122.1,
+      "projected_percent": 56.01,
+      "threshold_percent": 84.04,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260831T053815Z-redis-cart-dependency-latency",
+    "scenario_id": "redis-cart-dependency-latency",
+    "trajectory_id": "3406a2e6-57c0-4fb0-8e68-c79897291e23",
+    "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": true,
+    "reachability": {
+      "answers_idle_or_absent": [
+        "logs"
+      ],
+      "derived_from": "the bundle's own captures (T7.5)",
+      "none_can_answer": false,
+      "runtime_series": 0,
+      "target_log_lines": 18
+    },
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.3333333333333333,
+      "matched": [
+        "cartservice",
+        "checkoutservice",
+        "frontend",
+        "loadgenerator"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "accountingservice",
+        "adservice",
+        "currencyservice",
+        "emailservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice",
+        "shippingservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 4,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "dependency_latency",
+      "returned": "dependency_latency",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "restart",
+      "returned": "config_revert",
+      "correct": false,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 31369,
+    "tokens_out": 12069,
+    "cost_usd": 0.4586,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-08-31T05:50:44.158287+00:00"
+}

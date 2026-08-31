@@ -89,6 +89,26 @@ errors.** They answer the question reachability actually asks - *was the target 
 by showing redis alive and saving keys throughout the window. **They are not evidence of the
 delay**, and the distinction is recorded here rather than left for a reader to discover.
 
+### Scored twice (T7.41): class 2/2, culprit 0/2 — and the narrowness held exactly as labelled
+
+**n = 2, no rate claimed.** Both runs returned `dependency_latency` correctly. **Neither named
+`redis-cart`.** Every `change_history` call across both runs went to `cartservice`,
+`productcatalogservice`, `cartservice` — **the culprit was never asked about, by any tool.**
+
+Run 2 came very close, describing *"each cache round trip to its Redis-style backend"* at
+*"a near-constant ~300ms"* with *"handler spans exceed their child cache spans by only 1-3ms"* — it
+found the client/server split that separates waiting from failing, and never turned it into the
+container's name.
+
+**This is an agent finding, not a scenario finding, by a test fixed before the runs.**
+`canonical_service('redis-cart')` resolves, it is in `SERVICE_CONTAINERS`, and the change log holds
+**4 records** for it — all verified in advance. **The culprit was reachable and the agent did not
+ask.** The item is narrow, as this entry already said; it is **not** unanswerable.
+
+**One fix-class miss is a consequence of the field below.** Run 4 answered `config_revert` against a
+truth of `restart`. That plausibly works and is unmeasured here, so it scores wrong — and the field
+is not being reinstated to improve the number.
+
 ### One thing deliberately not claimed
 
 **`also_correct_remediation` is empty.** The first draft carried `config_revert` by analogy with
@@ -176,6 +196,26 @@ coin flip.
 produced no errors and its logs were exculpatory. The difference is that there the service really
 was misbehaving and the logs failed to show it; **here the service is not misbehaving at all**, and
 the logs are not exculpatory but affirmative — they are the proof.
+
+### Scored once correctly, once abstained (T7.41) — and the injection leaves a second question
+
+**n = 2, and no rate is claimed.** One run named the mechanism exactly (*"set paymentservice's OTLP
+traces exporter endpoint to a loopback address on port 4317 where no in-pod collector listens"*).
+The other **exonerated `paymentservice` correctly and then abstained** rather than converting that
+into a diagnosis — it established the service was healthy and declined the final step. Both held
+low confidence. **Neither fell for the registered wrong answer that the service was down.**
+
+**A design observation the scoring surfaced.** The abstaining run's first open question was *"Why
+was the paymentservice container replaced… An OOM kill, a liveness-probe failure, an eviction and a
+routine reschedule?"* — **that replacement is the injection mechanism, not the fault.**
+`BadConfigFault` recreates the container to change an environment variable, so **every run of this
+scenario contains an unexplained restart the responder can see and cannot account for**, because the
+exit reason is not captured (T7.40 decided that boundary deliberately).
+
+**The scenario therefore hands the responder a second, unanswerable question beside its real one.**
+At n = 2 this cannot be shown to have caused the abstention and is not claimed to have. It is
+recorded because a scenario whose *mechanism* generates a distractor is worth knowing about before
+the next one is designed the same way.
 
 ### One honest wrinkle
 

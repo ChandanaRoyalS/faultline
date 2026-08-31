@@ -1,0 +1,29 @@
+incident 2c81952d-00fe-46f4-b06b-42092f82e2d1  state triaging  anchor 05:00:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: e49769bd-b733-48df-9369-ded7ed05beb4
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_781267aff6ff, tr_ae82f54828de, tr_2ffacf2eb0c4, tr_3156839129b2, tr_314c1e8e5e81, tr_024fd3194000, tr_396164e67781
+  root cause  : cartservice is serving every request successfully but each cache round trip to its Redis-style backend takes a near-constant ~300ms, and cartservice handlers do essentially nothing but wait on those calls (handler spans exceed their child cache spans by only 1-3ms). Because AddItem makes two sequential cache calls it costs ~600ms, and the delay propagates unchanged up the call chain: checkoutservice PlaceOrder (~650ms) is almost entirely its GetCart and EmptyCart legs, and frontend POST spans reach ~900ms+ (tr_781267aff6ff). No errors are produced anywhere — cartservice and checkoutservice error ratios are real, populated zeros across the full window (tr_ae82f54828de, tr_2ffacf2eb0c4, tr_314c1e8e5e81) — and cartservice logs show continuous healthy request handling after onset with no dependency named (tr_3156839129b2). This is a latency-only impairment of the cache dependency, not an error, not a crash, and not the two past cart incidents in the corpus where the process was not running at all. The uniformity of the ~300ms across reads and writes, all trace ids, and all endpoints looks like a fixed stall floor rather than load-driven queueing, but no change record exists for cartservice to explain it (tr_024fd3194000).
+  OPEN        : The cache backend itself was never dispatched to. Its own latency, saturation, connection state, change history and any injected-delay/fault-injection configuration are entirely unestablished — the ~300ms is inferred from the client side only.
+  OPEN        : No latency percentile, CPU/memory, or connection-pool metrics were ever retrieved for cartservice despite two metric dispatches (tr_ae82f54828de, tr_2ffacf2eb0c4), so a pool-wait or saturation contribution to the ~300ms cannot be excluded and the exact onset inflection at 05:00:30 is unconfirmed by metrics.
+  OPEN        : The cartservice log result was truncated and omitted 04:50:34-05:02:46, which contains the 05:00:30 onset (tr_3156839129b2); no evidence covers what cartservice logged at the moment of transition, and the absence of lines after 05:03:13 is unexplained.
+  OPEN        : Change history was checked only for cartservice and productcatalogservice. The cache/Redis component, frontend, checkoutservice, and the sync-edge peers (adservice, recommendationservice, shippingservice) have no change coverage (tr_396164e67781), so an upstream edit elsewhere that introduced the delay remains open.
+  OPEN        : Because no change record explains the onset, the correct remediation is genuinely uncertain: restart of the cache tier is the best fit for a fixed stall floor, but if the delay comes from an unlogged config or fault-injection setting, config_revert would be the real fix.
+  OPEN        : Four unmeasured edges were crossed by triage and 8 of 12 affected services were never dispatched to; whether any of them show independent symptoms is unknown.
+
+flags: none
+
+retrieval: exclude_origin='scenario:redis-cart-dependency-latency', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260831T045652Z-redis-cart-dependency-latency/2c81952d-00fe-46f4-b06b-42092f82e2d1-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260831T045652Z-redis-cart-dependency-latency/2c81952d-00fe-46f4-b06b-42092f82e2d1-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8839.51it/s]

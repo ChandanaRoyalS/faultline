@@ -1,0 +1,138 @@
+{
+  "run_id": "20260831T055614Z-payment-telemetry-blackout",
+  "scenario_id": "payment-telemetry-blackout",
+  "split": "dev",
+  "scenario_fingerprint": "b8a2668299f1d3b1e5ee9b928e292f5994a1ac3c4292989ae70bb5ccb3f2b8b9",
+  "started_at": "2026-08-31T05:56:14.604470+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "d86ee3cdcb6d80a3e08f7973af86e4766c6ba05d",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 40009,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-08-31T05:56:14.651519+00:00",
+    "reason": "faultline-eval payment-telemetry-blackout",
+    "token": "40009-1788155774.651407"
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 3919,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "checkout-service",
+      329
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 50.04,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 0.695,
+      "runs_remaining": 2,
+      "uptime_seconds": 12658,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 104.9,
+      "projected_percent": 55.16,
+      "threshold_percent": 84.88,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "world_continuity": {
+    "kafka_uptime_seconds": 12658,
+    "kafka_uptime_seconds_previous_run": 11580,
+    "previous_run_id": "20260831T053815Z-redis-cart-dependency-latency",
+    "kafka_restarted_since_previous_run": false,
+    "cause": "continuous - same kafka instance as the previous run",
+    "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
+  },
+  "injected_at": "2026-08-31T05:56:17.179771+00:00",
+  "incident_id": "2f0c300b-7938-4600-aa68-996c9ebeab75",
+  "investigate_exit_code": 4,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 4,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-08-31T06:04:10.699015+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 1244,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "payment-service",
+      324
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 54.3,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 13459,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 122.1,
+      "projected_percent": 60.26,
+      "threshold_percent": 84.04,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "discarded": {
+    "reason": "run failed",
+    "at": "2026-08-31T06:09:37.684746+00:00"
+  }
+}
