@@ -254,3 +254,38 @@ looks current and is not is worse than one that announces itself as old.
 Revisit if: T4.1's harness needs fields the manifest does not carry, or the corpus turns
 out to want a different granularity than one document per incident (for example, one per
 hypothesis rather than one per incident).
+
+## Addendum (2026-08-31, T7.42): the recreate in a bundle is the config change, not the harness
+
+**A reader of a `bad_config` or `bad_deploy` bundle will see the target container replaced once, near
+onset. It is not an unexplained event and it does not need a second cause.**
+
+`BadConfigFault` and `BadDeployFault` both apply through a generated compose override and a
+recreate, because **an environment variable and an image cannot be changed on a running container** —
+`docker update` carries resource limits only, and no service in this world re-reads its configuration
+at runtime. So the replacement is the change taking effect.
+
+**It is explicable from the evidence, by construction.** The injector writes a change record for
+every injection, and `change_history` returns it with a timestamp and the old and new values:
+
+```
+2026-08-31T04:34:08  platform-automation  environment updated:
+  OTEL_EXPORTER_OTLP_TRACES_ENDPOINT updated on paymentservice
+  None  ->  http://127.0.0.1:4317
+```
+
+**Read it as one inference step, and a realistic one**: *config changed at T* → *container replaced
+at T*. A real incident looks the same, because a real config change replaces the container too.
+
+**Scope, measured (T7.42).** Seven of thirteen valid scenarios recreate; the three memory squeezes
+(`docker update`, a live property) and the three latency scenarios (pumba sidecar) do not.
+
+**And the apparatus signature is the quiet one.** Startup lines in captured target logs:
+`frauddetection-memory-squeeze` **38** and `ad-memory-squeeze` **37** — both *non*-recreating, where
+the fault restarts the container repeatedly — against **2–6** for the scenarios whose recreate is the
+injector's. **The loudest restart evidence in this catalog belongs to faults, not to the harness.**
+
+**Not changed, and why.** Switching to a mechanism that avoids the recreate would change what the
+fault *is* (blackholing a collector address models a network fault, not a config one), and
+`scenario_fingerprint` covers `injection`, so it would invalidate four recorded bundles. See
+`docs/design/t7.42-injector-restart.md`.
