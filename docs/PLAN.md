@@ -1573,6 +1573,78 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.44 — what standard of evidence the benchmark rewards *(analysis only; no rule changed)*
+**Done** ([`docs/design/t7.44-standard-of-evidence.md`](design/t7.44-standard-of-evidence.md)).
+**No scoring rule is changed**, and §5 records why that is a conclusion rather than a deferral.
+
+**What the rules specify: an answer key, plus a judged mechanism, and no standard of inference.**
+The scorer compares class labels and set membership and **never looks at how a conclusion was
+reached**. The judge *does* assess mechanism - ADR-0022 §1.3 asks *"does the verdict's root cause
+name the same mechanism the recorded `incident.md` names"*, plus dead ends and traps. **But none of
+it assesses warrant**: a verdict reaching the right mechanism by traced causation and one reaching it
+by temporal proximity both score `same_mechanism`, because the question is what was *named*.
+**So every claim this project makes about reasoning quality is our inference from reading
+narratives, not a measurement.**
+
+**A correction to the premise this task started from.** T7.41's runs were **never judged** - the
+sweep ended on an exhausted credit balance - so they were scored on class labels alone, the narrowest
+reading available, and **the one mechanism-level check the benchmark has did not run on them.** It
+would not have separated them anyway: run 3 named the endpoint change and the recorded narrative
+names it, which is `same_mechanism`. **The judge would have rewarded the proximity reasoning exactly
+as the scorer did.**
+
+**Abstention: consistent, and the incentive is intended and stated.** ADR-0022 marks the decision
+with its rejected alternatives - counting `unknown` wrong *"collapses abstention and error"*,
+dropping it silently *"would let a system score 100% by answering once"* - and requires **coverage
+and accuracy always reported together, neither quoted alone.** Worth stating plainly: **the guard
+against selective abstention is disclosure, not scoring.** No single figure penalises abstaining on
+hard cases; both numbers are published so a reader can see it. A deliberate trade, not an absence of
+a problem.
+
+**The answer key encodes a mechanism, and nothing reads it.** Every scenario carries
+`GroundTruth.root_cause`, a prose paragraph. **Across `src/` and `tests/` the only reference beyond
+the schema is a test asserting `ground_truth.category is scenario.fault_class`** - the judge compares
+against `incident.md` instead. The mechanism in the key is **inert**, and fingerprinted, so it cannot
+be edited without invalidating bundles despite being unused. **That is the concrete form of the gap.**
+
+**The substantive question, resolved by the catalog rather than by preference.** The case for the
+looser standard is that real response works this way and a traced path is often unobtainable. The
+case for the stricter one is that this project has repeatedly caught itself inferring from proximity
+and been wrong - T7.13 falsified by T7.14, T7.26 by T7.27, T7.39's own audit error - and a benchmark
+rewarding what its project warns against is incoherent. **Both are serious.**
+
+**What decides it: several catalog items are answerable by nothing but a change record.**
+`redis-cart-dependency-latency`'s entry says `change_history` is *"the only class in the bundle that
+names `redis-cart` at all"*; `shipping-quote-misconfig` is the same. **A standard requiring a traced
+mechanism would make the benchmark's own scenarios unanswerable by construction** - and T7.40 already
+decided the evidence that would trace them will never be captured. So the applied standard is
+coherent with what the benchmark asks.
+
+**And the tension with project practice dissolves once the situations are separated.** The project
+reasons strictly about its own claims because it can inject twice and falsify; **the agent has one
+incident window and four tools and cannot re-run anything.** Requiring of a one-shot investigator the
+standard appropriate to a repeatable experiment is the error, not the leniency.
+
+**No correction to README or RESULTS is required.** The published figures are label-level and named
+as such, and README's strongest claim - *"every claim cites verifiable evidence"* - is about
+citation, which **is** enforced by ADR-0022 §1.2's `result_id` validation. **Inventing a correction
+would be worse than none.**
+
+**The standing rule, stated explicitly as required:** this conclusion is **not** motivated by the
+fact that a different standard would have scored T7.41's run 1 differently, and **must not be adopted
+or re-opened on that basis.** It rests on the structure of the catalog, which is true independently
+of any run.
+
+**One rule adopted, because it costs nothing and changes no scoring:** a writeup may report what a
+verdict **named** and what it **cited**, both recorded. **It may not describe a run as having
+reasoned well or badly without saying that is a reading of the narrative and not a scored quantity.**
+
+**Queued, not adopted:** a warrant check would go where `GroundTruth.root_cause` already sits -
+comparing a verdict's stated causal path against the key rather than only the mechanism it names.
+Not proposed, because it would change what the benchmark measures on one pair of runs, require
+re-scoring every stored verdict, and grade a one-shot investigator on warrant the evidence often
+cannot establish. **T7.43 named the test that would justify revisiting it and priced it at ~\$5.5.**
+
 ### T7.43 — reading the abstention *(analysis only; no money, no world time)*
 **Done** ([`docs/design/t7.43-the-abstention.md`](design/t7.43-the-abstention.md)). Reconstructed
 from the stored envelopes of both `payment-telemetry-blackout` runs. **A hypothesis with a named
