@@ -1573,6 +1573,85 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.34 — the catalog audited, and what fills it *(design only; no code, no world time)*
+**Done** ([`docs/design/t7.34-catalog-audit.md`](design/t7.34-catalog-audit.md)). The count, the
+candidates for the dev deficit, and what gating them costs. Nothing built.
+
+**The count. 11 valid scenarios, 8 dev / 3 holdout, against 15 authored.**
+
+| class | dev have / alloc | holdout have / alloc | dev deficit | holdout deficit |
+|---|---|---|---:|---:|
+| `bad_deploy` | 2 / 4 | 1 / 2 | **2** | **1** |
+| `bad_config` | 3 / 4 | **0 / 2** | **1** | **2** |
+| `dependency_latency` | 1 / 3 | 1 / 1 | **2** | 0 |
+| `resource_exhaustion` | 2 / 3 | 1 / 1 | **1** | 0 |
+| **total** | **8 / 14** | **3 / 6** | **6** | **3** |
+
+Nine unfilled at n=20 - the number SPLIT.md's own occupancy note states, so the two agree.
+**Nineteen to reach n=30** (12 dev / 7 holdout). **`bad_config` holdout is still zero**, which is the
+gap ADR-0008 named at n=10 and which no claim about that class can be made without.
+
+**Five disqualified, counted as existing and as filling nothing.** `cart-memory-squeeze` has no
+scenario file at all - probed at T7.20 and disqualified at *both* magnitudes before authoring, kept
+in CATALOG.md so it is not re-proposed. `ad-dependency-latency` (a leaf has nowhere to put an egress
+delay), `currency-cpu-throttle` and `flag-service-crashloop` (both carry `INVALID.md`; neither could
+alert) and `flag-service-bad-deploy` are `blocked`, which releases the slot. **The planning number is
+the rate: 5 of 16 proposed, 31%, never became capacity.**
+
+**The split is not chosen - and the rule was verified rather than trusted.** Assigning each valid
+scenario to the lowest free slot of its class, in authoring order, **reproduces all eleven existing
+assignments exactly.** The nine free slots are `bad_deploy-4,5` dev and `-6` holdout; `bad_config-4`
+dev and `-5,-6` holdout; `dependency_latency-3,4` dev; `resource_exhaustion-4` dev. **So the next six
+authored are dev whatever they are, and the three after are holdout whatever they are.** For
+`dependency_latency` and `resource_exhaustion` it is doubly forced - their holdout slots are full.
+
+**An audit finding: the slot rule is prose and nothing enforces it.** **Zero of fifteen scenarios
+carry a `slot:` field**, and `test_contamination.py` checks per-class *counts*, not slot identity,
+because nothing records identity to check. SPLIT.md's occupancy table names 2 of 11. So the
+anti-steering rule with "no judgement in it" is not executed by anything; what constrains an author
+today is the per-class ceiling, inside which they write `split:` by hand. **Third instance in this
+arc** after T7.31's precondition and T7.32's opt-in flag. It does not bite for the next six - every
+free dev slot precedes every free holdout slot - **it bites at the seventh**, and recording the slot
+per scenario is the prerequisite, which is desk work.
+
+**Six candidates, one per free dev slot, with the honest labels.** D5 `payment-telemetry-blackout`
+(`bad_config-4`): repoint one service's OTLP exporter, so the service is healthy and invisible -
+callers' client spans succeed while its own server spans vanish, and the correct answer requires
+establishing that a silent service is *alive*. **The only candidate whose culprit has no fault at
+all**, and the nearest successor to the shape S7 caught the agent failing. D1
+`redis-cart-dependency-latency` (`dependency_latency-3`): netem on the datastore, so the culprit
+appears nowhere in the service graph and `change_history` is the only class that can name it -
+**the first culprit outside the service graph.** D3 `payment-flapping-deploy` (`bad_deploy-4`): the
+injector's documented third shape, and deliberately confusable with `resource_exhaustion` since both
+restart. **D2 and D6 are filler and say so** - `recommendation-dependency-latency` and
+`payment-memory-squeeze` add no discriminating power, and are justified only by SPLIT.md's floor of
+three dev per class, which `dependency_latency` (at 1) and `resource_exhaustion` (at 2) miss. **D4 is
+filler with no floor argument left, and the recommendation is to leave `bad_deploy-5` empty.**
+
+**A candidate died at the desk, which is the point of designing first.** The strongest first draft
+was a timeout misconfiguration - shrink a caller's deadline so healthy calls fail. **There is no
+timeout or deadline environment variable anywhere in the demo**; every knob is an address, and the
+mechanism would need patching a third party's service. Rejected before any world time and recorded
+so it is not re-proposed, along with a "wrong but working" deploy (**fires no alert**, so no incident
+and nothing to score) and a `redis-cart` eviction scenario (**digest-locked** since T7.28 put
+`maxmemory` in a `compose_digest` input).
+
+**Gating cost: ~6h if all six work first time, and the budget is 8h**, because the 31% historical
+disqualification rate says roughly two will not. Probe ~20-25 min, record ~25-30 min, plus a kafka
+recycle between batches and never during one. **Gating is not agent exposure and does not spend the
+holdout**, so the three holdout slots cost the same per candidate whenever they are authored.
+
+**Build order** - discriminating value first, gate risk second: the slot-recording prerequisite
+(desk), then D5, D1, D3, then the two filler candidates D2 and D6, and D4 not at all. **D6 is last
+because it is the likeliest to be disqualified** - T7.20 measured this class's observable band as
+narrow from both sides and `cart-memory-squeeze` failed at both magnitudes - so a failure there costs
+least and the slot simply stays empty.
+
+**What it does not settle:** the `bad_config` holdout hole, the largest at both targets, whose two
+slots are a separate design; n=30, which is nineteen away; and every gate risk above, which is a
+prediction from the record rather than a measurement - the error mode that has already killed three
+candidates.
+
 ### T7.33 — close the opt-in hole, and record the recycle as a fact *(gate logic; no digest moves)*
 **Done** (`run.py`, `gate.py`, `demo.py`, nine tests). Two items T7.32's own entry left open.
 
