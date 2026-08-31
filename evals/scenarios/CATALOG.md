@@ -6,6 +6,97 @@ section is written from committed bundles, after rehearsal. Nothing here is a pr
 See `SCHEMA.md` for the file format, `SPLIT.md` for the dev/holdout allocation, and
 `ARTIFACTS.md` for what a rehearsal bundle contains.
 
+## `redis-cart-dependency-latency` — the culprit is outside the traced graph (T7.38)
+
+`dependency_latency` · `dependency_latency-3` · dev · recorded 2026-08-31 against
+`compose_digest f5bd108f…`, `capture_set` 2. **Onset 230s.** Not yet run by any agent.
+
+**A 300ms netem delay on `redis-cart`, not on `cartservice`.** Cart's handler blocks on responses
+that arrive late; the wait propagates to checkout, the frontend and the load generator. Cart is
+unmodified and error-free throughout.
+
+### Measured
+
+| | baseline | under fault |
+|---|---:|---:|
+| `cartservice` p95 | **1.9 ms** | **~655 ms** |
+| `checkoutservice` p95 | 37.8 ms | ~525 ms |
+| error ratio, every service | 0.0 | **0.0** |
+| redis memory / evictions | 3.65M | **3.66M / 0** |
+
+**Errors stay at zero**, which is what keeps this in `dependency_latency` rather than drifting into
+a class where the caller fails. **The redis memory pathology did not appear**: T7.19's `noeviction`
+monotonic growth was removed by T7.28's `maxmemory 12mb` / `allkeys-lru`, and delaying the datastore
+did not back anything up behind it.
+
+### This scenario's page is indistinguishable from its neighbour's
+
+| | `cart-dependency-latency` | **`redis-cart-dependency-latency`** |
+|---|---|---|
+| alerts | `ServiceHighLatency` × 4 | **`ServiceHighLatency` × 4** |
+| services | cart, checkout, frontend, loadgenerator | **the same four** |
+| at fire | `cartservice` | **`cartservice`** |
+| `seconds_to_alert` | **230** | **230** |
+| `cartservice` p95 | ~650 ms | ~655 ms |
+
+**The same four alerts, the same service on the page, the same onset to the second, and the same
+magnitude.** The two differ only in which end of one network path carries the `tc` rule.
+
+### Which classes can see it
+
+| class | what it sees |
+|---|---|
+| **changes** | **the only class in the bundle that names `redis-cart` at all.** |
+| metrics | the latency, and it points at **`cartservice`** - the observer, not the culprit |
+| logs (of the target) | 18 lines of RDB background-save chatter |
+| traces | not captured in bundles |
+
+**Which class cannot: anything that would name the culprit from its own behaviour.** Measured
+during the fault: **zero Prometheus series match `redis` at all.** Redis is a datastore, not an
+instrumented service - no spans, no service-level metrics, no `RUNTIME_FAMILIES`. It is the first
+scenario in this catalog whose faulty component is **outside the traced graph entirely**.
+
+### What a correct diagnosis has to notice, and what it cannot get from the bundle
+
+The chain is: four services slow, **none erroring** → the deepest one alerting is `cartservice` →
+cart's own handler time is largely spent in outbound calls, so it is *waiting* rather than
+*failing* → the thing it waits on has no telemetry → **change history on `redis-cart` is the only
+place the culprit is named.**
+
+**The third step is live-only.** `cartservice`'s `SPAN_KIND_CLIENT` p95 (~390 ms against a
+`SPAN_KIND_SERVER` 727 ms) is what separates *waiting on a dependency* from *slow local code* - and
+**the bundle's latency capture aggregates `by(service_name, le)` with no `span_kind`**, so it is
+reachable to a live `promql_query` and not from the artifacts.
+
+### Labelled for what it is: a narrow item
+
+**In the recorded bundle, `change_history` alone separates the right answer from the wrong one**, and
+it is also the only thing separating this scenario from `cart-dependency-latency`. That was
+registered in advance of the probe rather than concluded after it.
+
+**A scenario answerable by one tool class is narrow, not bad** - it tests exactly the failure mode
+where the evidence points confidently at the wrong service - but it is recorded as narrow rather
+than written up as though several classes converge on it. Its `NARRATIVE_EVIDENCE` entry is
+`{metrics, changes}` for that reason.
+
+### Reachability passes, narrowly, on content that does not describe the fault
+
+`none_can_answer: **False**`, `answers_idle_or_absent: ['logs']`, `runtime_series: 0`,
+`target_log_lines: **18**` against a threshold of **10**.
+
+**All 18 lines are RDB background-save messages, and none mentions latency, slowness, clients or
+errors.** They answer the question reachability actually asks - *was the target idle or absent?* -
+by showing redis alive and saving keys throughout the window. **They are not evidence of the
+delay**, and the distinction is recorded here rather than left for a reader to discover.
+
+### One thing deliberately not claimed
+
+**`also_correct_remediation` is empty.** The first draft carried `config_revert` by analogy with
+`cart-dependency-latency`, which is what T7.17's rule forbids: an entry there means a remediation was
+*tested and worked on this scenario*. ADR-0027 measured the qdisc delete on `cart-service`; nobody
+has measured it on `redis-cart`, and T7.34 refused the same inference for `ad-dependency-latency`.
+The guard in `test_scoring.py` caught the analogy.
+
 ## `payment-telemetry-blackout` — the culprit has no fault (T7.36)
 
 `bad_config` · `bad_config-4` · dev · recorded 2026-08-31 against `compose_digest f5bd108f…`,

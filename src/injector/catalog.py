@@ -211,6 +211,25 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"delay_ms": 300, "jitter_ms": 0, "duration": "1h", "interface": "eth0"},
         ),
         FaultDefinition(
+            id="redis-cart-dependency-latency",
+            fault_class=FaultClass.DEPENDENCY_LATENCY,
+            target="redis-cart",
+            description=(
+                "Add 300ms of network delay to the cart service's Redis, not to the cart "
+                "service. Cart's handler blocks waiting for responses that are late, so cart "
+                "looks slow while the thing that is slow has no spans, no service-level "
+                "metrics and no name anywhere in the traced graph."
+            ),
+            # **The target is the datastore, and that is the whole point.** The container needs
+            # no `tc` and no NET_ADMIN: pumba runs tc from a sidecar image into the target's
+            # network namespace, so redis-cart stays the image the world pins. It has an eth0.
+            #
+            # This is a *container* target, like cart-service above and unlike the service-named
+            # bad_config targets - redis-cart is not in SERVICE_CONTAINERS because it is not a
+            # traced service, which is precisely what makes it interesting here.
+            params={"delay_ms": 300, "jitter_ms": 0, "duration": "1h", "interface": "eth0"},
+        ),
+        FaultDefinition(
             id="currency-cpu-throttle",
             fault_class=FaultClass.RESOURCE_EXHAUSTION,
             target="currencyservice",

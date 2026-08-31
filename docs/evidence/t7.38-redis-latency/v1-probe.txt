@@ -1,0 +1,11 @@
+=== D1 V1 PROBE (300ms on redis-cart) 03:40:35Z ===
+T-0  pre  cart_p95=1.9ms checkout_p95=37.75ms cart_err=0.0 redis_mem=3.65M evicted=0 alerts=none
+injected redis-cart-dependency-latency (dependency_latency) on redis-cart
+  - pumba gaiaadm/pumba:0.10.1: 300ms (+/-0ms) delay on redis-cart eth0
+  - sidecar faultline-pumba-redis-cart-dependency-latency holds the rule; it self-reverts after 1h
+revert with: faultline-inject stop redis-cart-dependency-latency
+INJECTED 03:40:40Z
+T+1m cart_p95=402.35ms checkout_p95=342.86ms cart_err=0.0 redis_mem=3.65M evicted=0 alerts=ServiceHighLatency/loadgenerator:pending,ServiceHighLatency/frontend:pending,ServiceHighLatency/checkoutservice:pending,ServiceHighLatency/cartservice:pending
+T+2m cart_p95=658.18ms checkout_p95=525.0ms cart_err=0.0 redis_mem=3.65M evicted=0 alerts=ServiceHighLatency/cartservice:pending,ServiceHighLatency/loadgenerator:pending,ServiceHighLatency/frontend:pending,ServiceHighLatency/checkoutservice:pending
+T+3m cart_p95=654.67ms checkout_p95=523.08ms cart_err=0.0 redis_mem=3.66M evicted=0 alerts=ServiceHighLatency/cartservice:pending,ServiceHighLatency/loadgenerator:pending,ServiceHighLatency/frontend:pending,ServiceHighLatency/checkoutservice:pending
+T+4m cart_p95=656.67ms checkout_p95=526.67ms cart_err=0.0 redis_mem=3.66M evicted=0 alerts=ServiceHighLatency/loadgenerator:firing,ServiceHighLatency/frontend:firing,ServiceHighLatency/checkoutservice:firing,ServiceHighLatency/cartservice:firing

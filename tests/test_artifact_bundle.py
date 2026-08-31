@@ -74,6 +74,9 @@ NO_RUNTIME_METRICS = frozenset(
         # family. Its blackout does not cause this - the capture reads empty on a healthy
         # recording of this target too, which is why the scenario declares only `logs`.
         "payment-telemetry-blackout",
+        # T7.38: redis is a datastore, not an instrumented service - no runtime family at
+        # any time. The delay does not cause this.
+        "redis-cart-dependency-latency",
         "product-catalog-flag-failure",
         "productcatalog-dependency-latency",
         "shipping-quote-misconfig",

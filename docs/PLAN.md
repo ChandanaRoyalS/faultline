@@ -1573,6 +1573,75 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.38 — D1 built: `redis-cart-dependency-latency` *(scenario; world time, no agent money)*
+**Done** (`dependency_latency-3`, dev, recorded). **The agent was not run against it.**
+
+**Criteria committed before the world was touched**
+([`CRITERIA.md`](evidence/t7.38-redis-latency/CRITERIA.md)): two magnitudes then stop, and
+**narrowness explicitly named as *not* a disqualifier** so it could not become one after the
+measurement. V1 (300ms) passed; V2 was never needed.
+
+**Two desk checks, both settled before any world time.** The mechanism can exist: **pumba runs `tc`
+from a separate sidecar image into the target's network namespace**, so `redis-cart` needs neither
+`tc` nor `NET_ADMIN` and stays the image the world pins - the injector's own comment says so. It has
+the `eth0` the fault names. **And a confounder in the brief no longer exists**: redis-cart's T7.19
+`noeviction` pathology was removed by T7.28's `maxmemory 12mb` / `allkeys-lru`. Memory was watched
+anyway and never moved - **3.65M -> 3.66M, zero evictions** - so there is no memory finding to
+report.
+
+**The load-bearing assumption held, and was tested first and cheaply.** `ad-dependency-latency` died
+because a leaf has nowhere to put an egress delay, and `redis-cart` is the deepest leaf there is -
+but the observer is `cartservice`, which has spans. Measured in a four-minute probe before any
+alert-budget probe: **`cartservice` p95 1.9ms -> ~655ms**, `checkoutservice` 37.8 -> ~525ms, **error
+ratio 0.0 throughout**. Latency, not errors, so the class is right.
+
+**Slot from the frozen record, not carried forward.** `dependency_latency-3`, and it is **dev by
+position**: the class's holdout slot is taken by `productcatalog-dependency-latency`.
+
+**The page is indistinguishable from its neighbour's, measured rather than feared.** Four
+`ServiceHighLatency` alerts on cartservice, checkoutservice, frontend and loadgenerator; `at_fire`
+`cartservice`; **`seconds_to_alert` 230 - identical to `cart-dependency-latency`'s 230** - and the
+same ~650ms magnitude. The two differ only in which end of one network path carries the `tc` rule.
+
+**So the discriminating answer is stated exactly, as registered in advance.** Measured during the
+fault: **zero Prometheus series match `redis` at all.** In the bundle, **`change_history` alone**
+separates the right answer from "cartservice is broken", *and* separates this scenario from its
+neighbour. What would widen it is live-only: `cartservice`'s `SPAN_KIND_CLIENT` p95 (~390ms against
+`SPAN_KIND_SERVER` 727ms) shows the handler waiting rather than working, and **the bundle's latency
+capture aggregates `by(service_name, le)` with no `span_kind`**, so it is reachable to a live query
+and not from the artifacts. **Recorded as a narrow item** - one tool class in the bundle - with
+`NARRATIVE_EVIDENCE` `{metrics, changes}`, rather than written up as though several classes
+converge.
+
+**Reachability passes narrowly, on content that does not describe the fault.**
+`none_can_answer: False`, `['logs']`, `runtime_series: 0`, `target_log_lines: **18**` against a
+threshold of 10. **All 18 lines are RDB background-save chatter**; none mentions latency, slowness,
+clients or errors. They answer the question reachability actually asks - *was the target idle or
+absent* - by showing redis alive and saving keys. **They are not evidence of the delay**, and that
+is recorded rather than left to be discovered.
+
+**A discipline violation of mine, caught by a guard.** The scenario first carried
+`also_correct_remediation: [config_revert]` **by analogy** with `cart-dependency-latency` - exactly
+what T7.17's rule forbids, since an entry there claims a remediation was *tested on this scenario*.
+ADR-0027 measured the qdisc delete on `cart-service`; nobody measured it on `redis-cart`, and T7.34
+had already refused the same inference for `ad-dependency-latency`. Removed, with the reason left in
+the file. `test_scoring.py`'s "only the dependency_latency scenarios carry a second fix" caught it.
+
+**World protocol.** Recording ran **through the harness and took the world lock** - the manifest
+carries `world_lock` with `acquired: true`, T7.37 working end to end. **No kafka recycle was
+performed and none was warranted**: the headroom gate read 38.1% against a threshold of 84.0%, so
+prophylactic cycling would have stranded `accountingservice` for nothing. **The probe scripts call
+`docker` and the injector CLI directly and are outside the lock**, as T7.30's and T7.36's were;
+single-driver was maintained by the operator - nothing was queued behind the probe, and it reverted
+its own sidecar before the recorder started.
+
+**Catalog: 13 valid scenarios, 10 dev / 3 holdout.** `dependency_latency` dev goes from 1 to 2,
+against SPLIT.md's floor of 3.
+
+**What remains.** `dependency_latency-4` is the last dev slot in the class and the floor is not met
+until it is filled; T7.34's candidate for it (`recommendation-dependency-latency`) is labelled filler
+and its only argument is that floor.
+
 ### T7.37 — make "one driver of the world" executable *(lock + contract; no digest moves)*
 **Done** (`injector/worldlock.py`, both drivers, nine tests). The fifth prose rule in this arc found
 enforced by nothing, and the one whose violation **corrupts a recording rather than mismeasuring
