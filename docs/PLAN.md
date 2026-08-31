@@ -1573,6 +1573,69 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.43 — reading the abstention *(analysis only; no money, no world time)*
+**Done** ([`docs/design/t7.43-the-abstention.md`](design/t7.43-the-abstention.md)). Reconstructed
+from the stored envelopes of both `payment-telemetry-blackout` runs. **A hypothesis with a named
+mechanism, not a measurement** - n=1 against n=1.
+
+**Three of the four candidate causes are ruled out from the envelope.** The step sequences are
+**identical, seventeen steps each**, both completing two dispatch rounds - so **no budget bound cut
+the round**. The `changes` specialist **found and reported the change at high confidence in both**,
+run 1's calling it *"the only candidate trigger in the window"* - so **no specialist withheld it**.
+Both planners **named the mechanism in round 2 and dispatched to test it** - so **no planner failed
+to ask**. And run 1's specialists did not return less: comparable `found`/`ruled_out` counts, and it
+referenced the endpoint in **three** steps against run 3's one.
+
+**It was the synthesizer, and the divergence is one sentence.** Run 1: *"That leaves the change
+record as an upstream act with **no demonstrated mechanism**, which is exactly the situation where
+classifying by the change would be wrong."* Run 3: *"The exporter endpoint is wrong as a value - it
+names an unreachable address - and **that wrongness is the mechanism**, so bad_config."* Both had the
+change record, both established the service healthy, both falsified the request-path mechanism.
+**They differ on what counts as a mechanism.**
+
+**Both runs hypothesised the wrong one.** The planners tested *export blocking on the request path*;
+the real mechanism is that spans stop, spanmetrics stop, `calls_total` drains and `ServiceNoTraffic`
+fires - **nothing to do with the request path.** Both correctly falsified the candidate they chose.
+
+**The uncomfortable part, recorded rather than smoothed over: the run that scored correct reasoned
+less strictly, and says so itself** - *"the causal link to the critical severity rests on temporal
+proximity and sole-change-in-window."* That is the inference this project warns against elsewhere.
+**Run 1 declined to make it and was scored wrong for declining.**
+
+**A contributing factor, and it is T7.40's boundary in a live verdict.** Run 1's remaining thread was
+the container replacement: *"no returned signal discriminates among them - the restart counter and
+memory utilization were **requested and not returned**."* T7.42 established the restart is explicable
+from `change_history`, and this synthesizer **had** the change record and still could not
+discriminate the restart's *cause* - explaining that a config change happened is not explaining why
+the container died. **This does not reopen T7.40**; the survey there stands and one run is not
+evidence. It is the second appearance of the same absence in a live verdict.
+
+**Known shape? The same rule, a new upstream cause.** S6's `shipping-wrong-image` abstention reads
+*"The failing component is localized with high confidence; the failing mechanism is not, and I
+decline to infer one"* - **the same rule**, and ADR-0022 treats `unknown` as legitimate. But S6's
+mechanism was undemonstrated because **the evidence was never gathered** (T4.12's dispatch collapse,
+zero dispatches at the failing service), and run 1's because **the evidence was gathered and the
+hypothesised mechanism falsified**. **A well-executed investigation that tested the wrong hypothesis
+is a shape this project has not seen before.**
+
+**What a single pair supports: nothing beyond a hypothesis.** Two things make it more than nothing -
+the divergence localises to **one identifiable step** with the other three causes ruled out from the
+envelope, and the divergent reasoning is **explicit in both** rather than inferred from outcomes. It
+is **not** evidence that the synthesizer systematically requires a traced mechanism.
+
+**What would test it:** run this scenario enough times to estimate how often the synthesizer declines
+to classify by an untraceable-mechanism change, paired against `cart-redis-misconfig`, whose
+mechanism *is* traceable. **A split by mechanism-traceability is what would make it a finding.**
+**Cost: ~$5.5 and ~3.5h for n=10 across the pair - and there is no money**, so this ends at the
+hypothesis as scoped.
+
+**A prompt change is proposed and queued, not made.** Role prompts feed `runtime_version`, so editing
+one moves the stamp off `prompts:1b0e7cbb4c47` and invalidates comparability with **six dev sweeps,
+three holdout entries and both new scenarios**. The proposal - distinguish *a change with no
+demonstrated mechanism* from *a change whose value is self-evidently wrong* - is written down with
+what would justify adopting it. **Without the measurement it is one run, and changing a prompt on one
+run is how a benchmark gets tuned to its last result.**
+
 ### T7.42 — the injector's restart, surveyed *(no money, minimal world time)*
 **Done** ([`docs/design/t7.42-injector-restart.md`](design/t7.42-injector-restart.md), ADR-0009
 addendum, CATALOG note). **Conclusion: it is not a confound**, and the concern that prompted the look
