@@ -40,7 +40,9 @@ QUIET = {
     "firing_alerts": [],
     "p95": {"cartservice": 1.9, "checkoutservice": 35.0},
     "rates": {"cartservice": 4.2, "checkoutservice": 2.1, "frontend-proxy": 0.0},
-    "uptimes": [("cartservice", 3600)],
+    # kafka is in the fixture world because the gate now reads its memory and uptime (T7.31,
+    # T7.33). Older than cartservice so `youngest_container` assertions are unaffected.
+    "uptimes": [("cartservice", 3600), ("kafka", 7200)],
     "injections": "no active injections",
 }
 
@@ -1416,3 +1418,103 @@ def test_the_runs_remaining_flag_is_accepted_and_defaults_to_unset() -> None:
     assert (
         parser().parse_args(["cart-redis-misconfig", "--runs-remaining", "8"]).runs_remaining == 8
     )
+
+
+# --- T7.33: the opt-in hole closed, and the recycle recorded as a fact ----------------------
+
+
+def test_a_run_declaring_neither_intent_is_refused_before_anything_happens() -> None:
+    """T7.32's hole: omitting --runs-remaining silently bought the weaker per-run check.
+
+    Same contract as `--holdout`, which is refused without it because a different experiment
+    should be hard to start by accident. Exit 2, and nothing is injected or recorded.
+    """
+    from evalharness.run import main
+
+    assert main(["cart-redis-misconfig"]) == 2
+
+
+def test_either_declaration_satisfies_it() -> None:
+    from evalharness.run import parser
+
+    single = parser().parse_args(["cart-redis-misconfig", "--single-run"])
+    sweep = parser().parse_args(["cart-redis-misconfig", "--runs-remaining", "8"])
+    assert single.single_run is True and single.runs_remaining is None
+    assert sweep.single_run is False and sweep.runs_remaining == 8
+
+
+def test_the_demo_declares_its_intent_rather_than_relying_on_a_default() -> None:
+    """CLAUDE.md rule 2: the demo always works. It is one run, and it now says so."""
+    from evalharness import demo
+
+    source = Path(demo.__file__).read_text()
+    assert '"--single-run",' in source
+
+
+def test_kafka_uptime_is_recorded_so_a_restart_is_a_fact_not_an_inference() -> None:
+    reading = reading_with()
+    assert reading.headroom is not None
+    assert reading.headroom.uptime_seconds == 7200  # kafka in the default fixture world
+    assert reading.as_dict()["headroom"]["uptime_seconds"] == 7200
+
+
+def test_continuity_reports_the_same_instance_when_kafka_did_not_restart(tmp_path: Path) -> None:
+    from evalharness.run import world_continuity
+
+    _write_prior_run(tmp_path, "20260901T000000Z-a", uptime=600)
+    out = world_continuity("20260901T010000Z-b", 4200, root=tmp_path)
+    assert out["kafka_restarted_since_previous_run"] is False
+    assert out["cause"].startswith("continuous")
+    assert out["previous_run_id"] == "20260901T000000Z-a"
+
+
+def test_a_recycle_after_a_pause_is_named_as_deliberate(tmp_path: Path) -> None:
+    """The cause, not just the discontinuity: the gate asked, the operator cleared it."""
+    from evalharness.run import world_continuity
+
+    _write_prior_run(tmp_path, "20260901T000000Z-a", uptime=50_000, paused=True)
+    out = world_continuity("20260901T010000Z-b", 300, root=tmp_path)
+    assert out["kafka_restarted_since_previous_run"] is True
+    assert "deliberate recycle" in out["cause"]
+
+
+def test_a_restart_nobody_recorded_is_surfaced_rather_than_smoothed_over(tmp_path: Path) -> None:
+    from evalharness.run import world_continuity
+
+    _write_prior_run(tmp_path, "20260901T000000Z-a", uptime=50_000, paused=False)
+    out = world_continuity("20260901T010000Z-b", 300, root=tmp_path)
+    assert out["kafka_restarted_since_previous_run"] is True
+    assert "no run recorded a pause" in out["cause"]
+
+
+def test_a_missing_reading_says_unknown_instead_of_assuming_continuity(tmp_path: Path) -> None:
+    """The distinction T7.32 could not make: absent evidence is not evidence of continuity."""
+    from evalharness.run import world_continuity
+
+    assert world_continuity("20260901T010000Z-b", 300, root=tmp_path)["cause"].startswith("unknown")
+    _write_prior_run(tmp_path, "20260901T000000Z-a", uptime=None)
+    out = world_continuity("20260901T010000Z-b", 300, root=tmp_path)
+    assert out["kafka_restarted_since_previous_run"] is None
+    assert out["cause"].startswith("unknown")
+
+
+def test_the_previous_run_is_the_most_recent_one_before_this_one(tmp_path: Path) -> None:
+    from evalharness.run import previous_run_manifest
+
+    for name in ("20260901T000000Z-a", "20260901T010000Z-b", "20260901T030000Z-d"):
+        _write_prior_run(tmp_path, name, uptime=100)
+    found = previous_run_manifest("20260901T020000Z-c", root=tmp_path)
+    assert found is not None and found["run_id"] == "20260901T010000Z-b"
+
+
+def _write_prior_run(
+    root: Path, run_id: str, uptime: int | None = None, paused: bool = False
+) -> None:
+    directory = root / run_id
+    directory.mkdir(parents=True, exist_ok=True)
+    manifest: dict[str, Any] = {"run_id": run_id, "baseline_gate": {"headroom": {}}}
+    if uptime is not None:
+        manifest["baseline_gate"]["headroom"]["uptime_seconds"] = uptime
+    if paused:
+        manifest["paused"] = {"reason": "clearable precondition"}
+    (directory / "manifest.json").write_text(json.dumps(manifest))

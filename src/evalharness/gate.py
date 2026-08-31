@@ -299,7 +299,7 @@ def _parse_docker_size(text: str) -> float | None:
     return None
 
 
-@dataclass(frozen=True)
+@dataclass
 class Headroom:
     """Whether `HEADROOM_CONTAINER` can survive the run that is about to start."""
 
@@ -310,6 +310,13 @@ class Headroom:
     growth_percent: float
     threshold_percent: float
     runs_remaining: int | None = None
+    uptime_seconds: int | None = None
+    """How long `HEADROOM_CONTAINER` has been up. **A fact, not an inference (T7.33).**
+
+    T7.32 recorded only `percent_now` and said a recycle was visible as a percentage that fell
+    rather than rose. That is inference from a discontinuity, and it cannot tell a recycle from a
+    missing sample, a reordered manifest, or a container that restarted for a reason nobody chose.
+    An uptime that resets says the container restarted; nothing else does."""
 
     @property
     def projected_percent(self) -> float:
@@ -329,6 +336,7 @@ class Headroom:
             # `percent_now` falls rather than rises is a recycle, and that is the only way a
             # reader can tell kafka was not constant across the sweep (T7.32).
             "runs_remaining": self.runs_remaining,
+            "uptime_seconds": self.uptime_seconds,
             "growth_mb_per_hour": HEADROOM_GROWTH_MB_PER_HOUR,
             "growth_mb": round(self.growth_mb, 1),
             "projected_percent": round(self.projected_percent, 2),
@@ -655,6 +663,11 @@ def read(
     # cannot answer and which T7.29 walked straight into: it started at 69.95%, passed every check
     # there was - scored runs have never had a memory check at all - and ended at 90.69%.
     reading.headroom = headroom_for(expected_run_hours, runs_remaining=runs_remaining)
+    if reading.headroom is not None:
+        for name, seconds in uptimes:
+            if name == HEADROOM_CONTAINER:
+                reading.headroom.uptime_seconds = seconds
+                break
     if reading.headroom is not None and not reading.headroom.fits:
         h = reading.headroom
         scope = (

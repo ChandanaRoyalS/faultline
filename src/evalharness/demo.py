@@ -304,6 +304,8 @@ def main(argv: list[str] | None = None) -> int:
             "--max-tool-calls-changes",
             str(CHANGES_BOUND),
             "--demo",
+            # A demo is one run by definition. Declared rather than defaulted (T7.33).
+            "--single-run",
             "--progress-json",
         ],
         stdout=subprocess.PIPE,
