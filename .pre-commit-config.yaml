@@ -38,6 +38,14 @@ repos:
       - id: check-yaml
       - id: check-json
       - id: check-added-large-files
+        # **`docs/spec/` is excluded, and it is the only exclusion this guard has.** The two
+        # source documents are 282 KB and 1368 KB, and the second exceeds the 500 KB default.
+        # The guard exists to stop binaries drifting in unnoticed; a specification the project is
+        # judged against is the one thing that justifies an exception, and it is written here as a
+        # stated exception rather than taken as a `--no-verify` nobody would ever see. **The limit
+        # is not raised for the rest of the tree** - a global bump would weaken the guard
+        # everywhere to admit two files.
+        exclude: ^docs/spec/
       - id: detect-private-key
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.4
