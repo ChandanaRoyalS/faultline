@@ -29,8 +29,33 @@ up:
 down:
 	docker compose --profile platform down
 
+# One scored scenario, end to end: baseline gate, inject, correlate, investigate, revert,
+# confirm recovery, score. Real model calls - see README's "Scoring a scenario".
+#
+# T7.47: this was a stub echoing "eval harness arrives in Phase 4" long after it had. A
+# documented target that does nothing is worse than an absent one. G4's condition names
+# `make eval` and is met when this has scored the catalog and the A/A check declares null.
+#
+# INTENT is mandatory and has no default, because the baseline gate projects kafka's memory
+# over the work still to come and cannot do that unless told what the work is (T7.33).
+SCENARIO ?=
+INTENT   ?=
 eval:
-	@echo "eval harness arrives in Phase 4 (T4.1) - see docs/adr and the execution plan"
+ifeq ($(strip $(SCENARIO)),)
+	@echo "usage: make eval SCENARIO=<id> INTENT=--single-run"
+	@echo "       make eval SCENARIO=<id> INTENT='--runs-remaining N'   # part of a sweep"
+	@echo ""
+	@echo "scenario ids: uv run faultline-inject list"
+	@exit 2
+endif
+ifeq ($(strip $(INTENT)),)
+	@echo "refusing: INTENT is required - --single-run, or --runs-remaining N."
+	@echo "The gate projects kafka's memory over the work still to come and cannot"
+	@echo "do that unless told what the work is (T7.33). Nothing was injected."
+	@exit 2
+endif
+	uv run faultline-eval $(SCENARIO) $(INTENT) \
+		--max-tool-calls 4 --max-tool-calls-changes 8 --max-tokens 120000
 
 # ---- T5.3: the demo ----
 # One narrated run of the whole system, end to end, against the live world. Makes real

@@ -1573,6 +1573,50 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.47 — close the front door *(documentation and one guard; no money, no world time)*
+**Done.** T7.46's four structural gaps, fixed. **Branched before committing and confirmed it
+first**, which is the thing T7.46 got wrong.
+
+**The scored path is in README**, in a section kept to what a stranger needs to run one scenario:
+the command, the two `INTENT` flags and **why one is mandatory** - the gate projects kafka's memory
+over the work still to come and cannot do that unless told what the work is, so **defaulting
+silently to the weaker check would be a guard that protects you only if you remembered it** - and
+the five exit codes, with `2` and `3` marked as refusals rather than failures. **30 lines added to
+README, and nothing restructured**: the failure mode named in the brief is a front door that grows
+into a manual.
+
+**`ARTIFACTS.md` is linked as what it contains** - *"the rehearsal contract… which steps wait and
+for how long, and why a recorder that looks stuck is usually working"* - rather than by filename.
+That contract exists because misreading it produced T7.36's near-miss, and it was previously
+reachable from nowhere a reader starts.
+
+**The three world hazards got a page rather than a place in the main flow**
+([`docs/TROUBLESHOOTING.md`](TROUBLESHOOTING.md)), and the shape is deliberate: **a reader meets
+these as refusals, so the doc is organised by the message you just read**, not by subsystem. It
+opens by saying most refusals here are the system working. It covers the 300s settle, the checkout
+stall with ADR-0025's remedy, kafka headroom with **the consumer restart that is not optional** -
+restarting kafka strands `accountingservice`, which then fails a later gate for a reason that looks
+unrelated - the intent refusal, the world lock, and the recorder that waits rather than refuses.
+**Linked from both the demo block and the scored-run section**, because those are the two places a
+first refusal happens.
+
+**`make eval` is implemented rather than removed.** It was echoing *"eval harness arrives in Phase
+4"* long after it had. Removing it would have left **G4's condition pointing at a deleted target**,
+which is a gate that cannot be evaluated; implementing it keeps the condition meaningful without my
+editing a gate. It now refuses without `SCENARIO` (exit 2, listing how to find ids) and without
+`INTENT` (exit 2, with the reason), and otherwise runs a scored run at T4.7's budget.
+
+**A hook now refuses commits on main, and it was checked against the workflow rather than assumed
+safe.** **40 of the last 40 commits on main carry a `(#NN)` squash-merge suffix - zero direct
+commits** - and squash-merges happen on GitHub's side where the hook never runs, so it fights
+nothing. `--no-verify` is the escape hatch and the message names it. **This is a rule that failed
+once today**: T7.46 committed to main and was caught only because the push had no branch to match.
+
+**Stated in the audit document rather than implied:** the gaps are closed **in documentation, not in
+verification**. **The claim is "the path is now documented", not "the path now works."** A
+from-scratch bring-up, the demo end to end and `uv sync` from cold remain unverified at the same
+cost - a teardown, ~1 hour, ~\$0.50, **on a machine that is not this one.**
+
 ### T7.46 — can anyone else run this? *(audit; no money, no world time)*
 **Done** ([`docs/design/t7.46-can-anyone-else-run-this.md`](design/t7.46-can-anyone-else-run-this.md)).
 **Honest conclusion: a stranger can run the demo and read the results; a stranger cannot reproduce a
