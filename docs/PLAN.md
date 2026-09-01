@@ -1573,6 +1573,70 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.52 — judged mechanism agreement across the whole corpus *(live; \$0.0715)*
+**Done** ([`docs/evidence/t7.52-corpus-judge/`](evidence/t7.52-corpus-judge/)). Branched and
+confirmed first. **Nothing in RESULTS.md or README changed, and that is the finding.**
+
+**The survey came before the spend.** 97 run directories carry a manifest; 76 are scored, 74 count
+toward aggregates (2 are demo, T5.3), and **72 already carried a judge block** — so the corpus was
+almost entirely judged already and the job was four runs, not seventy. All four had abstained, which
+is why nothing downstream had ever missed them. **Two were demo runs and were left alone** — no
+aggregate counts a demo, so judging them buys a field that by rule may not be used. The other two
+were judged, and **every aggregate-counting run that can be judged now is.**
+
+**Two alteration checks, not one.** Each target manifest was parsed and re-serialised exactly as
+`judge_cli` writes it and compared byte-for-byte with disk: **all four round-tripped identically**,
+so the write adds a key and rewrites nothing (confirmed again after: `added: {'judge'}`, nothing
+removed, nothing changed). And the one that would have altered was found: **`faultline-judge` with
+no run ids judges every scored run and overwrites `manifest["judge"]`**, which for the 72 already
+judged **replaces a recorded verdict.** Run ids were named explicitly.
+
+**Judging a holdout entry spends nothing, said explicitly rather than assumed.** It is not a run —
+`load_run` reads the manifest and the recorded narrative off disk, no world, no agent, no tools, and
+it is repeatable. Nothing enters a retrieval corpus: `FRONT_MATTER` strips `fault_class`, `split` and
+`origin` before `incident.md` reaches the judge, so **the judge is never told the label**, and no
+file under `src/faultline/` reads `evals/runs/` at all. And it was already settled practice —
+**10 of the 11 holdout runs already carried judge blocks written by this same path**, so leaving the
+eleventh out would have measured the holdout split inconsistently with itself.
+
+**The corpus comparison, n = 73 judged aggregate-counting runs, 56 answered.**
+**Class-label accuracy 52/56. Judged `same_mechanism` 52/56. The same number, and not the same 52
+runs — only 49 are both.** Abstentions are excluded and that matters: **all 17 abstentions judge
+`different`** by construction, and counting them makes agreement look worse than class accuracy as a
+pure artifact (`52 / 3 / 18` over all 73). Reported as a three-way distribution, never collapsed.
+
+**The complicating case the brief asked for exists, and it changes the finding.** Three answered runs
+**judge `same_mechanism` while scoring the class wrong** — `ad-memory-squeeze` and
+`frauddetection-memory-squeeze` (`resource_exhaustion` → `bad_config`) and `cart-dependency-latency`
+(`dependency_latency` → `bad_config`), each with the judge quoting the exact mechanism back. **All
+three are already in `CLASS_DISPUTES`**, and **the judge, which is never told the label, independently
+agrees with the agent on precisely the three runs the register flags as contested** — corroboration
+from a direction that could not have been tuned to produce it. It does not make them right; ADR-0022
+§1.2 stands and a disputed miss is still a miss. **So the label score is not optimistic, it is noisy
+in both directions, three runs each way.**
+
+**T7.51's gap is confined.** Of the three over-credits, **two are the `redis-cart-dependency-latency`
+runs T7.51 already published** and the third is one run of `cart-bad-image-tag`. `redis-cart` is the
+only scenario with two `adjacent`. **T7.51's conclusion stands as written — it was about D1 and is
+still true of D1 — and what this adds is that D1 is the outlier, not the sample.** T7.44's conclusion,
+that label-level figures are acceptable because they are named as such, survives the check it invited.
+
+**Nothing published changes, conservatively.** No net overstatement to correct; the error is
+bidirectional so a "the label flatters" caveat would itself be wrong; a single appended agreement
+number would collapse three levels into one, which is the move that produced the original
+overstatement; **README and RESULTS.md already carry `same / adjacent / different` beside class
+accuracy for both sweeps** (`7 / 0 / 0`, `4 / 0 / 3`); and the holdout arm is **4 answered runs**.
+T7.47's lesson holds — the results documents were not restructured.
+
+**Counts, not rates.** 73 runs accumulated opportunistically across four months — `cart-redis-misconfig`
+contributes 13, `shipping-quote-misconfig` 2. No interval is quoted because there is no sampling
+design to support one. **Cost \$0.0715 against a \$0.09 estimate** (T7.51's \$0.043/run × 2). All
+figures **SHARED LINEAGE** (judge `claude-haiku-4-5`, agent `claude-opus-5`).
+
+**Queued, not fixed: Q8.** Two manifests record `dispute: null` for a triple `dispute_for` matches
+today — they were scored before the register grew. **Correcting it would alter a recorded score
+block**, which is the thing this task refused to do, so it rides along with the next re-score.
+
 ### T7.51 — T7.41's registered runs, finished and judged *(live; \$1.31)*
 **Done** ([`RUN-2026-08-31-two-new-scenarios.md`](../evals/runs/RUN-2026-08-31-two-new-scenarios.md),
 completion section). Branched and confirmed first. **Two runs only** - the registered-but-never-
