@@ -1,5 +1,7 @@
 # Faultline
 
+[![ci](https://github.com/ChandanaRoyalS/faultline/actions/workflows/ci.yml/badge.svg)](https://github.com/ChandanaRoyalS/faultline/actions/workflows/ci.yml)
+
 **An open, benchmarked incident-investigation agent system for the OpenTelemetry stack.**
 
 When a production alert fires, Faultline's agents investigate it the way a good on-call engineer
