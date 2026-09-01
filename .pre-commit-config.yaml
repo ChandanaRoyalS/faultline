@@ -37,7 +37,11 @@ repos:
         exclude: *captured_evidence
       - id: check-yaml
       - id: check-json
+      # docs/spec/ holds the two specification PDFs. They are committed once, never
+      # change, and are the documents this repo is judged against - the one legitimate
+      # large binary here. The default guard stays for everything else.
       - id: check-added-large-files
+        exclude: ^docs/spec/
       - id: detect-private-key
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.16.4
