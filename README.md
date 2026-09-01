@@ -200,6 +200,10 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 > [docs/RESULTS.md](docs/RESULTS.md) and the
 > [reconciliation record](docs/evidence/t7.1-reconciliation/README.md).
 
+**The current-world result — 19 scored runs, what each of the three assessments can see, and what
+the label score cannot — leads [docs/RESULTS.md](docs/RESULTS.md#the-current-world-result).**
+Everything below in this README describes earlier worlds and is labelled as such.
+
 Full method and findings: **[docs/RESULTS.md](docs/RESULTS.md)**. Raw runs and reports:
 [`evals/runs/`](evals/runs/).
 

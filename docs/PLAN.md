@@ -1734,10 +1734,69 @@ specification's eleven, T2.4b's runbook corpus empty behind a past-incident stor
 not it, T2.5 and T2.7 unrecorded, and this file heading sections with task names that are not
 the plan's — is in the design note's addendum. The priorities finding is unchanged.
 
+### T7.60 — reorder the record around the reader *(Q12; \$0)*
+**Done.** Branched and confirmed first. **Three changes and nothing else. Nothing deleted, no figure
+altered, no new page, no summary, no banner** — the banner in fact **shrank**, because the section
+replaced what it was duplicating. **Q12 struck in the register.**
+
+**First, a correction to T7.59 that this task found by opening the file.** T7.59 reported **fifteen**
+corrections; **twelve reached disk.** The edits were applied in batches and the batch carrying
+**C7** (the sweep-6 heading), **C8** (six -> seven freeze items) and **C9** (the contradicted
+re-entry sentence) raised on a later assertion and **never wrote**. **The one that did not land is
+the one T7.59 called the worst error it found** - the heading claiming sweep 6 was *"the world that
+exists"*. **An audit that reports its corrections without re-reading the file it corrected is doing
+the thing it was auditing.** All three are applied here; the audit document now says twelve.
+
+**Change 1: the current-world result leads.** A new opening section, verified from the record rather
+than carried forward - **19 scored runs over 10 of the 13 valid scenarios, every one a dev run, on
+`compose_digest f5bd108f…`**. Coverage **18/19**, fault class **17/18** of answered, class of fix
+**15/18**, judged agreement **`same_mechanism` 15 / `adjacent` 3 / `different` 1**, with the
+per-class table beside it and **n = 1 for six of the ten scenarios** stated in the same breath. Dev
+sweep 7 is named as **8 of those 19**, which is the first time the document has said how much
+evidence stands behind the headline. **The four runs that are not clean are named individually**,
+because at this n they are the result rather than noise.
+
+**Change 2: T7.52's comparison comes in from the evidence directory.** Over 56 answered runs,
+class-label accuracy **52/56** and judged `same_mechanism` **52/56** - **the same number and not the
+same runs; only 49 are both.** Six disagree, **three in each direction**, so the label score is not
+flattering but **noisy, symmetrically** - and the three the judge credits against the scorer are
+**exactly the three `CLASS_DISPUTES` already flags**, agreed to by a judge that is never told the
+label. It qualifies the figures and now sits beside them.
+
+**Change 3: "what this measures" gets one home.** A three-row table: the **scorer** asks whether the
+class and the fix class are right and cannot see how the conclusion was reached; the **judge** asks
+whether the verdict names the same mechanism as the narrative and cannot see whether the evidence
+supports it; **warrant is assessed nowhere**, and every scenario carries a `GroundTruth.root_cause`
+no scoring code reads. True in ADR-0022 §1.2, T7.44 and T7.52 separately; **stated whole in none of
+them until now.** README gained a pointer and nothing else.
+
+**And the ordering defect itself.** Dev sweep 6 was a *results* section living inside **Method**,
+above the divider announcing superseded figures - which is how a stale heading could hold the
+position of "the current result" for four days after T7.29 replaced it. It now sits under
+**"The tables - every sweep and entry below ran on a superseded world"**, with the other sweeps and
+the holdout entries, all of which are superseded. **The heading is true of every table under it**,
+checked scenario by scenario.
+
+**The stranger reread found one thing the restructure broke, which is the point of doing it.**
+*"**Nothing in this document was re-measured.** Every dev sweep … was produced against the old
+world"* was correct when written and **became false the moment the current-world result was placed
+above it.** Scoped to *"nothing under **The tables**"*, with the same fix applied to *"a future run
+is not comparable to any figure here"*. **A correct edit landing in the wrong place is precisely the
+failure being fixed, and a restructure is where it happens again** - it did, once, and it was caught
+by reading rather than by a test. A second, older instance surfaced in the same pass: *"Two stamps
+appear in this document"* against a table that has held **four** since T4.14.
+
+**Left alone, deliberately.** The heading *"The figures below were measured against a world that no
+longer exists"* still sits inside **Method** rather than beside the tables. Moving it is not needed -
+a reader reaching it has already read the current-world result, so *"the figures below"* is true -
+and moving it would be reaching for a target shape rather than fixing the ordering defect. Likewise
+**ADR-0022 §1.2 was not amended to point forward at the new section**: a decision record says what
+was decided when, and threading forward references through the ADR set is a different kind of edit
+from the one this task was licensed to make.
+
 ### T7.59 — does the published record tell the truth as it now stands? *(audit; \$0)*
 **Done** ([`docs/design/t7.59-record-audit.md`](design/t7.59-record-audit.md)). Branched and
-confirmed first. **Fifteen corrections, no section restructured.** Every one is a wrong sentence or
-a missing one; T7.47's lesson stands and the front door is four sentences longer than it was.
+confirmed first. **Fifteen corrections identified, no section restructured** - *(and **twelve reached the file**; the batch carrying C7, C8 and C9 raised before writing and was applied at T7.60, which found it by opening the file. Corrected here rather than left, because the lost one is the error this entry calls the worst.)* Every one is a wrong sentence or a missing one; T7.47's lesson stands and the front door is four sentences longer than it was.
 
 **The worst error found is a heading.** RESULTS.md carried a section titled **"Dev, on the world
 that exists"** calling **sweep 6** *"the current-world benchmark"* - and sitting **above** the
