@@ -1573,6 +1573,72 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.46 — can anyone else run this? *(audit; no money, no world time)*
+**Done** ([`docs/design/t7.46-can-anyone-else-run-this.md`](design/t7.46-can-anyone-else-run-this.md)).
+**Honest conclusion: a stranger can run the demo and read the results; a stranger cannot reproduce a
+figure, and the front door does not tell them how.**
+
+**Five things fixed, each cheap and clearly wrong.** README said *"give it ~2 minutes to settle"*
+when **the baseline gate refuses containers younger than 300s** - so a stranger following README
+exactly is refused on their first `make demo` with no way to know that is expected. It said *"Twelve
+scenarios, ten runnable and two that could not fire"* against an actual **17 authored, 13 valid, 4
+blocked**. It said *"7 per dev sweep"* while its own banner reports **8 of 8 scenarios scored**. It
+had **no prerequisites section at all** - no Docker, no `uv`, no Python version - while `make
+world-up` clones a repo and starts ~20 containers. And it did not state the **platform**.
+
+**The platform omission is a reproduction claim, not a convenience.** Every figure here was produced
+under **arm64 Rosetta emulation**, which T7.30 measured as changing container memory behaviour
+materially. **A run on x86 is a different world and its figures are not comparable.** Now stated.
+
+**Verified and correct:** the key path `~/.faultline-anthropic-key` matches `demo.KEY_PATH`; all
+three make targets exist; all four `faultline-inject` subcommands including `stop --all`; the
+`docs/demo/` transcript and narrative.
+
+**Four structural gaps, written down rather than fixed on my own judgement.**
+
+**(1) README documents the demo and the injector and never the scored harness.** `faultline-eval`,
+the recorder, `faultline-judge`, `faultline-render` and `faultline-seed` appear **nowhere in
+README** - every figure in the results section was produced by a command the front door does not
+name. **Sharpest consequence:** since T7.33 a scored run **refuses** without `--single-run` or
+`--runs-remaining`, and that requirement is documented **only in PLAN.md**. The refusal message is
+good; its absence from the documentation is the defect.
+
+**(2) `ARTIFACTS.md` is not linked from README**, so T7.33's recorder contract - that a dirty
+baseline makes it **wait up to 300s rather than refuse**, and not to queue a retry against that
+message - is unreachable from the front door. **That contract exists because misreading it produced
+T7.36's near-miss**, so the reader most likely to repeat the mistake cannot find it.
+
+**(3) Three world hazards meet a stranger as failures before they meet them as documentation:**
+kafka headroom is documented **nowhere reader-facing**; the checkout stall's ADR-0025 remedy is in
+the unlinked `ARTIFACTS.md`; only the `accountingservice` stranding is reachable, and as a scenario
+note. The gate messages are good, but **a benchmark whose first interactions are unexplained
+refusals reads as broken.**
+
+**(4) `make eval` is named in gate G4's condition and is a stub** that echoes *"eval harness arrives
+in Phase 4"*. G4 is marked unmet so the table is honest; the command is not.
+
+**What reproduction means here, and what the documents say.** Bit-for-bit is impossible - the world
+drifts and T4.10 measured a 2.6x breadth spread on one scenario. What a reader needs is to know when
+their run is **comparable**, which takes four things: **the world digest** (stated, with T7.29's
+banner), **that the figures are label-level** (partly - the figures are named accurately, but
+nothing says the benchmark does not assess *warrant* per T7.44, and README's *"the way a good
+on-call engineer would"* invites the stronger reading), **the pipeline stamp as a comparability
+boundary** (partly - `prompts:1b0e7cbb4c47` appears in figures without saying a different stamp is a
+different experiment), and **the platform** (was missing, now added).
+
+**What could not be verified, listed rather than guessed.** A from-scratch `make world-up`, the
+world reaching a passable baseline, `make demo` end to end, and `uv sync` from cold - **none
+attempted**, because a teardown costs hours and risks the world the recorded bundles describe.
+**Verifying honestly costs a teardown, ~1 hour of world time and ~\$0.50 - on a machine that is not
+this one**, which is the real cost: checking a stranger's experience requires not being the operator
+who already knows.
+
+**The claim on README's first line - "an open, benchmarked incident-investigation agent system" - is
+true of the artifacts and not yet true of the path to producing them.** What would close it is one
+section documenting the scored harness: the invocation, the mandatory intent flag, the exit codes,
+the three hazards with their remedies, and a link to ARTIFACTS.md. **Not written here, because that
+is a structural change to the front door and this task's brief was to find the gap.**
+
 ### T7.45 — the queue register *(sweep and decision; no money, no world time)*
 **Done** ([`docs/QUEUE.md`](../docs/QUEUE.md)). The deferral protocol only works if the queue can be
 enumerated when a world move comes, and until now each item lived in the PLAN entry of whoever
