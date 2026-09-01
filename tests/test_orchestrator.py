@@ -661,3 +661,121 @@ def test_every_state_is_either_written_or_recorded_as_unwritten() -> None:
     assert set(IncidentState) == WRITTEN_AT_RUNTIME | NO_RUNTIME_WRITER
     assert not WRITTEN_AT_RUNTIME & NO_RUNTIME_WRITER
     assert {state for state, _ in INVESTIGATION_PHASES} <= WRITTEN_AT_RUNTIME
+
+
+# --- T2.2: a worker dies mid-flight ---------------------------------------------
+#
+# T2.2's deliverable ends "kill-a-worker test passes". `RedisEventSource` has issued
+# `XAUTOCLAIM` since the task landed and nothing has ever exercised the path.
+#
+# `GroupStream` models a Redis consumer group: an entry read by a consumer sits in that
+# consumer's pending list until it is acked, and `XAUTOCLAIM` hands an idle consumer's
+# entries to whoever asks. **It is a fake.** What follows proves the loop survives a worker
+# death *given* those semantics - not that Redis provides them. Proving the second half needs
+# a live server, which is T2.3's undelivered testcontainers deliverable.
+
+
+class GroupStream:
+    """One stream, one group, several consumers. Only what `RedisEventSource` calls."""
+
+    def __init__(self, events: list[AlertEvent]) -> None:
+        self.undelivered: list[tuple[str, AlertEvent]] = [
+            (f"entry-{i}", event) for i, event in enumerate(events)
+        ]
+        self.pending: dict[str, tuple[str, AlertEvent]] = {}
+        self.acked: list[str] = []
+        self.dead_consumers: set[str] = set()
+
+    def member(self, consumer: str) -> GroupMember:
+        return GroupMember(self, consumer)
+
+
+class GroupMember:
+    """One consumer's view of the group. Structurally an `EventSource`."""
+
+    def __init__(self, stream: GroupStream, consumer: str) -> None:
+        self._stream = stream
+        self.consumer = consumer
+
+    def read(self, count: int, block: bool) -> list[tuple[str, AlertEvent]]:
+        batch = self._stream.undelivered[:count]
+        self._stream.undelivered = self._stream.undelivered[count:]
+        for entry_id, event in batch:
+            self._stream.pending[entry_id] = (self.consumer, event)
+        return batch
+
+    def claim_stale(self, count: int) -> list[tuple[str, AlertEvent]]:
+        stale = [
+            (entry_id, event)
+            for entry_id, (holder, event) in self._stream.pending.items()
+            if holder in self._stream.dead_consumers
+        ][:count]
+        for entry_id, event in stale:
+            self._stream.pending[entry_id] = (self.consumer, event)
+        return stale
+
+    def ack(self, entry_id: str) -> None:
+        self._stream.pending.pop(entry_id, None)
+        self._stream.acked.append(entry_id)
+
+    def dead_letter(self, entry_id: str, event: AlertEvent, deliveries: int) -> None:
+        self.ack(entry_id)
+
+
+def test_a_worker_that_dies_before_applying_strands_nothing() -> None:
+    """A takes the batch and dies holding it. B claims it and the work still happens."""
+    ingest, store = orchestrator()
+    events = captured_events()
+    stream = GroupStream(events)
+    a, b = stream.member("orchestrator-1"), stream.member("orchestrator-2")
+
+    a.read(count=32, block=False)
+    stream.dead_consumers.add(a.consumer)
+
+    results = ConsumerLoop(source=b, orchestrator=ingest, batch=32).run_once()
+
+    assert len(results) == len(events)
+    assert stream.pending == {}, "nothing left stranded in a dead consumer's pending list"
+    assert len(stream.acked) == len(events)
+    assert len(store.incidents) == 1
+
+
+def test_a_worker_that_dies_between_the_write_and_the_ack_does_not_duplicate() -> None:
+    """The dangerous half: the write landed, the ack did not, and B redelivers the batch.
+
+    This is what "idempotent handlers keyed on incident + step" buys, and it is the only
+    reason claiming another worker's entries is safe at all. Without it, every worker death
+    would double-count an incident's episodes.
+    """
+    ingest, store = orchestrator()
+    events = captured_events()
+    stream = GroupStream(events)
+    a, b = stream.member("orchestrator-1"), stream.member("orchestrator-2")
+
+    for _entry_id, event in a.read(count=32, block=False):
+        ingest.apply(event)
+    stream.dead_consumers.add(a.consumer)
+
+    again = ConsumerLoop(source=b, orchestrator=ingest, batch=32).run_once()
+
+    assert again, "the entries were redelivered, not silently dropped"
+    assert all(r.duplicate for r in again), "each redelivered entry is recognised as applied"
+    assert len(store.incidents) == 1
+    assert stream.pending == {}
+
+
+def test_a_live_worker_keeps_its_entries() -> None:
+    """`XAUTOCLAIM`'s min-idle-time is the whole safety argument.
+
+    Nothing may be taken from a consumer that is still working - otherwise two workers run
+    the same investigation and the cap means nothing.
+    """
+    ingest, _ = orchestrator()
+    events = captured_events()
+    stream = GroupStream(events)
+    a, b = stream.member("orchestrator-1"), stream.member("orchestrator-2")
+
+    a.read(count=32, block=False)
+
+    assert ConsumerLoop(source=b, orchestrator=ingest, batch=32).run_once() == []
+    assert len(stream.pending) == len(events)
