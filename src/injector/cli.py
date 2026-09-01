@@ -177,11 +177,13 @@ def _change_log() -> ChangeLog | None:
     try:
         import psycopg
 
+        from faultline.migrate import upgrade_head
         from faultline.tools.changelog import PostgresChangeLog
         from faultline.tools.settings import ToolSettings
 
-        log = PostgresChangeLog(psycopg.connect(ToolSettings().postgres_dsn))
-        log.create_schema()
+        dsn = ToolSettings().postgres_dsn
+        upgrade_head(dsn)
+        log = PostgresChangeLog(psycopg.connect(dsn))
         return log
     except Exception:
         return None

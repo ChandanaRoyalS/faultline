@@ -7,6 +7,7 @@ being done by hand in every evidence README up to T3.4c.
 
 from __future__ import annotations
 
+import ast
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -402,29 +403,33 @@ def test_an_older_trajectory_reads_as_text_not_kept_never_as_nothing_retrieved()
     assert older.rendered == [], "and what it read was not kept"
 
 
-def test_every_additive_column_has_a_migration_not_just_a_create() -> None:
-    """`CREATE TABLE IF NOT EXISTS` is not a migration, and T7.9 learned that mid-sweep.
+def test_the_schema_lives_only_in_migrations() -> None:
+    """T7.9's defect, retired structurally instead of by a naming convention.
 
     T7.9 added `rendered` and `rendered_sha256` to the CREATE for `trajectory_retrievals`. The
     table already existed in the live store, so the CREATE did nothing, the columns never
-    arrived, and the first investigation run against that store died on
-    `UndefinedColumn` - discarding a scenario. The unit tests passed throughout because, as
-    `PostgresTrajectoryStore`'s own docstring says, they use the in-memory double.
+    arrived, and the first investigation run against that store died on `UndefinedColumn` -
+    discarding a scenario. The rule this test used to enforce was the workaround: every ALTER
+    must be `ADD COLUMN IF NOT EXISTS`, because `create_schema` ran on every start.
 
-    This cannot verify the live database from `make check`. What it can verify is the thing
-    that was actually missing: a column added to a CREATE after the table first shipped must
-    also appear in an idempotent ALTER, or it reaches only fresh databases.
+    T2.3's migrations retire the workaround with the mechanism that needed it. A column added
+    after revision 0001 arrives as its own revision, applied exactly once to every database
+    whatever state it is in. So the invariant is now narrower and stronger: **no module
+    carries DDL at all**, and there is one place to look for what the schema is.
     """
-    from faultline.agents.trajectory import SCHEMA
+    offenders = []
+    for path in Path("src").rglob("*.py"):
+        tree = ast.parse(path.read_text())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign) and any(
+                isinstance(t, ast.Name) and t.id == "SCHEMA" for t in node.targets
+            ):
+                offenders.append(str(path))
+    assert not offenders, f"these modules still define their own schema: {offenders}"
 
-    added_after_first_ship = {"rendered", "rendered_sha256"}
-    for column in added_after_first_ship:
-        assert f"ADD COLUMN IF NOT EXISTS {column}" in SCHEMA, (
-            f"{column} is in a CREATE TABLE IF NOT EXISTS and nothing else, so it will never "
-            "reach a database that already has the table. Add an idempotent ALTER beside it."
-        )
 
-    # Idempotent, because create_schema runs on every start and not once per deployment.
-    assert SCHEMA.count("ADD COLUMN IF NOT EXISTS") == SCHEMA.count("ALTER TABLE"), (
-        "every ALTER must be ADD COLUMN IF NOT EXISTS - create_schema is called on every start"
-    )
+def test_the_columns_that_caused_the_incident_are_in_the_migration_history() -> None:
+    """The two columns by name, so the specific regression cannot come back quietly."""
+    history = "\n".join(p.read_text() for p in Path("migrations/versions").glob("*.py"))
+    for column in ("rendered", "rendered_sha256"):
+        assert column in history, f"{column} is in no revision"

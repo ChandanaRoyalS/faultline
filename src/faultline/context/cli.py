@@ -80,7 +80,9 @@ def run(argv: list[str] | None = None) -> int:
             psycopg.connect(args.postgres_dsn), SentenceTransformerEmbedder(args.embedder)
         )
         if args.create_schema:
-            real.create_schema()
+            from faultline.migrate import upgrade_head
+
+            upgrade_head(args.postgres_dsn)
         store = real
 
     try:

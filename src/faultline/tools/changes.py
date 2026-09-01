@@ -194,21 +194,6 @@ T7.1 took the rename rather than keeping the argument.
 """
 
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS change_records (
-    id        TEXT PRIMARY KEY,
-    service   TEXT        NOT NULL,
-    at        TIMESTAMPTZ NOT NULL,
-    actor     TEXT        NOT NULL,
-    resource  TEXT        NOT NULL,
-    action    TEXT        NOT NULL,
-    summary   TEXT        NOT NULL,
-    before    TEXT,
-    after     TEXT
-);
-
-CREATE INDEX IF NOT EXISTS change_records_service_at_idx ON change_records (service, at);
-"""
 """A table in the platform Postgres, beside incidents.
 
 Decided at implementation (ADR-0019). The product reads a table; the injector's state files

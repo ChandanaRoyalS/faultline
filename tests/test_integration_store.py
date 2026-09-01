@@ -13,6 +13,7 @@ clean clone, and a clean clone has no Docker. `make test-integration` opts in.
 
 from __future__ import annotations
 
+import uuid
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 
@@ -20,6 +21,7 @@ import psycopg
 import pytest
 from testcontainers.community.postgres import PostgresContainer
 
+from faultline.migrate import stamp_head, upgrade_head
 from faultline.orchestrator.models import (
     INVESTIGATING_STATES,
     TERMINAL,
@@ -43,9 +45,9 @@ def dsn() -> Iterator[str]:
 
 @pytest.fixture
 def store(dsn: str) -> Iterator[PostgresIncidentStore]:
+    upgrade_head(dsn)
     with psycopg.connect(dsn) as conn:
         subject = PostgresIncidentStore(conn)
-        subject.create_schema()
         with conn.cursor() as cur:
             cur.execute("TRUNCATE incidents, applied_events CASCADE")
         conn.commit()
@@ -73,13 +75,61 @@ def an_incident(
     )
 
 
-def test_the_schema_applies_twice_without_complaint(store: PostgresIncidentStore) -> None:
-    """`CREATE TABLE IF NOT EXISTS` plus `ALTER ... ADD COLUMN IF NOT EXISTS`, as shipped.
+EXPECTED_TABLES = {
+    "alembic_version",
+    "incidents",
+    "incident_episodes",
+    "applied_events",
+    "trajectories",
+    "trajectory_steps",
+    "trajectory_tool_calls",
+    "trajectory_retrievals",
+    "incident_chunks",
+    "change_records",
+}
 
-    There are no migrations (T2.3's deliverable names them and they do not exist), so
-    re-applicability *is* the migration story and it should be asserted rather than assumed.
+
+@pytest.fixture
+def virgin_dsn(dsn: str) -> Iterator[str]:
+    """A database that has never had a schema. Nothing in this project had one until T2.3."""
+    name = f"virgin_{uuid.uuid4().hex[:8]}"
+    with psycopg.connect(dsn, autocommit=True) as conn:
+        conn.execute(f"CREATE DATABASE {name}")
+    yield f"{dsn.rsplit('/', 1)[0]}/{name}"
+
+
+def test_migrating_an_empty_database_builds_the_whole_schema(virgin_dsn: str) -> None:
+    """The path that had never been run, and that hid an `ALTER` above its own `CREATE`."""
+    upgrade_head(virgin_dsn)
+
+    with psycopg.connect(virgin_dsn) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT table_name FROM information_schema.tables WHERE table_schema = 'public'"
+        )
+        tables = {row[0] for row in cur.fetchall()}
+
+    assert tables >= EXPECTED_TABLES, f"missing: {sorted(EXPECTED_TABLES - tables)}"
+
+
+def test_upgrading_a_current_database_does_nothing(virgin_dsn: str) -> None:
+    """Every process that starts calls this, so a second run must be free and silent."""
+    upgrade_head(virgin_dsn)
+    upgrade_head(virgin_dsn)
+
+
+def test_stamping_records_a_database_as_current_without_building_it(virgin_dsn: str) -> None:
+    """The upgrade path for a database the old `create_schema()` built.
+
+    Its tables already match revision 0001. Stamping says so without re-running anything -
+    and the proof that it ran nothing is that the tables are still absent here.
     """
-    store.create_schema()
+    stamp_head(virgin_dsn)
+
+    with psycopg.connect(virgin_dsn) as conn, conn.cursor() as cur:
+        cur.execute("SELECT version_num FROM alembic_version")
+        assert cur.fetchone() is not None
+        cur.execute("SELECT to_regclass('public.incidents')")
+        assert cur.fetchone()[0] is None, "stamp must not create anything"
 
 
 def test_active_count_counts_exactly_the_states_that_hold_a_slot(

@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Any, Protocol
 
-from faultline.tools.changes import SCHEMA, ChangeRecord
+from faultline.tools.changes import ChangeRecord
 
 
 class ChangeLog(Protocol):
@@ -48,11 +48,6 @@ class PostgresChangeLog:
 
     def __init__(self, connection: Any) -> None:
         self._conn = connection
-
-    def create_schema(self) -> None:
-        with self._conn.cursor() as cur:
-            cur.execute(SCHEMA)
-        self._conn.commit()
 
     def append(self, record: ChangeRecord) -> None:
         with self._conn.cursor() as cur:
