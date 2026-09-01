@@ -31,7 +31,24 @@ jobs:
         run: uv run pytest
   docker:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - name: Build image
         run: docker build -t faultline:ci .
+      # T0.2's deliverable is "build artifacts published per commit". A build that is
+      # thrown away proves the Dockerfile parses and nothing else, and T5.5 deploys "the
+      # same images CI publishes to" - so the registry has to exist well before then.
+      # Pull requests build without publishing; only a commit that has landed on main
+      # becomes an image. Tagged by sha so a deployment can name exactly what it runs.
+      - name: Publish to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        run: |
+          image="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          echo '${{ secrets.GITHUB_TOKEN }}' | docker login ghcr.io -u '${{ github.actor }}' --password-stdin
+          docker tag faultline:ci "$image:${{ github.sha }}"
+          docker tag faultline:ci "$image:latest"
+          docker push "$image:${{ github.sha }}"
+          docker push "$image:latest"
