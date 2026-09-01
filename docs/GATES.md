@@ -15,7 +15,7 @@ authoritative; verify wording against it before relying on it.
 |---|---|---|
 | G0 | CI green on an empty walking skeleton | **Declared 2026-09-01** |
 | G1 | injected fault → alert fires → visible on dashboards, zero AI | **Declared 2026-08-23** |
-| G2 | one alert → one agent → one persisted, rendered finding | Not declared |
+| G2 | one alert → one agent → one persisted, rendered finding | **Declared 2026-09-01** — qualified |
 | G3 | end-to-end investigation passes on 3 scenario classes | Not declared |
 | G4 | one command runs and scores all 10 scenarios into a report | Not declared — blocked |
 | G5 | full demo runs from clean clone; MVP tagged | Not declared — unverified |
@@ -82,6 +82,62 @@ dashboard. The gate's condition says "visible on the Grafana dashboard" and that
 satisfied — but T1.2's deliverable names a "shop health" overview dashboard that does not
 exist in this repository. The gate is declared on its own wording; T1.2 remains
 incompletely delivered until that dashboard is built.
+
+## G2 — declared 2026-09-01
+
+Full condition: *"Inject a fault → alert lands → an agent investigates → a persisted,
+rendered finding exists in the database and on screen. […] And the machine must express its
+own failure table: every failure-scenario row names a reachable state, property-tested across
+all eleven — a state machine validated against a failure table it cannot express is a test
+suite validating the wrong artifact."*
+
+The condition has two halves and they were satisfied five weeks apart.
+
+**The investigation half** — `docs/evidence/t3.4-first-investigation/`. Scenario
+`shipping-wrong-image` injected onto the live world at 01:39:24Z and reverted at 02:02:00Z.
+One incident (`fb7ad21e-1e76-4ef6-9efa-35f45902a029`), 8 episodes across 7 services, triage
+over 12 services, one trajectory (`e7739dec-8ad2-453d-9ab7-8fd1f039f435`) of 17 steps and 6
+tool calls across 2 planning rounds, a synthesizer verdict, and a narrative rendered by the
+scribe. 45,015 tokens, $0.4829. Both the incident and the trajectory are rows in Postgres;
+the narrative is committed beside the run output.
+
+**The failure-table half** — `tests/test_orchestrator.py`, landed 2026-09-01. Every row of
+the specification's failure-scenario table whose Mitigation or Recovery column names a
+lifecycle outcome now maps to a state, and every state is reachable from `OPEN` by
+breadth-first search over the transition table. Before today, three rows named states this
+repository did not have. See ADR-0016, Addenda 1 and 2.
+
+**The eval track** required by the condition is running: `evals/runs/` holds dated scored
+runs from 2026-08-26 onward, and `evals/scenarios/artifacts/` separates dev from holdout.
+
+### Three things this declaration qualifies
+
+**"On screen" is a rendered report, not a UI.** The finding is persisted and rendered — the
+scribe's narrative — but it is read as a file, not in an incident timeline. That timeline is
+T5.1 and does not exist. The gate is declared on "a persisted, rendered finding exists";
+whether a terminal-rendered narrative satisfies "on screen" is a judgement, and it is
+recorded here rather than assumed.
+
+**"Across all eleven" is now across fourteen.** The specification names eleven states; this
+machine has those eleven plus three its own agent table and failure table argue for
+(ADR-0016 Addendum 2). Six of the fourteen have no runtime writer yet — `PROPOSING`,
+`AWAITING_APPROVAL`, `EXECUTING`, `REJECTED`, `BUDGET_EXHAUSTED`, `DUPLICATE_MERGED` — so
+three failure rows name states that are reachable in the machine and not yet enterable by
+running code. The set is asserted in `NO_RUNTIME_WRITER` so it cannot shrink unnoticed.
+
+**The run had no baseline gate.** The evidence README says so itself: the world was degraded
+before that injection, the check that found it was manual, and the agent-run path has no
+equivalent of T1.5's refusal to record against a dirty world. The repair was applied and the
+injection went onto a clean world — but nothing would have stopped it otherwise.
+
+### What Gate 2 does not cover
+
+T2.3's deliverable line reads *"Schema + migrations + tested state machine + report/evidence
+archive"*. There are no migrations and no object-storage archive, and no integration tests
+against real Postgres and Redis, so `PostgresIncidentStore` is untested. T2.4b delivered one
+of its three stores. T2.5's verified self-hosted seam is unbuilt. The gate's condition names
+none of these, so they do not block it — they are recorded here so the declaration is not
+read as saying Phase 2 is complete.
 
 ## Known blockers on later gates
 
