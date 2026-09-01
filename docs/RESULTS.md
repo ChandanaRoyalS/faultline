@@ -15,8 +15,23 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 > coverage 8/8, fault class 7/8, class of fix 7/8, judge `same_mechanism` 7/8, $4.6870**
 > ([`SWEEP-2026-08-30-refound-again.md`](../evals/runs/SWEEP-2026-08-30-refound-again.md)).
 >
+> **The world is reconstructible, and that is what makes the digest worth quoting (T7.48).** The
+> stack was torn down and rebuilt with the documented commands; **`compose_digest`,
+> `observability_digest`, `ffs_stub_source_digest`, the demo image digest and all 28 container image
+> ids came back identical**, and the behaviour did too — `cartservice` p95 back at its documented
+> **1.9 ms**. The before/after comparison is committed at
+> [`docs/evidence/t7.48-rebuild/`](evidence/t7.48-rebuild/) for a reader who would rather check than
+> believe.
+>
+> **What that does and does not license.** It means a digest here identifies a world someone can
+> reconstruct rather than one that merely happened to be running. It does **not** mean a cold
+> clone-and-pull reproduces it: the teardown reused local images, and the separate check that the
+> registry tag still resolves to `sha256:97d55955…` is **a weaker substitute for a cold pull**.
+> **No scored run has been made since the rebuild**, so the world is identical and the figures are
+> not thereby re-established.
+>
 > **What `n` counts.** Every scenario figure in this document is over **slots filled, not slots
-> allocated** - 11 valid scenarios against 20 allocated. `bad_deploy-5` is deliberately left empty
+> allocated** - 13 valid scenarios against 20 allocated. `bad_deploy-5` is deliberately left empty
 > because that class's mechanism space is exhausted (T7.34, T7.35), and the reasoning is in
 > [CATALOG.md](../evals/scenarios/CATALOG.md). A gap between the two numbers is a recorded decision;
 > it is not a target to be closed by authoring filler.

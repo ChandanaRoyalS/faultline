@@ -153,11 +153,25 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 > picking one.
 >
 > **On `n`: it is the number of slots filled, not the number allocated.** The catalog runs against
-> **11 valid scenarios** (8 dev / 3 holdout) of 20 allocated slots. One dev slot, `bad_deploy-5`, is
+> **13 valid scenarios** (10 dev / 3 holdout) of 20 allocated slots. One dev slot, `bad_deploy-5`, is
 > **deliberately empty** - the available mechanism space for that class is exhausted and a fourth
 > entry would add a row without adding anything the benchmark can tell apart
 > ([CATALOG.md](evals/scenarios/CATALOG.md)). Empty slots here are stated choices, not unfinished
 > work, and are not to be closed by inventing a scenario to fill them.
+>
+> **The world these figures name can be rebuilt (T7.48).** The stack was torn down with
+> `make world-down` and brought back with `make world-up`, and **all three digests came back
+> identical** — `compose_digest`, `observability_digest`, `ffs_stub_source_digest`, plus the demo
+> image digest and all 28 containers
+> ([the comparison](docs/evidence/t7.48-rebuild/)). **`compose_digest f5bd108f…` therefore names a
+> world that can be reconstructed, not merely one that was running.**
+>
+> **Three limits, in the same breath.** The teardown **reused local images**, so this shows a
+> *rebuild* is identical and not that a cold clone-and-pull is; the registry tag was separately
+> confirmed to still resolve to the image every bundle records, which is a **weaker substitute**
+> for a cold pull, not a replacement. **No scored run has happened since the rebuild**, so the
+> *world* is identical and whether it yields comparable *figures* is untested. And the demo end to
+> end **remains unverified for want of API credit**.
 >
 > **Every figure below this banner, and in [`docs/RESULTS.md`](docs/RESULTS.md) except where it
 > says otherwise, was measured on an earlier world and is labelled as such.** Comparing across
