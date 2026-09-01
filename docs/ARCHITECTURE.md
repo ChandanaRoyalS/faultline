@@ -6,7 +6,7 @@
 ## System at a glance
 
 Target environment (OTel demo + Prometheus/Loki/Tempo/Grafana + Alertmanager)
-→ ingest API → Redis Streams (concurrency-capped) → orchestrator + eleven-state incident
+→ ingest API → Redis Streams (concurrency-capped) → orchestrator + fourteen-state incident
 machine (Postgres) → agent runtime: triage → planner → [log · metrics · change · trace]
 specialists → synthesizer (cited RCA, citation-validated) → remediation proposer →
 action plane (separate service, allowlist + approval tokens) — with the eval harness

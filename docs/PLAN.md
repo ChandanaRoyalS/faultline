@@ -1,15 +1,20 @@
-# Execution plan — reconstructed from in-repo citations
+# Execution log — the repository's index against the plan
 
-> **This file is not the plan.** The execution plan lives outside this repository. Every
-> entry below was reconstructed by collecting task references from ADRs, scenario files,
-> code comments and tests, and paraphrasing what those citations say the task will do.
-> Where the repo assumes something the plan has never stated in the tree, that is marked
-> **contract not written**.
+> **The plan is in this repository.** `docs/spec/execution-plan-rev9.pdf` and
+> `docs/spec/project-proposal-rev8.pdf` govern, with
+> `docs/spec/t1.6-the-quarantine-rule.pdf` governing T1.6. This file indexes what the
+> repository has actually built against them. Where the two disagree, the specification wins.
 >
-> Treat this as an index of what the codebase believes, not as authority. If it disagrees
-> with the real plan, the real plan wins and this file should be corrected.
+> **It was not always so, and that mattered.** Until 2026-09-01 the plan lived outside this
+> repository and this file opened by saying so. It was reconstructed on 2026-08-24 by
+> collecting task references out of ADRs, scenario files, code comments and tests, and
+> paraphrasing what those citations said each task would do — which made it a reconstruction
+> of the repository *by* the repository. An index built from the code cannot disagree with
+> the code, so it could never catch drift from intent, and for four months nothing could.
 >
-> Reconstructed 2026-08-24, after T1.5 completed.
+> Entries marked **contract not written** date from that period and mean the repo assumed
+> something no in-tree document stated. They are checkable against `docs/spec/` now. They
+> have not all been rechecked.
 
 ## How this was built
 
@@ -21,6 +26,44 @@ and matches that were actually ISO timestamps or product identifiers were discar
 ---
 
 ## Phase 0 — foundations
+
+## Audit against the specification — Phases 0 and 1 (2026-09-01)
+
+The first check of this repository against the documents that authorise it: task by task,
+against each deliverable column's own wording rather than a summary of it. Ten pull
+requests, #112–#121. No part of it delegated to an agent.
+
+**Phase 0 — five tasks and Gate 0, all delivered.**
+
+| Task | What was missing | Closed by |
+|---|---|---|
+| T0.1 | CONTRIBUTING notes; and the specification itself was not in the repository | #112 |
+| T0.2 | Pipeline badge; images were built and discarded, never published | #113 |
+| T0.3 | `eval` was a synonym for `platform`; `make help`'s regex hid every hyphenated target | #114 |
+| T0.4 | The architecture map promised 8 fault classes against ADR-0029's four | #115 |
+| T0.5 | The harness was never cloned; the contract was inferred from documentation | #116 |
+| G0 | Never tested, and no gate in the project had ever been declared | #117 |
+
+**Phase 1 — four tasks delivered outright, one partial, one deviating, gate undeclared.**
+
+| Task | Finding | Closed by |
+|---|---|---|
+| T1.1, T1.4, T1.5 | Delivered, each past the ask | — |
+| T1.6 | Delivered past the ask — its spec promised seven contamination tests and there are nineteen — but its governing document was not in the repo, and its own remedy for the `bad_config` gap points at a T7.1 that ADR-0029 has since made impossible | #118 |
+| G1 | Evidence existed from 2026-08-23 and the ledger did not know it | #119 |
+| T1.3 | Shipped three rules against three named families: error-rate as specified, latency as a p95 threshold rather than an SLO burn rate, saturation absent entirely — and the saturation gap is why the `scale` class is empty | #120 |
+| T1.2 | The shop-health dashboard did not exist; every demo opened on the OTel demo's own Grafana | #121 |
+
+**Two findings that outlast the audit.** SREGym grades mitigation on live cluster state, so
+a system that proposes and never executes scores zero on that half by construction — T7.2
+may claim a diagnosis pass rate and nothing broader (ADR-0004). And the `bad_config` holdout
+gap is permanent rather than interim, so the full-set headline policy is permanent too
+(ADR-0008).
+
+**Deferred, with rows in `docs/QUEUE.md`.** Q13, a saturation alert rule, digest-locked
+behind `alert-rules.yml`.
+
+---
 
 ### T0.3 — compose profiles
 Splits the stack into `world` and `platform` profiles.
@@ -76,18 +119,39 @@ correlation is deliberately **not** decided here.
 against), `docs/evidence/t2.1-live-smoke/README.md` (the receiver running live),
 `docs/evidence/gate-1/README.md:19`
 
-### T2.2 — orchestrator *(built)* / T2.3 — agent fan-out
-Event consumption, an eleven-state incident machine, agent fan-out. ADR-0001 commits to a
-global investigation concurrency cap with severity-ordered overflow.
+### T2.2 — event bus *(built)* / T2.3 — state machine + DB *(partly built)*
+
+> **Numbering note (2026-09-01).** This section was headed *"T2.2 — orchestrator / T2.3 —
+> agent fan-out"* until today. Those are not the specification's task names: `docs/spec/`
+> gives T2.2 as the event bus and T2.3 as the state machine and schema, and fan-out is T3.5.
+> The headings are corrected here; the mislabelling is recorded rather than erased, because
+> it is the same defect as the state sets — an index reconstructed from the code cannot
+> disagree with the code, and until 2026-09-01 there was nothing in the repository for it to
+> disagree with.
+
+Event consumption, a fourteen-state incident machine, the concurrency cap. ADR-0001 commits
+to a global investigation concurrency cap with severity-ordered overflow.
 
 **T2.2 is built:** the consumer loop, correlation behind a `CorrelationPolicy` seam
-(`TimeOverlapPolicy` now, `DependencyPolicy` at T2.4), the eleven-state machine with an
-enforced transition table, the cap, and incident persistence to Postgres. The states that
-need T3.x and the action plane are present and stubbed, and calling one says which task owns
-its contract. **T2.3 is not**, and cannot be until T3.x exists.
+(`TimeOverlapPolicy` now, `DependencyPolicy` at T2.4), the cap with severity-ordered
+overflow, incident persistence to Postgres, and the kill-a-worker test its deliverable names
+(`tests/test_orchestrator.py`, "a worker dies mid-flight").
+
+**T2.3 is partly built.** The machine is: fourteen states with an enforced transition table,
+property-tested for reachability, and every row of the specification's failure-scenario table
+now names a reachable state — T2.3's acceptance criterion, and Gate 2's. See ADR-0016
+Addenda 1 and 2. States that need T3.x and the action plane are present and stubbed, and
+calling one says which task owns its contract; the six with no runtime writer are asserted in
+`NO_RUNTIME_WRITER` so the set cannot shrink silently.
+
+**Three of T2.3's deliverables are absent** (found by audit, 2026-09-01): there are no
+migrations, no testcontainers integration tests against real Postgres and Redis, and no
+S3-compatible archive for raw evidence payloads and rendered reports. The deliverable line
+reads *"Schema + migrations + tested state machine + report/evidence archive"*; two of those
+four exist. `PostgresIncidentStore` consequently has no test of any kind.
 
 **ADR-0016 designs all of it** and closes the "contract not written" marker this entry
-carried: incident correlation, the eleven states with a trigger on every transition,
+carried: incident correlation, the states with a trigger on every transition,
 consumer-group ack semantics — an event is processed when its incident state change is
 durable, not when the investigation finishes — and the cap, its severity source, and its
 overflow order.
@@ -158,6 +222,26 @@ own narrative at rank 1 in both arms without `exclude_origin`, and not at all wi
 `src/faultline/context/`, `docs/adr/0018-past-incident-corpus.md`,
 `docs/evidence/t2.4b-corpus-smoke/README.md`, `docs/adr/0002:8`, `docs/adr/0008:80`,
 `evals/scenarios/ARTIFACTS.md:154`
+
+### T2.5 — LLM gateway *(partly built)*
+One choke point for model calls: retries with backoff and jitter, transient-failure
+classification, and optional fallback models that record every substitution. Budgets and the
+provider boundary arrived earlier as T3.3 and T3.2 rather than here. **Provider routing and
+the verified self-hosted seam remain unbuilt** — the deliverable names *"verified
+self-hosted seam"* and nothing has been run against an OpenAI-compatible endpoint.
+`src/faultline/agents/model.py`, `tests/test_model_resilience.py`,
+`docs/adr/0031-retries-substitutions-and-what-t2-5-never-built.md`
+
+### T2.7 — thin slice *(built)*
+One agent wired end to end: alert in → tool calls → typed findings persisted → rendered in a
+report. Delivered, and delivered wider than the task asked — the task specifies one agent and
+one tool, and the run that satisfied it went from triage through a planner, six specialist
+dispatches over two rounds, a synthesizer verdict and a rendered narrative.
+
+The evidence is filed under T3.4's name because that is the task that ran it; nothing until
+now recorded that T2.7's milestone had been reached, which is why the first end-to-end
+investigation existed for a week without any document saying the phase-2 integration risk had
+died. `docs/evidence/t3.4-first-investigation/README.md`
 
 ### T2.6 — tools *(built)*
 Typed tools with scoped read-only credentials and trust-labelled results. Also bound by

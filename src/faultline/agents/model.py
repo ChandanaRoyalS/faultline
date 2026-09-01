@@ -18,6 +18,9 @@ has no key field at all, and the SDK resolves credentials itself.
 from __future__ import annotations
 
 import hashlib
+import random
+import time
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -100,6 +103,123 @@ class DeterministicModel:
             output_tokens=len(text) // 4,
             stop_reason="end_turn",
         )
+
+
+# Status codes worth trying again. 529 is Anthropic's "overloaded" - the one that ended a
+# registered run at T7.58 and left that arm at n = 2 rather than the n = 3 it had registered.
+_TRANSIENT_STATUS = frozenset({408, 409, 425, 429, 500, 502, 503, 504, 529})
+
+# Connection and timeout failures carry no status code. Matched by name so this module still
+# imports without the optional SDK, which is the same reason `AnthropicModel` imports lazily.
+_TRANSIENT_NAMES = frozenset(
+    {
+        "APIConnectionError",
+        "APITimeoutError",
+        "InternalServerError",
+        "OverloadedError",
+        "RateLimitError",
+    }
+)
+
+
+def is_transient(exc: BaseException) -> bool:
+    """A failure worth trying again, as opposed to one that will fail identically."""
+    status = getattr(exc, "status_code", None)
+    if isinstance(status, int):
+        return status in _TRANSIENT_STATUS
+    return type(exc).__name__ in _TRANSIENT_NAMES
+
+
+@dataclass(frozen=True, slots=True)
+class Substitution:
+    """A model answered that was not the model asked for. Never silent - see `Resilient`."""
+
+    replaced: str
+    answered: str
+    after: str
+
+
+class Resilient:
+    """Retries a transient failure on the same model, and substitutes only when told to (T2.5).
+
+    T2.5's deliverable names "provider routing, retries with backoff, timeouts, per-incident
+    token/dollar budgets, cost metering" and a gateway "with fallback". Timeouts, budgets and
+    cost metering arrived under T3.2 and T3.3. This is the retry and the fallback.
+
+    **Retrying is transparent; substituting is not.** A retry on the same model changes nothing
+    anything records: the same model answered, so the trajectory, `model_map` and the freeze all
+    stay true. A *substitution* is different. `freeze.model_map()` reads `AgentSettings`, so it
+    records the model a run was configured with; `ModelResponse.model` records the model that
+    answered. Today those cannot disagree, because nothing substitutes. The moment one does,
+    a silent fallback would leave the freeze asserting a model that never ran - which is the
+    defect T7.54 found in the world digests, in the freeze table this time.
+
+    So substitutions are recorded on this object, and `fallbacks` is empty by default. A
+    fallback model's answer quality has never been measured here; switching to one mid-sweep
+    changes what a scored run measures, and that has to be a decision rather than a default.
+    See ADR-0031.
+    """
+
+    def __init__(
+        self,
+        primary: LanguageModel,
+        fallbacks: Sequence[LanguageModel] = (),
+        *,
+        attempts: int = 4,
+        base_delay: float = 1.0,
+        max_delay: float = 30.0,
+        sleep: Callable[[float], None] = time.sleep,
+        jitter: Callable[[float, float], float] = random.uniform,
+    ) -> None:
+        self._primary = primary
+        self._fallbacks = tuple(fallbacks)
+        self._attempts = max(1, attempts)
+        self._base_delay = base_delay
+        self._max_delay = max_delay
+        self._sleep = sleep
+        self._jitter = jitter
+        self.substitutions: list[Substitution] = []
+
+    @property
+    def name(self) -> str:
+        """The model asked for. What actually answered is on the response, per role."""
+        return self._primary.name
+
+    def _try(self, model: LanguageModel, request: ModelRequest) -> ModelResponse:
+        """Full jitter, so a sweep's parallel retries do not re-collide on the same schedule."""
+        last: BaseException | None = None
+        for attempt in range(self._attempts):
+            try:
+                return model.complete(request)
+            except Exception as exc:
+                if not is_transient(exc):
+                    raise
+                last = exc
+                if attempt + 1 < self._attempts:
+                    ceiling = min(self._base_delay * 2**attempt, self._max_delay)
+                    self._sleep(self._jitter(0.0, ceiling))
+        assert last is not None
+        raise last
+
+    def complete(self, request: ModelRequest) -> ModelResponse:
+        try:
+            return self._try(self._primary, request)
+        except Exception as exc:
+            if not (self._fallbacks and is_transient(exc)):
+                raise
+            failure = f"{type(exc).__name__}: {exc}"
+            for spare in self._fallbacks:
+                try:
+                    response = self._try(spare, request)
+                except Exception:
+                    continue
+                self.substitutions.append(
+                    Substitution(
+                        replaced=self._primary.name, answered=response.model, after=failure
+                    )
+                )
+                return response
+            raise
 
 
 class AnthropicModel:

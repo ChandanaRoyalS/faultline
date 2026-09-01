@@ -31,8 +31,14 @@ from faultline.orchestrator.consumer import (
 )
 from faultline.orchestrator.core import Orchestrator
 from faultline.orchestrator.correlation import TimeOverlapPolicy
-from faultline.orchestrator.machine import TransitionError, transition
+from faultline.orchestrator.machine import (
+    ALLOWED,
+    INVESTIGATION_PHASES,
+    TransitionError,
+    transition,
+)
 from faultline.orchestrator.models import (
+    TERMINAL,
     Episode,
     Incident,
     IncidentState,
@@ -525,3 +531,251 @@ def _resolution_of(firing: AlertEvent, holder_received: datetime | None) -> Aler
     resolved.received_at = (holder_received or firing.received_at) + timedelta(minutes=1)
     resolved.ends_at = resolved.received_at
     return resolved
+
+
+# --- T2.3: the state graph, checked against the specification --------------------
+#
+# docs/spec/project-proposal-rev8.pdf p.5 names eleven states. This machine has fourteen:
+# those eleven, plus three the specification argues for two pages later. ADR-0016 Addendum 2
+# records why. These tests are what stops the two drifting apart again.
+
+PLAN_STATES: dict[str, IncidentState] = {
+    "DETECTED": IncidentState.OPEN,
+    "TRIAGED": IncidentState.TRIAGING,
+    "INVESTIGATING": IncidentState.INVESTIGATING,
+    "HYPOTHESIS": IncidentState.SYNTHESIZING,
+    "AWAITING_APPROVAL": IncidentState.AWAITING_APPROVAL,
+    "REMEDIATING": IncidentState.EXECUTING,
+    "RESOLVED": IncidentState.RESOLVED,
+    "FAILED": IncidentState.FAILED,
+    "DUPLICATE_MERGED": IncidentState.DUPLICATE_MERGED,
+    "BUDGET_EXHAUSTED": IncidentState.BUDGET_EXHAUSTED,
+    "REJECTED": IncidentState.REJECTED,
+}
+
+ADDED_BEYOND_THE_STATE_LINE: dict[IncidentState, str] = {
+    IncidentState.QUEUED: "failure row 1: 'queued incidents resume'",
+    IncidentState.PLANNING: "agent table p.6: the investigation planner",
+    IncidentState.PROPOSING: "agent table p.6: the remediation proposer",
+}
+
+# The failure-scenario table, pp.10-11 -- the rows whose Mitigation or Recovery column names
+# a lifecycle outcome. The others (invalid JSON, hallucinated citation, oversized query,
+# telemetry backend down, prompt injection) name tool-layer, validator or flagging behaviour
+# and no state, which is why they are absent rather than forgotten.
+FAILURE_ROWS: dict[str, IncidentState] = {
+    "LLM provider outage / 429 storm": IncidentState.QUEUED,
+    "Alert storm: 200 alerts at once": IncidentState.DUPLICATE_MERGED,
+    "Worker crashes mid-investigation": IncidentState.INVESTIGATING,
+    "Wrong root cause confidently reported": IncidentState.REJECTED,
+    "Runaway cost: $40 on one incident": IncidentState.BUDGET_EXHAUSTED,
+    "Two workers pick up the same alert": IncidentState.DUPLICATE_MERGED,
+}
+
+WRITTEN_AT_RUNTIME: frozenset[IncidentState] = frozenset(
+    {
+        IncidentState.OPEN,
+        IncidentState.QUEUED,
+        IncidentState.TRIAGING,
+        IncidentState.PLANNING,
+        IncidentState.INVESTIGATING,
+        IncidentState.SYNTHESIZING,
+        IncidentState.RESOLVED,
+        IncidentState.FAILED,
+    }
+)
+
+NO_RUNTIME_WRITER: frozenset[IncidentState] = frozenset(
+    {
+        IncidentState.PROPOSING,
+        IncidentState.AWAITING_APPROVAL,
+        IncidentState.EXECUTING,
+        IncidentState.REJECTED,
+        IncidentState.BUDGET_EXHAUSTED,
+        IncidentState.DUPLICATE_MERGED,
+    }
+)
+"""Reachable in the table, written by nothing yet.
+
+Asserted rather than assumed. A state that is reachable on paper and unreachable at runtime
+is the defect this audit keeps finding, and moving one out of this set should cost whoever
+builds its writer a deliberate test edit."""
+
+
+def _reachable_from(start: IncidentState) -> set[IncidentState]:
+    seen = {start}
+    frontier = [start]
+    while frontier:
+        current = frontier.pop()
+        for nxt in ALLOWED.get(current, frozenset()):
+            if nxt not in seen:
+                seen.add(nxt)
+                frontier.append(nxt)
+    return seen
+
+
+def test_every_state_is_reachable_from_open() -> None:
+    unreachable = set(IncidentState) - _reachable_from(IncidentState.OPEN)
+    assert not unreachable, f"unreachable from OPEN: {sorted(s.value for s in unreachable)}"
+
+
+def test_the_absolute_terminals_have_no_successors() -> None:
+    for state in (IncidentState.FAILED, IncidentState.DUPLICATE_MERGED):
+        assert ALLOWED[state] == frozenset(), f"{state.value} should be absolutely terminal"
+
+
+def test_resolved_reopens_backward_and_never_advances() -> None:
+    """`RESOLVED` is terminal forward-only.
+
+    ADR-0016 lets a reopen put a settled incident back into the lifecycle, which is why its
+    successor set is not empty. What it must never do is step into *another* end state.
+    """
+    successors = ALLOWED[IncidentState.RESOLVED]
+    assert successors, "RESOLVED must accept a reopen"
+    assert not (successors & TERMINAL), f"RESOLVED reaches an end state: {successors & TERMINAL}"
+
+
+def test_every_state_the_specification_names_exists() -> None:
+    assert len(PLAN_STATES) == 11
+    assert set(PLAN_STATES.values()) <= set(IncidentState)
+
+
+def test_the_three_additions_are_argued_for_by_the_specification_itself() -> None:
+    added = set(IncidentState) - set(PLAN_STATES.values())
+    assert added == set(ADDED_BEYOND_THE_STATE_LINE)
+    assert len(IncidentState) == 14
+
+
+def test_every_failure_row_names_a_reachable_state() -> None:
+    """T2.3's acceptance criterion, restated by Gate 2.
+
+    "A state machine validated against a failure table it cannot express is a test suite
+    validating the wrong artifact."
+    """
+    reachable = _reachable_from(IncidentState.OPEN)
+    for row, state in FAILURE_ROWS.items():
+        assert state in reachable, f"{row!r} names {state.value}, which nothing reaches"
+
+
+def test_every_state_is_either_written_or_recorded_as_unwritten() -> None:
+    assert set(IncidentState) == WRITTEN_AT_RUNTIME | NO_RUNTIME_WRITER
+    assert not WRITTEN_AT_RUNTIME & NO_RUNTIME_WRITER
+    assert {state for state, _ in INVESTIGATION_PHASES} <= WRITTEN_AT_RUNTIME
+
+
+# --- T2.2: a worker dies mid-flight ---------------------------------------------
+#
+# T2.2's deliverable ends "kill-a-worker test passes". `RedisEventSource` has issued
+# `XAUTOCLAIM` since the task landed and nothing has ever exercised the path.
+#
+# `GroupStream` models a Redis consumer group: an entry read by a consumer sits in that
+# consumer's pending list until it is acked, and `XAUTOCLAIM` hands an idle consumer's
+# entries to whoever asks. **It is a fake.** What follows proves the loop survives a worker
+# death *given* those semantics - not that Redis provides them. Proving the second half needs
+# a live server, which is T2.3's undelivered testcontainers deliverable.
+
+
+class GroupStream:
+    """One stream, one group, several consumers. Only what `RedisEventSource` calls."""
+
+    def __init__(self, events: list[AlertEvent]) -> None:
+        self.undelivered: list[tuple[str, AlertEvent]] = [
+            (f"entry-{i}", event) for i, event in enumerate(events)
+        ]
+        self.pending: dict[str, tuple[str, AlertEvent]] = {}
+        self.acked: list[str] = []
+        self.dead_consumers: set[str] = set()
+
+    def member(self, consumer: str) -> GroupMember:
+        return GroupMember(self, consumer)
+
+
+class GroupMember:
+    """One consumer's view of the group. Structurally an `EventSource`."""
+
+    def __init__(self, stream: GroupStream, consumer: str) -> None:
+        self._stream = stream
+        self.consumer = consumer
+
+    def read(self, count: int, block: bool) -> list[tuple[str, AlertEvent]]:
+        batch = self._stream.undelivered[:count]
+        self._stream.undelivered = self._stream.undelivered[count:]
+        for entry_id, event in batch:
+            self._stream.pending[entry_id] = (self.consumer, event)
+        return batch
+
+    def claim_stale(self, count: int) -> list[tuple[str, AlertEvent]]:
+        stale = [
+            (entry_id, event)
+            for entry_id, (holder, event) in self._stream.pending.items()
+            if holder in self._stream.dead_consumers
+        ][:count]
+        for entry_id, event in stale:
+            self._stream.pending[entry_id] = (self.consumer, event)
+        return stale
+
+    def ack(self, entry_id: str) -> None:
+        self._stream.pending.pop(entry_id, None)
+        self._stream.acked.append(entry_id)
+
+    def dead_letter(self, entry_id: str, event: AlertEvent, deliveries: int) -> None:
+        self.ack(entry_id)
+
+
+def test_a_worker_that_dies_before_applying_strands_nothing() -> None:
+    """A takes the batch and dies holding it. B claims it and the work still happens."""
+    ingest, store = orchestrator()
+    events = captured_events()
+    stream = GroupStream(events)
+    a, b = stream.member("orchestrator-1"), stream.member("orchestrator-2")
+
+    a.read(count=32, block=False)
+    stream.dead_consumers.add(a.consumer)
+
+    results = ConsumerLoop(source=b, orchestrator=ingest, batch=32).run_once()
+
+    assert len(results) == len(events)
+    assert stream.pending == {}, "nothing left stranded in a dead consumer's pending list"
+    assert len(stream.acked) == len(events)
+    assert len(store.incidents) == 1
+
+
+def test_a_worker_that_dies_between_the_write_and_the_ack_does_not_duplicate() -> None:
+    """The dangerous half: the write landed, the ack did not, and B redelivers the batch.
+
+    This is what "idempotent handlers keyed on incident + step" buys, and it is the only
+    reason claiming another worker's entries is safe at all. Without it, every worker death
+    would double-count an incident's episodes.
+    """
+    ingest, store = orchestrator()
+    events = captured_events()
+    stream = GroupStream(events)
+    a, b = stream.member("orchestrator-1"), stream.member("orchestrator-2")
+
+    for _entry_id, event in a.read(count=32, block=False):
+        ingest.apply(event)
+    stream.dead_consumers.add(a.consumer)
+
+    again = ConsumerLoop(source=b, orchestrator=ingest, batch=32).run_once()
+
+    assert again, "the entries were redelivered, not silently dropped"
+    assert all(r.duplicate for r in again), "each redelivered entry is recognised as applied"
+    assert len(store.incidents) == 1
+    assert stream.pending == {}
+
+
+def test_a_live_worker_keeps_its_entries() -> None:
+    """`XAUTOCLAIM`'s min-idle-time is the whole safety argument.
+
+    Nothing may be taken from a consumer that is still working - otherwise two workers run
+    the same investigation and the cap means nothing.
+    """
+    ingest, _ = orchestrator()
+    events = captured_events()
+    stream = GroupStream(events)
+    a, b = stream.member("orchestrator-1"), stream.member("orchestrator-2")
+
+    a.read(count=32, block=False)
+
+    assert ConsumerLoop(source=b, orchestrator=ingest, batch=32).run_once() == []
+    assert len(stream.pending) == len(events)

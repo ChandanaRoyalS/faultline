@@ -1,4 +1,4 @@
-"""Incident state: the eleven states, severity, and what an incident holds (T2.2 / T3.5).
+"""Incident state: the fourteen states, severity, and what an incident holds (T2.2 / T3.5).
 
 The states and every transition's trigger are ADR-0016's. This module encodes them and
 nothing else - no policy, no persistence, no agent contracts.
@@ -48,12 +48,18 @@ class JoinRule(StrEnum):
 
 
 class IncidentState(StrEnum):
-    """The eleven states `docs/ARCHITECTURE.md` commits to, as ADR-0016 names them.
+    """Fourteen states: the eleven `docs/spec/` names, plus three the specification itself
+    argues for two pages later. See ADR-0016, Addendum 2.
 
     Five of them (`TRIAGING` through `PROPOSING`) are entered by agent outcomes T3.x has not
     built, and two (`AWAITING_APPROVAL`, `EXECUTING`) by an action plane that has no task
     number at all - see `docs/PLAN.md`, "Discovered omissions". They exist here because the
     machine has to be able to *be* in them; what advances them is deliberately not decided.
+
+    `REJECTED`, `BUDGET_EXHAUSTED` and `DUPLICATE_MERGED` are the three the specification
+    named and this repository did not have. T2.3's acceptance is that every row of the
+    failure-scenario table names a reachable state, and without these three, three rows named
+    nothing.
     """
 
     OPEN = "open"
@@ -65,11 +71,14 @@ class IncidentState(StrEnum):
     PROPOSING = "proposing"
     AWAITING_APPROVAL = "awaiting_approval"
     EXECUTING = "executing"
+    REJECTED = "rejected"
+    BUDGET_EXHAUSTED = "budget_exhausted"
     RESOLVED = "resolved"
     FAILED = "failed"
+    DUPLICATE_MERGED = "duplicate_merged"
 
 
-TERMINAL = frozenset({IncidentState.RESOLVED, IncidentState.FAILED})
+TERMINAL = frozenset({IncidentState.RESOLVED, IncidentState.FAILED, IncidentState.DUPLICATE_MERGED})
 
 INVESTIGATING_STATES = frozenset(
     {
@@ -80,13 +89,17 @@ INVESTIGATING_STATES = frozenset(
         IncidentState.PROPOSING,
         IncidentState.AWAITING_APPROVAL,
         IncidentState.EXECUTING,
+        IncidentState.REJECTED,
+        IncidentState.BUDGET_EXHAUSTED,
     }
 )
 """States that hold a slot against the concurrency cap.
 
 `OPEN` and `QUEUED` do not: an incident that has not been admitted is not consuming an
 investigation. Approval and execution do, because the incident is still in flight and
-releasing its slot would let the cap be exceeded by anything waiting on a human.
+releasing its slot would let the cap be exceeded by anything waiting on a human. `REJECTED`
+and `BUDGET_EXHAUSTED` hold one for the same reason and no other: both are waiting on a
+person - to re-investigate, or to raise the cap - and both can still resume.
 """
 
 AGENT_DRIVEN = frozenset(

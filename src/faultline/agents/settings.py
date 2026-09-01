@@ -37,6 +37,21 @@ class AgentSettings(BaseSettings):
     headline that says only `claude-opus-5` would not show the difference.
     """
 
+    fallback_models: list[str] = []
+    """Models to try when the configured one keeps failing transiently. **Empty by default.**
+
+    A fallback that fires changes which model answered, and `freeze.model_map()` records the
+    model a run was *configured* with. An unmeasured fallback model silently answering a scored
+    run changes what the run measures. Set this for a demo or a long unattended sweep where
+    finishing matters more than comparability; leave it empty for anything scored. ADR-0031.
+    """
+
+    retry_attempts: int = 4
+    """Tries per model before giving up on it. Four covers a 529 burst without stalling a sweep."""
+
+    retry_base_delay: float = 1.0
+    """Seconds. Doubles per attempt, full-jittered, capped at 30s."""
+
     effort: str = "high"
     role_efforts: dict[str, str] = {}
     """Same shape, same reason. A specialist reading one tool result does not need what the
