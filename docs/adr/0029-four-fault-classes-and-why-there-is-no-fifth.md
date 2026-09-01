@@ -156,6 +156,28 @@ page, and a taxonomy change that costs the stamp. That is a coherent limit, not 
 - **The benchmark's holdout claim is what it is** and should keep being reported the way T7.53
   reported it: three entries, the conditions, and the statement that the arm cannot support a claim.
 
+## Consequences
+
+Easier: no further world time is spent searching for a fifth class. Six candidate designs
+are recorded above with the measured or structural reason each died, so the next person
+does not re-derive them — which is the expensive way this question has been answered twice
+already.
+
+Harder: three commitments in the execution plan cannot be delivered as written, and this
+ADR is what makes that a finding rather than an outstanding task. T7.0 (expand the injector
+to eight fault classes) and T7.1 (grow the catalog to 30+ scenarios across ~8 classes) are
+both unachievable in this world. The catalog stays at four classes and thirteen scenarios,
+so per-class figures rest on an n as small as two — a limit of the benchmark, not of the
+agent, and it belongs beside any per-class table.
+
+Holdout entry 4 stays blocked. Extending the holdout set needs new scenarios; the free
+slots sit in classes that cannot take a distinct one; and adding a class would move the
+stamp, which would make entry 4 incomparable with the dev sweep it exists to be read
+against. The holdout arm therefore remains three entries against a superseded world.
+
+Changing any of this needs a different demo world, not a cleverer scenario. That is the
+trigger recorded in `docs/QUEUE.md`, not a task anyone can pick up here.
+
 ## What would change it
 
 Not a cleverer scenario. One of:
