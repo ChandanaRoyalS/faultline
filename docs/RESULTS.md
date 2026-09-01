@@ -15,6 +15,12 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 > coverage 8/8, fault class 7/8, class of fix 7/8, judge `same_mechanism` 7/8, $4.6870**
 > ([`SWEEP-2026-08-30-refound-again.md`](../evals/runs/SWEEP-2026-08-30-refound-again.md)).
 >
+> **How much evidence stands behind that, in total — added T7.59, because a reader should not have
+> to count run directories to find out.** Sweep 7 is **8 runs**. **The entire current-world corpus
+> is 19 scored runs across 10 of the 13 valid scenarios**, the extra eleven being the two scenarios
+> authored at T7.36/T7.38 and T7.58's traceability split. **None of the 19 is a holdout run.** Of
+> the 97 manifest-carrying runs in `evals/runs/`, 69 describe `4a7690c6fdda…` and 12 describe
+> `299d791c5e0d…`; **the current world holds under a fifth of the record.**
 > **The world is reconstructible, and that is what makes the digest worth quoting (T7.48).** The
 > stack was torn down and rebuilt with the documented commands; **`compose_digest`,
 > `observability_digest`, `ffs_stub_source_digest`, the demo image digest and all 28 container image
@@ -76,8 +82,12 @@ scenarios; **not one chunk of any held-out scenario has ever been retrievable**.
 being scored. Every retrieval carries `exclude_origin` and every one is recorded:
 
 ```
-trajectory_retrievals: 26 rows · 26 carry exclude_origin · 0 returned their own origin
+trajectory_retrievals: 88 rows · 88 carry exclude_origin · 0 returned their own origin
 ```
+
+*(Was `26 rows · 26`, the count when T3.2 first published it. **Re-read live at T7.59: 88 of 88.**
+The invariant is that the two numbers are equal and the third is zero, and it has held through every
+run since — a count that only ever grows is worth re-reading rather than quoting from memory.)*
 
 This is the assertion [ADR-0008](adr/0008-contamination-model.md) said must be checked at eval
 time rather than trusted, and the column has been on the table since T3.2 precisely so it could be.
@@ -565,7 +575,35 @@ scores go up.
 
 ## What remains
 
-Drawn from [`docs/PLAN.md`](PLAN.md); each is open and none is answered by anything above.
+Drawn from [`docs/PLAN.md`](PLAN.md) and [`docs/QUEUE.md`](QUEUE.md).
+
+> **What is open, and what is closed for good — added T7.59, because "what remains" had come to
+> hold both and a reader cannot tell them apart from the list alone.** Items struck below are
+> answered. These four are **not open questions; they are settled limits of this world**, and no
+> further work here will move them:
+>
+> - **The catalog is closed at thirteen valid scenarios.** `bad_config` has no distinct fifth item
+>   — T7.56 designed one against the recorded page space, gated it, and abandoned it at its first
+>   gate — and `bad_deploy`'s remaining slots need a mechanism the capture set deliberately
+>   excludes.
+> - **There is no fifth fault class.** Four injector mechanisms bind one-to-one to four classes by
+>   test; `config_revert` already fixes three of them; the one unclaimed remediation, `scale`, is
+>   one this world can neither cause nor perform; and adding a class would move the pipeline stamp
+>   and re-found every figure here
+>   ([ADR-0029](adr/0029-four-fault-classes-and-why-there-is-no-fifth.md)).
+> - **The capture set is closed by decision, not by omission** — the container exit reason is
+>   excluded deliberately, because a capture printing `OOMKilled: true` would delete the inference
+>   three `resource_exhaustion` scenarios exist to test (T7.40, queued as **Q1** with what would
+>   reverse it).
+> - **The holdout arm is finished at three entries** — seven agent-facing runs, four answered, all
+>   on `4a7690c6fdda…`, two worlds back. **Entry 4 is blocked indefinitely rather than pending**,
+>   because ADR-0022's T4.15 addendum permits another entry only once the set is extended and the
+>   two lines above say it cannot be. **No more holdout evidence is coming without a different demo
+>   world.**
+>
+> **What would change any of them is the same thing: a different demo world**, with more failure
+> surface, knobs that are not all addresses, a topology that does not funnel every failure through
+> checkout, and services that can scale. That is a re-founding, not a task.
 
 1. ~~**The budget confound.**~~ **Run at T4.7** (`evals/runs/SWEEP-2026-08-26-budget.md`):
    `changes` raised 4 → 8, same stamp, seven dev scenarios. **The answer is mixed and it
@@ -587,8 +625,10 @@ Drawn from [`docs/PLAN.md`](PLAN.md); each is open and none is answered by anyth
    `emailservice`**, the service its own traces implicated; entry 1 had planned that dispatch at
    #5 and been cut off. **Planner allocation, not budget and not the instruction**, at n=1. What
    remains: **planner breadth varied fourfold between two runs of the same scenario**, which
-   nothing in this repository has measured, and the other two holdout scenarios are still
-   untested under the raised bound.
+   nothing in this repository has measured. ~~and the other two holdout scenarios are still
+   untested under the raised bound.~~ **Closed by entry 3** (T4.15): all three ran under the raised
+   bound and all three answered correctly. *(Struck T7.59 — a caveat that outlived the task that
+   answered it.)*
 3. **A second-provider judge.** Every judged figure here carries a lineage violation because this
    repository holds one provider's credentials. This is the cheapest change that would improve
    every judged number, and it needs credentials rather than code.
@@ -606,8 +646,9 @@ Drawn from [`docs/PLAN.md`](PLAN.md); each is open and none is answered by anyth
    **round-1 breadth ran 5 to 13 and tokens 36k to 68k**. Two things follow that this repository
    should act on: **no cost figure anywhere is a point estimate** - each is one draw from a ~1.9x
    spread, which puts the gap between two sweep totals inside a single scenario's repeat range -
-   and **variance is now measured for exactly one of ten scenarios**, the one with the most prior
-   successes. **T5.3 added a seventh observation of that configuration and it abstained** — the
+   and ~~**variance is now measured for exactly one of ten scenarios**~~ — **two of thirteen**, the second
+   being `product-catalog-flag-failure` in this same bullet *(corrected T7.59: the catalog is 13
+   valid, not 10, and T4.11 measured the second arm)*. **T5.3 added a seventh observation of that configuration and it abstained** — the
    demo run, byte-identical in stamp and all four bounds, which exhausted `metrics` and never
    queried the failing service's change history. It is excluded from the 6/6 above by the demo
    rule (`counts_toward_aggregates`) and recorded here instead, because a figure and an
@@ -622,7 +663,9 @@ Drawn from [`docs/PLAN.md`](PLAN.md); each is open and none is answered by anyth
 
 Also open and smaller: the freeze manifest's self-referential git sha; whether retrieval `k`
 should count chunks or documents; whether the holdout `dependency_latency` near-miss should be
-admitted to the dispute register — a decision for an ADR, not for a report; **the baseline
+admitted to the dispute register — a decision for an ADR, not for a report; ~~**the baseline
 gate's blindness to recently-resolved incidents**, which cost T4.7 a scenario when one sitting
-inside the settle window captured the next run's alerts; and **dead-end coverage as the least
+inside the settle window captured the next run's alerts~~ — **fixed: the gate reads
+`settling_incidents` and refuses, and T7.58 watched it refuse three runs in four seconds for exactly
+this reason** *(struck T7.59)*; and **dead-end coverage as the least
 stable thing yet measured** — 3 to 7 closed across five runs that agreed on the verdict.
