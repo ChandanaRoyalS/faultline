@@ -14,7 +14,7 @@ authoritative; verify wording against it before relying on it.
 | Gate | Condition (§1) | Status |
 |---|---|---|
 | G0 | CI green on an empty walking skeleton | **Declared 2026-09-01** |
-| G1 | injected fault → alert fires → visible on dashboards, zero AI | Not declared |
+| G1 | injected fault → alert fires → visible on dashboards, zero AI | **Declared 2026-08-23** |
 | G2 | one alert → one agent → one persisted, rendered finding | Not declared |
 | G3 | end-to-end investigation passes on 3 scenario classes | Not declared |
 | G4 | one command runs and scores all 10 scenarios into a report | Not declared — blocked |
@@ -45,6 +45,43 @@ depend on `world/`, which is gitignored because it is a pinned clone of somebody
 repository (ADR-0026), and one needs `FAULTLINE_GRAPH_DRIFT_URL` for a live drift check.
 So "green from a clean clone" is true, and it tests slightly less than a local run does.
 That is a property of the world being external, not a gap in the suite.
+
+## G1 — declared 2026-08-23
+
+Full condition: *"Run one injector command → the right alert fires → the failure is visible
+on the Grafana dashboard. All deterministic, all yours, no AI anywhere yet."*
+
+Evidence: `docs/evidence/gate-1/` — a dated README, a timing table, and three screenshots.
+Fault `flag-service-bad-deploy` (class `bad_deploy`, target `featureflagservice`), injected
+by one injector command, with no model call anywhere in the loop.
+
+| Event | Time (UTC) | Delta |
+|---|---|---|
+| injected | 00:50:48 | — |
+| alert condition first true | 00:51:15 | +27s |
+| alert FIRING | 00:53:15 | +2m27s |
+| reverted | 01:14:23 | — |
+| alert cleared | ~01:16 | — |
+
+Detection latency splits cleanly into 27s of real signal propagation (span → spanmetrics →
+scrape) and the rule's deliberate 2m `for` guard. One fault produced four firing alerts —
+recommendationservice 66.7%, frontend 9.7%, loadgenerator 9.7%, productcatalogservice 8.1%
+— which is the alert-storm-to-one-incident case T2.1's fingerprint dedupe was built for.
+
+**Two things this declaration qualifies.**
+
+The scenario used now carries `blocked: true`. It was blocked because `featureflagservice`
+emits no span metrics, so two of the three alert rules cannot evaluate for it and no fault
+targeting it can page on its own behalf — which makes it unfit for a holdout slot. That
+does not retract what Gate 1 observed: the alerts recorded here fired on its *callers*, the
+cascade is real, and ADR-0006 measured it independently. The scenario file says as much in
+its own blocking note.
+
+The dashboard in the evidence is the OpenTelemetry demo's own Grafana, not a Faultline
+dashboard. The gate's condition says "visible on the Grafana dashboard" and that is
+satisfied — but T1.2's deliverable names a "shop health" overview dashboard that does not
+exist in this repository. The gate is declared on its own wording; T1.2 remains
+incompletely delivered until that dashboard is built.
 
 ## Known blockers on later gates
 
