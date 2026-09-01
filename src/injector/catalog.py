@@ -375,6 +375,33 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             params={"env_var": "REDIS_ADDR", "value": "redis-cart:6380"},
         ),
         FaultDefinition(
+            id="accounting-kafka-misconfig",
+            fault_class=FaultClass.BAD_CONFIG,
+            target="accountingservice",
+            description=(
+                "Point the accounting service's Kafka broker address at a port nothing listens "
+                "on. **The first fault in this catalog that breaks a consumer rather than a "
+                "server.** Nobody calls accountingservice, so it cannot have an error rate and "
+                "cannot have latency; the only signal it can produce is absence - and absence is "
+                "already produced by an OOM kill (frauddetection-memory-squeeze) and by a broken "
+                "telemetry path (payment-telemetry-blackout) from two other causes. This is the "
+                "third: alive, unrestarted, and consuming from nowhere."
+            ),
+            # **MEASURED AT T7.56 AND IT DOES NOT PRODUCE A SCENARIO.** The mechanism works
+            # perfectly - the override is applied, the container is recreated, the address takes
+            # effect. What fails is the premise: `accountingservice` logs `severity: fatal` on an
+            # unreachable broker and exits, so `restart: always` gives a crashloop. **9 restarts
+            # in ~58 seconds**, against a pre-fault RestartCount of 0.
+            #
+            # There is no dial. Every wrong address - wrong port, wrong host, blackhole IP - ends
+            # in the same "run out of available brokers". Kept rather than deleted, like
+            # `checkout-currency-misconfig`, because the measurement is the finding: **a consumer
+            # in this world does not sit alive and idle when its broker is gone.**
+            #
+            # See docs/evidence/t7.56-accounting-kafka/.
+            params={"env_var": "KAFKA_SERVICE_ADDR", "value": "kafka:9093"},
+        ),
+        FaultDefinition(
             id="payment-telemetry-blackout",
             fault_class=FaultClass.BAD_CONFIG,
             target="paymentservice",

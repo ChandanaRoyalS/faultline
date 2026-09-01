@@ -1,0 +1,75 @@
+# BLOCKED - MEASURED AND ABANDONED AT G1. NOT A SCENARIO. NO BUNDLE. NO SLOT.
+#
+# It was authored for `bad_config-5` (holdout), which T7.35's positional rule assigns rather than
+# anyone choosing. **The slot is released and stays free**, because a blocked scenario does not
+# hold one.
+#
+# The disqualification criteria were committed before the world was touched
+# (docs/design/t7.56-holdout-bad-config.md, commit 3097a1b) and G1 - "the container stays up" -
+# failed inside a minute: `accountingservice` logs `severity: fatal` on an unreachable broker and
+# exits, so `restart: always` produces a crashloop. 9 restarts in ~58 seconds against a pre-fault
+# RestartCount of 0. The whole item was "alive and not working"; it is not alive.
+#
+# **Abandoned rather than tuned, which was the rule agreed in advance.** The only parameter is the
+# address and every wrong address ends in the same fatal, so there was nothing to adjust.
+#
+# Measured in full at docs/evidence/t7.56-accounting-kafka/.
+id: accounting-kafka-misconfig
+title: Accounting service alive, unrestarted, and consuming from a broker that is not there
+fault_class: bad_config
+split: holdout
+injection:
+  target: accountingservice
+  method: accounting-kafka-misconfig
+  params:
+    env_var: KAFKA_SERVICE_ADDR
+    value: "kafka:9093"
+ground_truth:
+  root_cause: >
+    The accounting service's KAFKA_SERVICE_ADDR was set to kafka:9093. The host is right and
+    the port is wrong, so the consumer cannot reach a broker that is up and healthy and
+    serving its other consumer on its real port.
+
+    Nobody calls accountingservice, so it cannot report an error rate and cannot report
+    latency. The only signal it can produce is absence. It is not dead - the container is
+    running, has not restarted, and its uptime is unbroken - and its telemetry is not broken
+    either; it is alive and consuming from nowhere.
+  category: bad_config
+expected_remediation_class: config_revert
+# AUTHORED BEFORE THE RECORDING. **None of it was ever measured** - the scenario was abandoned at
+# G1 before an alert could fire, so every line below is a prediction that was never tested. Kept
+# rather than deleted: it is the record of what was expected, beside what happened.
+expected_evidence:
+  - class: metrics
+    detail: >
+      PREDICTED. ServiceNoTraffic fires on accountingservice and on nothing else. No
+      error-rate alert anywhere, because nothing is failing on the request path, and no
+      latency alert, because accountingservice serves no requests at all.
+  - class: logs
+    detail: >
+      PREDICTED. accountingservice's logs name the broker address it cannot reach, and keep
+      naming it - a Kafka client retries. This is the discriminator: a consumer that was
+      OOM-killed logs nothing, and a consumer whose telemetry broke logs its ordinary work.
+  - class: container
+    detail: >
+      PREDICTED. accountingservice is running, has not restarted, and its uptime is
+      unbroken across onset. This is what separates it from frauddetection-memory-squeeze,
+      whose silence is a kernel kill, and from a crashloop.
+  - class: changes
+    detail: >
+      PREDICTED. One environment variable on accountingservice differs from the world's
+      declared value, and the change coincides with onset. Confirming rather than
+      localising: the logs already name the address.
+  - class: discriminator
+    detail: >
+      PREDICTED. The consumer is silent and the question is which of three silences it is -
+      dead, invisible, or misdirected. Kafka is up and healthy and serving its other
+      consumer throughout, which rules out the broker; the container never restarted, which
+      rules out a kill; the service logs errors rather than work, which rules out a
+      telemetry blackout.
+rehearsed: false
+blocked: true
+alert_timeout_seconds: 900
+# Set explicitly, not left to the default: onset depends on the 3m rate window draining and
+# then the rule's 3m `for:` clause, not on anything the fault does quickly. The same shape as
+# payment-telemetry-blackout, whose measured onset was 319s.

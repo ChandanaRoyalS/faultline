@@ -1573,6 +1573,83 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.56 — the fifth `bad_config` item: designed, gated, and **abandoned at G1** *(world time; \$0 agent)*
+**Done, and the scenario is not** ([`docs/design/t7.56-holdout-bad-config.md`](design/t7.56-holdout-bad-config.md),
+[`docs/evidence/t7.56-accounting-kafka/`](evidence/t7.56-accounting-kafka/)). Branched and confirmed
+first. **Q9 is not discharged. Entry 4 stays blocked. No filler was authored and `bad_config-5` is
+free.**
+
+**A correction the design turned on: there are four existing `bad_config` items, not three.** The
+brief named `cart-redis-misconfig`, `shipping-quote-misconfig` and `payment-telemetry-blackout`;
+**`product-catalog-flag-failure` is `bad_config-2`.** So this was the *fifth*, against four pages.
+
+**The page space was read off all fifteen bundles rather than reasoned about**, and the finding
+there is structural: **the demo's topology dominates the page.** Anything that breaks a service on
+the checkout hot path produces `{frontend, loadgenerator, checkout}` errors plus `NoTraffic` on the
+tail, whatever its fault class. Distinctness has to come from evidence, not from the page.
+
+**Criteria committed before the world was touched** (`3097a1b`), with one difference from T7.36 and
+T7.38 that raises the bar: **a holdout scenario is never tuned**, so every gate failure is a reason
+to abandon. Five gates, in order, stop at the first.
+
+**Six candidates rejected at desk, each on a measured reason.** The strongest - a wrong **bind**
+address, so the service is up and listening where nobody dials - died because
+**`ServiceNoTraffic/cartservice` is already in `cart-redis-misconfig`'s and `cart-bad-image-tag`'s
+recorded alert windows**: its central claim was false against the record. `currencyservice` fails on
+measured traffic (0.47 req/s against frontend's 10.17); `productcatalogservice` already carries a
+holdout item and a second would correlate the arm; the flag store is excluded by
+`flag-service-crashloop`'s recorded `alerts_at_fire = []`; metrics-only telemetry and a turned-down
+sampler cannot fire any rule, because all three rules read `calls_total`.
+
+**One candidate rejected on the holdout rule rather than the design, and named.** A `bad_config`
+whose signature is **latency** would be a genuine first - every latency page belongs to
+`dependency_latency`. Not built: T7.51 measured the agent naming `dependency_latency` 3/3 while the
+judge rated 2 of 3 `adjacent`, so an item turning on *"config or shaping rule?"* would put the
+holdout arm on top of a documented failure. **The only thing making it distinct is the axis the
+agent is known to be weak on, so disclosure would not rescue it** - the reason and the weakness
+coincide, which is steering by another name.
+
+**The candidate: `accounting-kafka-misconfig`** - a Kafka **consumer** pointed at `kafka:9093`. The
+first fault in the catalog to break a consumer rather than a server, on a service **no scenario has
+ever targeted**, and the empty corner of a square whose other three are filled: silent-and-dead
+(`frauddetection-memory-squeeze`), silent-and-working (`payment-telemetry-blackout`), and
+silent-alive-and-not-working.
+
+**It failed G1 inside a minute.** `accountingservice` logs **`severity: fatal`** on an unreachable
+broker and exits; `restart: always` brings it back; **9 restarts in ~58 seconds** against a
+pre-fault `RestartCount` of 0 and two hours of unbroken uptime. G2 was never reached - no alert had
+fired and `calls_total` was still draining at 0.109 req/s. **Abandoned, not tuned**, per the rule
+agreed in advance, and there was nothing to tune: a wrong port, a wrong host and a blackhole IP all
+end in the same *"run out of available brokers"*.
+
+**The finding is larger than the candidate: the square has three corners, not four.** *Silent,
+alive, and not working* is empty **because this world cannot produce it** - a consumer here exits
+rather than idling. The only other consumer, `frauddetectionservice`, already owns its page.
+
+**One thing worked exactly as built, and it is worth recording.** Killing the recorder left the
+world lock held by a dead pid; **T7.37's auto-reclaim took it and recorded the reclamation in the
+new lock** (`'was': 'dead'`), then released cleanly. **First fire of that path outside a test.** G5
+also passed: 0 firing, 0 pending, `accountingservice` back to 0.18 req/s against a 0.16 baseline,
+override removed, `injections.json` `active: {}`.
+
+**What did NOT happen, said because it would be easy to imply otherwise: T7.55's freeze path was not
+exercised.** The freeze is wired into `faultline-eval`; recording goes through `evalharness.rehearse`,
+which builds no freeze manifest and never did. That is not a gap - a recording is not a scored
+experiment and the bundle has carried `world` provenance since ADR-0014 - but **T7.55's first real
+use will be entry 4's run, and reporting otherwise would be a false claim about a check nobody ran.**
+
+**Where this leaves Q9 and entry 4.** Q9 undischarged, entry 4 blocked on the same single condition
+T7.53 named. What changed is the shape: **`bad_config` is now the least promising route, not the
+most** - it was chosen for having zero holdout representation and the most unexplored paths, and the
+paths turn out to be explored. `bad_deploy-6` inherits the exhausted-mechanism problem behind Q1,
+which T7.40 decided against on its merits. **The shortest remaining path is T7.0's further fault
+classes** - which is exactly what ADR-0022's T4.15 addendum named: *"T7.0's four further fault
+classes are the honest way to buy more."*
+
+**Catalog unchanged: 13 valid scenarios, 10 dev / 3 holdout.** The fault definition is **kept** in
+the injector with the measurement in its comment, as `checkout-currency-misconfig` is, because the
+measurement is the finding.
+
 ### T7.55 — the freeze path, wired *(no spend; \$0, world read-only)*
 **Done** ([ADR-0022 T7.55 addendum](adr/0022-evaluation-harness.md), `generations.py`, `run.py`,
 `judge.py`). Branched and confirmed first. **No digest moved. Q10 discharged, sixth instance closed.**

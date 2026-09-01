@@ -173,6 +173,15 @@ records which slots are taken, not how many exist.
 
 **Eleven filled, nine free** — six dev and three holdout.
 
+> **`bad_config-5` was attempted at T7.56 and is still free.** `accounting-kafka-misconfig` - a
+> Kafka consumer pointed at a port nothing listens on - was designed against the recorded page
+> space, gated, injected, and **abandoned at its first gate**: the service logs `severity: fatal`
+> on an unreachable broker and exits, giving 9 restarts in ~58 seconds. The disqualification
+> criteria were committed before the world was touched and said to abandon rather than tune, and
+> there was nothing to tune. **The slot is released, not held.** Every other `bad_config` candidate
+> is disposed of with a reason in `docs/design/t7.56-holdout-bad-config.md`; **no distinct fifth
+> `bad_config` has been found**, and no filler was authored into a holdout slot.
+>
 > **Two free slots have no candidate under the current capability (T7.40), and that is recorded
 > here beside them rather than left as an apparent to-do.** `bad_deploy-4` and `bad_deploy-5`
 > need a fourth distinct shape, and the only one available — a deploy that starts and dies
