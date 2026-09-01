@@ -31,7 +31,12 @@ from faultline.orchestrator.consumer import (
 )
 from faultline.orchestrator.core import Orchestrator
 from faultline.orchestrator.correlation import TimeOverlapPolicy
-from faultline.orchestrator.machine import ALLOWED, TransitionError, transition
+from faultline.orchestrator.machine import (
+    ALLOWED,
+    INVESTIGATION_PHASES,
+    TransitionError,
+    transition,
+)
 from faultline.orchestrator.models import (
     TERMINAL,
     Episode,
@@ -530,11 +535,11 @@ def _resolution_of(firing: AlertEvent, holder_received: datetime | None) -> Aler
 
 # --- T2.3: the state graph, checked against the specification --------------------
 #
-# docs/spec/project-proposal-rev8.pdf p.5 names the states. ADR-0016 took its count
-# from docs/ARCHITECTURE.md instead. Both say eleven, so the count never disagreed --
-# which is why the *set* was never compared. These tests compare the set.
+# docs/spec/project-proposal-rev8.pdf p.5 names eleven states. This machine has fourteen:
+# those eleven, plus three the specification argues for two pages later. ADR-0016 Addendum 2
+# records why. These tests are what stops the two drifting apart again.
 
-PLAN_STATES: dict[str, IncidentState | None] = {
+PLAN_STATES: dict[str, IncidentState] = {
     "DETECTED": IncidentState.OPEN,
     "TRIAGED": IncidentState.TRIAGING,
     "INVESTIGATING": IncidentState.INVESTIGATING,
@@ -543,18 +548,58 @@ PLAN_STATES: dict[str, IncidentState | None] = {
     "REMEDIATING": IncidentState.EXECUTING,
     "RESOLVED": IncidentState.RESOLVED,
     "FAILED": IncidentState.FAILED,
-    "DUPLICATE_MERGED": None,
-    "BUDGET_EXHAUSTED": None,
-    "REJECTED": None,
+    "DUPLICATE_MERGED": IncidentState.DUPLICATE_MERGED,
+    "BUDGET_EXHAUSTED": IncidentState.BUDGET_EXHAUSTED,
+    "REJECTED": IncidentState.REJECTED,
 }
 
-# Failure-scenario table, project-proposal-rev8.pdf pp.10-11. Only the rows whose
-# Mitigation or Recovery column names a state-level outcome appear here.
-FAILURE_ROWS_NAMING_AN_ABSENT_STATE: dict[str, str] = {
-    "Alert storm: cascading failure fires 200 alerts at once": "DUPLICATE_MERGED",
-    "Wrong root cause confidently reported": "REJECTED",
-    "Runaway cost: investigation loops, burns $40 on one incident": "BUDGET_EXHAUSTED",
+ADDED_BEYOND_THE_STATE_LINE: dict[IncidentState, str] = {
+    IncidentState.QUEUED: "failure row 1: 'queued incidents resume'",
+    IncidentState.PLANNING: "agent table p.6: the investigation planner",
+    IncidentState.PROPOSING: "agent table p.6: the remediation proposer",
 }
+
+# The failure-scenario table, pp.10-11 -- the rows whose Mitigation or Recovery column names
+# a lifecycle outcome. The others (invalid JSON, hallucinated citation, oversized query,
+# telemetry backend down, prompt injection) name tool-layer, validator or flagging behaviour
+# and no state, which is why they are absent rather than forgotten.
+FAILURE_ROWS: dict[str, IncidentState] = {
+    "LLM provider outage / 429 storm": IncidentState.QUEUED,
+    "Alert storm: 200 alerts at once": IncidentState.DUPLICATE_MERGED,
+    "Worker crashes mid-investigation": IncidentState.INVESTIGATING,
+    "Wrong root cause confidently reported": IncidentState.REJECTED,
+    "Runaway cost: $40 on one incident": IncidentState.BUDGET_EXHAUSTED,
+    "Two workers pick up the same alert": IncidentState.DUPLICATE_MERGED,
+}
+
+WRITTEN_AT_RUNTIME: frozenset[IncidentState] = frozenset(
+    {
+        IncidentState.OPEN,
+        IncidentState.QUEUED,
+        IncidentState.TRIAGING,
+        IncidentState.PLANNING,
+        IncidentState.INVESTIGATING,
+        IncidentState.SYNTHESIZING,
+        IncidentState.RESOLVED,
+        IncidentState.FAILED,
+    }
+)
+
+NO_RUNTIME_WRITER: frozenset[IncidentState] = frozenset(
+    {
+        IncidentState.PROPOSING,
+        IncidentState.AWAITING_APPROVAL,
+        IncidentState.EXECUTING,
+        IncidentState.REJECTED,
+        IncidentState.BUDGET_EXHAUSTED,
+        IncidentState.DUPLICATE_MERGED,
+    }
+)
+"""Reachable in the table, written by nothing yet.
+
+Asserted rather than assumed. A state that is reachable on paper and unreachable at runtime
+is the defect this audit keeps finding, and moving one out of this set should cost whoever
+builds its writer a deliberate test edit."""
 
 
 def _reachable_from(start: IncidentState) -> set[IncidentState]:
@@ -570,47 +615,49 @@ def _reachable_from(start: IncidentState) -> set[IncidentState]:
 
 
 def test_every_state_is_reachable_from_open() -> None:
-    """Gate 2's own criterion. A state nothing can reach is decoration."""
     unreachable = set(IncidentState) - _reachable_from(IncidentState.OPEN)
     assert not unreachable, f"unreachable from OPEN: {sorted(s.value for s in unreachable)}"
 
 
-def test_failed_is_absolutely_terminal() -> None:
-    assert ALLOWED[IncidentState.FAILED] == frozenset()
+def test_the_absolute_terminals_have_no_successors() -> None:
+    for state in (IncidentState.FAILED, IncidentState.DUPLICATE_MERGED):
+        assert ALLOWED[state] == frozenset(), f"{state.value} should be absolutely terminal"
 
 
 def test_resolved_reopens_backward_and_never_advances() -> None:
     """`RESOLVED` is terminal forward-only.
 
-    ADR-0016 lets a reopen put a settled incident back into the lifecycle, which is why
-    its successor set is not empty. What it must never do is step into *another* end
-    state -- a resolved incident cannot become a failed one without being reopened first.
+    ADR-0016 lets a reopen put a settled incident back into the lifecycle, which is why its
+    successor set is not empty. What it must never do is step into *another* end state.
     """
     successors = ALLOWED[IncidentState.RESOLVED]
     assert successors, "RESOLVED must accept a reopen"
     assert not (successors & TERMINAL), f"RESOLVED reaches an end state: {successors & TERMINAL}"
 
 
-def test_the_matching_count_is_a_coincidence() -> None:
-    """Eleven and eleven -- and three of the plan's states are not here at all.
+def test_every_state_the_specification_names_exists() -> None:
+    assert len(PLAN_STATES) == 11
+    assert set(PLAN_STATES.values()) <= set(IncidentState)
 
-    This test exists so the coincidence can never again read as agreement.
+
+def test_the_three_additions_are_argued_for_by_the_specification_itself() -> None:
+    added = set(IncidentState) - set(PLAN_STATES.values())
+    assert added == set(ADDED_BEYOND_THE_STATE_LINE)
+    assert len(IncidentState) == 14
+
+
+def test_every_failure_row_names_a_reachable_state() -> None:
+    """T2.3's acceptance criterion, restated by Gate 2.
+
+    "A state machine validated against a failure table it cannot express is a test suite
+    validating the wrong artifact."
     """
-    assert len(PLAN_STATES) == len(IncidentState) == 11
-    absent = {name for name, mapped in PLAN_STATES.items() if mapped is None}
-    assert absent == {"DUPLICATE_MERGED", "BUDGET_EXHAUSTED", "REJECTED"}
-    added = set(IncidentState) - {m for m in PLAN_STATES.values() if m is not None}
-    assert added == {IncidentState.QUEUED, IncidentState.PLANNING, IncidentState.PROPOSING}
+    reachable = _reachable_from(IncidentState.OPEN)
+    for row, state in FAILURE_ROWS.items():
+        assert state in reachable, f"{row!r} names {state.value}, which nothing reaches"
 
 
-def test_every_absent_plan_state_is_named_by_a_failure_row() -> None:
-    """Each absence costs a row of the failure table -- ADR-0016's addendum says which."""
-    assert set(FAILURE_ROWS_NAMING_AN_ABSENT_STATE.values()) == {
-        name for name, mapped in PLAN_STATES.items() if mapped is None
-    }
-
-
-def test_mapped_plan_states_all_exist() -> None:
-    for name, mapped in PLAN_STATES.items():
-        if mapped is not None:
-            assert mapped in set(IncidentState), f"{name} maps to a state that vanished"
+def test_every_state_is_either_written_or_recorded_as_unwritten() -> None:
+    assert set(IncidentState) == WRITTEN_AT_RUNTIME | NO_RUNTIME_WRITER
+    assert not WRITTEN_AT_RUNTIME & NO_RUNTIME_WRITER
+    assert {state for state, _ in INVESTIGATION_PHASES} <= WRITTEN_AT_RUNTIME

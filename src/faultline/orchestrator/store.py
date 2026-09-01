@@ -15,6 +15,8 @@ from datetime import datetime
 from typing import Any, Protocol
 
 from faultline.orchestrator.models import (
+    INVESTIGATING_STATES,
+    TERMINAL,
     Episode,
     Incident,
     IncidentState,
@@ -276,10 +278,13 @@ class PostgresIncidentStore:
         return found[0] if found else None
 
     def correlation_candidates(self, resolved_since: datetime) -> list[Incident]:
+        # Terminal states are not candidates, with one exception: a `RESOLVED` incident
+        # inside the settle window can be reopened (ADR-0016). `DUPLICATE_MERGED` has no
+        # reopen. Derived from `TERMINAL` rather than spelled out, so that a new end state
+        # cannot quietly become a correlation candidate the way it would have here.
         return self._load(
-            "WHERE state NOT IN ('resolved', 'failed') OR (state = 'resolved' "
-            "AND resolved_at >= %s)",
-            (resolved_since,),
+            "WHERE NOT (state = ANY(%s)) OR (state = 'resolved' AND resolved_at >= %s)",
+            ([s.value for s in TERMINAL], resolved_since),
         )
 
     def queued(self) -> list[Incident]:
@@ -287,10 +292,12 @@ class PostgresIncidentStore:
 
     def active_count(self) -> int:
         with self._conn.cursor() as cur:
+            # Derived from `INVESTIGATING_STATES`. The literal list this replaced was
+            # written when there were seven; `REJECTED` and `BUDGET_EXHAUSTED` hold a slot
+            # too, and a hand-maintained copy of that set is a drift waiting to happen.
             cur.execute(
-                "SELECT count(*) FROM incidents WHERE state IN "
-                "('triaging', 'planning', 'investigating', 'synthesizing', 'proposing', "
-                "'awaiting_approval', 'executing')"
+                "SELECT count(*) FROM incidents WHERE state = ANY(%s)",
+                ([s.value for s in INVESTIGATING_STATES],),
             )
             row = cur.fetchone()
             return int(row[0]) if row else 0

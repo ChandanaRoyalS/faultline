@@ -17,37 +17,98 @@ from faultline.orchestrator.models import (
 
 ALLOWED: dict[IncidentState, frozenset[IncidentState]] = {
     IncidentState.OPEN: frozenset(
-        {IncidentState.TRIAGING, IncidentState.QUEUED, IncidentState.RESOLVED}
+        {
+            IncidentState.TRIAGING,
+            IncidentState.QUEUED,
+            IncidentState.RESOLVED,
+            IncidentState.DUPLICATE_MERGED,
+        }
     ),
-    IncidentState.QUEUED: frozenset({IncidentState.TRIAGING, IncidentState.RESOLVED}),
+    IncidentState.QUEUED: frozenset(
+        {
+            IncidentState.TRIAGING,
+            IncidentState.RESOLVED,
+            IncidentState.DUPLICATE_MERGED,
+        }
+    ),
     IncidentState.TRIAGING: frozenset(
-        {IncidentState.PLANNING, IncidentState.RESOLVED, IncidentState.FAILED}
+        {
+            IncidentState.PLANNING,
+            IncidentState.RESOLVED,
+            IncidentState.FAILED,
+            IncidentState.BUDGET_EXHAUSTED,
+            IncidentState.DUPLICATE_MERGED,
+        }
     ),
     IncidentState.PLANNING: frozenset(
-        {IncidentState.INVESTIGATING, IncidentState.RESOLVED, IncidentState.FAILED}
+        {
+            IncidentState.INVESTIGATING,
+            IncidentState.RESOLVED,
+            IncidentState.FAILED,
+            IncidentState.BUDGET_EXHAUSTED,
+            IncidentState.DUPLICATE_MERGED,
+        }
     ),
     IncidentState.INVESTIGATING: frozenset(
-        {IncidentState.SYNTHESIZING, IncidentState.RESOLVED, IncidentState.FAILED}
+        {
+            IncidentState.SYNTHESIZING,
+            IncidentState.RESOLVED,
+            IncidentState.FAILED,
+            IncidentState.BUDGET_EXHAUSTED,
+            IncidentState.DUPLICATE_MERGED,
+        }
     ),
     IncidentState.SYNTHESIZING: frozenset(
-        {IncidentState.PROPOSING, IncidentState.RESOLVED, IncidentState.FAILED}
+        {
+            IncidentState.PROPOSING,
+            IncidentState.RESOLVED,
+            IncidentState.FAILED,
+            IncidentState.REJECTED,
+            IncidentState.BUDGET_EXHAUSTED,
+            IncidentState.DUPLICATE_MERGED,
+        }
     ),
     IncidentState.PROPOSING: frozenset(
-        {IncidentState.AWAITING_APPROVAL, IncidentState.RESOLVED, IncidentState.FAILED}
+        {
+            IncidentState.AWAITING_APPROVAL,
+            IncidentState.RESOLVED,
+            IncidentState.FAILED,
+            IncidentState.REJECTED,
+            IncidentState.BUDGET_EXHAUSTED,
+            IncidentState.DUPLICATE_MERGED,
+        }
     ),
     IncidentState.AWAITING_APPROVAL: frozenset(
-        {IncidentState.EXECUTING, IncidentState.RESOLVED, IncidentState.FAILED}
+        {
+            IncidentState.EXECUTING,
+            IncidentState.RESOLVED,
+            IncidentState.FAILED,
+            IncidentState.REJECTED,
+        }
     ),
     IncidentState.EXECUTING: frozenset({IncidentState.RESOLVED, IncidentState.FAILED}),
+    IncidentState.REJECTED: frozenset(
+        # T2.3: "exits to targeted re-investigation, reason required". `PLANNING` is that
+        # exit - re-planning with the rejection as an input is what "targeted" means. The
+        # reason lives on the incident; `record_rejection` will not move one without it.
+        {IncidentState.PLANNING, IncidentState.RESOLVED, IncidentState.FAILED}
+    ),
+    IncidentState.BUDGET_EXHAUSTED: frozenset(
+        # T2.3: "re-enterable when the cap is raised". It resumes at `PLANNING` and not
+        # mid-dispatch, because the plan it was executing was costed against the old cap.
+        {IncidentState.PLANNING, IncidentState.RESOLVED, IncidentState.FAILED}
+    ),
     IncidentState.RESOLVED: frozenset(
         # Reopening. ADR-0016: a firing episode correlating into a resolved incident inside
         # the settle window puts it back where it was, or in OPEN if it never started.
         {IncidentState.OPEN, IncidentState.QUEUED} | AGENT_DRIVEN | ACTION_PLANE_DRIVEN
     ),
     IncidentState.FAILED: frozenset(),
+    IncidentState.DUPLICATE_MERGED: frozenset(),
 }
 """`RESOLVED` is terminal in the sense that nothing advances *forward* out of it. It still
-accepts a reopen, which is why it is not empty here and `FAILED` is."""
+accepts a reopen, which is why it is not empty here and `FAILED` and `DUPLICATE_MERGED`
+are."""
 
 
 class TransitionError(RuntimeError):

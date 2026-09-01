@@ -284,8 +284,15 @@ def _sh(args: list[str], env: dict[str, str] | None = None, timeout: int = 1800)
 def open_incidents(dsn: str) -> list[str]:
     import psycopg
 
+    from faultline.orchestrator.models import TERMINAL
+
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
-        cur.execute("SELECT id FROM incidents WHERE state NOT IN ('resolved', 'failed')")
+        # Derived from `TERMINAL`: `DUPLICATE_MERGED` is an end state too, and the literal
+        # pair this replaced would have read a merged incident as open forever.
+        cur.execute(
+            "SELECT id FROM incidents WHERE NOT (state = ANY(%s))",
+            ([st.value for st in TERMINAL],),
+        )
         return [row[0] for row in cur.fetchall()]
 
 
