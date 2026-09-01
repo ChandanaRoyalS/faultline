@@ -1573,6 +1573,41 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.49 — publish the reproducibility result *(documentation; no money, no world time)*
+**Done.** Branched and confirmed before committing. T7.48's result was buried in a PLAN entry; it is
+the evidence a reader needs to trust any provenance claim here, so it now sits in **README's results
+banner and RESULTS.md's**, in the block-quote form each already uses for claims of this kind.
+**16 and 17 lines respectively, nothing restructured** - T7.47's lesson holds.
+
+**The claim, short and specific:** the stack was torn down and rebuilt with the documented commands
+and **all three digests came back identical**, plus the demo image digest and all 28 container image
+ids. So **`compose_digest f5bd108f…` names a world that can be reconstructed, not merely one that
+was running** - which is what makes quoting a digest worth anything.
+
+**The three limits are in the same breath as the claim, not a footnote.** The teardown **reused local
+images**, so this shows a *rebuild* is identical and not that a cold clone-and-pull is; the separate
+registry-tag check is described as **a weaker substitute for a cold pull, not a replacement**. **No
+scored run has happened since the rebuild**, so the world is identical and the figures are not
+thereby re-established. And the demo end to end **remains unverified for want of credit**.
+
+**The existing banners were checked and are not wrong.** They say which digest the figures describe
+and mark superseded worlds as superseded; T7.48 does not contradict that, it **adds weight** - the
+digest now identifies a reconstructible world. **Under-claiming rather than mis-claiming**, so the
+fix was to add the reproducibility statement rather than to correct the wording.
+
+**One stale figure corrected in passing, because it was in the sentence being edited:** both
+documents said **"11 valid scenarios"**, which predates T7.36 and T7.38 adding two. Now **13 valid
+(10 dev / 3 holdout)**, verified against the catalog rather than counted from memory.
+
+**The evidence artifact needed no new decision.** `BEFORE.json` and `AFTER.json` were already
+committed at T7.48 under `docs/evidence/t7.48-rebuild/`, which is the established convention - and
+**the rule that captures are not rewritten by tooling already covers them**: `.pre-commit-config.yaml`
+excludes `docs/evidence/` from `trailing-whitespace` and `end-of-file-fixer` while keeping the
+read-only `check-json`. Verified rather than assumed: both files parse and carry the digests
+published here. Both documents link the directory so a reader can check rather than believe.
+
+**Everything remaining needs API credit.** The shortest path back to a result is in the report.
+
 ### T7.48 — the world rebuilt, and it came back the same *(destructive to the stack; no money)*
 **Done** ([`docs/evidence/t7.48-rebuild/`](evidence/t7.48-rebuild/)). **Branched and confirmed before
 committing**, as T7.47 required. **The single most important thing this project had never checked**:
