@@ -31,8 +31,9 @@ from faultline.orchestrator.consumer import (
 )
 from faultline.orchestrator.core import Orchestrator
 from faultline.orchestrator.correlation import TimeOverlapPolicy
-from faultline.orchestrator.machine import TransitionError, transition
+from faultline.orchestrator.machine import ALLOWED, TransitionError, transition
 from faultline.orchestrator.models import (
+    TERMINAL,
     Episode,
     Incident,
     IncidentState,
@@ -525,3 +526,91 @@ def _resolution_of(firing: AlertEvent, holder_received: datetime | None) -> Aler
     resolved.received_at = (holder_received or firing.received_at) + timedelta(minutes=1)
     resolved.ends_at = resolved.received_at
     return resolved
+
+
+# --- T2.3: the state graph, checked against the specification --------------------
+#
+# docs/spec/project-proposal-rev8.pdf p.5 names the states. ADR-0016 took its count
+# from docs/ARCHITECTURE.md instead. Both say eleven, so the count never disagreed --
+# which is why the *set* was never compared. These tests compare the set.
+
+PLAN_STATES: dict[str, IncidentState | None] = {
+    "DETECTED": IncidentState.OPEN,
+    "TRIAGED": IncidentState.TRIAGING,
+    "INVESTIGATING": IncidentState.INVESTIGATING,
+    "HYPOTHESIS": IncidentState.SYNTHESIZING,
+    "AWAITING_APPROVAL": IncidentState.AWAITING_APPROVAL,
+    "REMEDIATING": IncidentState.EXECUTING,
+    "RESOLVED": IncidentState.RESOLVED,
+    "FAILED": IncidentState.FAILED,
+    "DUPLICATE_MERGED": None,
+    "BUDGET_EXHAUSTED": None,
+    "REJECTED": None,
+}
+
+# Failure-scenario table, project-proposal-rev8.pdf pp.10-11. Only the rows whose
+# Mitigation or Recovery column names a state-level outcome appear here.
+FAILURE_ROWS_NAMING_AN_ABSENT_STATE: dict[str, str] = {
+    "Alert storm: cascading failure fires 200 alerts at once": "DUPLICATE_MERGED",
+    "Wrong root cause confidently reported": "REJECTED",
+    "Runaway cost: investigation loops, burns $40 on one incident": "BUDGET_EXHAUSTED",
+}
+
+
+def _reachable_from(start: IncidentState) -> set[IncidentState]:
+    seen = {start}
+    frontier = [start]
+    while frontier:
+        current = frontier.pop()
+        for nxt in ALLOWED.get(current, frozenset()):
+            if nxt not in seen:
+                seen.add(nxt)
+                frontier.append(nxt)
+    return seen
+
+
+def test_every_state_is_reachable_from_open() -> None:
+    """Gate 2's own criterion. A state nothing can reach is decoration."""
+    unreachable = set(IncidentState) - _reachable_from(IncidentState.OPEN)
+    assert not unreachable, f"unreachable from OPEN: {sorted(s.value for s in unreachable)}"
+
+
+def test_failed_is_absolutely_terminal() -> None:
+    assert ALLOWED[IncidentState.FAILED] == frozenset()
+
+
+def test_resolved_reopens_backward_and_never_advances() -> None:
+    """`RESOLVED` is terminal forward-only.
+
+    ADR-0016 lets a reopen put a settled incident back into the lifecycle, which is why
+    its successor set is not empty. What it must never do is step into *another* end
+    state -- a resolved incident cannot become a failed one without being reopened first.
+    """
+    successors = ALLOWED[IncidentState.RESOLVED]
+    assert successors, "RESOLVED must accept a reopen"
+    assert not (successors & TERMINAL), f"RESOLVED reaches an end state: {successors & TERMINAL}"
+
+
+def test_the_matching_count_is_a_coincidence() -> None:
+    """Eleven and eleven -- and three of the plan's states are not here at all.
+
+    This test exists so the coincidence can never again read as agreement.
+    """
+    assert len(PLAN_STATES) == len(IncidentState) == 11
+    absent = {name for name, mapped in PLAN_STATES.items() if mapped is None}
+    assert absent == {"DUPLICATE_MERGED", "BUDGET_EXHAUSTED", "REJECTED"}
+    added = set(IncidentState) - {m for m in PLAN_STATES.values() if m is not None}
+    assert added == {IncidentState.QUEUED, IncidentState.PLANNING, IncidentState.PROPOSING}
+
+
+def test_every_absent_plan_state_is_named_by_a_failure_row() -> None:
+    """Each absence costs a row of the failure table -- ADR-0016's addendum says which."""
+    assert set(FAILURE_ROWS_NAMING_AN_ABSENT_STATE.values()) == {
+        name for name, mapped in PLAN_STATES.items() if mapped is None
+    }
+
+
+def test_mapped_plan_states_all_exist() -> None:
+    for name, mapped in PLAN_STATES.items():
+        if mapped is not None:
+            assert mapped in set(IncidentState), f"{name} maps to a state that vanished"

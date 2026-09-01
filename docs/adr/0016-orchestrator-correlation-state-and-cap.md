@@ -438,3 +438,86 @@ plane at all — that is a genuine gap in `docs/PLAN.md`, not an omission here.
 `emailservice` to the cart incident; a second alert source appears whose events do not carry
 `episode_key`; or the queue is ever observed non-empty for long enough that strict priority
 starves something.
+
+## Addendum (T2.3, 2026-09-01) — the state set, read against `docs/spec/`
+
+§2 above opens "Eleven states, as `docs/ARCHITECTURE.md` commits to." The count is correct
+and its source is wrong. The specification names the states, and it was not in this
+repository when this ADR was written.
+
+`docs/spec/project-proposal-rev8.pdf` p.5:
+
+> `DETECTED → TRIAGED → INVESTIGATING → HYPOTHESIS → AWAITING_APPROVAL → REMEDIATING →
+> RESOLVED (+ DUPLICATE_MERGED · BUDGET_EXHAUSTED · REJECTED · FAILED)`
+
+Eleven there. Eleven here. **Eight map, three are absent, three are new.**
+
+| Specification | This repository |
+|---|---|
+| `DETECTED` | `OPEN` |
+| `TRIAGED` | `TRIAGING` |
+| `INVESTIGATING` | `INVESTIGATING` |
+| `HYPOTHESIS` | `SYNTHESIZING` |
+| `AWAITING_APPROVAL` | `AWAITING_APPROVAL` |
+| `REMEDIATING` | `EXECUTING` |
+| `RESOLVED` | `RESOLVED` |
+| `FAILED` | `FAILED` |
+| `DUPLICATE_MERGED` | — |
+| `BUDGET_EXHAUSTED` | — |
+| `REJECTED` | — |
+| — | `QUEUED` |
+| — | `PLANNING` |
+| — | `PROPOSING` |
+
+### The three additions are the diagram catching up with the agent table
+
+The proposal's own agent table (p.6) gives the investigation planner and the remediation
+proposer their own rows; p.5's state line never gave either a state. `PLANNING` and
+`PROPOSING` are those two agents made visible in the lifecycle. `QUEUED` is named by the
+failure table itself — row 1's recovery is "queued incidents resume." All three are the
+specification agreeing with itself more thoroughly than p.5 did.
+
+### The three absences, and what each one costs
+
+**`BUDGET_EXHAUSTED` — superseded.** ADR-0020 §5 makes exhaustion a flagged verdict rather
+than a lifecycle state. Failure row 10 asks for "partial report emitted with 'budget
+exhausted' status", and a verdict flag is a status. The row is satisfied.
+
+**`DUPLICATE_MERGED` — partially superseded.** Correlation (`TimeOverlapPolicy`) satisfies
+row 5's *Mitigation*: "dedupe + correlation groups alerts into few incidents." It does not
+satisfy row 5's *Recovery*: "post-hoc merge of duplicate incidents." A storm that correlates
+imperfectly leaves duplicate incidents with no merge path. Row 13 is a different case —
+duplicate *workers* on one alert, prevented structurally by the fingerprint constraint — and
+does not cover this one.
+
+**`REJECTED` — genuinely absent.** Failure row 8, "Wrong root cause confidently reported",
+detects via "Human rejects hypothesis in UI" and recovers via "Rejection triggers targeted
+re-investigation." There is no state for a rejected hypothesis. That row has no reachable
+outcome in this machine, and it is the row the whole propose-never-execute posture exists to
+handle.
+
+### Why this was invisible
+
+Each document was consistent with the one it read: the enum cites `ARCHITECTURE.md`,
+`ARCHITECTURE.md` cites this ADR, this ADR cites `ARCHITECTURE.md`. Nothing in that loop
+touches the specification, which lived outside the repository until 2026-09-01. And the
+counts matched — so even a careful reader comparing eleven to eleven would have moved on.
+**A matching cardinality is not a matching set.** This is the same defect this project keeps
+finding, in its purest form.
+
+### What T2.3 does about it
+
+`tests/test_orchestrator.py` now encodes the specification's state names, the three
+absences, and which failure row each absence costs.
+`test_the_matching_count_is_a_coincidence` fails if anyone adds or removes a state without
+re-reading p.5.
+
+`REJECTED` is **not** added here. Giving it transitions means designing the action plane,
+which has no task number (`docs/PLAN.md`, "Discovered omissions"). The test is written so
+that landing the action plane without giving row 8 a state fails.
+
+One note on the shape of the tests: a first draft asserted that both members of `TERMINAL`
+had no successors, and failed. `RESOLVED` accepts a reopen by design (see `ALLOWED`), so
+`TERMINAL` means end-of-lifecycle, not zero out-edges. The test now asserts the real
+invariant — `FAILED` is absolute, and `RESOLVED` may reopen backward but may never step
+into another end state.
