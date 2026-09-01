@@ -36,8 +36,12 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 > [CATALOG.md](../evals/scenarios/CATALOG.md). A gap between the two numbers is a recorded decision;
 > it is not a target to be closed by authoring filler.
 >
-> **The rest of this document describes earlier worlds** — most of it `299d791c5e0d…` (dev sweep 6)
-> and some of it `4a7690c6fdda…` before that. Those figures are not wrong; they are correct about
+> **The rest of this document describes earlier worlds** — **most of it `4a7690c6fdda…`, and some
+> of it `299d791c5e0d…` (dev sweep 6).** *(Corrected 2026-09-01, T7.54: this sentence had the two
+> worlds the wrong way round. Counted by run directory the split over the 97 run directories that carry a manifest is
+> **69 on `4a7690c6fdda…`, 12 on `299d791c5e0d…`, 16 on the current `f5bd108f…`** — the older world is the majority of the
+> record, not the minority. The per-file banners in `evals/runs/` had the same error and are
+> corrected.)* Those figures are not wrong; they are correct about
 > worlds that no longer exist, and they do not carry over. **Comparing a figure here against sweep
 > 7 compares worlds, not agents**, and sweep 7's own comparison to sweep 6 rescores sweep 6 first
 > so the two sides are like-for-like.
