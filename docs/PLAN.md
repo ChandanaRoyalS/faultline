@@ -1727,6 +1727,13 @@ registered as a decision - it happened.**
 audit needs the two documents, and the priorities are the user's to set. **Neither source document
 was amended** - they are evidence about intent.
 
+**Addendum, same day.** The first finding was acted on: `docs/spec/` now holds the proposal,
+the execution plan and the T1.6 rule, and this file's preamble was corrected. What reading
+the real documents then found — a state machine whose eleven states are not the
+specification's eleven, T2.4b's runbook corpus empty behind a past-incident store that is
+not it, T2.5 and T2.7 unrecorded, and this file heading sections with task names that are not
+the plan's — is in the design note's addendum. The priorities finding is unchanged.
+
 ### T7.59 — does the published record tell the truth as it now stands? *(audit; \$0)*
 **Done** ([`docs/design/t7.59-record-audit.md`](design/t7.59-record-audit.md)). Branched and
 confirmed first. **Fifteen corrections, no section restructured.** Every one is a wrong sentence or
