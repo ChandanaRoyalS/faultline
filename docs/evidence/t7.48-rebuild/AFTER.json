@@ -1,0 +1,184 @@
+{
+ "container_count": 28,
+ "containers": {
+  "accounting-service": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:a97e2105f581a42b1bb4d345e1f82423eadace1abdec6f90c1402c6f72129885",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-accountingservice",
+   "image_id": "sha256:a97e2105f581a42b1bb4d345e1f82423eadace1abdec6f90c1402c6f72129885"
+  },
+  "ad-service": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:d97e9378c72cfeb9ef72823036fd3cfd2b626f74f2d043263376d85f0dd2f78b",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-adservice",
+   "image_id": "sha256:d97e9378c72cfeb9ef72823036fd3cfd2b626f74f2d043263376d85f0dd2f78b"
+  },
+  "alertmanager": {
+   "content_digest": "prom/alertmanager@sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5",
+   "image": "prom/alertmanager:v0.27.0",
+   "image_id": "sha256:e13b6ed5cb929eeaee733479dce55e10eb3bc2e9c4586c705a4e8da41e5eacf5"
+  },
+  "cart-service": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice",
+   "image_id": "sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994"
+  },
+  "checkout-service": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:0079e1f6e1bd23d49577695424d3ccf14cbe12be3f772c4117742ebf58649a2e",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-checkoutservice",
+   "image_id": "sha256:0079e1f6e1bd23d49577695424d3ccf14cbe12be3f772c4117742ebf58649a2e"
+  },
+  "currency-service": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:37b79077c5d7463f64765e7d50e49149f1218645a6343fb3906e01e3be0f7ffc",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-currencyservice",
+   "image_id": "sha256:37b79077c5d7463f64765e7d50e49149f1218645a6343fb3906e01e3be0f7ffc"
+  },
+  "email-service": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:022a3044e8a887e7283cb72dabd0c0d43768927480597bdd5266473111bdd7d0",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-emailservice",
+   "image_id": "sha256:022a3044e8a887e7283cb72dabd0c0d43768927480597bdd5266473111bdd7d0"
+  },
+  "faultline-postgres-1": {
+   "content_digest": "pgvector/pgvector@sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b",
+   "image": "pgvector/pgvector:pg16",
+   "image_id": "sha256:ccc6e83d6e35e931dc7c5def2022729d5a6c370318d099181995567ff1fb4d6b"
+  },
+  "faultline-redis-1": {
+   "content_digest": "redis@sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf",
+   "image": "redis:7-alpine",
+   "image_id": "sha256:ff02b58f971e7d7d156a1267e283fcbbeee91773b6aa36c49dac28ecfe28eadf"
+  },
+  "feature-flag-service": {
+   "content_digest": "ffs-stub@sha256:e273759fb5c16938bbcf9df934650444642495d9bcebb3af841e015d946d377d",
+   "image": "ffs-stub:1",
+   "image_id": "sha256:e273759fb5c16938bbcf9df934650444642495d9bcebb3af841e015d946d377d"
+  },
+  "frauddetection-service": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:752868358c420d00dcd53593245db411271a086f142075f36cfef29c6558d2bb",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-frauddetectionservice",
+   "image_id": "sha256:752868358c420d00dcd53593245db411271a086f142075f36cfef29c6558d2bb"
+  },
+  "frontend": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:5ddf4db99a8e51cfe8500516aa0a507374eadd20657dc3ee8051524f44e1a5b5",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-frontend",
+   "image_id": "sha256:5ddf4db99a8e51cfe8500516aa0a507374eadd20657dc3ee8051524f44e1a5b5"
+  },
+  "frontend-proxy": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:b6bd226b53a54ffd8b3cfab7e1aa70cdde605ea131b8d1d4e7feb75903376f73",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-frontendproxy",
+   "image_id": "sha256:b6bd226b53a54ffd8b3cfab7e1aa70cdde605ea131b8d1d4e7feb75903376f73"
+  },
+  "grafana": {
+   "content_digest": "grafana/grafana@sha256:3755790fae9130975b0a778ea7c61e54627550541cf90f0aa5f11fa8936468c9",
+   "image": "grafana/grafana:9.1.0",
+   "image_id": "sha256:3755790fae9130975b0a778ea7c61e54627550541cf90f0aa5f11fa8936468c9"
+  },
+  "jaeger": {
+   "content_digest": "jaegertracing/all-in-one@sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac",
+   "image": "jaegertracing/all-in-one",
+   "image_id": "sha256:ab6f1a1f0fb49ea08bcd19f6b84f6081d0d44b364b6de148e1798eb5816bacac"
+  },
+  "kafka": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:7e2a15b4b7b3fd9dfaf2e6d1ff8592ed3264629c285ff574afd6c8204ae537a7",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-kafka",
+   "image_id": "sha256:7e2a15b4b7b3fd9dfaf2e6d1ff8592ed3264629c285ff574afd6c8204ae537a7"
+  },
+  "load-generator": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:61dc9011d496bede1fd2e6f6a57727a8f99b1e28bc5ffeb059e5f4241dbdfb65",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-loadgenerator",
+   "image_id": "sha256:61dc9011d496bede1fd2e6f6a57727a8f99b1e28bc5ffeb059e5f4241dbdfb65"
+  },
+  "loki": {
+   "content_digest": "grafana/loki@sha256:8b5bd7748d0e4da66cd741ac276e485517514af0bea32167e27c0e1a95bcf8aa",
+   "image": "grafana/loki:2.9.8",
+   "image_id": "sha256:8b5bd7748d0e4da66cd741ac276e485517514af0bea32167e27c0e1a95bcf8aa"
+  },
+  "otel-col": {
+   "content_digest": "otel/opentelemetry-collector-contrib@sha256:3e8c7b9ab9afff8f5aae711430aee81ac3e50a33514d5b1f5e6ea37e25cb5e4c",
+   "image": "otel/opentelemetry-collector-contrib:0.61.0",
+   "image_id": "sha256:3e8c7b9ab9afff8f5aae711430aee81ac3e50a33514d5b1f5e6ea37e25cb5e4c"
+  },
+  "payment-service": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:453052659fed32f7fabe5043427827b8b6994edd380182c68f7da1c6dcc523df",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-paymentservice",
+   "image_id": "sha256:453052659fed32f7fabe5043427827b8b6994edd380182c68f7da1c6dcc523df"
+  },
+  "postgres": {
+   "content_digest": "postgres@sha256:2fdfb9b432d4a73bd3eea3d989752c1e669b68d502347e0bfd2cc6d709f3d6b4",
+   "image": "postgres:14",
+   "image_id": "sha256:2fdfb9b432d4a73bd3eea3d989752c1e669b68d502347e0bfd2cc6d709f3d6b4"
+  },
+  "product-catalog-service": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:78bb20d6b6193ba759e09183469418eaab04ded4b3dbe767e39d6e15231b881b",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-productcatalogservice",
+   "image_id": "sha256:78bb20d6b6193ba759e09183469418eaab04ded4b3dbe767e39d6e15231b881b"
+  },
+  "prometheus": {
+   "content_digest": "quay.io/prometheus/prometheus@sha256:b37103e03399e90c9b7b1b2940894d3634915cf9df4aa2e5402bd85b4377808c",
+   "image": "quay.io/prometheus/prometheus:v2.34.0",
+   "image_id": "sha256:b37103e03399e90c9b7b1b2940894d3634915cf9df4aa2e5402bd85b4377808c"
+  },
+  "promtail": {
+   "content_digest": "grafana/promtail@sha256:45d54f0ebd7a19acbcd4693a3227d84d27d98abe1dc7ea3068d31d5d02dbe696",
+   "image": "grafana/promtail:2.9.8",
+   "image_id": "sha256:45d54f0ebd7a19acbcd4693a3227d84d27d98abe1dc7ea3068d31d5d02dbe696"
+  },
+  "quoteservice": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:2b5869aeb6d456b6796f3be08fadefd243b0204a8fc9d9af5d3bb367baaa034b",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-quoteservice",
+   "image_id": "sha256:2b5869aeb6d456b6796f3be08fadefd243b0204a8fc9d9af5d3bb367baaa034b"
+  },
+  "recommendation-service": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:5d37779a2f6a676fac7384facbcf9dd23c27f69e075599bb0356d2e7916e38ad",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-recommendationservice",
+   "image_id": "sha256:5d37779a2f6a676fac7384facbcf9dd23c27f69e075599bb0356d2e7916e38ad"
+  },
+  "redis-cart": {
+   "content_digest": "redis@sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576",
+   "image": "redis:alpine",
+   "image_id": "sha256:becdda6c7f4b3fb42e42fd7f120bbf5c54c4caaaf16f26da24e4563d2c1f0576"
+  },
+  "shipping-service": {
+   "content_digest": "ghcr.io/open-telemetry/demo@sha256:92ea5ea0229f128e84a8af98a3466a943182f19c74794b9a901b102a33f2d6d1",
+   "image": "ghcr.io/open-telemetry/demo:v1.2.1-shippingservice",
+   "image_id": "sha256:92ea5ea0229f128e84a8af98a3466a943182f19c74794b9a901b102a33f2d6d1"
+  }
+ },
+ "digests": {
+  "compose_digest": "f5bd108f4f70f460836f090ecbff4259626cc9264b102a0851b6bb4a4ceda44b",
+  "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+  "observability_digest": "857d95b4d174ec43b1f64bbb84bdf3438bc7425c1360a0e6e7dd771c4e77cb60"
+ },
+ "observability_files": {
+  "compose/otelcol-extras.yml": "c1cdb85343770302a80e6153c9fafcdce3821d870676cbf48f5f05536df84dcf",
+  "compose/prometheus/alert-rules.yml": "ae69d142bc571db5bd697f31368b8e7d5e533a3d0eecd4661ea2b29b7ea8672e",
+  "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+  "compose/prometheus/prometheus-config.yaml": "230505c37ddc4f95aa9ec1b085bf1ea32a98346e27e5f6f813aef230f3def749",
+  "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+  "world/src/otelcollector/otelcol-config-extras.yml": "7f3afd57cd82f28d5c5948e843d7d594e60dfb0133611c540ff31fa31804ee92",
+  "world/src/otelcollector/otelcol-config.yml": "cf1645d90cc88effcb493edd196238bf73a14d1b30dc654325d25045be0377e5"
+ },
+ "recorded_at": "2026-09-01T05:28:08Z",
+ "world_clone": {
+  "commit": "9d9056d372825f8f59ba0246f7056e63e6143551",
+  "describe": "v1.2.1",
+  "status_dirty": true
+ },
+ "world_provenance": {
+  "compose_digest": "f5bd108f4f70f460836f090ecbff4259626cc9264b102a0851b6bb4a4ceda44b",
+  "docker_arch": "arm64",
+  "ffs_stub_image_id": "sha256:94d38cfafd507d96db40cb08f7ce5f2dee6d57b6283570e63380b2a4296ff026",
+  "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+  "host_platform": "Darwin/arm64",
+  "observability_digest": "857d95b4d174ec43b1f64bbb84bdf3438bc7425c1360a0e6e7dd771c4e77cb60",
+  "observability_files": {
+   "compose/otelcol-extras.yml": "c1cdb85343770302a80e6153c9fafcdce3821d870676cbf48f5f05536df84dcf",
+   "compose/prometheus/alert-rules.yml": "ae69d142bc571db5bd697f31368b8e7d5e533a3d0eecd4661ea2b29b7ea8672e",
+   "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+   "compose/prometheus/prometheus-config.yaml": "230505c37ddc4f95aa9ec1b085bf1ea32a98346e27e5f6f813aef230f3def749",
+   "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+   "world/src/otelcollector/otelcol-config-extras.yml": "7f3afd57cd82f28d5c5948e843d7d594e60dfb0133611c540ff31fa31804ee92",
+   "world/src/otelcollector/otelcol-config.yml": "cf1645d90cc88effcb493edd196238bf73a14d1b30dc654325d25045be0377e5"
+  },
+  "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice",
+  "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994"
+ }
+}
