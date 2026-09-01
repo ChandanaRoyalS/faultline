@@ -1,5 +1,5 @@
 .PHONY: help install lint format type test check up down eval-up eval-down eval demo \
-        ffs-stub world-up world-down world-ps world-logs
+        ffs-stub world-up world-down world-ps world-logs dashboards
 
 help:
 	@grep -E '^[a-z][a-z0-9-]*:' Makefile | sed 's/:.*//' | tr '\n' ' '; echo
@@ -124,6 +124,14 @@ ffs-stub:
 
 world-up: world/.cloned ffs-stub
 	cd world && $(COMPOSE_WORLD) up -d --no-build
+	@$(MAKE) --no-print-directory dashboards
+
+# T1.2: the shop-health dashboard, pushed over Grafana's API rather than mounted.
+# A compose mount would move compose_digest and re-found the world for a panel that
+# changes nothing the harness measures - see ADR-0030 and the script's own docstring.
+# Idempotent: overwrite: true, so running it twice is running it once.
+dashboards:
+	uv run python scripts/provision_dashboards.py
 
 world-down:
 	cd world && $(COMPOSE_WORLD) down
