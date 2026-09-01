@@ -1,0 +1,50 @@
+{
+  "incident_id": "a20c581d-475d-4cd3-a5cc-53edf73eba36",
+  "trajectory_id": "fbe2d9f9-cffe-415c-a848-1cc7bd29c06d",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "frontend",
+    "paymentservice"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origin": "scenario:payment-telemetry-blackout",
+  "verdict": {
+    "root_cause": "The only recorded change in the window is an automated environment-variable update at 05:59:13Z that set paymentservice's OTLP traces exporter endpoint \u2014 previously unset \u2014 to a loopback address (127.0.0.1:4317) inside the pod (tr_d12626f5a460). Roughly six minutes later the alert fires, and from that point paymentservice has no span-derived metric series at all: both the error numerator and the total-call denominator are absent, which is not a measured zero but a missing pipeline (tr_49317493f4cb, tr_e17e6b32c055). Meanwhile the service itself is demonstrably alive and correct: server-side Charge spans appear as children of checkoutservice calls at sub-millisecond durations (tr_387f51d86c3e), logs on both sides of the gap are clean informational charge/complete pairs (tr_4cf361da961c), and checkoutservice's aggregate error ratio is continuously sampled and flat zero straight through 06:05:15 (tr_2dc47bce9707). The most consistent reading is that the endpoint value is itself wrong \u2014 it names a local collector address that nothing in the pod is listening on \u2014 and the wrongness of that value is what breaks telemetry export, producing an observability blackout for paymentservice rather than a request-path failure. The log evidence of a hostname change across the unreturned gap (tr_4cf361da961c) means an instance replacement around 06:05 cannot be excluded, but nothing in hand attributes it to the config change or to resource pressure.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_d12626f5a460",
+      "tr_49317493f4cb",
+      "tr_e17e6b32c055",
+      "tr_387f51d86c3e",
+      "tr_4cf361da961c",
+      "tr_2dc47bce9707"
+    ],
+    "reasoning": "Three independent lines converge. (1) Change: exactly one edit landed, six minutes before the alert, and it is a telemetry endpoint pointed at a loopback address whose benignity depends on a sidecar collector that no dispatch confirmed exists (tr_d12626f5a460). Code deploy, image rollout, flag flip, secret rotation and dependency bump were all explicitly ruled out on the same change log, which removes bad_deploy as a candidate. (2) Metrics: two separate paymentservice metric dispatches returned no matching series whatsoever, and both specialists noted that a healthy service still emits a total-calls denominator \u2014 so this is a broken or misrouted telemetry path, not a health reading (tr_49317493f4cb, tr_e17e6b32c055). That absence is exactly the shape a failed OTLP export produces downstream of span metrics. (3) Request path: the service is not actually failing. Traces show paymentservice serving Charge calls sub-millisecond with no error rows (tr_387f51d86c3e); logs show successful charges before and after the gap across multiple cards (tr_4cf361da961c); and checkoutservice, the immediate caller, records zero errors across 44 continuous samples spanning the alert minute (tr_2dc47bce9707). With no observed wait and no observed exhaustion, dependency_latency and resource_exhaustion have no positive support \u2014 the metrics specialist explicitly stated no restart, OOM, throttling or memory-ratio series were ever retrieved (tr_e17e6b32c055). What remains is a configuration value that is wrong in itself and whose wrongness is the mechanism, which is bad_config; restoring the previous endpoint (or pointing it at a collector that exists) is the fix, hence config_revert. I hold this at medium rather than high because the failure is inferred from a data absence plus a temporally adjacent change, not observed directly. The retrieved cart incidents are a live caution here: in both, a flat-zero/absent error signal on the suspect service was misread as health while the service was in fact broken. That pattern does not fit cleanly \u2014 traces and logs here give positive evidence of successful work, which cartservice did not \u2014 but it is the reason I have not closed out the possibility that something real happened inside the uncovered 06:05 window.",
+    "open_questions": [
+      "No dispatch confirmed whether a collector or agent actually listens on 127.0.0.1:4317 in the paymentservice pod. The causal link from the endpoint change to the missing span metrics is inferred, not demonstrated; a single check of the pod's sidecar spec would settle or break this verdict.",
+      "What fired the alert at 06:05:15 is unidentified. No dispatch surfaced the alerting condition, and none of the returned signals (checkout errors, payment errors, payment latency) is elevated. If the alert was a request-path alert rather than a telemetry/no-data alert, this verdict is explaining the wrong symptom.",
+      "The log window is truncated precisely across 06:05:15, so the incident minute itself was never read (tr_4cf361da961c). Any error text or dependency name emitted at that moment is unknown.",
+      "The emitting hostname changed across that gap with the same pid, consistent with an instance replacement. Whether a restart occurred, and if so whether it was caused by the config change, an OOM kill, or an unrelated scheduling event, is entirely unmeasured \u2014 no container restart, OOM or saturation series was ever queried (tr_e17e6b32c055).",
+      "The trace result carries no per-span timestamps and is truncated, so it cannot show whether span export continued, thinned, or stopped after 05:59:13Z (tr_387f51d86c3e). A re-query split into pre- and post-05:59:13 windows would directly test the export-failure hypothesis and is the single highest-value next step.",
+      "Latency was never measured on either side: no percentile data for paymentservice (tr_49317493f4cb) and none for checkoutservice\u2192paymentservice calls (tr_2dc47bce9707). If the exporter blocks rather than fails fast, a latency mechanism would be in play and the class could shift toward dependency_latency.",
+      "checkoutservice's error ratio carries no peer dimension, so paymentservice-specific call outcomes are not directly measured there (tr_2dc47bce9707); a per-peer breakdown would be needed to fully exclude partial downstream failure.",
+      "Triage reported 3 services and 2 unmeasured edges crossed, but only paymentservice and checkoutservice were dispatched. The third service and both unmeasured edges were never examined."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. From the first restart after the change, the runtime could not complete a startup\ninside the new limit: it"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

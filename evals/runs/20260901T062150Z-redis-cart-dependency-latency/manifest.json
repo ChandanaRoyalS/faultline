@@ -1,14 +1,14 @@
 {
-  "run_id": "20260831T043405Z-payment-telemetry-blackout",
-  "scenario_id": "payment-telemetry-blackout",
+  "run_id": "20260901T062150Z-redis-cart-dependency-latency",
+  "scenario_id": "redis-cart-dependency-latency",
   "split": "dev",
-  "scenario_fingerprint": "b8a2668299f1d3b1e5ee9b928e292f5994a1ac3c4292989ae70bb5ccb3f2b8b9",
-  "started_at": "2026-08-31T04:34:05.063189+00:00",
+  "scenario_fingerprint": "89277f499b4b6dcbead07f4e74f9b50a8e443c688e7cd15409ab17229b51529f",
+  "started_at": "2026-09-01T06:21:50.433877+00:00",
   "demo": false,
   "recorder": {
     "tool": "evalharness.run",
-    "git_sha": "d86ee3cdcb6d80a3e08f7973af86e4766c6ba05d",
-    "git_dirty": false
+    "git_sha": "48e157db243d9561f22fff90dbaa423c4e33f370",
+    "git_dirty": true
   },
   "models": {
     "changes": "claude-opus-5",
@@ -33,11 +33,11 @@
   },
   "world_lock": {
     "acquired": true,
-    "pid": 38467,
+    "pid": 47378,
     "host": "chandanas-MacBook-Air.local",
-    "since": "2026-08-31T04:34:05.088996+00:00",
-    "reason": "faultline-eval payment-telemetry-blackout",
-    "token": "38467-1788150845.088895"
+    "since": "2026-09-01T06:21:50.478583+00:00",
+    "reason": "faultline-eval redis-cart-dependency-latency",
+    "token": "47378-1788243710.478476"
   },
   "baseline_gate": {
     "passed": true,
@@ -45,7 +45,7 @@
     "p95_over_ceiling_ms": {},
     "p95_excursions": {},
     "ingest_accepting": true,
-    "consumer_idle_ms": 1858,
+    "consumer_idle_ms": 3607,
     "pipeline_down": [],
     "silent_services": [
       "frontend-proxy"
@@ -53,38 +53,38 @@
     "unexpected_silent": [],
     "services_reporting": 15,
     "youngest_container": [
-      "payment-service",
-      6491
+      "checkout-service",
+      329
     ],
     "active_injections": "no active injections",
     "open_incidents": [],
     "settling_incidents": [],
     "headroom": {
       "container": "kafka",
-      "percent_now": 42.59,
+      "percent_now": 34.51,
       "limit_mb": 2048.0,
-      "expected_run_hours": 2.085,
-      "runs_remaining": 6,
-      "uptime_seconds": 7729,
+      "expected_run_hours": 0.3475,
+      "runs_remaining": 1,
+      "uptime_seconds": 3252,
       "growth_mb_per_hour": 151.0,
-      "growth_mb": 314.8,
-      "projected_percent": 57.96,
-      "threshold_percent": 74.63,
+      "growth_mb": 52.5,
+      "projected_percent": 37.07,
+      "threshold_percent": 87.44,
       "guard_percent": 90.0,
       "fits": true
     },
     "refusals": []
   },
   "world_continuity": {
-    "kafka_uptime_seconds": 7729,
-    "kafka_uptime_seconds_previous_run": null,
-    "previous_run_id": "20260830T053604Z-shipping-wrong-image",
-    "kafka_restarted_since_previous_run": null,
-    "cause": "unknown - no comparable reading in the previous run",
+    "kafka_uptime_seconds": 3252,
+    "kafka_uptime_seconds_previous_run": 1891,
+    "previous_run_id": "20260901T055909Z-payment-telemetry-blackout",
+    "kafka_restarted_since_previous_run": false,
+    "cause": "continuous - same kafka instance as the previous run",
     "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
   },
-  "injected_at": "2026-08-31T04:34:06.935749+00:00",
-  "incident_id": "6b8707dc-f0d5-4552-99fc-d89a7e9c9030",
+  "injected_at": "2026-09-01T06:21:52.990373+00:00",
+  "incident_id": "1f3ccedb-1f15-4c40-afeb-8dcfa23dc05f",
   "investigate_exit_code": 0,
   "investigate_attempts": [
     {
@@ -94,14 +94,14 @@
       "transient_signal": null
     }
   ],
-  "reverted_at": "2026-08-31T04:45:55.462950+00:00",
+  "reverted_at": "2026-09-01T06:31:49.011274+00:00",
   "recovery": {
     "passed": true,
     "firing_alerts": [],
     "p95_over_ceiling_ms": {},
     "p95_excursions": {},
     "ingest_accepting": true,
-    "consumer_idle_ms": 1257,
+    "consumer_idle_ms": 2981,
     "pipeline_down": [],
     "silent_services": [
       "frontend-proxy"
@@ -109,22 +109,22 @@
     "unexpected_silent": [],
     "services_reporting": 15,
     "youngest_container": [
-      "payment-service",
-      324
+      "checkout-service",
+      1057
     ],
     "active_injections": "no active injections",
     "open_incidents": [],
     "settling_incidents": [],
     "headroom": {
       "container": "kafka",
-      "percent_now": 42.62,
+      "percent_now": 34.57,
       "limit_mb": 2048.0,
       "expected_run_hours": 0.8083,
       "runs_remaining": null,
-      "uptime_seconds": 8764,
+      "uptime_seconds": 3980,
       "growth_mb_per_hour": 151.0,
       "growth_mb": 122.1,
-      "projected_percent": 48.58,
+      "projected_percent": 40.53,
       "threshold_percent": 84.04,
       "guard_percent": 90.0,
       "fits": true
@@ -132,9 +132,9 @@
     "refusals": []
   },
   "score": {
-    "run_id": "20260831T043405Z-payment-telemetry-blackout",
-    "scenario_id": "payment-telemetry-blackout",
-    "trajectory_id": "f4a83263-9aba-4997-93a8-1c7cc8290092",
+    "run_id": "20260901T062150Z-redis-cart-dependency-latency",
+    "scenario_id": "redis-cart-dependency-latency",
+    "trajectory_id": "8ecf4a7f-b59f-4dbd-acf2-2ffd4c0ad3d0",
     "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
     "budget": {
       "max_tool_calls_per_specialist": 4,
@@ -145,7 +145,7 @@
       "wall_clock_seconds": 600,
       "max_dispatch_rounds": 2
     },
-    "reached_a_class": false,
+    "reached_a_class": true,
     "reachability": {
       "answers_idle_or_absent": [
         "logs"
@@ -153,40 +153,49 @@
       "derived_from": "the bundle's own captures (T7.5)",
       "none_can_answer": false,
       "runtime_series": 0,
-      "target_log_lines": 328
+      "target_log_lines": 18
     },
     "triage": {
       "recall": 1.0,
       "precision": 0.3333333333333333,
       "matched": [
-        "paymentservice"
+        "cartservice",
+        "checkoutservice",
+        "frontend",
+        "loadgenerator"
       ],
       "missed_alerted_not_predicted": [],
       "predicted_not_alerted": [
-        "checkoutservice",
-        "frontend"
+        "accountingservice",
+        "adservice",
+        "currencyservice",
+        "emailservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice",
+        "shippingservice"
       ],
       "excluded_began_after_revert": [],
-      "unmeasured_edges_crossed": 2,
-      "n_alerted": 1,
-      "n_predicted": 3
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 4,
+      "n_predicted": 12
     },
     "fault_class": {
-      "truth": "bad_config",
-      "returned": "unknown",
-      "correct": false,
+      "truth": "dependency_latency",
+      "returned": "dependency_latency",
+      "correct": true,
       "correct_by_alternative": false,
       "also_correct": [],
-      "abstained": true,
+      "abstained": false,
       "dispute": null
     },
     "fix_class": {
-      "truth": "config_revert",
-      "returned": "none",
+      "truth": "restart",
+      "returned": "config_revert",
       "correct": false,
       "correct_by_alternative": false,
       "also_correct": [],
-      "abstained": true,
+      "abstained": false,
       "dispute": null
     },
     "categories": {
@@ -201,9 +210,9 @@
       "narrative_refused": false,
       "narrative_refused_reason": null
     },
-    "tokens_in": 47958,
-    "tokens_out": 14499,
-    "cost_usd": 0.6023,
+    "tokens_in": 35086,
+    "tokens_out": 13683,
+    "cost_usd": 0.5175,
     "models": {
       "changes": "claude-opus-5",
       "logs": "claude-opus-5",
@@ -214,40 +223,43 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-08-31T04:51:22.459574+00:00",
+  "finished_at": "2026-09-01T06:34:01.278348+00:00",
   "judge": {
-    "scenario_id": "payment-telemetry-blackout",
-    "run_id": "20260831T043405Z-payment-telemetry-blackout",
+    "scenario_id": "redis-cart-dependency-latency",
+    "run_id": "20260901T062150Z-redis-cart-dependency-latency",
     "agent_model": "claude-opus-5",
     "judge_model": "claude-haiku-4-5",
     "shared_lineage": true,
     "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
     "scored": true,
     "not_scored_because": null,
-    "root_cause_agreement": "different",
-    "agreement_reason": "The recorded narrative identifies a misconfigured trace exporter endpoint causing missing spans and a broken traffic metric; the agent narrative finds this hypothesis contradicted by evidence and leaves the root cause unestablished, pointing instead to an unexplained container replacement hidden in truncated logs.",
+    "root_cause_agreement": "adjacent",
+    "agreement_reason": "Both identify slow cache operations as the mechanism, but the recorded narrative names a specific configured network delay on Redis, while the agent narrative leaves the root cause open among saturation, network path, or configured delay.",
     "dead_ends_closed": [
-      "crash or restart of the container",
-      "cascade of alerts across dependent services",
-      "export back-pressure affecting request latency",
-      "error-rate threshold as the alert trigger"
+      "cartservice's own work had got slower",
+      "cartservice's own recent history (no deploy, config change, restart)",
+      "productcatalogservice changes",
+      "other downstream services (shipping, email, currency, payment, fraud)"
     ],
     "dead_ends_missed": [
-      "resource starvation (memory/CPU/connection saturation)",
-      "the actual alert firing condition"
+      "redis-cart container change history (the recorded narrative's key finding)"
     ],
     "traps": [
       {
-        "trap": "exporter endpoint misconfiguration as root cause",
+        "trap": "four services alerting together means something is broken",
         "outcome": "avoided"
       },
       {
-        "trap": "paymentservice being the culprit service",
+        "trap": "error-rate metrics missing means service stopped or telemetry broke",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "cartservice itself is the culprit (rather than its dependency)",
         "outcome": "avoided"
       }
     ],
-    "notes": "The agent narrative directly contradicts the recorded narrative's root cause by demonstrating that spans appear in traces post-exporter-change, export latency is unaffected, and the service remained healthy\u2014then identifies a container replacement in the log gap as the real anomaly. The two narratives describe the same incident but reach opposite conclusions.",
-    "tokens_in": 7425,
-    "tokens_out": 326
+    "notes": "The agent correctly identified slow cache calls as the mechanism but explicitly left open whether the cause was saturation, network path, or configured delay\u2014none of which it investigated. The recorded narrative resolved this by checking the redis-cart container's change history, which the agent never queried.",
+    "tokens_in": 6590,
+    "tokens_out": 344
   }
 }

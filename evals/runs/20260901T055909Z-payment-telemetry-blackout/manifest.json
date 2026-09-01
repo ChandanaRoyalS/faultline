@@ -1,13 +1,13 @@
 {
-  "run_id": "20260831T043405Z-payment-telemetry-blackout",
+  "run_id": "20260901T055909Z-payment-telemetry-blackout",
   "scenario_id": "payment-telemetry-blackout",
   "split": "dev",
   "scenario_fingerprint": "b8a2668299f1d3b1e5ee9b928e292f5994a1ac3c4292989ae70bb5ccb3f2b8b9",
-  "started_at": "2026-08-31T04:34:05.063189+00:00",
+  "started_at": "2026-09-01T05:59:09.566679+00:00",
   "demo": false,
   "recorder": {
     "tool": "evalharness.run",
-    "git_sha": "d86ee3cdcb6d80a3e08f7973af86e4766c6ba05d",
+    "git_sha": "48e157db243d9561f22fff90dbaa423c4e33f370",
     "git_dirty": false
   },
   "models": {
@@ -33,11 +33,11 @@
   },
   "world_lock": {
     "acquired": true,
-    "pid": 38467,
+    "pid": 46830,
     "host": "chandanas-MacBook-Air.local",
-    "since": "2026-08-31T04:34:05.088996+00:00",
+    "since": "2026-09-01T05:59:09.613796+00:00",
     "reason": "faultline-eval payment-telemetry-blackout",
-    "token": "38467-1788150845.088895"
+    "token": "46830-1788242349.613649"
   },
   "baseline_gate": {
     "passed": true,
@@ -45,46 +45,44 @@
     "p95_over_ceiling_ms": {},
     "p95_excursions": {},
     "ingest_accepting": true,
-    "consumer_idle_ms": 1858,
+    "consumer_idle_ms": 4824,
     "pipeline_down": [],
-    "silent_services": [
-      "frontend-proxy"
-    ],
+    "silent_services": [],
     "unexpected_silent": [],
-    "services_reporting": 15,
+    "services_reporting": 14,
     "youngest_container": [
-      "payment-service",
-      6491
+      "frontend-proxy",
+      1880
     ],
     "active_injections": "no active injections",
     "open_incidents": [],
     "settling_incidents": [],
     "headroom": {
       "container": "kafka",
-      "percent_now": 42.59,
+      "percent_now": 31.69,
       "limit_mb": 2048.0,
-      "expected_run_hours": 2.085,
-      "runs_remaining": 6,
-      "uptime_seconds": 7729,
+      "expected_run_hours": 0.695,
+      "runs_remaining": 2,
+      "uptime_seconds": 1891,
       "growth_mb_per_hour": 151.0,
-      "growth_mb": 314.8,
-      "projected_percent": 57.96,
-      "threshold_percent": 74.63,
+      "growth_mb": 104.9,
+      "projected_percent": 36.81,
+      "threshold_percent": 84.88,
       "guard_percent": 90.0,
       "fits": true
     },
     "refusals": []
   },
   "world_continuity": {
-    "kafka_uptime_seconds": 7729,
-    "kafka_uptime_seconds_previous_run": null,
-    "previous_run_id": "20260830T053604Z-shipping-wrong-image",
-    "kafka_restarted_since_previous_run": null,
-    "cause": "unknown - no comparable reading in the previous run",
+    "kafka_uptime_seconds": 1891,
+    "kafka_uptime_seconds_previous_run": 13792,
+    "previous_run_id": "20260831T061508Z-redis-cart-dependency-latency",
+    "kafka_restarted_since_previous_run": true,
+    "cause": "restarted, and no run recorded a pause before it - cause not established here",
     "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
   },
-  "injected_at": "2026-08-31T04:34:06.935749+00:00",
-  "incident_id": "6b8707dc-f0d5-4552-99fc-d89a7e9c9030",
+  "injected_at": "2026-09-01T05:59:12.084827+00:00",
+  "incident_id": "a20c581d-475d-4cd3-a5cc-53edf73eba36",
   "investigate_exit_code": 0,
   "investigate_attempts": [
     {
@@ -94,14 +92,14 @@
       "transient_signal": null
     }
   ],
-  "reverted_at": "2026-08-31T04:45:55.462950+00:00",
+  "reverted_at": "2026-09-01T06:10:52.978171+00:00",
   "recovery": {
     "passed": true,
     "firing_alerts": [],
     "p95_over_ceiling_ms": {},
     "p95_excursions": {},
     "ingest_accepting": true,
-    "consumer_idle_ms": 1257,
+    "consumer_idle_ms": 3468,
     "pipeline_down": [],
     "silent_services": [
       "frontend-proxy"
@@ -117,14 +115,14 @@
     "settling_incidents": [],
     "headroom": {
       "container": "kafka",
-      "percent_now": 42.62,
+      "percent_now": 33.25,
       "limit_mb": 2048.0,
       "expected_run_hours": 0.8083,
       "runs_remaining": null,
-      "uptime_seconds": 8764,
+      "uptime_seconds": 2919,
       "growth_mb_per_hour": 151.0,
       "growth_mb": 122.1,
-      "projected_percent": 48.58,
+      "projected_percent": 39.21,
       "threshold_percent": 84.04,
       "guard_percent": 90.0,
       "fits": true
@@ -132,9 +130,9 @@
     "refusals": []
   },
   "score": {
-    "run_id": "20260831T043405Z-payment-telemetry-blackout",
+    "run_id": "20260901T055909Z-payment-telemetry-blackout",
     "scenario_id": "payment-telemetry-blackout",
-    "trajectory_id": "f4a83263-9aba-4997-93a8-1c7cc8290092",
+    "trajectory_id": "fbe2d9f9-cffe-415c-a848-1cc7bd29c06d",
     "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
     "budget": {
       "max_tool_calls_per_specialist": 4,
@@ -145,7 +143,7 @@
       "wall_clock_seconds": 600,
       "max_dispatch_rounds": 2
     },
-    "reached_a_class": false,
+    "reached_a_class": true,
     "reachability": {
       "answers_idle_or_absent": [
         "logs"
@@ -173,20 +171,20 @@
     },
     "fault_class": {
       "truth": "bad_config",
-      "returned": "unknown",
-      "correct": false,
+      "returned": "bad_config",
+      "correct": true,
       "correct_by_alternative": false,
       "also_correct": [],
-      "abstained": true,
+      "abstained": false,
       "dispute": null
     },
     "fix_class": {
       "truth": "config_revert",
-      "returned": "none",
-      "correct": false,
+      "returned": "config_revert",
+      "correct": true,
       "correct_by_alternative": false,
       "also_correct": [],
-      "abstained": true,
+      "abstained": false,
       "dispute": null
     },
     "categories": {
@@ -201,9 +199,9 @@
       "narrative_refused": false,
       "narrative_refused_reason": null
     },
-    "tokens_in": 47958,
-    "tokens_out": 14499,
-    "cost_usd": 0.6023,
+    "tokens_in": 37797,
+    "tokens_out": 13989,
+    "cost_usd": 0.5387,
     "models": {
       "changes": "claude-opus-5",
       "logs": "claude-opus-5",
@@ -214,40 +212,44 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-08-31T04:51:22.459574+00:00",
+  "finished_at": "2026-09-01T06:16:20.022178+00:00",
   "judge": {
     "scenario_id": "payment-telemetry-blackout",
-    "run_id": "20260831T043405Z-payment-telemetry-blackout",
+    "run_id": "20260901T055909Z-payment-telemetry-blackout",
     "agent_model": "claude-opus-5",
     "judge_model": "claude-haiku-4-5",
     "shared_lineage": true,
     "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
     "scored": true,
     "not_scored_because": null,
-    "root_cause_agreement": "different",
-    "agreement_reason": "The recorded narrative identifies a misconfigured trace exporter endpoint causing missing spans and a broken traffic metric; the agent narrative finds this hypothesis contradicted by evidence and leaves the root cause unestablished, pointing instead to an unexplained container replacement hidden in truncated logs.",
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: the OTLP trace exporter endpoint was changed to an address with nothing listening (127.0.0.1:4317), causing traces to stop shipping and the traffic metric to go to zero, while the payment service continued functioning normally.",
     "dead_ends_closed": [
-      "crash or restart of the container",
-      "cascade of alerts across dependent services",
-      "export back-pressure affecting request latency",
-      "error-rate threshold as the alert trigger"
+      "crash or restart of the payment service",
+      "downstream cascade failure affecting checkout",
+      "service actually refusing or failing requests"
     ],
     "dead_ends_missed": [
-      "resource starvation (memory/CPU/connection saturation)",
-      "the actual alert firing condition"
+      "whether a container restart occurred (hostname change noted but restart counters never queried)",
+      "latency on either side (no percentiles measured)",
+      "per-peer breakdown of checkout's call outcomes to payment specifically"
     ],
     "traps": [
       {
-        "trap": "exporter endpoint misconfiguration as root cause",
+        "trap": "something external must have changed because the service looks fine",
         "outcome": "avoided"
       },
       {
-        "trap": "paymentservice being the culprit service",
+        "trap": "hostname change in logs indicates a restart happened",
         "outcome": "avoided"
+      },
+      {
+        "trap": "if payment were really down, checkout would error (and it doesn't)",
+        "outcome": "took"
       }
     ],
-    "notes": "The agent narrative directly contradicts the recorded narrative's root cause by demonstrating that spans appear in traces post-exporter-change, export latency is unaffected, and the service remained healthy\u2014then identifies a container replacement in the log gap as the real anomaly. The two narratives describe the same incident but reach opposite conclusions.",
-    "tokens_in": 7425,
-    "tokens_out": 326
+    "notes": "Agent narrative is more thorough in explicitly noting what evidence gaps remain (sidecar spec, split trace query, alert rule verification, latency percentiles, unmeasured edges) and assigns appropriate confidence levels rather than claiming certainty.",
+    "tokens_in": 8130,
+    "tokens_out": 358
   }
 }
