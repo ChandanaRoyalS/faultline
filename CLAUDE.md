@@ -1,7 +1,12 @@
 # Faultline — instructions for Claude Code sessions
 
-This repo is built against a fixed execution plan (58 tasks, 8 gates). Do not improvise
-scope. When asked to work on a task, implement that task's deliverable and nothing beyond it.
+This repo is built against a fixed execution plan — `docs/spec/` holds it, along with the
+project proposal, and both govern. Do not improvise scope. When asked to work on a task,
+implement that task's deliverable and nothing beyond it.
+
+`CONTRIBUTING.md` is the human-facing companion to this file: setup, the workflow the hooks
+enforce, the invariants that break silently, and which document answers which question. It
+applies here too. This file covers what is specific to an agent working in this repo.
 
 ## Working rules (non-negotiable)
 
@@ -28,13 +33,17 @@ This is enforced by a commit-msg hook and a CI history check - do not bypass eit
 
 ## Conventions
 
-- Python 3.12, `uv` for deps, `ruff` for lint+format, `mypy --strict` always passing.
+Setup, tooling, branch-and-PR discipline and `make check`: see `CONTRIBUTING.md`.
+
+Specific to code written here:
+
 - Everything typed; every agent I/O is a Pydantic model. Tool results are untrusted data.
-- Branch + PR per task; commit messages explain *why*; `make check` before every push.
-- Secrets never in code or prompts; config via pydantic-settings and `.env` (see `.env.example`).
+- Secrets never in code and never in prompts; config via pydantic-settings and `.env`
+  (see `.env.example`).
 
 ## Contamination rules (eval integrity)
 
-Scenario artifacts carry `origin` provenance. Holdout scenarios never enter any retrieval
-corpus. A scenario's own artifacts are unreachable while it is being scored (leave-one-out).
-Breaking these silently invalidates the project's headline numbers — treat as a P0 bug.
+See `CONTRIBUTING.md` — "Rules that break things silently". Scenario artifacts carry
+`origin` provenance; holdout scenarios never enter any retrieval corpus; a scenario's own
+artifacts are unreachable while it is being scored. Breaking these silently invalidates the
+project's headline numbers — treat as a P0 bug.

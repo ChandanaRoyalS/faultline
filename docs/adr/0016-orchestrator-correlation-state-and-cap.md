@@ -438,3 +438,157 @@ plane at all — that is a genuine gap in `docs/PLAN.md`, not an omission here.
 `emailservice` to the cart incident; a second alert source appears whose events do not carry
 `episode_key`; or the queue is ever observed non-empty for long enough that strict priority
 starves something.
+
+## Addendum (T2.3, 2026-09-01) — the state set, read against `docs/spec/`
+
+§2 above opens "Eleven states, as `docs/ARCHITECTURE.md` commits to." The count is correct
+and its source is wrong. The specification names the states, and it was not in this
+repository when this ADR was written.
+
+`docs/spec/project-proposal-rev8.pdf` p.5:
+
+> `DETECTED → TRIAGED → INVESTIGATING → HYPOTHESIS → AWAITING_APPROVAL → REMEDIATING →
+> RESOLVED (+ DUPLICATE_MERGED · BUDGET_EXHAUSTED · REJECTED · FAILED)`
+
+Eleven there. Eleven here. **Eight map, three are absent, three are new.**
+
+| Specification | This repository |
+|---|---|
+| `DETECTED` | `OPEN` |
+| `TRIAGED` | `TRIAGING` |
+| `INVESTIGATING` | `INVESTIGATING` |
+| `HYPOTHESIS` | `SYNTHESIZING` |
+| `AWAITING_APPROVAL` | `AWAITING_APPROVAL` |
+| `REMEDIATING` | `EXECUTING` |
+| `RESOLVED` | `RESOLVED` |
+| `FAILED` | `FAILED` |
+| `DUPLICATE_MERGED` | — |
+| `BUDGET_EXHAUSTED` | — |
+| `REJECTED` | — |
+| — | `QUEUED` |
+| — | `PLANNING` |
+| — | `PROPOSING` |
+
+### The three additions are the diagram catching up with the agent table
+
+The proposal's own agent table (p.6) gives the investigation planner and the remediation
+proposer their own rows; p.5's state line never gave either a state. `PLANNING` and
+`PROPOSING` are those two agents made visible in the lifecycle. `QUEUED` is named by the
+failure table itself — row 1's recovery is "queued incidents resume." All three are the
+specification agreeing with itself more thoroughly than p.5 did.
+
+### The three absences, and what each one costs
+
+**`BUDGET_EXHAUSTED` — superseded.** ADR-0020 §5 makes exhaustion a flagged verdict rather
+than a lifecycle state. Failure row 10 asks for "partial report emitted with 'budget
+exhausted' status", and a verdict flag is a status. The row is satisfied.
+
+**`DUPLICATE_MERGED` — partially superseded.** Correlation (`TimeOverlapPolicy`) satisfies
+row 5's *Mitigation*: "dedupe + correlation groups alerts into few incidents." It does not
+satisfy row 5's *Recovery*: "post-hoc merge of duplicate incidents." A storm that correlates
+imperfectly leaves duplicate incidents with no merge path. Row 13 is a different case —
+duplicate *workers* on one alert, prevented structurally by the fingerprint constraint — and
+does not cover this one.
+
+**`REJECTED` — genuinely absent.** Failure row 8, "Wrong root cause confidently reported",
+detects via "Human rejects hypothesis in UI" and recovers via "Rejection triggers targeted
+re-investigation." There is no state for a rejected hypothesis. That row has no reachable
+outcome in this machine, and it is the row the whole propose-never-execute posture exists to
+handle.
+
+### Why this was invisible
+
+Each document was consistent with the one it read: the enum cites `ARCHITECTURE.md`,
+`ARCHITECTURE.md` cites this ADR, this ADR cites `ARCHITECTURE.md`. Nothing in that loop
+touches the specification, which lived outside the repository until 2026-09-01. And the
+counts matched — so even a careful reader comparing eleven to eleven would have moved on.
+**A matching cardinality is not a matching set.** This is the same defect this project keeps
+finding, in its purest form.
+
+### What T2.3 does about it
+
+`tests/test_orchestrator.py` now encodes the specification's state names, the three
+absences, and which failure row each absence costs.
+`test_the_matching_count_is_a_coincidence` fails if anyone adds or removes a state without
+re-reading p.5.
+
+`REJECTED` is **not** added here. Giving it transitions means designing the action plane,
+which has no task number (`docs/PLAN.md`, "Discovered omissions"). The test is written so
+that landing the action plane without giving row 8 a state fails.
+
+One note on the shape of the tests: a first draft asserted that both members of `TERMINAL`
+had no successors, and failed. `RESOLVED` accepts a reopen by design (see `ALLOWED`), so
+`TERMINAL` means end-of-lifecycle, not zero out-edges. The test now asserts the real
+invariant — `FAILED` is absolute, and `RESOLVED` may reopen backward but may never step
+into another end state.
+
+## Addendum 2 (T2.3, 2026-09-01) — the three states, built; and two corrections to Addendum 1
+
+Addendum 1 recorded the divergence and left it. This one closes it: `REJECTED`,
+`BUDGET_EXHAUSTED` and `DUPLICATE_MERGED` now exist, and the machine has **fourteen** states.
+
+Nothing in `docs/spec/` was amended. The specification asked for these and the repository
+did not have them; this is the repository catching up.
+
+### Two things Addendum 1 got wrong
+
+**`BUDGET_EXHAUSTED` is not superseded.** Addendum 1 argued ADR-0020 §5's flagged verdict
+replaced it. T2.3's own text says the state is *"re-enterable when the cap is raised"*, and
+re-enterability is a lifecycle property a verdict flag does not have. The two are
+complementary, not alternative: the partial verdict is still produced and still scoreable —
+that is what §5 protects — and the incident parks in `BUDGET_EXHAUSTED` so a person can raise
+the cap and resume. Addendum 1 mistook "there is a mechanism nearby" for "the requirement is
+met", which is the failure mode this ADR is otherwise about.
+
+**`DUPLICATE_MERGED` covers two rows, not one.** T2.3 names it
+*"(alert-storm and two-workers rows)"*. Addendum 1 assigned it only the alert-storm row and
+argued the two-workers row was separately handled by the fingerprint constraint. The
+constraint prevents a duplicate *investigation*; it does not give the duplicate *incident* an
+end state, which is what the plan asked for. Both rows are now mapped to it in
+`tests/test_orchestrator.py`.
+
+### Why fourteen and not eleven
+
+The specification states a count on p.5 and an acceptance criterion in T2.3, and they are
+different kinds of claim. The criterion — *"every row of the spec's failure-scenario table
+names a reachable state"*, repeated by Gate 2 — is normative. The count is descriptive, and
+the document contradicts it one page later: p.6's agent table gives the investigation planner
+and the remediation proposer their own rows, and failure row 1's recovery is *"queued
+incidents resume"*. `PLANNING`, `PROPOSING` and `QUEUED` are the specification agreeing with
+itself more thoroughly than its own state line did. Building to fourteen satisfies the
+criterion; staying at eleven-that-are-not-those-eleven satisfies neither.
+
+### The transitions, and why each
+
+`REJECTED` is entered from `SYNTHESIZING`, `PROPOSING` and `AWAITING_APPROVAL` — the three
+states in which a hypothesis exists to reject — and exits to `PLANNING`, because T2.3's
+*"exits to targeted re-investigation"* means re-planning with the rejection as an input.
+
+`BUDGET_EXHAUSTED` is entered from any agent-driven phase and also exits to `PLANNING`, not
+mid-dispatch: the plan it was executing was costed against the old cap.
+
+`DUPLICATE_MERGED` is absolutely terminal — a merged incident has no reopen — and is entered
+from `OPEN`, `QUEUED` and the agent-driven phases, but **not** from `AWAITING_APPROVAL` or
+`EXECUTING`: an incident with an approval in flight is not merged out from under it.
+
+Both `REJECTED` and `BUDGET_EXHAUSTED` hold a slot against the concurrency cap, by
+`INVESTIGATING_STATES`' existing rule — an incident waiting on a human is still in flight,
+and both can resume.
+
+### Two latent bugs this surfaced
+
+`PostgresIncidentStore.active_count` and `evalharness.open_incidents` each enumerated states
+as a hand-written SQL literal. Both are now derived from `INVESTIGATING_STATES` and `TERMINAL`
+respectively. Left alone, the first would have under-counted the cap and the second would have
+read a merged incident as open forever. Neither has a test, because
+`PostgresIncidentStore` is not exercised by `make check` — which is exactly the hole T2.3's
+undelivered testcontainers integration tests were meant to fill.
+
+### What is deliberately not done
+
+Six of the fourteen states have no runtime writer: `PROPOSING`, `AWAITING_APPROVAL`,
+`EXECUTING`, `REJECTED`, `BUDGET_EXHAUSTED`, `DUPLICATE_MERGED`. That set is asserted in
+`NO_RUNTIME_WRITER`, so moving a state out of it costs a deliberate test edit rather than
+happening quietly. Wiring budget exhaustion in particular is a behaviour change and belongs
+in its own commit — a transition table and a change to what the system *does* should not ride
+in together.
