@@ -200,7 +200,7 @@ declines 28% of service pairs, so two incidents can be live at once for the firs
 `docs/adr/0017-context-layer-graph-and-dependency-policy.md`,
 `docs/evidence/t2.4-dependency-graph/README.md`, `docs/ARCHITECTURE.md:21`
 
-### T2.4b — corpus seeding *(built)*
+### T2.4b — knowledge stubs *(partly built)*
 Seeds the past-incident store from `evals/scenarios/artifacts/dev/` **only**. The input is
 `incident.md` — the hand-written narrative in each bundle.
 `docs/adr/0008:80`, `evals/scenarios/ARTIFACTS.md:127`, `evals/scenarios/SPLIT.md:62`
@@ -219,6 +219,25 @@ and the embedder stamp verified against `vector_dims(embedding)`. The same run i
 live demonstration of ADR-0008's axis-2 exclusion** — a scenario's own symptoms retrieve its
 own narrative at rank 1 in both arms without `exclude_origin`, and not at all with it.
 `faultline-seed` is the entry point.
+
+**Audit, 2026-09-01 — this task has three deliverables and had delivered one.** The
+deliverable line is *"Seeded runbook corpus + past-incident store + read-only allowlist"*.
+What is described above is the **past-incident store**, and it is good work. The other two
+were absent, and the seven documents made the gap hard to see: they are all `scenario:*`, so
+a reader counting corpus documents against the plan's *"~15 runbooks"* concludes the corpus
+is short when in fact **the runbook corpus is empty** — not one document carries
+`origin: authored`, and no runbook exists anywhere in the tree, though ADR-0008 specified
+both the directory and the stamp.
+
+**The allowlist landed today**: `knowledge/allowlist.yaml`, four actions covering the four
+remediation classes, with `scale` listed and marked unperformable against ADR-0029's
+measurement. Read-only is enforced by `tests/test_allowlist.py` rather than asserted in
+prose. See ADR-0032.
+
+**The runbooks queue rather than land.** `freeze.corpus_state()` hashes every chunk as
+`document_id|section`, so seeding runbooks into `incident_chunks` moves the freeze and
+re-founds comparability for every scored run afterwards. Authoring them to disk is free;
+seeding them is not. Queued as **Q15**.
 `src/faultline/context/`, `docs/adr/0018-past-incident-corpus.md`,
 `docs/evidence/t2.4b-corpus-smoke/README.md`, `docs/adr/0002:8`, `docs/adr/0008:80`,
 `evals/scenarios/ARTIFACTS.md:154`

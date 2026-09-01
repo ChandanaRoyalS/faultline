@@ -1,0 +1,79 @@
+# The allowlist action catalog (T2.4b).
+#
+# READ-ONLY. Nothing in this system writes this file: it is the document the action plane
+# validates proposals against, and a catalog a compromised investigation runtime could edit
+# is not a control. See ADR-0032.
+#
+# Read-only is not the same as executable. T2.4b delivers this as a versioned document;
+# T6.2 is the task that makes its entries runnable. Until then the proposer (T3.9) may cite
+# an entry and nothing may perform one.
+
+catalog_version: 1
+origin: authored
+
+actions:
+  - id: rollback_image
+    remediation_class: rollback
+    summary: >-
+      Redeploy the service at the image tag it ran before the most recent change, and
+      recreate its container.
+    target_selector: incident_scoped_service
+    preconditions:
+      - A prior image tag for this service is recorded in change history.
+      - The incident's evidence names a deploy or image change inside its window.
+    blast_radius: >-
+      One service. Callers see the connection reset while the container recreates; the
+      dependency graph's inbound edges name who.
+    reversible: true
+    approval: required
+    status: available
+    excluded_targets: []
+
+  - id: restart_service
+    remediation_class: restart
+    summary: >-
+      Recreate the service's container without changing its image or configuration.
+    target_selector: incident_scoped_service
+    preconditions:
+      - The evidence points at process state rather than at a change.
+    blast_radius: >-
+      One service, for the duration of the recreate. Discards in-process state, which for
+      this world's services is cache only.
+    reversible: false
+    approval: required
+    status: available
+    excluded_targets: []
+
+  - id: revert_config
+    remediation_class: config_revert
+    summary: >-
+      Restore the service's previous environment and configuration, and recreate it.
+    target_selector: incident_scoped_service
+    preconditions:
+      - A prior configuration for this service is recorded in change history.
+      - The evidence names a configuration or flag change inside the incident window.
+    blast_radius: >-
+      One service. Where the reverted value is a dependency address, the services it was
+      pointing at see traffic move.
+    reversible: true
+    approval: required
+    status: available
+    excluded_targets: []
+
+  - id: scale_service
+    remediation_class: scale
+    summary: >-
+      Increase a service's replica count.
+    target_selector: incident_scoped_service
+    preconditions: []
+    blast_radius: >-
+      Not applicable - this action cannot run in this world.
+    reversible: true
+    approval: required
+    status: unperformable
+    unperformable_reason: >-
+      ADR-0029 measured it: Docker Compose refuses to scale a service that declares
+      `container_name`, and 25 of this world's services declare one. The class is listed
+      here rather than omitted so that its absence is a recorded fact instead of a hole -
+      and so nothing proposes an action the world cannot perform.
+    excluded_targets: []
