@@ -52,3 +52,14 @@ repos:
         language: pygrep
         entry: '(?i)(co-authored-by:.*(claude|anthropic)|generated with.*claude)'
         stages: [commit-msg]
+      # T7.47: branch-before-commit was a rule followed by memory, and it failed once -
+      # T7.46 committed to main and was caught only because the push had no branch to match.
+      # Every one of the last 40 commits on main carries a `(#NN)` squash-merge suffix, so
+      # nothing legitimate commits there locally, and merges happen on GitHub's side where
+      # this hook never runs. Escape hatch: `git commit --no-verify`.
+      - id: no-commit-on-main
+        name: refuse a commit on main (branch first)
+        language: system
+        entry: scripts/no-commit-on-main.sh
+        always_run: true
+        pass_filenames: false

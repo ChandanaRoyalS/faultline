@@ -43,6 +43,10 @@ make demo        # ~15 minutes, real model calls
 younger than **300 seconds** — a container still warming up produces readings that are not a
 baseline. Running `make demo` too early is refused with that reason, not broken.
 
+**This world has known pathologies** — a checkout stall, kafka growing under emulation — that
+produce refusals on a world you have not touched. They are properties of the environment, not
+bugs in your setup: [what the refusals mean](docs/TROUBLESHOOTING.md).
+
 It needs an Anthropic key in `~/.faultline-anthropic-key` or `ANTHROPIC_API_KEY`, and it
 refuses with instructions if the world is down or the key is missing. Nothing else here needs
 a key — `make check` runs offline.
@@ -78,6 +82,32 @@ wrote, is in [`docs/demo/`](docs/demo/) — [`transcript.txt`](docs/demo/transcr
 The demo run is an ordinary run — same gate, same revert, same recovery check, recorded in
 `evals/runs/` like any other — but it is marked `demo` in its manifest and **no aggregate ever
 counts it**, because a run made to be watched is not a sample. A test pins that exclusion.
+
+## Scoring a scenario
+
+The demo is one narrated run. **This is the command every figure in the results section came
+from** — one scenario, gated, injected, investigated, reverted, scored.
+
+```bash
+make eval SCENARIO=cart-redis-misconfig INTENT=--single-run
+uv run faultline-inject list        # the scenario ids
+```
+
+**`INTENT` is mandatory and has no default.** It is either `--single-run`, or
+`--runs-remaining N` counting down across a sweep — 6 on the first of six, 1 on the last. The
+baseline gate projects kafka's memory forward over the work still to come and cannot do that
+unless told what the work is, and **defaulting silently to the weaker check would be a guard that
+protects you only if you remembered it**. A run without it refuses having injected nothing.
+
+**Exit codes:** `0` scored · `2` refused before anything was injected · `3` the baseline gate
+refused · `4` discarded, with the reason in the run directory's `DISCARDED.md` · `5` paused on a
+clearable precondition. **A refusal is not a failure of your setup** — see
+[what the refusals mean](docs/TROUBLESHOOTING.md).
+
+The run lands in `evals/runs/<timestamp>-<scenario>/` with its manifest, verdict, narrative and
+score. **Recording a *new* scenario is a different job** with a contract worth reading first —
+which steps wait and for how long, and why a recorder that looks stuck is usually working:
+[the rehearsal contract](evals/scenarios/ARTIFACTS.md).
 
 ## Bundles
 
