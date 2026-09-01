@@ -661,3 +661,62 @@ and T7.0's four further fault classes are the honest way to buy more.
 | **1** | T4.5's taxonomy-instruction pipeline | `prompts:53fafe9c12bc` | 4 | `HOLDOUT-2026-08-26.md` |
 | **2** | T4.7's raised-bound configuration | `prompts:53fafe9c12bc` | 8 | `HOLDOUT-2026-08-26-entry2.md` — **1 of 3 scored**, two discarded to an empty API account and **not re-run** |
 | **3** | T4.14's return-to-locus pipeline (dev sweep 5) | `prompts:1b0e7cbb4c47` | 8 | `HOLDOUT-2026-08-27-entry3.md` — condition 2 met **under strain**; `email-wrong-image`'s row is corroborative, not confirmatory |
+
+---
+
+## Addendum (T7.53): entry 4 assessed against the T4.15 limit, and **not opened**
+
+The T4.15 addendum ended by saying entry 3 **should be the last entry before the set is re-authored
+or extended**, and noted it could not enforce that on its successor. This is the successor, and it
+is enforcing it on itself. The full assessment is
+[`HOLDOUT-2026-09-01-entry4-NOT-OPENED.md`](../../evals/runs/HOLDOUT-2026-09-01-entry4-NOT-OPENED.md);
+what belongs in the ADR is the decision and the two things that make it non-obvious.
+
+**The four conditions pass — that is not what stopped it.** Condition 1 is met by dev sweep 7
+(T7.29, 8/8 scored on the current world). **Condition 2 is met without qualification, which no
+previous entry managed**: the change entry 4 would test is T7.28's world fix, and every input to it
+came from T7.27/T7.29's kafka investigation on **dev sweeps**. Entries 2 and 3 both met condition 2
+*under strain* because a holdout observation had informed the change; entry 4 has no such leak.
+Conditions 3 and 4 were within reach — the prediction is drafted and deliberately not activated,
+and no prior entry file was touched.
+
+**What stopped it is that the set was never extended.** `evals/scenarios/artifacts/holdout/` holds
+the same three bundles; the fourth `split: holdout` YAML, `flag-service-bad-deploy`, is blocked and
+produces no bundle. SPLIT.md's three free holdout slots — `bad_config-5`, `bad_config-6`,
+`bad_deploy-6` — were **allocated at T7.35 and never filled**, and every scenario authored since
+went to a dev slot. **Allocating capacity is not extending the set**, and entry 4 would have made
+the exposures 4 / 3 / 3, which is the arithmetic T4.15 described.
+
+**The entitlement argument is stronger than it has ever been, and still loses.** Both prior addenda
+rejected a flat *no* on the ground that a holdout number which can never be refreshed describes a
+system that no longer exists. **That is now true in its strongest form: all seven holdout runs
+predate T7.28, so every published holdout figure describes the superseded world
+`299d791c5e0d…` and there are zero current-world holdout figures.** It loses for the reason T4.15
+gave when declining T7.1's schedule: urgency created elsewhere says nothing about whether the set
+can bear another read. Spending the last comfortable read of a three-scenario set to refresh a
+stale number makes the arm thinner, not stronger — and the remedy is allocated and waiting.
+
+**A gap in §3.3 found on the way, recorded and not fixed.** The freeze table enumerates six items —
+prompts, corpus, model map, budget, tool layer, judge — and **the world digest is not among them**.
+Entry 3 and a hypothetical entry 4 share a stamp and would pass every freeze check while having run
+against different worlds. §3.3's *"a holdout run whose manifest does not match the dev run it is
+being compared against is not a comparison"* therefore does **not** catch a world move; only the
+superseded-world banners on the three entry files record it. Whether the world belongs in the freeze
+table is a decision of its own and is not taken here.
+
+### The ledger
+
+| entry | reported result it belongs to | stamp | world | `changes` bound | file |
+|---|---|---|---|---|---|
+| **1** | T4.5's taxonomy-instruction pipeline | `prompts:53fafe9c12bc` | `299d791c5e0d` *(superseded)* | 4 | `HOLDOUT-2026-08-26.md` |
+| **2** | T4.7's raised-bound configuration | `prompts:53fafe9c12bc` | `299d791c5e0d` *(superseded)* | 8 | `HOLDOUT-2026-08-26-entry2.md` — **1 of 3 scored**, two discarded to an empty API account and **not re-run** |
+| **3** | T4.14's return-to-locus pipeline (dev sweep 5) | `prompts:1b0e7cbb4c47` | `299d791c5e0d` *(superseded)* | 8 | `HOLDOUT-2026-08-27-entry3.md` — condition 2 met **under strain**; `email-wrong-image`'s row is corroborative, not confirmatory |
+| **4** | *would be T7.29's dev sweep 7* | — | — | — | `HOLDOUT-2026-09-01-entry4-NOT-OPENED.md` — **assessed and declined; nothing ran, \$0 spent, exposures unchanged at 3 / 2 / 2** |
+
+**Agent exposures are unchanged: `email-wrong-image` 3, `productcatalog-dependency-latency` 2,
+`recommendation-memory-squeeze` 2.**
+
+**What unblocks entry 4:** fill at least one free holdout slot with a recorded, rehearsed scenario —
+`bad_config` first, since it has zero holdout representation and the most unexplored paths. The set
+is then extended on T4.15's own terms, the four conditions already pass, and dev sweep 7's
+entitlement is waiting. Queued as **Q9**.

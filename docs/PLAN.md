@@ -1573,6 +1573,72 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.53 — holdout entry 4, assessed and **not opened** *(no spend; \$0)*
+**Done** ([`HOLDOUT-2026-09-01-entry4-NOT-OPENED.md`](../evals/runs/HOLDOUT-2026-09-01-entry4-NOT-OPENED.md),
+[ADR-0022 T7.53 addendum](adr/0022-evaluation-harness.md)). Branched and confirmed first.
+**Nothing ran. No holdout scenario was injected, no agent saw one, exposures unchanged at 3 / 2 / 2.**
+
+**The protocol names this entry, and it says not yet.** T4.15's addendum - the argument that opened
+entry 3 - closes: *"This should be the last entry before the set is re-authored or extended … a
+three-scenario set read four times is no longer a holdout in any sense a reader would recognise."*
+**The set was never extended.** `artifacts/holdout/` holds the same three bundles; the fourth
+`split: holdout` YAML, `flag-service-bad-deploy`, is **blocked** and produces no bundle; and SPLIT.md's
+three free holdout slots (`bad_config-5`, `bad_config-6`, `bad_deploy-6`) were **allocated at T7.35
+and never filled** - every scenario authored since went to a dev slot. **Allocating capacity is not
+extending the set.** Entry 4 would have made the exposures 4 / 3 / 3.
+
+**The four conditions all pass, which is the interesting part.** Condition 1 met by dev sweep 7
+(T7.29, 8/8 on the current world). **Condition 2 met without qualification - which no previous entry
+managed**: the change entry 4 would test is T7.28's world fix, and every input came from T7.27/T7.29's
+kafka work on **dev**. Entries 2 and 3 both met condition 2 *under strain* because a holdout
+observation had informed the change; entry 4 has no such leak. **So the four-condition test is not
+the blocker; T4.15's successor limit is, and enforcing it on myself is the whole point of a limit
+written for a successor.**
+
+**The entitlement argument is stronger than it has ever been and still loses.** Both prior addenda
+rejected a flat *no* because a holdout number that can never be refreshed describes a system that no
+longer exists. **That is now true in its strongest form: all seven holdout runs predate T7.28, so
+every published holdout figure describes the superseded world `299d791c5e0d…` and there are zero
+current-world holdout figures.** It loses for T4.15's own reason for declining T7.1's schedule -
+urgency created elsewhere says nothing about whether the set can bear another read.
+
+**Verified, as asked, and one of the two answers was not the expected one.** Stamp
+`faultline/0.0.1+prompts:1b0e7cbb4c47` **unmoved**; `compose_digest f5bd108f4f70f460…` and
+`observability_digest 857d95b4d174ec43…` **both as recorded**, so T7.48's rebuild claim holds as a
+check rather than a discovery. **But the stamp was never the binding constraint**: entry 3 ran under
+*this same stamp* against a *different world*, so comparability with entries 1-3 is broken by the
+world move, not the stamp. Nothing environmental blocked it either - the gate passes at kafka
+**37.14%** against an **82.31%** threshold for three runs.
+
+**A gap in §3.3, recorded not fixed.** Its freeze table enumerates six items - prompts, corpus, model
+map, budget, tool layer, judge - and **the world digest is not among them.** A hypothetical entry 4
+would pass every freeze check while having run against a different world than entry 3. §3.3's *"not a
+comparison"* rule does not catch a world move; only the superseded-world banners do. Whether the
+world belongs in the freeze table is its own decision and was not taken.
+
+**Cost stated before deciding rather than after: estimate \$1.7-1.9, within the \~\$2 ceiling** (entry
+3's three scenarios cost \$1.7844 at the same bound and stamp; T7.51's two current-world runs at
+\$0.5387 and \$0.5175 give ≈\$1.60 + ≈\$0.13 judged). **Cost is not why this stopped.** It was
+affordable, the gate passed, the money was there. It stopped on the protocol.
+
+**The arm as it stands: 7 agent-facing runs, 3 entries, 3 scenarios, 4 answered - fault class 4/4,
+judged `same_mechanism` 4/4** (T7.52's roster). **It cannot support a claim, and n is the smaller of
+two reasons.** Every figure describes a world that no longer exists; four answered runs over three
+scenarios, three of them from one entry, two of which answered correctly the last time they were
+asked; and one of the three, `email-wrong-image`, is *corroborative not confirmatory* by T4.15's own
+label. **This arm remains underpowered, and spending its last comfortable read to refresh a stale
+number would have made it thinner rather than stronger.**
+
+**The prediction is drafted and deliberately NOT ACTIVATED** (§6 of the entry file), with both
+directions of a dev/holdout gap and their limits stated: at n = 3 one abstention moves the figure 33
+points, so neither *worse* nor *equal-or-better* is powered - which is the finding the set supports
+whether or not the runs happen. If ever activated it must be **re-committed as its own file with the
+date it was actually registered**; a prediction copied out of an existing document is not a
+registration.
+
+**Queued: Q9** - fill one free holdout slot, `bad_config` first (zero holdout representation, most
+unexplored paths). That is what unblocks entry 4 on T4.15's own terms.
+
 ### T7.52 — judged mechanism agreement across the whole corpus *(live; \$0.0715)*
 **Done** ([`docs/evidence/t7.52-corpus-judge/`](evidence/t7.52-corpus-judge/)). Branched and
 confirmed first. **Nothing in RESULTS.md or README changed, and that is the finding.**
