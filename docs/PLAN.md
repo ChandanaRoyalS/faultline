@@ -119,18 +119,39 @@ correlation is deliberately **not** decided here.
 against), `docs/evidence/t2.1-live-smoke/README.md` (the receiver running live),
 `docs/evidence/gate-1/README.md:19`
 
-### T2.2 — orchestrator *(built)* / T2.3 — agent fan-out
-Event consumption, an eleven-state incident machine, agent fan-out. ADR-0001 commits to a
-global investigation concurrency cap with severity-ordered overflow.
+### T2.2 — event bus *(built)* / T2.3 — state machine + DB *(partly built)*
+
+> **Numbering note (2026-09-01).** This section was headed *"T2.2 — orchestrator / T2.3 —
+> agent fan-out"* until today. Those are not the specification's task names: `docs/spec/`
+> gives T2.2 as the event bus and T2.3 as the state machine and schema, and fan-out is T3.5.
+> The headings are corrected here; the mislabelling is recorded rather than erased, because
+> it is the same defect as the state sets — an index reconstructed from the code cannot
+> disagree with the code, and until 2026-09-01 there was nothing in the repository for it to
+> disagree with.
+
+Event consumption, a fourteen-state incident machine, the concurrency cap. ADR-0001 commits
+to a global investigation concurrency cap with severity-ordered overflow.
 
 **T2.2 is built:** the consumer loop, correlation behind a `CorrelationPolicy` seam
-(`TimeOverlapPolicy` now, `DependencyPolicy` at T2.4), the eleven-state machine with an
-enforced transition table, the cap, and incident persistence to Postgres. The states that
-need T3.x and the action plane are present and stubbed, and calling one says which task owns
-its contract. **T2.3 is not**, and cannot be until T3.x exists.
+(`TimeOverlapPolicy` now, `DependencyPolicy` at T2.4), the cap with severity-ordered
+overflow, incident persistence to Postgres, and the kill-a-worker test its deliverable names
+(`tests/test_orchestrator.py`, "a worker dies mid-flight").
+
+**T2.3 is partly built.** The machine is: fourteen states with an enforced transition table,
+property-tested for reachability, and every row of the specification's failure-scenario table
+now names a reachable state — T2.3's acceptance criterion, and Gate 2's. See ADR-0016
+Addenda 1 and 2. States that need T3.x and the action plane are present and stubbed, and
+calling one says which task owns its contract; the six with no runtime writer are asserted in
+`NO_RUNTIME_WRITER` so the set cannot shrink silently.
+
+**Three of T2.3's deliverables are absent** (found by audit, 2026-09-01): there are no
+migrations, no testcontainers integration tests against real Postgres and Redis, and no
+S3-compatible archive for raw evidence payloads and rendered reports. The deliverable line
+reads *"Schema + migrations + tested state machine + report/evidence archive"*; two of those
+four exist. `PostgresIncidentStore` consequently has no test of any kind.
 
 **ADR-0016 designs all of it** and closes the "contract not written" marker this entry
-carried: incident correlation, the eleven states with a trigger on every transition,
+carried: incident correlation, the states with a trigger on every transition,
 consumer-group ack semantics — an event is processed when its incident state change is
 durable, not when the investigation finishes — and the cap, its severity source, and its
 overflow order.
@@ -201,6 +222,26 @@ own narrative at rank 1 in both arms without `exclude_origin`, and not at all wi
 `src/faultline/context/`, `docs/adr/0018-past-incident-corpus.md`,
 `docs/evidence/t2.4b-corpus-smoke/README.md`, `docs/adr/0002:8`, `docs/adr/0008:80`,
 `evals/scenarios/ARTIFACTS.md:154`
+
+### T2.5 — LLM gateway *(partly built)*
+One choke point for model calls: retries with backoff and jitter, transient-failure
+classification, and optional fallback models that record every substitution. Budgets and the
+provider boundary arrived earlier as T3.3 and T3.2 rather than here. **Provider routing and
+the verified self-hosted seam remain unbuilt** — the deliverable names *"verified
+self-hosted seam"* and nothing has been run against an OpenAI-compatible endpoint.
+`src/faultline/agents/model.py`, `tests/test_model_resilience.py`,
+`docs/adr/0031-retries-substitutions-and-what-t2-5-never-built.md`
+
+### T2.7 — thin slice *(built)*
+One agent wired end to end: alert in → tool calls → typed findings persisted → rendered in a
+report. Delivered, and delivered wider than the task asked — the task specifies one agent and
+one tool, and the run that satisfied it went from triage through a planner, six specialist
+dispatches over two rounds, a synthesizer verdict and a rendered narrative.
+
+The evidence is filed under T3.4's name because that is the task that ran it; nothing until
+now recorded that T2.7's milestone had been reached, which is why the first end-to-end
+investigation existed for a week without any document saying the phase-2 integration risk had
+died. `docs/evidence/t3.4-first-investigation/README.md`
 
 ### T2.6 — tools *(built)*
 Typed tools with scoped read-only credentials and trust-labelled results. Also bound by
