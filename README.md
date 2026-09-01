@@ -69,7 +69,10 @@ returned `unknown`. **Saying `unknown` rather than guessing is a designed behavi
 breakdown** — an abstention is reported as coverage and kept out of the accuracy figure entirely,
 so the system is never rewarded for a confident wrong answer. What the run leaves open — why the
 planner sometimes spends its budget without reaching the one service that holds the answer — is
-the next experiment queued in [`docs/PLAN.md`](docs/PLAN.md).
+recorded under *What remains* in
+[`docs/RESULTS.md`](docs/RESULTS.md). *(Was "the next experiment queued in docs/PLAN.md"; the
+register moved to [`docs/QUEUE.md`](docs/QUEUE.md) at T7.45 and this question is not in it —
+corrected T7.59.)*
 
 Counting it, the record at this configuration is **6 correct out of 7**. It is left as it fell
 rather than re-run until it looked better: a demo that is re-rolled until it impresses is an
@@ -171,7 +174,9 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 > confirmed to still resolve to the image every bundle records, which is a **weaker substitute**
 > for a cold pull, not a replacement. **No scored run has happened since the rebuild**, so the
 > *world* is identical and whether it yields comparable *figures* is untested. And the demo end to
-> end **remains unverified for want of API credit**.
+> end **remains unverified** — it has not been re-run since the rebuild.
+> *(Was "for want of API credit"; credit has since been available and 19 scored runs have been made
+> on this world. The demo simply has not been re-run — corrected T7.59.)*
 >
 > **Every figure below this banner, and in [`docs/RESULTS.md`](docs/RESULTS.md) except where it
 > says otherwise, was measured on an earlier world and is labelled as such.** Comparing across
@@ -207,6 +212,23 @@ with that number and are stated in full there: `email-wrong-image`'s row is corr
 than confirmatory, and **n = 3 with no interval is not a benchmark**. Every entry is numbered and
 counted in ADR-0022's ledger; entries 1 and 2 stand unedited.
 
+> **Three things a reader should not have to infer, added T7.59.**
+>
+> **All three entries ran on `compose_digest 4a7690c6fdda…` — two worlds back.** Entry 3 shares the
+> *stamp* with HEAD, which is what the line above says and all it says. **There are zero
+> current-world holdout figures**, and every current-world run in this repository is a dev run
+> (T7.54's reconstruction; the per-entry banners were corrected there).
+>
+> **Entry 4 is blocked indefinitely, not pending.** ADR-0022's T4.15 addendum permits a further
+> entry only once the holdout set is re-authored or extended. T7.56 designed and gated a fifth
+> `bad_config` scenario and **abandoned it at its first gate**; T7.57 established that **this world
+> has no fifth fault class**
+> ([ADR-0029](docs/adr/0029-four-fault-classes-and-why-there-is-no-fifth.md)). **No more holdout
+> evidence is coming without a different demo world.**
+>
+> **So the holdout arm is what it is: three entries, seven agent-facing runs, four answered, on a
+> world two generations superseded.** It cannot support a claim, and that is the claim.
+
 | scenario | ground truth | fault class | class of fix | judge (SHARED LINEAGE) |
 |---|---|---|---|---|
 | email-wrong-image | `bad_deploy` / `rollback` | `unknown` — **abstained** | abstained | `different` |
@@ -219,7 +241,7 @@ counted in ADR-0022's ledger; entries 1 and 2 stand unedited.
 | `dependency_latency` | 1 | **1 / 1** | 0 / 1 | 0 |
 | `resource_exhaustion` | 1 | — / 0 | — / 0 | 1 |
 | `bad_config` | **0** | no holdout scenario | | |
-| `scale` | **0** | no scenario at all | | |
+| ~~`scale`~~ | — | **not a fault class.** `scale` is a *remediation* class, so this row is a remediation sitting in a fault-class table ([ADR-0024](docs/adr/0024-the-scale-class-and-what-this-world-can-show.md)). Struck T7.59, kept so the mislabel stays visible | | |
 
 **n = 3 runs, 1 per class.** Triage recall **1.00** (n=3), precision 0.32. Cost $1.08 + $0.12
 judged. Two of three runs exhausted their `changes` tool-call budget.
@@ -248,7 +270,7 @@ Shown for context only. Same seven scenarios, two pipelines.
 | `bad_deploy` | 2 | 2 / 2 | 1 / 1 | 1 |
 | `dependency_latency` | 1 | **0 / 1** | **1 / 1** | 0 |
 | `resource_exhaustion` | 2 | **0 / 2** | **1 / 1** | 1 |
-| `scale` | **0** | no scenario | | |
+| ~~`scale`~~ | — | **not a fault class** — see above ([ADR-0024](docs/adr/0024-the-scale-class-and-what-this-world-can-show.md)). Struck T7.59 | | |
 
 [`SWEEP-2026-08-26.md`](evals/runs/SWEEP-2026-08-26.md) ·
 [`SWEEP-2026-08-26-taxonomy.md`](evals/runs/SWEEP-2026-08-26-taxonomy.md)
@@ -263,7 +285,10 @@ halves, and either alone is misleading.
 
 ### What these numbers are not
 
-n is 3 on holdout and 7–8 per dev sweep, with 0–3 scenarios per fault class, and the two most recent scenarios are scored at n = 2. A 95% confidence
+n is 3 on holdout and 7–8 per dev sweep, with 0–3 scenarios per fault class. **On the current world
+the whole evidence base is 19 scored runs across 10 of the 13 valid scenarios, and none of them is a
+holdout run** (T7.59). The two scenarios added at T7.36 and T7.38 are now at n = 5 and n = 3
+respectively. A 95% confidence
 interval on any cell above spans most of the unit interval. **The tables support direction, not
 magnitude**, and no aggregate appears anywhere without the per-class table beside it.
 

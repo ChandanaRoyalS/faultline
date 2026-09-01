@@ -1573,6 +1573,79 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.59 — does the published record tell the truth as it now stands? *(audit; \$0)*
+**Done** ([`docs/design/t7.59-record-audit.md`](design/t7.59-record-audit.md)). Branched and
+confirmed first. **Fifteen corrections, no section restructured.** Every one is a wrong sentence or
+a missing one; T7.47's lesson stands and the front door is four sentences longer than it was.
+
+**The worst error found is a heading.** RESULTS.md carried a section titled **"Dev, on the world
+that exists"** calling **sweep 6** *"the current-world benchmark"* - and sitting **above** the
+divider headed *"the figures below were measured against a world that no longer exists"*. T7.28
+moved the world and T7.29 re-founded on it; **T7.54 corrected the banner on every file in
+`evals/runs/` and did not reach this heading.** A stranger reading the document in order would take
+sweep 6 for the current result.
+
+**Six claims had drifted forward.** The heading above; **17 scenarios authored -> 18, four blocked
+-> five** (T7.56); *"the two most recent scenarios are scored at n = 2"* -> **n = 5 and n = 3**;
+*"six items are hashed"* in the freeze -> **seven** (T7.54/T7.55); the demo *"unverified for want of
+API credit"* -> **credit has been available for 19 scored runs, it simply has not been re-run**; and
+a pointer to *"the next experiment queued in PLAN.md"* when the register moved to QUEUE.md at T7.45.
+
+**Four had drifted the other way, which is the rot T7.45 named.** *"Re-entering the holdout under
+the new stamp … has not been made"* - **entry 3 is that re-entry, and the same paragraph says so
+three lines above**; *"the other two holdout scenarios are still untested under the raised bound"* -
+**entry 3 tested all three**; *"the baseline gate's blindness to recently-resolved incidents"* -
+**fixed, and T7.58 watched it refuse three runs in four seconds for exactly that reason**;
+*"variance is measured for exactly one of ten scenarios"* - **two of thirteen**. **A caveat that
+outlived its answer misleads as much as a claim that outlived its world.**
+
+**Two mislabels ADR-0024 had already identified and nobody had applied to the front door.** README's
+two **fault-class** tables each carry a `scale` row; `scale` is a *remediation* class. ADR-0024 named
+this exact defect in a sweep report at T7.13 and it survived in the README for three weeks. Struck,
+not deleted, so the mislabel stays visible.
+
+**Three things were missing rather than wrong, and they are what this arc left half-stated.**
+**(1)** README said entry 3 ran *"under the current stamp"* - true, and all it said. It did not say
+**all three entries ran on `4a7690c6fdda…`, two worlds back**, that there are **zero current-world
+holdout figures**, or that **entry 4 is blocked indefinitely rather than pending**. A reader was
+left expecting more holdout evidence to arrive. **(2)** Nothing told a reader how much evidence
+stands behind the headline: sweep 7 is **8 runs**, the **entire current-world corpus is 19 scored
+runs over 10 of 13 scenarios and none of them holdout**, and **69 of 97 manifest-carrying runs
+describe a world two generations back** - the current world holds **under a fifth of the record**.
+**(3)** *What remains* had come to hold open questions and settled limits in one list, so a reader
+met "the catalog is thirteen" and "entry 4" as work someone might still do. Four items are now marked
+as **limits of this world**: catalog closed at thirteen, no fifth fault class (ADR-0029), capture set
+closed by decision (Q1), holdout arm finished at three entries.
+
+**And one figure was simply four months stale.** The axis-2 contamination evidence quoted
+`trajectory_retrievals: 26 rows · 26 carry exclude_origin`, the count when T3.2 first published it.
+**Re-read live: 88 of 88, zero returning their own origin.** The invariant held; the number had not
+been looked at. **A count that only grows is worth re-reading rather than quoting from memory.**
+
+**The stranger's question, answered honestly.** *How much should I trust it* was already answered
+well - n stated, intervals disclaimed, SHARED LINEAGE on every judged figure, coverage never quoted
+apart from accuracy - and now a reader can also see **how much evidence exists and on which world**,
+which was the one thing missing. *What does it measure* is answered **in pieces that are not in one
+place**: the score is a class and a class of fix, the judge assesses the mechanism named, and
+**T7.44 established that warrant is assessed nowhere.** T7.52 measured what the first two can and
+cannot see - 52/56 both ways, **not the same 52 runs**, six disagreements in both directions - and
+**that finding is in an evidence directory, not in RESULTS.md.**
+
+**Three structural gaps recorded rather than fixed, following T7.46.** **G1** the current benchmark
+has **no section** - sweeps 4, 5 and 6 each have full tables and sweep 7 is a banner bullet; **G2**
+T7.52's comparison is not in the results document; **G3** *what this measures* has no single home.
+**All three are the same shape**: the front door and RESULTS.md are organised by *when things were
+measured* rather than by *what a reader needs first*. That is a reorganisation with an argument
+behind it, not an audit's business. **Queued as Q12**, whose trigger is a decision rather than
+evidence.
+
+**The judgement call, made rather than deferred: yes, the arc's closing state belongs where a reader
+lands - and not as a new summary.** The pieces did exist, but *What remains* was actively misleading
+by listing closed limits beside open work. **The honest fix was to correct that list rather than add
+a section duplicating it**, plus four lines in README's holdout section that a reader needs before
+drawing the wrong conclusion. **Nothing new was created**: no new page, no new banner, no summary
+document.
+
 ### T7.58 — the traceability split *(live; \$3.1475 of \~\$5.50)*
 **Done** ([`SPLIT-2026-09-01-traceability.md`](../evals/runs/SPLIT-2026-09-01-traceability.md),
 [pre-registration](../evals/runs/PREREGISTRATION-2026-09-01-traceability-split.md) committed at
