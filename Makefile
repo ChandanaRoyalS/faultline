@@ -141,3 +141,6 @@ world-ps:
 
 world-logs:
 	cd world && $(COMPOSE_WORLD) logs -f --tail=50
+
+test-integration: ## run the integration tests against real Postgres and Redis (needs Docker)
+	uv run pytest -m integration -o addopts=-q

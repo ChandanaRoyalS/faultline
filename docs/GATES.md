@@ -152,4 +152,9 @@ suite — none of which exists yet.
 
 **G5.** Its condition requires the full demo from a clean clone. T7.48 rebuilt the world
 but reused local images and said so; no cold clone-and-pull has ever been run, and the demo
-has never been executed from one.
+has never been executed from one. **2026-09-01 — the first measured evidence
+of what that costs.** T2.3's integration tests built a Postgres schema from nothing, which
+had never happened before, and `create_schema()` raised `UndefinedTable`. A clean-clone run
+of the demo would have hit it immediately. It was fixed the same hour; the point that
+survives is that this class of defect is invisible to every path except the one this gate
+names, and that path is still not run.
