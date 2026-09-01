@@ -1,8 +1,12 @@
 """The holdout freeze manifest (T4.6, ADR-0022 §3.3).
 
-"Frozen" has to mean something a script can check, or it means nothing. These pin that the six
+"Frozen" has to mean something a script can check, or it means nothing. These pin that the seven
 items are all present, that the one that is also a contamination check reports a number rather
 than folding into a hash, and that `diff` notices when any of them moves.
+
+T7.54 added the seventh, `world`, and with it the rule that **absence reads as `unverifiable`
+rather than as unchanged** - the failure mode that let 69 of 97 recorded runs be attributed to a
+world generation they did not execute against.
 """
 
 from __future__ import annotations
@@ -26,15 +30,80 @@ def manifest() -> dict:
         "budget": freeze.budget_bounds(4, 120_000),
         "tool_layer": {"git_sha": "deadbeef", "git_dirty": False},
         "judge": freeze.judge_state(),
+        "world": {
+            "compose_digest": "f5bd108f",
+            "observability_digest": "857d95b4",
+            "ffs_stub_source_digest": "8defed31",
+            "otel_demo_image_digest": "sha256:97d55955",
+            "capability_version": "cap:9c416e0a",
+            "unverifiable_fields": [],
+        },
     }
 
 
-def test_all_six_frozen_items_are_present() -> None:
-    """ADR-0022 §3.3 enumerates six. A manifest missing one is a freeze with a hole in it."""
+def test_all_seven_frozen_items_are_present() -> None:
+    """ADR-0022 §3.3 enumerated six and T7.54 added the world. A manifest missing one is a
+    freeze with a hole in it, and the hole the world left was not theoretical."""
     m = manifest()
-    for item in ("prompts", "corpus", "model_map", "budget", "tool_layer", "judge"):
+    for item in ("prompts", "corpus", "model_map", "budget", "tool_layer", "judge", "world"):
         assert item in m, item
     assert m["runtime_version"].endswith("53fafe9c12bc"), "and the stamp they exist to protect"
+
+
+def test_the_world_item_covers_the_whole_provenance_family_not_only_compose() -> None:
+    """**A fix that adds one item and leaves a sibling out has not understood why it was
+    missing.** The six original items are everything the harness *constructs*; every one of these
+    is something it *observes*, which is the seam the omission fell through. `observability_digest`
+    has the strongest claim of the lot - it decides what the agent's tools can see at all.
+
+    `capability_version` is here and is *not* folded into the world: `capability.py` argues the two
+    guards must stay separate so neither double-fires and teaches a reader to ignore both.
+    """
+    world = freeze.world_state()
+    assert set(world) == {
+        "compose_digest",
+        "observability_digest",
+        "ffs_stub_source_digest",
+        "otel_demo_image_digest",
+        "capability_version",
+        "unverifiable_fields",
+    }
+    assert world["capability_version"].startswith("cap:")
+    assert "ffs_stub_image_id" not in world, (
+        "ADR-0014 refuses to compare it; freezing it would fire on nothing"
+    )
+
+
+def test_a_manifest_without_a_world_is_unverifiable_not_unchanged() -> None:
+    """**The T7.54 rule.** Every freeze manifest written before T7.54 lacks `world`, and comparing
+    two of them says nothing about whether the world moved between them. A check that answers "no
+    difference" to a question it cannot see is worse than one that says it cannot see it.
+    """
+    before = manifest()
+    old = {k: v for k, v in before.items() if k != "world"}
+    assert "world:unverifiable" in freeze.diff(old, before)
+    assert "world:unverifiable" in freeze.diff(old, old), "two blind manifests are still blind"
+    assert freeze.diff(before, before) == [], "and a manifest that does record it is not flagged"
+
+
+def test_a_world_field_that_could_not_be_read_is_unverifiable() -> None:
+    """`otel_demo_image_digest` needs a live container. `None` on both sides compares equal, and
+    equal would read as "the image did not move" when the truth is that nobody looked."""
+    before = manifest()
+    after = json.loads(json.dumps(before))
+    after["world"]["otel_demo_image_digest"] = None
+    after["world"]["unverifiable_fields"] = ["otel_demo_image_digest"]
+    assert "world:unverifiable" in freeze.diff(before, after)
+
+
+def test_diff_names_a_world_move() -> None:
+    """The check T7.53 found missing: an entry run today would have passed every freeze item
+    while having executed against a different world than entry 3."""
+    before = manifest()
+    for field in ("compose_digest", "observability_digest", "capability_version"):
+        after = json.loads(json.dumps(before))
+        after["world"][field] = "moved"
+        assert freeze.diff(before, after) == ["world"], field
 
 
 def test_the_prompt_hash_covers_every_system_constant() -> None:
@@ -135,6 +204,9 @@ def test_the_committed_freeze_manifest_matches_the_pipeline_it_names() -> None:
     # the contamination invariant the freeze exists to record still reads 0.
     assert frozen["prompts"]["sha256"]
     assert frozen["corpus"]["holdout_chunks"] == 0
+    # T7.54: this manifest predates the world item and is expected to lack it. Pinned rather
+    # than backfilled - a backfilled digest would claim a world was checked when it was not.
+    assert "world" not in frozen, "entry 1's freeze could not see the world, and says so"
 
     # Known lineage: a manifest naming a pipeline nothing here describes is untraceable.
     from tests.test_harness_run import SWEEP_1_DIGEST, SWEEP_2_DIGEST, SWEEP_4_DIGEST

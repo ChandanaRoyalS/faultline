@@ -1,13 +1,22 @@
 # Variance on the abstention path — `product-catalog-flag-failure`, five repeats
 
-> **World: superseded (T7.28).** Every figure on this page was measured against
-> `compose_digest 299d791c5e0d…`. The world moved on 2026-08-30 - kafka's allocator bounded, a
-> `maxmemory`/`allkeys-lru` bound on redis-cart, and a `memory_limiter` on the collector - and the
-> catalog was re-recorded under `compose_digest f5bd108f…` / `observability_digest 857d95b4…`.
+> **World: superseded, and two generations back — `compose_digest 4a7690c6fdda…`.**
 >
-> **These numbers describe the old world and nothing has been re-run against the new one.** They
-> are not current-world figures; there are no current-world figures. What is worth measuring
-> against the new world is a separate pre-registered decision.
+> **Corrected 2026-09-01 (T7.54).** This page previously carried T7.28's banner attributing it to
+> `compose_digest 299d791c5e0d…`. That was wrong: the banner was applied per file rather than per
+> run, and **every run on this page predates T7.1's world move.** The last run against
+> `4a7690c6fdda…` finished `2026-08-28T01:51Z` and T7.1's re-record began capturing against
+> `299d791c5e0d…` at `2026-08-28T02:41Z`; no run on this page falls after that. The repo said so
+> itself at the time — `PREREGISTRATION-2026-08-28-refound.md`: *"Every published figure in this
+> repository was measured on"* the `4a7690c6fdda…` world.
+>
+> The world has moved **twice** since: to `299d791c5e0d…` at T7.1, then to `f5bd108f…` /
+> `observability_digest 857d95b4…` at T7.28 (kafka's allocator bounded, a `maxmemory`/`allkeys-lru`
+> bound on redis-cart, a `memory_limiter` on the collector).
+>
+> **These numbers describe a world two generations old and nothing has been re-run against the
+> current one.** They are not current-world figures; there are no current-world figures for this
+> page. What is worth measuring against the new world is a separate pre-registered decision.
 
 T4.11. The complement to [T4.10](VARIANCE-2026-08-27.md), which measured run-to-run
 variance on a scenario the agent answers. This measures it on a scenario the agent

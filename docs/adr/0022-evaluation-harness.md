@@ -691,7 +691,8 @@ the exposures 4 / 3 / 3, which is the arithmetic T4.15 described.
 rejected a flat *no* on the ground that a holdout number which can never be refreshed describes a
 system that no longer exists. **That is now true in its strongest form: all seven holdout runs
 predate T7.28, so every published holdout figure describes the superseded world
-`299d791c5e0d…` and there are zero current-world holdout figures.** It loses for the reason T4.15
+`4a7690c6fdda…` - two worlds back, corrected by the T7.54 addendum below - and there are zero
+current-world holdout figures.** It loses for the reason T4.15
 gave when declining T7.1's schedule: urgency created elsewhere says nothing about whether the set
 can bear another read. Spending the last comfortable read of a three-scenario set to refresh a
 stale number makes the arm thinner, not stronger — and the remedy is allocated and waiting.
@@ -708,9 +709,9 @@ table is a decision of its own and is not taken here.
 
 | entry | reported result it belongs to | stamp | world | `changes` bound | file |
 |---|---|---|---|---|---|
-| **1** | T4.5's taxonomy-instruction pipeline | `prompts:53fafe9c12bc` | `299d791c5e0d` *(superseded)* | 4 | `HOLDOUT-2026-08-26.md` |
-| **2** | T4.7's raised-bound configuration | `prompts:53fafe9c12bc` | `299d791c5e0d` *(superseded)* | 8 | `HOLDOUT-2026-08-26-entry2.md` — **1 of 3 scored**, two discarded to an empty API account and **not re-run** |
-| **3** | T4.14's return-to-locus pipeline (dev sweep 5) | `prompts:1b0e7cbb4c47` | `299d791c5e0d` *(superseded)* | 8 | `HOLDOUT-2026-08-27-entry3.md` — condition 2 met **under strain**; `email-wrong-image`'s row is corroborative, not confirmatory |
+| **1** | T4.5's taxonomy-instruction pipeline | `prompts:53fafe9c12bc` | `4a7690c6fdda` *(two worlds back)* | 4 | `HOLDOUT-2026-08-26.md` |
+| **2** | T4.7's raised-bound configuration | `prompts:53fafe9c12bc` | `4a7690c6fdda` *(two worlds back)* | 8 | `HOLDOUT-2026-08-26-entry2.md` — **1 of 3 scored**, two discarded to an empty API account and **not re-run** |
+| **3** | T4.14's return-to-locus pipeline (dev sweep 5) | `prompts:1b0e7cbb4c47` | `4a7690c6fdda` *(two worlds back)* | 8 | `HOLDOUT-2026-08-27-entry3.md` — condition 2 met **under strain**; `email-wrong-image`'s row is corroborative, not confirmatory |
 | **4** | *would be T7.29's dev sweep 7* | — | — | — | `HOLDOUT-2026-09-01-entry4-NOT-OPENED.md` — **assessed and declined; nothing ran, \$0 spent, exposures unchanged at 3 / 2 / 2** |
 
 **Agent exposures are unchanged: `email-wrong-image` 3, `productcatalog-dependency-latency` 2,
@@ -720,3 +721,144 @@ table is a decision of its own and is not taken here.
 `bad_config` first, since it has zero holdout representation and the most unexplored paths. The set
 is then extended on T4.15's own terms, the four conditions already pass, and dev sweep 7's
 entitlement is waiting. Queued as **Q9**.
+
+---
+
+## Addendum (T7.54): the freeze table did not freeze the world
+
+T7.53 found that §3.3's freeze table omits the world digest, recorded it, and did not fix it. This
+fixes it, and the interesting part is not the missing item — it is why it was missing, and what the
+omission had already done to the published record.
+
+### The six, and what each protects
+
+| item | protects |
+|---|---|
+| `prompts` — sha256 over every `*_SYSTEM` in `faultline.agents` | the instructions the pipeline runs on |
+| `corpus` — rows, content hash, `holdout_chunks` as a **number** | contamination (ADR-0008 axis 1); the one freeze item that is also a contamination check |
+| `model_map` — `effective_models` and `role_efforts` | which model actually answered, per role |
+| `budget` — all four bounds | the resource envelope, since a bound change is a different experiment (T4.7/T4.8) |
+| `tool_layer` — git sha, `git_dirty` recorded but not load-bearing | the code the agent runs on |
+| `judge` — model id and prompt hash, **separately from the agent's** | the grader, because a judged number is a function of two models (ADR-0020 §1) |
+
+### Why the world was missing, and what else fell through the same seam
+
+**Every one of the six is something this repository *constructs* — Python constants, database rows,
+settings objects, a git sha. The world is something it *observes*.** That is the seam. ADR-0014
+later gave the world provenance on the **bundle**, and nobody carried it back to the **experiment**;
+the artifact learned what world it was recorded against while the run that used it did not.
+
+So the fix is not "add `compose_digest`". Adding one observed item and leaving its siblings would
+repeat the mistake at smaller scale. `freeze.world_state()` records:
+
+- **`compose_digest`** — the three layered compose files; the world's definition.
+- **`observability_digest`** — the seven alerting, scrape and collector files. **This has the
+  strongest claim of any item in the table, including the original six**: it decides what the
+  agent's tools can see at all, which sits nearer the experiment than the compose layer does.
+- **`ffs_stub_source_digest`** — the one world component built here rather than pulled.
+- **`otel_demo_image_digest`** — the immutable half of a mutable tag (ADR-0026).
+- **`capability_version`** — `cap:…`, over the tool surface, `CAPTURE_SET` and
+  `TOOL_BEHAVIOUR_REVISION`. **`tool_layer.git_sha` does not cover this**: a sha moves for unrelated
+  commits and says nothing about whether what an agent could *ask* changed. Kept as its own field
+  rather than folded into the world, because `capability.py` argues the two guards must stay
+  separate so neither double-fires and teaches a reader to ignore both.
+
+**`ffs_stub_image_id` is deliberately excluded.** ADR-0014 records it and refuses to compare it — a
+rebuild churns the id from unchanged source. Freezing a field that moves on its own trains a reader
+to ignore the manifest.
+
+### Absence reads as `unverifiable`, never as unchanged
+
+Every freeze manifest written before this addendum lacks `world`, and comparing two of them says
+nothing about whether the world moved between them. `freeze.diff` now returns `world:unverifiable`
+rather than silently omitting it. **A check that answers "no difference" to a question it cannot see
+is worse than one that says it cannot see it** — and that exact failure is what the next section is
+about. The same rule applies within the block: `otel_demo_image_digest` needs a live container, and
+`None` on both sides is recorded as unverifiable rather than compared as equal.
+
+### What the omission had already done: entries 1–3 are attributed to the wrong world
+
+The question T7.53 left open was whether entries 1–3 were run against the world their figures are
+attributed to. **They were not.** Checked from the record rather than inferred:
+
+- No run manifest records a world, so attribution has to be reconstructed from timestamps against
+  the re-records. The re-record windows come from the `t_inject` of the bundles each one wrote:
+  **T7.1 captured `2026-08-28T02:41:26Z`–`05:20:49Z`**, T7.28 `2026-08-29T22:54:04Z`–`2026-08-30T01:36:51Z`.
+- **All eleven holdout run directories, across all three entries, are earlier than
+  `2026-08-28T02:41Z`.** The latest is entry 3's `20260828T015130Z` — fifty minutes clear. So every
+  holdout figure was measured against **`4a7690c6fdda…`**, the world *before* `299d791c5e0d…`.
+- T7.28's superseded-world banner attributed them to `299d791c5e0d…`. It was applied **per file
+  rather than per run**, and it is wrong on **69 of the 97 manifest-carrying runs**.
+- **The repository contradicted itself and the earlier statement was the right one.**
+  `PREREGISTRATION-2026-08-28-refound.md` says, contemporaneously: *"Every published figure in this
+  repository was measured on"* the `4a7690c6fdda…` world. T7.28's later uniform banner overwrote a
+  correct attribution with an incorrect one.
+
+**The omission was therefore not latent and harmless.** It was latent and load-bearing: nothing
+could check the banner, so nothing did. Corrected in ten report files, in `RESULTS.md` and in
+`README.md`, each correction dated and stating what it previously said.
+
+**One piece of good news, and it is checkable:** *no run straddles a world move.* Nothing ran inside
+either re-record window, so every run has an unambiguous world. `tests/test_world_generations.py`
+pins that as an invariant along with the 69 / 12 split, both of whose boundaries are in the past and
+therefore immutable.
+
+### The protocol decision: a failing check records a generation, it does not refuse
+
+Adding the world to the freeze table means the harness will start flagging things it previously
+allowed. What should an entry that fails the new check do?
+
+**Decision: run, and be recorded as a new comparability generation — not refuse.** The argument,
+rather than the assumption:
+
+- **Refusal protects a comparison that is already gone.** If the world has moved, comparability with
+  prior entries is broken *in fact* before any check runs. Refusing does not restore it; it only
+  ensures no figure exists for the current world. That is the failure mode both T4.8 and T4.15 named
+  when they rejected a flat no: *"a holdout number that can never be refreshed describes a system
+  that no longer exists."*
+- **Refusal would have made this worse, not better.** The set is three scenarios. A rule that
+  discards an entry on a world move hands the decision to whoever last edited a compose file.
+- **The labelling machinery already exists and works.** Dev sweeps 6 and 7 are each recorded as their
+  own generation with the digests on the page, and RESULTS.md leads with the current-world result and
+  labels the rest. Applying the same treatment to holdout entries is the established pattern, not a
+  new one.
+- **What refusal is right for is the thing it can actually protect: silence.** So the refusal moves
+  down a level. A freeze manifest that *cannot say* what world it ran against is refused —
+  `world:unverifiable` is an error, not a warning — while one that *can say*, and says something
+  different from the entry before it, runs and is labelled. **Refuse blindness, not change.**
+
+Concretely: an entry whose `world` differs from the previous entry's is a **new comparability
+generation**. It is published with its own digests, it is not printed side by side with entries from
+another generation as though the columns were comparable, and the ledger records the world alongside
+the stamp — which it now does.
+
+### Digests: nothing moved
+
+Checked rather than assumed. `runtime_version` is `faultline/0.0.1+prompts:1b0e7cbb4c47`, unmoved:
+its digest covers role `*_SYSTEM` prompts, `UNTRUSTED_RULE` and the contract schemas, and this
+addendum touched none of them. `CAPABILITY_VERSION` is `cap:9c416e0a`, unmoved: `freeze.py` is
+harness code and is not in the tool surface, `CAPTURE_SET` or `TOOL_BEHAVIOUR_REVISION`.
+`compose_digest`, `observability_digest`, `ffs_stub_source_digest` and `scenario_fingerprint` are all
+unmoved — no compose file, observability file or scenario was edited. **An ADR amendment and a
+freeze check move no digest**, which is what makes this fix cheap; it is the reason to do it now
+rather than bundle it with a world move.
+
+### The sixth instance: the freeze is computable, and nothing computes it
+
+The hashes are real code — `freeze.build()` and `freeze.diff()` exist and are tested. **But nothing
+in any run path calls either of them.** `grep` across `run.py`, `judge_cli.py` and `rehearse.py`
+returns nothing; there is no console entry point and no `make` target. The freeze manifests in
+`evals/runs/` were produced ad hoc, per task, by hand.
+
+So §3.3's sentence — *"the harness refuses to print them side by side"* — describes **a refusal that
+exists nowhere in the harness.** That is the sixth instance of this arc's defect: a rule stated in
+prose, believed because it is written down, enforced by nothing. The five before it were the slot
+rule (T7.35), the one-driver rule (T7.37), the "flaps" shape (T7.39), the opt-in hole (T7.33) and the
+warrant rule (T7.44).
+
+**Not fixed here, and deliberately.** Building the invocation path is a harness feature with its own
+design questions — when it runs, what it exits with, whether a dev sweep writes one too — and folding
+it into an ADR amendment is how scope stops meaning anything. **Queued as Q10, and its trigger is the
+next holdout entry**: entry 4 must generate its freeze manifest through `freeze.build()` and verify it
+through `freeze.diff()`, because an entry that hand-writes the manifest is exactly what produced this
+addendum's finding.

@@ -175,8 +175,10 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 >
 > **Every figure below this banner, and in [`docs/RESULTS.md`](docs/RESULTS.md) except where it
 > says otherwise, was measured on an earlier world and is labelled as such.** Comparing across
-> those boundaries compares worlds, not agents. The immediately preceding world
-> (`299d791c5e0d…`, dev sweep 6) is the one most of them describe.
+> those boundaries compares worlds, not agents. **The world most of them describe is
+> `4a7690c6fdda…`, two generations back — 69 manifest-carrying runs against it, 12 against the
+> immediately preceding `299d791c5e0d…` (dev sweep 6).** *(Corrected 2026-09-01, T7.54; the two
+> were previously stated the wrong way round.)*
 >
 > **The world moved on 2026-08-28** (T7.1: kafka heap capped, `otel-col` raised, Prometheus
 > retention 6h → 15d, stub variants renamed) **and again on 2026-08-30** (T7.28: kafka's glibc

@@ -1,7 +1,14 @@
-"""The holdout freeze manifest: the six things ADR-0022 §3.3 says must not move (T4.6).
+"""The holdout freeze manifest: the things ADR-0022 §3.3 says must not move (T4.6, T7.54).
 
 **"Frozen" has to mean something a script can check, or it means nothing.** ADR-0022 enumerated
-six hashes and this computes them. It is a harness module, not a product one, and it reads the
+six hashes and this computes them - **and T7.54 added a seventh, `world`, because the original six
+froze everything the harness *constructs* and nothing it *observes*.** Every one of the six is
+defined inside this repository in Python or in the database; the world the experiment runs in was
+treated as scenery. It is not scenery, it is the largest uncontrolled input, and a freeze that
+misses it lets two runs pass every check while having executed against different worlds. That is
+not hypothetical: T7.54 found 69 of 97 recorded runs attributed to the wrong world generation.
+
+It is a harness module, not a product one, and it reads the
 product from the outside - which is the only way a freeze check can be trusted: a freeze that
 asks the thing being frozen whether it has changed is not a check.
 
@@ -107,6 +114,52 @@ def tool_layer() -> dict[str, Any]:
     return {"git_sha": git("rev-parse", "HEAD"), "git_dirty": bool(git("status", "--porcelain"))}
 
 
+def world_state(reference_container: str = "cart-service") -> dict[str, Any]:
+    """The world the experiment runs **in**, and the capability surface it runs **with** (T7.54).
+
+    Two guards, kept separate on purpose. `capability.py` says so itself: `CAPABILITY_VERSION`
+    *"deliberately does not cover the world … this one would double-fire on it and teach people to
+    ignore both."* The same argument says the world does not cover capability, so both are here and
+    neither is folded into the other.
+
+    **What is included and why each has the same claim as the original six:**
+
+    - `compose_digest` - the three layered compose files. The world's definition.
+    - `observability_digest` - the seven alerting, scrape and collector files. **Arguably the most
+      load-bearing item in this manifest**: it decides what the agent's tools can see at all, which
+      is nearer to the experiment than the compose layer is.
+    - `ffs_stub_source_digest` - the injected stub's source: the one world component built here.
+    - `otel_demo_image_digest` - the immutable half of a mutable tag (ADR-0026). Requires a live
+      container; `None` when there is none, and `None` is recorded as **unverifiable**, never as
+      unchanged.
+    - `capability_version` - `CAPABILITY_VERSION`: the tool surface, `CAPTURE_SET` and
+      `TOOL_BEHAVIOUR_REVISION`.
+      `tool_layer.git_sha` does *not* cover this: a sha moves for unrelated commits and says nothing
+      about whether what an agent could ask changed.
+
+    **`ffs_stub_image_id` is deliberately excluded.** ADR-0014 records it and refuses to compare it:
+    a rebuild churns the id from unchanged source, so it would fire on nothing. Freezing a field
+    that moves on its own trains a reader to ignore the manifest.
+    """
+    from evalharness.capability import capability_version
+    from evalharness.provenance import (
+        compose_digest,
+        ffs_stub_source_digest,
+        image_content_digest,
+        observability_digest,
+    )
+
+    state: dict[str, Any] = {
+        "compose_digest": compose_digest(),
+        "observability_digest": observability_digest(),
+        "ffs_stub_source_digest": ffs_stub_source_digest(),
+        "otel_demo_image_digest": image_content_digest(reference_container),
+        "capability_version": capability_version(),
+    }
+    state["unverifiable_fields"] = sorted(k for k, v in state.items() if v is None)
+    return state
+
+
 def judge_state() -> dict[str, Any]:
     """Model id and prompt hash, **separately from the agent's** (ADR-0020 §1)."""
     from evalharness.judge import JUDGE_SYSTEM, JudgeSettings
@@ -120,7 +173,7 @@ def judge_state() -> dict[str, Any]:
 
 
 def build(dsn: str, *, max_tool_calls: int = 4, max_tokens: int = 120_000) -> dict[str, Any]:
-    """All six, plus the pipeline stamp they exist to protect."""
+    """All seven, plus the pipeline stamp they exist to protect."""
     from faultline.agents.stamp import runtime_version
 
     return {
@@ -132,15 +185,33 @@ def build(dsn: str, *, max_tool_calls: int = 4, max_tokens: int = 120_000) -> di
         "budget": budget_bounds(max_tool_calls, max_tokens),
         "tool_layer": tool_layer(),
         "judge": judge_state(),
+        "world": world_state(),
     }
 
 
+FROZEN_KEYS = ("runtime_version", "prompts", "corpus", "model_map", "budget", "judge", "world")
+"""Compared whole. `tool_layer` is handled separately below - its dirty flag moves during a run."""
+
+
 def diff(before: dict[str, Any], after: dict[str, Any]) -> list[str]:
-    """What moved between two manifests. Empty means the freeze held."""
+    """What moved between two manifests. Empty means the freeze held.
+
+    **Absence is reported as `unverifiable`, never as unchanged (T7.54).** Every freeze manifest
+    written before T7.54 lacks `world`, and comparing two of them tells a reader nothing about
+    whether the world moved between them - which is exactly how 69 runs came to be attributed to a
+    world they did not execute against. A check that answers "no difference" to a question it
+    cannot see is worse than one that answers "I cannot see it".
+    """
     moved: list[str] = []
-    for key in ("runtime_version", "prompts", "corpus", "model_map", "budget", "judge"):
-        if before.get(key) != after.get(key):
+    for key in FROZEN_KEYS:
+        if key not in before or key not in after:
+            moved.append(f"{key}:unverifiable")
+        elif before[key] != after[key]:
             moved.append(key)
+    if before.get("world", {}).get("unverifiable_fields") or after.get("world", {}).get(
+        "unverifiable_fields"
+    ):
+        moved.append("world:unverifiable")
     # The tool layer's dirty flag moves as files are written during a run; the sha is what binds.
     if before.get("tool_layer", {}).get("git_sha") != after.get("tool_layer", {}).get("git_sha"):
         moved.append("tool_layer.git_sha")

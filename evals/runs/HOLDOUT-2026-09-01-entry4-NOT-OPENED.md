@@ -68,9 +68,12 @@ reject a flat *no*:
 > project would be unable to report a holdout figure for its current configuration — which is a
 > different way of having no benchmark.
 
-**That condition is now true in its strongest form.** All three entries carry the superseded-world
-banner: every holdout figure this project has published was measured against
-`compose_digest 299d791c5e0d…`. **There are zero current-world holdout figures.** Dev sweep 7 is a
+**That condition is now true in its strongest form.** Every holdout figure this project has
+published was measured against `compose_digest 4a7690c6fdda…` — **two** worlds back. *(Corrected
+2026-09-01 by T7.54: this section originally said `299d791c5e0d…`, repeating T7.28's per-file
+banner. All eleven holdout runs predate T7.1's re-record, which began capturing at
+`2026-08-28T02:41Z`; the latest holdout run is `20260828T015130Z`.)* **There are zero current-world
+holdout figures.** Dev sweep 7 is a
 new reported result under the current world, and §3.3's *"a holdout run happens once per reported
 result"* entitles it to an entry.
 
@@ -147,9 +150,9 @@ registration.
 
 | entry | entitled by | stamp | world | scored | cost |
 |---|---|---|---|---|---|
-| **1** | T4.5's taxonomy-instruction pipeline | `53fafe9c12bc` | `299d791c5e0d` *(superseded)* | 3 / 3 | \$1.0774 + \$0.1203 judged |
-| **2** | T4.7's raised `changes` bound | `53fafe9c12bc` | `299d791c5e0d` *(superseded)* | **1 / 3** — two discarded to an empty API account, **not re-run** | \$0.4175, no judge |
-| **3** | T4.14's return-to-locus pipeline (dev sweep 5) | `1b0e7cbb4c47` | `299d791c5e0d` *(superseded)* | 3 / 3 | \$1.6758 + \$0.1086 judged |
+| **1** | T4.5's taxonomy-instruction pipeline | `53fafe9c12bc` | `4a7690c6fdda` *(two worlds back)* | 3 / 3 | \$1.0774 + \$0.1203 judged |
+| **2** | T4.7's raised `changes` bound | `53fafe9c12bc` | `4a7690c6fdda` *(two worlds back)* | **1 / 3** — two discarded to an empty API account, **not re-run** | \$0.4175, no judge |
+| **3** | T4.14's return-to-locus pipeline (dev sweep 5) | `1b0e7cbb4c47` | `4a7690c6fdda` *(two worlds back)* | 3 / 3 | \$1.6758 + \$0.1086 judged |
 | **4** | *(would be: T7.29's dev sweep 7 on the current world)* | — | — | **NOT OPENED** | \$0 |
 
 **Seven agent-facing runs, across three entries, on three scenarios. Four answered.** Of those four:
