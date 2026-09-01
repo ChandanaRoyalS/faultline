@@ -13,6 +13,21 @@ agent works; it is that you can find out whether it does, and so can we.
 > **Status: pre-v0.1.** Built gate by gate against a published execution plan. Nothing is claimed
 > that a clean clone cannot demonstrate.
 
+## Prerequisites
+
+- **Docker**, running, with room for ~20 containers. `make world-up` clones the pinned
+  OpenTelemetry demo into `world/` and starts it.
+- **[uv](https://docs.astral.sh/uv/)** and **Python 3.12**. `uv sync` installs everything else.
+- **git**, for the world clone.
+- **An Anthropic API key** — only for the demo and for scored runs. `make check` is offline.
+
+**Platform note.** Every figure in this repository was produced on **Apple Silicon (arm64)**, where
+roughly twenty of the demo's images are amd64-only and run under Rosetta emulation
+([ADR-0005](docs/adr/0005-arm64-emulation-and-feature-flag-service.md)). That is not incidental to
+the numbers: emulation changes container memory behaviour measurably
+([T7.30](docs/PLAN.md)). **A run on x86 hardware is a different world and its figures are not
+comparable to these.**
+
 ## Demo
 
 One command runs the whole system against the live world and narrates it for a first-time
@@ -20,9 +35,13 @@ viewer — baseline gate, injection, correlation, the planner's dispatches, the 
 queries, the verdict, the narrative, the revert, and the confirmed recovery.
 
 ```bash
-make world-up    # the pinned OpenTelemetry demo; give it ~2 minutes to settle
+make world-up    # the pinned OpenTelemetry demo; give it ~5 minutes to settle
 make demo        # ~15 minutes, real model calls
 ```
+
+**Five minutes, not two.** The baseline gate refuses to inject into a world whose containers are
+younger than **300 seconds** — a container still warming up produces readings that are not a
+baseline. Running `make demo` too early is refused with that reason, not broken.
 
 It needs an Anthropic key in `~/.faultline-anthropic-key` or `ANTHROPIC_API_KEY`, and it
 refuses with instructions if the world is down or the key is missing. Nothing else here needs
@@ -64,7 +83,7 @@ counts it**, because a run made to be watched is not a sample. A test pins that 
 
 Every recorded rehearsal, rendered as a readable page — what broke, what paged and in what
 order, what the capture set holds, and the narrative the responder wrote:
-**[docs/bundles/](docs/bundles/)**. Twelve scenarios, ten runnable and two that could not fire.
+**[docs/bundles/](docs/bundles/)**. Seventeen scenarios authored, **thirteen valid and four blocked** — a blocked scenario is one that could not fire, kept with its `INVALID.md` rather than deleted.
 
 ## Architecture in brief
 
@@ -198,7 +217,7 @@ halves, and either alone is misleading.
 
 ### What these numbers are not
 
-n is 3 on holdout and 7 per dev sweep, with 0–2 scenarios per fault class. A 95% confidence
+n is 3 on holdout and 7–8 per dev sweep, with 0–3 scenarios per fault class, and the two most recent scenarios are scored at n = 2. A 95% confidence
 interval on any cell above spans most of the unit interval. **The tables support direction, not
 magnitude**, and no aggregate appears anywhere without the per-class table beside it.
 
