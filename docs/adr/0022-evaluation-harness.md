@@ -862,3 +862,128 @@ it into an ADR amendment is how scope stops meaning anything. **Queued as Q10, a
 next holdout entry**: entry 4 must generate its freeze manifest through `freeze.build()` and verify it
 through `freeze.diff()`, because an entry that hand-writes the manifest is exactly what produced this
 addendum's finding.
+
+---
+
+## Addendum (T7.55): the freeze path, wired
+
+T7.54 added the world to the freeze table and queued the invocation path as **Q10**, with the next
+holdout entry as its trigger. That trigger was wrong and is discharged early on purpose: **a freeze
+path built under the pressure of an entry someone wants to run is a freeze path that gets relaxed.**
+Entry 4 is blocked on Q9 regardless, so this was built while nothing depends on it.
+
+### Where the freeze is taken, and why that point and no other
+
+**Immediately after the baseline gate passes and before `faultline-inject start`.** Three things are
+true at once there and nowhere else in a run:
+
+- **The world is up**, so the digests can be *observed*. `otel_demo_image_digest` needs a live
+  container; a freeze taken with the stack down would be a guess wearing a hash's clothes.
+- **The world is clean.** The gate has just proved zero alerts and every service reporting.
+  Injection swaps images and attaches sidecars, so a freeze taken afterwards describes a world
+  already carrying the fault — it would record the experiment's *treatment* as its *baseline*.
+- **Nothing has been spent.** A refusal here costs a run that never started rather than a discard,
+  which is the difference between a check people keep and a check people route around.
+
+**It cannot be moved later and it cannot be reconstructed afterwards.** That is the same failure
+T7.22 had with reachability: a property of the world *at run time*, derived after the fact from
+whatever happened to survive, is a different property wearing the same name.
+
+### T7.54's decision as code, neither half softened
+
+**Absence refuses.** If any field in the world block comes back `None`, the run prints
+`REFUSED: this run cannot establish what world it would run against`, injects nothing, and exits 3.
+This is the case the whole T7.54 correction was about, and **it is the one a hand-written manifest
+could always paper over** — a human writing JSON never discovers that `docker inspect` would have
+failed.
+
+**A changed world labels.** If the world differs from the previous run's, the run prints
+`NEW COMPARABILITY GENERATION`, records `comparability.new_generation: true`, and **continues**.
+Refusing would protect a comparison that broke before the check ran, and on a three-scenario holdout
+set it would hand the decision to whoever last edited a compose file.
+
+**And one more, one level down: contamination.** `corpus.holdout_chunks` is the freeze item that is
+also a contamination check, CLAUDE.md calls a break of it a P0 that silently invalidates the
+headline numbers, and until now the freeze *computed* the number and nothing *read* it. A nonzero
+count now refuses before injection. A P0 invariant computed and not acted on is the same defect this
+task exists to close.
+
+The generation identifier is **derived from the world digest, not maintained**: `gen = compose_digest[:12]`.
+Nobody bumps it and nobody can forget to.
+
+### Where the refusal to table incomparable results actually bites — and where it cannot
+
+§3.3 says *"the harness refuses to print them side by side."* Checked rather than assumed:
+**`judge.judged_rows` is the only cross-run comparison table this repository produces by code.**
+Everything else — the ledger in this ADR, every `SWEEP-*.md` and `HOLDOUT-*.md` table — is markdown
+written by a human.
+
+So the claim is **enforceable in exactly one place, and it is now enforced there**. `judged_rows`
+groups its rows by generation, prints one table per world with the world named in the header, and
+emits *"N comparability generations in this set. They are not one table"* when there is more than
+one. A generation that was reconstructed rather than observed prints as `4a7690c6fdda (reconstructed)`,
+because the two are different evidence about the same fact.
+
+**The separation is the refusal, and the choice is deliberate.** An error would withhold correct
+rows in order to prevent a misreading that grouping already prevents. What must not happen is a
+reader taking two worlds for one set of columns; that is now impossible from this function.
+
+**What §3.3 claimed and what is true are not the same, and the honest fix is to narrow the claim.**
+For hand-written tables no code can refuse anything, and pretending otherwise is how the sentence
+came to be believed for four months while nothing enforced it. §3.3 should be read as:
+
+> The harness refuses to print incomparable results side by side **wherever the harness is what
+> prints them**. Elsewhere the guarantee is *recording*, not refusal: every run from T7.55 records
+> the world it observed and the generation it belongs to, so a human writing a table can be
+> contradicted by the record rather than merely trusted.
+
+### Backfill: refused for manifests, and the reconstruction lives outside them
+
+The eleven holdout runs have a known world from T7.54's reconstruction, and the temptation is to
+write freeze manifests for them. **No.** A freeze manifest asserts *"this was observed against the
+live world before injection"*. Generating one afterwards makes that assertion false **even when
+every value in it is right** — the record would then contain a claim about how a fact was
+established that is not true, which is a worse defect than the gap it fills, and is precisely the
+shape T7.54 spent a task correcting.
+
+What was done instead: the reconstruction lives in `evalharness/generations.py`, **derived rather
+than stored**, outside every run manifest, and it labels itself. `generation_of()` prefers an
+observed freeze block and falls back to placing the run's timestamp against the re-record windows,
+returning `provenance: "reconstructed"` when it does. **No run manifest was modified.** Two runs in
+the same world are still comparable whichever way each was established — refusing to compare a
+reconstructed world to an observed one would make every future run incomparable with all history,
+which overreaches — but a reader is always told which they are looking at.
+
+### Digests: nothing moved
+
+`runtime_version` `faultline/0.0.1+prompts:1b0e7cbb4c47` and `CAPABILITY_VERSION` `cap:9c416e0a`,
+both unchanged: this is harness code, not role prompts, contract schemas, tool surface, `CAPTURE_SET`
+or `TOOL_BEHAVIOUR_REVISION`. `compose_digest f5bd108f4f70…`, `observability_digest 857d95b4d174…`
+and `ffs_stub_source_digest 8defed3104c4…` unchanged — no world file was touched. **Wiring the
+freeze path moves no digest**, which is what made it safe to do before entry 4 rather than during it.
+
+Run manifests gain two keys, `freeze` and `comparability`. Additive: no existing manifest was
+rewritten, and every run recorded before T7.55 reads as `reconstructed` rather than as unchanged.
+
+### What remains before entry 4 can run
+
+Deferred twice on real grounds, so the conditions are stated once, in full, and nobody should have
+to re-derive them:
+
+| # | condition | state |
+|---|---|---|
+| 1 | **The set is extended** — at least one free holdout slot (`bad_config-5`, `bad_config-6`, `bad_deploy-6`) filled with a recorded, rehearsed scenario | **BLOCKING — Q9.** `bad_config` first: zero holdout representation, most unexplored paths |
+| 2 | **The freeze manifest is harness-produced** | **MET by T7.55.** `faultline-eval` writes it before injection; the entry must not hand-write one |
+| 3 | **The four T4.8 conditions** | **MET** — T7.53 checked all four, and condition 2 is met without qualification for the first time |
+| 4 | **Published as a new comparability generation** | **MET mechanically, still an authoring obligation.** Entries 1–3 ran on `4a7690c6fdda…`, two worlds back; entry 4 will run on `f5bd108f…` and **must not be tabled beside them** |
+| 5 | **A pre-registration committed as its own file, with the date it was actually registered** | Drafted at `HOLDOUT-2026-09-01-entry4-NOT-OPENED.md` §6 and **NOT ACTIVATED**. Copying it forward without re-registering it is not a registration |
+| 6 | **Cost and gate** | ≈\$1.7–1.9; the gate passed at kafka 37.14% against 82.31% for three runs. Neither was ever the blocker |
+
+**One condition blocks it, and it is the same one T7.53 named.** Everything this task turned up
+made entry 4 more constrained, not less: it must now use the harness's freeze path, and its
+generation is already known to differ from every prior entry's.
+
+### Q10 is discharged, and the sixth instance is closed
+
+`freeze.build()` and `freeze.diff()` have a caller. §3.3's refusal exists in the one place code can
+enforce it, and is narrowed to the truth everywhere else.

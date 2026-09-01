@@ -172,12 +172,18 @@ def judge_state() -> dict[str, Any]:
     }
 
 
-def build(dsn: str, *, max_tool_calls: int = 4, max_tokens: int = 120_000) -> dict[str, Any]:
+def build(
+    dsn: str,
+    *,
+    max_tool_calls: int = 4,
+    max_tokens: int = 120_000,
+    frozen_for: str = "run",
+) -> dict[str, Any]:
     """All seven, plus the pipeline stamp they exist to protect."""
     from faultline.agents.stamp import runtime_version
 
     return {
-        "frozen_for": "T4.6 holdout",
+        "frozen_for": frozen_for,
         "runtime_version": runtime_version(),
         "prompts": prompts_hash(),
         "corpus": corpus_state(dsn),

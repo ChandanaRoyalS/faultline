@@ -105,7 +105,13 @@ def run(argv: list[str] | None = None) -> int:
             json.dumps(loaded["manifest"], indent=2, default=str) + "\n"
         )
 
-    table = "\n".join(judged_rows(results))
+    # **The generation each judged run belongs to** (T7.55). Observed from the run's own freeze
+    # manifest where it has one, reconstructed from its timestamp where it predates T7.55 - and
+    # `judged_rows` never puts two worlds in one table.
+    from evalharness.generations import generation_of
+
+    gens = {loaded["run_id"]: generation_of(loaded["manifest"]) for loaded in runs}
+    table = "\n".join(judged_rows(results, gens))
     print("\n" + table)
     tin = sum(r.tokens_in for r in results)
     tout = sum(r.tokens_out for r in results)
