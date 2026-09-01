@@ -123,8 +123,11 @@ refuse, and that it is not evidence the world is degraded. Naming is not exempti
   worth understanding — it did not appear in the 2026-08-24 baseline, and the world changed at
   T7.1 — but the correlation is a correlation and the pre-change series no longer exists to test
   it against.
-- **Queued: bring the alert rules under a digest.** Their content is load-bearing for every
-  bundle's `alerts_over_window` and no manifest field would show a change to them.
+- ~~**Queued: bring the alert rules under a digest.**~~ **Closed at T7.15**, noticed at T7.45's
+  sweep: `observability_digest` covers `compose/prometheus/alert-rules.yml`, so a change to them
+  now moves a digest. The reasoning stays because it is why the digest exists: their content is
+  load-bearing for every bundle's `alerts_over_window` and no manifest field would have shown a
+  change to them. See `docs/QUEUE.md`.
 
 ## Addendum (T7.23): where the time goes — measured, and it is not a slow dependency
 
