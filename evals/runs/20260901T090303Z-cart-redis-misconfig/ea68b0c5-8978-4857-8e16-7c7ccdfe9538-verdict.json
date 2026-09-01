@@ -1,0 +1,58 @@
+{
+  "incident_id": "ea68b0c5-8978-4857-8e16-7c7ccdfe9538",
+  "trajectory_id": "c943278e-eb11-43ec-8850-f7aa5e719fb1",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-redis-misconfig",
+  "verdict": {
+    "root_cause": "At 09:03:07Z an automation actor pushed an environment change to cartservice that set the Redis address to host redis-cart on port 6380, a non-default Redis port (tr_442e5d3d25b1). cartservice cannot establish a connection to that endpoint: from at least 09:07 onward every process start logs a connect attempt to redis-cart:6380, hangs for tens of seconds, then throws an unhandled ApplicationException out of EnsureRedisConnected \u2192 InitializeAsync \u2192 Main and exits, producing a 30\u201360s orchestrator restart loop (tr_65797a0b9f90). Because the crash is at bootstrap, cartservice never reaches a serving state, so CartService/GetCart fails immediately for callers. Every failing checkout trace terminates on that GetCart child span with the error propagating up through prepareOrderItemsAndShippingQuoteFromCart, checkoutservice PlaceOrder and frontend, in 1\u20137ms end to end with no payment/shipping/catalog child spans ever attempted (tr_df4951a01b38); the matching checkoutservice logs show PlaceOrder accepted but the payment/email/message-write completion lines absent from 09:03:23 onward (tr_aba3fc80a6b9), and checkoutservice's own span error ratio spikes to ~0.67 (tr_7ff60462ba87). No change landed on checkoutservice itself (tr_7f30c28cbaa3), so checkoutservice and frontend are propagators. The mechanism is the configuration value itself: the address/port cartservice was told to use does not accept its connections, and that wrong value is what breaks every cart request.",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_442e5d3d25b1",
+      "tr_65797a0b9f90",
+      "tr_df4951a01b38",
+      "tr_aba3fc80a6b9",
+      "tr_7ff60462ba87",
+      "tr_7f30c28cbaa3",
+      "tr_4c71d1805b9e"
+    ],
+    "reasoning": "Three independent lines converge. (1) Causal origin: traces place the error on the deepest span, CartService/GetCart, with the intermediate prepare span clean and no downstream payment/currency/catalog/shipping spans attempted at all \u2014 checkout is inheriting, not generating, the failure (tr_df4951a01b38). (2) Mechanism at the origin: cartservice logs show a bootstrap crash loop whose stack is entirely in cart store initialization from Main, with every cycle naming redis-cart:6380 (tr_65797a0b9f90). A process that dies in InitializeAsync explains why GetCart fails in under a millisecond rather than timing out \u2014 the callee is absent, not slow, which is why dependency_latency does not fit despite the connect attempts themselves being timeout-shaped inside cartservice. (3) Trigger and mechanism identity: the only recorded change in the window is the environment edit that introduced the Redis address on the non-default port 6380 at 09:03:07 (tr_442e5d3d25b1), and cartservice's onset sits after healthy 08:55 traffic and before 09:07 (tr_65797a0b9f90), bracketing the change. The class is bad_config rather than bad_deploy because no image or version rollout is recorded and the artifact starts and runs its normal startup path; it is bad_config rather than resource_exhaustion because nothing is being consumed to a limit \u2014 the crash is a connection failure to a named endpoint, and the wrongness of that named endpoint is the failure. Remediation is therefore reverting the Redis address variable to its prior (unset/default) value, not a rollback of any artifact \u2014 tr_7f30c28cbaa3 confirms there is no checkoutservice change to roll back. cartservice metrics were unobtainable (tr_4c71d1805b9e), so the origin rests on logs and traces rather than RED metrics; note also the corpus precedent that a flat-zero or empty cart error metric has previously been misread as cart health.",
+    "open_questions": [
+      "It is not directly verified that redis-cart is listening on 6380 versus 6379 \u2014 the port is inferred wrong from its non-default value plus connection failure. An alternative is that 6380 is intended (e.g. a TLS listener) but TLS is disabled in the client config, or that a network policy blocks the path; all three fit the timeout-shaped failure and all three are fixed by correcting the config, but the exact wrong field differs.",
+      "cartservice had no span-derived metrics at all under the queried label scheme (tr_4c71d1805b9e), so request rate, latency and cache saturation for cartservice are unmeasured, and an absent series cannot be distinguished from absent traffic.",
+      "Onset timing is inconsistent across sources: checkoutservice completion lines are already missing at 09:03:23 (tr_aba3fc80a6b9), essentially coincident with the 09:03:07 change, while the alert fired at 09:05:30 and the cartservice crash loop is only observed from 09:07. Whether cartservice failed instantly at 09:03:07 or degraded first is unresolved.",
+      "checkoutservice emitted no log lines after 09:08:03 (tr_aba3fc80a6b9) while intake was still steady \u2014 whether checkoutservice subsequently exhausted a resource (threads/connections held on cart retries), restarted, or simply lost log shipping is unexamined, and a secondary failure there would need its own fix.",
+      "Only checkoutservice and cartservice were dispatched. Triage names 12 affected services and 4 unmeasured edges crossed; whether the other 9 services are all downstream propagators of the same cart failure, or include an independent contributor, was never tested.",
+      "Why platform-automation pushed this value \u2014 a bad pipeline template, a config-source drift, or an intended migration applied to the wrong environment \u2014 is unknown, and that determines whether a revert will simply be re-applied by the same controller."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **2m48s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 2m48s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

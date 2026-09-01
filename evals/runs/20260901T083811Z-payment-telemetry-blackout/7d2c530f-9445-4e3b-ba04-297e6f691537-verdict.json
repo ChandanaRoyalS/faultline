@@ -1,0 +1,50 @@
+{
+  "incident_id": "7d2c530f-9445-4e3b-ba04-297e6f691537",
+  "trajectory_id": "569824d1-b541-4b46-9021-8d9cc891a736",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "frontend",
+    "paymentservice"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origin": "scenario:payment-telemetry-blackout",
+  "verdict": {
+    "root_cause": "At 08:38:15 UTC platform-automation set paymentservice's OTLP traces exporter endpoint to a loopback address (127.0.0.1:4317) where no collector is listening in the pod (tr_cc393586bc7d). The value itself is wrong \u2014 it names an address that terminates nothing \u2014 and everything the incident actually consists of is downstream of that: paymentservice's span-derived metrics have no series at all in the window, numerator and denominator alike (tr_a01616c50922), and checkoutservice's client-side Charge spans are leaves with no paymentservice server child beneath them (tr_a1d2db451eea), i.e. the service's telemetry stopped arriving at the backend while the business path kept working. The charge path itself is healthy throughout: sub-millisecond Charge handlers inside complete PlaceOrder traces (tr_4963fef25cdf), and paired charge-received/transaction-complete info lines with no errors on either side of the truncated interval (tr_2764b677cb33, tr_58623cf0f8e4). The one physical disturbance is a single container replacement inside the unretrieved 08:38\u201308:46 gap, evidenced by a hostname change across the log window (tr_58623cf0f8e4). The 08:44:15 critical alert on paymentservice is best read as the consequence of an absent/blocked telemetry export path rather than a failure of the charge service, and no change on checkoutservice explains it (tr_33184217db0f).",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_cc393586bc7d",
+      "tr_a01616c50922",
+      "tr_a1d2db451eea",
+      "tr_4963fef25cdf",
+      "tr_2764b677cb33",
+      "tr_58623cf0f8e4",
+      "tr_33184217db0f"
+    ],
+    "reasoning": "Three independent signals converge on a broken telemetry export path rather than a broken payment path. (1) The only change in the window is the exporter endpoint being pointed at loopback, six minutes before onset, with no prior value \u2014 a newly introduced export target (tr_cc393586bc7d), and no change at all on checkoutservice (tr_33184217db0f). (2) Span metrics for paymentservice return no series including the total-calls denominator (tr_a01616c50922) \u2014 the shape of a service that stopped emitting, not one erroring. (3) Checkout traces show the Charge client span as a leaf with the server side missing (tr_a1d2db451eea), which is exactly what a failed export from paymentservice looks like from the caller's side. Meanwhile the mechanism candidates that would name a different class are each contradicted: no image or release event (rules out bad_deploy, tr_cc393586bc7d); Charge occupies 1.4\u20132.4ms of 20\u201343ms PlaceOrder spans and the dominant time sits in the shipping/quote leg (rules out dependency_latency on the payment path, tr_a1d2db451eea, tr_4963fef25cdf); and logs on both sides of the gap show unbroken successful transactions with no errors (tr_2764b677cb33, tr_58623cf0f8e4). I classify this bad_config rather than resource_exhaustion because the wrong address is the failing mechanism as observed \u2014 the evidence for exporter queue saturation or an OOM kill is a single hostname change with no supporting exporter or memory data. The fix is to revert the endpoint to the real collector address (or unset it), not to roll back an artifact or add capacity. Note the past incidents in the corpus warn against exactly the inverse reading here: a flat-zero or empty error series was repeatedly mistaken for health; in this case the empty series is itself the finding.",
+    "open_questions": [
+      "What actually happened at 08:44:15 is not directly attested \u2014 both log queries truncated away 08:38:15\u201308:44:27/08:46:19, so the alert-time behaviour (errors, shutdown, connection-refused, exporter messages) is unretrieved, not absent (tr_2764b677cb33, tr_58623cf0f8e4).",
+      "The cause of the single container replacement is unknown. If it was an OOM kill or crash driven by an unbounded exporter retry queue blocking on loopback, the operative mechanism would be resource_exhaustion rather than bad_config; no memory, CPU, exporter-queue or restart-reason evidence was gathered (tr_a01616c50922, tr_4963fef25cdf).",
+      "Whether any collector or sidecar actually listens on 127.0.0.1:4317 in that pod was never verified \u2014 the loopback endpoint being dead is inferred, not confirmed.",
+      "The empty metric series could partly be a label/metric-name mismatch rather than pure absence of emission; the specialist flagged both readings and could not separate them (tr_a01616c50922). The log stream matched service=\"payment-service\" hyphenated, showing naming inconsistency exists in this environment (tr_2764b677cb33).",
+      "Blast radius named three services, but only paymentservice and checkoutservice were investigated for changes. Whether frontend (or others) received the same exporter repoint is unanswered (tr_33184217db0f).",
+      "Whether any customer-visible impact occurred at all is unsettled: every sampled trace completed through ShipOrder, EmptyCart, email and order publish (tr_a1d2db451eea, tr_4963fef25cdf), so the critical severity may reflect monitoring blindness rather than failed checkouts.",
+      "An OTLP metrics Export server span attributed to paymentservice (tr_4963fef25cdf) is unexplained and may indicate span mis-attribution in the trace store, which would weaken inferences drawn from span parentage."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "product-catalog-flag-failure / What was observed: The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, 4m04s after\nonset. Fifteen seconds later **frontend** and **productcatalogservice** joined it.\n\nThree services alerted during the failure and the set never grew. A fourth alert fired\nafter the fix: frontend"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null
+}

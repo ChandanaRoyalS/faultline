@@ -1,0 +1,90 @@
+{
+  "run_id": "20260901T080650Z-payment-telemetry-blackout",
+  "scenario_id": "payment-telemetry-blackout",
+  "split": "dev",
+  "scenario_fingerprint": "b8a2668299f1d3b1e5ee9b928e292f5994a1ac3c4292989ae70bb5ccb3f2b8b9",
+  "started_at": "2026-09-01T08:06:50.150272+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "d3a51917414bdd61f7e640f6eef1b61a16611ea7",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 51471,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-01T08:06:50.175412+00:00",
+    "reason": "faultline-eval payment-telemetry-blackout",
+    "token": "51471-1788250010.175312"
+  },
+  "baseline_gate": {
+    "passed": false,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 4391,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "payment-service",
+      333
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [
+      {
+        "incident_id": "97226205-335e-4d69-bdb6-0bdf38e07d19",
+        "resolved_at": "2026-09-01T08:01:55.660709+00:00",
+        "seconds_remaining": 3
+      }
+    ],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 44.42,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 1.39,
+      "runs_remaining": 4,
+      "uptime_seconds": 9554,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 209.9,
+      "projected_percent": 54.67,
+      "threshold_percent": 79.75,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [
+      "incident 97226205-335e-4d69-bdb6-0bdf38e07d19 resolved at 2026-09-01T08:01:55.660709+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 3s."
+    ]
+  },
+  "discarded": {
+    "reason": "baseline gate refused",
+    "at": "2026-09-01T08:06:54.105471+00:00"
+  }
+}

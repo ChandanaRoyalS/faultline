@@ -1,0 +1,29 @@
+incident ea68b0c5-8978-4857-8e16-7c7ccdfe9538  state triaging  anchor 09:05:30
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: c943278e-eb11-43ec-8850-f7aa5e719fb1
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_442e5d3d25b1, tr_65797a0b9f90, tr_df4951a01b38, tr_aba3fc80a6b9, tr_7ff60462ba87, tr_7f30c28cbaa3, tr_4c71d1805b9e
+  root cause  : At 09:03:07Z an automation actor pushed an environment change to cartservice that set the Redis address to host redis-cart on port 6380, a non-default Redis port (tr_442e5d3d25b1). cartservice cannot establish a connection to that endpoint: from at least 09:07 onward every process start logs a connect attempt to redis-cart:6380, hangs for tens of seconds, then throws an unhandled ApplicationException out of EnsureRedisConnected → InitializeAsync → Main and exits, producing a 30–60s orchestrator restart loop (tr_65797a0b9f90). Because the crash is at bootstrap, cartservice never reaches a serving state, so CartService/GetCart fails immediately for callers. Every failing checkout trace terminates on that GetCart child span with the error propagating up through prepareOrderItemsAndShippingQuoteFromCart, checkoutservice PlaceOrder and frontend, in 1–7ms end to end with no payment/shipping/catalog child spans ever attempted (tr_df4951a01b38); the matching checkoutservice logs show PlaceOrder accepted but the payment/email/message-write completion lines absent from 09:03:23 onward (tr_aba3fc80a6b9), and checkoutservice's own span error ratio spikes to ~0.67 (tr_7ff60462ba87). No change landed on checkoutservice itself (tr_7f30c28cbaa3), so checkoutservice and frontend are propagators. The mechanism is the configuration value itself: the address/port cartservice was told to use does not accept its connections, and that wrong value is what breaks every cart request.
+  OPEN        : It is not directly verified that redis-cart is listening on 6380 versus 6379 — the port is inferred wrong from its non-default value plus connection failure. An alternative is that 6380 is intended (e.g. a TLS listener) but TLS is disabled in the client config, or that a network policy blocks the path; all three fit the timeout-shaped failure and all three are fixed by correcting the config, but the exact wrong field differs.
+  OPEN        : cartservice had no span-derived metrics at all under the queried label scheme (tr_4c71d1805b9e), so request rate, latency and cache saturation for cartservice are unmeasured, and an absent series cannot be distinguished from absent traffic.
+  OPEN        : Onset timing is inconsistent across sources: checkoutservice completion lines are already missing at 09:03:23 (tr_aba3fc80a6b9), essentially coincident with the 09:03:07 change, while the alert fired at 09:05:30 and the cartservice crash loop is only observed from 09:07. Whether cartservice failed instantly at 09:03:07 or degraded first is unresolved.
+  OPEN        : checkoutservice emitted no log lines after 09:08:03 (tr_aba3fc80a6b9) while intake was still steady — whether checkoutservice subsequently exhausted a resource (threads/connections held on cart retries), restarted, or simply lost log shipping is unexamined, and a secondary failure there would need its own fix.
+  OPEN        : Only checkoutservice and cartservice were dispatched. Triage names 12 affected services and 4 unmeasured edges crossed; whether the other 9 services are all downstream propagators of the same cart failure, or include an independent contributor, was never tested.
+  OPEN        : Why platform-automation pushed this value — a bad pipeline template, a config-source drift, or an intended migration applied to the wrong environment — is unknown, and that determines whether a revert will simply be re-applied by the same controller.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260901T090303Z-cart-redis-misconfig/ea68b0c5-8978-4857-8e16-7c7ccdfe9538-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260901T090303Z-cart-redis-misconfig/ea68b0c5-8978-4857-8e16-7c7ccdfe9538-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9300.21it/s]

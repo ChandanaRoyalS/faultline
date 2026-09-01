@@ -1573,6 +1573,89 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.58 — the traceability split *(live; \$3.1475 of \~\$5.50)*
+**Done** ([`SPLIT-2026-09-01-traceability.md`](../evals/runs/SPLIT-2026-09-01-traceability.md),
+[pre-registration](../evals/runs/PREREGISTRATION-2026-09-01-traceability-split.md) committed at
+`d3a5191` before anything ran). Branched and confirmed first. **Neither arm diverged at all.**
+**Q2 dropped. Q3 kept, its trigger struck and replaced.**
+
+**The budget fixed the design, not the other way round.** A standard API key **cannot read a
+balance** - the organization endpoint returns 401 - so what could be established is that the key
+transacts: a 12-token probe for \$0.000028. At the measured current-stamp rates (\$0.602 and
+\$0.563 per run, judge \$0.043) **n = 4 per arm costs \$5.29 worst case and leaves \$0.21 - a third
+of a run**, so one discard truncates it. **n = 3 per arm costs \$3.97 and leaves \$1.53.**
+Registered at n = 3. The gate was never the constraint: kafka 44.3% against 74.6% at six runs.
+
+**Registered before spending, and it turned out to matter: this n could not distinguish the
+hypothesis from the null.** A complete separation at 3 vs 3 is one-sided p = 0.05. And more
+sharply - written into the pre-registration, not discovered afterwards - **if both registered
+predictions held exactly (1 of 3 against 0 of 3) the experiment would not have distinguished them
+at all.** What it could do was falsify cheaply and add current-world observations.
+
+**Five discards, and only one is an experimental loss.** Run 1 died on an **API 529
+`overloaded_error`**; environmental, so under the committed protocol it **costs an observation and
+was not replaced** - the payment arm is **n = 2**, not 3. The other four are **my defect**: the
+driver fired six `faultline-eval` calls with no wait between them, and `faultline-eval` does not
+wait for the world to settle, it **refuses**. Three runs were refused inside four seconds; a fourth
+got through, injected, and was killed with the script. Reverted through the injector, `active: {}`
+restored, and its `DISCARDED.md` **written by hand** because the harness was killed before it could
+write its own. **None of the four spent money or produced an observation, so re-attempting them was
+not a re-run - there was no verdict to improve. The 529 was not re-attempted, and that is the
+difference.** **The gate was right every time it refused; the driver was wrong to ask.**
+
+**The result.** `cart-redis-misconfig` **0 divergences of 3** - prediction **HELD**.
+`payment-telemetry-blackout` **0 of 2** against a registered **1 of 3** - prediction **FAILED**, and
+the record did not repeat. Class 5/5, fix 5/5, judge `same_mechanism` **5/5**, reported three-way
+and never collapsed.
+
+**What that establishes, and what it does not.** It does **not** falsify the hypothesis: the
+registered falsifier was *0 of 3* and the arm reached 2, and under the hypothesis's own rate
+**P(0 in 2) = 0.44**, so a null result is what the hypothesis itself expects a fair share of the
+time. It does not support it either - H predicts spread and there was none. **The registered third
+row is the honest one: undecided, and a second identical run of this design would be worth
+nothing.**
+
+**What it does establish is narrower and worth having: T7.43's disagreement is one event, not a
+rate.** Pooling each arm's **current-world** runs only - pooling across a world move is T7.54's
+correction - `payment-telemetry-blackout` is **1 divergence in 5** (the original abstention) and
+`cart-redis-misconfig` **0 in 4**. **Fisher's exact p = 1.0.** T7.51 bounded it to 1 of 3; this
+extends it to **1 of 5**.
+
+**One secondary observation, pointing the wrong way for H.** The only trap *taken* in the sweep was
+in the **traceable** arm - checkout's 0.67 error-ratio peak read as partial impact - while all three
+of the untraceable arm's traps were **avoided**. One run, reported as one run.
+
+**Q2 dropped, Q3 kept and re-triggered - a differentiated call rather than a blanket one.**
+**Q2's whole justification was T7.43's divergence**, now one event in five runs of the scenario that
+produced it; a prompt change costs the stamp, and there is no measured phenomenon left to buy with
+it. **Struck the way T7.45 struck `MALLOC_ARENA_MAX`**, with what would reopen it named: a *new
+observation*, not a repeat of this design. **Q3's trigger also fired negative** - 5 of 5 correct,
+5 of 5 `same_mechanism`, no split of any kind - **but Q3 never rested on T7.43.** It rests on
+T7.44's structural finding that the benchmark assesses warrant nowhere and on T7.52's independent
+**6 of 56** label/judge disagreements in both directions. **So Q3 keeps its justification and loses
+its trigger**, and gets a new one: a warrant split at a *powered* n, or the corpus re-score Q8
+already waits on.
+
+**T7.55's freeze path, first real use, behaved as designed.** All six gate-passing runs carry a
+`freeze` block: `world.unverifiable_fields` **`[]`** on every one, `corpus.holdout_chunks` **0** on
+every one - **ADR-0008 axis 1 is now checked on every run** rather than in a manifest nobody built -
+and `comparability.generation` **`f5bd108f4f70`** with `provenance: observed`, **the first observed
+generations in the record**. The first run correctly recorded `previous_provenance: reconstructed`.
+**Two designed details demonstrated:** the **gate refusals carry no freeze block at all**, because
+the freeze comes after the gate - a run the gate refuses never reaches the point where a world is
+observed and does not pretend to have; and **`judged_rows` printed `World: f5bd108f4f70.`**, naming
+the world instead of leaving a reader to assume it.
+
+**Also recorded: I removed a stale lock by hand** (`rm .faultline/harness.lock`) after killing the
+driver, rather than letting T7.37's dead-holder auto-reclaim take it as it did at T7.56. Not a
+defect - the holder was dead either way - but it pre-empted the mechanism, and the record should say
+so rather than let T7.56 stand as the only account of that path.
+
+**Cost \$3.1475** - runs \$2.9239, judge \$0.2236, probe \$0.000028; the 529 discard has **no
+recorded cost**, its four attempts all failing at *"did not start"* before the investigation, so the
+spend is unmeasured and bounded near zero. **\~\$2.35 remains.** Sized for \$3.97 worst case and
+came in under it.
+
 ### T7.57 — is there a fifth fault class in this world? *(audit; \$0, one dry-run probe)*
 **Done** ([ADR-0029](adr/0029-four-fault-classes-and-why-there-is-no-fifth.md)). Branched and
 confirmed first. **The answer is no, and the honest consequence is that entry 4 is blocked
