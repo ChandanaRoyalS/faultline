@@ -1573,6 +1573,71 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.48 — the world rebuilt, and it came back the same *(destructive to the stack; no money)*
+**Done** ([`docs/evidence/t7.48-rebuild/`](evidence/t7.48-rebuild/)). **Branched and confirmed before
+committing**, as T7.47 required. **The single most important thing this project had never checked**:
+every provenance claim assumes the world can be rebuilt, and it had run continuously for the
+benchmark's whole life.
+
+**Result: identical on every provenance field.** `BEFORE.json` was written before anything was
+touched, as the comparison target.
+
+| field | before -> after |
+|---|---|
+| `compose_digest` | `f5bd108f4f70f460…` -> **identical** |
+| `observability_digest` | `857d95b4d174ec43…` -> **identical** |
+| `ffs_stub_source_digest` | `8defed3104c42adf…` -> **identical** |
+| all 7 observability files, individually | **all identical** |
+| `otel_demo_image_digest` | `sha256:97d55955…` -> **identical** |
+| `ffs_stub_image_id`, `docker_arch`, `host_platform` | **identical** |
+| containers | 28 -> **28**, same names, **no image id changed** |
+
+**So the recorded bundles describe a world that rebuilds**, and nothing the digests exist to detect
+moved.
+
+**One check a rebuild cannot make, done separately and non-destructively.** A teardown reuses local
+images and so cannot detect a **moved tag**. Before the teardown,
+`docker buildx imagetools inspect` resolved `v1.2.1-cartservice` to **`sha256:97d55955…`** -
+**identical to the local image and to every bundle. The tag has not moved**, so a cold pull today
+would fetch the same image. That is the strongest evidence available short of deleting the images,
+which was outside "destructive to the running stack only".
+
+**A dirty clone that is not drift, checked before teardown because it would have been the finding.**
+`world/` has exactly two untracked paths - `.cloned` and an **empty**
+`src/grafana/provisioning/datasources/loki.yml` - both documented in the Makefile as expected
+(T7.16, ADR-0026); the second is a Docker-materialised mount target recreated on every bring-up.
+
+**The documented path worked as written.** `make world-down` took 28 -> 2 containers, leaving only
+the platform (separate compose); `make world-up` returned 28 in **12 seconds**. **No missing step and
+no undocumented prerequisite.**
+
+**The settle is a test of T7.47's own correction, and it passes.** T7.47 changed README from *"~2
+minutes"* to *"~5 minutes"*. Measured: at **+75s the gate REFUSED** - *"26 container(s) have been up
+for less than 300s"* - and at **+6m it PASSED** with 14 services, nothing unexpectedly silent, kafka
+28.5% against an 84.0% threshold. **A stranger following the old README would have hit that refusal
+with no way to read it.**
+
+**Behaviour reproduces, not only digests.** From cold: `cartservice` p95 **1.9 ms** - the exact
+figure `alert-rules.yml` records as *"flat 1.9ms, 181 consecutive samples"* - `checkoutservice`
+**38.1 ms**, and kafka at **25.5%** against T7.30's post-restart 26.27%. **The world does not merely
+hash the same; it behaves the same.**
+
+**The known pathologies, against the hazards page.** Neither appeared in six minutes. No checkout
+stall, consistent with T7.38 finding it healthy at 1h20m - it is a longer-horizon property and its
+absence from a cold world is expected. kafka grew 25.76% -> 28.40% over five minutes, tracking the
+documented emulation rate; **a reader on the hazards page would have recognised it and correctly done
+nothing**, since that page frames the refusal at ~90%.
+
+**Where this stops: `make demo`, which needs a model call.** Verified up to that line - `make eval`
+bare (usage, exit 2), `faultline-eval` without intent (refuses as T7.33 documents), the gate cold and
+settled, the headroom projection, the free world lock, and the demo's preflight inputs. **Unverified
+for want of credit:** the demo end to end and any scored run, so this shows a rebuilt *world* is
+identical and not that it produces comparable *figures*. **Also still unverified:** a genuinely cold
+path - deleting `world/`, re-cloning, re-pulling - for which the tag check is a weaker substitute.
+
+**World left healthy and running:** 28 containers, 14 services reporting, **no alerts**, gate
+passing, kafka 28.5%, no lock, no active injections.
+
 ### T7.47 — close the front door *(documentation and one guard; no money, no world time)*
 **Done.** T7.46's four structural gaps, fixed. **Branched before committing and confirmed it
 first**, which is the thing T7.46 got wrong.
