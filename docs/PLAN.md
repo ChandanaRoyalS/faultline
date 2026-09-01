@@ -1573,6 +1573,68 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.50 — does the action plane survive T7.18? *(design analysis; nothing built, ADR not amended)*
+**Done** ([`docs/design/t7.50-action-plane-vs-oracle.md`](design/t7.50-action-plane-vs-oracle.md)).
+Branched and confirmed before committing.
+
+**The premise needed correcting first. ADR-0028 does not predate T7.18 - it *is* T7.18**
+(`Date: 2026-08-29`, `Task: T7.18`). Design and finding are one task's output, so "written before
+the finding that most threatens it" does not apply.
+
+**And it engages the axis rather than mentioning it.** §5 is titled *"a third axis, and it is the
+sharpest one"*, states the mechanism in the brief's own terms - *"converts diagnosis into search…
+not a better investigator; it is a worse one with a working oracle"* - takes a marked decision, and
+requires any propose-observe-re-propose variant to carry **its own pre-registration and scoring**
+because it *"would make every prior number incomparable"*. **§2 closes the axis structurally**: the
+proposer does not act, a human stands between proposal and execution, and a confidence threshold is
+rejected because it makes the model's calibration the safety boundary. **An oracle needs a loop; the
+design has no loop.**
+
+**One enforcement gap found, and it is the task's contribution.** §5 states the control as
+**withholding** - *"the execution outcome… never back to the model"*. **Withholding is insufficient
+on its own**: if a change is applied while the agent can still query, its **existing read tools
+observe the changed world** - `promql_query` sees the error rate fall. **The world is the side
+channel, not the return value.** What actually closes it is **sequencing** - the proposal is
+terminal, the turn ends, a human approves, the executor acts after. **An implementer could satisfy
+the letter of §5 and build something unsound**, and the two controls come apart precisely in the
+variant §5 anticipates.
+
+**And one design element does more than the ADR claims.** `expected_effect` + `confirm_within` are a
+**pre-registration imposed on the agent** - a committed predicate makes a later observation a *test
+of a prediction* rather than a search signal, since search requires acting and *then* deciding what
+the result meant. That is the mechanism a repair benchmark would be scored on, and §4 should say so.
+
+**What the benchmark would measure if action were permitted: the ability to find a working fix by
+trial within a budget**, not to name a cause. **Three properties of this catalog make the
+substitution near-total** - ADR-0020 defines **five** remediation classes so exhaustive trial is a
+five-step search; **the scorer scores the remediation class**, so an agent that tries `restart` and
+sees recovery produces the correct label *by construction* with zero diagnostic content; and
+ADR-0027 measured **two working fixes** for one class, so trial succeeds even more easily than the
+count suggests. **Worth measuring, and a different benchmark** - the danger is not that it is
+worthless but that it would carry the same name and be compared against figures measuring something
+else.
+
+**The four designs, against what this harness can enforce.** **A (score diagnosis before any
+action)** - enforceable trivially, because it is already what happens. **B (permit one action, treat
+further as abstention)** - **rejected**: one action is one bit of oracle and one bit is a large
+fraction of a five-class space, and mapping an action count onto abstention is a category error,
+since abstention is a property of a verdict. **C (separate diagnosis and repair benchmarks)** -
+enforceable, diagnosis figures stay comparable, and repair is scoreable from what the proposal
+already carries. **D (permit action, record attempts beside accuracy)** - **honest but expensive**:
+coverage works because abstention does not change what accuracy *means*, whereas attempts do, so the
+pair could never be compared to any historical figure. **A and C are the same answer from two ends**
+and neither needs enforcement this harness lacks.
+
+**Should T8 be built as specified? Yes - and the specification is the reason.** A proposer that does
+not act, behind a human, with no autonomous path is exactly the version the oracle argument does not
+defeat. **What should not be built is the loop**, under the current scoring, name, or comparison
+set. That is not a refinement of this benchmark; it is a different one.
+
+**ADR-0028 is not amended.** The proposed change is **queued as Q7** in `docs/QUEUE.md` with its
+trigger - **the first task that proposes to build any part of the action plane** - because an ADR
+rewrite is a decision and this is one task's reading. Nothing depends on it meanwhile: the proposer
+is unbuilt, and `roles.py` carries planner, scribe, specialist and synthesizer only.
+
 ### T7.49 — publish the reproducibility result *(documentation; no money, no world time)*
 **Done.** Branched and confirmed before committing. T7.48's result was buried in a PLAN entry; it is
 the evidence a reader needs to trust any provenance claim here, so it now sits in **README's results
