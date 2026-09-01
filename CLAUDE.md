@@ -1,7 +1,9 @@
 # Faultline — instructions for Claude Code sessions
 
-This repo is built against a fixed execution plan (58 tasks, 8 gates). Do not improvise
-scope. When asked to work on a task, implement that task's deliverable and nothing beyond it.
+This repo is built against a fixed execution plan — **[`docs/spec/`](docs/spec/), 8 phases, 58
+tasks, 8 gates, committed unmodified**. Do not improvise scope. When asked to work on a task,
+implement that task's deliverable and nothing beyond it, and **quote the deliverable column rather
+than paraphrasing it** — `docs/PLAN.md` is a log written against the spec, not the spec.
 
 ## Working rules (non-negotiable)
 
@@ -28,10 +30,12 @@ This is enforced by a commit-msg hook and a CI history check - do not bypass eit
 
 ## Conventions
 
-- Python 3.12, `uv` for deps, `ruff` for lint+format, `mypy --strict` always passing.
 - Everything typed; every agent I/O is a Pydantic model. Tool results are untrusted data.
-- Branch + PR per task; commit messages explain *why*; `make check` before every push.
 - Secrets never in code or prompts; config via pydantic-settings and `.env` (see `.env.example`).
+- **Toolchain and workflow — the offline/online split, the hooks, `make check` before every push,
+  branch-and-PR per task, and the invariants whose violation is silent — belong to
+  [`CONTRIBUTING.md`](CONTRIBUTING.md) and are not repeated here.** They apply to an agent exactly
+  as they apply to a person; read them there.
 
 ## Contamination rules (eval integrity)
 

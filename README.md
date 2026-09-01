@@ -13,6 +13,11 @@ agent works; it is that you can find out whether it does, and so can we.
 > **Status: pre-v0.1.** Built gate by gate against a published execution plan. Nothing is claimed
 > that a clean clone cannot demonstrate.
 
+**Changing something?** [`CONTRIBUTING.md`](CONTRIBUTING.md) is the orientation — what runs
+offline, the hooks that will stop you, and the invariants whose violation is silent. **The
+proposal and execution plan this is built against are in [`docs/spec/`](docs/spec/)**, committed
+unmodified.
+
 ## Prerequisites
 
 - **Docker**, running, with room for ~20 containers. `make world-up` clones the pinned
