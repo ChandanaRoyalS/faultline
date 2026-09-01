@@ -6,7 +6,7 @@
 ## System at a glance
 
 Target environment (OTel demo + Prometheus/Loki/Tempo/Grafana + Alertmanager)
-→ ingest API → Redis Streams (concurrency-capped) → orchestrator + eleven-state incident
+→ ingest API → Redis Streams (concurrency-capped) → orchestrator + fourteen-state incident
 machine (Postgres) → agent runtime: triage → planner → [log · metrics · change · trace]
 specialists → synthesizer (cited RCA, citation-validated) → remediation proposer →
 action plane (separate service, allowlist + approval tokens) — with the eval harness
@@ -21,7 +21,7 @@ injecting labeled faults and scoring everything.
 | `src/faultline/context` | service catalog, dependency graph, retrieval | T2.4, T6.4 |
 | `src/faultline/agents` | the nine agent roles | T3.x |
 | `src/faultline/tools` | PromQL/LogQL/trace/change-history tools, trust-labeled I/O | T2.6, T3.x |
-| `src/injector` | reversible fault injection, 4→8 classes | T1.4, T7.0 |
+| `src/injector` | reversible fault injection, four classes (ADR-0029) | T1.4 |
 | `src/evalharness` | scenario runner, scoring, variance protocol, baselines | T4.x |
 
 ## Decision log

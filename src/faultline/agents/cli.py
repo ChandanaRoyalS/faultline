@@ -188,7 +188,18 @@ def run(argv: list[str] | None = None) -> int:
             psycopg.connect(dsn), SentenceTransformerEmbedder(context.embedder)
         )
 
-    model = AnthropicModel(args.model)
+    # T2.5: retries are transparent, substitution is not. `fallback_models` is empty by
+    # default, so this is a retry wrapper unless someone has decided otherwise (ADR-0031).
+    from faultline.agents.model import Resilient
+    from faultline.agents.settings import AgentSettings as _Settings
+
+    _settings = _Settings()
+    model = Resilient(
+        AnthropicModel(args.model),
+        [AnthropicModel(name) for name in _settings.fallback_models],
+        attempts=_settings.retry_attempts,
+        base_delay=_settings.retry_base_delay,
+    )
     engine = Investigation(
         planner=Planner(model),
         specialists=build_specialists(

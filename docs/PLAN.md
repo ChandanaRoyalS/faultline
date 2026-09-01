@@ -1,15 +1,20 @@
-# Execution plan — reconstructed from in-repo citations
+# Execution log — the repository's index against the plan
 
-> **This file is not the plan.** The execution plan lives outside this repository. Every
-> entry below was reconstructed by collecting task references from ADRs, scenario files,
-> code comments and tests, and paraphrasing what those citations say the task will do.
-> Where the repo assumes something the plan has never stated in the tree, that is marked
-> **contract not written**.
+> **The plan is in this repository.** `docs/spec/execution-plan-rev9.pdf` and
+> `docs/spec/project-proposal-rev8.pdf` govern, with
+> `docs/spec/t1.6-the-quarantine-rule.pdf` governing T1.6. This file indexes what the
+> repository has actually built against them. Where the two disagree, the specification wins.
 >
-> Treat this as an index of what the codebase believes, not as authority. If it disagrees
-> with the real plan, the real plan wins and this file should be corrected.
+> **It was not always so, and that mattered.** Until 2026-09-01 the plan lived outside this
+> repository and this file opened by saying so. It was reconstructed on 2026-08-24 by
+> collecting task references out of ADRs, scenario files, code comments and tests, and
+> paraphrasing what those citations said each task would do — which made it a reconstruction
+> of the repository *by* the repository. An index built from the code cannot disagree with
+> the code, so it could never catch drift from intent, and for four months nothing could.
 >
-> Reconstructed 2026-08-24, after T1.5 completed.
+> Entries marked **contract not written** date from that period and mean the repo assumed
+> something no in-tree document stated. They are checkable against `docs/spec/` now. They
+> have not all been rechecked.
 
 ## How this was built
 
@@ -21,6 +26,44 @@ and matches that were actually ISO timestamps or product identifiers were discar
 ---
 
 ## Phase 0 — foundations
+
+## Audit against the specification — Phases 0 and 1 (2026-09-01)
+
+The first check of this repository against the documents that authorise it: task by task,
+against each deliverable column's own wording rather than a summary of it. Ten pull
+requests, #112–#121. No part of it delegated to an agent.
+
+**Phase 0 — five tasks and Gate 0, all delivered.**
+
+| Task | What was missing | Closed by |
+|---|---|---|
+| T0.1 | CONTRIBUTING notes; and the specification itself was not in the repository | #112 |
+| T0.2 | Pipeline badge; images were built and discarded, never published | #113 |
+| T0.3 | `eval` was a synonym for `platform`; `make help`'s regex hid every hyphenated target | #114 |
+| T0.4 | The architecture map promised 8 fault classes against ADR-0029's four | #115 |
+| T0.5 | The harness was never cloned; the contract was inferred from documentation | #116 |
+| G0 | Never tested, and no gate in the project had ever been declared | #117 |
+
+**Phase 1 — four tasks delivered outright, one partial, one deviating, gate undeclared.**
+
+| Task | Finding | Closed by |
+|---|---|---|
+| T1.1, T1.4, T1.5 | Delivered, each past the ask | — |
+| T1.6 | Delivered past the ask — its spec promised seven contamination tests and there are nineteen — but its governing document was not in the repo, and its own remedy for the `bad_config` gap points at a T7.1 that ADR-0029 has since made impossible | #118 |
+| G1 | Evidence existed from 2026-08-23 and the ledger did not know it | #119 |
+| T1.3 | Shipped three rules against three named families: error-rate as specified, latency as a p95 threshold rather than an SLO burn rate, saturation absent entirely — and the saturation gap is why the `scale` class is empty | #120 |
+| T1.2 | The shop-health dashboard did not exist; every demo opened on the OTel demo's own Grafana | #121 |
+
+**Two findings that outlast the audit.** SREGym grades mitigation on live cluster state, so
+a system that proposes and never executes scores zero on that half by construction — T7.2
+may claim a diagnosis pass rate and nothing broader (ADR-0004). And the `bad_config` holdout
+gap is permanent rather than interim, so the full-set headline policy is permanent too
+(ADR-0008).
+
+**Deferred, with rows in `docs/QUEUE.md`.** Q13, a saturation alert rule, digest-locked
+behind `alert-rules.yml`.
+
+---
 
 ### T0.3 — compose profiles
 Splits the stack into `world` and `platform` profiles.
@@ -76,18 +119,39 @@ correlation is deliberately **not** decided here.
 against), `docs/evidence/t2.1-live-smoke/README.md` (the receiver running live),
 `docs/evidence/gate-1/README.md:19`
 
-### T2.2 — orchestrator *(built)* / T2.3 — agent fan-out
-Event consumption, an eleven-state incident machine, agent fan-out. ADR-0001 commits to a
-global investigation concurrency cap with severity-ordered overflow.
+### T2.2 — event bus *(built)* / T2.3 — state machine + DB *(partly built)*
+
+> **Numbering note (2026-09-01).** This section was headed *"T2.2 — orchestrator / T2.3 —
+> agent fan-out"* until today. Those are not the specification's task names: `docs/spec/`
+> gives T2.2 as the event bus and T2.3 as the state machine and schema, and fan-out is T3.5.
+> The headings are corrected here; the mislabelling is recorded rather than erased, because
+> it is the same defect as the state sets — an index reconstructed from the code cannot
+> disagree with the code, and until 2026-09-01 there was nothing in the repository for it to
+> disagree with.
+
+Event consumption, a fourteen-state incident machine, the concurrency cap. ADR-0001 commits
+to a global investigation concurrency cap with severity-ordered overflow.
 
 **T2.2 is built:** the consumer loop, correlation behind a `CorrelationPolicy` seam
-(`TimeOverlapPolicy` now, `DependencyPolicy` at T2.4), the eleven-state machine with an
-enforced transition table, the cap, and incident persistence to Postgres. The states that
-need T3.x and the action plane are present and stubbed, and calling one says which task owns
-its contract. **T2.3 is not**, and cannot be until T3.x exists.
+(`TimeOverlapPolicy` now, `DependencyPolicy` at T2.4), the cap with severity-ordered
+overflow, incident persistence to Postgres, and the kill-a-worker test its deliverable names
+(`tests/test_orchestrator.py`, "a worker dies mid-flight").
+
+**T2.3 is partly built.** The machine is: fourteen states with an enforced transition table,
+property-tested for reachability, and every row of the specification's failure-scenario table
+now names a reachable state — T2.3's acceptance criterion, and Gate 2's. See ADR-0016
+Addenda 1 and 2. States that need T3.x and the action plane are present and stubbed, and
+calling one says which task owns its contract; the six with no runtime writer are asserted in
+`NO_RUNTIME_WRITER` so the set cannot shrink silently.
+
+**Three of T2.3's deliverables are absent** (found by audit, 2026-09-01): there are no
+migrations, no testcontainers integration tests against real Postgres and Redis, and no
+S3-compatible archive for raw evidence payloads and rendered reports. The deliverable line
+reads *"Schema + migrations + tested state machine + report/evidence archive"*; two of those
+four exist. `PostgresIncidentStore` consequently has no test of any kind.
 
 **ADR-0016 designs all of it** and closes the "contract not written" marker this entry
-carried: incident correlation, the eleven states with a trigger on every transition,
+carried: incident correlation, the states with a trigger on every transition,
 consumer-group ack semantics — an event is processed when its incident state change is
 durable, not when the investigation finishes — and the cap, its severity source, and its
 overflow order.
@@ -158,6 +222,26 @@ own narrative at rank 1 in both arms without `exclude_origin`, and not at all wi
 `src/faultline/context/`, `docs/adr/0018-past-incident-corpus.md`,
 `docs/evidence/t2.4b-corpus-smoke/README.md`, `docs/adr/0002:8`, `docs/adr/0008:80`,
 `evals/scenarios/ARTIFACTS.md:154`
+
+### T2.5 — LLM gateway *(partly built)*
+One choke point for model calls: retries with backoff and jitter, transient-failure
+classification, and optional fallback models that record every substitution. Budgets and the
+provider boundary arrived earlier as T3.3 and T3.2 rather than here. **Provider routing and
+the verified self-hosted seam remain unbuilt** — the deliverable names *"verified
+self-hosted seam"* and nothing has been run against an OpenAI-compatible endpoint.
+`src/faultline/agents/model.py`, `tests/test_model_resilience.py`,
+`docs/adr/0031-retries-substitutions-and-what-t2-5-never-built.md`
+
+### T2.7 — thin slice *(built)*
+One agent wired end to end: alert in → tool calls → typed findings persisted → rendered in a
+report. Delivered, and delivered wider than the task asked — the task specifies one agent and
+one tool, and the run that satisfied it went from triage through a planner, six specialist
+dispatches over two rounds, a synthesizer verdict and a rendered narrative.
+
+The evidence is filed under T3.4's name because that is the task that ran it; nothing until
+now recorded that T2.7's milestone had been reached, which is why the first end-to-end
+investigation existed for a week without any document saying the phase-2 integration risk had
+died. `docs/evidence/t3.4-first-investigation/README.md`
 
 ### T2.6 — tools *(built)*
 Typed tools with scoped read-only credentials and trust-labelled results. Also bound by
@@ -1572,6 +1656,83 @@ alerted *only* after the revert, so the two sets were disjoint. The re-record re
 of those and produced the first overlap, `product-catalog-flag-failure`, where frontend alerts
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
+
+### T7.62 — audit the repo against the proposal and the execution plan *(audit; \$0)*
+**Done, with the audit's first finding being that it could not be done as specified**
+([`docs/design/t7.62-audit-against-the-plan.md`](design/t7.62-audit-against-the-plan.md)).
+Branched and confirmed first. **No source document was amended.**
+
+**Neither source document is in this repository.** The task asked for each of the 58 deliverable
+columns and each of the 8 exit conditions to be **quoted**. The Faultline Project Proposal (REV 8)
+and Execution Plan (REV 9) are not in the tree, and nothing cites them. **This file says so in its
+own first line** - *"This file is not the plan. The execution plan lives outside this repository …
+Treat this as an index of what the codebase believes, not as authority."* **So grading the repo
+against it would grade the repo against a document harvested from the repo** - an exercise that
+cannot fail and whose passing means nothing, and the sixth instance of this arc's defect rather than
+a check on it. **No deliverable was quoted and no task graded, because doing either would have meant
+inventing the wording.** Everything answerable from the tree alone was answered.
+
+**The gates: `grep` for "Gate 1" through "Gate 8" across every markdown file returns four hits and
+none is a declaration.** This file contains the string "Gate" **zero times**. **Only Gate 1 has
+evidence** (`docs/evidence/gate-1/`, three screenshots and a README). **Gates 2-8 have no exit
+condition on record, no evidence, and no declaration that they passed.** So the worst thing the
+audit could have found - a gate declared passed without its condition holding - **has no instance,
+because no gate was ever declared.** That is not better: CLAUDE.md rule 4 reads *"Gates are hard - a
+task is done when its gate condition passes from a clean clone"*, and **that rule is enforced by
+nothing and tracked nowhere.**
+
+**The two flagged gates, checked directly and both failing.** **Gate 4** - `make eval` takes
+`SCENARIO=<id>` and scores **exactly one scenario per invocation**; T7.47 implemented it as a
+single-scenario wrapper after finding it a stub, and there is no all-scenarios driver anywhere in
+`src/evalharness/`. *Unattended* fails on a second ground measured this session: **T7.58 ran six
+invocations back to back and three were refused inside four seconds**, because `faultline-eval`
+refuses rather than waits for the world to settle. Every multi-scenario sweep here was driven by an
+ad-hoc script. **Gate 5** - T7.48 rebuilt the world **reusing local images** and said so; README
+still records the demo end to end as **unverified**. **Nobody has run this from a clean clone.**
+
+**Every named mandatory item is absent or half-present, and the searches are cheap to repeat.**
+`"baseline suite"` **zero hits** - `baseline.py` is T1.5's quiet-world measurement, a different
+thing, and **no headline table carries a B0/B1/B2 row**. `"A/A"` **zero hits**. **No MDE table, no
+repeat tiers, and no confidence interval on any figure** - `"MDE"` returns one hit, my own T7.58
+pre-registration. **T6.5 leaves no trace in the tree at all.** **T6.8's core thesis, prompt injection
+via log lines, has no eval scenarios and has never been attacked** - 13 valid scenarios and not one
+adversarial. **T6.4's corpus floor is 50 documents and the corpus holds 7** (35 chunks), read live -
+**14%** - with `"recall@5"` and `"MRR"` both at **zero hits**, so **no retrieval-quality metric
+exists at all.** And against the closing rule *"No number without an interval"*: **no number here
+carries one.** CLAUDE.md rule 6 is stronger than what is practised - *n, R, and a 95% CI, next to a
+baseline* - and **n is carried everywhere while R, the CI and the baseline are carried nowhere.**
+
+**Numbering: at least four plan task IDs mean two things.** The plan's Phase 7 ends at **T7.5 - six
+ids**; the repo runs **T7.0 to T7.59 - sixty**. **T7.1 is a documented collision** (plan: grow the
+catalog past 30, *"still owed"*; repo: the digest-locked queue). **T7.3, T7.4 and T7.5 each carry
+`contract not written`** - the reconstruction found *no plan statement for them* - so each is
+repo-invented work sitting on an id the plan had already assigned. **T5.3 is a fourth**, and its own
+entry says *"what was built is not what this entry described."* **The consequence that matters: the
+plan's T7.5, which the brief says outranks everything in the phase, cannot be found in this
+repository** - its id is occupied, and a reader will find a reachability decision and believe it was
+done. **T7.2, the other priority task, is recorded and never built.** `contract not written` appears
+**33 times**: a third of this index is work with no plan statement behind it.
+
+**Does the work since T7.30 serve the plan's priorities? No, and not marginally.** Thirty tasks
+completed since; **neither T7.2 nor the plan's T7.5 is among them.** What those thirty did: eight on
+world stability and the memory gate, six on scenarios and the catalog, five on record integrity and
+audits, four on the holdout protocol, the rest on freeze, locking, judging and queue hygiene.
+**Every one is defensible in isolation and the sequence is coherent** - each answered a defect the
+last exposed. **But together they are a project auditing and repairing its own measurement
+apparatus, not a project executing a plan.** The last thirty tasks **optimised the trustworthiness
+of a small number of figures rather than the coverage the plan asked for, and that trade was never
+registered as a decision - it happened.**
+
+**Not fixed, and not queued.** Nothing here is a defect with a remedy this task could apply: the
+audit needs the two documents, and the priorities are the user's to set. **Neither source document
+was amended** - they are evidence about intent.
+
+**Addendum, same day.** The first finding was acted on: `docs/spec/` now holds the proposal,
+the execution plan and the T1.6 rule, and this file's preamble was corrected. What reading
+the real documents then found — a state machine whose eleven states are not the
+specification's eleven, T2.4b's runbook corpus empty behind a past-incident store that is
+not it, T2.5 and T2.7 unrecorded, and this file heading sections with task names that are not
+the plan's — is in the design note's addendum. The priorities finding is unchanged.
 
 ### T7.60 — reorder the record around the reader *(Q12; \$0)*
 **Done.** Branched and confirmed first. **Three changes and nothing else. Nothing deleted, no figure

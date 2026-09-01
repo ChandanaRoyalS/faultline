@@ -1,7 +1,8 @@
-.PHONY: help install lint format type test check up down eval demo
+.PHONY: help install lint format type test check up down eval-up eval-down eval demo \
+        ffs-stub world-up world-down world-ps world-logs dashboards
 
 help:
-	@grep -E '^[a-z]+:' Makefile | sed 's/:.*//' | tr '\n' ' '; echo
+	@grep -E '^[a-z][a-z0-9-]*:' Makefile | sed 's/:.*//' | tr '\n' ' '; echo
 
 install:
 	uv sync
@@ -28,6 +29,24 @@ up:
 
 down:
 	docker compose --profile platform down
+
+# ---- T0.3: the three bring-ups ----
+# The plan names three profiles: platform-only, full-world, eval. Two are compose
+# profiles here and one deliberately is not. The world is a pinned clone of somebody
+# else's repository (ADR-0026), never vendored into this one, so it cannot be a profile
+# in this compose file - it comes up from its own, under our overlays, via `world-up`.
+#
+# `eval` is the platform plus the world: a scored run talks to postgres and redis here
+# and to the demo's telemetry backends there, and needs both. The harness itself runs on
+# the host rather than in a container, which is why the eval profile adds no service of
+# its own and sits on the same two as `platform`.
+eval-up:
+	docker compose --profile eval up -d
+	$(MAKE) world-up
+
+eval-down:
+	$(MAKE) world-down
+	docker compose --profile eval down
 
 # One scored scenario, end to end: baseline gate, inject, correlate, investigate, revert,
 # confirm recovery, score. Real model calls - see README's "Scoring a scenario".
@@ -105,6 +124,14 @@ ffs-stub:
 
 world-up: world/.cloned ffs-stub
 	cd world && $(COMPOSE_WORLD) up -d --no-build
+	@$(MAKE) --no-print-directory dashboards
+
+# T1.2: the shop-health dashboard, pushed over Grafana's API rather than mounted.
+# A compose mount would move compose_digest and re-found the world for a panel that
+# changes nothing the harness measures - see ADR-0030 and the script's own docstring.
+# Idempotent: overwrite: true, so running it twice is running it once.
+dashboards:
+	uv run python scripts/provision_dashboards.py
 
 world-down:
 	cd world && $(COMPOSE_WORLD) down

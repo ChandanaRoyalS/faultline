@@ -1,5 +1,7 @@
 # Faultline
 
+[![ci](https://github.com/ChandanaRoyalS/faultline/actions/workflows/ci.yml/badge.svg)](https://github.com/ChandanaRoyalS/faultline/actions/workflows/ci.yml)
+
 **An open, benchmarked incident-investigation agent system for the OpenTelemetry stack.**
 
 When a production alert fires, Faultline's agents investigate it the way a good on-call engineer
@@ -38,6 +40,12 @@ queries, the verdict, the narrative, the revert, and the confirmed recovery.
 make world-up    # the pinned OpenTelemetry demo; give it ~5 minutes to settle
 make demo        # ~15 minutes, real model calls
 ```
+
+**Watch it happen.** `make world-up` also provisions the shop-health dashboard —
+[the world at a glance](http://localhost:3000/grafana/d/faultline-shop-health). Every panel
+below the top row is one alert rule's own expression with its threshold drawn as a line, so
+a firing alert is explicable on the screen where it is visible. Open it before you inject:
+the demo's narration and the dashboard tell the same story from two ends.
 
 **Five minutes, not two.** The baseline gate refuses to inject into a world whose containers are
 younger than **300 seconds** — a container still warming up produces readings that are not a

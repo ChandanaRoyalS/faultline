@@ -279,3 +279,41 @@ above a 250ms threshold: on magnitude alone, it is not.
 Revisit if: a clean 45-minute baseline shows the excursion is longer or more frequent than
 this single observation suggests, or if any healthy-world alert starts firing during a
 rehearsal.
+
+## Addendum (Phase 1 audit): what shipped against the three rule families T1.3 named
+
+T1.3's specification names three families: *"error-rate, latency SLO burn, and saturation
+rules per service."* Three rules shipped, and the correspondence is not one to one. Recorded
+here because a reader comparing the plan to `alert-rules.yml` will notice, and because one
+of the two divergences has a measured consequence elsewhere in the project.
+
+**Error rate — as specified.** `ServiceHighErrorRate`, per service, threshold grounded in a
+measured quiet baseline rather than copied from a tutorial.
+
+**Latency — a p95 threshold, not an SLO burn rate.** A burn-rate rule consumes an error
+budget against a declared objective. No SLO was ever declared for these services: there is
+no target, therefore no budget, therefore nothing to burn. A burn-rate rule over an invented
+budget would be arithmetic wearing the costume of an objective, and it would move with the
+budget rather than with the world. `ServiceHighLatency` is a p95 threshold set against the
+baseline measured above, which is the honest form available in an environment with no SLO
+contract. If SLOs are ever declared for this world, the burn-rate form becomes available and
+this decision should be revisited.
+
+**Saturation — absent, and the absence is load-bearing.** Nothing here signals saturation.
+ADR-0024 later measured what that costs: 50× load sustained for twenty minutes, with all
+three rules blind throughout, because saturation queues rather than erroring and the span
+metrics do not widen enough to trip a latency threshold. That ADR names *"a saturation alert
+rule — a plateau or queue-depth signal"* as the smallest change that would make the `scale`
+class scoreable, and it is why that class is empty. So the gap between T1.3 as specified and
+T1.3 as built is the direct cause of a fault class this benchmark cannot express.
+
+**`ServiceNoTraffic` — an addition the plan did not name.** It catches a service that stops
+serving rather than one that serves badly, and it is the entire page for at least one
+catalog item (`payment-telemetry-blackout`, where the service is healthy and its telemetry
+is misdirected). Recorded as an addition rather than left to look like one of the three.
+
+**Decision: record the deviation, do not close it here.** `compose/prometheus/alert-rules.yml`
+is the first entry in `OBSERVABILITY_FILES`, so any edit moves `observability_digest` and
+re-founds the world that every recorded figure describes. Adding a saturation rule is a
+digest-locked change and queues as **Q13**, to land batched with the next world move — not
+ad hoc, and not because an audit noticed it was missing.

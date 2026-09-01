@@ -301,3 +301,42 @@ the `dependency_latency` remediation label is **not** settled at `restart` alone
 measured `config_revert` to work as well — and the count of untested remediation classes is no
 longer "one of four: `scale`", since ADR-0024's T7.19 addendum closes `scale` as unreachable on
 this world with the reason recorded.
+
+## Addendum (T1.6 spec committed): the honest gap is permanent, not temporary
+
+T1.6's own specification — now in `docs/spec/t1.6-the-quarantine-rule.pdf` — names one
+acknowledged gap and gives it an expiry date:
+
+> "Three holdout slots cannot cover four fault classes. Bad config is dev-only, so nothing
+> tests whether the system generalises to an unseen config fault. … It is still a real gap.
+> Say so when you report numbers. **T7.1 grows the catalog to thirty-plus and every class
+> gets holdout coverage then.**"
+
+Its enforcement table says the same: *"T7.1 · Closes the bad-config gap · Catalog grows to
+30+, holdout reaches 9–10, headline switches to holdout-only."*
+
+**That remedy no longer exists.** Three later findings remove it:
+
+- **ADR-0029** establishes that this world supports four fault classes and no fifth, so the
+  catalog cannot reach thirty across ~8 classes as T7.1 assumed.
+- **T7.56** attempted a fifth `bad_config` scenario, gated it, and abandoned it — no
+  distinct `bad_config` item is authorable here, which is precisely the class the gap is in.
+- **T7.53** assessed holdout entry 4 against the T4.15 limit and did not open it; extending
+  the holdout set is blocked on scenarios that cannot be written.
+
+So the consequences, stated plainly:
+
+1. **The `bad_config` holdout gap is permanent under this world**, not an interim state
+   awaiting T7.1. Nothing tests generalisation to an unseen config fault, and nothing in
+   this environment can be built that would.
+2. **The headline never switches to holdout-only.** This ADR's headline policy — full-set
+   numbers with the split labelled and n explicit — stops being provisional and becomes the
+   permanent reporting form, for the reason the spec itself gives: three scenarios is an
+   anecdote, and the holdout cannot grow past three here.
+3. **Changing either needs a different demo world**, which is the trigger already recorded
+   in `docs/QUEUE.md`. It is not a task anyone can pick up in this repository.
+
+The specification is not amended. It is evidence about what was intended and believed in
+week two, and it was right on the evidence available then — the gap was genuinely expected
+to close. Recording the correction here, where the contamination model lives, is what keeps
+a reader from following its promise to a task that cannot be delivered.
