@@ -1,0 +1,26 @@
+incident 1f3ccedb-1f15-4c40-afeb-8dcfa23dc05f  state triaging  anchor 06:25:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 8ecf4a7f-b59f-4dbd-acf2-2ffd4c0ad3d0
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_8a248dc689c1, tr_1c6bbccf1bb9, tr_e1ff0d09fc2d
+  root cause  : cartservice is slow, not failing: traces show every cartservice server span consumed almost entirely by its own cache client spans (HGET/HMSET ~300-309ms each), giving ~300ms GetCart/EmptyCart and ~600ms AddItem, which propagates to frontend cart requests (~306ms GET, ~910ms POST) and checkout PlaceOrder (~660-680ms) while every other downstream leg is single- or low-double-digit ms. No error spans anywhere and frontend error ratio flat zero, consistent with a warning-severity latency incident. The failing mechanism is a slow cache dependency in cartservice's read/write path; the near-constant per-operation cost suggests a fixed configured/injected delay rather than organic contention, but no change record confirms this within the queried window.
+  OPEN        : The cache/Redis backend was never dispatched on - saturation, network path, or injected delay is undetermined.
+  OPEN        : No change coverage before 06:15:30; an earlier edit that manifested at 06:25:30 is not excluded.
+  OPEN        : The 06:24-06:27 onset region was never sampled in logs due to truncation, and cartservice saturation metrics returned no series.
+
+flags: none
+
+retrieval: exclude_origin='scenario:redis-cart-dependency-latency', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260901T062150Z-redis-cart-dependency-latency/1f3ccedb-1f15-4c40-afeb-8dcfa23dc05f-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260901T062150Z-redis-cart-dependency-latency/1f3ccedb-1f15-4c40-afeb-8dcfa23dc05f-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9615.47it/s]

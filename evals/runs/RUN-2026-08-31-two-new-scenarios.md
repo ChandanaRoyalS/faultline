@@ -166,3 +166,102 @@ catalog's own floor**, with no judged agreement. Whether D5's abstention or its 
 typical is unknown, and the sweep that would have said was stopped by billing.
 
 **Holdout was not touched.**
+
+
+---
+
+# Completed at T7.51 — the registered n = 3, and the judge
+
+**The two runs that died on credit exhaustion have been run.** They are the registered-but-never-
+scored runs, not replacements: **no run above was re-run, and no recorded verdict was altered.**
+And the judge — which never ran at T7.41, for the same reason — has now been run across **all six**.
+
+> **Judging adds; it does not alter.** `judge_cli` writes `manifest["judge"]` and has **zero
+> references to the score block**. Every class-label score above stands exactly as recorded.
+
+## The completed experiment
+
+| run | scenario | fault class | fix | **judge** |
+|---|---|---|---|---|
+| `20260831T0434` | D5 | **`unknown` — ABSTAINED** | — | **different** |
+| `20260831T0515` | D5 | `bad_config` ✔ | ✔ | **same_mechanism** |
+| **`20260901T0559`** | **D5** | **`bad_config` ✔** | **✔** | **same_mechanism** |
+| `20260831T0456` | D1 | `dependency_latency` ✔ | ✔ | **same_mechanism** |
+| `20260831T0538` | D1 | `dependency_latency` ✔ | ✘ | **adjacent** |
+| **`20260901T0621`** | **D1** | **`dependency_latency` ✔** | **✘** | **adjacent** |
+
+| | **D5 (n = 3)** | **D1 (n = 3)** |
+|---|---|---|
+| coverage | **2 / 3** | **3 / 3** |
+| fault class, of answered | **2 / 2** | **3 / 3** |
+| fix class, of answered | **2 / 2** | **1 / 3** |
+| judge `same_mechanism` | **2 / 3** | **1 / 3** |
+
+**Cost.** T7.51's two runs **$1.0562**; the judge across all six **$0.2555**. **Whole experiment:
+$3.1644 agent + $0.2555 judge = $3.4199.**
+
+## The predictions, quoted and scored as written
+
+**D5 — registered:** *"predicted **correct in ≥ 2 of 3** on fault class … **Falsified if fault class
+is correct in ≤ 1 of 3**."*
+
+> **HOLDS. 2 of 3 correct.**
+
+**This reverses what T7.41 reported**, and the reversal is the point of completing a registration
+rather than reporting a truncated one. At T7.41 the honest statement was *"at most 1 of 3 was
+correct"* — true of what existed then: two scored runs and a credit discard. **The third registered
+run is correct, so the prediction as written is met.** Both statements were honest when made; only
+the completed n tests what was actually registered.
+
+**D5's registered failure mode also held.** Registered: *"a run that answers from the page without
+opening the logs should return `bad_deploy` or `resource_exhaustion` with remediation `restart`"* —
+**no run did that.** The one failure was an abstention, which the registration named as the more
+interesting outcome and which T7.43 then reconstructed.
+
+**D1 — registered:** *"class ≥ 2 of 3, faulty service ≤ 1 of 3"*, and *"Does the agent consult
+`change_history` unprompted? Predicted **yes, in at least 2 of 3**"*, with the failure predicted as
+*"not that it skips the tool but that it queries the wrong subject."*
+
+> **All three hold, and the mechanism held every time.**
+> - class **3 / 3** ✔ (predicted ≥ 2)
+> - faulty service **0 / 3** ✔ (predicted ≤ 1)
+> - `change_history` consulted **3 / 3** ✔ (predicted ≥ 2)
+> - subjects across all three runs: `cartservice`, `productcatalogservice`, `cartservice`,
+>   `cartservice`, `cartservice`, `productcatalogservice`. **`redis-cart` was never asked about,
+>   in any run, by any tool.**
+
+**Under the decision table fixed before the runs, that is an agent finding, not a scenario finding**
+— `change_history` resolves `redis-cart` and the log holds records for it.
+
+## The label score overstates D1, and the judge is what shows it
+
+**This is the most interesting thing the completed experiment turned up, and T7.43 predicted it was
+possible.**
+
+**D1's fault class is 3 / 3. Its judged mechanism agreement is 1 / 3.** The two runs the judge rates
+**`adjacent`** — ADR-0022's *"right subsystem, wrong mechanism"* — **scored fully correct on the
+fault-class label.**
+
+The two disagreeing runs are exactly the two that also missed the fix class (`config_revert` against
+a truth of `restart`), so the label score was not blind — but **`fault_class` alone would have
+reported 3/3 for a scenario where two of three verdicts named a mechanism the judge does not accept
+as the recorded one.**
+
+**This is T7.44's argument arriving as data.** The scorer scores conclusions; the judge assesses the
+mechanism named; they can disagree, and here they do on **two runs out of three**. A reader given
+only *"fault class 3/3"* would have a materially better impression of D1's result than the record
+supports. **Coverage and accuracy are reported together by rule; on this evidence the judged
+agreement deserves the same treatment.**
+
+**D5's abstention is judged `different`**, which is the correct handling rather than a finding: a
+verdict with no root cause cannot name the same mechanism as the narrative.
+
+**One trap was taken**, in D5's third run — *"if payment were really down, checkout would error (and
+it doesn't)"* — by a run that nonetheless reached the right answer. Worth recording because it is
+the shape T7.43 described from the other side: the reasoning and the conclusion coming apart.
+
+## What this still does not establish
+
+**n = 3 per scenario.** Three observations, not a rate, and the registration said so before any run.
+**All figures are judged under SHARED LINEAGE** — judge `claude-haiku-4-5`, agent `claude-opus-5`,
+both Anthropic — which every judged figure in this repository carries.

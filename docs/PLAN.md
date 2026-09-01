@@ -1573,6 +1573,50 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.51 — T7.41's registered runs, finished and judged *(live; \$1.31)*
+**Done** ([`RUN-2026-08-31-two-new-scenarios.md`](../evals/runs/RUN-2026-08-31-two-new-scenarios.md),
+completion section). Branched and confirmed first. **Two runs only** - the registered-but-never-
+scored ones. **No scored run was re-run and no recorded verdict was altered.**
+
+**Checked before running, not assumed.** The judge writes `manifest["judge"]` and has **zero
+references to the score block**, so judging four already-scored runs **adds** rather than alters -
+which was the stop-condition. And the gate was consulted: **kafka 31.6% against an 84.9% threshold**
+at `--runs-remaining 2`, so **no recycle was needed and the gate is what said so.**
+
+**D5's prediction now HOLDS, reversing what T7.41 reported.** Registered: *"correct in >= 2 of 3 …
+falsified if correct in <= 1 of 3"*. The three scored runs are **abstain, correct, correct - 2 of
+3.** At T7.41 the honest statement was *"at most 1 of 3 was correct"*, true of what existed then:
+two scored runs and a credit discard. **Both statements were honest when made; only the completed n
+tests what was registered**, which is exactly why finishing a registration is not re-rolling. D5's
+registered *failure mode* also held - no run returned "the service is down"; the single failure was
+the abstention T7.43 reconstructed.
+
+**D1's three predictions all hold, and the predicted mechanism held every time.** Class **3/3**
+(predicted >=2), faulty service **0/3** (predicted <=1), `change_history` consulted **3/3**
+(predicted >=2) - and the subjects across all three runs were `cartservice` and
+`productcatalogservice` only. **`redis-cart` was never asked about, in any run, by any tool**, which
+under the table fixed before the runs is an **agent finding, not a scenario finding.**
+
+**The finding worth the task: the label score overstates D1, and the judge is what shows it.**
+**D1's fault class is 3/3; its judged mechanism agreement is 1/3.** The two runs the judge rates
+**`adjacent`** - ADR-0022's *"right subsystem, wrong mechanism"* - **scored fully correct on the
+fault-class label.** They are the same two that missed the fix class, so the label score was not
+blind, but **`fault_class` alone would have reported 3/3 for a scenario where two of three verdicts
+named a mechanism the judge does not accept.** **This is T7.44's argument arriving as data**: the
+scorer scores conclusions, the judge assesses the mechanism named, and here they disagree on two
+runs of three. Coverage and accuracy are reported together by rule; **on this evidence judged
+agreement deserves the same treatment.**
+
+**Also recorded:** D5's abstention judges `different`, which is correct handling rather than a
+finding - a verdict with no root cause cannot name the narrative's mechanism. And D5's third run
+**took a trap** (*"if payment were really down, checkout would error"*) while still reaching the
+right answer - the reasoning and the conclusion coming apart, which is T7.43's shape seen from the
+other side.
+
+**Cost: \$1.0562 for the two runs, \$0.2555 for the judge across all six = \$1.3117.** Whole
+experiment now **\$3.4199**. **All judged figures carry SHARED LINEAGE** (judge `claude-haiku-4-5`,
+agent `claude-opus-5`). **n = 3 per scenario - three observations, not a rate.**
+
 ### T7.50 — does the action plane survive T7.18? *(design analysis; nothing built, ADR not amended)*
 **Done** ([`docs/design/t7.50-action-plane-vs-oracle.md`](design/t7.50-action-plane-vs-oracle.md)).
 Branched and confirmed before committing.
