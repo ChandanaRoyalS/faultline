@@ -1,0 +1,30 @@
+incident 03e71238-108f-40dd-a297-edeb4a8a123f  state triaging  anchor 09:51:45
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: b8eb4b51-2661-4d66-b2fa-4f4b3e026bbf
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_afbf7ec16980, tr_4ebe4ee16310, tr_df9a68fd96ac, tr_6a5141eb5726, tr_96fdfcc4f20e, tr_5d1f4532b2a4, tr_97b723431be4
+  root cause  : At 09:49:07 UTC an automated environment-variable update (actor 'platform-automation') repointed cartservice's Redis backing address to the redis-cart host on port 6380 (tr_afbf7ec16980). Nothing listening usable is reachable at that endpoint: cartservice's own logs show repeated connect attempts to redis-cart:6380 with TLS disabled, each ending in a connect failure raised out of RedisCartStore.InitializeAsync/EnsureRedisConnected as an unhandled exception from Program.Main, putting the process into a crash/restart loop from ~09:52:36 through 09:55:20 (tr_4ebe4ee16310). Because cartservice dies during initialization it never serves cart RPCs, so every checkout trace fails at the same point: the CartService GetCart child span under prepareOrderItemsAndShippingQuoteFromCart is the deepest span carrying ERROR and the error propagates up through checkoutservice and frontend (tr_df9a68fd96ac). checkoutservice itself is blameless — no change is recorded for it in the onset window (tr_5d1f4532b2a4) and its local order-assembly span is consistently non-error (tr_df9a68fd96ac). The failing value is the endpoint itself: a wrong port in a configuration string is what breaks every request, so the misconfiguration is the mechanism, not merely an upstream act.
+  OPEN        : Is 6380 actually wrong, or is redis-cart genuinely meant to listen there (e.g. a TLS port) while cartservice connects with TLS disabled? The logs show TLS disabled against a non-default port (tr_4ebe4ee16310); reverting to 6379 versus enabling TLS on 6380 are different fixes and the evidence does not distinguish them.
+  OPEN        : The change log records no prior value for the Redis address (tr_afbf7ec16980), so the correct value to revert to is not established by evidence and must be read from a known-good manifest or a peer environment.
+  OPEN        : Why did checkoutservice's error ratio peak at ~67% with intervals returning to zero (tr_96fdfcc4f20e) while all ~40 sampled traces showed a uniform failure pattern (tr_df9a68fd96ac)? Possible low-denominator sampling artifact, or partial success during cartservice's brief pre-crash windows — unresolved; call volume was never retrieved.
+  OPEN        : The exact onset is unpinned. cartservice was healthy at ~09:41:47 and first observed failing at 09:52:36 (tr_4ebe4ee16310), while checkoutservice logs are missing roughly 09:42–09:51 (tr_6a5141eb5726). Whether failures began immediately at the 09:49:07 change or after a delay (cache TTL, pod restart schedule) is not settled.
+  OPEN        : cartservice has no calls_total series at all (tr_97b723431be4). Whether this is a pre-existing instrumentation/label gap or a symptom of the crash loop is unknown, and it left the saturation question entirely unanswered.
+  OPEN        : Scope of the automated change: triage counted 12 affected services, but only cartservice's change log was queried. Whether platform-automation applied the same endpoint edit to other services sharing this Redis is unverified, as is what triggered the automation.
+  OPEN        : checkoutservice's change coverage is only ~15 minutes and scoped to itself (tr_5d1f4532b2a4); a change landing between 08:51 and 09:41, or on another dependency, is outside what was checked.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260901T094904Z-cart-redis-misconfig/03e71238-108f-40dd-a297-edeb4a8a123f-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260901T094904Z-cart-redis-misconfig/03e71238-108f-40dd-a297-edeb4a8a123f-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8329.89it/s]

@@ -1,0 +1,30 @@
+incident 1a9bf23a-ec21-4661-8cd9-28d4be1767bb  state triaging  anchor 08:19:00
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 8cccc125-8f33-4fd0-b4cd-9625cd4a51c7
+investigation: 2 round(s), 7 dispatch(es), 19 step(s)
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_c59d58a6dd97, tr_4170a4bb8bb9, tr_1bcec88a89b7, tr_1e273413ff83, tr_5540124a46bb, tr_f9f0e604de0d, tr_c215ed2babd1
+  root cause  : At 08:16:11 platform-automation set cartservice's REDIS_ADDR environment variable to point at redis-cart on port 6380, replacing a previously unset value (tr_c59d58a6dd97). Nothing is listening at that endpoint: cartservice's Redis cart-store initialization times out on connect after tens of seconds and throws an unhandled ApplicationException out of the process entry point, so the process never finishes starting and crash-loops every 20-45 seconds from ~08:19:51 onward, after having served cart operations normally at 08:09 (tr_4170a4bb8bb9). With cartservice unavailable, checkout's GetCart call fails immediately — every failing trace errors on the cart-fetch child inside prepareOrderItemsAndShippingQuoteFromCart and propagates that error status up to the frontend entry span in 1-3 ms, never reaching payment, currency or accounting (tr_1bcec88a89b7). checkoutservice itself is a propagator, not the origin: no changes of any kind to it in the window (tr_5540124a46bb), no error-severity logs at all, just order-start lines with no completion after 08:18:35 (tr_1e273413ff83), and a bursty error ratio peaking near 0.67 that tracks cartservice's restart cycle (tr_f9f0e604de0d). The wrong port value in REDIS_ADDR is itself the failure mechanism.
+  OPEN        : Not settled: whether redis-cart genuinely does not listen on 6380 (wrong port in the config) or whether a planned Redis port migration to 6380 was applied to the client but not to the server. The fix differs — revert the client value versus finish moving the server — and no redis-side metrics or logs were dispatched.
+  OPEN        : The previous REDIS_ADDR value was recorded as unset/absent (tr_c59d58a6dd97), so the exact pre-incident endpoint cartservice was using is unconfirmed; a revert target needs to be established from the deployment manifest, not inferred.
+  OPEN        : Timing gap unexplained: the change landed 08:16:11, alerts fired 08:19:00, but the first crash-loop line is ~08:19:51. Whether cartservice ran on the old connection until pod restart, and what triggered that restart, was not established.
+  OPEN        : Why cartservice produced no span metrics at all across the whole 08:09-08:24 window (tr_c215ed2babd1), including the healthy period at 08:09 when it was demonstrably serving requests — this may be a separate label/scrape problem that blinded the metrics path rather than a consequence of the crash loop.
+  OPEN        : checkoutservice's error ratio dips to zero within the window and its logs are truncated after 08:21:23 (tr_f9f0e604de0d, tr_1e273413ff83), so whether checkout recovered between cartservice restart attempts or whether the 08:21:23-08:24 period diverges from this picture is uncovered.
+  OPEN        : Blast radius was 12 services with 4 unmeasured edges crossed; only checkoutservice and cartservice were dispatched. Whether any of the other alerting or affected services has an independent fault, versus all being downstream of the cart outage, was not checked.
+  OPEN        : Whether the platform-automation pipeline that made this edit will re-apply the 6380 value after a revert was not investigated.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260901T081608Z-cart-redis-misconfig/1a9bf23a-ec21-4661-8cd9-28d4be1767bb-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260901T081608Z-cart-redis-misconfig/1a9bf23a-ec21-4661-8cd9-28d4be1767bb-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9093.29it/s]

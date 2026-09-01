@@ -1,0 +1,349 @@
+{
+  "run_id": "20260901T094904Z-cart-redis-misconfig",
+  "scenario_id": "cart-redis-misconfig",
+  "split": "dev",
+  "scenario_fingerprint": "392fc77bf038447c5cb77c2ca5c18cdfad15869ab0d37087251abfc1b6de13b1",
+  "started_at": "2026-09-01T09:49:04.552685+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "d3a51917414bdd61f7e640f6eef1b61a16611ea7",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 52879,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-01T09:49:04.606395+00:00",
+    "reason": "faultline-eval cart-redis-misconfig",
+    "token": "52879-1788256144.606291"
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 3136,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "payment-service",
+      746
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 58.59,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 0.3475,
+      "runs_remaining": 1,
+      "uptime_seconds": 15686,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 52.5,
+      "projected_percent": 61.15,
+      "threshold_percent": 87.44,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "world_continuity": {
+    "kafka_uptime_seconds": 15686,
+    "kafka_uptime_seconds_previous_run": 14228,
+    "previous_run_id": "20260901T092445Z-payment-telemetry-blackout",
+    "kafka_restarted_since_previous_run": false,
+    "cause": "continuous - same kafka instance as the previous run",
+    "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
+  },
+  "freeze": {
+    "frozen_for": "dev 20260901T094904Z-cart-redis-misconfig",
+    "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
+    "prompts": {
+      "constants": [
+        "PLANNER_SYSTEM",
+        "SCRIBE_SYSTEM",
+        "SPECIALIST_SYSTEM",
+        "SYNTHESIZER_SYSTEM"
+      ],
+      "sha256": "acf112a925f100bb8e57382335ed0b84c297ac1a9652e50d7fec11b99362c9c0",
+      "chars": 6867
+    },
+    "corpus": {
+      "rows": 35,
+      "sha256": "e4ca493867b454fdab1935f2f06f17004ddd8ee4377ac285e19c553f9eb06bb2",
+      "documents": [
+        "scenario:ad-memory-squeeze",
+        "scenario:cart-bad-image-tag",
+        "scenario:cart-dependency-latency",
+        "scenario:cart-redis-misconfig",
+        "scenario:frauddetection-memory-squeeze",
+        "scenario:product-catalog-flag-failure",
+        "scenario:shipping-wrong-image"
+      ],
+      "holdout_chunks": 0
+    },
+    "model_map": {
+      "models": {
+        "changes": "claude-opus-5",
+        "logs": "claude-opus-5",
+        "metrics": "claude-opus-5",
+        "planner": "claude-opus-5",
+        "scribe": "claude-opus-5",
+        "synthesizer": "claude-opus-5",
+        "traces": "claude-opus-5"
+      },
+      "effort_default": "high",
+      "role_efforts": {}
+    },
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "tool_layer": {
+      "git_sha": "d3a51917414bdd61f7e640f6eef1b61a16611ea7",
+      "git_dirty": true
+    },
+    "judge": {
+      "model": null,
+      "prompt_sha256": "244108af996ad2a5138f6632a297941dd26643d806c73dfa9e24bc7d51392b54",
+      "allow_shared_lineage": false
+    },
+    "world": {
+      "compose_digest": "f5bd108f4f70f460836f090ecbff4259626cc9264b102a0851b6bb4a4ceda44b",
+      "observability_digest": "857d95b4d174ec43b1f64bbb84bdf3438bc7425c1360a0e6e7dd771c4e77cb60",
+      "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+      "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994",
+      "capability_version": "cap:9c416e0a",
+      "unverifiable_fields": []
+    }
+  },
+  "comparability": {
+    "generation": "f5bd108f4f70",
+    "provenance": "observed",
+    "previous_run": "20260901T092445Z-payment-telemetry-blackout",
+    "previous_generation": "f5bd108f4f70",
+    "previous_provenance": "observed",
+    "new_generation": false
+  },
+  "injected_at": "2026-09-01T09:49:07.280158+00:00",
+  "incident_id": "03e71238-108f-40dd-a297-edeb4a8a123f",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-09-01T09:58:15.418903+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 3120,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      324
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 58.82,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 16562,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 122.1,
+      "projected_percent": 64.78,
+      "threshold_percent": 84.04,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "score": {
+    "run_id": "20260901T094904Z-cart-redis-misconfig",
+    "scenario_id": "cart-redis-misconfig",
+    "trajectory_id": "b8eb4b51-2661-4d66-b2fa-4f4b3e026bbf",
+    "runtime_version": "faultline/0.0.1+prompts:1b0e7cbb4c47",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      },
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2
+    },
+    "reached_a_class": true,
+    "reachability": {
+      "answers_idle_or_absent": [
+        "runtime",
+        "logs"
+      ],
+      "derived_from": "the bundle's own captures (T7.5)",
+      "none_can_answer": false,
+      "runtime_series": 20,
+      "target_log_lines": 500
+    },
+    "triage": {
+      "recall": 0.8,
+      "precision": 0.6666666666666666,
+      "matched": [
+        "accountingservice",
+        "cartservice",
+        "checkoutservice",
+        "currencyservice",
+        "emailservice",
+        "frontend",
+        "loadgenerator",
+        "shippingservice"
+      ],
+      "missed_alerted_not_predicted": [
+        "frauddetectionservice",
+        "quoteservice"
+      ],
+      "predicted_not_alerted": [
+        "adservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 10,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "bad_config",
+      "returned": "bad_config",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "config_revert",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 42716,
+    "tokens_out": 14285,
+    "cost_usd": 0.5707,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-09-01T10:03:42.367960+00:00",
+  "judge": {
+    "scenario_id": "cart-redis-misconfig",
+    "run_id": "20260901T094904Z-cart-redis-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both identify cartservice configured with wrong Redis port (6380 instead of 6379) as the root cause; the dependency was healthy but the address was wrong.",
+    "dead_ends_closed": [
+      "checkoutservice itself was broken (traces showed it was alive and taking traffic)",
+      "crash or out-of-memory in checkoutservice (logs showed process alive throughout)",
+      "code rollout on cartservice (change history showed only config change)",
+      "auth or ACL error (failure at connect, no credentials)",
+      "capacity or pool exhaustion (no such signals)",
+      "checkoutservice change as originator (change history empty)"
+    ],
+    "dead_ends_missed": [
+      "whether 6380 is genuinely wrong or a TLS port reached without TLS (agent left this open; recorded narrative settled it as simply wrong)",
+      "onset timing (agent notes it unpinned between T-7m and T+3.5m; recorded narrative pinned it at T+3m01s from first page)",
+      "whether same edit landed on other services (agent notes this unverified)"
+    ],
+    "traps": [
+      {
+        "trap": "cartservice's flat-zero error rate as evidence of health",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "fifteen-second gap between six services going silent and cartservice as causal ordering (cart knocked over last)",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "stall or hung downstream call reading from checkout logs showing only order-entry lines mid-window",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "loadgenerator's high error rate as primary signal (synthetic client reporting somebody else's failure)",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "Agent correctly identified the root cause but left open uncertainties about TLS that the recorded narrative closed definitively, and did not engage with the scrape-boundary trap about timing that the recorded narrative explicitly flagged.",
+    "tokens_in": 4829,
+    "tokens_out": 506
+  }
+}
