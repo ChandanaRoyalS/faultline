@@ -6,6 +6,9 @@ The documents this project is built against.
   evaluation framework, and what the project is positioned to prove.
 - `execution-plan-rev9.pdf` — 8 phases, 58 tasks, 8 gates, with each task's deliverable
   and each gate's exit condition.
+- `t1.6-the-quarantine-rule.pdf` — the task-level specification governing T1.6, the
+  dev/holdout split and its contamination rules. Where a task has its own document, it
+  governs that task alongside the plan.
 
 **These are never amended to match what was built.** They are evidence about intent. Where
 the repository and the specification disagree, that is a finding to record — in
