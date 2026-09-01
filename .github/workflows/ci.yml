@@ -52,3 +52,19 @@ jobs:
           docker tag faultline:ci "$image:latest"
           docker push "$image:${{ github.sha }}"
           docker push "$image:latest"
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+      - name: Install
+        run: uv sync --all-groups
+      # T2.3's deliverable names "integration tests running real Postgres and Redis via
+      # testcontainers". They are deselected from the default run so a clean clone with no
+      # Docker still passes Gate 0 - which makes this job the only thing that executes them.
+      # Without it, the marker is a way to write a test that never runs, and the guard in
+      # tests/conftest.py would have been loosened for nothing.
+      - name: Integration tests
+        run: uv run pytest -m integration -o addopts=-q

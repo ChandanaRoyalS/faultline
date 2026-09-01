@@ -33,17 +33,13 @@ CREATE TABLE IF NOT EXISTS incidents (
     last_activity_at         TIMESTAMPTZ NOT NULL,
     resolved_at              TIMESTAMPTZ,
     resolution               TEXT,
-    state_before_resolution  TEXT
+    state_before_resolution  TEXT,
+    investigation_id         TEXT
 );
 
 -- Added at T3.5 rather than in the original CREATE, so an existing deployment gains it
 -- without a migration tool. The runner writes it; nothing before T3.5 had an id to write.
 ALTER TABLE incidents ADD COLUMN IF NOT EXISTS investigation_id TEXT;
-
--- ADR-0017 deferred this to "whoever builds that reporting", which is T4.1. Per episode
--- rather than per incident: a join is a decision about an episode, and an incident
--- accumulates several. See `Episode.join_rule`.
-ALTER TABLE incident_episodes ADD COLUMN IF NOT EXISTS join_rule TEXT;
 
 CREATE TABLE IF NOT EXISTS incident_episodes (
     incident_id   TEXT        NOT NULL REFERENCES incidents(id),
@@ -56,8 +52,19 @@ CREATE TABLE IF NOT EXISTS incident_episodes (
     ends_at       TIMESTAMPTZ,
     attached_at   TIMESTAMPTZ NOT NULL,
     resolved_at   TIMESTAMPTZ,
+    join_rule     TEXT,
     PRIMARY KEY (incident_id, episode_key)
 );
+
+-- ADR-0017 deferred this to "whoever builds that reporting", which is T4.1. Per episode
+-- rather than per incident: a join is a decision about an episode, and an incident
+-- accumulates several. See `Episode.join_rule`.
+--
+-- **This ALTER used to stand above the CREATE**, where it raised `UndefinedTable` on any
+-- database that did not already have the table. Every machine this had run on did, because
+-- the table predates the column - so the bug was invisible until T2.3's integration tests
+-- built a schema from nothing, which is the first time that had ever happened.
+ALTER TABLE incident_episodes ADD COLUMN IF NOT EXISTS join_rule TEXT;
 
 -- Stream redelivery, not Alertmanager repeats. Ingest already suppresses the latter
 -- (ADR-0015); this suppresses an event published once and delivered twice, and it keys on

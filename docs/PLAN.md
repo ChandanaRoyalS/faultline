@@ -144,11 +144,26 @@ Addenda 1 and 2. States that need T3.x and the action plane are present and stub
 calling one says which task owns its contract; the six with no runtime writer are asserted in
 `NO_RUNTIME_WRITER` so the set cannot shrink silently.
 
-**Three of T2.3's deliverables are absent** (found by audit, 2026-09-01): there are no
-migrations, no testcontainers integration tests against real Postgres and Redis, and no
-S3-compatible archive for raw evidence payloads and rendered reports. The deliverable line
-reads *"Schema + migrations + tested state machine + report/evidence archive"*; two of those
-four exist. `PostgresIncidentStore` consequently has no test of any kind.
+**Two of T2.3's deliverables are still absent.** The deliverable line reads *"Schema +
+migrations + tested state machine + report/evidence archive"*. There are no migrations and no
+S3-compatible archive for raw evidence payloads and rendered reports.
+
+**The integration tests landed 2026-09-01** and found a defect on their first run.
+`PostgresIncidentStore` had never been executed by any test - its own docstring said so - and
+building its schema from nothing raised `UndefinedTable`, because
+`ALTER TABLE incident_episodes ADD COLUMN` stood *above* the `CREATE TABLE` it depended on.
+Every machine that had ever run it already had the table, since the table predates the
+column, so the bug was invisible to every path that existed: the live smokes all ran against
+a database that had been created before the `ALTER` was written. **A fresh database could not
+have started the orchestrator**, which is a Gate 5 defect found by a Gate 2 test. Fixed, with
+`join_rule` and `investigation_id` also added to their `CREATE` statements to match the
+convention `trajectory.py` states and this schema was not following.
+
+Twelve tests: eight over the store's SQL, four over the Redis consumer-group semantics that
+`tests/test_orchestrator.py`'s kill-a-worker fake assumes - which until now nobody had
+checked. They are marked `integration` and deselected from `make check`, so Gate 0's
+clean-clone run still needs no Docker, and CI runs the marked selection as its own job so the
+marker cannot become a way to write a test that never executes.
 
 **ADR-0016 designs all of it** and closes the "contract not written" marker this entry
 carried: incident correlation, the states with a trigger on every transition,

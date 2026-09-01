@@ -29,6 +29,14 @@ non-hermetic - it would be slow, non-deterministic, and billed, and it would fai
 with no key in a way that looks like the test being wrong. `DeterministicModel` is the only
 model the suite ever touches, and the guard below makes that true by construction rather than
 by discipline.
+
+T2.3's integration tests are the one exemption, and it is narrow: a test carrying the
+`integration` marker may reach a real Redis and a real Postgres, because reaching them is the
+entire point - they are containers testcontainers started, not a daemon that happened to be
+running. The marker is deselected from `make check` by `addopts`, so the hermetic contract is
+unchanged for every test that has not asked. **The new way to get this wrong is to mark a test
+`integration` to quiet the guard and then never run it**, which is why CI runs the marked
+selection as its own job rather than leaving it to whoever remembers `make test-integration`.
 """
 
 from __future__ import annotations
@@ -74,6 +82,11 @@ def _no_live_subprocess(request: pytest.FixtureRequest, monkeypatch: pytest.Monk
     monkeypatch.setattr(rehearse, "subprocess", _NoLiveSubprocess(request.node.nodeid))
 
 
+def _reaches_real_services_on_purpose(request: pytest.FixtureRequest) -> bool:
+    """A test marked `integration` owns a container it started, not a daemon it stumbled on."""
+    return request.node.get_closest_marker("integration") is not None
+
+
 def _refuse(test_id: str, what: str, seams: str) -> NoReturn:
     raise AssertionError(
         f"{test_id} tried to reach {what}.\n\n"
@@ -92,6 +105,8 @@ def _no_live_redis(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPat
     a client stays free - `redis.from_url` connects lazily and module import must not need a
     server.
     """
+    if _reaches_real_services_on_purpose(request):
+        return
 
     def refuse(self: Any, *args: Any, **kwargs: Any) -> NoReturn:
         command = " ".join(str(a) for a in args[:2])
@@ -109,6 +124,8 @@ def _no_live_redis(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPat
 @pytest.fixture(autouse=True)
 def _no_live_postgres(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> None:
     """Fail loudly on any attempt to open a Postgres connection."""
+    if _reaches_real_services_on_purpose(request):
+        return
 
     def refuse(*args: Any, **kwargs: Any) -> NoReturn:
         _refuse(

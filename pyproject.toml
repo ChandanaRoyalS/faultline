@@ -48,6 +48,9 @@ dev = [
     "pre-commit>=3.7",
     "types-pyyaml",
     "httpx2",  # starlette 1.x testclient wants httpx2; drives the app in-process over ASGI
+    # T2.3's named method. Deselected by default so `make check` stays hermetic and Gate 0's
+    # clean-clone run needs no Docker; `make test-integration` opts in.
+    "testcontainers[postgres,redis]>=4.8",
 ]
 
 [build-system]
@@ -84,4 +87,10 @@ packages = ["faultline", "injector", "evalharness"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-addopts = "-q"
+# Integration tests are deselected here rather than skipped inside the test, so a clean clone
+# with no Docker reports "607 passed" instead of a wall of skips that reads like a broken
+# checkout. `make test-integration` runs them.
+addopts = "-q -m 'not integration'"
+markers = [
+    "integration: needs Docker - real Postgres and Redis via testcontainers (T2.3)",
+]
