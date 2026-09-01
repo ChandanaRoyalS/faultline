@@ -83,9 +83,12 @@ def run(argv: list[str] | None = None) -> int:
     )
     source.ensure_group()
 
-    store = PostgresIncidentStore(psycopg.connect(args.postgres_dsn))
     if args.create_schema:
-        store.create_schema()
+        from faultline.migrate import upgrade_head
+
+        upgrade_head(args.postgres_dsn)
+
+    store = PostgresIncidentStore(psycopg.connect(args.postgres_dsn))
 
     settle = timedelta(seconds=args.settle_window)
     loop = ConsumerLoop(

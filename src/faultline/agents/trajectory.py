@@ -192,94 +192,11 @@ class InMemoryTrajectoryStore:
         return None
 
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS trajectories (
-    id               TEXT PRIMARY KEY,
-    incident_id      TEXT        NOT NULL,
-    model            TEXT        NOT NULL,
-    role_models      JSONB       NOT NULL DEFAULT '{}'::jsonb,
-    effort           TEXT        NOT NULL,
-    runtime_version  TEXT        NOT NULL DEFAULT '',
-    started_at       TIMESTAMPTZ NOT NULL,
-    ended_at         TIMESTAMPTZ,
-    outcome          TEXT,
-    budget_exhausted BOOLEAN     NOT NULL DEFAULT FALSE
-);
-
-CREATE TABLE IF NOT EXISTS trajectory_steps (
-    trajectory_id TEXT        NOT NULL REFERENCES trajectories(id) ON DELETE CASCADE,
-    seq           INT         NOT NULL,
-    role          TEXT        NOT NULL,
-    kind          TEXT        NOT NULL,
-    at            TIMESTAMPTZ NOT NULL,
-    tokens_in     INT         NOT NULL DEFAULT 0,
-    tokens_out    INT         NOT NULL DEFAULT 0,
-    latency_ms    INT         NOT NULL DEFAULT 0,
-    payload       JSONB       NOT NULL DEFAULT '{}'::jsonb,
-    PRIMARY KEY (trajectory_id, seq)
-);
-
--- The envelope is TEXT and is never normalised on the way in or out. It carries ANSI escapes
--- and a per-call nonce in its closing delimiter, and a replay that reads back anything other
--- than the exact bytes is replaying a different prompt (ADR-0020 §3).
-CREATE TABLE IF NOT EXISTS trajectory_tool_calls (
-    trajectory_id  TEXT NOT NULL,
-    seq            INT  NOT NULL,
-    tool           TEXT NOT NULL,
-    request        JSONB NOT NULL DEFAULT '{}'::jsonb,
-    result_id      TEXT NOT NULL,
-    envelope       TEXT NOT NULL,
-    envelope_sha256 TEXT NOT NULL,
-    PRIMARY KEY (trajectory_id, seq),
-    FOREIGN KEY (trajectory_id, seq) REFERENCES trajectory_steps(trajectory_id, seq)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS trajectory_tool_calls_result_idx
-    ON trajectory_tool_calls (result_id);
-
--- exclude_origin is nullable because the product case has nothing to exclude. Every benchmark
--- retrieval sets it, and this is the column T4.1b reads to assert the filter fired (ADR-0008).
-CREATE TABLE IF NOT EXISTS trajectory_retrievals (
-    trajectory_id  TEXT NOT NULL,
-    seq            INT  NOT NULL,
-    query          TEXT NOT NULL,
-    k              INT  NOT NULL,
-    exclude_origin TEXT,
-    returned       JSONB NOT NULL DEFAULT '[]'::jsonb,
-    scores         JSONB NOT NULL DEFAULT '[]'::jsonb,
-    -- The retrieved lines as the model read them (T7.9). Empty for rows written before it,
-    -- and that emptiness is the honest record: their retrieved text is gone, not recoverable.
-    rendered       JSONB NOT NULL DEFAULT '[]'::jsonb,
-    rendered_sha256 TEXT,
-    PRIMARY KEY (trajectory_id, seq),
-    FOREIGN KEY (trajectory_id, seq) REFERENCES trajectory_steps(trajectory_id, seq)
-        ON DELETE CASCADE
-);
-
-CREATE INDEX IF NOT EXISTS trajectories_incident_idx ON trajectories (incident_id);
-
--- Additive columns must ALTER as well as appear above. `CREATE TABLE IF NOT EXISTS` does
--- nothing to a table that already exists, so a column added to the CREATE never reaches a
--- database created before it - which is exactly how T7.9's `rendered` shipped and then failed
--- the first investigation run against a live store, mid-sweep. `create_schema` is called on
--- every start, so these run every time and must stay idempotent.
-ALTER TABLE trajectory_retrievals
-    ADD COLUMN IF NOT EXISTS rendered JSONB NOT NULL DEFAULT '[]'::jsonb;
-ALTER TABLE trajectory_retrievals ADD COLUMN IF NOT EXISTS rendered_sha256 TEXT;
-"""
-
-
 class PostgresTrajectoryStore:
     """The real one. Not exercised by `make check` - the tests use the in-memory double."""
 
     def __init__(self, connection: Any) -> None:
         self._conn = connection
-
-    def create_schema(self) -> None:
-        with self._conn.cursor() as cur:
-            cur.execute(SCHEMA)
-        self._conn.commit()
 
     def save(self, trajectory: Trajectory) -> None:
         with self._conn.cursor() as cur:

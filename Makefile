@@ -144,3 +144,6 @@ world-logs:
 
 test-integration: ## run the integration tests against real Postgres and Redis (needs Docker)
 	uv run pytest -m integration -o addopts=-q
+
+migrate: ## apply the database schema (alembic upgrade head)
+	uv run faultline-migrate

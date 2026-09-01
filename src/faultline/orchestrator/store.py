@@ -24,63 +24,6 @@ from faultline.orchestrator.models import (
     Severity,
 )
 
-SCHEMA = """
-CREATE TABLE IF NOT EXISTS incidents (
-    id                       TEXT PRIMARY KEY,
-    state                    TEXT        NOT NULL,
-    severity                 TEXT        NOT NULL,
-    opened_at                TIMESTAMPTZ NOT NULL,
-    last_activity_at         TIMESTAMPTZ NOT NULL,
-    resolved_at              TIMESTAMPTZ,
-    resolution               TEXT,
-    state_before_resolution  TEXT,
-    investigation_id         TEXT
-);
-
--- Added at T3.5 rather than in the original CREATE, so an existing deployment gains it
--- without a migration tool. The runner writes it; nothing before T3.5 had an id to write.
-ALTER TABLE incidents ADD COLUMN IF NOT EXISTS investigation_id TEXT;
-
-CREATE TABLE IF NOT EXISTS incident_episodes (
-    incident_id   TEXT        NOT NULL REFERENCES incidents(id),
-    episode_key   TEXT        NOT NULL,
-    fingerprint   TEXT        NOT NULL,
-    service       TEXT,
-    severity      TEXT        NOT NULL,
-    alertname     TEXT,
-    starts_at     TIMESTAMPTZ NOT NULL,
-    ends_at       TIMESTAMPTZ,
-    attached_at   TIMESTAMPTZ NOT NULL,
-    resolved_at   TIMESTAMPTZ,
-    join_rule     TEXT,
-    PRIMARY KEY (incident_id, episode_key)
-);
-
--- ADR-0017 deferred this to "whoever builds that reporting", which is T4.1. Per episode
--- rather than per incident: a join is a decision about an episode, and an incident
--- accumulates several. See `Episode.join_rule`.
---
--- **This ALTER used to stand above the CREATE**, where it raised `UndefinedTable` on any
--- database that did not already have the table. Every machine this had run on did, because
--- the table predates the column - so the bug was invisible until T2.3's integration tests
--- built a schema from nothing, which is the first time that had ever happened.
-ALTER TABLE incident_episodes ADD COLUMN IF NOT EXISTS join_rule TEXT;
-
--- Stream redelivery, not Alertmanager repeats. Ingest already suppresses the latter
--- (ADR-0015); this suppresses an event published once and delivered twice, and it keys on
--- the same identity so nothing new had to be invented for it.
-CREATE TABLE IF NOT EXISTS applied_events (
-    episode_key TEXT        NOT NULL,
-    status      TEXT        NOT NULL,
-    incident_id TEXT        NOT NULL,
-    applied_at  TIMESTAMPTZ NOT NULL,
-    PRIMARY KEY (episode_key, status)
-);
-
-CREATE INDEX IF NOT EXISTS incidents_state_idx ON incidents (state);
-CREATE INDEX IF NOT EXISTS incidents_resolved_at_idx ON incidents (resolved_at);
-"""
-
 
 class IncidentStore(Protocol):
     """What the orchestrator needs to be durable. The seam the tests substitute at."""
@@ -187,11 +130,6 @@ class PostgresIncidentStore:
 
     def __init__(self, connection: Any) -> None:
         self._conn = connection
-
-    def create_schema(self) -> None:
-        with self._conn.cursor() as cur:
-            cur.execute(SCHEMA)
-        self._conn.commit()
 
     def already_applied(self, episode_key: str, status: str) -> bool:
         with self._conn.cursor() as cur:

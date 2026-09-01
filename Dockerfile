@@ -7,6 +7,13 @@ RUN uv sync --frozen --no-dev --no-install-project
 # Project layer: hatchling reads readme/license from pyproject, so both must be present.
 COPY README.md LICENSE ./
 COPY src ./src
+# Repository data the runtime resolves by walking up from the installed package: the schema
+# history and its configuration (T2.3), and the allowlist action catalog (ADR-0032). The image
+# copied only `src` until 2026-09-01, which left both unreachable inside a container while
+# resolving perfectly in a clone - the kind of difference that first appears on deployment.
+COPY alembic.ini ./
+COPY migrations ./migrations
+COPY knowledge ./knowledge
 RUN uv sync --frozen --no-dev
 
 FROM python:3.12-slim

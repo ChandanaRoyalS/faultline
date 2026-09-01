@@ -17,9 +17,11 @@ dependencies = [
     "uvicorn>=0.30",
     "redis>=5.0",
     "psycopg[binary]>=3.2",  # T2.2: incident persistence, ADR-0016
+    "alembic>=1.19.1",
 ]
 
 [project.scripts]
+faultline-migrate = "faultline.migrate:main"
 faultline-inject = "injector.cli:run"
 faultline-ingest = "faultline.ingest.app:run"
 faultline-orchestrate = "faultline.orchestrator.cli:run"

@@ -144,9 +144,16 @@ Addenda 1 and 2. States that need T3.x and the action plane are present and stub
 calling one says which task owns its contract; the six with no runtime writer are asserted in
 `NO_RUNTIME_WRITER` so the set cannot shrink silently.
 
-**Two of T2.3's deliverables are still absent.** The deliverable line reads *"Schema +
-migrations + tested state machine + report/evidence archive"*. There are no migrations and no
-S3-compatible archive for raw evidence payloads and rendered reports.
+**One of T2.3's deliverables is still absent.** The deliverable line reads *"Schema +
+migrations + tested state machine + report/evidence archive"*. There is no S3-compatible
+archive for raw evidence payloads and rendered reports.
+
+**Migrations landed 2026-09-01** (ADR-0033). Alembic, one history for one database, with the
+initial revision *generated* from the four `SCHEMA` constants rather than transcribed and the
+equivalence proved before anything was deleted - 85 columns and 17 indexes identical between a
+database built the old way and one built by `alembic upgrade head`. The constants are gone, so
+there is one description of the schema instead of five. `make migrate` applies it;
+`faultline-migrate --stamp` is the one-time step for a database the old path built.
 
 **The integration tests landed 2026-09-01** and found a defect on their first run.
 `PostgresIncidentStore` had never been executed by any test - its own docstring said so - and

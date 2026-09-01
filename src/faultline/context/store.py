@@ -133,45 +133,6 @@ def _cosine(left: list[float], right: list[float]) -> float:
     return 0.0 if norm == 0 else dot / norm
 
 
-SCHEMA = """
--- pgvector is not in postgres:16-alpine. docker-compose.yml runs pgvector/pgvector:pg16,
--- which is a free change: the platform compose file is NOT one of the three inputs to
--- world.compose_digest (ADR-0014), so editing it invalidates no bundle. See ADR-0018.
-CREATE EXTENSION IF NOT EXISTS vector;
-
-CREATE TABLE IF NOT EXISTS incident_chunks (
-    id                    TEXT PRIMARY KEY,
-    document_id           TEXT   NOT NULL,
-    section               TEXT   NOT NULL,
-    section_index         INT    NOT NULL,
-    body                  TEXT   NOT NULL,
-
-    -- Provenance. ADR-0008's axis 2 is `origin`; the rest is what makes a stale or
-    -- mislabelled chunk detectable rather than merely present.
-    origin                TEXT   NOT NULL,
-    split                 TEXT   NOT NULL,
-    scenario_id           TEXT   NOT NULL,
-    fault_class           TEXT   NOT NULL,
-    scenario_fingerprint  TEXT   NOT NULL,
-    recorded_from         TEXT   NOT NULL,
-    title                 TEXT   NOT NULL,
-    source_path           TEXT   NOT NULL,
-
-    -- Which model produced the vector beside it. Two embedders' vectors are not comparable,
-    -- and a model swap that left them mixed would degrade retrieval silently.
-    embedder              TEXT   NOT NULL,
-    dimensions            INT    NOT NULL,
-    embedding             vector NOT NULL,
-
-    body_tsv              tsvector GENERATED ALWAYS AS (to_tsvector('english', body)) STORED
-);
-
-CREATE INDEX IF NOT EXISTS incident_chunks_origin_idx ON incident_chunks (origin);
-CREATE INDEX IF NOT EXISTS incident_chunks_split_idx  ON incident_chunks (split);
-CREATE INDEX IF NOT EXISTS incident_chunks_tsv_idx    ON incident_chunks USING GIN (body_tsv);
-"""
-
-
 class PgVectorPastIncidentStore:
     """The real one. Not exercised by `make check` - the tests use the in-memory double.
 
@@ -183,11 +144,6 @@ class PgVectorPastIncidentStore:
     def __init__(self, connection: Any, embedder: Embedder) -> None:
         self._conn = connection
         self._embedder = embedder
-
-    def create_schema(self) -> None:
-        with self._conn.cursor() as cur:
-            cur.execute(SCHEMA)
-        self._conn.commit()
 
     def add(self, chunks: list[Chunk]) -> int:
         if not chunks:
