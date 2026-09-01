@@ -152,5 +152,50 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-08-26T21:57:26.869015+00:00"
+  "finished_at": "2026-08-26T21:57:26.869015+00:00",
+  "judge": {
+    "scenario_id": "email-wrong-image",
+    "run_id": "20260826T214314Z-email-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a wrong container image deployed to emailservice; the agent narrative identifies emailservice as missing from service discovery without investigating why.",
+    "dead_ends_closed": [
+      "crash loop",
+      "hard down",
+      "purely latency-shaped event",
+      "slow quote call timing out",
+      "TLS handshake failure",
+      "HTTP 4xx/5xx status",
+      "misconfigured URL",
+      "checkoutservice itself changed"
+    ],
+    "dead_ends_missed": [
+      "why emailservice left discovery",
+      "emailservice container state",
+      "emailservice logs",
+      "emailservice change history"
+    ],
+    "traps": [
+      {
+        "trap": "missing configuration variable points to missing service, not wrong image",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "nameservice resolution failure means service missing from discovery",
+        "outcome": "took"
+      },
+      {
+        "trap": "alerting points at caller checkoutservice, not culprit emailservice",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent correctly traces the failure to emailservice unavailability but stops at the symptom (missing from discovery) rather than the cause (wrong image deployed). The recorded narrative explicitly warns this is a trap: the logs name the cause outright, but the agent never retrieved emailservice's logs where the Apache config error would have appeared.",
+    "tokens_in": 5567,
+    "tokens_out": 371
+  }
 }
