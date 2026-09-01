@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from evalharness.generations import Generation
 from evalharness.run import counts_toward_aggregates
 from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
 from faultline.tools.envelope import neutralise
@@ -435,21 +436,8 @@ def judge_run(
 RUN_ROOT = REPO_ROOT / "evals" / "runs"
 
 
-def judged_rows(results: list[JudgeResult]) -> list[str]:
-    """The judged column set, for the sweep table. **Both model ids and the lineage status.**
-
-    ADR-0020 §1: "a judged accuracy number is a function of two models, and reporting one of them
-    is reporting half the experiment." The lineage status rides on the same line for the same
-    reason - a figure produced under a violation is a different figure.
-    """
-    if not results:
-        return ["_no judged runs_"]
-    first = results[0]
-    stamp = f"judge `{first.judge_model}` vs agent `{first.agent_model}`"
-    warn = " — **SHARED LINEAGE**" if first.shared_lineage else ""
+def _one_table(results: list[JudgeResult]) -> list[str]:
     lines = [
-        f"Judged by {stamp}{warn}.",
-        "",
         "| scenario | root cause | dead ends closed / missed | traps |",
         "|---|---|---|---|",
     ]
@@ -462,6 +450,52 @@ def judged_rows(results: list[JudgeResult]) -> list[str]:
             f"| {r.scenario_id} | **{r.agreement}** | "
             f"{len(r.dead_ends_closed)} / {len(r.dead_ends_missed)} | {traps or '—'} |"
         )
+    return lines
+
+
+def judged_rows(
+    results: list[JudgeResult], generations: dict[str, Generation] | None = None
+) -> list[str]:
+    """The judged column set. **Both model ids, the lineage status, and one table per world.**
+
+    ADR-0020 §1: "a judged accuracy number is a function of two models, and reporting one of them
+    is reporting half the experiment." The lineage status rides on the same line for the same
+    reason - a figure produced under a violation is a different figure.
+
+    **T7.55: this is the one place in the repository that produces a cross-run comparison table,
+    so it is where ADR-0022 §3.3's "the harness refuses to print them side by side" has to bite.**
+    Runs from different comparability generations are never rows of the same table. The refusal
+    takes the form of separation rather than an error: the rows are correct and worth reading, and
+    an error would withhold them to prevent a misreading that grouping already prevents. Each
+    table names its world, and a generation reconstructed rather than observed says so, because
+    the two are different evidence about the same fact.
+    """
+    if not results:
+        return ["_no judged runs_"]
+    first = results[0]
+    stamp = f"judge `{first.judge_model}` vs agent `{first.agent_model}`"
+    warn = " — **SHARED LINEAGE**" if first.shared_lineage else ""
+    lines = [f"Judged by {stamp}{warn}.", ""]
+
+    generations = generations or {}
+    buckets: dict[str, list[JudgeResult]] = {}
+    for r in results:
+        gen = generations.get(r.run_id)
+        buckets.setdefault(gen.label if gen else "world unrecorded", []).append(r)
+
+    if len(buckets) == 1:
+        only = next(iter(buckets))
+        lines += [f"World: `{only}`.", "", *_one_table(results)]
+        return lines
+
+    lines += [
+        f"**{len(buckets)} comparability generations in this set. They are not one table** "
+        "(ADR-0022 §3.3): a run's world is an experiment parameter, and rows measured in "
+        "different worlds compare worlds rather than agents.",
+    ]
+    for label in sorted(buckets):
+        lines += ["", f"### World `{label}` — {len(buckets[label])} run(s)", ""]
+        lines += _one_table(buckets[label])
     return lines
 
 

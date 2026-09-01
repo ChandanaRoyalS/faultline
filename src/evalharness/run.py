@@ -30,7 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from evalharness import gate
+from evalharness import freeze, gate, generations
 from evalharness.prom import PROMETHEUS, QueryError, get_json
 from evalharness.provenance import recorder_provenance
 from evalharness.scoring import Categories, ScoredRun, score_label, score_triage
@@ -842,6 +842,78 @@ def main(argv: list[str] | None = None) -> int:
                 run.run_id, reading.headroom.uptime_seconds if reading.headroom else None
             )
             print(f"  clean: {reading.services_reporting} services reporting, 0 alerts")
+
+            # **The freeze is taken here: gate passed, nothing injected yet** (T7.55).
+            #
+            # Three things have to be true at once and this is the only point where they are.
+            # The world is *up*, so its digests can be observed rather than guessed - the image
+            # digest needs a live container. The world is *clean*, so what is frozen is the world
+            # the run is about and not one already carrying a fault; injection swaps images and
+            # attaches sidecars, and a freeze taken after it would describe the fault. And
+            # nothing has been *spent*, so a refusal here costs a run that never started rather
+            # than a discard.
+            #
+            # It cannot be moved later and it cannot be reconstructed afterwards. That is the
+            # same failure T7.22 had with reachability: a property of the world at run time,
+            # derived after the fact from what happened to survive, is a different property
+            # wearing the same name.
+            arm = "holdout" if bundle.get("split") == "holdout" else "dev"
+            frozen = freeze.build(
+                dsn,
+                max_tool_calls=args.max_tool_calls,
+                max_tokens=args.max_tokens,
+                frozen_for=f"{arm} {run.run_id}",
+            )
+            blind = frozen["world"]["unverifiable_fields"]
+            if blind:
+                print(
+                    "REFUSED: this run cannot establish what world it would run against.\n"
+                    f"  unreadable: {', '.join(blind)}\n"
+                    "ADR-0022's T7.54 addendum: a changed world is a label, an *unverifiable* "
+                    "world is an error.\n"
+                    "A run that cannot say what world it ran in is the case that correction was "
+                    "about, and it is\nthe one a hand-written manifest could always paper over.\n"
+                    "Usually the world is not up, or `cart-service` is not running.\n"
+                    "Nothing was injected. This is not a discard - the run never started."
+                )
+                return 3
+            # **ADR-0008 axis 1, computed on every run from here on.** CLAUDE.md calls a
+            # contamination break a P0 that silently invalidates the headline numbers. The
+            # freeze already counts holdout chunks; a P0 invariant computed and not acted on is
+            # the defect this task exists to close, one level down.
+            if frozen["corpus"]["holdout_chunks"]:
+                print(
+                    f"REFUSED: {frozen['corpus']['holdout_chunks']} holdout chunk(s) in the "
+                    "retrieval corpus.\n"
+                    "Holdout artifacts never enter any retrieval corpus (ADR-0008 axis 1). "
+                    "Every figure this\npipeline produces is invalid until that reads zero.\n"
+                    "Nothing was injected. This is not a discard - the run never started."
+                )
+                return 3
+            run.manifest["freeze"] = frozen
+
+            generation = generations.generation_of(run.manifest)
+            previous = previous_run_manifest(run.run_id)
+            before = generations.generation_of(previous) if previous else None
+            run.manifest["comparability"] = {
+                "generation": generation.world,
+                "provenance": generation.provenance,
+                "previous_run": (previous or {}).get("run_id"),
+                "previous_generation": before.world if before else None,
+                "previous_provenance": before.provenance if before else None,
+                # **A changed world is a label, not a refusal** (ADR-0022, T7.54). Refusing here
+                # would protect a comparison that broke before the check ran, and would hand the
+                # decision to whoever last edited a compose file.
+                "new_generation": bool(before and before.world != generation.world),
+            }
+            if run.manifest["comparability"]["new_generation"]:
+                print(
+                    f"  NEW COMPARABILITY GENERATION: {before.world if before else '?'} -> "
+                    f"{generation.world}"
+                )
+                print("  recorded, not refused - this run is not comparable with earlier ones")
+            else:
+                print(f"  generation {generation.label}")
             emit(
                 ev,
                 "gate",

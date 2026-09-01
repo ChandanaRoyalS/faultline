@@ -1573,6 +1573,80 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.55 — the freeze path, wired *(no spend; \$0, world read-only)*
+**Done** ([ADR-0022 T7.55 addendum](adr/0022-evaluation-harness.md), `generations.py`, `run.py`,
+`judge.py`). Branched and confirmed first. **No digest moved. Q10 discharged, sixth instance closed.**
+
+**Built early on purpose.** Q10's trigger was *the next holdout entry*. That trigger was wrong: entry
+4 is blocked on Q9 regardless, and **a freeze path built under the pressure of an entry someone wants
+to run is a freeze path that gets relaxed.**
+
+**Where it goes: after the baseline gate, before `faultline-inject start`.** Three things are true at
+once there and nowhere else. The world is **up**, so the digests are *observed* - `otel_demo_image_digest`
+needs a live container. The world is **clean**, because the gate has just proved zero alerts and every
+service reporting; injection swaps images and attaches sidecars, so a freeze taken after it records
+the treatment as the baseline. And nothing has been **spent**, so a refusal costs a run that never
+started rather than a discard. **It cannot be moved later and it cannot be reconstructed afterwards -
+the same failure T7.22 had with reachability**: a property of the world at run time, derived after
+the fact from what happened to survive, is a different property wearing the same name.
+
+**T7.54's decision as code, neither half softened.** Absence **refuses**: any `None` in the world
+block prints *"this run cannot establish what world it would run against"*, injects nothing, exits 3.
+That is the case the whole correction was about, and **the one a hand-written manifest could always
+paper over** - a human writing JSON never discovers that `docker inspect` would have failed. A changed
+world **labels**: `NEW COMPARABILITY GENERATION`, recorded, and the run continues, because refusing
+protects a comparison that broke before the check ran and hands the decision to whoever last edited a
+compose file. The generation id is **derived** - `compose_digest[:12]` - so nobody bumps it and nobody
+can forget to.
+
+**And one refusal a level down, which the wiring made unavoidable: contamination.**
+`corpus.holdout_chunks` is the freeze item that is also a contamination check, CLAUDE.md calls a break
+of it a **P0 that silently invalidates the headline numbers**, and the freeze has been *computing* the
+number since T4.6 while nothing *read* it. Nonzero now refuses before injection. **A P0 invariant
+computed and not acted on is the same defect this task exists to close.** Verified live: 35 rows,
+7 documents, `holdout_chunks 0`.
+
+**Where §3.3's claim bites, and where it cannot.** Checked: **`judge.judged_rows` is the only
+cross-run comparison table this repository produces by code.** The ledger in ADR-0022 and every
+`SWEEP-*.md` / `HOLDOUT-*.md` table is markdown written by a human. So the claim is enforceable in
+exactly one place and is now enforced there - `judged_rows` groups by world, prints one table per
+generation with the world in the header, and says *"N comparability generations in this set. They are
+not one table."* **Separation is the refusal, deliberately**: an error would withhold correct rows to
+prevent a misreading grouping already prevents. **And §3.3's claim is narrowed to the truth**, because
+pretending code can police a hand-written table is how the sentence was believed for four months while
+nothing enforced it: refusal *where the harness prints*, **recording** everywhere else.
+
+**Backfill: refused for manifests, and the reconstruction lives outside them.** A freeze manifest
+asserts *"observed against the live world before injection"*. Writing one afterwards makes that
+assertion false **even when every value in it is right** - a claim about how a fact was established
+that is not true is worse than the gap it fills, and is the exact shape T7.54 spent a task correcting.
+Instead the reconstruction lives in `generations.py`, **derived rather than stored**, outside every
+run manifest, and labels itself: `generation_of()` prefers an observed freeze block and falls back to
+placing the run's timestamp against the re-record windows, returning `provenance: reconstructed`.
+**No run manifest was modified.** Two runs in the same world stay comparable either way - refusing to
+compare a reconstructed world to an observed one would make every future run incomparable with all
+history - but a reader is always told which they are looking at, and every pre-T7.55 run prints as
+`4a7690c6fdda (reconstructed)`.
+
+**Digests: nothing moved, checked live.** `runtime_version faultline/0.0.1+prompts:1b0e7cbb4c47` and
+`CAPABILITY_VERSION cap:9c416e0a` unchanged - this is harness code, not role prompts, contract
+schemas, tool surface, `CAPTURE_SET` or `TOOL_BEHAVIOUR_REVISION`. `compose_digest f5bd108f4f70…`,
+`observability_digest 857d95b4d174…`, `ffs_stub_source_digest 8defed3104c4…` unchanged. Run manifests
+gain `freeze` and `comparability`, **additively** - nothing rewritten.
+
+**What remains before entry 4, stated once so nobody re-derives it.** Six conditions, tabled in the
+addendum. **Five are met**: the freeze path (T7.55), the four T4.8 conditions (T7.53, condition 2
+unqualified for the first time), the generation obligation (mechanically satisfied, still an
+authoring duty), the drafted-but-**not activated** pre-registration, and cost/gate which were never
+the blocker. **One blocks it, and it is the one T7.53 named: Q9, extend the set.** Everything this
+task turned up made entry 4 **more** constrained - it must use the harness's freeze path, and its
+generation is already known to differ from every prior entry's.
+
+**Tests: 10 new** (seven in `test_freeze_path.py`, three in `test_world_generations.py`, which now imports
+the boundaries from `generations.py` instead of keeping a second copy). The placement test reads
+`run.main`'s source for the order gate → freeze → inject, and says why: the alternative is a live
+injected run, and a test that needs the world up is a test that does not run.
+
 ### T7.54 — the freeze table did not freeze the world *(no spend; \$0)*
 **Done** ([ADR-0022 T7.54 addendum](adr/0022-evaluation-harness.md), `freeze.py`,
 `tests/test_world_generations.py`). Branched and confirmed first. **No digest moved.**
