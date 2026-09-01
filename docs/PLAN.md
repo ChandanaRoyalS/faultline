@@ -1573,6 +1573,84 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.57 — is there a fifth fault class in this world? *(audit; \$0, one dry-run probe)*
+**Done** ([ADR-0029](adr/0029-four-fault-classes-and-why-there-is-no-fifth.md)). Branched and
+confirmed first. **The answer is no, and the honest consequence is that entry 4 is blocked
+indefinitely rather than pending.**
+
+**T7.34's lesson applied to itself: checked against code, not against documents asserting things
+about code.** The one claim that mattered most was probed rather than reasoned about (below), and
+the audit found that **a prior ADR had already answered half the question** - ADR-0024 (T7.13), which
+this task would otherwise have rediscovered at the cost of world time.
+
+**What individuates a class, from source.** ADR-0022 §1.2: *"a fault's class is settled by which fix
+actually works."* Read off the scenario files: `bad_deploy`→`rollback`; `dependency_latency`→`restart`
+**and** `config_revert` (both measured 3/3, ADR-0027); `resource_exhaustion`→`config_revert`;
+`bad_config`→`config_revert`. **The criterion does not individuate the four classes that already
+exist** - `config_revert` fixes three of the four, and it separates `bad_deploy` from the rest and
+nothing else. So a candidate whose fix is `rollback`, `restart` or `config_revert` is not a new class
+by the project's own test, however novel the mechanism feels. **That kills most candidates at the
+desk, which is the cheap outcome.**
+
+**The only unclaimed remediation is `scale`, and the world can neither cause it nor perform it.**
+ADR-0024 measured the demand side at T7.13: 50x load for twenty minutes, throughput saturating at
+~102 req/s, nothing crossing a limit, **all three alert rules blind** - error rate because saturation
+queues rather than errors, latency because span metrics are emitted on completion, no-traffic because
+traffic plateaus. T7.57 adds the supply side, **probed**: `docker compose … --dry-run --scale
+cartservice=2` returns *"Remove the custom name to scale the service"*, and **25 of the demo's
+services carry `container_name`** - upstream's file, which ADR-0026 says this project does not edit.
+
+**The structural finding: fault class ≡ injector mechanism, and a test enforces it.**
+`test_scenario_injections_match_the_fault_they_cite` binds a scenario's `fault_class` to the injector
+definition's, and the injector's class selects the mechanism. **Four mechanisms, four classes,
+one-to-one.** So the question is not *"what phenomenon?"* but *"can the injector gain a fifth
+mechanism whose working fix is not already taken?"*
+
+**Six candidates, each dying at the desk with a reason.** Partition/DNS - an env var, or a qdisc
+whose removal is `dependency_latency`'s measured fix. Credentials - the world's only credentialed
+link is the flag store's `DATABASE_URL`, an env var, **and** breaking the flag service pages nothing
+(`flag-service-crashloop`, `alerts_at_fire = []`); dead twice. Clock skew - **no mechanism exists**:
+containers share the host kernel clock, and faking it needs `libfaketime` baked into an image, which
+ADR-0026 forbids. Pool/queue exhaustion - **no knob exists**; reachable only by load, which
+ADR-0024 measured as unalertable. Wrong data downstream - buildable via the ffs-stub variants, but an
+image swap is `BadDeployFault` → `bad_deploy`/`rollback` by the test-enforced binding. Rate limit -
+nothing implements one, and editing envoy's config is a **world move**, not an injection.
+
+**One candidate recorded as unresolved rather than as a survivor.** Corrupting `redis-cart`'s
+contents has a fix that is either `restart` (collides with `dependency_latency`) or a genuinely new
+*flush* remediation, depending on Redis persistence under this exact config - **which needs world
+time to establish.** Written down so nobody re-derives it, and **not claimed**: T7.56 disqualified a
+candidate for resting on a signal that could not be established at desk, and that rule applies here
+too.
+
+**The cost that makes the question moot regardless.** `FaultClass` is a `Literal` in
+`faultline.agents.contracts`, carried by a contract model, and `runtime_version` hashes every
+contract's `model_json_schema()`. **A fifth class moves `prompts:1b0e7cbb4c47`** and makes six dev
+sweeps and all three holdout entries incomparable with everything after. **And that is fatal to the
+purpose**: entry 4 is already a new comparability generation (entries 1-3 ran two worlds back,
+T7.54), so under a moved stamp it would *also* be incomparable with dev sweep 7 - the current
+benchmark - and would compare to nothing at all. **Adding a fault class to unblock entry 4 destroys
+the thing entry 4 was for.**
+
+**Said plainly rather than softened.** **Entry 4 is blocked indefinitely, not pending.** The holdout
+arm stays at **three entries, seven runs, four answered**, against a world two generations
+superseded. T7.53 called it underpowered; it is now underpowered **and closed**. The benchmark's
+holdout claim is what it is, and should keep being reported the way T7.53 reported it - the
+conditions, and the statement that the arm cannot support a claim.
+
+**What would change it: not a cleverer scenario.** A different demo world (large: new digests, full
+re-record, every figure re-founded); or an extended injector with a new mechanism **and** a new
+`RemediationClass` value, which costs the stamp and is worth doing only alongside a world change that
+re-founds everything anyway; or reversing T7.40's Q1 decision **on new evidence**, not on this task's
+inconvenience. **Queued as Q11**, whose trigger is a world this project does not have.
+
+**Decided rather than deferred: T7.56's topology finding goes in ADR-0029, not its own ADR.** On its
+own it is half an argument - *your new scenario will have an existing page*. The other half - *and an
+existing fix* - is this audit. **The two halves close on each other, and that is the shape of the
+limit**; splitting them would make the next author read two documents to learn one thing. §4 of
+ADR-0029 carries it with both worked examples: T7.56's bind-port candidate, whose novelty was false
+against two dev scenarios' recorded alert windows, and the flag service, which pages nothing.
+
 ### T7.56 — the fifth `bad_config` item: designed, gated, and **abandoned at G1** *(world time; \$0 agent)*
 **Done, and the scenario is not** ([`docs/design/t7.56-holdout-bad-config.md`](design/t7.56-holdout-bad-config.md),
 [`docs/evidence/t7.56-accounting-kafka/`](evidence/t7.56-accounting-kafka/)). Branched and confirmed
