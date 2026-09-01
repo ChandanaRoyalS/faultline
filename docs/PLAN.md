@@ -1573,6 +1573,76 @@ of those and produced the first overlap, `product-catalog-flag-failure`, where f
 during the fault and again in recovery. **The fix is to exclude per alert rather than per
 service**, and it belongs with a decision to re-measure.
 
+### T7.62 — audit the repo against the proposal and the execution plan *(audit; \$0)*
+**Done, with the audit's first finding being that it could not be done as specified**
+([`docs/design/t7.62-audit-against-the-plan.md`](design/t7.62-audit-against-the-plan.md)).
+Branched and confirmed first. **No source document was amended.**
+
+**Neither source document is in this repository.** The task asked for each of the 58 deliverable
+columns and each of the 8 exit conditions to be **quoted**. The Faultline Project Proposal (REV 8)
+and Execution Plan (REV 9) are not in the tree, and nothing cites them. **This file says so in its
+own first line** - *"This file is not the plan. The execution plan lives outside this repository …
+Treat this as an index of what the codebase believes, not as authority."* **So grading the repo
+against it would grade the repo against a document harvested from the repo** - an exercise that
+cannot fail and whose passing means nothing, and the sixth instance of this arc's defect rather than
+a check on it. **No deliverable was quoted and no task graded, because doing either would have meant
+inventing the wording.** Everything answerable from the tree alone was answered.
+
+**The gates: `grep` for "Gate 1" through "Gate 8" across every markdown file returns four hits and
+none is a declaration.** This file contains the string "Gate" **zero times**. **Only Gate 1 has
+evidence** (`docs/evidence/gate-1/`, three screenshots and a README). **Gates 2-8 have no exit
+condition on record, no evidence, and no declaration that they passed.** So the worst thing the
+audit could have found - a gate declared passed without its condition holding - **has no instance,
+because no gate was ever declared.** That is not better: CLAUDE.md rule 4 reads *"Gates are hard - a
+task is done when its gate condition passes from a clean clone"*, and **that rule is enforced by
+nothing and tracked nowhere.**
+
+**The two flagged gates, checked directly and both failing.** **Gate 4** - `make eval` takes
+`SCENARIO=<id>` and scores **exactly one scenario per invocation**; T7.47 implemented it as a
+single-scenario wrapper after finding it a stub, and there is no all-scenarios driver anywhere in
+`src/evalharness/`. *Unattended* fails on a second ground measured this session: **T7.58 ran six
+invocations back to back and three were refused inside four seconds**, because `faultline-eval`
+refuses rather than waits for the world to settle. Every multi-scenario sweep here was driven by an
+ad-hoc script. **Gate 5** - T7.48 rebuilt the world **reusing local images** and said so; README
+still records the demo end to end as **unverified**. **Nobody has run this from a clean clone.**
+
+**Every named mandatory item is absent or half-present, and the searches are cheap to repeat.**
+`"baseline suite"` **zero hits** - `baseline.py` is T1.5's quiet-world measurement, a different
+thing, and **no headline table carries a B0/B1/B2 row**. `"A/A"` **zero hits**. **No MDE table, no
+repeat tiers, and no confidence interval on any figure** - `"MDE"` returns one hit, my own T7.58
+pre-registration. **T6.5 leaves no trace in the tree at all.** **T6.8's core thesis, prompt injection
+via log lines, has no eval scenarios and has never been attacked** - 13 valid scenarios and not one
+adversarial. **T6.4's corpus floor is 50 documents and the corpus holds 7** (35 chunks), read live -
+**14%** - with `"recall@5"` and `"MRR"` both at **zero hits**, so **no retrieval-quality metric
+exists at all.** And against the closing rule *"No number without an interval"*: **no number here
+carries one.** CLAUDE.md rule 6 is stronger than what is practised - *n, R, and a 95% CI, next to a
+baseline* - and **n is carried everywhere while R, the CI and the baseline are carried nowhere.**
+
+**Numbering: at least four plan task IDs mean two things.** The plan's Phase 7 ends at **T7.5 - six
+ids**; the repo runs **T7.0 to T7.59 - sixty**. **T7.1 is a documented collision** (plan: grow the
+catalog past 30, *"still owed"*; repo: the digest-locked queue). **T7.3, T7.4 and T7.5 each carry
+`contract not written`** - the reconstruction found *no plan statement for them* - so each is
+repo-invented work sitting on an id the plan had already assigned. **T5.3 is a fourth**, and its own
+entry says *"what was built is not what this entry described."* **The consequence that matters: the
+plan's T7.5, which the brief says outranks everything in the phase, cannot be found in this
+repository** - its id is occupied, and a reader will find a reachability decision and believe it was
+done. **T7.2, the other priority task, is recorded and never built.** `contract not written` appears
+**33 times**: a third of this index is work with no plan statement behind it.
+
+**Does the work since T7.30 serve the plan's priorities? No, and not marginally.** Thirty tasks
+completed since; **neither T7.2 nor the plan's T7.5 is among them.** What those thirty did: eight on
+world stability and the memory gate, six on scenarios and the catalog, five on record integrity and
+audits, four on the holdout protocol, the rest on freeze, locking, judging and queue hygiene.
+**Every one is defensible in isolation and the sequence is coherent** - each answered a defect the
+last exposed. **But together they are a project auditing and repairing its own measurement
+apparatus, not a project executing a plan.** The last thirty tasks **optimised the trustworthiness
+of a small number of figures rather than the coverage the plan asked for, and that trade was never
+registered as a decision - it happened.**
+
+**Not fixed, and not queued.** Nothing here is a defect with a remedy this task could apply: the
+audit needs the two documents, and the priorities are the user's to set. **Neither source document
+was amended** - they are evidence about intent.
+
 ### T7.59 — does the published record tell the truth as it now stands? *(audit; \$0)*
 **Done** ([`docs/design/t7.59-record-audit.md`](design/t7.59-record-audit.md)). Branched and
 confirmed first. **Fifteen corrections, no section restructured.** Every one is a wrong sentence or
