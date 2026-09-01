@@ -6,21 +6,16 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 
 **Agent `claude-opus-5` · judge `claude-haiku-4-5` · SHARED LINEAGE on every judged figure.**
 
-> **The current-world result leads; everything else in this document is labelled.**
+> **The current-world result leads; everything else in this document is labelled.** The figures are
+> in [the section immediately below](#the-current-world-result) — **19 scored runs on
+> `compose_digest f5bd108f…`, none of them holdout** — and are not repeated here.
+> *(They were repeated here until T7.60, which gave them a section; a banner and a section saying
+> the same thing is how the two drift apart.)*
 >
-> **Dev sweep 7 (T7.29) is the current benchmark**, measured against `compose_digest f5bd108f…` /
-> `observability_digest 857d95b4…` — the world T7.28 built by bounding kafka's glibc allocator,
-> putting a `maxmemory`/`allkeys-lru` bound on redis-cart, and adding a `memory_limiter` to the
-> collector. Under stamp `prompts:1b0e7cbb4c47`: **8 of 8 scenarios scored with no discards,
-> coverage 8/8, fault class 7/8, class of fix 7/8, judge `same_mechanism` 7/8, $4.6870**
-> ([`SWEEP-2026-08-30-refound-again.md`](../evals/runs/SWEEP-2026-08-30-refound-again.md)).
+> **The current world holds under a fifth of the record.** Of the 97 manifest-carrying runs in
+> `evals/runs/`, **69 describe `4a7690c6fdda…`** and **12 describe `299d791c5e0d…`**. That is why
+> *The tables* is labelled the way it is.
 >
-> **How much evidence stands behind that, in total — added T7.59, because a reader should not have
-> to count run directories to find out.** Sweep 7 is **8 runs**. **The entire current-world corpus
-> is 19 scored runs across 10 of the 13 valid scenarios**, the extra eleven being the two scenarios
-> authored at T7.36/T7.38 and T7.58's traceability split. **None of the 19 is a holdout run.** Of
-> the 97 manifest-carrying runs in `evals/runs/`, 69 describe `4a7690c6fdda…` and 12 describe
-> `299d791c5e0d…`; **the current world holds under a fifth of the record.**
 > **The world is reconstructible, and that is what makes the digest worth quoting (T7.48).** The
 > stack was torn down and rebuilt with the documented commands; **`compose_digest`,
 > `observability_digest`, `ffs_stub_source_digest`, the demo image digest and all 28 container image
@@ -58,6 +53,106 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 > to 5/5. This is the second time a scorer change has silently sat between two sweeps (T7.10 caught
 > the first, T7.3's blast-radius fix), and **any future comparison must check for it before
 > reporting a delta.**
+
+---
+
+## The current-world result
+
+**This is the only section describing the world that exists.** Everything under *The tables* ran on
+a world that has since been replaced, and says so.
+
+### What is scored, and what is not
+
+Three different things assess a run, and the difference between them is the single most useful thing
+to know before reading any number here. *(Stated whole in one place from T7.60; it was previously
+true in [ADR-0022 §1.2](adr/0022-evaluation-harness.md), T7.44's analysis and T7.52's measurement,
+and stated whole in none of them.)*
+
+| | what it asks | what it cannot see |
+|---|---|---|
+| **the scorer** | Is the returned **fault class** the labelled one, and is the **class of fix** the one that works? | *how* the conclusion was reached. A right label from a wrong story scores the same as a right label from the right one |
+| **the judge** | Does the verdict name **the same mechanism** as the recorded narrative? `same_mechanism` / `adjacent` (right subsystem, wrong mechanism) / `different` | whether the evidence the agent cited **supports** the mechanism it named |
+| **warrant** | Does the stated causal path actually follow from the evidence gathered? | — **nothing assesses this** |
+
+**Warrant is assessed nowhere, and that is a deliberate gap rather than an oversight.** Every
+scenario carries a `GroundTruth.root_cause` that no scoring code reads (T7.44). Adopting a warrant
+check on the evidence available would tune the benchmark to its last result, so it is queued (**Q3**)
+rather than built. **A figure here says the agent reached the right answer; no figure here says the
+agent had the right reasons.**
+
+`unknown` is an **abstention, not a wrong answer** — excluded from accuracy and reported as
+coverage, so accuracy and coverage are never quoted apart.
+
+### The figures
+
+**World `compose_digest f5bd108f…` / `observability_digest 857d95b4…`, stamp
+`prompts:1b0e7cbb4c47`, agent `claude-opus-5`, judge `claude-haiku-4-5` — SHARED LINEAGE on every
+judged figure.**
+
+**19 scored runs, over 10 of the 13 valid scenarios. Every one is a dev run: there is no
+current-world holdout figure at all**, and there will not be one — see *What remains*.
+
+| | |
+|---|---|
+| coverage (reached a class) | **18 / 19** |
+| fault class, of answered | **17 / 18** |
+| class of fix, of answered | **15 / 18** |
+| judged mechanism agreement, over all 19 | **`same_mechanism` 15 · `adjacent` 3 · `different` 1** |
+| runs judged | 19 / 19 |
+
+| ground-truth class | n | answered | fault class of answered | class of fix of answered | `same` / `adj` / `diff` |
+|---|---:|---:|---:|---:|---|
+| `bad_config` | 11 | 10 | 9 / 10 | 9 / 10 | 9 / 1 / 1 |
+| `bad_deploy` | 2 | 2 | 2 / 2 | 2 / 2 | 2 / 0 / 0 |
+| `dependency_latency` | 4 | 4 | 4 / 4 | **2 / 4** | 2 / **2** / 0 |
+| `resource_exhaustion` | 2 | 2 | 2 / 2 | 2 / 2 | 2 / 0 / 0 |
+| **all** | **19** | **18** | **17 / 18** | **15 / 18** | **15 / 3 / 1** |
+
+**Four of the nineteen are not clean, and they are the same few runs each time.** One abstention
+(`payment-telemetry-blackout`, reconstructed at T7.43). One class miss (`shipping-quote-misconfig`,
+`bad_config` returned as `bad_deploy`, judged `adjacent` — label and judge agree it is wrong). And
+two `redis-cart-dependency-latency` runs that got the class right, missed the fix, and are judged
+`adjacent` — right subsystem, wrong mechanism (T7.51).
+
+**The pre-registered sweep inside that corpus is dev sweep 7** — 8 of the 19 runs, one per runnable
+scenario, no discards: coverage 8/8, fault class 7/8, class of fix 7/8, judge `same_mechanism` 7/8,
+\$4.6870 ([`SWEEP-2026-08-30-refound-again.md`](../evals/runs/SWEEP-2026-08-30-refound-again.md)).
+The other eleven are the two scenarios authored at T7.36 and T7.38 (n = 5 and n = 3) and T7.58's
+traceability split.
+
+**n is 1 for six of the ten scenarios.** A 95% interval on any cell above spans most of the unit
+interval. **These support direction, not magnitude.**
+
+### What the label score can and cannot see — measured
+
+*(Brought into this document at T7.60 from [`docs/evidence/t7.52-corpus-judge/`](evidence/t7.52-corpus-judge/),
+where it qualified figures it was not next to. The numbers are over the **whole record**, not only
+the current world, because that is the n the question needs.)*
+
+Over **56 answered runs** with a judged verdict:
+
+| | |
+|---|---|
+| class-label accuracy | **52 / 56** |
+| judged `same_mechanism` | **52 / 56** |
+| runs that are **both** | **49** |
+
+**The same number, and not the same runs.** Six disagree — **three in each direction** — so the
+label score is **not flattering; it is noisy, symmetrically**:
+
+- **Three runs the label credits and the judge does not.** Two are the `redis-cart-dependency-latency`
+  runs above (`adjacent`), one is a `cart-bad-image-tag` run judged `different` — a wrong story that
+  landed in the right bucket.
+- **Three runs the label marks wrong and the judge calls `same_mechanism`** — the agent named the
+  exact mechanism and chose the other defensible label at the config/consequence boundary. **All
+  three are already in `CLASS_DISPUTES`**, and the judge, which is never told the label, agrees with
+  the agent on precisely the three rows the register flags as contested. That is corroboration from
+  a direction that could not have been tuned to produce it. **It does not make them right** —
+  ADR-0022 §1.2 stands and a disputed miss is still a miss.
+
+**Abstentions are excluded from the agreement figure and that matters:** all 17 in the record judge
+`different` by construction, so counting them would make agreement look worse than accuracy as a
+pure artifact.
 
 ---
 
@@ -101,8 +196,13 @@ the rule. **The label is on every judged number in this document.**
 ### The freeze
 
 [ADR-0022 §3.3](adr/0022-evaluation-harness.md) requires that "frozen" mean something a script can
-check. Six items are hashed before a holdout run and re-checked after: prompts, corpus, model map,
-budget, tool layer, judge. The manifest
+check. **Seven items** are hashed and re-checked: prompts, corpus, model map, budget, tool layer, judge —
+and, since T7.54, **the world**: `compose_digest`, `observability_digest`, `ffs_stub_source_digest`,
+the demo image digest and `CAPABILITY_VERSION`. *(Was "six items". T7.53 found the omission; T7.54
+fixed it and found it had already cost something — 69 of 97 recorded runs were attributed to the
+wrong world generation. T7.55 wired the check into `faultline-eval`: a run that cannot establish its
+world now **refuses**, and a changed world is recorded as a new comparability generation rather than
+silently compared.)* The manifest
 ([`FREEZE-2026-08-26-holdout.json`](../evals/runs/FREEZE-2026-08-26-holdout.json)) was committed
 as its own commit **before any holdout scenario ran**.
 
@@ -115,8 +215,9 @@ holdout run is what the freeze exists to prevent.
 
 `runtime_version` is derived, not typed: the package version plus a digest over every role system
 prompt and every contract schema — the two things that determine what the agent *is*. It moves
-when and only when the agent changes, so a table can say which pipeline produced it. Two stamps
-appear in this document:
+when and only when the agent changes, so a table can say which pipeline produced it. ~~Two stamps~~
+**Four stamps** appear in this document, and the table below has held four rows since T4.14
+*(corrected T7.60 — the sentence was written when there were two and the table outgrew it)*:
 
 | stamp | what it is |
 |---|---|
@@ -134,43 +235,13 @@ a pre-registered protocol rather than by leaving the figure stale, which is the 
 this project has handled it (see
 [ADR-0023](adr/0023-a-freeze-manifest-outlives-the-pipeline-it-froze.md)). Nothing about the holdout run has
 changed and its figures stand exactly as measured — but they are a measurement of a prior agent,
-and no claim here extends them to the current one. Re-entering the holdout under the new stamp is
+and no claim here extends them to the current one. ~~Re-entering the holdout under the new stamp is
 a separate decision with its own pre-registration under ADR-0022's protocol, and it has not been
-made. See [ADR-0023](adr/0023-a-freeze-manifest-outlives-the-pipeline-it-froze.md), which is where
+made.~~ **It was made: entry 3 is that re-entry**, argued against ADR-0022's four conditions in the
+T4.15 addendum — the sentence outlived the entry it denied and contradicted the line three above it.
+*(Struck T7.60.)* **What has not been made is entry 4, and it cannot be** — see
+[ADR-0029](adr/0029-four-fault-classes-and-why-there-is-no-fifth.md). See [ADR-0023](adr/0023-a-freeze-manifest-outlives-the-pipeline-it-froze.md), which is where
 this obligation to say so instead of asserting it in a test comes from.
-
-### Dev, on the world that exists — sweep 6, `world 299d791c5e0d…`
-
-**The current-world benchmark.** Pre-registered, run on the re-recorded bundles under the current
-stamp `prompts:1b0e7cbb4c47` and the T4.7 budget
-([`SWEEP-2026-08-28-refound.md`](../evals/runs/SWEEP-2026-08-28-refound.md)).
-
-| scenario | fault class | class of fix | judge |
-|---|---|---|---|
-| ad-memory-squeeze | **`resource_exhaustion`** ✔ | `config_revert` ✔ | `same_mechanism` |
-| cart-bad-image-tag | **`bad_deploy`** ✔ | `rollback` ✔ | `same_mechanism` |
-| cart-dependency-latency | **`dependency_latency`** ✔ | `config_revert` ~~✘~~ **✔** | `same_mechanism` |
-| cart-redis-misconfig | **`bad_config`** ✔ | `config_revert` ✔ | `same_mechanism` |
-| frauddetection-memory-squeeze | **DISCARD** — no incident in 900s | — | — |
-| product-catalog-flag-failure | **`bad_config`** ✔ | `config_revert` ✔ | `same_mechanism` |
-| shipping-wrong-image | `unknown` — **abstained** | — | `different` |
-
-**Scored 6 of 7. Coverage 5/6, fault class 5/5, class of fix ~~4/5~~ 5/5.** _(rescored 2026-08-29 under T7.17: `config_revert` is a **measured** working fix for `dependency_latency`, so it is no longer a miss. Originals struck. See ADR-0027.)_ Cost $3.3650 + $0.2229 judge.
-
-**No fault class changed across the world boundary** — every scenario that produced a class
-produced the same one S5 did, and every one was correct. Two scenarios did not produce a
-comparable result: `shipping-wrong-image` abstained after spending **zero** dispatches on the
-failing service (the collapse T4.12 identified, and **not** traceable to the capture change —
-the service was in its blast radius both times), and `frauddetection-memory-squeeze` never
-alerted within 900s — **which T7.11 established was the host suspending mid-run**, not the world
-and not the scenario: two injections both paged at T+382s and T+381s against a recorded 390s, and
-the metrics store has a sixteen-minute hole in which all fifteen services stop reporting together.
-**That discard is environmental and is not a result about this system.** It stands in the record;
-coverage is quoted over the six runs that produced one.
-
-**Triage is unchanged.** Five of six scenarios score identically to S5 once S5 is rescored under
-the current scorer — the raw stored figures appear to improve only because T7.3 fixed the
-blast-radius exclusion after S5 ran.
 
 ### The figures below were measured against a world that no longer exists
 
@@ -180,12 +251,15 @@ re-recorded all twelve scenario bundles against the result. `world.compose_diges
 `4a7690c6fdda…` to `299d791c5e0d…` and `ffs_stub_source_digest` from `5d06a3668aa0…` to
 `8defed3104c4…`.
 
-**Nothing in this document was re-measured.** Every dev sweep, every variance experiment, every
+**Nothing under *The tables* was re-measured.** Every dev sweep, every variance experiment, every
 holdout entry and the retrieval corpus behind them were produced against the **old** world, and
-they stand exactly as measured. What changes is what they can be compared to:
+they stand exactly as measured. *(Was "nothing in this document", which stopped being true at T7.29
+and read as false the moment T7.60 gave the current-world result a section above this one. Scoped
+T7.60 — the sentence was correct about the document it was written in.)* What changes is what they
+can be compared to:
 
-- **A future run is not comparable to any figure here.** It would differ in the agent *and* the
-  world, and this document cannot separate those. Comparing across the digest boundary is
+- **A future run is not comparable to any figure under *The tables*.** It would differ in the agent
+  *and* the world, and this document cannot separate those. Comparing across the digest boundary is
   comparing across worlds.
 - **The corpus is old-world too.** It was seeded from the dev narratives as they were before the
   re-record, and those narratives have now been rewritten against new evidence — see
@@ -293,7 +367,50 @@ never re-run to fix a number.**
 
 ---
 
-## The tables
+## The tables — **every sweep and entry below ran on a superseded world**
+
+None of the figures in this section describes `f5bd108f…`. They are correct about the worlds they
+name and they do not carry over; the current-world result is at the top of this document.
+
+### Dev sweep 6 — `world 299d791c5e0d…`, **superseded**
+
+> **Corrected and moved 2026-09-01 (T7.60).** This section was headed *"Dev, on the world that
+> exists"* and called sweep 6 **"the current-world benchmark"**, and it sat inside **Method**, above
+> the divider announcing superseded figures. Both statements were true when written and both were
+> falsified by T7.28. **T7.59 found this and its correction did not reach the file** — see
+> [the audit's own correction](design/t7.59-record-audit.md). The ordering is what let it survive: a document arranged by date has no
+> place that is obviously *the current result*, so a stale heading could hold the position.
+
+Pre-registered, run on the re-recorded bundles under the then-current
+stamp `prompts:1b0e7cbb4c47` and the T4.7 budget
+([`SWEEP-2026-08-28-refound.md`](../evals/runs/SWEEP-2026-08-28-refound.md)).
+
+| scenario | fault class | class of fix | judge |
+|---|---|---|---|
+| ad-memory-squeeze | **`resource_exhaustion`** ✔ | `config_revert` ✔ | `same_mechanism` |
+| cart-bad-image-tag | **`bad_deploy`** ✔ | `rollback` ✔ | `same_mechanism` |
+| cart-dependency-latency | **`dependency_latency`** ✔ | `config_revert` ~~✘~~ **✔** | `same_mechanism` |
+| cart-redis-misconfig | **`bad_config`** ✔ | `config_revert` ✔ | `same_mechanism` |
+| frauddetection-memory-squeeze | **DISCARD** — no incident in 900s | — | — |
+| product-catalog-flag-failure | **`bad_config`** ✔ | `config_revert` ✔ | `same_mechanism` |
+| shipping-wrong-image | `unknown` — **abstained** | — | `different` |
+
+**Scored 6 of 7. Coverage 5/6, fault class 5/5, class of fix ~~4/5~~ 5/5.** _(rescored 2026-08-29 under T7.17: `config_revert` is a **measured** working fix for `dependency_latency`, so it is no longer a miss. Originals struck. See ADR-0027.)_ Cost $3.3650 + $0.2229 judge.
+
+**No fault class changed across the world boundary** — every scenario that produced a class
+produced the same one S5 did, and every one was correct. Two scenarios did not produce a
+comparable result: `shipping-wrong-image` abstained after spending **zero** dispatches on the
+failing service (the collapse T4.12 identified, and **not** traceable to the capture change —
+the service was in its blast radius both times), and `frauddetection-memory-squeeze` never
+alerted within 900s — **which T7.11 established was the host suspending mid-run**, not the world
+and not the scenario: two injections both paged at T+382s and T+381s against a recorded 390s, and
+the metrics store has a sixteen-minute hole in which all fifteen services stop reporting together.
+**That discard is environmental and is not a result about this system.** It stands in the record;
+coverage is quoted over the six runs that produced one.
+
+**Triage is unchanged.** Five of six scenarios score identically to S5 once S5 is rescored under
+the current scorer — the raw stored figures appear to improve only because T7.3 fixed the
+blast-radius exclusion after S5 ran.
 
 ### Holdout — n = 3, and **three entries under two stamps**
 
