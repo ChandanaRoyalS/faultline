@@ -10,6 +10,7 @@ import argparse
 from datetime import UTC
 
 from faultline.agents.settings import AgentSettings
+from faultline.archive import connect_or_none
 
 
 def parser() -> argparse.ArgumentParser:
@@ -205,7 +206,7 @@ def run(argv: list[str] | None = None) -> int:
         specialists=build_specialists(
             Tools(ToolSettings(), changes=PostgresChangeLog(psycopg.connect(dsn))), model
         ),
-        store=PostgresTrajectoryStore(psycopg.connect(dsn)),
+        store=PostgresTrajectoryStore(psycopg.connect(dsn), connect_or_none()),
         model=model,
         budget=Budget(
             max_tool_calls_per_specialist=args.max_tool_calls,

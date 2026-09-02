@@ -39,8 +39,30 @@ services:
       timeout: 3s
       retries: 10
 
+  minio:
+    # The evidence archive (T2.3, ADR-0034). S3-compatible, so the code that runs against this
+    # in development runs against S3 itself in a deployment - `ArchiveSettings.endpoint_url`
+    # is the only difference.
+    #
+    # Free to change, for the same reason postgres records above: this file is not one of the
+    # three inputs to `world.compose_digest`, so editing it invalidates no recorded bundle.
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    profiles: ["platform", "eval"]
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: faultline
+      MINIO_ROOT_PASSWORD: faultline-dev   # dev only; real secrets via .env
+    ports: ["9000:9000", "9001:9001"]
+    volumes: ["miniodata:/data"]
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   # T1.1-T1.3 add here (world profile): OpenTelemetry demo services, Prometheus, Loki,
   # Grafana, Alertmanager. Deliberately absent until Phase 1 - see the execution plan.
 
 volumes:
   pgdata:
+  miniodata:

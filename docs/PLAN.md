@@ -144,9 +144,18 @@ Addenda 1 and 2. States that need T3.x and the action plane are present and stub
 calling one says which task owns its contract; the six with no runtime writer are asserted in
 `NO_RUNTIME_WRITER` so the set cannot shrink silently.
 
-**One of T2.3's deliverables is still absent.** The deliverable line reads *"Schema +
-migrations + tested state machine + report/evidence archive"*. There is no S3-compatible
-archive for raw evidence payloads and rendered reports.
+**The evidence archive landed 2026-09-01** (ADR-0034), which closes T2.3's deliverable line
+*"Schema + migrations + tested state machine + report/evidence archive"* - with one part
+outstanding, named rather than left to be found. MinIO in the platform profile, envelopes
+written under `envelopes/{result_id}` after the database commit and never fatally, off by
+default with `FAULTLINE_ARCHIVE_ENABLED`. **Rendered reports are not archived yet**: the key
+scheme is defined and `report_key()` has no caller.
+
+The archive is a second copy rather than a new capability - citations were already
+re-verifiable, because envelopes are stored inline in Postgres with a sha256 and an
+unresolvable citation is refused. What Postgres alone could not give is the word *forever*: a
+reset database removes the evidence under every citation ever made and leaves the reports
+unfalsifiable rather than wrong.
 
 **Migrations landed 2026-09-01** (ADR-0033). Alembic, one history for one database, with the
 initial revision *generated* from the four `SCHEMA` constants rather than transcribed and the
@@ -197,7 +206,16 @@ sixteen events.
 `docs/evidence/t2.2-live-smoke/README.md`, `docs/adr/0001:9`,
 `docs/adr/0015-alert-ingest-identity-and-dedupe.md`
 
-### T2.4 — context layer *(designed, not built)*
+### T2.4 — service catalog *(partly built)*
+
+> **Audit, 2026-09-01.** `src/faultline/context/catalog.py` exists and answers one question
+> well: whether a service is `present`, `uninstrumented` or `artifact_only` for graph
+> reasoning, with a measured reason attached to each absence. That is real work and ADR-0017
+> designs it. It is **not what T2.4 asks for.** The plan's T2.4 is *"a git-versioned catalog
+> of the demo's services: owners, tiers, SLOs, runbook links, declared dependencies - exposed
+> as a dependency-graph API"*. The graph API exists; the git-versioned catalog of owners,
+> tiers, SLOs and runbook links does not, in any file. Recorded here because it was found
+> while auditing something else and would otherwise have been forgotten twice.
 Service catalog, dependency-graph scoping, retrieval.
 
 **ADR-0017 designs the first two** against a measured graph

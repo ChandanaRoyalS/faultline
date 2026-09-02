@@ -21,11 +21,14 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
 from typing import Any, Protocol
+
+from faultline.archive import Archive, archive_trajectory
 
 
 class StepKind(StrEnum):
@@ -193,10 +196,18 @@ class InMemoryTrajectoryStore:
 
 
 class PostgresTrajectoryStore:
-    """The real one. Not exercised by `make check` - the tests use the in-memory double."""
+    """The real one, plus the archive copy that outlives it (T2.3).
 
-    def __init__(self, connection: Any) -> None:
+    `archive` is optional and defaults to none: a deployment without object storage keeps
+    working exactly as before, and every envelope is still stored inline in Postgres under
+    its `result_id`. What the archive adds is a copy with a different failure mode - the
+    database holds the only one otherwise, so resetting it destroys the evidence behind every
+    citation ever made, and the reports become unfalsifiable rather than wrong.
+    """
+
+    def __init__(self, connection: Any, archive: Archive | None = None) -> None:
         self._conn = connection
+        self._archive = archive
 
     def save(self, trajectory: Trajectory) -> None:
         with self._conn.cursor() as cur:
@@ -272,6 +283,28 @@ class PostgresTrajectoryStore:
                         ),
                     )
         self._conn.commit()
+        self._archive_envelopes(trajectory)
+
+    def _archive_envelopes(self, trajectory: Trajectory) -> None:
+        """After the commit, never before, and never fatal.
+
+        The trajectory row is the record; the archive is the copy. Losing a finished
+        investigation because object storage was unreachable would trade the thing being
+        protected for the protection. A failure is logged loudly and the run continues -
+        logged rather than swallowed, because a silently empty archive is exactly the kind of
+        claim this project keeps finding was true when written and false later.
+        """
+        if self._archive is None:
+            return
+        try:
+            archive_trajectory(trajectory, self._archive)
+        except Exception:
+            logging.getLogger(__name__).warning(
+                "trajectory %s was saved but its envelopes were not archived; the inline "
+                "copies in Postgres are still authoritative",
+                trajectory.id,
+                exc_info=True,
+            )
 
     def get(self, trajectory_id: str) -> Trajectory | None:
         with self._conn.cursor() as cur:

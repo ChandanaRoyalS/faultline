@@ -40,6 +40,9 @@ embeddings = ["sentence-transformers>=3.0"]
 # The agent runtime's model client (ADR-0020). Optional and lazily imported for the same
 # reason: `make check` never calls a model, and the fake is the only one tests touch.
 agents = ["anthropic>=1.0"]
+archive = [
+    "boto3>=1.35",
+]
 
 [dependency-groups]
 dev = [
@@ -53,6 +56,7 @@ dev = [
     # T2.3's named method. Deselected by default so `make check` stays hermetic and Gate 0's
     # clean-clone run needs no Docker; `make test-integration` opts in.
     "testcontainers[postgres,redis]>=4.8",
+    "boto3>=1.35",
 ]
 
 [build-system]
@@ -76,9 +80,9 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
 "compose/ffs-stub/server*.py" = ["N802"]
 
 [[tool.mypy.overrides]]
-# Optional dependencies (faultline[embeddings], faultline[agents]); the module is imported lazily inside a
-# function so nothing in `make check` loads it, and there are no stubs to install.
-module = ["sentence_transformers.*", "anthropic.*"]
+# Optional dependencies (faultline[embeddings], faultline[agents], faultline[archive]); the module is
+# imported lazily inside a function so nothing in `make check` loads it, and there are no stubs to install.
+module = ["sentence_transformers.*", "anthropic.*", "boto3.*"]
 ignore_missing_imports = true
 
 [tool.mypy]
@@ -94,5 +98,5 @@ testpaths = ["tests"]
 # checkout. `make test-integration` runs them.
 addopts = "-q -m 'not integration'"
 markers = [
-    "integration: needs Docker - real Postgres and Redis via testcontainers (T2.3)",
+    "integration: needs Docker - real Postgres, Redis and MinIO via testcontainers (T2.3)",
 ]
