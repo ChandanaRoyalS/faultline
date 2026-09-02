@@ -570,7 +570,9 @@ failing service, which S4 measured as the thing that actually predicts the outco
 
 
 PROPOSER_DIGEST = "20088b22cede"
-"""**HEAD since T3.9, and no sweep in `evals/runs/` describes it.**
+"""The six-stage pipeline T3.9 built. **Superseded within the same batch** by
+`TRIAGE_GATE_DIGEST` below, and kept because a pipeline this repository built is a pipeline the
+lineage check has to be able to place - the same reason `SWEEP_2_DIGEST` is still here.
 
 The proposer's system prompt entered `prompt_digest` and the `Proposal` contract entered
 `_CONTRACTS`, which is the stamp doing exactly what it is for: a pipeline with a sixth stage is
@@ -588,6 +590,19 @@ of what a structured-output model is shown - and it is written down here because
 of thing a future reader would otherwise diagnose twice.
 """
 
+TRIAGE_GATE_DIGEST = "a7330c098770"
+"""**HEAD since T3.1, and no sweep in `evals/runs/` describes it.**
+
+`TRIAGER_SYSTEM` and the `TriageJudgement` contract joined the stamp when triage gained the
+judgement half the specification asks for - the gate that declines an incident before fan-out.
+Six role prompts now, and the second stamp move of Phase 3's Batch B.
+
+**Two stamp moves, one re-record.** T3.9's `20088b22cede` was never measured either: both moves
+land inside the window ADR-0028 §6 opened, and the re-sweep at the end of the batch measures the
+pipeline as it finally stands rather than each intermediate one. Recording the intermediate
+digest is what lets someone reading a trajectory from today place it exactly.
+"""
+
 
 def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """`runtime_version` is the package version plus a digest over every role system prompt and
@@ -598,17 +613,26 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == PROPOSER_DIGEST, (
-        f"expected the six-stage pipeline {PROPOSER_DIGEST}. If a prompt or a contract moved "
-        f"again, no sweep in evals/runs/ describes the current agent - and none describes this "
-        f"one either until T3.9's re-sweep runs."
+    assert prompt_digest() == TRIAGE_GATE_DIGEST, (
+        f"expected the gated pipeline {TRIAGE_GATE_DIGEST}. If a prompt or a contract moved "
+        f"again, add its digest here: an unrecorded move is a run nobody can place."
     )
-    assert prompt_digest() != SWEEP_5_DIGEST, (
-        "T3.9 added a stage, so HEAD is not the pipeline dev sweep 5 measured"
+    assert prompt_digest() not in {SWEEP_5_DIGEST, PROPOSER_DIGEST}, (
+        "Batch B has moved the stamp twice, so HEAD is neither dev sweep 5's pipeline nor T3.9's"
     )
     assert (
-        len({SWEEP_1_DIGEST, SWEEP_2_DIGEST, SWEEP_4_DIGEST, SWEEP_5_DIGEST, PROPOSER_DIGEST}) == 5
-    ), "five pipelines, four of them measured"
+        len(
+            {
+                SWEEP_1_DIGEST,
+                SWEEP_2_DIGEST,
+                SWEEP_4_DIGEST,
+                SWEEP_5_DIGEST,
+                PROPOSER_DIGEST,
+                TRIAGE_GATE_DIGEST,
+            }
+        )
+        == 6
+    ), "six pipelines, four of them measured"
 
 
 def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:
@@ -879,7 +903,7 @@ def test_the_correlate_budget_is_not_a_stamp_input() -> None:
     ):
         assert stamp_module.prompt_digest() == before
     stamp_module.prompt_digest.cache_clear()
-    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{PROPOSER_DIGEST}"
+    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{TRIAGE_GATE_DIGEST}"
 
 
 # --- T7.14: the rule that fires at rest ----------------------------------------------------

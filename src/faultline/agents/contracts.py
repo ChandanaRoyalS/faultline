@@ -139,6 +139,44 @@ class Verdict(BaseModel):
     six dispatches is a verdict nobody should trust, and the field makes saying so cheap."""
 
 
+TriageDisposition = Literal["investigate", "duplicate", "noise"]
+
+
+class TriageJudgement(BaseModel):
+    """What triage decides that a graph traversal cannot (T3.1).
+
+    The specification asks triage to classify *"severity, affected service, blast radius,
+    duplicate-of, suspected fault category — as a validated structured output driving the state
+    machine"*, from a *"small model, strict output schema"*. **Severity and blast radius are not
+    on this object, and their absence is the decision.** They are measured: severity comes from
+    the alert labels, and the radius is `ServiceGraph.blast_radius` over edges whose kinds were
+    measured from recorded bundles. T3.1 scores that radius against those bundles, so a model
+    that could restate it could move a scored number while nothing about the world changed.
+
+    What is left is exactly what a traversal has no way to answer, and what the deliverable's
+    second half - *"noise gated before fan-out"* - requires somebody to answer:
+
+    - **`disposition`**, the gate itself. An expensive investigation is launched, declined as
+      noise, or refused as a duplicate of an incident already being worked.
+    - **`duplicate_of`**, which needs incident history rather than topology. T2.1's fingerprint
+      dedupe owns *exact* duplicates; this is the cross-fingerprint case the plan names.
+    - **`suspected_fault_class`**, a cheap prior the planner may use and must not be bound by.
+      It is not scored: ADR-0022 scores the *verdict's* class, and scoring a guess made before
+      any evidence was gathered would reward confidence at the cheapest point in the pipeline.
+    - **`confidence`** and **`reasoning`**, so a declined investigation can be argued with.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    disposition: TriageDisposition
+    duplicate_of: str | None = Field(
+        default=None, description="The incident id this duplicates, when disposition is duplicate"
+    )
+    suspected_fault_class: FaultClass = "unknown"
+    confidence: Literal["high", "medium", "low"]
+    reasoning: str = Field(description="Why, in one or two sentences a responder can argue with")
+
+
 class Proposal(BaseModel):
     """A remediation proposal: **a falsifiable claim about a change, never the change** (T3.9).
 
@@ -343,3 +381,32 @@ def validate_proposal(proposal: Proposal, scoped: set[str]) -> None:
             f"reached; propose one of those, or abstain with remediation_class 'none'."
         )
     proposal.target = canonical
+
+
+def validate_triage(judgement: TriageJudgement, known_incidents: set[str]) -> None:
+    """A duplicate names an incident that exists; nothing else names one (T3.1).
+
+    Raised as `ValueError`, so it takes ADR-0003's one bounded re-ask like any other contract
+    violation. Two checks, both about the same failure: a `duplicate_of` the store has never
+    heard of would send an incident to `DUPLICATE_MERGED` against nothing, and a `duplicate_of`
+    attached to an `investigate` decision is a model telling the state machine two things at
+    once. The state machine takes one transition, so the contract admits one claim.
+    """
+    if judgement.disposition == "duplicate":
+        if not judgement.duplicate_of:
+            raise ValueError(
+                "disposition 'duplicate' requires duplicate_of to name the incident this "
+                "duplicates. If you cannot name one, the disposition is 'investigate'."
+            )
+        if judgement.duplicate_of not in known_incidents:
+            listed = ", ".join(sorted(known_incidents)) or "none are open"
+            raise ValueError(
+                f"duplicate_of {judgement.duplicate_of!r} is not an incident in the history you "
+                f"were given. Open incidents: {listed}."
+            )
+        return
+    if judgement.duplicate_of:
+        raise ValueError(
+            f"duplicate_of names {judgement.duplicate_of!r} but the disposition is "
+            f"{judgement.disposition!r}. Only a 'duplicate' disposition may name one."
+        )

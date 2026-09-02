@@ -66,6 +66,11 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="skip past-incident retrieval (it needs the embeddings extra)",
     )
+    p.add_argument(
+        "--no-gate",
+        action="store_true",
+        help="investigate without asking triage whether it is worth it (T3.1's gate)",
+    )
     budget = p.add_argument_group("budget (ADR-0020 §5 placeholders)")
     budget.add_argument(
         "--max-tool-calls",
@@ -124,6 +129,7 @@ def run(argv: list[str] | None = None) -> int:
         Proposer,
         Scribe,
         Synthesizer,
+        Triager,
         build_specialists,
     )
     from faultline.agents.runner import (
@@ -236,7 +242,9 @@ def run(argv: list[str] | None = None) -> int:
         proposer=Proposer(model),
     )
 
-    report = run_investigation(store, incident, engine, triage, anchor)
+    report = run_investigation(
+        store, incident, engine, triage, anchor, triager=None if args.no_gate else Triager(model)
+    )
     _print_report(report)
     if args.out:
         from pathlib import Path
@@ -251,6 +259,18 @@ def _print_report(report: object) -> None:
     states = " -> ".join(getattr(report, "states", ()))
     print(f"\nstates: {states}")
     print(f"trajectory: {getattr(report, 'trajectory_id', None) or 'none persisted'}")
+
+    judgement = getattr(report, "judgement", None)
+    if judgement is not None:
+        duplicate = f" of {judgement.duplicate_of}" if judgement.duplicate_of else ""
+        print(
+            f"triage judged: {judgement.disposition}{duplicate} ({judgement.confidence} "
+            f"confidence, suspects {judgement.suspected_fault_class})"
+        )
+        print(f"  {judgement.reasoning}")
+    if getattr(report, "gated", False):
+        print("\nGATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident")
+        return
 
     error = getattr(report, "error", None)
     if error:

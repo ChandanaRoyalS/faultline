@@ -23,10 +23,12 @@ from faultline.agents.contracts import (
     Proposal,
     SpecialistFindings,
     SpecialistName,
+    TriageJudgement,
     Verdict,
     partition_dispatch_services,
     validate_dispatch_services,
     validate_proposal,
+    validate_triage,
 )
 from faultline.agents.evidence import Evidence, bind, board, render_board
 from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
@@ -142,6 +144,42 @@ def _parse(text: str, schema: type[BaseModel]) -> Any:
     if start == -1 or end == -1:
         raise ValueError("no JSON object in the reply")
     return schema.model_validate(json.loads(body[start : end + 1]))
+
+
+TRIAGER_SYSTEM = """You are triage. You decide whether an incident is worth an expensive
+investigation, and you decide it in seconds.
+
+You are given what is already measured: which services alerted and when, their severity labels,
+the blast radius computed from the dependency graph, and the incidents currently open. **You do
+not restate any of that.** The radius is a traversal of measured edges and it is not yours to
+adjust; severity is what the alert labels say.
+
+You answer three questions the measurements cannot.
+
+DISPOSITION. `investigate` launches specialists and spends money. `noise` declines - use it when
+the alerts describe a world that is working: a single warning-severity latency alert on one
+service with no error-rate alert anywhere, an alert on the synthetic load generator alone, or an
+incident whose services all recovered before this ran. `duplicate` means these alerts belong to
+an incident already open; name it in `duplicate_of`. **When the alerts describe something you
+cannot dismiss, investigate.** Declining a real incident costs more than investigating a quiet
+one, and this decision is made before any evidence exists.
+
+DUPLICATE-OF. Exact repeats never reach you - they were deduplicated on fingerprint at ingest.
+What reaches you is the cross-fingerprint case: different alerts, same underlying failure,
+overlapping in time and adjacent in the graph. Name an incident only from the list you were
+given.
+
+SUSPECTED FAULT CLASS. A cheap prior, and nothing rests on it: the planner may use it to order
+its dispatches and the verdict is decided by evidence nobody has gathered yet. Say `unknown`
+when the alerts do not suggest one - that is the honest answer at this stage and it costs
+nothing.
+
+Reply with JSON only, matching this schema:
+{"disposition": "investigate|duplicate|noise",
+ "duplicate_of": "<incident id, or null>",
+ "suspected_fault_class": "bad_deploy|bad_config|dependency_latency|resource_exhaustion|unknown",
+ "confidence": "high|medium|low",
+ "reasoning": "<one or two sentences>"}"""
 
 
 PLANNER_SYSTEM = f"""You are the planner in an incident investigation.
@@ -776,3 +814,76 @@ class Proposer:
                 if action_runbook is not None and action_runbook not in chosen:
                     chosen.append(action_runbook)
         return chosen
+
+
+class Triager:
+    """The judgement half of triage: the gate, the duplicate, the prior (T3.1).
+
+    **The measured half is not here and that is the design.** `Triage` computes the blast radius
+    from the graph and reads severity off the alert labels; this role receives both and decides
+    what a traversal cannot. The specification's T3.1 names one component doing both; splitting
+    them keeps ADR-0009's scored radius reproducible - it is compared against recorded bundles,
+    and a number that moves because a model was sampled differently is not a measurement.
+
+    **Small model by intent.** The plan's own words are *"wrong-but-cheap beats slow-but-perfect
+    here, measured by eval"*, and this is the role `AgentSettings.role_models` exists to point at
+    a cheaper model. The default map is empty, so it runs on the same model as everything else
+    until someone measures a reason to change that.
+    """
+
+    ROLE = "triage"
+
+    def __init__(self, model: LanguageModel, max_tokens: int = 800, effort: str = "low") -> None:
+        self._model = model
+        self._max_tokens = max_tokens
+        self._effort = effort
+
+    def judge(self, triage: TriageResult, open_incidents: list[tuple[str, str, str]]) -> Completion:
+        """One judgement. `open_incidents` is `(id, opened_at, services)`, from the store.
+
+        The history is what makes `duplicate-of` answerable at all - T2.1's fingerprint dedupe
+        owns exact repeats, and the cross-fingerprint case needs to see what else is open.
+        """
+        known = {incident_id for incident_id, _, _ in open_incidents}
+        return ask(
+            self._model,
+            ModelRequest(
+                system=TRIAGER_SYSTEM,
+                messages=[{"role": "user", "content": self._brief(triage, open_incidents)}],
+                role=self.ROLE,
+                max_tokens=self._max_tokens,
+                effort=self._effort,
+            ),
+            TriageJudgement,
+            check=lambda judgement: validate_triage(judgement, known),
+        )
+
+    @staticmethod
+    def _brief(triage: TriageResult, open_incidents: list[tuple[str, str, str]]) -> str:
+        lines = [
+            f"Incident {triage.incident_id}, severity {triage.severity.value} (from the alert "
+            f"labels).",
+            "",
+            "Alerted, in order:",
+        ]
+        for member in triage.alerting:
+            when = f"{member.entered_at:%H:%M:%S}" if member.entered_at else "time not recorded"
+            lines.append(f"  {member.service}  {when}")
+        lines += ["", "Blast radius, computed from the measured dependency graph:"]
+        for member in triage.blast_radius:
+            reached = f" via {member.reached_from}" if member.reached_from else ""
+            lines.append(
+                f"  {member.service}  {member.direction.value}  {member.hops} hop(s){reached}"
+            )
+        if triage.unmeasured_edges:
+            # Quoted with any use of the radius, the way every figure carries its `n`.
+            lines.append(
+                f"  ({len(triage.unmeasured_edges)} of those crossings are over edges whose "
+                f"failure propagation was never measured)"
+            )
+        lines += ["", "Incidents currently open (the only ids duplicate_of may name):"]
+        if not open_incidents:
+            lines.append("  none")
+        for incident_id, opened_at, services in open_incidents:
+            lines.append(f"  {incident_id}  opened {opened_at}  {services}")
+        return "\n".join(lines)

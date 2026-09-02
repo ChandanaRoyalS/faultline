@@ -11,12 +11,20 @@ import ast
 import json
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 import pytest
 
 from faultline.agents.budget import Budget
 from faultline.agents.investigation import Investigation
-from faultline.agents.roles import Planner, Proposer, Scribe, Synthesizer, build_specialists
+from faultline.agents.roles import (
+    Planner,
+    Proposer,
+    Scribe,
+    Synthesizer,
+    Triager,
+    build_specialists,
+)
 from faultline.agents.runner import (
     Exit,
     NotInvestigableError,
@@ -500,3 +508,135 @@ def test_an_abstention_advances_the_state_too() -> None:
     run_investigation(store, incident, engine, triage_for(incident), ANCHOR)
 
     assert incident.state is IncidentState.PROPOSING
+
+
+# --- triage's judgement half, and the gate it drives (T3.1) --------------------------
+
+
+def judgement_reply(**overrides: Any) -> str:
+    body: dict[str, Any] = {
+        "disposition": "investigate",
+        "duplicate_of": None,
+        "suspected_fault_class": "unknown",
+        "confidence": "medium",
+        "reasoning": "checkout is erroring and nothing rules out a real failure",
+    }
+    body.update(overrides)
+    return json.dumps(body)
+
+
+def gated_run(reply: str, store: InMemoryIncidentStore | None = None) -> Any:
+    store = store or InMemoryIncidentStore()
+    incident = incident_in(IncidentState.TRIAGING)
+    store.save(incident)
+    model = healthy_model()
+    model._replies["triage"] = [reply, reply]
+    engine, _ = engine_over(model)
+    report = run_investigation(
+        store, incident, engine, triage_for(incident), ANCHOR, triager=Triager(model)
+    )
+    return report, incident, model
+
+
+def test_noise_is_gated_before_a_single_specialist_runs() -> None:
+    """T3.1's deliverable is *triage decisions persisted; noise gated before fan-out*, and until
+    today nothing declined anything. A gated incident spends no model call after the judgement:
+    no planner, no dispatch, no synthesizer."""
+    report, incident, model = gated_run(
+        judgement_reply(disposition="noise", reasoning="one warning-severity latency alert")
+    )
+
+    assert report.gated and report.exit_code == Exit.GATED
+    assert report.result is None and report.trajectory_id is None
+    assert incident.state is IncidentState.RESOLVED
+    assert [call.role for call in model.calls] == ["triage"], "nothing downstream was asked"
+
+
+def test_a_duplicate_is_merged_rather_than_investigated_twice() -> None:
+    """T2.1's fingerprint dedupe owns exact repeats; this is the cross-fingerprint case the
+    plan names, and `TRIAGING -> DUPLICATE_MERGED` was in the table with no writer."""
+    store = InMemoryIncidentStore()
+    other = incident_in(IncidentState.INVESTIGATING)
+    store.save(other)
+
+    report, incident, _ = gated_run(
+        judgement_reply(disposition="duplicate", duplicate_of=other.id), store=store
+    )
+
+    assert incident.state is IncidentState.DUPLICATE_MERGED
+    assert report.judgement is not None and report.judgement.duplicate_of == other.id
+
+
+def test_a_duplicate_of_an_incident_nobody_has_heard_of_is_refused() -> None:
+    """The contract check, which takes ADR-0003's one bounded re-ask: a fabricated id would send
+    a live incident to a terminal state against nothing."""
+    model = healthy_model()
+    model._replies["triage"] = [
+        judgement_reply(disposition="duplicate", duplicate_of="incident-that-never-existed"),
+        judgement_reply(),
+    ]
+    store = InMemoryIncidentStore()
+    incident = incident_in(IncidentState.TRIAGING)
+    store.save(incident)
+    engine, _ = engine_over(model)
+
+    report = run_investigation(
+        store, incident, engine, triage_for(incident), ANCHOR, triager=Triager(model)
+    )
+
+    assert not report.gated, "the re-ask corrected it to investigate"
+    assert incident.state is IncidentState.SYNTHESIZING
+    retry = [call for call in model.calls if call.role == "triage"][-1]
+    assert "is not an incident in the history you were given" in retry.messages[-1]["content"]
+
+
+def test_a_triage_that_cannot_answer_twice_investigates_anyway() -> None:
+    """**A triage that fails is not a gate that closes.** Declining an incident because the
+    cheapest role malfunctioned would turn a model outage into silent under-investigation."""
+    model = healthy_model()
+    model._replies["triage"] = ["not json at all", "still not json"]
+    store = InMemoryIncidentStore()
+    incident = incident_in(IncidentState.TRIAGING)
+    store.save(incident)
+    engine, _ = engine_over(model)
+
+    report = run_investigation(
+        store, incident, engine, triage_for(incident), ANCHOR, triager=Triager(model)
+    )
+
+    assert report.judgement is None and not report.gated
+    assert report.result is not None and report.result.verdict is not None
+
+
+def test_the_judgement_is_told_the_radius_and_never_asked_for_it() -> None:
+    """The split T3.1 was built on: the graph computes the radius and the severity comes from
+    the alert labels, so a model cannot move a number that is scored against bundles. What it is
+    asked for is what a traversal cannot answer."""
+    from faultline.agents.contracts import TriageJudgement
+
+    _, _, model = gated_run(judgement_reply())
+
+    brief = next(call for call in model.calls if call.role == "triage").messages[0]["content"]
+    assert "Blast radius, computed from the measured dependency graph" in brief
+    assert "severity critical (from the alert labels)" in brief
+    assert set(TriageJudgement.model_fields) == {
+        "disposition",
+        "duplicate_of",
+        "suspected_fault_class",
+        "confidence",
+        "reasoning",
+    }, "no field here restates a measurement"
+
+
+def test_an_investigation_without_a_triager_is_still_a_supported_run() -> None:
+    """The gate is a role, not a requirement of the pipeline - and every test above this one
+    runs without it, which is the same configuration the harness used before T3.1."""
+    store = InMemoryIncidentStore()
+    incident = incident_in(IncidentState.TRIAGING)
+    store.save(incident)
+    engine, _ = engine_over(healthy_model())
+
+    report = run_investigation(store, incident, engine, triage_for(incident), ANCHOR)
+
+    assert report.judgement is None and not report.gated
+    assert report.exit_code is not Exit.GATED

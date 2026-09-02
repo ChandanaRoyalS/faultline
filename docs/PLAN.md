@@ -415,7 +415,7 @@ that met the deliverable's wording, or where the remaining work is queued.
 
 | Task | Deliverable (specification) | Found | Closed by |
 |---|---|---|---|
-| T3.1 | Triage decisions persisted; noise gated before fan-out | **Computed, not asked**: `Triage(catalog, hop_radius)` — deterministic, no model, no `duplicate-of`. Persisted, and it does gate the fan-out | Batch B — a model-based triage with a strict schema moves `prompts` |
+| T3.1 | Triage decisions persisted; noise gated before fan-out | **Computed, not asked**: `Triage(catalog, hop_radius)` — deterministic, no model, no `duplicate-of`. Persisted, and — correcting this row's own first reading — **it gated nothing**: every incident reaching the runner was investigated | **#145**. `Triager` judges disposition, `duplicate-of` and a fault-class prior; severity and the radius stay measured, so the scored number cannot move |
 | T3.2 | Plan objects; scoped fan-out | Delivered. `DispatchPlan`, one service per dispatch since T3.4c | — |
 | T3.2b | Tool-enforced window policy + per-query window logging | One window for every specialist, `onset − 10 min → onset + 5 min`, chosen in the agent layer; `change_history` never checked; no hint on refusal | **#139**. Planner's per-hypothesis widening → **Q17** (moves `prompts`) |
 | T3.2c | Budgeted briefing assembler + pull-rate metrics | Not built | Batch B |
@@ -758,6 +758,39 @@ positive remains the historical one. T4.1's first batch is where that record get
 `docs/adr/0020-agent-layer.md`, `src/faultline/agents/contracts.py`,
 `src/faultline/agents/roles.py`, `src/faultline/agents/grounding.py`,
 `docs/evidence/t3.4c-rerun/README.md`
+
+### T3.1 — triage's judgement half, and the gate *(built; the measured half unchanged)*
+The specification asks triage for a validated structured output from a *"small model, strict
+output schema"*, and delivers *"triage decisions persisted; noise gated before fan-out"*. The
+deterministic `Triage` was the first half of that and there was no second half at all: **nothing
+in this repository declined to investigate anything.**
+
+**The split is along the line the existing argument implies.** Severity and blast radius stay
+measured - the radius is scored against recorded bundles, so a model that could restate it could
+move a number while nothing about the world changed. `TriageJudgement` holds the five things a
+traversal cannot answer: `disposition`, `duplicate_of`, `suspected_fault_class`, `confidence`,
+`reasoning`. A test asserts that field set, so a later field restating a measurement has to be
+added on purpose.
+
+**The gate uses two transitions that had been in ADR-0016's table since it was written with no
+writer** - `TRIAGING → RESOLVED` for noise, `TRIAGING → DUPLICATE_MERGED` for a duplicate - and
+`Exit.GATED` is a fifth exit code. Nothing downstream runs: no planner, no dispatch, no
+synthesizer, which is where the saving is and what *before fan-out* means.
+
+**Two marked decisions.** A triage that cannot validate twice does **not** close the gate - the
+investigation proceeds and the missing judgement is visible as missing, because declining an
+incident on a model outage is silent under-investigation. And the gate is a role rather than a
+requirement: `--no-gate` runs the pipeline exactly as the existing sweeps ran it, which is what
+makes a comparison across the gate possible at all.
+
+**`suspected_fault_class` is not scored** and says so: ADR-0022 scores the verdict's class, and
+scoring a guess made before any evidence exists would reward confidence at the cheapest point in
+the pipeline.
+
+Second stamp move of Batch B: `prompts:20088b22cede` → `prompts:a7330c098770`.
+`src/faultline/agents/roles.py` (`Triager`), `src/faultline/agents/contracts.py`
+(`TriageJudgement`, `validate_triage`), `src/faultline/agents/runner.py`,
+`docs/adr/0020-agent-layer.md` (addendum)
 
 ### T3.6 — the typed evidence object *(built)*
 The plan's *"only currency agents may exchange"*, built as `faultline/agents/evidence.py`. One

@@ -110,8 +110,9 @@ def test_the_prompt_hash_covers_every_system_constant() -> None:
     """Not the synthesizer's alone. A freeze that watched one prompt would miss a change to
     any of the others.
 
-    **Five since T3.9** - the proposer's prompt joined the four, and the count is asserted
-    rather than inferred so that adding a role is a visible act with a stamp move attached.
+    **Six since T3.1's judgement half** - the proposer's prompt joined the four at T3.9 and
+    triage's at T3.1 - and the list is asserted rather than counted, so adding a role is a
+    visible act with a stamp move attached.
     """
     from faultline.agents import roles
 
@@ -126,6 +127,7 @@ def test_the_prompt_hash_covers_every_system_constant() -> None:
         "SCRIBE_SYSTEM",
         "SPECIALIST_SYSTEM",
         "SYNTHESIZER_SYSTEM",
+        "TRIAGER_SYSTEM",
     ]
 
 
