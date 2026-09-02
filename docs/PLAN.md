@@ -148,8 +148,9 @@ calling one says which task owns its contract; the six with no runtime writer ar
 *"Schema + migrations + tested state machine + report/evidence archive"* - with one part
 outstanding, named rather than left to be found. MinIO in the platform profile, envelopes
 written under `envelopes/{result_id}` after the database commit and never fatally, off by
-default with `FAULTLINE_ARCHIVE_ENABLED`. **Rendered reports are not archived yet**: the key
-scheme is defined and `report_key()` has no caller.
+default with `FAULTLINE_ARCHIVE_ENABLED`. Rendered reports are archived too, keyed by
+trajectory rather than incident so a second investigation of one incident cannot overwrite the
+first report.
 
 The archive is a second copy rather than a new capability - citations were already
 re-verifiable, because envelopes are stored inline in Postgres with a sha256 and an

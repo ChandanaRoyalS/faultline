@@ -28,6 +28,7 @@ from faultline.agents.investigation import (
     InvestigationResult,
 )
 from faultline.agents.triage import TriageResult
+from faultline.archive import Archive, report_key
 from faultline.orchestrator import machine
 from faultline.orchestrator.models import Incident, IncidentState
 from faultline.orchestrator.store import IncidentStore
@@ -163,11 +164,16 @@ def run_investigation(
     return RunReport(incident.id, result.trajectory.id, tuple(states), result, None, radius, edges)
 
 
-def write_outputs(report: RunReport, out: Path) -> list[Path]:
+def write_outputs(report: RunReport, out: Path, archive: Archive | None = None) -> list[Path]:
     """The verdict and the narrative, as files. **Machine-readable and human-readable both.**
 
     T4.2 reads the JSON; a responder reads the markdown. Writing only one of them would make
     the other a parsing exercise.
+
+    With an `archive`, the rendered narrative also goes to object storage - the *rendered
+    reports* half of T2.3's deliverable, beside the evidence envelopes the trajectory store
+    writes. The file and the object are the same bytes; the file is where a person looks
+    today and the object is what survives the directory being cleaned up.
     """
     out.mkdir(parents=True, exist_ok=True)
     written: list[Path] = []
@@ -199,6 +205,17 @@ def write_outputs(report: RunReport, out: Path) -> list[Path]:
 
     if result.narrative is not None:
         narrative = out / f"{report.incident_id}-narrative.md"
-        narrative.write_text(result.narrative + "\n")
+        body = result.narrative + "\n"
+        narrative.write_text(body)
         written.append(narrative)
+        if archive is not None:
+            # Keyed by the trajectory rather than the incident: an incident can be
+            # investigated more than once, and keying by incident would have the second
+            # report silently overwrite the first. The incident id is the fallback for a run
+            # that failed before it had a trajectory to name.
+            archive.put(
+                report_key(report.trajectory_id or report.incident_id),
+                body.encode(),
+                content_type="text/markdown; charset=utf-8",
+            )
     return written

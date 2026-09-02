@@ -15,6 +15,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from faultline.agents.runner import write_outputs
 from faultline.agents.trajectory import PostgresTrajectoryStore
 from faultline.archive import (
     ENVELOPE_PREFIX,
@@ -130,3 +131,64 @@ def test_a_failing_archive_never_costs_a_trajectory(caplog: Any) -> None:
 
     assert "were not archived" in caplog.text
     assert "still authoritative" in caplog.text
+
+
+@dataclass
+class Result:
+    narrative: str | None = "# Incident\n\nThe cart service lost its Redis address."
+    exclude_origin: str | None = None
+    verdict: Any = None
+    flags: list[str] = field(default_factory=list)
+    retrieved: list[Any] = field(default_factory=list)
+    failed_dispatches: list[Any] = field(default_factory=list)
+    narrative_error: str | None = None
+
+
+@dataclass
+class Report:
+    incident_id: str = "inc-1"
+    trajectory_id: str | None = "traj-1"
+    states: list[str] = field(default_factory=list)
+    blast_radius: list[str] = field(default_factory=list)
+    unmeasured_edges: int = 0
+    result: Result | None = field(default_factory=Result)
+
+
+def test_a_rendered_report_is_archived_as_the_same_bytes_as_the_file(tmp_path: Any) -> None:
+    """The *rendered reports* half of T2.3's deliverable.
+
+    File and object must not diverge: the file is what a person opens today, the object is
+    what survives the run directory being cleaned up, and a report that differs between them
+    is worse than one that exists in only one place.
+    """
+    archive = InMemoryArchive()
+
+    written = write_outputs(Report(), tmp_path, archive)
+
+    on_disk = next(p for p in written if p.name.endswith("-narrative.md"))
+    assert archive.get(report_key("traj-1")) == on_disk.read_bytes()
+
+
+def test_a_second_investigation_of_one_incident_does_not_overwrite_the_first(
+    tmp_path: Any,
+) -> None:
+    """Keyed by trajectory, because an incident can be investigated more than once."""
+    archive = InMemoryArchive()
+
+    write_outputs(
+        Report(trajectory_id="traj-1", result=Result(narrative="first")), tmp_path / "one", archive
+    )
+    write_outputs(
+        Report(trajectory_id="traj-2", result=Result(narrative="second")), tmp_path / "two", archive
+    )
+
+    assert archive.get(report_key("traj-1")) == b"first\n"
+    assert archive.get(report_key("traj-2")) == b"second\n"
+
+
+def test_a_run_with_no_narrative_archives_no_report(tmp_path: Any) -> None:
+    archive = InMemoryArchive()
+
+    write_outputs(Report(result=Result(narrative=None)), tmp_path / "none", archive)
+
+    assert archive.objects == {}
