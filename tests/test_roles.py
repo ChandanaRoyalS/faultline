@@ -235,8 +235,17 @@ def test_every_dispatch_lands_in_the_trajectory_with_the_effective_model_map() -
     trajectory = next(iter(store.trajectories.values()))
     assert trajectory.role_models == {"scribe": "claude-haiku-4-5"}
     kinds = [step.kind for step in trajectory.steps]
-    assert kinds == [StepKind.COMPLETION, StepKind.TOOL_CALL, StepKind.COMPLETION]
-    assert all(step.tokens_in or step.tool_call for step in trajectory.steps)
+    # The trailing MESSAGE is T3.2c's context accounting, written by the runtime rather than by
+    # a role - which is why it is the one step that carries no tokens of its own.
+    assert kinds == [
+        StepKind.COMPLETION,
+        StepKind.TOOL_CALL,
+        StepKind.COMPLETION,
+        StepKind.MESSAGE,
+    ]
+    assert all(
+        step.tokens_in or step.tool_call or step.role == "runtime" for step in trajectory.steps
+    )
 
 
 # --- the budget ---------------------------------------------------------------
@@ -1548,9 +1557,12 @@ def test_a_proposal_is_a_falsifiable_claim_and_reaches_the_trajectory() -> None:
     step = next(s for s in result.trajectory.steps if s.kind is StepKind.PROPOSAL)
     assert step.role == "proposer" and step.payload["accepted"] is True
     assert step.payload["proposal"]["expected_effect"]
-    # The proposal is the last step: Gate 3's pipeline ends there, after validated citations.
-    assert step.seq == max(s.seq for s in result.trajectory.steps)
-    assert store.trajectories[result.trajectory.id].steps[-1].kind is StepKind.PROPOSAL
+    # The proposal is the last step a *role* writes: Gate 3's pipeline ends there, after
+    # validated citations. Only the runtime's disclosure record (T3.2c) comes after it.
+    roles_steps = [s for s in result.trajectory.steps if s.role != "runtime"]
+    assert step.seq == max(s.seq for s in roles_steps)
+    stored = store.trajectories[result.trajectory.id].steps
+    assert [s.kind for s in stored[-2:]] == [StepKind.PROPOSAL, StepKind.MESSAGE]
 
 
 def test_the_proposer_may_not_name_an_action_this_world_cannot_perform() -> None:

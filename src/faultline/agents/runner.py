@@ -245,6 +245,13 @@ def write_outputs(report: RunReport, out: Path, archive: Archive | None = None) 
                 "retrieved": result.retrieved,
                 "failed_dispatches": [list(pair) for pair in result.failed_dispatches],
                 "narrative_error": result.narrative_error,
+                # T3.2c: briefing size and pull-rate on the artifact the harness reads, so
+                # T7.3's ablation compares stored numbers rather than re-deriving them.
+                "disclosure": result.disclosure.as_row(),
+                "proposal": None if result.proposal is None else result.proposal.model_dump(),
+                "triage_judgement": (
+                    None if report.judgement is None else report.judgement.model_dump()
+                ),
             },
             indent=2,
         )

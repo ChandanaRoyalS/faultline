@@ -15,6 +15,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from faultline.agents.briefing import Disclosure
 from faultline.agents.runner import write_outputs
 from faultline.agents.trajectory import PostgresTrajectoryStore
 from faultline.archive import (
@@ -142,6 +143,8 @@ class Result:
     retrieved: list[Any] = field(default_factory=list)
     failed_dispatches: list[Any] = field(default_factory=list)
     narrative_error: str | None = None
+    proposal: Any = None
+    disclosure: Disclosure = field(default_factory=Disclosure)
 
 
 @dataclass
@@ -151,6 +154,7 @@ class Report:
     states: list[str] = field(default_factory=list)
     blast_radius: list[str] = field(default_factory=list)
     unmeasured_edges: int = 0
+    judgement: Any = None
     result: Result | None = field(default_factory=Result)
 
 

@@ -93,6 +93,13 @@ def model_map() -> dict[str, Any]:
 
 
 def budget_bounds(max_tool_calls: int, max_tokens: int) -> dict[str, Any]:
+    """Every bound a run was held to. **Six since Batch B** - T3.2c's briefing cap and Q16's
+    dollar cap joined the four, and both moved this frozen block deliberately.
+
+    A bound must never be implicit (T4.7): what is recorded here is what a published figure
+    prints beside the stamp, and a bound that halted a run without appearing here would make an
+    early stop unexplainable from the manifest alone.
+    """
     from faultline.agents.settings import AgentSettings
 
     settings = AgentSettings()
@@ -101,6 +108,13 @@ def budget_bounds(max_tool_calls: int, max_tokens: int) -> dict[str, Any]:
         "max_tokens": max_tokens,
         "wall_clock_seconds": settings.budget_wall_clock_seconds,
         "max_dispatch_rounds": settings.budget_max_dispatch_rounds,
+        "briefing_tokens": settings.budget_briefing_tokens,
+        "max_usd": settings.budget_max_usd,
+        # The prices the dollar cap is computed at. A $2 bound at $5/$25 stops in a different
+        # place than a $2 bound at $15/$75, so recording the bound without them would call two
+        # different experiments the same one.
+        "usd_per_mtok_in": settings.usd_per_mtok_in,
+        "usd_per_mtok_out": settings.usd_per_mtok_out,
     }
 
 

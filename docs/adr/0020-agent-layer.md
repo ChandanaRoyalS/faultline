@@ -669,3 +669,84 @@ The stamp moves again: `prompts:20088b22cede` → `prompts:a7330c098770`, six ro
 **Two moves, one re-record** — T3.9's intermediate digest was never measured either, and the
 re-sweep at the end of Batch B measures the pipeline as it finally stands. Both digests are
 recorded in `tests/test_harness_run.py` so a trajectory written today can be placed exactly.
+
+## Addendum (T3.2c, 2026-09-02) — briefings under budget, and the number that describes them
+
+The plan's T3.2c asks that agents *"start from a minimal briefing … and pull further context via
+tools on demand, rather than receiving everything push-style"*, with *"briefing size … budgeted
+per role and measured"* and *"briefing size and pull-rate … logged per run so T7.3's ablation has
+data to compare against."*
+
+**Half of this was already true and had never been called that.** The specialists have held one
+modality each since T3.3; the synthesizer has never held a tool; retrieval has been `k=3` since
+T3.4, which is the plan's *"top-3 similar past incidents"* exactly. Context does arrive on
+demand here — through a planner that dispatches rather than a role that asks, which is the same
+property reached by a different route.
+
+**What did not exist was a bound or a number.** Every role assembled its brief inline and
+appended until it ran out of things to append. The evidence board grows with the dispatch count,
+the allowlist and the runbooks grow with the catalog, and nothing said how large a brief was or
+declined to make it larger. A context discipline that amounts to *"we did not add much"* has no
+defence against the day somebody does.
+
+### The assembler
+
+`faultline/agents/briefing.py`. A brief is a list of `Section`s with priorities; the assembler
+keeps whole sections in priority order until the budget is spent, and **names what it dropped in
+the brief itself** — the same principle as the tool layer's `truncated`, where the failure mode
+is a capped thing that looks complete. A role told what it was denied can say its answer was
+limited by it; a role left to infer a gap cannot.
+
+Sections marked `essential` are never dropped, and an essential set that overruns is recorded in
+`over_budget` and delivered anyway: refusing to brief a role would fail an investigation to
+protect a number, and the number exists to describe the investigation. **The withheld notice is
+deliberately not charged to the budget** — charging it would mean a brief that drops one section
+might have to drop a second to afford saying so, which is the one trade this design refuses.
+
+What each role drops first is a judgement recorded in its `sections()`: retrieval for the
+synthesizer (past incidents are context, not evidence), the runbooks for the proposer (the
+allowlist's preconditions survive, and without the allowlist it cannot name a legal action at
+all). Triage drops nothing — it is the role the plan calls cheap, and a gate deciding on a
+truncated picture is worse than no gate.
+
+### The pull rate, and what it is not
+
+`Disclosure`: *pushed* is what a briefing handed a role unasked, *pulled* is what the pipeline
+went and fetched — a tool envelope, a retrieval. Same estimator both sides, so the ratio means
+something even though neither number is a token count. It is written to the trajectory as a
+final `runtime` step and onto the run artifact, so T7.3 reads stored numbers rather than
+re-deriving them.
+
+**Nothing should optimise this number.** A pipeline that pushed nothing and pulled everything
+would score 1.0 and might be worse. It describes *how* an investigation got its context, which
+is what an ablation against prompt-stuffing needs in order to vary one thing on purpose.
+
+**Tokens are estimated at four characters each and the estimate is named as one.** Importing a
+tokenizer into the product to enforce a budget on itself is a dependency ADR-0004 would not
+accept for a figure nobody scores; the estimate is wrong in the same direction for every role,
+which is what a comparison needs.
+
+### Q16 rode this move, because it is the same key
+
+`freeze.budget_bounds()` is a frozen block and a new bound costs a comparability generation.
+T3.2c needed one (`briefing_tokens`) and **Q16** — the per-incident dollar cap — had been queued
+since T2.5 waiting for exactly this batch. Two bounds, one generation.
+
+The dollar cap is not a token cap in disguise: **a model's price can change without the token
+bound moving**, and the bound is then enforcing a different amount of money than it was set to.
+It is checked at the choke point that already halts on tokens, *after* the token check, so a run
+breaching both reports the bound its comparators were held to. Its default is Gate 4's own
+threshold, `$2`, so a run that would fail the gate stops rather than finishing and failing it.
+
+**The prices are recorded in the freeze beside the cap**, because a `$2` bound at `$5/$25` stops
+in a different place than a `$2` bound at `$15/$75` — a manifest holding only the bound would
+call two different experiments the same one. The runtime holds its own price table because
+ADR-0004 keeps benchmark infrastructure out of the product, and a test asserts it equals
+`evalharness.run`'s: a runtime that halted at a different price than the harness scores would
+stop for a reason no published figure could explain.
+
+### What moved
+
+`budget` — from four keys to eight. `prompts` did **not**: no system prompt changed and no
+contract schema changed, because the assembler rearranges what a brief contains rather than what
+a role is asked for. `capability_version` did not.

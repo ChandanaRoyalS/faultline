@@ -241,3 +241,83 @@ def test_inter_agent_messages_are_steps_so_the_synthesizer_can_be_scored() -> No
 
     assert StepKind.MESSAGE in kinds
     assert trajectory.steps[-1].payload["to"] == "synthesizer"
+
+
+# --- the per-incident dollar cap (Q16, landed with T3.2c's budget move) ----------------
+
+
+def test_the_runtime_halts_on_money_and_says_which_bound_stopped_it() -> None:
+    """T2.5's description names *per-incident token/dollar budgets* and the proposal's
+    runaway-cost row promises *hard per-incident cap halts agents*. What halted was a token cap.
+
+    The bound is Gate 4's own threshold - `cost ≤ $2 per incident` - so a run that would fail
+    the gate stops instead of finishing and failing it."""
+    from faultline.agents.budget import Budget, BudgetState
+
+    state = BudgetState(Budget(max_tokens=10_000_000, max_usd=1.0))
+    state.spend_tokens(100_000, 20_000)
+
+    assert round(state.usd_spent(), 4) == 1.0
+    assert not state.check()
+    assert state.exhausted_reason is not None and "cost:" in state.exhausted_reason
+    assert "$1.00 of $1.00" in state.exhausted_reason
+
+
+def test_a_dollar_cap_is_not_a_token_cap_in_disguise() -> None:
+    """The reason Q16 exists: **the price of a model can change without the token bound
+    moving**, and the bound is then enforcing a different amount of money than it was set to."""
+    from faultline.agents.budget import Budget, BudgetState
+
+    cheap = BudgetState(Budget(max_usd=2.0, usd_per_mtok=(5.0, 25.0)))
+    dear = BudgetState(Budget(max_usd=2.0, usd_per_mtok=(15.0, 75.0)))
+    for state in (cheap, dear):
+        state.spend_tokens(100_000, 20_000)
+
+    assert cheap.check(), "$1 of $2 spent"
+    assert not dear.check(), "the same tokens at three times the price breach the same cap"
+
+
+def test_the_runtime_and_the_harness_price_at_the_same_table() -> None:
+    """Two copies exist because ADR-0004 keeps benchmark infrastructure out of the product - a
+    product that imports `evalharness` to price itself has the dependency the wrong way round.
+    **They must be equal by hand, so a test says so**: a runtime that halted at a different
+    price than the harness scores would stop for a reason no published figure could explain."""
+    from evalharness.run import USD_PER_MTOK_IN, USD_PER_MTOK_OUT
+
+    settings = AgentSettings()
+
+    assert (settings.usd_per_mtok_in, settings.usd_per_mtok_out) == (
+        USD_PER_MTOK_IN,
+        USD_PER_MTOK_OUT,
+    )
+
+
+def test_the_token_bound_is_reported_when_a_run_breaches_both() -> None:
+    """Every recorded figure was measured under the token bound, so a run that breaches both
+    should name the one its comparators were held to."""
+    from faultline.agents.budget import Budget, BudgetState
+
+    state = BudgetState(Budget(max_tokens=1_000, max_usd=0.001))
+    state.spend_tokens(2_000, 2_000)
+
+    assert not state.check()
+    assert state.exhausted_reason is not None and state.exhausted_reason.startswith("tokens:")
+
+
+def test_every_bound_a_run_was_held_to_reaches_the_freeze() -> None:
+    """T4.7's rule: a bound must never be implicit. A bound that halted a run without appearing
+    in the manifest would make an early stop unexplainable from the record alone."""
+    from evalharness import freeze
+
+    bounds = freeze.budget_bounds(4, 120_000)
+
+    assert set(bounds) == {
+        "max_tool_calls_per_specialist",
+        "max_tokens",
+        "wall_clock_seconds",
+        "max_dispatch_rounds",
+        "briefing_tokens",
+        "max_usd",
+        "usd_per_mtok_in",
+        "usd_per_mtok_out",
+    }
