@@ -46,6 +46,7 @@ investigate, not a claim that anything is wrong.
 
 from __future__ import annotations
 
+import math
 import statistics
 from dataclasses import dataclass
 from datetime import datetime, tzinfo
@@ -135,6 +136,27 @@ class Summary:
 
 
 EMPTY = Summary(samples=0, mean=0.0, minimum=0.0, maximum=0.0, stdev=0.0)
+
+
+def defined(points: list[tuple[float, float]]) -> tuple[list[tuple[float, float]], int]:
+    """The samples that have a value, and a count of the ones that do not.
+
+    **`NaN` is what Prometheus returns for `0/0`**, and the error-ratio template is a division:
+    a service with no traffic in an interval has no error *ratio*, not a ratio of zero. Every
+    scenario in this catalog that stops a service produces these, which is why the first live
+    run to hit one was the first scenario whose service actually died.
+
+    They are dropped from the arithmetic and **counted**, never coerced. Reading `NaN` as `0.0`
+    would say the service was serving perfectly at the moment it was serving nothing, which is
+    the inverse of the truth and would hide the very shape `ServiceNoTraffic` exists to catch.
+    The count travels onto the result, so an undefined interval is visible as one.
+
+    Found by `cart-bad-image-tag`, which discarded on `statistics.stdev` raising
+    `AttributeError: 'float' object has no attribute 'numerator'` - the standard library's way
+    of saying a `NaN` reached its exact-ratio arithmetic.
+    """
+    kept = [(at, value) for at, value in points if math.isfinite(value)]
+    return kept, len(points) - len(kept)
 
 
 def summarise(points: list[tuple[float, float]]) -> Summary:

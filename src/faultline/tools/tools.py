@@ -31,6 +31,7 @@ from faultline.tools.metrics import (
     MetricTemplate,
     Summary,
     change_points,
+    defined,
     render_query,
     summarise,
 )
@@ -235,9 +236,14 @@ class Tools:
                 empty=True,
             )
 
-        baseline = summarise(baseline_points)
-        incident = summarise(incident_points)
-        found = change_points(incident_points, template, baseline, tz=start.tzinfo)
+        # **Undefined samples are dropped and counted, never coerced** (see `metrics.defined`).
+        # A service with no traffic has no error *ratio*; reading that as 0.0 would report
+        # perfect health at the moment of total failure.
+        incident_defined, incident_undefined = defined(incident_points)
+        baseline_defined, baseline_undefined = defined(baseline_points)
+        baseline = summarise(baseline_defined)
+        incident = summarise(incident_defined)
+        found = change_points(incident_defined, template, baseline, tz=start.tzinfo)
         return BaselineResult(
             service=canonical,
             template=template.value,
@@ -246,6 +252,8 @@ class Tools:
             baseline_window=before,
             incident=_as_stats(incident),
             baseline=_as_stats(baseline),
+            incident_undefined=incident_undefined,
+            baseline_undefined=baseline_undefined,
             changes=[
                 {"at": point.at.isoformat(), "value": point.value, "threshold": point.threshold}
                 for point in found
