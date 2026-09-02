@@ -38,6 +38,7 @@ from faultline.tools.results import (
     Window,
 )
 from faultline.tools.settings import ToolSettings
+from faultline.tools.window import CHANGE_TOOL, WindowPolicy
 from injector.world import SERVICE_CONTAINERS, canonical_service
 
 PROMETHEUS_QUERY_RANGE = "/api/v1/query_range"
@@ -98,6 +99,10 @@ class Tools:
 
     def __init__(self, settings: ToolSettings | None = None, changes: Any = None) -> None:
         self._settings = settings or ToolSettings()
+        self.window_policy = WindowPolicy(self._settings)
+        """The window policy (T3.2b), built from the same settings as the tools it bounds. An
+        attribute, not a method: `capability.tool_surface()` reads the public functions off this
+        class, and the policy is not a tool an agent calls - it decides what a tool reads."""
         self._changes = changes
         """A change-record reader. `None` means change history is unavailable, which is
         reported as an error rather than as an empty result - the difference is the whole
@@ -105,17 +110,17 @@ class Tools:
 
     # --- window discipline ----------------------------------------------------
 
-    def _check_window(self, start: datetime, end: datetime) -> str | None:
-        if end <= start:
-            return "window end is not after its start"
-        span = (end - start).total_seconds()
-        if span > self._settings.max_window_seconds:
-            return (
-                f"window is {span / 3600:.1f}h and retention is "
-                f"{self._settings.max_window_seconds / 3600:.0f}h, so the answer would be "
-                "partial without saying so"
-            )
-        return None
+    def _check_window(self, tool: str, subject: str, start: datetime, end: datetime) -> str | None:
+        """Refuse what the policy refuses, and log every window either way (T3.2b).
+
+        This is the enforcement point the plan asks for: whatever window arrives - derived by
+        the policy, widened by a planner one day, or handed in by a caller - is measured here
+        against the ceiling for *this* tool, and the read is logged with its span before any
+        request leaves the process. A refusal carries a narrowing hint.
+        """
+        refusal = self.window_policy.refusal(tool, start, end)
+        self.window_policy.record(tool, subject, start, end, refusal)
+        return refusal
 
     # --- promql ---------------------------------------------------------------
 
@@ -124,7 +129,7 @@ class Tools:
     ) -> MetricResult:
         """Range query against Prometheus. `series: []` is a legal, meaningful answer."""
         window = Window(start=start, end=end)
-        refusal = self._check_window(start, end)
+        refusal = self._check_window("promql_query", query, start, end)
         if refusal is not None:
             return MetricResult(query=query, window=window, error=refusal, empty=True)
         try:
@@ -158,7 +163,7 @@ class Tools:
         container = SERVICE_CONTAINERS.get(canonical_service(service), service)
         selector = f'{{service="{container}"}}'
         window = Window(start=start, end=end)
-        refusal = self._check_window(start, end)
+        refusal = self._check_window("logql_query", selector, start, end)
         if refusal is not None:
             return LogResult(selector=selector, window=window, error=refusal, empty=True)
 
@@ -227,7 +232,7 @@ class Tools:
         """
         canonical = canonical_service(service)
         window = Window(start=start, end=end)
-        refusal = self._check_window(start, end)
+        refusal = self._check_window("trace_query", canonical, start, end)
         if refusal is not None:
             return TraceResult(service=canonical, window=window, error=refusal, empty=True)
 
@@ -275,6 +280,12 @@ class Tools:
         """
         canonical = canonical_service(service)
         window = Window(start=start, end=end)
+        # Checked against its own ceiling (the 24h lookback plus the telemetry bound), not the
+        # telemetry one: a change window is *meant* to be wider than any metric window, and the
+        # policy that widens it is the policy that bounds it (T3.2b).
+        refusal = self._check_window(CHANGE_TOOL, canonical, start, end)
+        if refusal is not None:
+            return ChangeResult(service=canonical, window=window, error=refusal, empty=True)
         if self._changes is None:
             return ChangeResult(
                 service=canonical,

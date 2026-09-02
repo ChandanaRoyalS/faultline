@@ -8,6 +8,7 @@ change log, and `tests/conftest.py`'s guard covering the rest.
 from __future__ import annotations
 
 import json
+import logging
 import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -26,6 +27,7 @@ from faultline.tools.changes import (
 from faultline.tools.results import LogLine, LogResult, MetricResult, Trust, Window
 from faultline.tools.settings import ToolSettings
 from faultline.tools.tools import ALLOWED_PATHS, Tools
+from faultline.tools.window import WindowPolicy
 from injector.catalog import CATALOG
 from injector.changelog import record_for_start, record_for_stop
 
@@ -114,14 +116,91 @@ def test_empty_and_error_are_distinct_states_on_every_tool() -> None:
     assert "not observed" in (unavailable.error or "")
 
 
-def test_a_window_longer_than_retention_is_refused_rather_than_half_answered() -> None:
-    """`CATALOG.md`: Prometheus keeps 6 hours. A longer window returns a truthful-looking
-    partial answer, which is worse than a refusal."""
+def test_a_window_wider_than_the_ceiling_is_refused_with_a_narrowing_hint() -> None:
+    """The plan (T3.2b): *unbounded requests rejected with a narrowing hint*. The six-hour bound
+    began life as Prometheus retention and is now a policy ceiling (retention is 15d since
+    T7.1); either way a wider window is refused, not answered in part, and the refusal says
+    what to ask instead."""
     tools = Tools(ToolSettings())
 
     result = tools.promql_query("up", START, START + timedelta(hours=12))
 
-    assert result.error is not None and "retention" in result.error
+    assert result.error is not None and "ceiling" in result.error
+    assert "onset - 30 min to now" in result.error
+
+
+# --- temporal scoping is the tool layer's (T3.2b) --------------------------------
+
+
+def test_every_specialist_window_is_derived_from_onset_and_ends_now() -> None:
+    """*Every tool derives its default window from alert onset (onset - 30 min -> now), the
+    change analyst alone widens its lookback (onset - 24 h).* Numbers from the plan, read off
+    the policy rather than the prompts, so they can be checked without a model."""
+    policy = WindowPolicy(ToolSettings())
+    now = START + timedelta(minutes=3)
+
+    for specialist in ("metrics", "logs", "traces"):
+        scoped = policy.for_specialist(specialist, START, now)
+        assert (scoped.start, scoped.end) == (START - timedelta(minutes=30), now)
+        assert scoped.rule == "default" and not scoped.clipped
+
+    changes = policy.for_specialist("changes", START, now)
+    assert (changes.start, changes.end) == (START - timedelta(hours=24), now)
+    assert changes.rule == "change_lookback" and not changes.clipped
+
+
+def test_the_lookbacks_are_configuration_not_prompt_text() -> None:
+    """Moving a lookback must not move the frozen `prompts` key, so it lives in settings."""
+    policy = WindowPolicy(ToolSettings(default_lookback_seconds=600, change_lookback_seconds=7200))
+
+    assert policy.for_specialist("logs", START, START).start == START - timedelta(minutes=10)
+    assert policy.for_specialist("changes", START, START).start == START - timedelta(hours=2)
+
+
+def test_a_late_investigation_is_clipped_at_the_ceiling_and_says_so() -> None:
+    """An investigation that starts long after onset would ask for a window its own ceiling
+    refuses. The policy clips the end and labels the window, never shortens it silently."""
+    policy = WindowPolicy(ToolSettings())
+    much_later = START + timedelta(days=3)
+
+    scoped = policy.for_specialist("metrics", START, much_later)
+    assert scoped.clipped
+    assert scoped.end == scoped.start + timedelta(hours=6)
+    assert policy.refusal("promql_query", scoped.start, scoped.end) is None
+
+    changes = policy.for_specialist("changes", START, much_later)
+    assert changes.clipped
+    assert changes.end == changes.start + timedelta(hours=30)
+    assert policy.refusal("change_history", changes.start, changes.end) is None
+
+
+def test_the_change_tool_has_its_own_ceiling_and_the_others_share_theirs() -> None:
+    """A 24-hour change window is the policy, so the telemetry ceiling cannot apply to it. Its
+    ceiling is derived - lookback plus telemetry bound - not a second invented number."""
+    tools = Tools(ToolSettings(), changes=InMemoryChangeLog())
+    day = START - timedelta(hours=24)
+
+    assert tools.change_history("cartservice", day, START).error is None
+    assert tools.logql_query("cartservice", day, START).error is not None
+
+    too_wide = tools.change_history("cartservice", day - timedelta(hours=7), START)
+    assert too_wide.error is not None and "change_history" in too_wide.error
+    assert "onset - 24 h to now" in too_wide.error
+
+
+def test_every_read_is_logged_with_its_window(caplog: Any) -> None:
+    """*Per-query window logging* - one record per tool call, refused or not."""
+    tools = Tools(ToolSettings(), changes=InMemoryChangeLog())
+
+    with caplog.at_level(logging.INFO, logger="faultline.tools.window"):
+        tools.change_history("cartservice", START, END)
+        tools.promql_query("up", START, START + timedelta(hours=12))
+
+    records = [r.getMessage() for r in caplog.records if r.name == "faultline.tools.window"]
+    assert len(records) == 2
+    assert "tool=change_history" in records[0] and "refused=False" in records[0]
+    assert "tool=promql_query" in records[1] and "refused=True" in records[1]
+    assert "span_s=1200" in records[0]
 
 
 # --- truncation keeps the newest, which is what a responder needs ---------------

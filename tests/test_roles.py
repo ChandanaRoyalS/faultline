@@ -10,7 +10,7 @@ import json
 import re
 import threading
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import pytest
@@ -1094,6 +1094,9 @@ class Rendezvous:
         self._inner = inner
         self._barrier = barrier
 
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
+
     def query(self, *args: Any, **kwargs: Any) -> Any:
         return self._inner.query(*args, **kwargs)
 
@@ -1108,6 +1111,9 @@ class Staggered:
     def __init__(self, inner: Any, delays: dict[str, float]) -> None:
         self._inner = inner
         self._delays = delays
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
 
     def query(self, *args: Any, **kwargs: Any) -> Any:
         return self._inner.query(*args, **kwargs)
@@ -1124,6 +1130,9 @@ class Blocked:
         self._inner = inner
         self._release = release
         self._service = service
+
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)
 
     def query(self, *args: Any, **kwargs: Any) -> Any:
         return self._inner.query(*args, **kwargs)
@@ -1323,3 +1332,94 @@ def test_a_clean_render_asks_once_and_records_no_violation() -> None:
     assert result.citation_violations == []
     assert not result.narrative_regenerated and not result.narrative_escalated
     assert sum(1 for call in model.calls if call.role == "scribe") == 1
+
+
+# --- temporal scoping is enforced at the tool layer (T3.2b) ------------------------
+
+
+def changes_and_metrics_dispatches() -> str:
+    return plan_reply(
+        [
+            {"specialist": "changes", "service": "cartservice", "question": "q", "reason": "r"},
+            {"specialist": "metrics", "service": "cartservice", "question": "q", "reason": "r"},
+        ],
+        [],
+    )
+
+
+def test_the_change_analyst_alone_looks_back_a_day_and_every_window_ends_now() -> None:
+    """The plan's policy, observed on the record rather than asserted in code: the change
+    specialist's window opens at onset - 24 h, the metrics specialist's at onset - 30 min, and
+    both close at the moment the investigation began - one instant, shared by every dispatch."""
+    model = ScriptedModel({"planner": [changes_and_metrics_dispatches()]})
+    engine, store = investigation(model, Budget(max_dispatch_rounds=1))
+    began = ANCHOR + timedelta(minutes=4)
+
+    result = engine.run("incident-window", triage_of("cartservice"), ANCHOR, now=began)
+
+    trajectory = store.trajectories[result.trajectory.id]
+    calls = [step for step in trajectory.steps if step.kind is StepKind.TOOL_CALL]
+    by_role = {step.role: step.tool_call.request for step in calls if step.tool_call}
+    assert by_role["changes"]["window"] == [
+        (ANCHOR - timedelta(hours=24)).isoformat(),
+        began.isoformat(),
+    ]
+    assert by_role["metrics"]["window"] == [
+        (ANCHOR - timedelta(minutes=30)).isoformat(),
+        began.isoformat(),
+    ]
+    assert by_role["changes"]["window_rule"] == "change_lookback"
+    assert by_role["metrics"]["window_rule"] == "default"
+    assert trajectory.started_at == began
+    assert not by_role["changes"]["clipped"] and not by_role["metrics"]["clipped"]
+
+
+def test_the_window_is_told_to_the_specialist_never_asked_of_it() -> None:
+    """*Never left to agent discretion.* The specialist's brief states the window the tool
+    already read; no contract has a field through which a model could name one."""
+    model = ScriptedModel({"planner": [changes_and_metrics_dispatches()]})
+    engine, _ = investigation(model, Budget(max_dispatch_rounds=1))
+    began = ANCHOR + timedelta(minutes=4)
+
+    engine.run("incident-window-2", triage_of("cartservice"), ANCHOR, now=began)
+
+    briefs = {
+        call.role: call.messages[0]["content"]
+        for call in model.calls
+        if call.role in ("changes", "metrics")
+    }
+    assert f"Window: {(ANCHOR - timedelta(hours=24)).isoformat()} to" in briefs["changes"]
+    assert f"Window: {(ANCHOR - timedelta(minutes=30)).isoformat()} to" in briefs["metrics"]
+    assert all(f"to {began.isoformat()}" in brief for brief in briefs.values())
+
+    with pytest.raises(ValidationError):
+        DispatchPlan.model_validate(
+            {
+                "dispatches": [
+                    {
+                        "specialist": "logs",
+                        "service": "cartservice",
+                        "question": "q",
+                        "reason": "r",
+                        "window": ["2026-08-25T00:00:00+00:00", "2026-08-25T12:00:00+00:00"],
+                    }
+                ],
+                "skipped": [],
+                "rationale": "a planner trying to choose its own window",
+            }
+        )
+
+
+def test_a_historical_anchor_is_clipped_on_the_record_not_refused() -> None:
+    """Every earlier test in this file runs with a 2026-08-25 anchor and the real clock, so
+    `now` is days later. The policy must clip and label rather than hand the tools a window
+    they would refuse - otherwise every such run would read nothing and say it was evidence."""
+    model = ScriptedModel({"planner": [changes_and_metrics_dispatches()]})
+    engine, _ = investigation(model, Budget(max_dispatch_rounds=1))
+
+    result = engine.run("incident-window-3", triage_of("cartservice"), ANCHOR)
+
+    assert result.failed_dispatches == []
+    calls = [step for step in result.trajectory.steps if step.tool_call]
+    assert calls and all(step.tool_call and step.tool_call.request["clipped"] for step in calls)
+    assert all(run.result.error is None or "ceiling" not in run.result.error for run in result.runs)

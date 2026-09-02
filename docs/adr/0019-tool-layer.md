@@ -460,3 +460,83 @@ log with an ordinary source and remove the leak boundary entirely; T7.2's SREGym
 turns out to supply its own tool set, which ADR-0004 already warns is provisional; or the
 trace gap is decided against, in which case two scenarios are measuring a tool set rather than
 an agent and the catalog should say so.
+
+## Addendum (T3.2b, 2026-09-02) — the window policy is the tool layer's
+
+The plan's T3.2b, *Temporal scoping*, says: *"every tool derives its default window from alert
+onset (onset − 30 min → now), the change analyst alone widens its lookback (onset − 24 h, because
+causes precede symptoms), and the planner may widen a window per hypothesis — all enforced at
+the tool layer, never left to agent discretion."* Deliverable: *"Tool-enforced window policy +
+per-query window logging."*
+
+What existed: `default_window(anchor, before=10, after=5)` in `agents/roles.py`, applied to
+every specialist alike, and a single six-hour span check in `Tools._check_window` that
+`change_history` did not call. The window was chosen in the agent layer, the same for all
+four specialists, and the change analyst looked back fifteen minutes for causes that precede
+symptoms by hours. The Phase 3 audit recorded this as *partial*.
+
+### What is built
+
+`faultline/tools/window.py` holds one `WindowPolicy`, constructed by `Tools` from the same
+`ToolSettings` as the tools it bounds and exposed as `Tools.window_policy`. It does two things.
+It **derives**: `for_specialist(name, anchor, now)` returns `onset − 30 min → now` for
+`metrics`, `logs` and `traces`, and `onset − 24 h → now` for `changes`, with the rule that
+produced it (`default` / `change_lookback`) and whether it was clipped. It **enforces**:
+`refusal(tool, start, end)` is what `_check_window` now asks, for all four tools including
+`change_history`, and a refusal carries a narrowing hint that names the policy's default.
+
+`now` is the moment the investigation began, fixed once in `Investigation.run` and recorded as
+the trajectory's `started_at`, so every dispatch of one investigation shares one end and a replay
+with the same two instants asks the same windows. The agent layer no longer computes a window:
+`Specialist.window(anchor, now)` asks the policy, and `default_window` is gone.
+
+**Per-query window logging**, both places it is useful: a `faultline.tools.window` log record
+for every tool call — tool, subject, start, end, span, refused — and on the trajectory step's
+`tool_call.request`, beside the window: `window_rule`, `lookback_seconds`, `clipped`.
+
+### Two ceilings, one derived
+
+The telemetry ceiling stays at six hours. **Its justification changed and the number did not**:
+`max_window_seconds` was documented as Prometheus retention (*"Prometheus keeps 6 hours"*), T7.1
+raised retention to 15 days and the docstring was never updated. It is now a policy bound —
+twelve times the default lookback — and the plan needs *some* bound because it says unbounded
+requests are refused. The change tool cannot share it, since a 24-hour change window is the
+policy; its ceiling is the change lookback plus the telemetry bound (30 h), derived rather than a
+second invented number.
+
+A window that *would* exceed its ceiling because the investigation began long after onset is
+**clipped and labelled**, not refused: a policy whose own default is refused by its own check is
+a contradiction. Live investigations start minutes after onset and never clip; the tests in this
+repository run with a historical anchor and the real clock, and every one of them now records
+`clipped: true` instead of reading nothing and calling it evidence.
+
+### What this does and does not move
+
+Nothing frozen. The lookbacks are settings (`FAULTLINE_TOOLS_DEFAULT_LOOKBACK_SECONDS`,
+`FAULTLINE_TOOLS_CHANGE_LOOKBACK_SECONDS`), not prompt text, so `prompts_hash()` is unchanged;
+the window travels to the specialist in the user message, which was already true.
+`capability.tool_surface()` reads the public *functions* of `Tools`, and the policy is an
+attribute, so `CAPABILITY_VERSION` is unchanged — checked before and after: `cap:9c416e0a` both
+times. `TOOL_BEHAVIOUR_REVISION` is not bumped, and the decision is recorded here rather than
+assumed: the tools return the same evidence for the same arguments as before; what changed is
+which arguments the agent layer supplies, and no model ever supplied them. A reader who believes
+the widened default changes *what a responder could have concluded* should say so and bump it.
+
+### The one clause not built, and where it went
+
+*"The planner may widen a window per hypothesis"* needs a `window` field on `Dispatch`, and
+`Dispatch` is part of `DispatchPlan`, whose JSON schema is in `prompts_hash()`. Adding the field
+moves the frozen `prompts` key and costs a comparability generation, so it is **Q17**, to land
+with the batch that already spends one. `WindowRule` reserves `planner_widened` so the log format
+does not change when it arrives. Until then the policy's windows are the only windows, which is
+the stronger form of *"never left to agent discretion"*, and the planner's widening is the one
+clause of T3.2b still owed.
+
+### The measured ten minutes
+
+The old default's docstring carried a finding worth keeping: three of the ten rehearsed
+investigations read logs from *before* onset, and `shipping-wrong-image` says the pre-onset
+stream *"is where it breaks open"*. Ten minutes was the least that finding required; the plan's
+thirty is wider on exactly the side it cares about, and the forward end now reaches the moment of
+investigation instead of stopping five minutes after the alert. The finding is honoured, not
+discarded, and it lives on in `window.py`'s module docstring.
