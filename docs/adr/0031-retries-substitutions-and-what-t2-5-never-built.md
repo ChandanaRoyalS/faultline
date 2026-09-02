@@ -141,3 +141,24 @@ cost-aware — cheap model for triage, frontier for synthesis — and `AgentSett
 is the map that would carry it. ADR-0020 deliberately left per-role selection to be settled by
 T4.2's measured accuracy rather than a cost estimate, and that is still the position. The seam
 now spans two providers; nothing yet decides between them per role.
+
+### Addendum 2 (2026-09-01) — the dollar cap, and what is not missing
+
+An audit of Phase 2 first recorded that dollar cost metering was absent from the product. That
+reading was wrong and is corrected here rather than deleted.
+
+**T4.3 owns the computation, and says so.** Its method column reads *"Computed from persisted
+trajectories and gateway logs; no new instrumentation needed because P2 recorded everything."*
+Phase 2 records tokens, model and latency on every step; `evalharness` applies the price table.
+That division is the plan's design. Adding a second cost computation inside the product would
+create two sources for one number, which is the failure this project spends its audits finding.
+
+**What is genuinely absent is a bound.** T2.5's description names *"per-incident token/dollar
+budgets"* and the proposal's runaway-cost row promises *"hard per-incident cap halts agents"*.
+`Budget` halts on tokens, wall-clock seconds and dispatch rounds. A model whose price changes
+moves what an investigation costs without moving anything the runtime enforces.
+
+**It queues rather than lands.** `freeze.budget_bounds()` returns four keys and is a frozen
+key; a fifth re-founds comparability for every scored run. **Q16**, to land with a batch that
+is already re-recording. Gate 4's `cost ≤ $2 per incident` is asserted by the harness after a
+run, so no gate waits on this.
