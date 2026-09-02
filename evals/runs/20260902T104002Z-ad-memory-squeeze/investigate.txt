@@ -1,0 +1,44 @@
+incident 833f8c6f-1766-4001-b1be-c37027bd6696  state triaging  anchor 10:43:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: cdff4562-a8d3-4357-be61-fae00a1bd110
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with frontend and the load generator alerting together points at a user-facing failure rather than a synthetic-only artifact, and no open incident covers it. Cause is unclear at this stage; frontend's five dependencies are all plausible origins.
+investigation: 2 round(s), 7 dispatch(es), 21 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : adservice
+  expect      : Restoring adservice's prior pod config (memory limit None, as recorded at the 10:23:04 revert) should let one JVM start reach listener bind. Observable as: adservice Loki logs showing a single bootstrap preamble then resumed 'received ad request' lines with the 3s/4s/6s/9s/15s/28s/54s backoff ladder stopping; frontend's 'Error: 14 UNAVAILABLE: No connection established' lines ceasing; frontend error ratio falling from the ~4% window mean toward the ~1.4% baseline with no new threshold crossings. Confirmation cannot come from adservice metrics — its calls_total series is empty in incident and baseline windows — so logs, traces and frontend's error ratio are the only channels.
+  within      : 600s
+  risk        : If wrong, this is a forced restart of an already-looping service that resets the backoff clock and churns the container faster. Removing the ceiling lets a genuinely leaking adservice grow until it pressures its host, which can reach co-scheduled services. It also fights an active automation loop, so recorded and running config may disagree and confuse the next diagnosis.
+  blast radius: adservice is recreated (in-process state is cache only). frontend, the sole caller of AdService/GetAds, sees connection resets during the recreate and may spike once more before recovering; loadgenerator inherits that through frontend. cartservice, checkoutservice, productcatalogservice and recommendationservice are untouched and were healthy in-window.
+  if wrong    : Falsified if adservice logs still show repeated bootstrap preambles with no serving lines, or frontend keeps emitting status-14 at the same rate after ~10 minutes — meaning the early exit is not the 256m limit (no OOM kill is directly evidenced; no memory or restart-count metric was ever retrieved). Also falsified if serving resumes but platform-automation re-lowers the limit on its ~10-20 minute cadence and the crash loop returns, making this a suppressant rather than a fix.
+  rests on    : tr_d791810a3009, tr_aafd4b455319, tr_4d6ce707320c
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 28067 pushed / 7148 pulled (pull rate 0.203), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_aafd4b455319, tr_4d6ce707320c, tr_630f109e1ef5, tr_d791810a3009, tr_8275cc375227, tr_be26031de665, tr_d258769d7380
+  root cause  : adservice is in an orchestrator-managed crash loop: every container start reaches only JVM/tracing-agent initialization and exits before the gRPC listener binds, with restart intervals growing on exponential backoff [tr_aafd4b455319]. Because no listener exists, frontend's AdService/GetAds client calls fail at connection establishment — the failing traces bottom out in a frontend tcp.connect span with no server-side adservice span [tr_4d6ce707320c], and frontend's only error shape is gRPC status 14 UNAVAILABLE / no connection established [tr_630f109e1ef5]. The trigger is a platform-automation loop that repeatedly lowers the ad-service pod memory limit to 256m and reverts it on a ~10-20 minute cadence, with the most recent lowering landing ~3 minutes before the 10:43 onset [tr_d791810a3009]; that cadence matches the episodic frontend error spikes at ~10:16, ~10:21 and ~10:43 rather than a single step change [tr_8275cc375227]. The failing mechanism in the world is therefore memory exhaustion: a JVM given a 256m container limit is terminated for exceeding it before it can finish starting, so the ad backend has no capacity to accept connections. Frontend itself is not at fault — no changes are attributed to it [tr_be26031de665] and its handler self-time is negligible, with all other downstream calls healthy [tr_4d6ce707320c].
+  OPEN        : No OOM kill is directly evidenced. The application logs contain no heap-exhaustion or OOM lines [tr_aafd4b455319] and the only adservice metric query covered call status ratios, carrying no memory, restart-count or replica-readiness signal [tr_d258769d7380]. Kubelet/kernel events or container_memory_working_set / restart-count metrics are needed to confirm the exit reason is exceeding the 256m limit rather than some other early-init failure.
+  OPEN        : adservice call metrics are absent from Prometheus across both incident and 4h baseline windows [tr_d258769d7380], so there is an instrumentation gap: the service's health cannot be tracked from metrics at all, and the earlier lower/revert cycles cannot be independently corroborated on the adservice side.
+  OPEN        : Frontend logs and adservice logs were both truncated to oldest-8 / newest-32 lines, and nothing at or near 10:43:30 was returned for frontend [tr_630f109e1ef5, tr_aafd4b455319]. Whether adservice was crash-looping continuously since ~10:13 or only during discrete lowered-limit intervals is not settled.
+  OPEN        : Why platform-automation is flapping the limit is unexplained — no evidence identifies the controller, policy, or reconciliation conflict driving the ~10-20 minute lower/revert cycle [tr_d791810a3009]. Until that is known, a manual revert may be overwritten.
+  OPEN        : Triage reported one unmeasured edge crossed; nothing in these dispatches identifies it, so a contributing path outside the frontend-to-adservice hop remains unexamined.
+  OPEN        : Frontend's apparent ~3s deadline on the ad call and the absence of a fallback/circuit-breaker for a non-critical ad panel [tr_4d6ce707320c] are a secondary exposure: whether user-visible errors should occur at all when ads are unavailable was not assessed.
+
+flags: none
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260902T104002Z-ad-memory-squeeze/833f8c6f-1766-4001-b1be-c37027bd6696-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260902T104002Z-ad-memory-squeeze/833f8c6f-1766-4001-b1be-c37027bd6696-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9559.30it/s]

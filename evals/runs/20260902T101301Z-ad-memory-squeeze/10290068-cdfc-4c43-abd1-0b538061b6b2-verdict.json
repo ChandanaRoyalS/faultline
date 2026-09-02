@@ -1,0 +1,148 @@
+{
+  "incident_id": "10290068-cdfc-4c43-abd1-0b538061b6b2",
+  "trajectory_id": "3deaf33c-d8ee-4d49-b57d-8ed517b211dc",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "Platform automation lowered the container memory limit on ad-service to 256m at 10:13:04, roughly three minutes before the reported onset, and had applied the same limit once before (~09:55) and reverted it (~10:00) [tr_a22d385c812a]. Under the 256m ceiling the JVM cannot hold its working set and the container is killed and restarted repeatedly: adservice logs show normal ad-serving at 09:46-09:47, then from 10:13:11 onward nothing but repeated JVM/OTel startup banners \u2014 six sequences inside 10:13 alone and then a steady ~one-per-minute restart cadence at 10:14:18, 10:15:13, 10:16:15, 10:17:18 and 10:18:21 [tr_b207cbecd54a]. While the pods are unready/absent the adservice endpoint set empties, so frontend's outbound gRPC calls fail before a connection is ever made: code 14 UNAVAILABLE with a name-resolution detail naming adservice:9555, raised in the frontend's grpc-js client path rather than its own handlers [tr_a6b169577173]. That produces exactly the observed frontend signature \u2014 a baseline of exactly zero errors turning into intermittent bursts averaging under 1% and peaking above 11%, i.e. only the ad-bearing fraction of requests failing during each restart gap [tr_05c40fd3f2c5], with no frontend change of any kind to explain it [tr_bac89e7bc4d0]. The mechanism now is the process running out of memory it is allowed to use; the limit edit is how it started.",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_a22d385c812a",
+      "tr_b207cbecd54a",
+      "tr_a6b169577173",
+      "tr_05c40fd3f2c5",
+      "tr_bac89e7bc4d0",
+      "tr_9d786b62fdae"
+    ],
+    "reasoning": "Three independent layers line up in time and direction. (1) The only recorded mutation anywhere in the blast radius is the adservice memory-limit knob, touched three times by platform-automation, most recently at 10:13:04 [tr_a22d385c812a]; frontend, cartservice and productcatalogservice change logs are empty [tr_bac89e7bc4d0, tr_f78f43eb59ab, tr_ea8388e900cf]. (2) adservice transitions from healthy request serving to a restart loop beginning within seconds of that 10:13:04 re-application [tr_b207cbecd54a], and the specialist explicitly excluded a one-shot deploy restart and a clean single shutdown. (3) frontend's failure is a caller-side name-resolution failure against adservice:9555 [tr_a6b169577173], which is what a client sees when a backend's endpoints disappear during crash-looping \u2014 not an application error returned by adservice, which that specialist ruled out. The intermittent, low-mean/high-peak frontend error shape [tr_05c40fd3f2c5] matches a dependency that flickers in and out once per minute rather than one that is hard-down. On classification: the failing mechanism is a process being killed for exceeding the memory it is permitted, which is resource_exhaustion; the limit edit is the act upstream, not the mechanism. The value 256m is not wrong in the sense of naming a wrong address or credential \u2014 it is a ceiling the workload cannot live under. Remediation is therefore restoring the prior (unset) limit, and equally importantly stopping the automation loop that has now reapplied it twice; a plain restart would only feed the loop, and there is no artifact to roll back since no deploy is recorded. Confidence is held at medium because the killing itself is inferred: no OOM-kill event, no container memory or restart-count series, and no kube endpoint series were retrieved [tr_b207cbecd54a, tr_9d786b62fdae].",
+    "open_questions": [
+      "No direct confirmation of OOM kills: no OOMKilled event, container_memory_working_set, or kube_pod_container_status_restarts series was ever queried; the restart cause is inferred from timing plus the absence of any crash stack trace or graceful-shutdown line [tr_b207cbecd54a].",
+      "A code 14 UNAVAILABLE connectivity error at 09:34:51 [tr_a6b169577173] predates all three recorded limit changes (earliest ~09:55), and the frontend error ratio first crossed 5% at ~09:57 [tr_05c40fd3f2c5]. The 09:57 crossing fits the first limit application, but the 09:34 error does not fit any recorded change and remains unexplained \u2014 a pre-existing or separate condition cannot be excluded.",
+      "All change-history queries ran from the incident timestamp forward, not backward, so nothing is known about edits landing before 10:16:45 on any service other than the three adservice entries that happened to fall inside the returned set [tr_bac89e7bc4d0, tr_f78f43eb59ab, tr_ea8388e900cf].",
+      "Both log results were truncated to oldest-8/newest-32 lines, leaving 09:34:51-10:18:22 for frontend and the whole interior including 09:57 for adservice unobserved [tr_a6b169577173, tr_b207cbecd54a]. Whether frontend was also failing against upstreams other than adservice is therefore not settled.",
+      "adservice emits no calls_total series at all, in incident or baseline window [tr_9d786b62fdae], so there is no server-side confirmation of when it stopped serving and no per-dependency attribution of frontend errors; triage also reports one unmeasured edge crossed, and which edge that is was never resolved.",
+      "Why platform-automation keeps reapplying a 256m limit \u2014 and whether the correct fix is reverting to unset or setting a sufficient limit sized to the JVM heap \u2014 is not answerable from the change record alone; a revert without disabling the loop may be undone within minutes, as it was at 10:13."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five",
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself",
+    "cart-redis-misconfig / What was observed: The page named two services together: `ServiceHighErrorRate` on **loadgenerator** and\n**frontend**, 3m01s after the first bad request. **checkoutservice** joined fifteen seconds\nlater.\n\nOn the storefront, product pages rendered normally. Adding anything to a basket failed.\n\nThen,"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 27706,
+    "pulled_tokens": 4024,
+    "pull_rate": 0.1268,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 124,
+        "content_tokens": 125,
+        "budget": 4000,
+        "kept": [
+          "incident"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1503,
+        "content_tokens": 1505,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8486,
+        "content_tokens": 8463,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8192,
+        "content_tokens": 8194,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9401,
+        "content_tokens": 9379,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "adservice",
+    "rests_on": [
+      "tr_a22d385c812a",
+      "tr_b207cbecd54a",
+      "tr_a6b169577173"
+    ],
+    "expected_effect": "Restoring adservice's pre-10:13:04 configuration (memory limit unset) should stop the crash loop: after one startup banner from the recreate, no further JVM/OTel startup sequences in {service=\"ad-service\"} logs, normal 'received ad request' lines resuming, frontend's code 14 UNAVAILABLE lines naming adservice:9555 ceasing, and the frontend error ratio returning to its exact-zero baseline.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if startup banners keep recurring ~once per minute after the recreate (process dying for a non-limit reason; OOM was never directly confirmed), if frontend error ratio stays non-zero or names other upstreams (the 09:34:51 UNAVAILABLE predates every recorded limit change), or if platform-automation reapplies memory=256m within minutes as it did at 10:13 \u2014 in which case this buys time, not a fix.",
+    "risk": "The recreate makes ad-bearing frontend requests fail outright for its duration. Reverting to unset removes the ceiling entirely, so if adservice is actually leaking memory it can grow unbounded and destabilise co-located services. It also erases the condition before anyone measured working-set or restart counters, so the mechanism becomes unverifiable.",
+    "blast_radius": "adservice during the recreate; frontend, its named inbound caller, sees resets and continued code 14 errors; loadgenerator sees the resulting frontend error ratio. Other frontend dependencies are untouched."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend plus the load generator simultaneously indicate user-facing failure, not an isolated synthetic blip. No open incident covers it, and the cause could be frontend itself or any of its five dependencies, so evidence is needed."
+  }
+}

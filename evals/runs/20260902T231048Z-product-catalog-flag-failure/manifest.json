@@ -1,0 +1,238 @@
+{
+  "run_id": "20260902T231048Z-product-catalog-flag-failure",
+  "scenario_id": "product-catalog-flag-failure",
+  "split": "dev",
+  "scenario_fingerprint": "78c464d798db218705fbd6f124c501902cbda526703cfc5355dc003ed2a0d645",
+  "started_at": "2026-09-02T23:10:48.306678+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "5196c2513c7f9fb8a9571293f92e71dcd308719e",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    }
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 78107,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-02T23:10:48.355009+00:00",
+    "reason": "faultline-eval product-catalog-flag-failure",
+    "token": "78107-1788390648.354947"
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 1892,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "feature-flag-service",
+      570
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 63.83,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 1.0425,
+      "runs_remaining": 3,
+      "uptime_seconds": 48965,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 157.4,
+      "projected_percent": 71.52,
+      "threshold_percent": 82.31,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "world_continuity": {
+    "kafka_uptime_seconds": 48965,
+    "kafka_uptime_seconds_previous_run": 48073,
+    "previous_run_id": "20260902T225555Z-product-catalog-flag-failure",
+    "kafka_restarted_since_previous_run": false,
+    "cause": "continuous - same kafka instance as the previous run",
+    "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
+  },
+  "freeze": {
+    "frozen_for": "dev 20260902T231048Z-product-catalog-flag-failure",
+    "runtime_version": "faultline/0.0.1+prompts:bc222a353936",
+    "prompts": {
+      "constants": [
+        "PLANNER_SYSTEM",
+        "PROPOSER_SYSTEM",
+        "SCRIBE_SYSTEM",
+        "SPECIALIST_SYSTEM",
+        "SYNTHESIZER_SYSTEM",
+        "TRIAGER_SYSTEM"
+      ],
+      "sha256": "c97a5e73a2c34360d2feb0ff5f92389e05b712435794ebb21426a77c2b64d8b6",
+      "chars": 12133
+    },
+    "corpus": {
+      "rows": 103,
+      "sha256": "5e372dd5955d6f9fa1ecd25582b18cc9296122e255875004116c1bbf85338546",
+      "documents": [
+        "runbook:action-restart-service",
+        "runbook:action-revert-config",
+        "runbook:action-rollback-image",
+        "runbook:action-scale-unavailable",
+        "runbook:alert-high-error-rate",
+        "runbook:alert-high-latency",
+        "runbook:alert-no-traffic",
+        "runbook:class-bad-config",
+        "runbook:class-bad-deploy",
+        "runbook:class-dependency-latency",
+        "runbook:class-resource-exhaustion",
+        "runbook:world-saturation-is-invisible",
+        "runbook:world-tracing-artifact-edges",
+        "runbook:world-uninstrumented-services",
+        "runbook:world-warm-up-latency",
+        "scenario:ad-memory-squeeze",
+        "scenario:cart-bad-image-tag",
+        "scenario:cart-dependency-latency",
+        "scenario:cart-redis-misconfig",
+        "scenario:frauddetection-memory-squeeze",
+        "scenario:payment-telemetry-blackout",
+        "scenario:product-catalog-flag-failure",
+        "scenario:redis-cart-dependency-latency",
+        "scenario:shipping-quote-misconfig",
+        "scenario:shipping-wrong-image"
+      ],
+      "holdout_chunks": 0
+    },
+    "model_map": {
+      "models": {
+        "changes": "claude-opus-5",
+        "logs": "claude-opus-5",
+        "metrics": "claude-opus-5",
+        "planner": "claude-opus-5",
+        "scribe": "claude-opus-5",
+        "synthesizer": "claude-opus-5",
+        "traces": "claude-opus-5"
+      },
+      "effort_default": "high",
+      "role_efforts": {}
+    },
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0
+    },
+    "tool_layer": {
+      "git_sha": "5196c2513c7f9fb8a9571293f92e71dcd308719e",
+      "git_dirty": true
+    },
+    "judge": {
+      "model": null,
+      "prompt_sha256": "244108af996ad2a5138f6632a297941dd26643d806c73dfa9e24bc7d51392b54",
+      "allow_shared_lineage": false
+    },
+    "world": {
+      "compose_digest": "f5bd108f4f70f460836f090ecbff4259626cc9264b102a0851b6bb4a4ceda44b",
+      "observability_digest": "857d95b4d174ec43b1f64bbb84bdf3438bc7425c1360a0e6e7dd771c4e77cb60",
+      "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+      "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994",
+      "capability_version": "cap:c4d52d00",
+      "unverifiable_fields": []
+    }
+  },
+  "comparability": {
+    "generation": "f5bd108f4f70",
+    "provenance": "observed",
+    "previous_run": "20260902T225555Z-product-catalog-flag-failure",
+    "previous_generation": "f5bd108f4f70",
+    "previous_provenance": "observed",
+    "new_generation": false
+  },
+  "injected_at": "2026-09-02T23:10:51.211092+00:00",
+  "incident_id": "8912766f-398a-4c28-99e0-9c014e72806c",
+  "investigate_exit_code": 4,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 4,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-09-02T23:15:49.827038+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 2370,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "feature-flag-service",
+      325
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 63.81,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 49592,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 122.1,
+      "projected_percent": 69.77,
+      "threshold_percent": 84.04,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "discarded": {
+    "reason": "run failed",
+    "at": "2026-09-02T23:21:18.524313+00:00"
+  }
+}

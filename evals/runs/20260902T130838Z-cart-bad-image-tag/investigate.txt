@@ -1,0 +1,10 @@
+incident 72716f98-9068-46e2-aab6-d823dc6fa060  state triaging  anchor 13:12:00
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> failed
+trajectory: e6962b69-5137-4cf9-9c72-4d0f611b360e
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with near-simultaneous alerts on checkoutservice and frontend plus the load generator indicates a real user-facing failure, not a single quiet warning. No open incidents to attribute it to, and the alert pattern alone does not favor any one fault class.
+
+FAILED MID-INVESTIGATION: AttributeError: 'float' object has no attribute 'numerator'
+the trajectory holds everything that ran before the failure

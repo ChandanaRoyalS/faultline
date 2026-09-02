@@ -1,0 +1,45 @@
+incident 7dd1bb06-04ae-4c53-a3f8-9bdda24dd9f3  state triaging  anchor 16:28:00
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 1e3c0cc5-4a6a-4e1d-8816-134d7234af6a
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four simultaneous alerts spanning cart, checkout, frontend and the load generator describe a user-facing path degrading together, which is not something to dismiss despite warning severity. The shared-timestamp fan-in through checkoutservice suggests a common downstream dependency, but no evidence exists yet.
+investigation: 2 round(s), 6 dispatch(es), 19 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Restoring cartservice's pre-16:24:37 config and recreating the container should tear down the network namespace the traffic-shaping container is attached to, removing the fixed 300ms/0-jitter eth0 delay. Confirm in Jaeger: cartservice HGET/HMSET child spans drop from ~300-307ms to single-digit ms (matching unaffected peers at 0-21ms), GetCart/EmptyCart server spans from ~301-306ms and AddItem from ~605ms to a few ms, frontend GetCart from ~604-614ms and checkoutservice GetCart/EmptyCart from ~1206-1213ms to tens of ms. Traces are the only usable signal: cartservice span-metrics are empty in both windows [tr_4d25d6568bf2] and frontend/checkout error ratios are already flat zero, so no error metric will move.
+  within      : 300s
+  risk        : If the 300ms is not namespace-scoped, this is an unnecessary container recreate: cartservice drops all in-process state and briefly refuses connections while latency stays at ~300ms. The change record is from an untrusted source with no corroboration [tr_6aaaaa80dd6a]; if the shaping is an authorized experiment, reverting terminates it without notifying its owner. The 'previous configuration' snapshot may also carry unrelated older values, changing more than the shaping attachment.
+  blast radius: cartservice only, for the recreate duration. Its callers frontend and checkoutservice see connection resets on GetCart/AddItem/EmptyCart during the restart - currently zero-error paths [tr_daef75001ab0, tr_79187b226011], so brief errors here are a visible regression. loadgenerator traffic and any in-flight carts are affected downstream of frontend.
+  if wrong    : Falsified if fresh cartservice traces 5 minutes after recreate still show cache spans pinned at ~300ms with ~1ms handler self-time - meaning the shaping is reattached by platform-automation, or the qdisc lives outside the recreated namespace. Operator should check current qdisc state first: no dispatch verified the rule is still active, and if it was already removed this change is a no-op restart with its own cost.
+  rests on    : tr_6aaaaa80dd6a, tr_97be6bef850b
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 24968 pushed / 5635 pulled (pull rate 0.1841), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_6aaaaa80dd6a, tr_97be6bef850b, tr_bd15542f04f8, tr_daef75001ab0, tr_79187b226011, tr_4d25d6568bf2
+  root cause  : A traffic-shaping container was attached to the cartservice pod's network namespace at ~16:24:37, roughly three minutes before onset, applying a fixed 300ms egress delay with zero jitter on eth0 [tr_6aaaaa80dd6a]. Every cartservice network round trip therefore pays a constant ~300ms: traces show cartservice server spans pinned at ~301-306ms with essentially all of that time inside the child cache client spans (HGET/HMSET ~300-307ms) and under ~1.5ms of handler work, AddItem at ~605ms because it makes two serial cache calls, and callers paying additional ~300ms increments per inbound hop (frontend GetCart ~604-614ms, checkoutservice GetCart/EmptyCart ~1206-1213ms) [tr_97be6bef850b]. The failure mechanism is waiting on an artificially slowed network path to the cart cache, not errors: frontend and checkoutservice error ratios are flat zero through the whole window [tr_daef75001ab0, tr_79187b226011], and cartservice continues serving normal traffic to the window edge with no error-level log lines [tr_bd15542f04f8]. Peer services in the same traces (productcatalog, currency, payment, shipping, email) remain at 0-21ms, confirming the penalty is specific to cartservice's network path [tr_97be6bef850b]. The service is up and correct; it is simply blocked ~300ms per call, so the alerts are latency-driven.
+  OPEN        : Whether the traffic-shaping container was an authorized chaos/latency experiment or an accidental or unauthorized injection - the change record attributes it to platform-automation but does not name an owning experiment or ticket [tr_6aaaaa80dd6a], and that record is from an untrusted source that no other dispatch corroborates.
+  OPEN        : Whether the shaping rule is still active. No dispatch checked the pod's current qdisc state or whether the container was removed; trace and log coverage ends at ~16:29:52, so persistence beyond the window is unverified.
+  OPEN        : No pre-onset baseline spans were captured - every cartservice span returned already carries the ~300ms floor and the result was truncated at 200 spans [tr_97be6bef850b], so the step change is inferred from near-zero handler self-time rather than measured against a clean before-picture. Exact onset time within the pod is therefore not pinned.
+  OPEN        : Cartservice's own error and saturation behavior at 16:28 is genuinely unmeasured: the error-ratio series is empty in both windows [tr_4d25d6568bf2] and the log query dropped the entire middle of the window including the 16:28 minute [tr_bd15542f04f8]. Latency percentiles, CPU and memory were never queried for any service.
+  OPEN        : The blast radius named 12 services with 4 unmeasured edges crossed, but only cartservice, checkoutservice and frontend were examined. Whether loadgenerator or the other affected services experienced anything beyond inherited latency is unestablished.
+  OPEN        : No frontend latency percentile or per-route data was returned [tr_daef75001ab0], so the user-facing severity - and whether any client-side timeout budget was breached despite zero server-side errors - is not quantified.
+  OPEN        : Why span-metrics coverage for the cartservice service name is missing entirely is a separate observability gap worth its own follow-up; it degraded this investigation and is not explained by the incident.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260902T162429Z-cart-dependency-latency/7dd1bb06-04ae-4c53-a3f8-9bdda24dd9f3-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260902T162429Z-cart-dependency-latency/7dd1bb06-04ae-4c53-a3f8-9bdda24dd9f3-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10475.08it/s]

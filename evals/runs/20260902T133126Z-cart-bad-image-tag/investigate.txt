@@ -1,0 +1,36 @@
+incident 429ff244-feb2-494b-b48c-e3beca7530cc  state triaging  anchor 13:36:00
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 39edd9a6-7a47-4839-9d1b-f3c474972e65
+triage judged: investigate (medium confidence, suspects unknown)
+  Ten services alerting within ninety seconds starting at checkoutservice and frontend is a broad, critical failure that cannot be dismissed, and no open incident could account for it. The fan-out pattern fits either a checkout-path dependency failure or a deploy, so the fault class is genuinely open at this stage.
+investigation: 2 round(s), 8 dispatch(es), 23 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Abstention is wrong if the incident is in fact simple process state on checkoutservice that a recreate would clear — but nothing in the evidence supports that: the log stream shows a live process emitting PlaceOrder entry lines continuously with no restart banner and no error severity at all [tr_5d8601d884d2], which is the shape of blocking on a dependency, not of a wedged process. It is also wrong if orders self-recover before the follow-up queries land, in which case the window closes and the stalling hop becomes unattributable. Concretely: if the retried trace query names a child span carrying the wait, or if a pre-13:10 change record surfaces, a targeted proposal becomes possible and this abstention is superseded.
+  rests on    : tr_77ccced59d8c, tr_c3095b72b399, tr_f37326243c8e, tr_5d8601d884d2, tr_db26d6344f2d
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 27263 pushed / 7629 pulled (pull rate 0.2186), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : none
+  confidence  : low
+  evidence    : tr_5d8601d884d2, tr_e37bcc2d8bf3, tr_db26d6344f2d
+  root cause  : checkoutservice keeps accepting traffic and logging PlaceOrder entry lines throughout the degraded period, but from ~13:34 onward those requests emit no terminal line at all — no payment, email or message-write follow-on — whereas complete success sequences appear earlier (last at 13:07:19) [tr_5d8601d884d2]. Error ratio moved from a flat-zero baseline (413 samples, sd 0) to a mean of ~0.217 with peaks near 0.667, first crossing at 13:10:15 and escalating at 13:34 [tr_e37bcc2d8bf3]. The stall sits before the payment hop: paymentservice pairs every Charge with a sub-millisecond completion, all info severity, one stable replica, no declines or restarts [tr_db26d6344f2d]. No deploy, config edit or flag flip is on record for either service in the queried span [tr_c3095b72b399][tr_f37326243c8e]. Requests accepted, work begun, nothing returned, partial rather than total failure — that is checkoutservice blocking on a slow dependency in the pre-payment path (cart, currency, or shipping quote), consistent with those services alerting within 90s. The specific hop is unidentified: the trace query that would attribute the wait failed with a backend 500 [tr_77ccced59d8c].
+  OPEN        : Which dependency is checkoutservice blocking on? The pre-payment path (cartservice, currencyservice, shippingservice/quoteservice) was never queried and traces failed with a 500 [tr_77ccced59d8c]. Retry traces before acting.
+  OPEN        : All change queries covered 13:36 Sep 1 -> 13:38 Sep 2, i.e. after onset, not before — the specialists flagged this themselves [tr_c3095b72b399][tr_f37326243c8e]. A change shortly before 13:10 remains entirely possible and would alter remediation.
+  OPEN        : Is intra-checkoutservice saturation (connection pool, threads, memory) the real mechanism? Only error ratio was evaluated; a saturated outbound pool would produce this same log shape and would point to a different fix.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260902T133126Z-cart-bad-image-tag/429ff244-feb2-494b-b48c-e3beca7530cc-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260902T133126Z-cart-bad-image-tag/429ff244-feb2-494b-b48c-e3beca7530cc-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7980.74it/s]

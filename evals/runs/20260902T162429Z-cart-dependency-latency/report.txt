@@ -1,0 +1,30 @@
+run 20260902T162429Z-cart-dependency-latency   scenario cart-dependency-latency
+trajectory 1e3c0cc5-4a6a-4e1d-8816-134d7234af6a   runtime faultline/0.0.1+prompts:bc222a353936
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (4/4 alerted services predicted)
+  precision 0.33  (4/12 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): accountingservice, adservice, currencyservice, emailservice, paymentservice, productcatalogservice, recommendationservice, shippingservice
+  unmeasured edges crossed: 4 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class dependency_latency vs dependency_latency - correct
+  fix class   config_revert vs restart - correct
+    disputed boundary, ADR-0027 (T7.17) - RESOLVED FOR THE AGENT, by measurement: **Not a miss.** This entry was resolved against the agent on the premise that 'there is no configuration to revert'. T7.17 tested it: deleting the netem qdisc from the target's interface clears the delay durably - 3/3 attempts, container never restarted, pumba sidecar still running and not reapplying, p95 back to its 1.9ms baseline. Restart also works, 3/3. The fault has two working fixes, so ADR-0022 §1.2's tiebreak - which assumes one - cannot decide it, and `config_revert` is a correct answer. Kept in the register rather than deleted: it is the record of a disagreement that was settled wrongly for three stamps, and deleting it would hide that. `also_correct_remediation` is what makes the scorer count it right.
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 59498 / out 15200 tokens   $0.6775
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {'changes': 8}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).

@@ -1,0 +1,88 @@
+{
+  "run_id": "20260902T093240Z-product-catalog-flag-failure",
+  "scenario_id": "product-catalog-flag-failure",
+  "split": "dev",
+  "scenario_fingerprint": "78c464d798db218705fbd6f124c501902cbda526703cfc5355dc003ed2a0d645",
+  "started_at": "2026-09-02T09:32:40.346582+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "752abea8f075a5ea387c5199f35f8adf64b1c244",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 73324,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-02T09:32:40.371789+00:00",
+    "reason": "faultline-eval product-catalog-flag-failure",
+    "token": "73324-1788341560.371694"
+  },
+  "baseline_gate": {
+    "passed": false,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": null,
+    "pipeline_down": [
+      "no consumer is attached to the orchestrator's group - start it with `uv run faultline-orchestrate`"
+    ],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "faultline-minio-1",
+      46
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 99.54,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 2.78,
+      "runs_remaining": 8,
+      "uptime_seconds": 101104,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 419.8,
+      "projected_percent": 120.04,
+      "threshold_percent": 69.5,
+      "guard_percent": 90.0,
+      "fits": false
+    },
+    "refusals": [
+      "the alert pipeline is not assembled: no consumer is attached to the orchestrator's group - start it with `uv run faultline-orchestrate`. This is NOT the world failing to alert - the fault would fire and no incident would open, which records as `no-alert` and reads as a fact about the scenario (T7.24).",
+      "aborting before injection: 1 container(s) have been up for less than 300s and are still settling.",
+      "kafka is at 99.5% of its 2048MB limit and would reach ~120.0% across the 8 run(s) still to come (2.78h), past the 90% guard the recorder refuses at.\n    threshold 69.5% = 90% - (151MB/h x 2.78h / 2048MB), growth measured under load at T7.29.\n    Recycle it first, and its consumers with it or they never reconnect (T7.27):\n      docker restart kafka && docker restart accounting-service frauddetection-service checkout-service\n    A restart clears this completely - T7.30 measured 99.87% -> 26.27%. Raising the limit is not the remedy: the growth is Rosetta translation cache and is driven by work, not bounded by a ceiling (ADR-0005's T7.30 addendum).\n    THIS IS A PAUSE, NOT A DISCARD - nothing was injected and this scenario has not been attempted. Recycle, then start again from here."
+    ]
+  },
+  "discarded": {
+    "reason": "pipeline-down",
+    "at": "2026-09-02T09:32:44.278191+00:00"
+  }
+}
