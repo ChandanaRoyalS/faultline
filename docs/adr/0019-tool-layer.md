@@ -675,6 +675,24 @@ reads and the baseline does not, the result carries an error rather than a delta
 computed from an unobserved baseline has the shape of a finding and none of the evidence, which
 is ADR-0019's founding distinction at the point where it would do the most damage.
 
+### A defect the live sweep found, and what it says about the design
+
+**`cart-bad-image-tag` discarded on `AttributeError: 'float' object has no attribute
+'numerator'`** — the standard library's way of saying a `NaN` reached `statistics`' exact-ratio
+arithmetic. Prometheus returns `NaN` for `0/0`, the error-ratio template *is* a division, and
+that scenario stops a service: no traffic, no ratio, `NaN` in the series, `stdev` raises, and an
+already-injected scenario is lost.
+
+It is worth naming why the tests did not catch it. Every fixture in `test_tools.py` built series
+by hand from finite floats, because that is what a person writing a test types. **The world's
+most common failure shape — a service that stops serving — produces the one value the fixtures
+never contained**, and it took the first scenario whose service actually died to produce it.
+
+The fix is not a coercion. `metrics.defined` drops non-finite samples and **counts** them, and
+the count travels onto the result and into the envelope. Reading `NaN` as `0.0` would report a
+perfect error ratio at the moment a service was serving nothing — the inverse of the truth, and
+precisely the shape `ServiceNoTraffic` exists to catch. An undefined interval is a finding.
+
 ### The cost, paid once for two changes
 
 `TOOL_BEHAVIOUR_REVISION` goes to **2** — the first bump since it was created. It carries **Q18**

@@ -29,6 +29,7 @@ from faultline.tools.changes import (
 from faultline.tools.metrics import (
     MetricTemplate,
     change_points,
+    defined,
     render_query,
     summarise,
     threshold_for,
@@ -1012,3 +1013,43 @@ def test_the_planner_may_widen_a_window_and_may_not_narrow_one() -> None:
     # And the ceiling still refuses: a widened window is checked like any other.
     huge = policy.for_specialist("logs", START, now, widen_minutes=1440)
     assert huge.clipped and policy.refusal("logql_query", huge.start, huge.end) is None
+
+
+def test_a_ratio_over_no_traffic_is_undefined_and_is_not_a_zero() -> None:
+    """**Found live by `cart-bad-image-tag`, which discarded on it.** Prometheus returns `NaN`
+    for `0/0`, and the error-ratio template is a division - so a service with no traffic in an
+    interval has no error *ratio*. `statistics.stdev` raises `AttributeError: 'float' object has
+    no attribute 'numerator'` when a NaN reaches its exact-ratio arithmetic, which took an
+    injected scenario with it.
+
+    Dropped and counted, never coerced: reading NaN as 0.0 would report a perfect error ratio
+    at the moment a service was serving nothing, which is the inverse of the truth and hides
+    exactly the shape `ServiceNoTraffic` exists to catch."""
+    nan = float("nan")
+    points = [(0.0, 0.0), (15.0, nan), (30.0, nan), (45.0, 0.4)]
+
+    kept, undefined = defined(points)
+
+    assert undefined == 2
+    assert [value for _, value in kept] == [0.0, 0.4]
+    # The arithmetic that crashed now runs.
+    assert summarise(kept).samples == 2
+
+
+def test_the_baseline_result_says_how_many_samples_had_no_value() -> None:
+    baseline = _flat(20, 0.0, START.timestamp() - 300)
+    incident = [(START.timestamp() + i * 15.0, float("nan")) for i in range(10)]
+
+    def fake_range(query: str, start: datetime, end: datetime, **kwargs: Any) -> dict[str, Any]:
+        return _range_payload(incident if start >= START else baseline)
+
+    with patch("faultline.telemetry.query_range", side_effect=fake_range):
+        result = Tools(ToolSettings()).metric_baseline(
+            "cartservice", MetricTemplate.ERROR_RATIO, START, START + timedelta(minutes=5)
+        )
+
+    assert result.error is None, "an undefined sample is not a failed query"
+    assert result.incident_undefined == 10 and result.baseline_undefined == 0
+    assert result.incident["samples"] == 0.0
+    assert "NO DEFINED VALUE" in result.body()
+    assert "no traffic in the interval" in result.body()

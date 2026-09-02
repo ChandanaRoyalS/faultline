@@ -234,6 +234,12 @@ class BaselineResult(ToolResult):
     changes: list[dict[str, Any]] = Field(default_factory=list)
     """Change points, oldest first, each with the timestamp the departure *started*."""
 
+    incident_undefined: int = 0
+    baseline_undefined: int = 0
+    """Samples the series had no value for - `NaN`, which is what a ratio over no traffic is.
+    Dropped from the arithmetic and counted here, because a service with no traffic is a
+    finding and a service with a zero error ratio is its opposite."""
+
     def attributes(self) -> dict[str, str]:
         attributes = super().attributes()
         attributes["template"] = self.template
@@ -255,6 +261,12 @@ class BaselineResult(ToolResult):
             lines.append(f"  incident window: {_stats(self.incident)}")
             lines.append(f"  baseline window: {_stats(self.baseline)}")
             lines.append(f"  mean moved {_delta(self.baseline, self.incident)}")
+        if self.incident_undefined or self.baseline_undefined:
+            lines.append(
+                f"  {self.incident_undefined} sample(s) in the incident window and "
+                f"{self.baseline_undefined} in the baseline had NO DEFINED VALUE - for a ratio "
+                "that means no traffic in the interval, which is a finding rather than a zero"
+            )
         if self.changes:
             lines.append(f"{len(self.changes)} change point(s), earliest first:")
             for change in self.changes:
