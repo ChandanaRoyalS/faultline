@@ -28,6 +28,7 @@ from faultline.agents.contracts import (
 )
 from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
 from faultline.agents.triage import TriageResult
+from faultline.tools.ranking import RankingContext
 from faultline.tools.results import ToolResult
 from faultline.tools.tools import Tools
 from faultline.tools.window import ScopedWindow
@@ -310,7 +311,13 @@ class Specialist:
         """
         return self._tools.window_policy.for_specialist(self.name, anchor, now)
 
-    def query(self, service: str, start: datetime, end: datetime) -> ToolResult:
+    def query(
+        self,
+        service: str,
+        start: datetime,
+        end: datetime,
+        ranking: RankingContext | None = None,
+    ) -> ToolResult:
         if self.name == "metrics":
             query = (
                 f'sum by(service_name) (rate(calls_total{{service_name="{service}",'
@@ -322,7 +329,7 @@ class Specialist:
             return self._tools.logql_query(service, start, end, limit=40)
         if self.name == "traces":
             return self._tools.trace_query(service, start, end)
-        return self._tools.change_history(service, start, end)
+        return self._tools.change_history(service, start, end, ranking=ranking)
 
     def run(
         self, service: str, question: str, start: datetime, end: datetime, envelope: str

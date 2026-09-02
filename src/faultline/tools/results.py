@@ -213,11 +213,37 @@ class TraceResult(ToolResult):
         return "\n".join(lines)
 
 
+def describe_lead(lead: int) -> str:
+    """`lead_seconds` as a responder reads it: `2m before onset`, `40s after onset` (T3.4)."""
+    magnitude = abs(lead)
+    if magnitude < 60:
+        span = f"{magnitude}s"
+    elif magnitude < 3600:
+        span = f"{magnitude // 60}m"
+    else:
+        span = f"{magnitude / 3600:.1f}h"
+    return f"{span} {'before' if lead >= 0 else 'after'} onset"
+
+
 class ChangeResult(ToolResult):
     tool: Literal["change_history"] = "change_history"
     source: Literal["change-log"] = "change-log"
     service: str = ""
     records: list[dict[str, Any]] = Field(default_factory=list)
+    """In rank order when `standing` is set (T3.4); oldest first otherwise."""
+
+    standing: dict[str, Any] | None = None
+    """The queried service's place in triage's blast radius - `direction`, `hops`, `reason` -
+    when the call was ranked (T3.4). `None` means the caller supplied no ranking context and
+    the records are in time order, unranked."""
+
+    def attributes(self) -> dict[str, str]:
+        attributes = super().attributes()
+        if self.standing is not None:
+            attributes["radius"] = str(self.standing["direction"])
+            if self.standing.get("hops") is not None:
+                attributes["hops"] = str(self.standing["hops"])
+        return attributes
 
     def body(self) -> str:
         if self.error is not None:
@@ -226,10 +252,21 @@ class ChangeResult(ToolResult):
             # The single most common load-bearing result in the requirements list: five of
             # nine investigations turn on this sentence being true and being trustworthy.
             return f"no changes recorded for {self.service} over this window"
-        lines = [f"service: {self.service}", f"{len(self.records)} changes"]
+        ranked = self.standing is not None
+        header = (
+            f"{len(self.records)} changes, ranked by suspicion"
+            if ranked
+            else (f"{len(self.records)} changes")
+        )
+        lines = [f"service: {self.service}", header]
         for record in self.records:
+            prefix = (
+                f"  #{record['rank']}  {describe_lead(record['lead_seconds'])}  "
+                if ranked
+                else "  "
+            )
             lines.append(
-                f"  {record['at']}  {record['actor']}  {record['resource']} "
+                f"{prefix}{record['at']}  {record['actor']}  {record['resource']} "
                 f"{record['action']}: {record['summary']}"
             )
             before, after = record.get("before"), record.get("after")

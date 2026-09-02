@@ -42,6 +42,7 @@ from faultline.agents.trajectory import (
 )
 from faultline.agents.triage import TriageResult
 from faultline.tools import envelope as envelope_renderer
+from faultline.tools.ranking import RadiusStanding, RankingContext
 
 
 class InvestigationFailedError(RuntimeError):
@@ -142,6 +143,25 @@ class DispatchOutcome:
     tokens_out: int
 
 
+def ranking_context(triage: TriageResult, anchor: datetime) -> RankingContext:
+    """Triage's radius in the shape the change tool ranks by (T3.4).
+
+    Read off `TriageResult` rather than recomputed: the direction, hops and entry reason are
+    triage's claims, and the ranking must rest on the same radius the verdict is judged against.
+    """
+    return RankingContext(
+        anchor=anchor,
+        radius={
+            member.service: RadiusStanding(
+                direction=member.direction.value,
+                hops=member.hops,
+                reason=member.reason.value,
+            )
+            for member in triage.blast_radius
+        },
+    )
+
+
 class Investigation:
     """One incident, one trajectory, at most two dispatch rounds."""
 
@@ -220,6 +240,9 @@ class Investigation:
         anchor: datetime,
     ) -> InvestigationResult:
         seq = 0
+        # One ranking context per investigation (T3.4): onset and triage's radius, so every
+        # change dispatch is ranked on the same scale and the results compare across services.
+        ranking = ranking_context(triage, anchor)
 
         while state.start_round():
             findings = result.runs or None
@@ -248,7 +271,7 @@ class Investigation:
             # flags and T4.2's scoring alongside every other kind of incompleteness (T3.4c).
             result.failed_dispatches += [(Planner.ROLE, why) for why in completion.rejected]
 
-            seq = self._fan_out(trajectory, state, result, plan.dispatches, anchor, seq)
+            seq = self._fan_out(trajectory, state, result, plan.dispatches, anchor, ranking, seq)
 
             if state.exhausted or len(result.plans) >= self._budget.max_dispatch_rounds:
                 break
@@ -459,6 +482,7 @@ class Investigation:
         result: InvestigationResult,
         dispatches: list[Any],
         anchor: datetime,
+        ranking: RankingContext,
         seq: int,
     ) -> int:
         """One round's dispatches, run at once and merged in plan order (T3.5).
@@ -493,11 +517,11 @@ class Investigation:
         outcomes: list[DispatchOutcome | None]
         if len(admitted) == 1:
             dispatch, at = admitted[0]
-            outcomes = [self._run_dispatch(dispatch, anchor, trajectory.started_at, at)]
+            outcomes = [self._run_dispatch(dispatch, anchor, trajectory.started_at, ranking, at)]
         else:
             pool = ThreadPoolExecutor(max_workers=len(admitted), thread_name_prefix="specialist")
             futures = [
-                pool.submit(self._run_dispatch, d, anchor, trajectory.started_at, at)
+                pool.submit(self._run_dispatch, d, anchor, trajectory.started_at, ranking, at)
                 for d, at in admitted
             ]
             outcomes = []
@@ -543,7 +567,7 @@ class Investigation:
         return seq
 
     def _run_dispatch(
-        self, dispatch: Any, anchor: datetime, now: datetime, seq: int
+        self, dispatch: Any, anchor: datetime, now: datetime, ranking: RankingContext, seq: int
     ) -> DispatchOutcome:
         """One specialist, start to finish, **touching nothing shared.**
 
@@ -562,7 +586,7 @@ class Investigation:
         steps: list[TrajectoryStep] = []
 
         began = time.monotonic()
-        tool_result = specialist.query(service, start, end)
+        tool_result = specialist.query(service, start, end, ranking=ranking)
         rendered = envelope_renderer.render(tool_result)
 
         # The envelope goes into the trajectory verbatim, before anything reads it: a replay

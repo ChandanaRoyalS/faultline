@@ -22,8 +22,11 @@ from faultline.tools.changes import (
     KNOWN_LEAKING_FAULTS,
     SYSTEM_ACTOR,
     WORLD_OWNED_TOKENS,
+    Action,
+    ChangeRecord,
     Resource,
 )
+from faultline.tools.ranking import RadiusStanding, RankingContext, rank_key
 from faultline.tools.results import LogLine, LogResult, MetricResult, Trust, Window
 from faultline.tools.settings import ToolSettings
 from faultline.tools.tools import ALLOWED_PATHS, Tools
@@ -725,3 +728,113 @@ def test_a_window_the_budget_covers_is_not_elided() -> None:
     assert result.oldest_kept == 0 and result.newest_kept == 0
     assert len(result.lines) == 12
     assert "not returned" not in envelope.render(result)
+
+
+# --- change candidates are ranked in the tool (T3.4) --------------------------------
+
+
+def change(service: str, at: datetime, summary: str) -> ChangeRecord:
+    return ChangeRecord(
+        id=f"c-{summary}",
+        service=service,
+        at=at,
+        resource=Resource.ENVIRONMENT,
+        action=Action.UPDATED,
+        summary=summary,
+    )
+
+
+def radius(**standings: tuple[str, int]) -> RankingContext:
+    return RankingContext(
+        anchor=START,
+        radius={
+            service: RadiusStanding(direction=direction, hops=hops, reason="sync_edge")
+            for service, (direction, hops) in standings.items()
+        },
+    )
+
+
+def test_changes_are_ranked_before_onset_first_then_by_proximity() -> None:
+    """*Ranked by suspicion*, in the tool. A change after onset cannot have caused the onset,
+    so it ranks below every change that could; among those that could, nearer wins. The
+    order is the tool's, not the specialist's reading of timestamps."""
+    log = InMemoryChangeLog()
+    log.append(change("cartservice", START - timedelta(hours=2), "old"))
+    log.append(change("cartservice", START + timedelta(minutes=5), "revert"))
+    log.append(change("cartservice", START - timedelta(minutes=3), "recent"))
+    tools = Tools(ToolSettings(), changes=log)
+    window = (START - timedelta(hours=24), START + timedelta(minutes=10))
+
+    ranked = tools.change_history("cartservice", *window, ranking=radius(cartservice=("seed", 0)))
+
+    assert [r["summary"] for r in ranked.records] == ["recent", "old", "revert"]
+    assert [r["rank"] for r in ranked.records] == [1, 2, 3]
+    assert [r["causal"] for r in ranked.records] == ["before_onset", "before_onset", "after_onset"]
+    assert ranked.records[0]["lead_seconds"] == 180
+    assert ranked.standing == {"direction": "seed", "hops": 0, "reason": "sync_edge"}
+    body = ranked.body()
+    assert "3 changes, ranked by suspicion" in body
+    assert "#1  3m before onset" in body and "#3  5m after onset" in body
+
+
+def test_without_a_ranking_context_the_tool_answers_as_it_always_did() -> None:
+    """Oldest first, unranked, no standing - so a caller that has no triage (a dry run, a
+    replay of an older trajectory) sees exactly the pre-T3.4 shape."""
+    log = InMemoryChangeLog()
+    log.append(change("cartservice", START - timedelta(minutes=3), "recent"))
+    log.append(change("cartservice", START - timedelta(hours=2), "old"))
+    tools = Tools(ToolSettings(), changes=log)
+
+    plain = tools.change_history("cartservice", START - timedelta(hours=24), START)
+
+    assert [r["summary"] for r in plain.records] == ["old", "recent"]
+    assert plain.standing is None and "rank" not in plain.records[0]
+    assert "ranked" not in plain.body() and "#" not in plain.body()
+
+
+def test_the_radius_tier_orders_candidates_across_services_on_one_scale() -> None:
+    """Blast-radius ranking: at equal lead, a change on a `candidate_cause` service (a callee of
+    an alerting service) outranks one on the `seed`, which outranks one on an `also_affected`
+    caller, which outranks a service outside the radius. `rank_key` is the whole rule, and every
+    change dispatch of one investigation is ranked by it against one onset and one radius."""
+    context = radius(
+        emailservice=("candidate_cause", 1),
+        checkoutservice=("seed", 0),
+        frontend=("also_affected", 1),
+    )
+    lead = 120
+
+    keys = [
+        rank_key(lead, context.standing_for(service))
+        for service in ("frontend", "loadgenerator", "emailservice", "checkoutservice")
+    ]
+
+    assert sorted(keys) == [
+        rank_key(lead, context.standing_for("emailservice")),
+        rank_key(lead, context.standing_for("checkoutservice")),
+        rank_key(lead, context.standing_for("frontend")),
+        rank_key(lead, context.standing_for("loadgenerator")),
+    ]
+    assert context.standing_for("loadgenerator").direction == "outside_radius"
+    # Causal tier dominates the radius: a change after onset on the best-placed service still
+    # ranks below a change before onset on the worst-placed one.
+    assert rank_key(-30, context.standing_for("emailservice")) > rank_key(
+        7200, context.standing_for("loadgenerator")
+    )
+
+
+def test_the_standing_is_in_the_envelope_where_the_synthesizer_can_compare_it() -> None:
+    log = InMemoryChangeLog()
+    log.append(change("emailservice", START - timedelta(minutes=1), "image"))
+    tools = Tools(ToolSettings(), changes=log)
+
+    result = tools.change_history(
+        "emailservice",
+        START - timedelta(hours=24),
+        START,
+        ranking=radius(emailservice=("candidate_cause", 1)),
+    )
+
+    rendered = envelope.render(result)
+    assert 'radius="candidate_cause"' in rendered and 'hops="1"' in rendered
+    assert "#1  1m before onset" in rendered
