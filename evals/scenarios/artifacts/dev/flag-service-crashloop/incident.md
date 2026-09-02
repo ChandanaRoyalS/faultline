@@ -3,7 +3,7 @@ origin: scenario:flag-service-crashloop
 split: dev
 fault_class: bad_deploy
 recorded_from: 2026-08-28T04:37:39+00:00
-capability: cap:9c416e0a
+capability: cap:c4d52d00
 onset_to_page: n/a
 page_to_fix: n/a
 fix_to_all_clear: 4s

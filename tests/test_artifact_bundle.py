@@ -1029,7 +1029,13 @@ def test_the_capability_inputs_are_read_from_the_code_not_written_down() -> None
     """`tool_surface` reads the class. A hand-maintained list is the thing that drifts."""
     from evalharness.capability import tool_surface
 
-    assert tool_surface() == ["change_history", "logql_query", "promql_query", "trace_query"]
+    assert tool_surface() == [
+        "change_history",
+        "logql_query",
+        "metric_baseline",
+        "promql_query",
+        "trace_query",
+    ]
 
 
 # --- T7.15: the observability config is under cover -----------------------------------------

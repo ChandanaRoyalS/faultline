@@ -213,6 +213,78 @@ class TraceResult(ToolResult):
         return "\n".join(lines)
 
 
+class BaselineResult(ToolResult):
+    """One metric, in the incident window and in a comparable quiet one (T3.3b).
+
+    **Two windows, one result**, because the finding is the comparison: *"p95 is 15s"* is a
+    number and *"p95 is 15s against a baseline of 38ms measured over the preceding half hour"*
+    is evidence. A responder reading only the first has to know this world's healthy values by
+    heart, and the rehearsed narratives show that is exactly where wrong turns start - T7.13's
+    starved histogram read as degradation, T3.4 reading the same 15s as a fault.
+    """
+
+    tool: Literal["metric_baseline"] = "metric_baseline"
+    source: Literal["prometheus"] = "prometheus"
+    service: str = ""
+    template: str = ""
+    query: str = ""
+    baseline_window: Window | None = None
+    incident: dict[str, float] = Field(default_factory=dict)
+    baseline: dict[str, float] = Field(default_factory=dict)
+    changes: list[dict[str, Any]] = Field(default_factory=list)
+    """Change points, oldest first, each with the timestamp the departure *started*."""
+
+    def attributes(self) -> dict[str, str]:
+        attributes = super().attributes()
+        attributes["template"] = self.template
+        if self.baseline_window is not None:
+            attributes["baseline"] = self.baseline_window.render()
+        return attributes
+
+    def body(self) -> str:
+        if self.error is not None:
+            return f"query failed: {self.error}"
+        lines = [f"service: {self.service}", f"metric: {self.template}", f"query: {self.query}"]
+        if not self.baseline:
+            # **Not "unchanged".** A comparison with no baseline is a comparison that was not
+            # made, and ADR-0019's whole distinction is that an unobserved window is not an
+            # observed-empty one.
+            lines.append("NO BASELINE: the comparison window returned nothing, so nothing here")
+            lines.append("says whether the incident window is unusual.")
+        else:
+            lines.append(f"  incident window: {_stats(self.incident)}")
+            lines.append(f"  baseline window: {_stats(self.baseline)}")
+            lines.append(f"  mean moved {_delta(self.baseline, self.incident)}")
+        if self.changes:
+            lines.append(f"{len(self.changes)} change point(s), earliest first:")
+            for change in self.changes:
+                lines.append(
+                    f"  {change['at']}  value {change['value']:.4g} "
+                    f"crossed {change['threshold']:.4g}"
+                )
+        elif self.baseline:
+            lines.append("no sustained departure from the baseline in this window")
+        return "\n".join(lines)
+
+
+def _stats(stats: dict[str, float]) -> str:
+    if not stats or not stats.get("samples"):
+        return "no samples"
+    return (
+        f"n={int(stats['samples'])} mean={stats['mean']:.4g} min={stats['minimum']:.4g} "
+        f"max={stats['maximum']:.4g} sd={stats['stdev']:.4g}"
+    )
+
+
+def _delta(baseline: dict[str, float], incident: dict[str, float]) -> str:
+    before, after = baseline.get("mean", 0.0), incident.get("mean", 0.0)
+    if not incident.get("samples"):
+        return "nowhere - the incident window returned no samples"
+    if before == 0:
+        return f"from 0 to {after:.4g} (no ratio: the baseline was exactly zero)"
+    return f"from {before:.4g} to {after:.4g}, x{after / before:.3g}"
+
+
 def describe_lead(lead: int) -> str:
     """`lead_seconds` as a responder reads it: `2m before onset`, `40s after onset` (T3.4)."""
     magnitude = abs(lead)

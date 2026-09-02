@@ -3,7 +3,7 @@ origin: scenario:cart-dependency-latency
 split: dev
 fault_class: dependency_latency
 recorded_from: 2026-08-29T23:27:42+00:00
-capability: cap:9c416e0a
+capability: cap:c4d52d00
 onset_to_page: 3m50s
 page_to_fix: 5m00s
 fix_to_all_clear: 2m16s

@@ -53,7 +53,10 @@ WindowRule = Literal["default", "change_lookback", "planner_widened"]
 """Which clause of the policy produced a window. `planner_widened` is reserved for Q17."""
 
 CHANGE_TOOL = "change_history"
-"""The one tool whose ceiling is the change lookback, not the telemetry bound."""
+"""The tool whose ceiling is the change lookback, not the telemetry bound."""
+
+BASELINE_TOOL = "metric_baseline"
+"""The tool that reads **two** windows: the incident's and the one before it (T3.3b)."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,16 +121,25 @@ class WindowPolicy:
     # --- enforcement ------------------------------------------------------------
 
     def ceiling_for(self, tool: str) -> int:
-        """The widest window a tool will read, in seconds.
+        """The widest span a tool will read, in seconds.
 
-        Telemetry tools share `max_window_seconds`. The change log has no retention to protect,
-        so its ceiling is derived rather than invented: the change lookback plus the telemetry
-        bound - as far back as the policy ever reaches, plus as far forward as any telemetry
-        window may run. Nothing a specialist is handed can exceed it; a caller that does is
-        asking for an unbounded read, which the plan says to refuse.
+        Telemetry tools share `max_window_seconds`. Two tools are derived from it rather than
+        given a second invented number:
+
+        **`change_history`** - the change lookback plus the telemetry bound, because the policy
+        deliberately hands it a 24-hour window and a ceiling that refused the policy's own
+        default would be a contradiction.
+
+        **`metric_baseline`** - twice the telemetry bound, because the tool reads two windows of
+        equal length and the span it is checked against covers both (T3.3b). Found by a test: a
+        clipped window sitting exactly at the ceiling made the pair twice the ceiling, and every
+        historical-anchor run was refused. The alternative - shortening the baseline to fit -
+        was rejected, because two summaries with different `n` are not a comparison.
         """
         if tool == CHANGE_TOOL:
             return self._settings.change_lookback_seconds + self._settings.max_window_seconds
+        if tool == BASELINE_TOOL:
+            return 2 * self._settings.max_window_seconds
         return self._settings.max_window_seconds
 
     def refusal(self, tool: str, start: datetime, end: datetime) -> str | None:
