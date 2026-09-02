@@ -1690,3 +1690,33 @@ def test_the_lock_state_reaches_the_run_record(tmp_path: Path) -> None:
     assert info["reason"] == "faultline-eval cart-x"
     assert info["pid"] == os.getpid()
     assert "since" in info and "token" in info
+
+
+def test_the_run_manifest_records_every_bound_it_was_held_to() -> None:
+    """**T4.7's rule, checked where the first live run of Batch B broke it.**
+
+    The manifest's budget block was written by hand and its comment said *"all four bounds"*.
+    Batch B made them eight, the hand-written list did not notice, and the first live run
+    printed a budget that omitted the dollar cap it might have stopped on - which would have
+    made the pre-registration's fourth prediction unverifiable from the record.
+
+    It now comes from `freeze.budget_bounds`, so a bound cannot be added without appearing
+    here. The per-specialist override is the CLI's and is added beside it."""
+    from evalharness import freeze
+
+    bounds = set(freeze.budget_bounds(4, 120_000))
+
+    assert bounds == {
+        "max_tool_calls_per_specialist",
+        "max_tokens",
+        "wall_clock_seconds",
+        "max_dispatch_rounds",
+        "briefing_tokens",
+        "max_usd",
+        "usd_per_mtok_in",
+        "usd_per_mtok_out",
+    }
+    source = (REPO_ROOT / "src" / "evalharness" / "run.py").read_text()
+    assert "freeze.budget_bounds(args.max_tool_calls, args.max_tokens)" in source, (
+        "the manifest must read the bounds rather than restate them"
+    )

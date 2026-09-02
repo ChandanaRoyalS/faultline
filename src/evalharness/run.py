@@ -804,18 +804,22 @@ def main(argv: list[str] | None = None) -> int:
                 ["planner", "metrics", "logs", "changes", "traces", "synthesizer", "scribe"]
             ),
             "efforts": {"default": settings.effort, **settings.role_efforts},
-            # All four bounds, not the two the CLI happens to take. **Budget bounds are
-            # experiment parameters the stamp does not cover** (T4.7): two runs with the same
-            # stamp and different bounds are different experiments, so the bounds have to be
-            # recorded in full and printed beside the stamp wherever a figure appears.
+            # **Every bound, from the one place that knows them all.** Budget bounds are
+            # experiment parameters the stamp does not cover (T4.7): two runs with the same
+            # stamp and different bounds are different experiments, so the bounds are recorded
+            # in full and printed beside the stamp wherever a figure appears.
+            #
+            # This block used to name them by hand and said "all four bounds" while doing it.
+            # Batch B made them eight - a briefing cap, a per-incident dollar cap and the two
+            # prices that cap is computed at - and the hand-written list did not notice, so the
+            # first live run printed a budget that omitted the bound it might have stopped on.
+            # `freeze.budget_bounds` is the single source; the per-specialist override is added
+            # here because it is the CLI's and the freeze does not take it.
             "budget": {
-                "max_tool_calls_per_specialist": args.max_tool_calls,
+                **freeze.budget_bounds(args.max_tool_calls, args.max_tokens),
                 "per_specialist_tool_calls": (
                     {"changes": args.max_tool_calls_changes} if args.max_tool_calls_changes else {}
                 ),
-                "max_tokens": args.max_tokens,
-                "wall_clock_seconds": settings.budget_wall_clock_seconds,
-                "max_dispatch_rounds": settings.budget_max_dispatch_rounds,
             },
         }
     )
