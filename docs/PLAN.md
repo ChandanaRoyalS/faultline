@@ -765,6 +765,27 @@ positive remains the historical one. T4.1's first batch is where that record get
 `src/faultline/agents/roles.py`, `src/faultline/agents/grounding.py`,
 `docs/evidence/t3.4c-rerun/README.md`
 
+### The Batch B re-sweep — pre-registered, not yet run *(pre-registration committed)*
+`evals/runs/PREREGISTRATION-2026-09-02-batch-b.md`, written and committed before any scenario
+runs, per the rule that has governed every sweep since T7.10.
+
+**Its first section is a limitation rather than a claim.** Dev sweep 7 moved the world and nothing
+else, so a difference was the world, variance, or both. Batch B moved `prompts` three times,
+`budget` once, `world.capability_version` once and `corpus` once, **all together** - so a sweep of
+`n = 1` per scenario cannot attribute any difference to any one of them. The registered question is
+*does the pipeline the specification describes work end to end, and what do its two new stages do*,
+not *is it better*.
+
+**Six predictions, with the strongest falsifier first**: zero scenarios gated as noise (every
+scenario is a real injected fault, so a `noise` disposition is a false negative of the worst kind);
+the eight fault classes hold on strictly richer evidence; the proposer is **observed rather than
+predicted**, since it has no prior; no run exhausts a bound, including Q16's new \$2 cap, with a
+registered cost estimate of \$8-12 so an overrun is visible as one; briefings fit inside the
+4,000-token cap, whose derivation this sweep is the first evidence about; and triage moves
+**exactly nothing**, because D4 proved the traversal identical over all 91 seed sets.
+
+**Gate 3 is declarable from this sweep and is deliberately not declared in advance.**
+
 ### Q15 and Q17 — the two queue items Batch B was carrying *(built)*
 **Q15, the seeded runbook corpus.** T2.4b's deliverable is *"seeded runbook corpus + past-incident
 store + read-only allowlist"* and the corpus held seven documents, all `scenario:*`. The fifteen
