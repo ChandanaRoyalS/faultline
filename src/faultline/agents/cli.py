@@ -118,7 +118,7 @@ def run(argv: list[str] | None = None) -> int:
 
     from faultline.agents.budget import Budget
     from faultline.agents.investigation import Investigation
-    from faultline.agents.model import AnthropicModel
+    from faultline.agents.model import LanguageModel, build_model
     from faultline.agents.roles import Planner, Scribe, Synthesizer, build_specialists
     from faultline.agents.runner import (
         Exit,
@@ -195,9 +195,13 @@ def run(argv: list[str] | None = None) -> int:
     from faultline.agents.settings import AgentSettings as _Settings
 
     _settings = _Settings()
+
+    def _model(name: str) -> LanguageModel:
+        return build_model(name, provider=_settings.provider, base_url=_settings.openai_base_url)
+
     model = Resilient(
-        AnthropicModel(args.model),
-        [AnthropicModel(name) for name in _settings.fallback_models],
+        _model(args.model),
+        [_model(name) for name in _settings.fallback_models],
         attempts=_settings.retry_attempts,
         base_delay=_settings.retry_base_delay,
     )

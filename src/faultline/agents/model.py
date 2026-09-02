@@ -18,8 +18,10 @@ has no key field at all, and the SDK resolves credentials itself.
 from __future__ import annotations
 
 import hashlib
+import json
 import random
 import time
+import urllib.request
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Protocol
@@ -271,3 +273,87 @@ class AnthropicModel:
             output_tokens=response.usage.output_tokens,
             stop_reason=response.stop_reason,
         )
+
+
+class OpenAICompatibleModel:
+    """Any endpoint speaking OpenAI's chat-completions API: vLLM, Ollama, a gateway, or
+    OpenAI itself. **T2.5's self-hosted lane**, and the evidence that `LanguageModel` is a
+    seam rather than an Anthropic-shaped hole.
+
+    `urllib` from the standard library rather than a client package, deliberately. The claim
+    is that the seam is thin, and a demonstration of thinness that needs a dependency is a
+    weaker demonstration. It is also one fewer thing to install on the machine whose entire
+    reason for existing is that incident data does not leave its network.
+
+    **Two things do not survive the crossing, and both are recorded rather than shimmed.**
+    `effort` is Anthropic's adaptive-thinking control and has no equivalent here, so it is
+    dropped; a cross-provider comparison is therefore not comparing equal configurations, and
+    any ablation that spans providers has to say so. `tools` are omitted for the same reason -
+    tool-calling shapes differ, and a translation layer written speculatively, against no
+    caller, is the kind of unused seam this project keeps finding.
+    """
+
+    def __init__(
+        self,
+        model: str,
+        base_url: str,
+        api_key: str | None = None,
+        timeout: float = 600.0,
+    ) -> None:
+        self._model = model
+        self._base_url = base_url.rstrip("/")
+        self._api_key = api_key
+        self._timeout = timeout
+
+    @property
+    def name(self) -> str:
+        return self._model
+
+    def complete(self, request: ModelRequest) -> ModelResponse:
+        payload = {
+            "model": self._model,
+            "max_tokens": request.max_tokens,
+            "messages": [
+                {"role": "system", "content": request.system},
+                *request.messages,
+            ],
+        }
+        headers = {"Content-Type": "application/json"}
+        if self._api_key:
+            headers["Authorization"] = f"Bearer {self._api_key}"
+        call = urllib.request.Request(
+            f"{self._base_url}/chat/completions",
+            data=json.dumps(payload).encode(),
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(call, timeout=self._timeout) as response:
+            data: dict[str, Any] = json.loads(response.read())
+
+        choice = data["choices"][0]
+        usage = data.get("usage", {})
+        return ModelResponse(
+            text=choice["message"].get("content") or "",
+            model=data.get("model", self._model),
+            input_tokens=usage.get("prompt_tokens", 0),
+            output_tokens=usage.get("completion_tokens", 0),
+            stop_reason=choice.get("finish_reason"),
+        )
+
+
+def build_model(
+    name: str, *, provider: str = "anthropic", base_url: str | None = None
+) -> LanguageModel:
+    """The one place a provider is chosen.
+
+    Roles never see this - they hold a `LanguageModel` and cannot tell which one. That is what
+    makes the self-hosted lane a configuration change rather than a rewrite, and it is the
+    claim T2.5's deliverable asks to have proven rather than asserted.
+    """
+    if provider == "anthropic":
+        return AnthropicModel(name)
+    if provider == "openai-compatible":
+        if not base_url:
+            raise ValueError("provider 'openai-compatible' needs a base_url")
+        return OpenAICompatibleModel(name, base_url)
+    raise ValueError(f"unknown provider {provider!r}; expected anthropic or openai-compatible")

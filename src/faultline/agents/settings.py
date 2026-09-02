@@ -37,6 +37,16 @@ class AgentSettings(BaseSettings):
     headline that says only `claude-opus-5` would not show the difference.
     """
 
+    provider: str = "anthropic"
+    """`anthropic` or `openai-compatible`. **The self-hosted lane is a setting, not a branch
+    in the agent code** - that is the whole point of the `LanguageModel` seam, and T2.5 asks
+    for it to be proven rather than asserted. No API-key field here either, for the reason in
+    this class's docstring: an OpenAI-compatible client reads `OPENAI_API_KEY` from the
+    environment, and a self-hosted endpoint usually needs none at all."""
+
+    openai_base_url: str = "http://localhost:8000/v1"
+    """vLLM's default. Only read when `provider` is `openai-compatible`."""
+
     fallback_models: list[str] = []
     """Models to try when the configured one keeps failing transiently. **Empty by default.**
 
