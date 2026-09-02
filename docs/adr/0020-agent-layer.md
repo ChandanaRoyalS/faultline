@@ -544,3 +544,71 @@ finishes without it. Its thread cannot be interrupted and is abandoned rather th
 A `threading.Barrier(2)` inside two specialists' `run`: sequential execution leaves the first
 waiting for a partner that never arrives and the barrier breaks; concurrent execution passes
 both. Deterministic, and independent of how fast the machine is.
+
+## Addendum (T3.6, 2026-09-02) — the evidence board, and what it may show which role
+
+The plan's T3.6 asks for *"the typed Evidence object: claim, source query, time range,
+raw-result hash, sample payload — the only currency agents may exchange"*, with *"provenance
+mandatory"* and *"every Evidence object carries the trust label its source tool attached in the
+runtime"*.
+
+**Every part of it existed; no object held it.** The Phase 3 audit's wording was *the provenance
+chain is split across three objects*, and it was: `Finding` held the claim and a `result_id`,
+the `ToolResult` subclasses held the modality, trust, window and query, and `ToolCallRecord`
+held the envelope and its digest. A citation could be resolved and its provenance could not be
+read off the thing being cited.
+
+`faultline/agents/evidence.py` is the object. `SpecialistRun.evidence` binds it, and
+`board()` assembles an investigation's.
+
+### The runtime binds it, and that is the security argument
+
+A model contributes five fields — `kind`, `claim`, `note`, `confidence`, `result_id` — and every
+other field is copied from the tool result the runtime already holds. A field a model could fill
+is a field a model could fabricate, and fabricable provenance is decoration. This is also why
+`Evidence` is **not** a `_CONTRACTS` member: no role prompt promises this schema, so no model is
+asked to produce one. A test pins the split.
+
+### Which role sees the samples, and why it is not all of them
+
+**Marked decision: the board reaches the synthesizer, the scribe and the proposer; the *samples*
+reach the synthesizer and the proposer only.**
+
+§4's leak boundary is at exactly one role. What the scribe writes becomes corpus material at
+T2.4b, so a hostile log line copied into it is thesis 1 with a persistence layer — retrieved
+next month as institutional knowledge with the trust label gone. The synthesizer and the
+proposer emit structured objects a validator checks; the scribe emits prose that gets stored.
+So `render(sample=False)` is what the scribe receives, and it is a boundary rather than a
+preference.
+
+Where a sample does travel it is bounded (`SAMPLE_CHARS`, 400), passed through the tool layer's
+own `neutralise`, and rendered inside a trust frame — the same defence as an envelope, reused
+rather than restated. And a dispatch prints its sample once however many claims it produced: the
+objects each carry it, the rendering does not repeat it.
+
+### What this cost, and the honest asterisk on "nothing"
+
+**No frozen key moved.** `prompts:20088b22cede` and `cap:9c416e0a` before and after — no prompt
+text changed, no contract schema changed, no tool was added. The Phase 3 audit filed T3.6 under
+Batch B expecting a contract change; binding in the runtime instead of asking a model for
+provenance made it free, the same way T3.4's ranking was.
+
+**The asterisk, stated because the freeze cannot state it.** The *user message* each role
+receives did change — the board replaced the findings list. User-message content is deliberately
+outside `prompts_hash` (T4.7's reasoning: the stamp answers *which agent is this*, and the brief
+is assembled per run), so a change of real behavioural significance moved no digest. That is a
+property of this freeze design and not a loophole to lean on: **a reader comparing runs across
+this commit is comparing different briefs under one stamp.** It matters less than it would have
+last week only because T3.9 already moved the stamp and the re-sweep has not run, so everything
+in this batch lands inside one re-record window either way.
+
+### A defect found while doing it, and not fixed here
+
+`envelope.neutralise` does not strip ANSI escape sequences, though its docstring says it does and
+cites five measured instances in `cart-bad-image-tag`'s capture. Its `CONTROL` pattern lists
+`\x0e-\x1f`, which matches the ESC byte alone, so the alternation removes ESC and leaves `[31m`
+as literal text. The delimiter defence is unaffected — that is a separate replacement — so this
+is noise in what a model reads rather than a hole in the boundary. **Queued as Q18** rather than
+fixed in passing: it changes the bytes of every envelope, which is `TOOL_BEHAVIOUR_REVISION`'s
+question and therefore the `world` key's, and a tool-layer behaviour change is not something to
+slip into an agent-layer task.

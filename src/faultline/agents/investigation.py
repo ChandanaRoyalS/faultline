@@ -742,6 +742,16 @@ class Investigation:
                 tokens_out=failure.response.output_tokens,
             )
 
+        run = SpecialistRun(
+            specialist=name,
+            service=service,
+            question=question,
+            result=tool_result,
+            envelope=rendered,
+            findings=findings,
+            response=response,
+            attempts=attempts,
+        )
         steps.append(
             TrajectoryStep(
                 seq=seq + 1,
@@ -754,21 +764,18 @@ class Investigation:
                     "attempts": attempts,
                     "result_id": tool_result.id,
                     "findings": findings.model_dump(),
+                    # **The bound evidence, stored with the step that produced it** (T3.6).
+                    # T7.9's precedent: what a downstream role reads is persisted rather than
+                    # rebuilt at read time, because rebuilding it is replaying a different
+                    # prompt (ADR-0020 §3). The findings stay beside it - they are what the
+                    # model returned, and this is what the runtime made of them.
+                    "evidence": [item.model_dump(mode="json") for item in run.evidence],
                 },
             )
         )
         return DispatchOutcome(
             steps=steps,
-            run=SpecialistRun(
-                specialist=name,
-                service=service,
-                question=question,
-                result=tool_result,
-                envelope=rendered,
-                findings=findings,
-                response=response,
-                attempts=attempts,
-            ),
+            run=run,
             failure=None,
             tokens_in=response.input_tokens,
             tokens_out=response.output_tokens,
