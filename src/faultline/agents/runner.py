@@ -17,20 +17,22 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import IntEnum
 from functools import partial
 from pathlib import Path
 
+from faultline.agents.contracts import TriageJudgement
 from faultline.agents.investigation import (
     Investigation,
     InvestigationFailedError,
     InvestigationResult,
 )
+from faultline.agents.roles import SchemaValidationError, Triager
 from faultline.agents.triage import TriageResult
 from faultline.archive import Archive, report_key
 from faultline.orchestrator import machine
-from faultline.orchestrator.models import Incident
+from faultline.orchestrator.models import Incident, IncidentState
 from faultline.orchestrator.store import IncidentStore
 
 
@@ -56,6 +58,13 @@ class Exit(IntEnum):
     """It ran and produced no verdict - the synthesizer failed, or the run raised. The
     trajectory is persisted up to the failure; the incident is `FAILED`."""
 
+    GATED = 5
+    """Triage declined it before any specialist ran (T3.1): noise, or a duplicate of an incident
+    already open. **Not a failure and not a refusal.** The pipeline worked - the deliverable's
+    second half is *"noise gated before fan-out"*, and a gate that never fires is not a gate.
+    Distinct from `REFUSED` because something did run and made a judgement, and distinct from
+    `NO_VERDICT` because no verdict was *owed*."""
+
 
 class NotInvestigableError(RuntimeError):
     """Refused before any model call. Carries why, for the operator and the exit code."""
@@ -72,6 +81,10 @@ class RunReport:
 
     result: InvestigationResult | None
     error: str | None = None
+    judgement: TriageJudgement | None = None
+    """What triage decided (T3.1). `None` when no `Triager` was configured, which is still a
+    supported way to run: the gate is a role, not a requirement of the pipeline."""
+
     blast_radius: tuple[str, ...] = ()
     """Triage's predicted set, carried onto the artifact so the harness can score it without
     importing the product's triage (T4.1). ADR-0009 specifies the harness works through public
@@ -80,7 +93,13 @@ class RunReport:
     unmeasured_edges: int = 0
 
     @property
+    def gated(self) -> bool:
+        return self.judgement is not None and self.judgement.disposition != "investigate"
+
+    @property
     def exit_code(self) -> Exit:
+        if self.gated:
+            return Exit.GATED
         if self.result is None or self.result.verdict is None:
             return Exit.NO_VERDICT
         return Exit.FLAGGED if self.result.flags else Exit.CLEAN
@@ -112,15 +131,37 @@ def run_investigation(
     engine: Investigation,
     triage: TriageResult,
     anchor: datetime,
+    triager: Triager | None = None,
 ) -> RunReport:
     """One investigation, with the incident's state moved to match what happened.
 
     The incident is saved after every transition rather than once at the end: a crash between
     two phases should leave the state it had actually reached, not the state it started in.
+
+    With a `triager`, the judgement runs **first and alone** (T3.1): a `noise` or `duplicate`
+    disposition ends the run before a planner is asked for anything, which is what the
+    deliverable's *"noise gated before fan-out"* means and where the saving is. Without one,
+    every incident handed here is investigated, which is what happened until T3.1.
     """
     states = [incident.state.value]
     radius = tuple(sorted(member.service for member in triage.blast_radius))
     edges = len(triage.unmeasured_edges)
+
+    judgement: TriageJudgement | None = None
+    if triager is not None:
+        judgement = _judge(store, incident, triage, triager)
+        if judgement is not None and judgement.disposition != "investigate":
+            # **Nothing else runs.** The state the incident lands in is the one the machine
+            # already had a transition for and no writer: `TRIAGING -> DUPLICATE_MERGED`, or
+            # `TRIAGING -> RESOLVED` for noise.
+            target = (
+                IncidentState.DUPLICATE_MERGED
+                if judgement.disposition == "duplicate"
+                else IncidentState.RESOLVED
+            )
+            trigger = f"triage declined: {judgement.disposition} - {judgement.reasoning}"
+            advance_gate(store, incident, states, target, trigger)
+            return RunReport(incident.id, None, tuple(states), None, None, judgement, radius, edges)
 
     def advance(step: Callable[[], None]) -> None:
         step()
@@ -141,7 +182,14 @@ def run_investigation(
             # terminal and `INVESTIGABLE` is `{TRIAGING}`. T3.5's own smoke did exactly this,
             # once, with a `ModuleNotFoundError`.
             return RunReport(
-                incident.id, None, tuple(states), None, f"did not start - {why}", radius, edges
+                incident.id,
+                None,
+                tuple(states),
+                None,
+                f"did not start - {why}",
+                judgement,
+                radius,
+                edges,
             )
         advance(
             partial(
@@ -149,7 +197,7 @@ def run_investigation(
             )
         )
         return RunReport(
-            incident.id, failure.trajectory.id, tuple(states), None, why, radius, edges
+            incident.id, failure.trajectory.id, tuple(states), None, why, judgement, radius, edges
         )
 
     incident.investigation_id = result.trajectory.id
@@ -160,7 +208,9 @@ def run_investigation(
     if result.verdict is None:
         advance(lambda: machine.record_investigation_failure(incident, "no verdict was produced"))
 
-    return RunReport(incident.id, result.trajectory.id, tuple(states), result, None, radius, edges)
+    return RunReport(
+        incident.id, result.trajectory.id, tuple(states), result, None, judgement, radius, edges
+    )
 
 
 def write_outputs(report: RunReport, out: Path, archive: Archive | None = None) -> list[Path]:
@@ -218,3 +268,43 @@ def write_outputs(report: RunReport, out: Path, archive: Archive | None = None) 
                 content_type="text/markdown; charset=utf-8",
             )
     return written
+
+
+def advance_gate(
+    store: IncidentStore,
+    incident: Incident,
+    states: list[str],
+    target: IncidentState,
+    trigger: str,
+) -> None:
+    """Move a gated incident and persist it, recording the state it reached (T3.1)."""
+    machine.transition(incident, target, trigger=trigger)
+    states.append(incident.state.value)
+    store.save_investigation_state(incident)
+
+
+def _judge(
+    store: IncidentStore, incident: Incident, triage: TriageResult, triager: Triager
+) -> TriageJudgement | None:
+    """Triage's judgement, or `None` if it would not validate twice.
+
+    **A triage that fails is not a gate that closes.** A schema failure here means the model
+    could not answer, and declining an incident because the cheapest role in the pipeline
+    malfunctioned would turn a model outage into silent under-investigation - the failure mode
+    ADR-0031 built the fallback for. So the investigation proceeds, and the absent judgement is
+    visible in the report rather than being read as a decision.
+    """
+    open_incidents = [
+        (
+            other.id,
+            f"{other.opened_at:%H:%M:%S}" if other.opened_at else "unknown",
+            ", ".join(sorted({e.service for e in other.episodes.values() if e.service})),
+        )
+        for other in store.correlation_candidates(datetime.now(UTC))
+        if other.id != incident.id and not other.is_terminal
+    ]
+    try:
+        judgement: TriageJudgement = triager.judge(triage, open_incidents).value
+    except SchemaValidationError:
+        return None
+    return judgement

@@ -612,3 +612,60 @@ is noise in what a model reads rather than a hole in the boundary. **Queued as Q
 fixed in passing: it changes the bytes of every envelope, which is `TOOL_BEHAVIOUR_REVISION`'s
 question and therefore the `world` key's, and a tool-layer behaviour change is not something to
 slip into an agent-layer task.
+## Addendum (T3.1, 2026-09-02) — triage gains a judgement, and keeps its measurement
+
+The specification's T3.1 asks triage to classify *"severity, affected service, blast radius,
+duplicate-of, suspected fault category — as a validated structured output driving the state
+machine"*, from a *"small model, strict output schema"*, and delivers *"triage decisions
+persisted; noise gated before fan-out"*. What existed was `Triage`: deterministic, no model, no
+`duplicate-of`, and **no gate of any kind** — every incident handed to the runner was
+investigated.
+
+`agents/triage.py`'s own docstring made the case for determinism and it is a good one: *"blast
+radius is a traversal of a measured graph, so it is computed: the answer is deterministic, T3.1
+scores it against a bundle, and a scored number that moves when nothing changed is not a
+measurement."* T3.1 does not overturn that. It splits the task along the line the argument
+implies.
+
+### The split, and what each half may decide
+
+**Measured, and not the model's:** severity, which is what `alert.labels.severity` says, and the
+blast radius, which is `ServiceGraph.blast_radius` over edges whose propagation was measured from
+recorded bundles. Both are handed *to* the model in its brief and neither is a field of its
+output contract. There is no path by which sampling can move ADR-0009's scored radius.
+
+**Judged, because a traversal cannot answer it:** `disposition` — the gate itself —
+`duplicate_of`, `suspected_fault_class`, `confidence` and `reasoning`. `TriageJudgement` has
+exactly those five fields, and a test asserts the set, so a later field that restates a
+measurement has to be added deliberately.
+
+**`suspected_fault_class` is deliberately not scored.** ADR-0022 scores the *verdict's* class;
+scoring a guess made before any evidence exists would reward confidence at the cheapest point in
+the pipeline, which is the opposite of what this benchmark is for. It is a prior the planner may
+order dispatches by and must not be bound by.
+
+### The gate, and the two states that were waiting for it
+
+`TRIAGING → RESOLVED` and `TRIAGING → DUPLICATE_MERGED` have been in ADR-0016's table since it
+was written, with **no writer** — `tests/test_orchestrator.py` listed both among the states
+nothing reaches at runtime. `noise` takes the first and `duplicate` the second, and neither runs
+a planner, a specialist or a synthesizer. `Exit.GATED` (5) is a fifth exit code, distinct from
+`REFUSED` because something ran and judged, and from `NO_VERDICT` because no verdict was owed.
+
+**Marked decision: a triage that fails to validate twice does not close the gate.** The
+investigation proceeds and the report carries no judgement. Declining an incident because the
+cheapest role in the pipeline malfunctioned would turn a model outage into silent
+under-investigation — the failure ADR-0031 built its fallback against — and an absent judgement
+must be visible as absent rather than read as a decision.
+
+**Marked decision: the gate is a role, not a requirement.** `run_investigation` without a
+`Triager` behaves exactly as it did before this task, and `--no-gate` is the CLI's way to say
+so. The harness's existing sweeps ran ungated, and a comparison across the gate needs both arms
+runnable.
+
+### What it cost
+
+The stamp moves again: `prompts:20088b22cede` → `prompts:a7330c098770`, six role prompts now.
+**Two moves, one re-record** — T3.9's intermediate digest was never measured either, and the
+re-sweep at the end of Batch B measures the pipeline as it finally stands. Both digests are
+recorded in `tests/test_harness_run.py` so a trajectory written today can be placed exactly.
