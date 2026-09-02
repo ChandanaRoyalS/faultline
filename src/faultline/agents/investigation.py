@@ -721,7 +721,7 @@ class Investigation:
         specialist = self._specialists[name]
         # The window comes from the tool layer's policy, never from here and never from a model
         # (T3.2b): onset - 30 min to now for three specialists, onset - 24 h for `changes`.
-        scoped = specialist.window(anchor, now)
+        scoped = specialist.window(anchor, now, widen_minutes=dispatch.lookback_minutes)
         start, end = scoped.start, scoped.end
         steps: list[TrajectoryStep] = []
 

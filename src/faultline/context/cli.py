@@ -53,6 +53,15 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="parse and chunk, applying every quarantine guard, without a database or a model",
     )
+    p.add_argument(
+        "--no-runbooks",
+        action="store_true",
+        help=(
+            "skip the authored runbooks (Q15). They are seeded by default: T2.4b's deliverable "
+            "names a seeded runbook corpus, and T4.1b's never-excluded branch has nothing to "
+            "not-exclude without them"
+        ),
+    )
     return p
 
 
@@ -60,7 +69,7 @@ def run(argv: list[str] | None = None) -> int:
     """Entry point. Imports its backends late, so `--help` needs no Postgres and no model."""
     args = parser().parse_args(argv)
 
-    from faultline.context.seed import QuarantineError, seed
+    from faultline.context.seed import QuarantineError, seed, seed_runbooks
 
     if args.dry_run:
         # A store that accepts chunks and keeps nothing, so the guards and the parsing run
@@ -87,17 +96,28 @@ def run(argv: list[str] | None = None) -> int:
 
     try:
         result = seed(store, Path(args.dev_root))  # type: ignore[arg-type]
+        # **A second call, not a second root** (Q15). `seed` reads one directory and refuses
+        # anything else; the runbooks arrive through their own entry point with their own
+        # guard, so neither input can be widened into the other.
+        books = None if args.no_runbooks else seed_runbooks(store)  # type: ignore[arg-type]
     except QuarantineError as exc:
         # Same shape as `faultline-inject`: a refusal is an error message and a non-zero
         # exit, not a traceback. The message is the guard's own and says what was refused.
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
-    print(f"documents={result.documents} chunks={result.chunks}")
+    total_documents = result.documents + (books.documents if books else 0)
+    total_chunks = result.chunks + (books.chunks if books else 0)
+    print(f"documents={total_documents} chunks={total_chunks}")
     for name in result.seeded:
-        print(f"  seeded  {name}")
+        print(f"  seeded  scenario:{name}")
     for name, why in result.skipped:
         print(f"  skipped {name} - {why}")
+    if books is None:
+        print("  runbooks were not seeded (--no-runbooks)")
+    else:
+        for name in books.seeded:
+            print(f"  seeded  runbook:{name}")
     if args.dry_run:
         print("(dry run - nothing was written)")
     return 0

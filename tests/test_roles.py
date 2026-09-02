@@ -1667,3 +1667,37 @@ def test_the_proposer_holds_no_tools() -> None:
 
     assert not [name for name in dir(proposer) if "tool" in name.lower()]
     assert not hasattr(proposer, "_tools")
+
+
+def test_a_planner_widening_reaches_the_tool_and_the_record():  # type: ignore[no-untyped-def]
+    """Q17 end to end: the field on the dispatch changes the window the tool reads and the
+    `window_rule` the trajectory stores, so a wider read is visible as a *choice* rather than
+    as a policy that quietly differs between runs.
+
+    A `logs` dispatch, deliberately: the change analyst's own lookback is already 24 hours, so a
+    ten-hour request there is correctly ignored - which is the widen-only rule working, and is
+    what this test asserted by accident before it asserted it on purpose."""
+    plan = plan_reply(
+        [
+            {
+                "specialist": "logs",
+                "service": "cartservice",
+                "question": "q",
+                "reason": "r",
+                "lookback_minutes": 600,
+            }
+        ],
+        [],
+    )
+    model = ScriptedModel({"planner": [plan]})
+    engine, _ = investigation(model, Budget(max_dispatch_rounds=1))
+    began = ANCHOR + timedelta(minutes=4)
+
+    result = engine.run("incident-widened", triage_of("cartservice"), ANCHOR, now=began)
+
+    step = next(s for s in result.trajectory.steps if s.tool_call)
+    assert step.tool_call is not None
+    request = step.tool_call.request
+    assert request["window_rule"] == "planner_widened"
+    assert request["lookback_seconds"] == 36_000
+    assert request["window"][0] == (ANCHOR - timedelta(hours=10)).isoformat()

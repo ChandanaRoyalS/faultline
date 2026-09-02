@@ -270,15 +270,57 @@ def test_the_seed_cli_dry_run_reproduces_the_ten_documents(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     """`--dry-run` applies every guard with no database and no model, so a new narrative can
-    be checked before a download is spent on it."""
+    be checked before a download is spent on it.
+
+    `--no-runbooks` keeps this test about the narratives; the runbook half has its own below.
+    """
     from faultline.context.cli import run
 
-    assert run(["--dry-run", "--dev-root", str(DEV)]) == 0
+    assert run(["--dry-run", "--no-runbooks", "--dev-root", str(DEV)]) == 0
 
     out = capsys.readouterr().out
     assert f"documents={DEV_DOCUMENTS} chunks={DEV_DOCUMENTS * SECTIONS_PER_NARRATIVE}" in out
     assert "skipped currency-cpu-throttle - bundle is marked INVALID" in out
+    assert "runbooks were not seeded" in out
     assert "nothing was written" in out
+
+
+def test_the_runbooks_are_seeded_by_default_and_carry_the_never_excluded_origin() -> None:
+    """**Q15**: the corpus was found empty of authored documents on 2026-09-01 - all seven
+    stored documents were `scenario:*` - so T4.1b's *never excluded* branch had nothing to
+    not-exclude and T3.9's proposer had no institutional knowledge to retrieve.
+
+    Fifteen runbooks, every one `origin: authored`, which is the one value the exclusion filter
+    never removes (ADR-0008 axis 2, ADR-0036)."""
+    from faultline.context.embedding import HashingEmbedder
+    from faultline.context.seed import seed_runbooks
+    from faultline.context.store import InMemoryPastIncidentStore
+
+    store = InMemoryPastIncidentStore(HashingEmbedder())
+    result = seed_runbooks(store)
+
+    assert result.documents == 15
+    assert result.chunks > result.documents, "sectioned, not one chunk per file"
+    stored = list(store.chunks.values())
+    assert {chunk.origin for chunk in stored} == {"authored"}
+    assert all(chunk.document_id.startswith("runbook:") for chunk in stored)
+    # The scenario-shaped fields are empty on purpose: a runbook belongs to no scenario, was
+    # recorded against no label, and filling those in would make an authored document look
+    # like a rehearsal in every query that returns it.
+    assert {chunk.scenario_id for chunk in stored} == {""}
+    assert {chunk.scenario_fingerprint for chunk in stored} == {""}
+    assert {chunk.recorded_from for chunk in stored} == {""}
+
+
+def test_seeding_the_runbooks_is_a_second_entry_point_not_a_wider_first_one() -> None:
+    """`require_dev_root`'s own refusal names this temptation - *"widening the input 'just to
+    pick up the runbooks' is how this defect returns"*. So the narrative seeder still takes one
+    root and still refuses everything else, and the runbooks arrive through their own door."""
+    import inspect
+
+    assert "runbook" not in inspect.getsource(seed).lower()
+    with pytest.raises(QuarantineError):
+        seed(object(), HOLDOUT)  # type: ignore[arg-type]
 
 
 def test_the_seed_cli_refuses_a_holdout_root_with_an_error_not_a_traceback(
