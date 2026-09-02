@@ -519,8 +519,19 @@ class Scribe:
         self._effort = effort
 
     def draft(
-        self, triage: TriageResult, findings: list[SpecialistRun], verdict: Verdict
+        self,
+        triage: TriageResult,
+        findings: list[SpecialistRun],
+        verdict: Verdict,
+        *,
+        violation: str | None = None,
     ) -> Completion:
+        """One draft, or the regeneration T3.8 allows after a refused render.
+
+        `violation` is the publication boundary's refusal, fed back in the **user** message.
+        Deliberately not in `SCRIBE_SYSTEM`: the system prompt is a frozen input, and a run
+        that never hits a violation sees byte-for-byte the prompt it saw before this existed.
+        """
         lines = [
             f"Blast radius: {triage.summary()}",
             "Alerted: " + ", ".join(f"{m.service}" for m in triage.alerting),
@@ -537,6 +548,14 @@ class Scribe:
                 lines.append(f"    FOUND {f.statement}  [{f.result_id}]")
             for r in run.findings.ruled_out:
                 lines.append(f"    RULED OUT {r.hypothesis} - {r.why}  [{r.result_id}]")
+        if violation is not None:
+            lines += [
+                "",
+                "Your previous draft was refused at the publication boundary:",
+                f"  {violation}",
+                "Write it again. Cite only result ids that appear in brackets above, and write "
+                "from the responder's chair - what was visible, not what caused it.",
+            ]
         return ask(
             self._model,
             ModelRequest(

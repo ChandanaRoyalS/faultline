@@ -181,3 +181,32 @@ is a contracts change, and it belongs to whoever wants the check back, with this
   schemas, and this change touches neither, so the sweep's rows remain comparable to runs made
   after it.
 - §4 of this ADR (two-ended truncation) is unaffected and stands.
+
+## Addendum (T3.8, 2026-09-01) — the loop around the gate
+
+The grounding gate was already strict: a citation the store cannot resolve raises, and a
+narrative that leaks harness vocabulary is refused whole. What T3.8 specified beyond that was
+the loop — *"failures feed back for one regeneration, then page a human"* — and a deliverable
+of *"grounding enforcement gate + violation metrics"*. Neither half existed. A refusal was
+terminal for the narrative, and nothing counted how often the gate fired.
+
+**One regeneration.** The refusal is fed back to the scribe in the **user message** of a second
+attempt, never in `SCRIBE_SYSTEM`. The system prompt is a frozen input; a run that never hits a
+violation sees byte-for-byte the prompt it saw before this existed, and a run that does hit one
+moves nothing in the freeze. A test asserts the two calls share a system prompt.
+
+**Then escalate.** A second refusal sets `narrative_escalated`. This system has no pager, so
+"page a human" is three things T4.2 and T4.3 already read: a flag on the verdict, a warning in
+the log naming the incident, and the escalation on the scribe's trajectory step. The verdict
+survives; only the narrative is withheld. Two attempts, never three.
+
+**Violation metrics.** Every refusal is appended to `citation_violations` and written to the
+scribe's step payload, alongside `regenerated` and `escalated`. T4.3's method column reads
+*"computed from persisted trajectories … no new instrumentation needed because P2 recorded
+everything"*, and this is that recording: a violation rate per run is now a query over the
+trajectory, and the tokens the retry cost are counted on the same step.
+
+**One thing the audit found already stronger than the plan.** T3.8 asks that *"quoted content
+must match the stored raw result."* The scribe never quotes content: it lists `result_id`s and
+the renderer attaches the stored excerpt. The match is structural rather than checked, and a
+check that cannot be skipped is worth more than one that runs.
