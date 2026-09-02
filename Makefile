@@ -147,3 +147,8 @@ test-integration: ## run the integration tests against real Postgres and Redis (
 
 migrate: ## apply the database schema (alembic upgrade head)
 	uv run faultline-migrate
+
+openapi: ## regenerate the committed REST contract snapshot (docs/contracts/)
+	uv run python -c "import json, pathlib; from faultline.ingest.app import app; \
+	pathlib.Path('docs/contracts/ingest-openapi.json').write_text(json.dumps(app.openapi(), indent=2, sort_keys=True) + '\n')"
+	@echo "docs/contracts/ingest-openapi.json regenerated - read the diff before committing"

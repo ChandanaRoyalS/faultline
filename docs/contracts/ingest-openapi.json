@@ -1,0 +1,263 @@
+{
+  "components": {
+    "schemas": {
+      "Alert": {
+        "additionalProperties": true,
+        "description": "One alert inside a delivery - the unit of identity, and the unit of dedupe.\n\n`extra=\"allow\"` deliberately. This is external input from a component we do not\nversion-pin to ourselves: a future Alertmanager adding a field must not turn every\ndelivery into a 422 and drop real incidents on the floor. Unknown fields are carried\nthrough to the stream rather than silently discarded, so nothing is lost either.",
+        "properties": {
+          "annotations": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Annotations",
+            "type": "object"
+          },
+          "endsAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Endsat"
+          },
+          "fingerprint": {
+            "title": "Fingerprint",
+            "type": "string"
+          },
+          "generatorURL": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generatorurl"
+          },
+          "labels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Labels",
+            "type": "object"
+          },
+          "startsAt": {
+            "format": "date-time",
+            "title": "Startsat",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertStatus"
+          }
+        },
+        "required": [
+          "status",
+          "startsAt",
+          "fingerprint"
+        ],
+        "title": "Alert",
+        "type": "object"
+      },
+      "AlertStatus": {
+        "description": "The two values the capture contains. Alertmanager v4 defines no others.",
+        "enum": [
+          "firing",
+          "resolved"
+        ],
+        "title": "AlertStatus",
+        "type": "string"
+      },
+      "HTTPValidationError": {
+        "properties": {
+          "detail": {
+            "items": {
+              "$ref": "#/components/schemas/ValidationError"
+            },
+            "title": "Detail",
+            "type": "array"
+          }
+        },
+        "title": "HTTPValidationError",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "ctx": {
+            "title": "Context",
+            "type": "object"
+          },
+          "input": {
+            "title": "Input"
+          },
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "title": "Location",
+            "type": "array"
+          },
+          "msg": {
+            "title": "Message",
+            "type": "string"
+          },
+          "type": {
+            "title": "Error Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "loc",
+          "msg",
+          "type"
+        ],
+        "title": "ValidationError",
+        "type": "object"
+      },
+      "WebhookPayload": {
+        "additionalProperties": true,
+        "description": "An Alertmanager v4 webhook body.\n\n**`alerts` is a list and is treated as one.** Every delivery in the capture carried\nexactly one alert, but that is a consequence of our `group_by: [alertname,\nservice_name]` - a grouping key as fine as the alerts themselves - and not of the\nprotocol. Editing `compose/prometheus/alertmanager.yml` would put several alerts behind\none request with no other signal, so the unit here is the alert, never the POST.",
+        "properties": {
+          "alerts": {
+            "items": {
+              "$ref": "#/components/schemas/Alert"
+            },
+            "title": "Alerts",
+            "type": "array"
+          },
+          "commonLabels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Commonlabels",
+            "type": "object"
+          },
+          "externalURL": {
+            "default": "",
+            "title": "Externalurl",
+            "type": "string"
+          },
+          "groupKey": {
+            "default": "",
+            "title": "Groupkey",
+            "type": "string"
+          },
+          "groupLabels": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "title": "Grouplabels",
+            "type": "object"
+          },
+          "receiver": {
+            "title": "Receiver",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AlertStatus"
+          },
+          "truncatedAlerts": {
+            "default": 0,
+            "title": "Truncatedalerts",
+            "type": "integer"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "status",
+          "receiver"
+        ],
+        "title": "WebhookPayload",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "title": "Faultline ingest",
+    "version": "0.0.1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/alerts": {
+      "post": {
+        "description": "Accept one Alertmanager delivery. Publishes what is new, counts what repeated.",
+        "operationId": "receive_alerts_api_v1_alerts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WebhookPayload"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "integer"
+                  },
+                  "title": "Response Receive Alerts Api V1 Alerts Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Receive Alerts"
+      }
+    },
+    "/healthz": {
+      "get": {
+        "description": "Liveness only. It deliberately does not touch Redis: a health check that fails when\nthe bus is down turns a recoverable backlog into a restart loop.",
+        "operationId": "healthz_healthz_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "string"
+                  },
+                  "title": "Response Healthz Healthz Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Healthz"
+      }
+    }
+  }
+}
