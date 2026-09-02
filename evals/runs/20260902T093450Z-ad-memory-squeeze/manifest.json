@@ -1,0 +1,87 @@
+{
+  "run_id": "20260902T093450Z-ad-memory-squeeze",
+  "scenario_id": "ad-memory-squeeze",
+  "split": "dev",
+  "scenario_fingerprint": "c56097be739ca910cb2605047af78a2f11ca78cc1b4a6e43e22c20f33a8eff42",
+  "started_at": "2026-09-02T09:34:50.196102+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "752abea8f075a5ea387c5199f35f8adf64b1c244",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    },
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 73413,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-02T09:34:50.245405+00:00",
+    "reason": "faultline-eval ad-memory-squeeze",
+    "token": "73413-1788341690.245282"
+  },
+  "baseline_gate": {
+    "passed": false,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": null,
+    "pipeline_down": [
+      "no consumer is attached to the orchestrator's group - start it with `uv run faultline-orchestrate`"
+    ],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "checkout-service",
+      1
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 25.6,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 2.78,
+      "runs_remaining": 8,
+      "uptime_seconds": 10,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 419.8,
+      "projected_percent": 46.1,
+      "threshold_percent": 69.5,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [
+      "the alert pipeline is not assembled: no consumer is attached to the orchestrator's group - start it with `uv run faultline-orchestrate`. This is NOT the world failing to alert - the fault would fire and no incident would open, which records as `no-alert` and reads as a fact about the scenario (T7.24).",
+      "aborting before injection: 5 container(s) have been up for less than 300s and are still settling."
+    ]
+  },
+  "discarded": {
+    "reason": "pipeline-down",
+    "at": "2026-09-02T09:34:55.020767+00:00"
+  }
+}

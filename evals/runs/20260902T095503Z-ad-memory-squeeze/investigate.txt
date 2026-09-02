@@ -1,0 +1,53 @@
+incident ccd22c95-86e4-4a9e-ae37-1b49df48ac9c  state triaging  anchor 09:58:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+Traceback (most recent call last):
+  File "/Users/chandana/dev/faultline/.venv/bin/faultline-investigate", line 10, in <module>
+    sys.exit(run())
+             ^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/agents/cli.py", line 245, in run
+    report = run_investigation(
+             ^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/agents/runner.py", line 152, in run_investigation
+    judgement = _judge(store, incident, triage, triager)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/agents/runner.py", line 314, in _judge
+    judgement: TriageJudgement = triager.judge(triage, open_incidents).value
+                                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/agents/roles.py", line 988, in judge
+    return ask(
+           ^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/agents/roles.py", line 106, in ask
+    response = model.complete(
+               ^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/agents/model.py", line 208, in complete
+    return self._try(self._primary, request)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/agents/model.py", line 195, in _try
+    return model.complete(request)
+           ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/agents/model.py", line 259, in complete
+    response = client.messages.create(
+               ^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/anthropic/_utils/_utils.py", line 294, in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/anthropic/resources/messages/messages.py", line 968, in create
+    return self._post(
+           ^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/anthropic/_base_client.py", line 1490, in post
+    return cast(ResponseT, self.request(cast_to, opts, stream=stream, stream_cls=stream_cls))
+                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/anthropic/_base_client.py", line 1116, in request
+    response, prepared = self._attempt_request(
+                         ^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/anthropic/_base_client.py", line 1256, in _attempt_request
+    request = self._build_request(options, retries_taken=retries_taken)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/anthropic/_base_client.py", line 528, in _build_request
+    headers = self._build_headers(options, retries_taken=retries_taken)
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/anthropic/_base_client.py", line 477, in _build_headers
+    self._validate_headers(headers, omitted)
+  File "/Users/chandana/dev/faultline/.venv/lib/python3.12/site-packages/anthropic/_client.py", line 384, in _validate_headers
+    raise TypeError(
+TypeError: "Could not resolve authentication method. Expected one of api_key, auth_token, or credentials to be set. Or for one of the `X-Api-Key` or `Authorization` headers to be explicitly omitted"
