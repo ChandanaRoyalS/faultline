@@ -1,0 +1,280 @@
+# The service catalog (T2.4).
+#
+# GENERATED ONCE, then maintained by hand. `depends_on` came from the measured graph in
+# docs/evidence/t2.4-dependency-graph/, not from anyone's memory of the architecture -
+# and `tests/test_services.py` compares the two on every run, so a declaration that stops
+# matching what the world does is a failing test rather than a stale document.
+#
+# See ADR-0035 for what each field is grounded in, and which one is not.
+
+catalog_version: 1
+services:
+  - name: accountingservice
+    container: accounting-service
+    kind: application
+    tier: async
+    owner: demo/risk
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: adservice
+    container: ad-service
+    kind: application
+    tier: core
+    owner: demo/storefront
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: alertmanager
+    container: alertmanager
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: cartservice
+    container: cart-service
+    kind: application
+    tier: core
+    owner: demo/checkout
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: checkoutservice
+    container: checkout-service
+    kind: application
+    tier: core
+    owner: demo/checkout
+    depends_on:
+      - accountingservice
+      - cartservice
+      - currencyservice
+      - emailservice
+      - frauddetectionservice
+      - paymentservice
+      - productcatalogservice
+      - shippingservice
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: currencyservice
+    container: currency-service
+    kind: application
+    tier: core
+    owner: demo/checkout
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: emailservice
+    container: email-service
+    kind: application
+    tier: core
+    owner: demo/comms
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: featureflagservice
+    container: feature-flag-service
+    kind: application
+    tier: platform
+    owner: demo/platform
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: ffs_postgres
+    container: postgres
+    kind: infrastructure
+    tier: infrastructure
+    owner: demo/platform
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: frauddetectionservice
+    container: frauddetection-service
+    kind: application
+    tier: async
+    owner: demo/risk
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: frontend
+    container: frontend
+    kind: application
+    tier: edge
+    owner: demo/storefront
+    depends_on:
+      - adservice
+      - cartservice
+      - checkoutservice
+      - productcatalogservice
+      - recommendationservice
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: frontendproxy
+    container: frontend-proxy
+    kind: application
+    tier: edge
+    owner: demo/storefront
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: grafana
+    container: grafana
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: jaeger
+    container: jaeger
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: kafka
+    container: kafka
+    kind: infrastructure
+    tier: infrastructure
+    owner: demo/platform
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: loadgenerator
+    container: load-generator
+    kind: harness
+    tier: harness
+    owner: demo/harness
+    depends_on:
+      - frontend
+    runbooks: []
+    slo: null
+  - name: loki
+    container: loki
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: otelcol
+    container: otel-col
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: paymentservice
+    container: payment-service
+    kind: application
+    tier: core
+    owner: demo/checkout
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: productcatalogservice
+    container: product-catalog-service
+    kind: application
+    tier: core
+    owner: demo/catalog
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: prometheus
+    container: prometheus
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: promtail
+    container: promtail
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: quoteservice
+    container: quoteservice
+    kind: application
+    tier: core
+    owner: demo/checkout
+    depends_on: []
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: recommendationservice
+    container: recommendation-service
+    kind: application
+    tier: core
+    owner: demo/storefront
+    depends_on:
+      - productcatalogservice
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
+  - name: redis-cart
+    container: redis-cart
+    kind: infrastructure
+    tier: infrastructure
+    owner: demo/platform
+    depends_on: []
+    runbooks: []
+    slo: null
+  - name: shippingservice
+    container: shipping-service
+    kind: application
+    tier: core
+    owner: demo/checkout
+    depends_on:
+      - quoteservice
+    runbooks: []
+    slo:
+      p95_latency_ms: 250
+      error_ratio: 0.05
+      source: compose/prometheus/alert-rules.yml
