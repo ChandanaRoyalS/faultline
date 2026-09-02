@@ -201,12 +201,13 @@ def run(argv: list[str] | None = None) -> int:
         attempts=_settings.retry_attempts,
         base_delay=_settings.retry_base_delay,
     )
+    archive = connect_or_none()
     engine = Investigation(
         planner=Planner(model),
         specialists=build_specialists(
             Tools(ToolSettings(), changes=PostgresChangeLog(psycopg.connect(dsn))), model
         ),
-        store=PostgresTrajectoryStore(psycopg.connect(dsn), connect_or_none()),
+        store=PostgresTrajectoryStore(psycopg.connect(dsn), archive),
         model=model,
         budget=Budget(
             max_tool_calls_per_specialist=args.max_tool_calls,
@@ -229,7 +230,7 @@ def run(argv: list[str] | None = None) -> int:
     if args.out:
         from pathlib import Path
 
-        for path in write_outputs(report, Path(args.out)):
+        for path in write_outputs(report, Path(args.out), archive):
             print(f"wrote {path}")
     return int(report.exit_code)
 
