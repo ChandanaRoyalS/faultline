@@ -261,10 +261,22 @@ remediation classes, with `scale` listed and marked unperformable against ADR-00
 measurement. Read-only is enforced by `tests/test_allowlist.py` rather than asserted in
 prose. See ADR-0032.
 
-**The runbooks queue rather than land.** `freeze.corpus_state()` hashes every chunk as
-`document_id|section`, so seeding runbooks into `incident_chunks` moves the freeze and
-re-founds comparability for every scored run afterwards. Authoring them to disk is free;
-seeding them is not. Queued as **Q15**.
+**The runbooks were authored on 2026-09-01** (ADR-0036): fifteen files in
+`knowledge/runbooks/`, three keyed to the alert rules, four to the fault classes, four to the
+allowlist actions, and four to properties of this world that change how a signal reads. Two of
+them carry facts the catalog's labels settle and an invented runbook would reverse -
+`resource_exhaustion` resolves by config revert rather than restart, and `dependency_latency`
+by restart rather than config revert.
+
+**They are inert until seeded, and the seeding is what queues.** `freeze.corpus_state()`
+hashes every chunk as `document_id|section`, so putting them in `incident_chunks` moves the
+freeze and re-founds comparability for every scored run afterwards. Writing the files cost
+nothing; **Q15** now covers one command rather than a project.
+
+**A runbook may not name a scenario, and a test enforces it.** These are the documents T4.1b's
+filter never excludes, so anything written here reaches every scored run permanently through
+the one channel the quarantine does not check - including dev scenarios, because a runbook
+written around one is a template for writing one around a holdout.
 `src/faultline/context/`, `docs/adr/0018-past-incident-corpus.md`,
 `docs/evidence/t2.4b-corpus-smoke/README.md`, `docs/adr/0002:8`, `docs/adr/0008:80`,
 `evals/scenarios/ARTIFACTS.md:154`

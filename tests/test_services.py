@@ -16,6 +16,7 @@ from typing import Any
 
 import yaml
 
+from faultline.context.runbooks import load_runbooks
 from faultline.context.services import catalog_path, load_services
 from injector.world import SERVICE_CONTAINERS, canonical_service
 
@@ -114,18 +115,28 @@ def test_every_owner_is_marked_synthetic() -> None:
         )
 
 
-def test_runbook_links_are_empty_until_the_corpus_exists() -> None:
-    """T2.4b's allowlist landed; its runbooks did not, and Q15 queues the seeding.
+def test_every_runbook_link_resolves_to_a_runbook_that_exists() -> None:
+    """A link to a document that does not exist is worse than no link.
 
-    A link to a document that does not exist is worse than no link: the proposer would cite
-    it, and the citation would resolve to nothing. This fails when Q15 lands, which is the
-    reminder to fill them in.
+    The proposer would cite it and the citation would resolve to nothing - which is
+    indistinguishable, to a reader, from evidence that was recorded and then lost.
     """
+    known = {runbook.id for runbook in load_runbooks()}
     for service in load_services().services:
-        assert service.runbooks == [], (
-            f"{service.name} links runbooks - if Q15 has landed, this test is the thing to "
-            "update, and the links should be checked to resolve"
-        )
+        for link in service.runbooks:
+            assert link in known, f"{service.name} links {link!r}, which is not a runbook"
+
+
+def test_the_services_with_a_measured_quirk_carry_its_runbook() -> None:
+    """Only two services here have a documented property that changes how they are read.
+
+    `featureflagservice` emits no span metrics and cannot page on its own behalf (ADR-0006);
+    `frontendproxy`'s only measured edge is the tracing UI routing itself (ADR-0017). Both
+    facts live in the catalog already; the link is how an investigation finds the explanation.
+    """
+    directory = load_services()
+    assert directory.get("featureflagservice").runbooks == ["world-uninstrumented-services"]
+    assert directory.get("frontendproxy").runbooks == ["world-tracing-artifact-edges"]
 
 
 def test_only_the_loader_names_the_catalog_file() -> None:

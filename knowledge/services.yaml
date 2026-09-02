@@ -97,7 +97,8 @@ services:
     tier: platform
     owner: demo/platform
     depends_on: []
-    runbooks: []
+    runbooks:
+      - world-uninstrumented-services
     slo:
       p95_latency_ms: 250
       error_ratio: 0.05
@@ -143,7 +144,8 @@ services:
     tier: edge
     owner: demo/storefront
     depends_on: []
-    runbooks: []
+    runbooks:
+      - world-tracing-artifact-edges
     slo:
       p95_latency_ms: 250
       error_ratio: 0.05
