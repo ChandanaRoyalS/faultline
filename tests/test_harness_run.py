@@ -591,16 +591,28 @@ of thing a future reader would otherwise diagnose twice.
 """
 
 TRIAGE_GATE_DIGEST = "a7330c098770"
-"""**HEAD since T3.1, and no sweep in `evals/runs/` describes it.**
+"""The gated pipeline T3.1 built. **Superseded within the same batch** by `BATCH_B_DIGEST`.
 
 `TRIAGER_SYSTEM` and the `TriageJudgement` contract joined the stamp when triage gained the
 judgement half the specification asks for - the gate that declines an incident before fan-out.
 Six role prompts now, and the second stamp move of Phase 3's Batch B.
 
-**Two stamp moves, one re-record.** T3.9's `20088b22cede` was never measured either: both moves
-land inside the window ADR-0028 §6 opened, and the re-sweep at the end of the batch measures the
-pipeline as it finally stands rather than each intermediate one. Recording the intermediate
-digest is what lets someone reading a trajectory from today place it exactly.
+**Three stamp moves, one re-record.** None of the intermediate pipelines was measured: all
+three land inside the window ADR-0028 §6 opened, and the re-sweep at the end of Batch B measures
+the pipeline as it finally stands rather than each step toward it. The intermediates are recorded
+anyway, because a trajectory written on any of these days has to be placeable exactly.
+"""
+
+BATCH_B_DIGEST = "bc222a353936"
+"""**HEAD, and the pipeline Batch B's re-sweep will measure.**
+
+Q17 put `lookback_minutes` on `Dispatch` - the planner's per-hypothesis widening, the last clause
+of T3.2b's temporal-scoping sentence - and told the planner about it in `PLANNER_SYSTEM`. A field
+on a contract inside `prompts_hash()` and a change to a system prompt: two reasons for one move,
+which is why Q17 waited for a batch already spending the key.
+
+**This is the digest the pre-registration names.** A move after this one and before the re-sweep
+would leave the batch measuring a pipeline nobody planned to measure.
 """
 
 
@@ -613,12 +625,13 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == TRIAGE_GATE_DIGEST, (
-        f"expected the gated pipeline {TRIAGE_GATE_DIGEST}. If a prompt or a contract moved "
-        f"again, add its digest here: an unrecorded move is a run nobody can place."
+    assert prompt_digest() == BATCH_B_DIGEST, (
+        f"expected Batch B's finished pipeline {BATCH_B_DIGEST}. If a prompt or a contract "
+        f"moved again, add its digest here - and if it moved after the pre-registration was "
+        f"written, the re-sweep is measuring something nobody planned to measure."
     )
-    assert prompt_digest() not in {SWEEP_5_DIGEST, PROPOSER_DIGEST}, (
-        "Batch B has moved the stamp twice, so HEAD is neither dev sweep 5's pipeline nor T3.9's"
+    assert prompt_digest() not in {SWEEP_5_DIGEST, PROPOSER_DIGEST, TRIAGE_GATE_DIGEST}, (
+        "Batch B moved the stamp three times; HEAD is none of the pipelines before it"
     )
     assert (
         len(
@@ -629,10 +642,11 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
                 SWEEP_5_DIGEST,
                 PROPOSER_DIGEST,
                 TRIAGE_GATE_DIGEST,
+                BATCH_B_DIGEST,
             }
         )
-        == 6
-    ), "six pipelines, four of them measured"
+        == 7
+    ), "seven pipelines, four of them measured"
 
 
 def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:
@@ -903,7 +917,7 @@ def test_the_correlate_budget_is_not_a_stamp_input() -> None:
     ):
         assert stamp_module.prompt_digest() == before
     stamp_module.prompt_digest.cache_clear()
-    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{TRIAGE_GATE_DIGEST}"
+    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{BATCH_B_DIGEST}"
 
 
 # --- T7.14: the rule that fires at rest ----------------------------------------------------

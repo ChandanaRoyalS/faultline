@@ -31,7 +31,14 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from faultline.context.corpus import Chunk, chunk_narrative, parse_narrative
+from faultline.context.corpus import (
+    AUTHORED,
+    Chunk,
+    chunk_narrative,
+    chunk_runbook,
+    parse_narrative,
+)
+from faultline.context.runbooks import Runbook, load_runbooks, runbooks_dir
 from faultline.context.store import PastIncidentStore
 
 DEV_SPLIT = "dev"
@@ -118,4 +125,41 @@ def seed(store: PastIncidentStore, dev_root: Path) -> SeedResult:
         result.documents += 1
         result.seeded.append(bundle.name)
 
+    return result
+
+
+def seed_runbooks(
+    store: PastIncidentStore, runbooks: tuple[Runbook, ...] | None = None
+) -> SeedResult:
+    """Seed the authored runbooks. **A second entry point, never a wider first one** (Q15).
+
+    `require_dev_root`'s own refusal message names this exact temptation - *"widening the input
+    'just to pick up the runbooks' is how this defect returns"* - so `seed` keeps its one root
+    and this function has its own. The two inputs are separately guarded and separately
+    refusable, which is the property ADR-0008 asks for; a single seeder taking a list of roots
+    would be one argument away from taking the holdout.
+
+    **What guards this input.** The runbooks live in `knowledge/runbooks/`, are `origin:
+    authored` by their own front matter (asserted in `tests/test_runbooks.py`), and may not name
+    any catalog scenario - dev or holdout - because ADR-0036 makes them the one document class
+    T4.1b's filter never excludes. A runbook that named a scenario would be an answer key that
+    exclusion cannot reach, which is why that rule is a test rather than a convention.
+    """
+    catalog = load_runbooks() if runbooks is None else runbooks
+    result = SeedResult()
+    directory = runbooks_dir()
+    for runbook in catalog:
+        if runbook.origin != AUTHORED:
+            # Refused rather than skipped: an `origin` other than `authored` on a file in this
+            # directory means the exclusion key and the directory disagree, and the exclusion
+            # key is what T4.1b filters on.
+            raise QuarantineError(
+                f"runbook {runbook.id!r} declares origin={runbook.origin!r}, not "
+                f"{AUTHORED!r}. `origin` is the exclusion key (ADR-0008, axis 2), and a "
+                "runbook is the one document class that is never excluded."
+            )
+        chunks = chunk_runbook(runbook, directory / f"{runbook.id}.md")
+        result.chunks += store.add(chunks)
+        result.documents += 1
+        result.seeded.append(runbook.id)
     return result

@@ -139,3 +139,55 @@ def chunk_narrative(
         )
         for index, (section, text) in enumerate(narrative.sections)
     ]
+
+
+AUTHORED = "authored"
+"""The origin every runbook carries. **The one value T4.1b's filter never excludes** (ADR-0008):
+runbooks are institutional knowledge a responder would legitimately have, so excluding them
+while scoring a scenario would measure an agent working without its own documentation."""
+
+
+def chunk_runbook(runbook: Any, source_path: Path) -> list[Chunk]:
+    """One authored runbook, as retrievable chunks (Q15, T2.4b's third deliverable).
+
+    **Sectioned the same way a narrative is**, for ADR-0018's reason: the section is what a
+    live incident resembles. A whole runbook returned as one chunk would bury the paragraph
+    that matches under four that do not.
+
+    The scenario-shaped fields are empty and that is the record, not a gap. A runbook has no
+    `scenario_id` because it belongs to no scenario, no `scenario_fingerprint` because it was
+    not recorded against a label, and no `recorded_from` because it was authored rather than
+    captured. Filling them with plausible values would make an authored document look like a
+    rehearsal in every query that returns it.
+    """
+    headings = list(SECTION.finditer(runbook.body))
+    sections: list[tuple[str, str]] = []
+    if headings:
+        for index, heading in enumerate(headings):
+            end = headings[index + 1].start() if index + 1 < len(headings) else len(runbook.body)
+            sections.append((heading.group(1).strip(), runbook.body[heading.end() : end].strip()))
+        preamble = runbook.body[: headings[0].start()].strip()
+        if preamble:
+            sections.insert(0, ("Summary", preamble))
+    else:
+        sections = [("Summary", runbook.body.strip())]
+
+    document_id = f"runbook:{runbook.id}"
+    return [
+        Chunk(
+            document_id=document_id,
+            section=section,
+            section_index=index,
+            text=text,
+            origin=AUTHORED,
+            split="",
+            scenario_id="",
+            fault_class="",
+            scenario_fingerprint="",
+            recorded_from="",
+            title=runbook.title,
+            source_path=str(source_path),
+        )
+        for index, (section, text) in enumerate(sections)
+        if text
+    ]

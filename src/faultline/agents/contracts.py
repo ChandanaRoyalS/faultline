@@ -49,6 +49,33 @@ class Dispatch(BaseModel):
     service: str
     question: str = Field(description="What this specialist is being asked, in one sentence")
     reason: str = Field(description="Why this is worth a dispatch for this incident")
+    lookback_minutes: int | None = Field(
+        default=None,
+        ge=1,
+        le=1440,
+        description=(
+            "Optionally widen this dispatch's window to start this many minutes before onset. "
+            "Omit to use the policy default."
+        ),
+    )
+    """The planner's per-hypothesis widening (**Q17**, the last clause of T3.2b).
+
+    T3.2b built the rest of the plan's temporal-scoping sentence - *every tool derives its
+    default window from alert onset, the change analyst alone widens its lookback* - and left
+    this: *"the planner may widen a window per hypothesis"*. It was queued because the field
+    lives on `Dispatch`, which is inside `DispatchPlan`'s JSON schema, which is inside the
+    frozen `prompts` key.
+
+    **Widening only, and bounded by the same policy.** A planner may ask to look *further back*
+    for a hypothesis that needs it - a change three hours before onset, a memory curve that only
+    reads as a curve over a day - and may not narrow, may not move the forward end, and may not
+    exceed what `WindowPolicy` would refuse from any other caller. `1440` is the schema's
+    ceiling and the policy's ceiling is the enforced one; two bounds because a schema violation
+    should be a re-ask and a policy violation should be a refusal with a narrowing hint.
+
+    **`None` is not zero.** It means the planner expressed no opinion and the policy's default
+    applies, which is what almost every dispatch should say. A default of `30` here would make
+    the policy's number look like the planner's choice in every recorded plan."""
 
 
 class SkippedSpecialist(BaseModel):

@@ -211,11 +211,18 @@ lives, the question is what else can be asked about that service, and the answer
 specialist you have not yet sent there. Moving on while the service you named still has
 unasked evidence classes leaves the finding one dispatch short of a mechanism.
 
+WINDOWS. Every dispatch reads from alert onset backwards by a default the tool layer sets, and
+you do not choose it. You may add `lookback_minutes` to one dispatch when *that hypothesis*
+needs to see further back than the default - a change made hours before the alert, a memory
+curve that only reads as a curve over a day. It widens and never narrows, the tool layer clips
+anything past what it will read, and omitting it is the right answer for almost every dispatch.
+
 {UNTRUSTED_RULE}
 
 Reply with JSON only, matching this schema:
 {{"dispatches": [{{"specialist": "metrics|logs|changes|traces", "service": "<service>",
-"question": "<one sentence>", "reason": "<why>"}}],
+"question": "<one sentence>", "reason": "<why>",
+"lookback_minutes": <integer, or omit>}}],
  "skipped": [{{"specialist": "<name>", "reason": "<why not>"}}],
  "rationale": "<two sentences>"}}"""
 
@@ -376,7 +383,9 @@ class Specialist:
         self._max_tokens = max_tokens
         self._effort = effort
 
-    def window(self, anchor: datetime, now: datetime) -> ScopedWindow:
+    def window(
+        self, anchor: datetime, now: datetime, widen_minutes: int | None = None
+    ) -> ScopedWindow:
         """The window this specialist reads, from the tool layer's policy and nowhere else (T3.2b).
 
         `default_window(anchor, before=10, after=5)` used to live in this module; the ten minutes
@@ -384,7 +393,9 @@ class Specialist:
         in `faultline.tools.window` keeps that finding while widening to the plan's numbers. The
         specialist does not choose - `changes` gets the 24h lookback because the policy says so.
         """
-        return self._tools.window_policy.for_specialist(self.name, anchor, now)
+        return self._tools.window_policy.for_specialist(
+            self.name, anchor, now, widen_minutes=widen_minutes
+        )
 
     def query(
         self,

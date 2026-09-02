@@ -991,3 +991,24 @@ def test_ansi_sequences_are_stripped_whole() -> None:
     assert envelope.neutralise("\x1b[31mERROR\x1b[0m red") == "ERROR red"
     assert envelope.neutralise("\x07bell\x00nul") == "bellnul"
     assert envelope.neutralise("\x1b[1;32mgreen\x1b[m") == "green"
+
+
+def test_the_planner_may_widen_a_window_and_may_not_narrow_one() -> None:
+    """**Q17**, the last clause of T3.2b: *the planner may widen a window per hypothesis*. It
+    widens only - a request at or below the policy's own lookback is ignored, because a planner
+    narrowing a window would be setting a policy the plan says is not its to set."""
+    policy = WindowPolicy(ToolSettings())
+    now = START + timedelta(minutes=3)
+
+    widened = policy.for_specialist("logs", START, now, widen_minutes=180)
+    assert widened.start == START - timedelta(hours=3)
+    assert widened.rule == "planner_widened" and widened.lookback_seconds == 10_800
+    assert widened.end == now, "the forward end is not the planner's to move"
+
+    narrowed = policy.for_specialist("logs", START, now, widen_minutes=5)
+    assert narrowed.start == START - timedelta(minutes=30)
+    assert narrowed.rule == "default", "a narrowing request leaves the default in place"
+
+    # And the ceiling still refuses: a widened window is checked like any other.
+    huge = policy.for_specialist("logs", START, now, widen_minutes=1440)
+    assert huge.clipped and policy.refusal("logql_query", huge.start, huge.end) is None

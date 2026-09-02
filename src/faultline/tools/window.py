@@ -30,11 +30,12 @@ refused by its own check is a contradiction. So the derived window is clipped at
 trajectory step - rather than silently shortened. Live investigations start minutes after onset
 and never clip; the replayed and rehearsed ones with historical anchors do, and should say so.
 
-**The planner's per-hypothesis widening is deliberately not here yet.** It needs a `window`
-field on `Dispatch`, and `Dispatch` is part of `DispatchPlan`, whose JSON schema is one of the
-`_CONTRACTS` in `prompts_hash()`. Adding the field moves the frozen `prompts` key, so it is
-queued (Q17) to land with the batch that already spends that generation. `WindowRule` carries
-the value it will use so the log format does not change when it arrives.
+**The planner's per-hypothesis widening arrived at Q17** and is `planner_widened`. A dispatch
+may carry `lookback_minutes`, which moves the window's *start* further back and nothing else:
+not the forward end, not narrower than the default, and never past the ceiling this module would
+refuse from any other caller. The rule stays "enforced at the tool layer, never left to agent
+discretion" because what the planner supplies is a request that this policy either honours or
+clips - the same treatment a historical anchor gets.
 """
 
 from __future__ import annotations
@@ -96,13 +97,28 @@ class WindowPolicy:
     def rule_for(self, specialist: str) -> WindowRule:
         return "change_lookback" if specialist == "changes" else "default"
 
-    def for_specialist(self, specialist: str, anchor: datetime, now: datetime) -> ScopedWindow:
+    def for_specialist(
+        self,
+        specialist: str,
+        anchor: datetime,
+        now: datetime,
+        widen_minutes: int | None = None,
+    ) -> ScopedWindow:
         """`onset - lookback -> now`, clipped at the tool's ceiling and labelled if so.
 
         `now` is the moment the investigation began, passed in rather than read from the clock
         so every dispatch of one investigation shares one end and a replay can reproduce it.
+
+        `widen_minutes` is the planner's per-hypothesis request (Q17). **It can only widen**: a
+        value at or below the specialist's own lookback is ignored rather than honoured, because
+        a planner narrowing a window would be overriding a policy the plan says is not its to
+        set. A request that would exceed the ceiling is clipped like any other.
         """
         lookback = self.lookback_for(specialist)
+        rule = self.rule_for(specialist)
+        if widen_minutes is not None and widen_minutes * 60 > lookback:
+            lookback = widen_minutes * 60
+            rule = "planner_widened"
         start = anchor - timedelta(seconds=lookback)
         end = max(now, anchor)
         ceiling = self.ceiling_for(CHANGE_TOOL if specialist == "changes" else "telemetry")
@@ -113,7 +129,7 @@ class WindowPolicy:
         return ScopedWindow(
             start=start,
             end=end,
-            rule=self.rule_for(specialist),
+            rule=rule,
             lookback_seconds=lookback,
             clipped=clipped,
         )

@@ -417,7 +417,7 @@ that met the deliverable's wording, or where the remaining work is queued.
 |---|---|---|---|
 | T3.1 | Triage decisions persisted; noise gated before fan-out | **Computed, not asked**: `Triage(catalog, hop_radius)` — deterministic, no model, no `duplicate-of`. Persisted, and — correcting this row's own first reading — **it gated nothing**: every incident reaching the runner was investigated | **#145**. `Triager` judges disposition, `duplicate-of` and a fault-class prior; severity and the radius stay measured, so the scored number cannot move |
 | T3.2 | Plan objects; scoped fan-out | Delivered. `DispatchPlan`, one service per dispatch since T3.4c | — |
-| T3.2b | Tool-enforced window policy + per-query window logging | One window for every specialist, `onset − 10 min → onset + 5 min`, chosen in the agent layer; `change_history` never checked; no hint on refusal | **#139**. Planner's per-hypothesis widening → **Q17** (moves `prompts`) |
+| T3.2b | Tool-enforced window policy + per-query window logging | One window for every specialist, `onset − 10 min → onset + 5 min`, chosen in the agent layer; `change_history` never checked; no hint on refusal | **#139**, and the planner's widening **closed at #148** (Q17). The clause is now complete |
 | T3.2c | Budgeted briefing assembler + pull-rate metrics | **Half true and unnamed**: specialists hold one modality each, the synthesizer holds no tools and retrieval is `k=3` — so context does arrive on demand. What was absent was any bound and any number | **#146**, with **Q16** riding the same `budget` move |
 | T3.3 | Log evidence with signatures + sample lines + provenance | Delivered: scoped, capped, two-ended, typed | — |
 | T3.3b | Production metrics specialist | Specialist exists; no baseline range-query comparison, no change-point timestamps | **#147**, with **Q18**. One `world` generation: `metric_baseline`, templated queries, change points, `TOOL_BEHAVIOUR_REVISION` 1 → 2, and fifteen narrative stamps reviewed before being moved |
@@ -440,6 +440,12 @@ was found: seeding the frontier from a set made `reached_from` follow hash order
 the 91 differed on it. **D5**, *the REST contract is generated at runtime and asserted nowhere*:
 `docs/contracts/ingest-openapi.json` is committed, `make openapi` regenerates it, and two tests
 assert that the app matches it and that no route escapes it.
+
+**Batch B closed at #148.** Six tasks and five queue items: T3.9 (#143), T3.6 (#144), T3.1
+(#145), T3.2c with Q16 (#146), T3.3b with Q18 (#147), Q15 and Q17 (#148). Three `prompts` moves,
+one `budget` move, one `world` move, one `corpus` move pending the seeding command — **and one
+re-record ahead of all of them**, which is what the pre-registration is for. Q13 and the
+repo-compare tool were assessed inside the batch and declined with reasons (Q19).
 
 **Why two batches.** Four of the fixes moved nothing frozen and landed at once (#137–#140).
 The rest each move a frozen key — `prompts` through a system prompt or a contract schema, or
@@ -758,6 +764,34 @@ positive remains the historical one. T4.1's first batch is where that record get
 `docs/adr/0020-agent-layer.md`, `src/faultline/agents/contracts.py`,
 `src/faultline/agents/roles.py`, `src/faultline/agents/grounding.py`,
 `docs/evidence/t3.4c-rerun/README.md`
+
+### Q15 and Q17 — the two queue items Batch B was carrying *(built)*
+**Q15, the seeded runbook corpus.** T2.4b's deliverable is *"seeded runbook corpus + past-incident
+store + read-only allowlist"* and the corpus held seven documents, all `scenario:*`. The fifteen
+runbooks were authored at T2.4b and inert: T4.1b's *never excluded* branch had no `authored`
+document to not-exclude, and T3.9's proposer had no institutional knowledge to retrieve.
+
+`seed_runbooks` is **a second entry point, never a wider first one.** `require_dev_root`'s own
+refusal message names this exact temptation - *"widening the input 'just to pick up the runbooks'
+is how this defect returns"* - so `seed` still reads one directory and refuses everything else,
+and the runbooks arrive through their own door with their own guard. Chunked by section like a
+narrative; `origin: authored` on every chunk; the scenario-shaped fields left **empty**, because
+a runbook belongs to no scenario and filling those in would make an authored document look like
+a rehearsal in every query that returns it. **The `corpus` key moves when the command is run
+against a live store**, not when this code lands.
+
+**Q17, the planner's per-hypothesis window.** The last clause of T3.2b's sentence.
+`Dispatch.lookback_minutes` **widens and never narrows** - a request at or below the
+specialist's own lookback is ignored, the forward end is not the planner's to move, and the
+ceiling clips a widened window exactly as it clips a historical anchor. So *"enforced at the
+tool layer, never left to agent discretion"* still holds: what the planner supplies is a
+request the policy honours or clips.
+
+Third and final `prompts` move of Batch B: `a7330c098770` → `bc222a353936`. **This is the digest
+the pre-registration names**, and a move after it would leave the re-sweep measuring a pipeline
+nobody planned to measure.
+`src/faultline/context/seed.py`, `src/faultline/context/corpus.py`,
+`src/faultline/agents/contracts.py`, `src/faultline/tools/window.py`
 
 ### T3.3b — the metrics specialist gets a baseline *(built; Q18 rode along)*
 The specialist received a bare error ratio and a number. *"The error ratio is 0.4"* means nothing
