@@ -207,40 +207,26 @@ sixteen events.
 `docs/evidence/t2.2-live-smoke/README.md`, `docs/adr/0001:9`,
 `docs/adr/0015-alert-ingest-identity-and-dedupe.md`
 
-### T2.4 — service catalog *(partly built)*
+### T2.4 — service catalog *(built)*
 
-> **Audit, 2026-09-01.** `src/faultline/context/catalog.py` exists and answers one question
-> well: whether a service is `present`, `uninstrumented` or `artifact_only` for graph
-> reasoning, with a measured reason attached to each absence. That is real work and ADR-0017
-> designs it. It is **not what T2.4 asks for.** The plan's T2.4 is *"a git-versioned catalog
-> of the demo's services: owners, tiers, SLOs, runbook links, declared dependencies - exposed
-> as a dependency-graph API"*. The graph API exists; the git-versioned catalog of owners,
-> tiers, SLOs and runbook links does not, in any file. Recorded here because it was found
-> while auditing something else and would otherwise have been forgotten twice.
-Service catalog, dependency-graph scoping, retrieval.
+Two documents, deliberately separate. `src/faultline/context/catalog.py` answers whether a
+service is usable for graph reasoning - `present`, `uninstrumented` or `artifact_only`, with a
+measured reason on every absence (ADR-0017). `knowledge/services.yaml` is the git-versioned
+catalog T2.4 asks for: 26 services with owners, tiers, SLOs, runbook links and declared
+dependencies, beside the existing dependency-graph API.
 
-**ADR-0017 designs the first two** against a measured graph
-(`docs/evidence/t2.4-dependency-graph/`, 24h over three injected incidents): the catalog's
-node set and `canonical_service` identity, a committed graph snapshot rather than a runtime
-Jaeger query — with the ADR-0014 lesson applied, so the thing that notices drift compares the
-edge set and never `callCount` — and `DependencyPolicy` at a 2-hop radius.
+**Every field is traceable to what produced it, and the one that is not says so.** Names and
+containers come from `injector.world`; dependencies from the measured snapshot in
+`docs/evidence/t2.4-dependency-graph/`; SLOs from the thresholds in `alert-rules.yml` that
+ADR-0012 grounded in a measured quiet baseline, pinned by a test that parses the rules. Owners
+are synthetic - this world's teams do not exist - and every value carries a `demo/` prefix so
+the file admits it rather than a docstring doing so.
 
-Three findings from the capture constrain it. ADR-0016's prediction that a graph rule joins
-`emailservice` to the cart incident **holds**. `featureflagservice` has no node at all, so a
-graph policy is structurally blind to it — the same blindness already measured for alerting.
-And the graph **cannot distinguish a synchronous edge from an asynchronous one**: trace
-context propagates through kafka, so `checkoutservice -> frauddetectionservice` is identical
-in every field to `checkoutservice -> emailservice`, while the bundles measure their failure
-semantics as opposite. That distinction is declared out of scope for correlation and in scope
-for blast radius, which makes it T3.1's problem.
-
-Landing this policy is also what makes ADR-0016's concurrency cap reachable — at 2 hops it
-declines 28% of service pairs, so two incidents can be live at once for the first time.
-**Retrieval is not designed here**, and T2.4b's corpus seeding remains a separate contract.
-`src/faultline/context/__init__.py:1`,
-`docs/adr/0017-context-layer-graph-and-dependency-policy.md`,
-`docs/evidence/t2.4-dependency-graph/README.md`, `docs/ARCHITECTURE.md:21`
-
+Two limits are recorded rather than papered over. **Five services of twenty-six have measured
+outbound edges**: the graph is span-derived, so an absent edge means *not seen in the capture
+window*, and the catalog declares only what was observed. **Runbook links are empty** until
+Q15 seeds the corpus, because a link to a document that does not exist resolves to nothing
+when the proposer cites it. See ADR-0035.
 ### T2.4b — knowledge stubs *(partly built)*
 Seeds the past-incident store from `evals/scenarios/artifacts/dev/` **only**. The input is
 `incident.md` — the hand-written narrative in each bundle.
