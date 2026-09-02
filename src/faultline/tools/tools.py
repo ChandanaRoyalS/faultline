@@ -27,6 +27,7 @@ from datetime import datetime
 from typing import Any
 
 from faultline import telemetry
+from faultline.tools.ranking import RankingContext, rank_changes
 from faultline.tools.results import (
     ChangeResult,
     LogLine,
@@ -271,12 +272,23 @@ class Tools:
 
     # --- change history -------------------------------------------------------
 
-    def change_history(self, service: str, start: datetime, end: datetime) -> ChangeResult:
+    def change_history(
+        self,
+        service: str,
+        start: datetime,
+        end: datetime,
+        ranking: RankingContext | None = None,
+    ) -> ChangeResult:
         """What changed on a service, and **an empty answer is an answer**.
 
         Five of the nine rehearsed investigations turn on nothing having changed. That is why
         an unavailable change log is an `error` and an observed-empty window is `empty`: a
         negative from a source that was not consulted is not evidence.
+
+        With a `ranking` context - onset and triage's blast radius - the records come back
+        **ranked by suspicion** in the tool (T3.4): before-onset above after-onset, then the
+        service's standing in the radius, then proximity to onset. `faultline.tools.ranking`
+        states the rule. Without one, oldest first and unranked, as before.
         """
         canonical = canonical_service(service)
         window = Window(start=start, end=end)
@@ -297,10 +309,18 @@ class Tools:
             records = self._changes.records_for(canonical, start, end)
         except Exception as exc:
             return ChangeResult(service=canonical, window=window, error=str(exc), empty=True)
+        if ranking is None:
+            return ChangeResult(
+                service=canonical,
+                window=window,
+                records=[record.as_row() for record in records],
+                empty=not records,
+            )
         return ChangeResult(
             service=canonical,
             window=window,
-            records=[record.as_row() for record in records],
+            records=rank_changes(records, ranking, canonical),
+            standing=ranking.standing_for(canonical).as_row(),
             empty=not records,
         )
 

@@ -540,3 +540,71 @@ stream *"is where it breaks open"*. Ten minutes was the least that finding requi
 thirty is wider on exactly the side it cares about, and the forward end now reaches the moment of
 investigation instead of stopping five minutes after the alert. The finding is honoured, not
 discarded, and it lives on in `window.py`'s module docstring.
+
+## Addendum (T3.4, 2026-09-02) — change candidates are ranked in the tool
+
+The plan's T3.4, *Change analyst*: *"Specialist over change sources: recent deploys, config
+changes, feature flags, git diffs near the incident window, ranked by suspicion."* Method:
+*"Deploy-history and repo-compare tools; time-proximity plus blast-radius ranking of candidate
+changes."* Deliverable: *"Ranked suspicious-change evidence per incident."*
+
+What existed: `change_history` returned a service's records oldest first, and whatever ranking
+happened was the specialist's reading of timestamps in a user message. The Phase 3 audit
+recorded the task as *partial* on two counts — no ranking, no repo-compare.
+
+### What is built
+
+`faultline/tools/ranking.py`. `change_history` takes an optional `RankingContext` — alert onset
+and triage's blast radius keyed by canonical service — and with one, returns the records **in
+rank order**, each row carrying `rank`, `lead_seconds` (positive means the change preceded
+onset) and `causal` (`before_onset` / `after_onset`), and the result carrying the queried
+service's `standing` in the radius: `direction`, `hops`, `reason`. The envelope shows
+`#1  4m before onset` per row and `radius="seed" hops="0"` in its opening tag, so the
+synthesizer sees the ranking where it sees the evidence. Without a context the tool answers
+exactly as before — oldest first, unranked — so a dry run or a replay without triage is
+unchanged.
+
+The context is built **once per investigation** in `Investigation._run`, read off
+`TriageResult` rather than recomputed: direction, hops and entry reason are triage's claims,
+and the ranking rests on the same radius the verdict is judged against. Every change dispatch
+of the investigation is then ranked by one rule against one onset and one radius, which is what
+makes the evidence *per incident*: two results the synthesizer holds side by side are on one
+scale.
+
+### The rule, and why it is an ordering rather than a score
+
+`rank_key` is a lexicographic sort with four keys, in this order: **causal tier** (a change
+after onset cannot have caused the onset, and ranks below every change that could — it is still
+shown, because a revert after onset tells a responder someone already tried something);
+**radius tier** from triage's `Direction` (`candidate_cause`, a callee of an alerting service,
+above `seed`, above `also_affected`, above a service outside the radius — the tiers follow what
+ADR-0017's directed `sync` measurement licenses and nothing more); **hops**, fewer first;
+**lead**, closer first. One dispatch queries one service (T3.4c), so within a single result the
+radius tier is constant and the order is causal tier then lead.
+
+No decay constant, no weights, no probability. There is nothing to fit one to: the recorded
+corpus has one injected change per scenario, so any numeric suspicion score would be an
+invention presented as a measurement. An ordering with every key stated can be read back by a
+test and argued with by a reader; a score cannot.
+
+### What this does and does not move
+
+Nothing frozen. `tool_surface()` reads method names and none changed; `capability_version` is
+`cap:9c416e0a` before and after, `prompts` digest `1b0e7cbb4c47` before and after. The
+`ranking` parameter is keyword-only in practice and defaults to `None`.
+
+`TOOL_BEHAVIOUR_REVISION` is not bumped, and the decision is recorded rather than assumed. The
+set of records a call returns is unchanged; the annotations are derived from each record's own
+timestamp and from triage output a responder already held, and the rehearsal narratives were
+written by people who had both. A reader who holds that a *ranking* changes what a responder
+could conclude — rather than how fast — should say so and bump it, which moves the `world` key.
+
+### What is still owed
+
+The **repo-compare / git-diff tool**. The plan names it in the method column and the audit
+recorded its absence. It is a fifth tool, so it moves `tool_surface()` and therefore
+`CAPABILITY_VERSION` and the frozen `world` key; it belongs to the batch that already spends a
+generation (Phase 3 Batch B), beside Q17. It is also a tool this world cannot yet feed: the OTel
+demo's services are pulled images, not checked-out repositories (ADR-0026), so what a
+"repo-compare" compares here is the image and configuration history the change log already
+records. That is a design question for Batch B, not a reason to skip the ranking that was free.

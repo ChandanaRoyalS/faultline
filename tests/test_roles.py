@@ -33,6 +33,7 @@ from faultline.context.catalog import ServiceCatalog
 from faultline.context.settings import ContextSettings
 from faultline.orchestrator.models import Episode, Incident, Severity
 from faultline.tools.changelog import InMemoryChangeLog
+from faultline.tools.changes import Action, ChangeRecord, Resource
 from faultline.tools.settings import ToolSettings
 from faultline.tools.tools import Tools
 
@@ -1423,3 +1424,58 @@ def test_a_historical_anchor_is_clipped_on_the_record_not_refused() -> None:
     calls = [step for step in result.trajectory.steps if step.tool_call]
     assert calls and all(step.tool_call and step.tool_call.request["clipped"] for step in calls)
     assert all(run.result.error is None or "ceiling" not in run.result.error for run in result.runs)
+
+
+# --- change candidates reach the specialist ranked against triage's radius (T3.4) -----
+
+
+def test_the_change_analyst_reads_changes_ranked_against_triage_s_own_radius() -> None:
+    """The ranking context is built once per investigation from `TriageResult` - the same
+    radius the verdict is judged against - and every change dispatch is ranked by it. The
+    envelope the specialist reads, and the trajectory stores verbatim, carries the rank, the
+    lead from onset and the service's standing; the model chose none of them."""
+    log = InMemoryChangeLog()
+    log.append(
+        ChangeRecord(
+            id="c-late",
+            service="cartservice",
+            at=ANCHOR + timedelta(minutes=2),
+            resource=Resource.ENVIRONMENT,
+            action=Action.REVERTED,
+            summary="REDIS_ADDR reverted",
+        )
+    )
+    log.append(
+        ChangeRecord(
+            id="c-early",
+            service="cartservice",
+            at=ANCHOR - timedelta(minutes=4),
+            resource=Resource.ENVIRONMENT,
+            action=Action.UPDATED,
+            summary="REDIS_ADDR updated",
+        )
+    )
+    model = ScriptedModel({"planner": [changes_and_metrics_dispatches()]})
+    tools = Tools(ToolSettings(), changes=log)
+    store = InMemoryTrajectoryStore()
+    engine = Investigation(
+        planner=Planner(model),
+        specialists=build_specialists(tools, model),
+        store=store,
+        model=model,
+        budget=Budget(max_dispatch_rounds=1),
+    )
+
+    result = engine.run(
+        "incident-ranked", triage_of("cartservice"), ANCHOR, now=ANCHOR + timedelta(minutes=5)
+    )
+
+    changes = next(run for run in result.runs if run.specialist == "changes")
+    assert [r["summary"] for r in changes.result.records] == [
+        "REDIS_ADDR updated",
+        "REDIS_ADDR reverted",
+    ]
+    assert changes.result.standing == {"direction": "seed", "hops": 0, "reason": "alerted"}
+    assert "#1  4m before onset" in changes.envelope and 'radius="seed"' in changes.envelope
+    stored = next(s for s in result.trajectory.steps if s.tool_call and s.role == "changes")
+    assert stored.tool_call is not None and stored.tool_call.envelope == changes.envelope
