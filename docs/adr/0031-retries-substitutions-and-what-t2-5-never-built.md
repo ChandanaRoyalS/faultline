@@ -94,3 +94,50 @@ classification is only as good as the name, and the test now carries the SDK's e
 A second provider becomes available — routing and a genuinely independent fallback both
 become possible, and the self-hosted seam becomes verifiable at the same time. Also revisit
 if anyone proposes enabling `fallback_models` for a scored run, which is Q14's trigger.
+
+## Addendum (2026-09-01) — the self-hosted seam, verified
+
+This ADR closed by recording that *"routing and the verified self-hosted seam remain
+unbuilt"*. The seam is now built and run. Routing is not, and the distinction matters enough
+to state twice.
+
+### What was built
+
+`OpenAICompatibleModel` — one more implementation of `LanguageModel`, talking to any
+chat-completions endpoint: vLLM, Ollama, a gateway, or OpenAI. `build_model()` chooses by
+`AgentSettings.provider`, so the lane is a setting rather than a branch in the agent code.
+No role knows which one it holds; that is what makes the seam a seam.
+
+It uses `urllib` from the standard library rather than a client package. The claim is that
+the seam is thin, and a demonstration of thinness that needs a dependency is a weaker one —
+and it is one fewer thing to install on the machine whose reason for existing is that
+incident data does not leave its network.
+
+### What was proven, precisely
+
+`tests/test_integration_selfhosted.py` runs an in-process conformant endpoint and asserts:
+every field of `ModelResponse` maps from the OpenAI shape; the system prompt arrives as the
+**first message** rather than a top-level parameter, which is where Anthropic puts it and
+where a silent mistake would drop every role prompt and look like a bad model; a key is sent
+as a bearer token and its absence sends no header; `Resilient` wraps the new lane without
+knowing what it holds, so the self-hosted path gets the same retries; and the factory refuses
+an unknown provider or a missing base URL.
+
+### What was not proven
+
+**vLLM itself.** The endpoint is a conformant stub. Running vLLM needs a GPU-class image and
+a model download, and a test nobody can run is worse than one with a stated scope. What is
+established is that a conformant endpoint works, which is the property the positioning claims.
+
+**Parity of configuration.** `effort` is Anthropic's adaptive-thinking control and has no
+equivalent on this path, so it is dropped rather than shimmed; `tools` are omitted because
+tool-calling shapes differ and a translation layer written against no caller is exactly the
+unused seam this project keeps finding. The consequence is real and belongs in any comparison:
+**a cross-provider ablation is not comparing equal configurations**, and P7's model-tier work
+has to say so rather than present two columns as like for like.
+
+**Routing.** Choosing a provider is not routing. The plan's routing is per-role and
+cost-aware — cheap model for triage, frontier for synthesis — and `AgentSettings.role_models`
+is the map that would carry it. ADR-0020 deliberately left per-role selection to be settled by
+T4.2's measured accuracy rather than a cost estimate, and that is still the position. The seam
+now spans two providers; nothing yet decides between them per role.

@@ -269,12 +269,17 @@ seeding them is not. Queued as **Q15**.
 `docs/evidence/t2.4b-corpus-smoke/README.md`, `docs/adr/0002:8`, `docs/adr/0008:80`,
 `evals/scenarios/ARTIFACTS.md:154`
 
-### T2.5 — LLM gateway *(partly built)*
+### T2.5 — LLM gateway *(built, except routing)*
 One choke point for model calls: retries with backoff and jitter, transient-failure
 classification, and optional fallback models that record every substitution. Budgets and the
-provider boundary arrived earlier as T3.3 and T3.2 rather than here. **Provider routing and
-the verified self-hosted seam remain unbuilt** — the deliverable names *"verified
-self-hosted seam"* and nothing has been run against an OpenAI-compatible endpoint.
+provider boundary arrived earlier as T3.3 and T3.2 rather than here. **The self-hosted seam is verified** (ADR-0031,
+Addendum): `OpenAICompatibleModel` is one more implementation of `LanguageModel`, chosen by a
+setting rather than a branch, and run against a conformant chat-completions endpoint - every
+response field mapped, the system prompt placed where OpenAI expects it rather than where
+Anthropic does, and `Resilient` wrapping it without knowing what it holds. vLLM itself is not
+run: the endpoint is a stub, because a test needing a GPU-class image is a test nobody
+executes. **Provider routing remains unbuilt** - choosing a provider is not per-role,
+cost-aware routing, and ADR-0020 left that to T4.2's measured accuracy.
 `src/faultline/agents/model.py`, `tests/test_model_resilience.py`,
 `docs/adr/0031-retries-substitutions-and-what-t2-5-never-built.md`
 
