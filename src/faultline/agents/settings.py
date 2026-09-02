@@ -97,6 +97,16 @@ class AgentSettings(BaseSettings):
     budget_max_tokens: int = 150_000
     budget_wall_clock_seconds: int = 600
     budget_max_dispatch_rounds: int = 2
+    budget_briefing_tokens: int = 4_000
+    budget_max_usd: float = 2.0
+
+    usd_per_mtok_in: float = 5.0
+    usd_per_mtok_out: float = 25.0
+    """The runtime's price table, for the dollar cap alone (Q16). **Not a scoring input**: T4.3
+    computes the scored cost from persisted trajectories with the harness's own table, and
+    `tests/test_agents_runtime.py` asserts the two tables agree. Two copies exist because
+    ADR-0004 keeps benchmark infrastructure out of the product, and a product that imports
+    `evalharness` to price itself has the dependency the wrong way round."""
 
     def budget(self) -> Budget:
         return Budget(
@@ -104,6 +114,9 @@ class AgentSettings(BaseSettings):
             max_tokens=self.budget_max_tokens,
             wall_clock_seconds=self.budget_wall_clock_seconds,
             max_dispatch_rounds=self.budget_max_dispatch_rounds,
+            briefing_tokens=self.budget_briefing_tokens,
+            max_usd=self.budget_max_usd,
+            usd_per_mtok=(self.usd_per_mtok_in, self.usd_per_mtok_out),
         )
 
     def model_for(self, role: str) -> str:

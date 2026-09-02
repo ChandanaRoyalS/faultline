@@ -418,7 +418,7 @@ that met the deliverable's wording, or where the remaining work is queued.
 | T3.1 | Triage decisions persisted; noise gated before fan-out | **Computed, not asked**: `Triage(catalog, hop_radius)` — deterministic, no model, no `duplicate-of`. Persisted, and — correcting this row's own first reading — **it gated nothing**: every incident reaching the runner was investigated | **#145**. `Triager` judges disposition, `duplicate-of` and a fault-class prior; severity and the radius stay measured, so the scored number cannot move |
 | T3.2 | Plan objects; scoped fan-out | Delivered. `DispatchPlan`, one service per dispatch since T3.4c | — |
 | T3.2b | Tool-enforced window policy + per-query window logging | One window for every specialist, `onset − 10 min → onset + 5 min`, chosen in the agent layer; `change_history` never checked; no hint on refusal | **#139**. Planner's per-hypothesis widening → **Q17** (moves `prompts`) |
-| T3.2c | Budgeted briefing assembler + pull-rate metrics | Not built | Batch B |
+| T3.2c | Budgeted briefing assembler + pull-rate metrics | **Half true and unnamed**: specialists hold one modality each, the synthesizer holds no tools and retrieval is `k=3` — so context does arrive on demand. What was absent was any bound and any number | **#146**, with **Q16** riding the same `budget` move |
 | T3.3 | Log evidence with signatures + sample lines + provenance | Delivered: scoped, capped, two-ended, typed | — |
 | T3.3b | Production metrics specialist | Specialist exists; no baseline range-query comparison, no change-point timestamps | Remaining. The templated-query half may need no frozen key; decided when reached |
 | T3.4 | Ranked suspicious-change evidence per incident | Deploy history yes, oldest first; no ranking; no repo-compare | **#140** ranks in the tool by causal tier, radius tier, hops, lead. Repo-compare → Batch B (a fifth tool moves `CAPABILITY_VERSION`) |
@@ -758,6 +758,37 @@ positive remains the historical one. T4.1's first batch is where that record get
 `docs/adr/0020-agent-layer.md`, `src/faultline/agents/contracts.py`,
 `src/faultline/agents/roles.py`, `src/faultline/agents/grounding.py`,
 `docs/evidence/t3.4c-rerun/README.md`
+
+### T3.2c — progressive disclosure, bounded and measured *(built; Q16 rode along)*
+The plan asks that agents start from a minimal briefing and pull the rest on demand, with
+briefing size budgeted per role and the pull-rate logged. **Half of it was already true and had
+never been called that** - one modality per specialist since T3.3, no tools on the synthesizer,
+retrieval at `k=3` since T3.4, which is the plan's *"top-3 similar past incidents"* exactly.
+
+**What did not exist was a bound or a number.** Every role appended to its brief until it ran
+out of things to append. `faultline/agents/briefing.py` packs prioritised `Section`s under a
+per-role budget, **names what it dropped inside the brief itself**, and never drops an
+`essential` section - an overrun is recorded rather than enforced, because refusing to brief a
+role would fail an investigation to protect a number. The withheld notice is deliberately not
+charged to the budget: a brief that drops one section must never have to drop a second to afford
+saying so.
+
+**The pull rate** is what arrived by asking over what arrived by being handed, both estimated by
+one estimator, written to the trajectory and to the run artifact. Nothing should optimise it - a
+pipeline that pushed nothing would score 1.0 and might be worse - and it is not a quality
+measure but the thing T7.3's ablation needs to hold constant or vary on purpose.
+
+**Q16 landed here** because it moves the same frozen key. `freeze.budget_bounds()` went from
+four bounds to eight: the briefing cap, the per-incident dollar cap, and the two prices that cap
+is computed at. A dollar cap is not a token cap in disguise - **a model's price can change
+without the token bound moving** - and recording the bound without its prices would call two
+different experiments the same one. The runtime holds its own price table (ADR-0004 keeps the
+harness out of the product) and a test asserts it equals the harness's.
+
+`prompts` did **not** move: the assembler rearranges what a brief contains, not what a role is
+asked for.
+`src/faultline/agents/briefing.py`, `tests/test_briefing.py`,
+`src/faultline/agents/budget.py`, `docs/adr/0020-agent-layer.md` (addendum)
 
 ### T3.1 — triage's judgement half, and the gate *(built; the measured half unchanged)*
 The specification asks triage for a validated structured output from a *"small model, strict

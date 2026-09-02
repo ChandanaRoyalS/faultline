@@ -91,7 +91,10 @@ judged figure.**
 
 > **HEAD is no longer this pipeline (T3.9 and T3.1, 2026-09-02).** The remediation proposer added
 > a sixth stage and triage gained a judgement half, so two role prompts and two contracts entered
-> the stamp; HEAD is `prompts:a7330c098770`, by way of `prompts:20088b22cede`. **Every figure below describes `prompts:1b0e7cbb4c47`, and none of
+> the stamp; HEAD is `prompts:a7330c098770`, by way of `prompts:20088b22cede`. **The `budget`
+> block moved too** (T3.2c and Q16): four bounds became eight, adding a briefing cap, a
+> per-incident dollar cap and the price table that cap is computed at. Every figure below was
+> recorded under the four. **Every figure below describes `prompts:1b0e7cbb4c47`, and none of
 > them describes the agent this repository now builds.** ADR-0028 §6 required the role to land
 > with a re-sweep and named this cost in advance; the re-sweep has not run. Nothing below is
 > altered, because a figure that was true of the pipeline that produced it stays true of it -

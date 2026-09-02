@@ -15,6 +15,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from faultline.agents import narrative as narrative_renderer
+from faultline.agents.briefing import Disclosure, DisclosureMeter
 from faultline.agents.budget import Budget, BudgetState
 from faultline.agents.contracts import (
     DispatchPlan,
@@ -83,6 +84,10 @@ class InvestigationResult:
     draft: NarrativeDraft | None = None
     narrative: str | None = None
     narrative_error: str | None = None
+    disclosure: Disclosure = field(default_factory=Disclosure)
+    """What this investigation pushed and pulled (T3.2c). The briefing sizes per role, the
+    sections dropped, and the pull rate T7.3's ablation compares."""
+
     proposal: Proposal | None = None
     """The remediation proposal, when one was made (T3.9). `None` means the proposer did not
     run or was refused twice; an *abstention* is a proposal with `remediation_class: "none"`,
@@ -252,6 +257,7 @@ class Investigation:
         anchor: datetime,
     ) -> InvestigationResult:
         seq = 0
+        meter = DisclosureMeter()
         # One ranking context per investigation (T3.4): onset and triage's radius, so every
         # change dispatch is ranked on the same scale and the results compare across services.
         ranking = ranking_context(triage, anchor)
@@ -276,6 +282,7 @@ class Investigation:
                     },
                 )
             )
+            meter.pushed(self._planner.briefing)
             plan: DispatchPlan = completion.value
             result.plans.append(plan)
             # Dispatches the planner named illegally and did not correct on its one re-ask.
@@ -283,7 +290,9 @@ class Investigation:
             # flags and T4.2's scoring alongside every other kind of incompleteness (T3.4c).
             result.failed_dispatches += [(Planner.ROLE, why) for why in completion.rejected]
 
-            seq = self._fan_out(trajectory, state, result, plan.dispatches, anchor, ranking, seq)
+            seq = self._fan_out(
+                trajectory, state, result, plan.dispatches, anchor, ranking, meter, seq
+            )
 
             if state.exhausted or len(result.plans) >= self._budget.max_dispatch_rounds:
                 break
@@ -291,20 +300,34 @@ class Investigation:
         result.budget_exhausted = state.exhausted
         result.exhausted_reason = state.exhausted_reason
 
-        seq = self._synthesise(trajectory, state, result, triage, incident_id, seq)
+        seq = self._synthesise(trajectory, state, result, triage, incident_id, meter, seq)
 
         # Persist before the scribe runs. Found on the first end-to-end run: the scribe cites
         # `result_id`s and the renderer resolves them against the store, so a trajectory still
         # only in memory makes every citation unresolvable - the guard fires correctly on
         # evidence that genuinely exists. Saving here is idempotent with the save below.
         self._store.save(trajectory)
-        seq = self._scribe_record(trajectory, state, result, triage, seq)
+        seq = self._scribe_record(trajectory, state, result, triage, meter, seq)
         # **After the citation gate, which is the order Gate 3 names**: "triage, plan, parallel
         # specialists, synthesis, validated citations, proposal". A proposal drawn from a
         # verdict whose narrative could not be published is still a proposal about the verdict,
         # so the gate's outcome does not block it - it is recorded beside it.
-        seq = self._propose(trajectory, state, result, triage, seq)
+        seq = self._propose(trajectory, state, result, triage, meter, seq)
 
+        result.disclosure = meter.snapshot()
+        seq += 1
+        trajectory.add(
+            TrajectoryStep(
+                seq=seq,
+                role="runtime",
+                kind=StepKind.MESSAGE,
+                at=datetime.now(UTC),
+                # **The context accounting, on the trajectory** (T3.2c): briefing size per role,
+                # sections dropped, and the pull rate, so T7.3's ablation reads them from a
+                # stored run rather than re-deriving them from prose.
+                payload={"disclosure": result.disclosure.as_row()},
+            )
+        )
         trajectory.ended_at = datetime.now(UTC)
         trajectory.outcome = "budget_exhausted" if state.exhausted else "dispatched"
         trajectory.budget_exhausted = state.exhausted
@@ -318,6 +341,7 @@ class Investigation:
         result: InvestigationResult,
         triage: TriageResult,
         incident_id: str,
+        meter: DisclosureMeter,
         seq: int,
     ) -> int:
         """Retrieve, then conclude. **The first live consumer of `exclude_origin`.**"""
@@ -333,6 +357,10 @@ class Investigation:
                 f"{hit.chunk.scenario_id} / {hit.chunk.section}: {hit.chunk.text[:280]}"
                 for hit in hits
             ]
+            # **Pulled**: retrieval is the synthesizer's one on-demand channel, and the plan
+            # calls the top-3 past incidents part of the *minimal* briefing precisely because
+            # they are fetched rather than carried (T3.2c).
+            meter.pulled("\n".join(result.retrieved))
             seq += 1
             record_retrieval(
                 trajectory,
@@ -360,6 +388,7 @@ class Investigation:
             result.failed_dispatches.append((Synthesizer.ROLE, str(failure)))
             return seq
         state.spend_tokens(completion.response.input_tokens, completion.response.output_tokens)
+        meter.pushed(self._synthesizer.briefing)
         result.verdict = completion.value
         # The contradiction cross-check ran here until T4.3. Retired on its own evidence:
         # 0 true positives and 4 false positives across every live firing (ADR-0021 addendum).
@@ -389,6 +418,7 @@ class Investigation:
         state: BudgetState,
         result: InvestigationResult,
         triage: TriageResult,
+        meter: DisclosureMeter,
         seq: int,
     ) -> int:
         """Draft, render, and - if the boundary refuses - regenerate once, then escalate (T3.8).
@@ -418,6 +448,7 @@ class Investigation:
                     result.narrative_escalated = True
                 break
             state.spend_tokens(completion.response.input_tokens, completion.response.output_tokens)
+            meter.pushed(self._scribe.briefing)
             tokens_in += completion.response.input_tokens
             tokens_out += completion.response.output_tokens
             result.draft = completion.value
@@ -500,6 +531,7 @@ class Investigation:
         dispatches: list[Any],
         anchor: datetime,
         ranking: RankingContext,
+        meter: DisclosureMeter,
         seq: int,
     ) -> int:
         """One round's dispatches, run at once and merged in plan order (T3.5).
@@ -576,6 +608,9 @@ class Investigation:
                 result.failed_dispatches.append(outcome.failure)
             if outcome.run is not None:
                 result.runs.append(outcome.run)
+                # **Pulled**, by definition: the envelope arrived because a tool was called
+                # for it, and the specialist's own brief is the envelope (T3.2c).
+                meter.pulled(outcome.run.envelope)
         # The round's spend landed all at once, so the check that used to run between
         # dispatches runs here instead. An overshoot is permitted by the concurrency and must
         # still be *recorded* as exhaustion - ADR-0020 §5 flags it, and a flag nobody set is a
@@ -589,6 +624,7 @@ class Investigation:
         state: BudgetState,
         result: InvestigationResult,
         triage: TriageResult,
+        meter: DisclosureMeter,
         seq: int,
     ) -> int:
         """One remediation proposal, or one recorded reason there is none (T3.9, ADR-0028).
@@ -622,6 +658,7 @@ class Investigation:
                     result.proposal_escalated = True
                 break
             state.spend_tokens(completion.response.input_tokens, completion.response.output_tokens)
+            meter.pushed(self._proposer.briefing)
             tokens_in += completion.response.input_tokens
             tokens_out += completion.response.output_tokens
             unresolved = [
