@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import json
 import re
+import threading
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -1074,3 +1076,155 @@ def test_the_return_to_locus_instruction_names_no_answers() -> None:
         "resource_exhaustion",
     ):
         assert token not in text, f"{token} is an answer key, not an instruction"
+
+
+# --- T3.5: the fan-out is parallel, and that changes nothing recorded ----------------
+#
+# The plan's deliverable is "concurrent investigations". Until 2026-09-01 the loop was
+# `for dispatch in plan.dispatches:` with nothing concurrent about it - the latency half of
+# the multi-agent justification was an intention. These tests make it a property: the first
+# proves concurrency deterministically, the second proves it costs nothing in the record, the
+# third proves a specialist that never answers cannot take the investigation with it.
+
+
+class Rendezvous:
+    """Wraps a specialist so `run` waits for a partner. Sequential execution cannot pass it."""
+
+    def __init__(self, inner: Any, barrier: threading.Barrier) -> None:
+        self._inner = inner
+        self._barrier = barrier
+
+    def query(self, *args: Any, **kwargs: Any) -> Any:
+        return self._inner.query(*args, **kwargs)
+
+    def run(self, *args: Any, **kwargs: Any) -> Any:
+        self._barrier.wait()
+        return self._inner.run(*args, **kwargs)
+
+
+class Staggered:
+    """Wraps a specialist so `run` sleeps a per-service amount before answering."""
+
+    def __init__(self, inner: Any, delays: dict[str, float]) -> None:
+        self._inner = inner
+        self._delays = delays
+
+    def query(self, *args: Any, **kwargs: Any) -> Any:
+        return self._inner.query(*args, **kwargs)
+
+    def run(self, service: str, *args: Any, **kwargs: Any) -> Any:
+        time.sleep(self._delays.get(service, 0.0))
+        return self._inner.run(service, *args, **kwargs)
+
+
+class Blocked:
+    """Wraps a specialist so `run` waits on an event the test controls."""
+
+    def __init__(self, inner: Any, release: threading.Event, service: str) -> None:
+        self._inner = inner
+        self._release = release
+        self._service = service
+
+    def query(self, *args: Any, **kwargs: Any) -> Any:
+        return self._inner.query(*args, **kwargs)
+
+    def run(self, service: str, *args: Any, **kwargs: Any) -> Any:
+        if service == self._service:
+            self._release.wait(timeout=30)
+        return self._inner.run(service, *args, **kwargs)
+
+
+def two_changes_dispatches() -> str:
+    return plan_reply(
+        [
+            {"specialist": "changes", "service": "cartservice", "question": "q", "reason": "r"},
+            {"specialist": "changes", "service": "checkoutservice", "question": "q", "reason": "r"},
+        ],
+        [],
+    )
+
+
+def engine_with_wrapped_changes(
+    model: LanguageModel, budget: Budget, wrap: Any
+) -> tuple[Investigation, Any]:
+    tools = Tools(ToolSettings(), changes=InMemoryChangeLog())
+    specialists = build_specialists(tools, model)
+    specialists["changes"] = wrap(specialists["changes"])
+    store = InMemoryTrajectoryStore()
+    engine = Investigation(
+        planner=Planner(model), specialists=specialists, store=store, model=model, budget=budget
+    )
+    return engine, store
+
+
+def test_a_round_runs_its_dispatches_at_the_same_time() -> None:
+    """Two specialists meet at a barrier inside `run`. Run one after the other, the first waits
+    for a partner that never arrives and the barrier breaks; run together, both pass. This is
+    the proof rather than a timing that happened to be fast."""
+    barrier = threading.Barrier(2, timeout=5)
+    model = ScriptedModel(
+        {"planner": [two_changes_dispatches()], "changes": [FINDINGS_REPLY, FINDINGS_REPLY]}
+    )
+    engine, _ = engine_with_wrapped_changes(
+        model, Budget(max_dispatch_rounds=1), lambda s: Rendezvous(s, barrier)
+    )
+
+    result = engine.run("incident-fanout", triage_of("cartservice"), ANCHOR)
+
+    assert result.failed_dispatches == []
+    assert [run.service for run in result.runs] == ["cartservice", "checkoutservice"]
+
+
+def test_the_record_is_in_plan_order_whatever_order_the_threads_finish() -> None:
+    """Concurrency changes the wall clock and nothing else that is recorded.
+
+    The first dispatch is made slow, so it finishes last. The trajectory, the specialist runs
+    the synthesizer will read, and every `seq` must still be in plan order - a record that
+    depended on thread timing would make two runs of one configuration differ, which is the
+    A/A check failing for a reason that has nothing to do with the model.
+    """
+    model = ScriptedModel(
+        {"planner": [two_changes_dispatches()], "changes": [FINDINGS_REPLY, FINDINGS_REPLY]}
+    )
+    engine, _ = engine_with_wrapped_changes(
+        model,
+        Budget(max_dispatch_rounds=1),
+        lambda s: Staggered(s, {"cartservice": 0.25, "checkoutservice": 0.0}),
+    )
+
+    result = engine.run("incident-order", triage_of("cartservice"), ANCHOR)
+
+    tool_steps = [s for s in result.trajectory.steps if s.kind is StepKind.TOOL_CALL]
+    assert [s.payload["service"] for s in tool_steps] == ["cartservice", "checkoutservice"]
+    assert [run.service for run in result.runs] == ["cartservice", "checkoutservice"]
+    seqs = [s.seq for s in result.trajectory.steps]
+    assert seqs == sorted(seqs), "seq must be monotonic in plan order, not completion order"
+
+
+def test_a_specialist_that_outlives_the_wall_clock_is_a_failed_dispatch_not_a_hang() -> None:
+    """The plan's per-agent timeout, and "modality unavailable" as typed evidence.
+
+    One specialist never answers. The investigation must still finish, record that specialist
+    as a failed dispatch with a step of its own, and flag the run - not wait forever, and not
+    silently produce a verdict as if that modality had reported.
+    """
+    release = threading.Event()
+    model = ScriptedModel(
+        {"planner": [two_changes_dispatches()], "changes": [FINDINGS_REPLY, FINDINGS_REPLY]}
+    )
+    engine, _ = engine_with_wrapped_changes(
+        model,
+        Budget(max_dispatch_rounds=1, wall_clock_seconds=1),
+        lambda s: Blocked(s, release, "cartservice"),
+    )
+    try:
+        result = engine.run("incident-timeout", triage_of("cartservice"), ANCHOR)
+    finally:
+        release.set()  # let the abandoned thread finish so the process can exit cleanly
+
+    assert [run.service for run in result.runs] == ["checkoutservice"]
+    assert [name for name, _ in result.failed_dispatches] == ["changes"]
+    assert "timed out" in result.failed_dispatches[0][1]
+    assert result.budget_exhausted, "a wall clock that ran out is exhaustion and must be flagged"
+    timed_out = [s for s in result.trajectory.steps if s.payload.get("timed_out")]
+    assert len(timed_out) == 1 and timed_out[0].payload["service"] == "cartservice"

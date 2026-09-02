@@ -496,3 +496,51 @@ is an assumption times a price, not a measurement.
 line item; T7.2's SREGym interface constrains the runtime differently from ADR-0004's inferred
 contract, which that ADR already warns is provisional; or the ten-narrative behavioural spec is
 extended by T7.1, which will change the specialist load table and may change the split.
+
+## Addendum (T3.5, 2026-09-01) — the fan-out is now parallel
+
+The plan's T3.5 is titled *Parallel fan-out* and its deliverable is *"Concurrent
+investigations"*. Until today the dispatch loop was `for dispatch in plan.dispatches:` and
+nothing else — specialists ran one after another. The rest of the task was built and good:
+per-agent budgets, a failed specialist degrading the investigation rather than aborting it,
+failures flagged and surfaced to the synthesizer, a kill-one-specialist test. The concurrency
+was an intention.
+
+That mattered beyond the checkbox. The proposal justifies multi-agent design on two grounds and
+says so: *"the fan-out is both the latency win and the justification for multi-agent design."*
+Sequential specialists kept the first and lost the second.
+
+### Design
+
+Three phases, separated on purpose. **Admission** is sequential and reserves the tool call at
+admission, so a specialist with one call left cannot be dispatched twice by two entries admitted
+together. **Execution** is parallel on a thread pool; each dispatch runs `_run_dispatch`, which
+touches nothing shared and returns a `DispatchOutcome`. **Merging** is in plan order, so `seq`,
+the trajectory and the synthesizer's input are byte-identical to what a sequential run produced.
+Concurrency changes the wall clock and nothing else that is recorded — a test makes the first
+dispatch finish last and asserts the record does not notice.
+
+### Threads, not asyncio
+
+The plan's method column says *"async concurrency"*. The model SDK calls are synchronous, so
+`asyncio` would mean rewriting the agent layer for no gain over a thread pool on I/O-bound
+calls. The deliverable is the property — concurrent investigations — and threads deliver it.
+Recorded as the one place this task chose the deliverable over the method column.
+
+### What moved
+
+The token check used to run between dispatches. It now runs between rounds, and once more after
+each round's merge, so a round can overshoot `max_tokens` by at most its own spend **and the
+overshoot is recorded as exhaustion** — §5's flag, set. A first draft omitted the post-merge
+check and two existing tests caught it: the overshoot was permitted and never flagged, which is
+a partial diagnosis presented as a complete one.
+
+A dispatch that outlives the remaining wall clock is recorded as a failed dispatch with a step
+of its own — the plan's *"modality unavailable"* as typed evidence — and the investigation
+finishes without it. Its thread cannot be interrupted and is abandoned rather than awaited.
+
+### Proof
+
+A `threading.Barrier(2)` inside two specialists' `run`: sequential execution leaves the first
+waiting for a partner that never arrives and the barrier breaks; concurrent execution passes
+both. Deterministic, and independent of how fast the machine is.

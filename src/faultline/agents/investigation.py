@@ -7,6 +7,8 @@ scoring input and T5.3's replay source and both need the run rather than a summa
 from __future__ import annotations
 
 import time
+from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import TimeoutError as FuturesTimeout
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
@@ -115,6 +117,17 @@ class InvestigationResult:
         )
 
 
+@dataclass(slots=True)
+class DispatchOutcome:
+    """What one dispatch produced, before anything shared is touched (T3.5)."""
+
+    steps: list[TrajectoryStep]
+    run: SpecialistRun | None
+    failure: tuple[str, str] | None
+    tokens_in: int
+    tokens_out: int
+
+
 class Investigation:
     """One incident, one trajectory, at most two dispatch rounds."""
 
@@ -211,12 +224,7 @@ class Investigation:
             # flags and T4.2's scoring alongside every other kind of incompleteness (T3.4c).
             result.failed_dispatches += [(Planner.ROLE, why) for why in completion.rejected]
 
-            for dispatch in plan.dispatches:
-                if not state.may_call_tool(dispatch.specialist):
-                    break
-                seq += 1
-                self._dispatch(trajectory, state, result, dispatch, anchor, seq)
-                seq += 1
+            seq = self._fan_out(trajectory, state, result, plan.dispatches, anchor, seq)
 
             if state.exhausted or len(result.plans) >= self._budget.max_dispatch_rounds:
                 break
@@ -378,29 +386,114 @@ class Investigation:
         services = ", ".join(m.service for m in triage.alerting)
         return f"{services}. " + " ".join(found)
 
-    def _dispatch(
+    def _fan_out(
         self,
         trajectory: Trajectory,
         state: BudgetState,
         result: InvestigationResult,
-        dispatch: object,
+        dispatches: list[Any],
         anchor: datetime,
         seq: int,
-    ) -> None:
-        name: SpecialistName = dispatch.specialist  # type: ignore[attr-defined]
-        service: str = dispatch.service  # type: ignore[attr-defined]
-        question: str = dispatch.question  # type: ignore[attr-defined]
+    ) -> int:
+        """One round's dispatches, run at once and merged in plan order (T3.5).
+
+        Three phases, and the separation is the design. **Admission** is sequential and reserves
+        the tool call at admission, so a specialist with one call left cannot be dispatched twice
+        by two entries admitted together. **Execution** is parallel - each dispatch runs on its
+        own thread and touches nothing shared. **Merging** is in plan order, so `seq`, the
+        trajectory and the synthesizer's input are byte-identical to what a sequential run would
+        have produced. Concurrency changes the wall clock and nothing else that is recorded.
+
+        The token check therefore moves from between dispatches to between rounds: a round can
+        overshoot `max_tokens` by at most its own spend. That is the price of running a round at
+        once, and the per-specialist tool budgets still bound every specialist individually.
+
+        A dispatch that outlives the remaining wall clock is recorded as a failed dispatch with a
+        step of its own, so it reaches the synthesizer and T4.2's scoring the same way a schema
+        failure does - the plan's "modality unavailable", as typed evidence rather than silence.
+        Its thread cannot be interrupted and is abandoned, not awaited.
+        """
+        admitted: list[tuple[Any, int]] = []
+        for dispatch in dispatches:
+            if not state.may_call_tool(dispatch.specialist):
+                break
+            state.record_tool_call(dispatch.specialist)
+            seq += 1
+            admitted.append((dispatch, seq))
+            seq += 1
+        if not admitted:
+            return seq
+
+        outcomes: list[DispatchOutcome | None]
+        if len(admitted) == 1:
+            dispatch, at = admitted[0]
+            outcomes = [self._run_dispatch(dispatch, anchor, at)]
+        else:
+            pool = ThreadPoolExecutor(max_workers=len(admitted), thread_name_prefix="specialist")
+            futures = [pool.submit(self._run_dispatch, d, anchor, at) for d, at in admitted]
+            outcomes = []
+            for future in futures:
+                remaining = max(1.0, state.budget.wall_clock_seconds - state.elapsed_seconds())
+                try:
+                    outcomes.append(future.result(timeout=remaining))
+                except FuturesTimeout:
+                    outcomes.append(None)
+            pool.shutdown(wait=False, cancel_futures=True)
+
+        for (dispatch, at), outcome in zip(admitted, outcomes, strict=True):
+            name: SpecialistName = dispatch.specialist
+            if outcome is None:
+                reason = (
+                    f"timed out: the investigation's {state.budget.wall_clock_seconds}s wall "
+                    "clock ran out before this specialist answered"
+                )
+                result.failed_dispatches.append((name, reason))
+                trajectory.add(
+                    TrajectoryStep(
+                        seq=at,
+                        role=name,
+                        kind=StepKind.COMPLETION,
+                        at=datetime.now(UTC),
+                        payload={"timed_out": True, "service": dispatch.service},
+                    )
+                )
+                state.check()
+                continue
+            for step in outcome.steps:
+                trajectory.add(step)
+            state.spend_tokens(outcome.tokens_in, outcome.tokens_out)
+            if outcome.failure is not None:
+                result.failed_dispatches.append(outcome.failure)
+            if outcome.run is not None:
+                result.runs.append(outcome.run)
+        # The round's spend landed all at once, so the check that used to run between
+        # dispatches runs here instead. An overshoot is permitted by the concurrency and must
+        # still be *recorded* as exhaustion - ADR-0020 §5 flags it, and a flag nobody set is a
+        # partial diagnosis presented as a complete one.
+        state.check()
+        return seq
+
+    def _run_dispatch(self, dispatch: Any, anchor: datetime, seq: int) -> DispatchOutcome:
+        """One specialist, start to finish, **touching nothing shared.**
+
+        Runs on a worker thread whenever a round has more than one dispatch, which is why it
+        returns what happened rather than recording it: `_fan_out` merges outcomes in plan
+        order, so the record never depends on which thread finished first.
+        """
+        name: SpecialistName = dispatch.specialist
+        service: str = dispatch.service
+        question: str = dispatch.question
         specialist = self._specialists[name]
         start, end = default_window(anchor)
+        steps: list[TrajectoryStep] = []
 
         began = time.monotonic()
         tool_result = specialist.query(service, start, end)
         rendered = envelope_renderer.render(tool_result)
-        state.record_tool_call(name)
 
         # The envelope goes into the trajectory verbatim, before anything reads it: a replay
         # that re-renders from the typed result is replaying a different prompt (ADR-0020 §3).
-        trajectory.add(
+        steps.append(
             TrajectoryStep(
                 seq=seq,
                 role=name,
@@ -422,9 +515,7 @@ class Investigation:
         except SchemaValidationError as failure:
             # One specialist's failure, not the investigation's. Recorded as a step so it is
             # visible to scoring rather than merely absent, and the other dispatches continue.
-            state.spend_tokens(failure.response.input_tokens, failure.response.output_tokens)
-            result.failed_dispatches.append((name, str(failure)))
-            trajectory.add(
+            steps.append(
                 TrajectoryStep(
                     seq=seq + 1,
                     role=name,
@@ -440,9 +531,15 @@ class Investigation:
                     },
                 )
             )
-            return
-        state.spend_tokens(response.input_tokens, response.output_tokens)
-        trajectory.add(
+            return DispatchOutcome(
+                steps=steps,
+                run=None,
+                failure=(name, str(failure)),
+                tokens_in=failure.response.input_tokens,
+                tokens_out=failure.response.output_tokens,
+            )
+
+        steps.append(
             TrajectoryStep(
                 seq=seq + 1,
                 role=name,
@@ -457,8 +554,9 @@ class Investigation:
                 },
             )
         )
-        result.runs.append(
-            SpecialistRun(
+        return DispatchOutcome(
+            steps=steps,
+            run=SpecialistRun(
                 specialist=name,
                 service=service,
                 question=question,
@@ -467,7 +565,10 @@ class Investigation:
                 findings=findings,
                 response=response,
                 attempts=attempts,
-            )
+            ),
+            failure=None,
+            tokens_in=response.input_tokens,
+            tokens_out=response.output_tokens,
         )
 
 
