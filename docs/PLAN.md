@@ -423,7 +423,7 @@ that met the deliverable's wording, or where the remaining work is queued.
 | T3.3b | Production metrics specialist | Specialist exists; no baseline range-query comparison, no change-point timestamps | Remaining. The templated-query half may need no frozen key; decided when reached |
 | T3.4 | Ranked suspicious-change evidence per incident | Deploy history yes, oldest first; no ranking; no repo-compare | **#140** ranks in the tool by causal tier, radius tier, hops, lead. Repo-compare → Batch B (a fifth tool moves `CAPABILITY_VERSION`) |
 | T3.5 | Concurrent investigations; kill-one-specialist test | Sequential loop. Degradation and the kill test were present | **#137** |
-| T3.6 | Evidence store with full provenance chain | Typed per modality with trust labels and windows; the provenance chain is split across `ToolResult`, `SpecialistFindings` and the envelope hash | Batch B — a unified `Evidence` object is a contract change |
+| T3.6 | Evidence store with full provenance chain | Typed per modality with trust labels and windows; the provenance chain is split across `ToolResult`, `SpecialistFindings` and the envelope hash | **#144** — and **it moved no frozen key**, against this table's own prediction: binding provenance in the runtime rather than asking a model for it kept `Evidence` out of `_CONTRACTS` |
 | T3.7 | Cited, ranked RCA reports | Delivered: `Verdict` with evidence ids, one bounded follow-up round | — |
 | T3.8 | Grounding enforcement gate + violation metrics | Gate yes, deterministic, blocks the report; no regeneration attempt, no violation metric | **#138** |
 | T3.9 | Remediation proposals attached to RCA reports | Not built: a type alias, deliberately (ADR-0028, Q7) | **#143** — the first Batch B item, and the first stamp move since dev sweep 5 |
@@ -758,6 +758,30 @@ positive remains the historical one. T4.1's first batch is where that record get
 `docs/adr/0020-agent-layer.md`, `src/faultline/agents/contracts.py`,
 `src/faultline/agents/roles.py`, `src/faultline/agents/grounding.py`,
 `docs/evidence/t3.4c-rerun/README.md`
+
+### T3.6 — the typed evidence object *(built)*
+The plan's *"only currency agents may exchange"*, built as `faultline/agents/evidence.py`. One
+object carrying claim, source query, time range, raw-result hash and a sample payload, with the
+modality, source and trust label the tool attached — the chain the Phase 3 audit found split
+across `Finding`, the `ToolResult` subclasses and `ToolCallRecord`.
+
+**The runtime binds it and a model writes five fields of it** — `kind`, `claim`, `note`,
+`confidence`, `result_id` — with everything else copied from the tool result the runtime holds.
+That is what keeps provenance unfabricable, and it is why `Evidence` is not a `_CONTRACTS`
+member: no prompt promises the schema, so **no frozen key moved**, against the audit's own
+prediction that this was a contract change. The honest asterisk is in ADR-0020's addendum: the
+*brief* each role reads did change, and user-message content is outside the stamp by design.
+
+**Samples reach two of the three roles.** The synthesizer and the proposer see bounded,
+neutralised excerpts inside a trust frame; the scribe sees the board without them, because
+ADR-0020 §4's leak boundary is at the one role whose output becomes corpus material.
+
+**A tool-layer defect found and not fixed here:** `neutralise` strips the ESC byte but leaves
+the rest of an ANSI sequence, though its docstring says otherwise and cites five measured
+instances. **Queued as Q18**, because changing envelope bytes is `TOOL_BEHAVIOUR_REVISION`'s
+question and belongs to a batch already spending the `world` generation.
+`src/faultline/agents/evidence.py`, `tests/test_evidence.py`,
+`docs/adr/0020-agent-layer.md` (addendum)
 
 ### T3.9 — the remediation proposer *(built)*
 The ninth role, and the last of ADR-0020's nine to be written. **The first item of Phase 3's

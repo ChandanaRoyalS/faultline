@@ -695,7 +695,7 @@ def test_the_synthesizer_brief_indexes_every_dispatch_before_the_detail() -> Non
     engine.run("incident-13", triage_of("cartservice"), ANCHOR)
 
     brief = next(call for call in model.calls if call.role == "synthesizer").messages[0]["content"]
-    assert brief.index("Dispatches executed") < brief.index("Specialist findings in full")
+    assert brief.index("Dispatches executed") < brief.index("The evidence board")
 
 
 def test_a_verdict_contradicting_its_own_trajectory_is_no_longer_flagged() -> None:

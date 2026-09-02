@@ -28,6 +28,7 @@ from faultline.agents.contracts import (
     validate_dispatch_services,
     validate_proposal,
 )
+from faultline.agents.evidence import Evidence, bind, board, render_board
 from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
 from faultline.agents.triage import TriageResult
 from faultline.context.allowlist import ActionStatus, load_allowlist
@@ -282,6 +283,16 @@ class SpecialistRun:
     response: ModelResponse
     attempts: int
 
+    @property
+    def evidence(self) -> list[Evidence]:
+        """This dispatch's claims, each bound to the provenance behind it (T3.6).
+
+        A property rather than a stored field: it is derived entirely from what this object
+        already holds, and a second copy that could disagree with its source is the failure
+        mode a unified object exists to remove.
+        """
+        return bind(self)
+
 
 class Specialist:
     """One evidence type, one tool, one model call over the rendered envelope.
@@ -477,13 +488,13 @@ class Synthesizer:
                 f"{len(run.findings.found)} found / {len(run.findings.ruled_out)} ruled out"
                 f"  - {claim[:120]}"
             )
-        lines += ["", "Specialist findings in full:"]
-        for run in findings:
-            lines.append(f"  [{run.specialist} on {run.service}]  ({run.result.id})")
-            for f in run.findings.found:
-                lines.append(f"    FOUND ({f.confidence}) {f.statement}  [{f.result_id}]")
-            for r in run.findings.ruled_out:
-                lines.append(f"    RULED OUT {r.hypothesis} - {r.why}  [{r.result_id}]")
+        # **The evidence board** (T3.6). Every entry carries its own provenance - tool, source,
+        # window, query, and the digest of the envelope it came from - and a bounded, neutralised
+        # sample inside a trust frame. The plan's phrase is "a curated evidence board, not
+        # transcripts": the curation is the point, and the whole envelope stays in the store
+        # under the same `result_id` for anyone re-verifying the citation later.
+        lines += ["", "The evidence board. Cite by the ids in brackets:"]
+        lines += [f"  {entry}" for entry in render_board(board(findings))]
         if retrieved:
             lines += ["", "Past incidents retrieved from the corpus (context, not answers):"]
             lines += [f"  {chunk}" for chunk in retrieved]
@@ -598,12 +609,11 @@ class Scribe:
             "",
             "What each specialist found and ruled out:",
         ]
-        for run in findings:
-            lines.append(f"  [{run.specialist} on {run.service}]")
-            for f in run.findings.found:
-                lines.append(f"    FOUND {f.statement}  [{f.result_id}]")
-            for r in run.findings.ruled_out:
-                lines.append(f"    RULED OUT {r.hypothesis} - {r.why}  [{r.result_id}]")
+        # **The board without its samples** (T3.6). ADR-0020 §4's leak boundary is at this role
+        # and no other: what the scribe writes becomes corpus material, so untrusted text must
+        # not be in front of it while it writes. The claims and their provenance are; the
+        # sampled tool output is not.
+        lines += [f"  {entry}" for entry in render_board(board(findings), sample=False)]
         if violation is not None:
             lines += [
                 "",
@@ -711,10 +721,8 @@ class Proposer:
                 f", reached from {member.reached_from}" if member.reached_from else ", alerted"
             )
             lines.append(f"  {member.service} ({member.direction.value}{reached})")
-        lines += ["", "Evidence, by id:"]
-        for run in findings:
-            for found in run.findings.found:
-                lines.append(f"  [{found.result_id}] {run.specialist}: {found.statement}")
+        lines += ["", "The evidence board. `rests_on` may cite only these ids:"]
+        lines += [f"  {entry}" for entry in render_board(board(findings))]
         lines += ["", "Actions this system is permitted to take:"]
         for action in load_allowlist().actions:
             if action.status is not ActionStatus.AVAILABLE:
