@@ -268,6 +268,9 @@ def _print_report(report: object) -> None:
             f"confidence, suspects {judgement.suspected_fault_class})"
         )
         print(f"  {judgement.reasoning}")
+    error = getattr(report, "judgement_error", None)
+    if error:
+        print(f"triage could not be asked, so nothing was gated: {error}")
     if getattr(report, "gated", False):
         print("\nGATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident")
         return

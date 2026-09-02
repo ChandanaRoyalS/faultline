@@ -640,3 +640,53 @@ def test_an_investigation_without_a_triager_is_still_a_supported_run() -> None:
 
     assert report.judgement is None and not report.gated
     assert report.exit_code is not Exit.GATED
+
+
+def test_a_triage_the_provider_refuses_does_not_end_the_investigation() -> None:
+    """**Found by the first live run of T3.1**, which spent an injected scenario on it.
+
+    `_judge` caught `SchemaValidationError` alone - the one failure a fake model can produce,
+    and none of the ones a real one can. An auth error on the first API call escaped it, and
+    because triage runs *before* `engine.run()` it escaped the trajectory-preserving path too:
+    the incident stranded in `TRIAGING` and the harness discarded a scenario whose fault had
+    already been injected into the world.
+
+    A failure of the cheapest stage must never end an investigation that has already disturbed
+    the world, and the reason must be readable rather than merely absent."""
+
+    class Refusing:
+        def judge(self, *args: Any, **kwargs: Any) -> Any:
+            raise TypeError("Could not resolve authentication method")
+
+    store = InMemoryIncidentStore()
+    incident = incident_in(IncidentState.TRIAGING)
+    store.save(incident)
+    engine, _ = engine_over(healthy_model())
+
+    report = run_investigation(
+        store,
+        incident,
+        engine,
+        triage_for(incident),
+        ANCHOR,
+        triager=Refusing(),  # type: ignore[arg-type]
+    )
+
+    assert report.judgement is None and not report.gated
+    assert report.judgement_error is not None
+    assert "TypeError" in report.judgement_error
+    assert report.result is not None and report.result.verdict is not None
+    assert incident.state is IncidentState.SYNTHESIZING
+
+
+def test_no_judgement_and_no_triager_are_distinguishable() -> None:
+    """`judgement is None` covers both "nobody asked" and "nobody could answer", and those are
+    different facts about a run. The error field is what separates them."""
+    store = InMemoryIncidentStore()
+    incident = incident_in(IncidentState.TRIAGING)
+    store.save(incident)
+    engine, _ = engine_over(healthy_model())
+
+    ungated = run_investigation(store, incident, engine, triage_for(incident), ANCHOR)
+
+    assert ungated.judgement is None and ungated.judgement_error is None

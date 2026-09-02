@@ -652,11 +652,23 @@ nothing reaches at runtime. `noise` takes the first and `duplicate` the second, 
 a planner, a specialist or a synthesizer. `Exit.GATED` (5) is a fifth exit code, distinct from
 `REFUSED` because something ran and judged, and from `NO_VERDICT` because no verdict was owed.
 
-**Marked decision: a triage that fails to validate twice does not close the gate.** The
-investigation proceeds and the report carries no judgement. Declining an incident because the
-cheapest role in the pipeline malfunctioned would turn a model outage into silent
-under-investigation — the failure ADR-0031 built its fallback against — and an absent judgement
-must be visible as absent rather than read as a decision.
+**Marked decision: a triage that fails does not close the gate.** The investigation proceeds and
+the report carries no judgement. Declining an incident because the cheapest role in the pipeline
+malfunctioned would turn a model outage into silent under-investigation — the failure ADR-0031
+built its fallback against — and an absent judgement must be visible as absent rather than read
+as a decision.
+
+> **Correction (2026-09-02, the first live run).** As built, this caught `SchemaValidationError`
+> alone — the one failure a fake model can produce, and none of the ones a real one can. The
+> first live invocation hit an auth error on the first API call, which escaped it; and because
+> triage runs *before* `engine.run()`, it escaped the trajectory-preserving path as well. The
+> incident stranded in `TRIAGING`, and the harness discarded a scenario whose fault had already
+> been injected. **A test asserted the docstring's promise for the one case a test could
+> reach, and the promise was false everywhere else.** The `except` is now broad, deliberately:
+> enumerating a provider SDK's transport errors is a list that goes wrong the first time the SDK
+> adds to it, and being wrong there costs an injected scenario. `RunReport.judgement_error`
+> carries the reason, because *nobody asked* and *nobody could answer* are different facts about
+> a run.
 
 **Marked decision: the gate is a role, not a requirement.** `run_investigation` without a
 `Triager` behaves exactly as it did before this task, and `--no-gate` is the CLI's way to say
