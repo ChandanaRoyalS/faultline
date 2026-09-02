@@ -1,0 +1,45 @@
+incident 6c97b2d2-85f9-417d-9bd0-95f545d17eb1  state triaging  anchor 16:46:15
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: eddf7334-e8f4-46c7-9a40-67fbe4a2564f
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service alerting across frontend and checkout within 30 seconds is not dismissible, and no open incident could account for it. The shared downstream fan-out gives no single obvious cause yet, so the fault class stays unknown.
+investigation: 2 round(s), 9 dispatch(es), 25 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Restoring cartservice's pre-16:43:47 environment (REDIS_ADDR absent, the state under which the same image served GetCartAsync/AddItemAsync cleanly at ~16:18) should let EnsureRedisConnected complete. Observable as: cart-service logs stop emitting the ApplicationException/InitializeAsync stack trace and the ~1s restart cadence ends; cartservice server spans reappear in Jaeger where only failing client spans exist now; frontend and checkoutservice error ratios return toward the flat-zero baseline held before 16:44:15Z/16:44:45Z. cartservice has no calls_total series, so confirmation must come from logs and traces, not a cartservice metric.
+  within      : 300s
+  risk        : If 6380 is the intended target, this points cartservice at a Redis that may be gone, extending the outage by another crash-loop cycle. The recreate is a hard restart discarding in-process state. If platform-automation reconciles, cartservice may flap between configurations, turning a steady failure into an intermittent one. Does not address why the variable was introduced, so recurrence is unquantified.
+  blast radius: cartservice is recreated; its callers frontend (GetCart, AddItem) and checkoutservice (GetCart in PlaceOrder) see resets during the recreate — they are already failing on this path. redis-cart at the restored address begins receiving connections again.
+  if wrong    : Falsified if the recreated process throws the same EnsureRedisConnected exception against a different endpoint, meaning 6380 was an intended migration and the unmigrated Redis server is the wrong side (no evidence was ever gathered against Redis itself). Also falsified if the crash-loop stops but frontend/checkoutservice per-minute error ratios stay elevated past 5 minutes, or if a second REDIS_ADDR change from platform-automation re-applies the value.
+  rests on    : tr_22ba4f3d72f4, tr_88bb12d07a22, tr_28e8410ffe24
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 36103 pushed / 8063 pulled (pull rate 0.1826), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_22ba4f3d72f4, tr_88bb12d07a22, tr_28e8410ffe24, tr_17fc943314e1, tr_1d00a5366337, tr_872381a31b81, tr_9d3d1b5052ab, tr_3d4f56ea7ef3, tr_78b944f4dadb
+  root cause  : A platform-automation config change set cartservice's REDIS_ADDR to redis-cart:6380 roughly two minutes before onset [tr_22ba4f3d72f4]. Port 6380 is not where the cart Redis is listening: cartservice's own logs show every startup attempt targeting redis-cart:6380 hanging for tens of seconds and then throwing an unhandled ApplicationException out of RedisCartStore.EnsureRedisConnected during Program.Main/InitializeAsync, followed by an immediate restart — a crash-loop from ~16:45:37 to the end of the window, after the same process had served GetCartAsync/AddItemAsync cleanly at ~16:18 [tr_88bb12d07a22]. With no cart backend accepting connections, every request path that touches CartService fails fast: frontend's CartService/GetCart and AddItem client spans and checkoutservice's CartService/GetCart client span are the deepest ERROR spans, no cartservice server spans appear at all, and paths that never touch CartService (catalog, recommendations, ads) succeed [tr_28e8410ffe24]. The resulting error ratios at frontend and checkoutservice stepped off a flat-zero baseline at 16:44:15Z and 16:44:45Z respectively [tr_17fc943314e1, tr_1d00a5366337], and neither of those services has any change on record [tr_3d4f56ea7ef3, tr_78b944f4dadb], so they are propagators. The mechanism is the configuration value itself being wrong — it names an endpoint/port with no listener — which is what breaks the cart request path.
+  OPEN        : It is not directly confirmed that redis-cart listens on 6379 and not 6380 — no evidence was gathered against the Redis instance itself. If 6380 were part of an intended Redis migration, the wrong side of the change would be the unmigrated server, not the client value, and remediation would shift.
+  OPEN        : Frontend (~3.6% mean) and checkoutservice (~6.7% mean) error ratios are partial and bursty [tr_17fc943314e1, tr_1d00a5366337], which sits awkwardly against a cart backend that is fully crash-looping [tr_88bb12d07a22]. This is probably a window-averaging artifact (the crash-loop starts ~16:45 inside a window opening at 16:16), but per-minute error ratios after 16:45 were never queried to confirm it.
+  OPEN        : checkoutservice logs show late-window orders entering PlaceOrder and emitting no payment/email/publish lines, described as stalling before payment [tr_872381a31b81], whereas traces show fast-fail at GetCart [tr_28e8410ffe24]. Whether checkoutservice is silently swallowing the cart error or genuinely blocking is unresolved and worth checking before declaring checkout fully explained.
+  OPEN        : cartservice has no calls_total series in either window [tr_9d3d1b5052ab], so there is no metric-side corroboration of its failure and no data on restart counts, pod availability, memory or connection-pool saturation. The crash-loop rests entirely on log evidence from a single query.
+  OPEN        : The frontend change query covered onset-forward rather than the pre-onset period [tr_3d4f56ea7ef3], and the checkoutservice query was scoped to the seed with zero hops [tr_78b944f4dadb], so pre-onset frontend changes and changes on checkoutservice's other dependencies are not actually excluded.
+  OPEN        : Triage reported 4 unmeasured edges crossed; which service pairs those were, and whether any carries traffic that bypasses the cart path, was never established. The 7 remaining non-cart services in the blast radius were not investigated at all.
+  OPEN        : Who or what drove platform-automation to set REDIS_ADDR (the previous value is recorded as absent, suggesting the variable was newly introduced) is unknown, so recurrence risk after a manual revert is unquantified.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+wrote /Users/chandana/dev/faultline/evals/runs/20260902T164343Z-cart-redis-misconfig/6c97b2d2-85f9-417d-9bd0-95f545d17eb1-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260902T164343Z-cart-redis-misconfig/6c97b2d2-85f9-417d-9bd0-95f545d17eb1-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9593.90it/s]

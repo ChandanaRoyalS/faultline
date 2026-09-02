@@ -1,0 +1,149 @@
+{
+  "incident_id": "833f8c6f-1766-4001-b1be-c37027bd6696",
+  "trajectory_id": "cdff4562-a8d3-4357-be61-fae00a1bd110",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "adservice is in an orchestrator-managed crash loop: every container start reaches only JVM/tracing-agent initialization and exits before the gRPC listener binds, with restart intervals growing on exponential backoff [tr_aafd4b455319]. Because no listener exists, frontend's AdService/GetAds client calls fail at connection establishment \u2014 the failing traces bottom out in a frontend tcp.connect span with no server-side adservice span [tr_4d6ce707320c], and frontend's only error shape is gRPC status 14 UNAVAILABLE / no connection established [tr_630f109e1ef5]. The trigger is a platform-automation loop that repeatedly lowers the ad-service pod memory limit to 256m and reverts it on a ~10-20 minute cadence, with the most recent lowering landing ~3 minutes before the 10:43 onset [tr_d791810a3009]; that cadence matches the episodic frontend error spikes at ~10:16, ~10:21 and ~10:43 rather than a single step change [tr_8275cc375227]. The failing mechanism in the world is therefore memory exhaustion: a JVM given a 256m container limit is terminated for exceeding it before it can finish starting, so the ad backend has no capacity to accept connections. Frontend itself is not at fault \u2014 no changes are attributed to it [tr_be26031de665] and its handler self-time is negligible, with all other downstream calls healthy [tr_4d6ce707320c].",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_aafd4b455319",
+      "tr_4d6ce707320c",
+      "tr_630f109e1ef5",
+      "tr_d791810a3009",
+      "tr_8275cc375227",
+      "tr_be26031de665",
+      "tr_d258769d7380"
+    ],
+    "reasoning": "Three independent sources converge on the same path. Traces localise every frontend failure to the ad call and, within it, to connection establishment, while catalog, cart and recommendation calls in the same window succeed normally, which rules out a shared network or DNS fault [tr_4d6ce707320c]. Frontend logs independently show only status 14 with a connect-time detail, not DEADLINE_EXCEEDED, RESOURCE_EXHAUSTED, or an auth/contract rejection, so the callee never accepted the request [tr_630f109e1ef5]. adservice logs supply the reason the callee is absent: about a dozen bootstrap preambles in five minutes with monotonically lengthening gaps, and no request-serving or listener-bound line, which is a crash loop with orchestrator backoff, not one restart or a failed image pull [tr_aafd4b455319]. The change log supplies the upstream act and its timing: repeated lowering of the ad-service memory limit to 256m by an automated actor, the last one ~3 minutes pre-onset, with no deploy, image, flag, replica or application-config edits in the window [tr_d791810a3009]. That flapping cadence explains why frontend's error ratio is episodic with comparable spikes at ~10:16, ~10:21 and ~10:43 rather than a single onset [tr_8275cc375227], and why frontend's own change log is empty [tr_be26031de665]. I classify this as resource_exhaustion rather than bad_config because the service is failing by being killed for exceeding the memory it needs to start; the limit edit is how it started, exhaustion is what is happening. It is not bad_deploy \u2014 the artifact starts and the runtime initialises on every attempt [tr_aafd4b455319] \u2014 and not dependency_latency, since the multi-second GetAds durations are a client-side ~3s deadline waiting on a connection that never opens, not a slow-but-served dependency [tr_4d6ce707320c, tr_630f109e1ef5]. The fix that resolves it is restoring the memory limit (removing the 256m cap) and stopping the automation that re-applies it; a restart alone would re-enter the loop, and a rollback has no deploy to roll back to.",
+    "open_questions": [
+      "No OOM kill is directly evidenced. The application logs contain no heap-exhaustion or OOM lines [tr_aafd4b455319] and the only adservice metric query covered call status ratios, carrying no memory, restart-count or replica-readiness signal [tr_d258769d7380]. Kubelet/kernel events or container_memory_working_set / restart-count metrics are needed to confirm the exit reason is exceeding the 256m limit rather than some other early-init failure.",
+      "adservice call metrics are absent from Prometheus across both incident and 4h baseline windows [tr_d258769d7380], so there is an instrumentation gap: the service's health cannot be tracked from metrics at all, and the earlier lower/revert cycles cannot be independently corroborated on the adservice side.",
+      "Frontend logs and adservice logs were both truncated to oldest-8 / newest-32 lines, and nothing at or near 10:43:30 was returned for frontend [tr_630f109e1ef5, tr_aafd4b455319]. Whether adservice was crash-looping continuously since ~10:13 or only during discrete lowered-limit intervals is not settled.",
+      "Why platform-automation is flapping the limit is unexplained \u2014 no evidence identifies the controller, policy, or reconciliation conflict driving the ~10-20 minute lower/revert cycle [tr_d791810a3009]. Until that is known, a manual revert may be overwritten.",
+      "Triage reported one unmeasured edge crossed; nothing in these dispatches identifies it, so a contributing path outside the frontend-to-adservice hop remains unexamined.",
+      "Frontend's apparent ~3s deadline on the ad call and the absence of a fallback/circuit-breaker for a non-critical ad panel [tr_4d6ce707320c] are a secondary exposure: whether user-visible errors should occur at all when ads are unavailable was not assessed."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    " / The signature: The caller's p95 rises; the callee's own p95 does not. Nothing errors, so\n`ServiceHighErrorRate` stays quiet and only `ServiceHighLatency` fires. **A latency alert with\nno error alert beside it is this class more often than anything else.**\n\nTraces separate cause from effect fast"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28067,
+    "pulled_tokens": 7148,
+    "pull_rate": 0.203,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 124,
+        "content_tokens": 125,
+        "budget": 4000,
+        "kept": [
+          "incident"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1325,
+        "content_tokens": 1327,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8685,
+        "content_tokens": 8661,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8325,
+        "content_tokens": 8327,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9608,
+        "content_tokens": 9585,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "adservice",
+    "rests_on": [
+      "tr_d791810a3009",
+      "tr_aafd4b455319",
+      "tr_4d6ce707320c"
+    ],
+    "expected_effect": "Restoring adservice's prior pod config (memory limit None, as recorded at the 10:23:04 revert) should let one JVM start reach listener bind. Observable as: adservice Loki logs showing a single bootstrap preamble then resumed 'received ad request' lines with the 3s/4s/6s/9s/15s/28s/54s backoff ladder stopping; frontend's 'Error: 14 UNAVAILABLE: No connection established' lines ceasing; frontend error ratio falling from the ~4% window mean toward the ~1.4% baseline with no new threshold crossings. Confirmation cannot come from adservice metrics \u2014 its calls_total series is empty in incident and baseline windows \u2014 so logs, traces and frontend's error ratio are the only channels.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if adservice logs still show repeated bootstrap preambles with no serving lines, or frontend keeps emitting status-14 at the same rate after ~10 minutes \u2014 meaning the early exit is not the 256m limit (no OOM kill is directly evidenced; no memory or restart-count metric was ever retrieved). Also falsified if serving resumes but platform-automation re-lowers the limit on its ~10-20 minute cadence and the crash loop returns, making this a suppressant rather than a fix.",
+    "risk": "If wrong, this is a forced restart of an already-looping service that resets the backoff clock and churns the container faster. Removing the ceiling lets a genuinely leaking adservice grow until it pressures its host, which can reach co-scheduled services. It also fights an active automation loop, so recorded and running config may disagree and confuse the next diagnosis.",
+    "blast_radius": "adservice is recreated (in-process state is cache only). frontend, the sole caller of AdService/GetAds, sees connection resets during the recreate and may spike once more before recovering; loadgenerator inherits that through frontend. cartservice, checkoutservice, productcatalogservice and recommendationservice are untouched and were healthy in-window."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity with frontend and the load generator alerting together points at a user-facing failure rather than a synthetic-only artifact, and no open incident covers it. Cause is unclear at this stage; frontend's five dependencies are all plausible origins."
+  }
+}

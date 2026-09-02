@@ -1,0 +1,10 @@
+incident 59bb63b6-5b91-4951-978c-5051834115f9  state triaging  anchor 22:32:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging
+trajectory: none persisted
+triage could not be asked, so nothing was gated: BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CefQjPkcngtE56b5VF1j9'}
+
+FAILED MID-INVESTIGATION: did not start - BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CefQjQR46MPqj2M7sA53k'}
+the trajectory holds everything that ran before the failure
+triage could not be asked for incident 59bb63b6-5b91-4951-978c-5051834115f9, so the investigation proceeds ungated: BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CefQjPkcngtE56b5VF1j9'}

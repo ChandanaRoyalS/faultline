@@ -1,0 +1,139 @@
+{
+  "incident_id": "913e0bb8-c251-4b51-b1a9-8ce8633db9cf",
+  "trajectory_id": "14f71e66-b8b2-4217-b49d-5570c5e8ed83",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origin": "scenario:frauddetection-memory-squeeze",
+  "verdict": {
+    "root_cause": "An automated resource_limits change lowered the frauddetectionservice container's memory limit to 200m at 22:05:32, roughly two minutes before the earliest visible restart cycle and ~11 minutes before the alert [tr_5d90a328d546]. The JVM cannot hold its footprint under that ceiling, so the container is being terminated by the platform shortly after each bootstrap: logs show an identical JVM/OpenTelemetry-agent startup triple repeating at an almost exact ~62-second cadence through 22:17:57, with no error, exception, panic or stack trace anywhere in the window \u2014 the signature of an externally-killed process rather than an application fault [tr_ce5350e3f868]. Kafka order-consumption logging with its incrementing counter stops after 22:04:47 and never resumes, so the service is not doing useful work between kills [tr_ce5350e3f868]. The failing mechanism is the process exceeding the memory it is allowed and being killed for it \u2014 resource exhaustion \u2014 with the limit edit as the trigger, not the mechanism.",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_5d90a328d546",
+      "tr_ce5350e3f868",
+      "tr_152861f4d9dc",
+      "tr_d87905d7d6ea"
+    ],
+    "reasoning": "Three independent strands line up. (1) Change: exactly one change landed on this service in the window and it is a memory-limit reduction to 200m by platform-automation, timestamped before onset, so it is a candidate cause and not a remediation; deploys, image rollouts, flag flips and application-config edits were all explicitly excluded from the change log [tr_5d90a328d546]. (2) Logs: the process is repeatedly re-executing its JVM bootstrap at ~62s intervals with zero error output and no stack traces, which the specialist correctly reads as an external kill before the application can log anything \u2014 consistent with a cgroup OOM kill and inconsistent with a hang, a single restart, or an application exception [tr_ce5350e3f868]. Order processing has ceased in parallel [tr_ce5350e3f868]. (3) Metrics contributed nothing either way: the error-ratio series is empty in both incident and baseline windows, so its emptiness is a property of the series and not an onset signal, and no container memory, limit, restart-count or OOMKilled series was returned at all [tr_152861f4d9dc][tr_d87905d7d6ea]. I therefore rely on change + log correlation rather than direct kill-reason telemetry, which is why confidence is medium rather than high. Classification: a limit lowered until the process is killed for exceeding it is resource_exhaustion, not bad_config \u2014 the wrong value is how it started, running out of memory is what is happening. The fix that actually resolves it is restoring the prior memory limit (config_revert); a restart alone would only re-enter the loop, and horizontal scaling would not help a per-container ceiling.",
+    "open_questions": [
+      "No direct confirmation of OOMKill: container last-terminated-reason, restart counts, working-set bytes and the memory limit spec were all requested and returned nothing [tr_d87905d7d6ea]. The kill mechanism is inferred, not observed.",
+      "The prior memory limit is not recorded in the change log [tr_5d90a328d546], so the magnitude of the reduction \u2014 and whether 200m is merely tight or wildly below the JVM's steady-state footprint \u2014 is unknown.",
+      "The true start of the restart loop is earlier than 22:07:35; that timestamp is the boundary of the retained log block [tr_ce5350e3f868]. It has not been shown that the loop began after 22:05:32 rather than before it, which would weaken the causal link to the limit change.",
+      "Why the 22:17 alert fired at that moment is unexplained: the loop was already established well before it and no metric anchors onset [tr_ce5350e3f868][tr_d87905d7d6ea]. The alerting signal itself was never identified.",
+      "Blast radius beyond this service was not investigated \u2014 no dispatch covered Kafka consumer lag, order backlog, or downstream consumers of fraud-detection results, despite processing having stopped since ~22:04:47.",
+      "Why platform-automation issued the limit reduction (autoscaler/rightsizing policy, quota enforcement, or a bad recommendation) is unknown, and that determines whether a revert would simply be re-applied by the same automation."
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. From the first restart after the change, the runtime could not complete a startup\ninside the new limit: it",
+    " / Summary: A service is denied the resources it needs - in this world, by squeezing its memory limit\nuntil the runtime cannot allocate.\n\n**Resolves by `config_revert`, not by restart.** This is the counter-intuitive one, and the\ncatalog is unambiguous: every `resource_exhaustion` scenario c",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 17209,
+    "pulled_tokens": 2360,
+    "pull_rate": 0.1206,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 66,
+        "content_tokens": 67,
+        "budget": 4000,
+        "kept": [
+          "incident"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1074,
+        "content_tokens": 1077,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 5106,
+        "content_tokens": 5081,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5038,
+        "content_tokens": 5040,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 5925,
+        "content_tokens": 5903,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "frauddetectionservice",
+    "rests_on": [
+      "tr_5d90a328d546",
+      "tr_ce5350e3f868"
+    ],
+    "expected_effect": "Removing the 200m memory ceiling set at 22:05:32 should stop the ~62s restart cadence: in Loki, {service=\"frauddetection-service\"} should show one startup triple at recreate and none for 5+ minutes after, and the 'Consumed record with orderId... total count to: N' line (last seen 22:04:47, count 2344) should resume incrementing. Container memory/restart/OOM series return no samples here, so confirm from logs, not metrics.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if startup triples continue at ~62s for 5+ minutes after recreate, or if they stop but consumption never resumes. Also: the change log records only 'None -> memory=200m', so if no concrete prior spec is stored the revert may be a no-op \u2014 the operator should verify one exists before executing. If platform-automation re-applies 200m within minutes, the revert is correct but non-durable and the policy must be paused.",
+    "risk": "The OOM kill is inferred, never observed, and the loop's true start may predate the limit change. If the fault is in the application (leak, bad startup, Kafka issue), a higher ceiling only lengthens the death interval and hides an app fault while orders stay unprocessed. If 200m came from a quota policy, reverting may over-commit the host or cause config flap. The action is itself another container recreate.",
+    "blast_radius": "frauddetectionservice only; no other service is in the given reach. Consumer-group rebalance on the order topic during recreate; downstream consumers of fraud-detection results were never investigated and may notice."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A single critical alert on frauddetectionservice with no open incidents and nothing to dismiss it as; critical severity is not something to decline before evidence exists. No signal yet distinguishes deploy, config, or resource causes."
+  }
+}
