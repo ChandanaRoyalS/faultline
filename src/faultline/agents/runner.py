@@ -15,6 +15,7 @@ honest in the exit code about what the run actually produced.
 from __future__ import annotations
 
 import json
+import logging
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -85,6 +86,11 @@ class RunReport:
     """What triage decided (T3.1). `None` when no `Triager` was configured, which is still a
     supported way to run: the gate is a role, not a requirement of the pipeline."""
 
+    judgement_error: str | None = None
+    """Why there is no judgement, when a `Triager` ran and could not produce one. **Distinct
+    from `judgement is None` alone**, which also covers the ungated configuration: a reader
+    seeing no judgement needs to know whether nobody asked or nobody could answer."""
+
     blast_radius: tuple[str, ...] = ()
     """Triage's predicted set, carried onto the artifact so the harness can score it without
     importing the product's triage (T4.1). ADR-0009 specifies the harness works through public
@@ -148,8 +154,9 @@ def run_investigation(
     edges = len(triage.unmeasured_edges)
 
     judgement: TriageJudgement | None = None
+    judgement_error: str | None = None
     if triager is not None:
-        judgement = _judge(store, incident, triage, triager)
+        judgement, judgement_error = _judge(store, incident, triage, triager)
         if judgement is not None and judgement.disposition != "investigate":
             # **Nothing else runs.** The state the incident lands in is the one the machine
             # already had a transition for and no writer: `TRIAGING -> DUPLICATE_MERGED`, or
@@ -161,7 +168,16 @@ def run_investigation(
             )
             trigger = f"triage declined: {judgement.disposition} - {judgement.reasoning}"
             advance_gate(store, incident, states, target, trigger)
-            return RunReport(incident.id, None, tuple(states), None, None, judgement, radius, edges)
+            return RunReport(
+                incident_id=incident.id,
+                trajectory_id=None,
+                states=tuple(states),
+                result=None,
+                judgement=judgement,
+                judgement_error=judgement_error,
+                blast_radius=radius,
+                unmeasured_edges=edges,
+            )
 
     def advance(step: Callable[[], None]) -> None:
         step()
@@ -182,14 +198,15 @@ def run_investigation(
             # terminal and `INVESTIGABLE` is `{TRIAGING}`. T3.5's own smoke did exactly this,
             # once, with a `ModuleNotFoundError`.
             return RunReport(
-                incident.id,
-                None,
-                tuple(states),
-                None,
-                f"did not start - {why}",
-                judgement,
-                radius,
-                edges,
+                incident_id=incident.id,
+                trajectory_id=None,
+                states=tuple(states),
+                result=None,
+                error=f"did not start - {why}",
+                judgement=judgement,
+                judgement_error=judgement_error,
+                blast_radius=radius,
+                unmeasured_edges=edges,
             )
         advance(
             partial(
@@ -197,7 +214,15 @@ def run_investigation(
             )
         )
         return RunReport(
-            incident.id, failure.trajectory.id, tuple(states), None, why, judgement, radius, edges
+            incident_id=incident.id,
+            trajectory_id=failure.trajectory.id,
+            states=tuple(states),
+            result=None,
+            error=why,
+            judgement=judgement,
+            judgement_error=judgement_error,
+            blast_radius=radius,
+            unmeasured_edges=edges,
         )
 
     incident.investigation_id = result.trajectory.id
@@ -209,7 +234,14 @@ def run_investigation(
         advance(lambda: machine.record_investigation_failure(incident, "no verdict was produced"))
 
     return RunReport(
-        incident.id, result.trajectory.id, tuple(states), result, None, judgement, radius, edges
+        incident_id=incident.id,
+        trajectory_id=result.trajectory.id,
+        states=tuple(states),
+        result=result,
+        judgement=judgement,
+        judgement_error=judgement_error,
+        blast_radius=radius,
+        unmeasured_edges=edges,
     )
 
 
@@ -292,14 +324,26 @@ def advance_gate(
 
 def _judge(
     store: IncidentStore, incident: Incident, triage: TriageResult, triager: Triager
-) -> TriageJudgement | None:
-    """Triage's judgement, or `None` if it would not validate twice.
+) -> tuple[TriageJudgement | None, str | None]:
+    """Triage's judgement, or `None` and a reason it could not produce one.
 
-    **A triage that fails is not a gate that closes.** A schema failure here means the model
-    could not answer, and declining an incident because the cheapest role in the pipeline
-    malfunctioned would turn a model outage into silent under-investigation - the failure mode
-    ADR-0031 built the fallback for. So the investigation proceeds, and the absent judgement is
-    visible in the report rather than being read as a decision.
+    **A triage that fails is not a gate that closes.** Declining an incident because the
+    cheapest role in the pipeline malfunctioned would turn a model outage into silent
+    under-investigation - the failure mode ADR-0031 built the fallback for. So the investigation
+    proceeds and the absent judgement is visible in the report rather than read as a decision.
+
+    **Every failure, not only a schema failure - found by the first live run of T3.1.** This
+    caught `SchemaValidationError` alone, which delivered the docstring's promise for the one
+    failure mode a fake model can produce and none of the ones a real one can. An auth error on
+    the first call to the API escaped it, and because this runs *before* `engine.run()` it
+    escaped the trajectory-preserving path as well: no partial record, the incident stranded in
+    `TRIAGING`, and the harness discarding a scenario that had already been injected.
+
+    So the `except` is broad, deliberately. The alternative - enumerating the transport errors a
+    provider SDK can raise - is a list that is wrong the first time the SDK adds to it, and being
+    wrong there costs an injected scenario. What a broad catch risks is hiding a programming
+    error in this role; what it buys is that no failure of the cheapest stage can end an
+    investigation that has already disturbed the world. The reason is returned, not swallowed.
     """
     open_incidents = [
         (
@@ -312,6 +356,15 @@ def _judge(
     ]
     try:
         judgement: TriageJudgement = triager.judge(triage, open_incidents).value
-    except SchemaValidationError:
-        return None
-    return judgement
+    except SchemaValidationError as failure:
+        return None, f"did not validate twice: {failure}"
+    except Exception as failure:
+        logging.getLogger(__name__).warning(
+            "triage could not be asked for incident %s, so the investigation proceeds "
+            "ungated: %s: %s",
+            incident.id,
+            type(failure).__name__,
+            failure,
+        )
+        return None, f"{type(failure).__name__}: {failure}"
+    return judgement, None

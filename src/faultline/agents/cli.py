@@ -268,6 +268,9 @@ def _print_report(report: object) -> None:
             f"confidence, suspects {judgement.suspected_fault_class})"
         )
         print(f"  {judgement.reasoning}")
+    error = getattr(report, "judgement_error", None)
+    if error:
+        print(f"triage could not be asked, so nothing was gated: {error}")
     if getattr(report, "gated", False):
         print("\nGATED BEFORE FAN-OUT: no specialist ran and nothing was spent on this incident")
         return
@@ -285,6 +288,39 @@ def _print_report(report: object) -> None:
 
     for name, why in result.failed_dispatches:
         print(f"  FAILED DISPATCH {name}: {why}")
+
+    # **The proposal, which the first live run produced and nobody could see** (T3.9). The
+    # incident reached `PROPOSING` and the object was written to the verdict JSON, and the
+    # transcript said nothing - so the stage Batch B was built for was invisible in the one
+    # place a person actually reads. An abstention prints too: it is an outcome, not an absence
+    # (ADR-0022 §1.2).
+    proposal = getattr(result, "proposal", None)
+    if proposal is not None:
+        print("\n=== PROPOSAL ===")
+        if proposal.remediation_class == "none":
+            print("  ABSTAINED - no permitted action fits the evidence")
+        else:
+            print(f"  action      : {proposal.action_id} ({proposal.remediation_class})")
+            print(f"  target      : {proposal.target}")
+            print(f"  expect      : {proposal.expected_effect}")
+            print(f"  within      : {proposal.confirm_within_seconds}s")
+            print(f"  risk        : {proposal.risk}")
+            print(f"  blast radius: {proposal.blast_radius}")
+        print(f"  if wrong    : {proposal.if_wrong}")
+        print(f"  rests on    : {', '.join(proposal.rests_on) or 'nothing cited'}")
+        print("  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)")
+    for violation in getattr(result, "proposal_violations", []):
+        print(f"  PROPOSAL REFUSED: {violation}")
+    if getattr(result, "proposal_escalated", False):
+        print("  the proposer was refused twice and produced nothing")
+
+    disclosure = getattr(result, "disclosure", None)
+    if disclosure is not None:
+        row = disclosure.as_row()
+        print(
+            f"\ncontext: {row['pushed_tokens']} pushed / {row['pulled_tokens']} pulled "
+            f"(pull rate {row['pull_rate']}), {row['dropped_sections']} section(s) dropped"
+        )
 
     verdict = result.verdict
     if verdict is None:
