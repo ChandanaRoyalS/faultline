@@ -6,6 +6,7 @@ scoring input and T5.3's replay source and both need the run rather than a summa
 
 from __future__ import annotations
 
+import logging
 import time
 from concurrent.futures import ThreadPoolExecutor
 from concurrent.futures import TimeoutError as FuturesTimeout
@@ -80,6 +81,15 @@ class InvestigationResult:
     draft: NarrativeDraft | None = None
     narrative: str | None = None
     narrative_error: str | None = None
+    citation_violations: list[str] = field(default_factory=list)
+    """Every refusal the publication boundary issued for this run, in order (T3.8's
+    violation metrics). Zero, one, or two: one means the regeneration succeeded, two means it
+    did not and the narrative was escalated."""
+    narrative_regenerated: bool = False
+    narrative_escalated: bool = False
+    """Refused twice. The plan's "then page a human": this system has no pager, so the
+    escalation is a flag on the verdict, a warning in the log, and a field in the trajectory -
+    all three of which T4.2 and T4.3 read."""
     retrieved: list[str] = field(default_factory=list)
     exclude_origin: str | None = None
 
@@ -97,6 +107,11 @@ class InvestigationResult:
         flags += [
             f"{name} produced no valid findings: {why}" for name, why in self.failed_dispatches
         ]
+        if self.narrative_escalated:
+            flags.append(
+                f"narrative escalated to human review after {len(self.citation_violations)} "
+                "refused render(s)"
+            )
         return flags + self.contradictions
 
     contradictions: list[str] = field(default_factory=list)
@@ -327,25 +342,64 @@ class Investigation:
         triage: TriageResult,
         seq: int,
     ) -> int:
+        """Draft, render, and - if the boundary refuses - regenerate once, then escalate (T3.8).
+
+        The renderer is the grounding gate: a citation the store cannot resolve raises, and so
+        does a narrative that leaks harness vocabulary. The plan's method is *"failures feed back
+        for one regeneration, then page a human"*. The second attempt receives the refusal in its
+        user message; a second refusal sets `narrative_escalated`, which flags the verdict.
+
+        Every refusal is kept in `citation_violations` and written to the step, so T4.3 can
+        compute a violation rate from persisted trajectories with no new instrumentation.
+        """
         if self._scribe is None or result.verdict is None:
             return seq
-        try:
-            completion = self._scribe.draft(triage, result.runs, result.verdict)
-        except SchemaValidationError as failure:
-            state.spend_tokens(failure.response.input_tokens, failure.response.output_tokens)
-            result.failed_dispatches.append((Scribe.ROLE, str(failure)))
+        completion: Any = None
+        tokens_in = tokens_out = 0
+        violation: str | None = None
+        for attempt in (1, 2):
+            try:
+                completion = self._scribe.draft(
+                    triage, result.runs, result.verdict, violation=violation
+                )
+            except SchemaValidationError as failure:
+                state.spend_tokens(failure.response.input_tokens, failure.response.output_tokens)
+                result.failed_dispatches.append((Scribe.ROLE, str(failure)))
+                if attempt == 2:
+                    result.narrative_escalated = True
+                break
+            state.spend_tokens(completion.response.input_tokens, completion.response.output_tokens)
+            tokens_in += completion.response.input_tokens
+            tokens_out += completion.response.output_tokens
+            result.draft = completion.value
+            try:
+                result.narrative = narrative_renderer.render(completion.value, self._store)
+                result.narrative_error = None
+                break
+            except (
+                narrative_renderer.UnknownCitationError,
+                narrative_renderer.NarrativeLeakError,
+            ) as exc:
+                # A refused render is a finding, not a crash: the draft is kept so the failure
+                # can be read, and the investigation still has its verdict.
+                violation = str(exc)
+                result.citation_violations.append(violation)
+                result.narrative_error = violation
+                if attempt == 1:
+                    result.narrative_regenerated = True
+                else:
+                    result.narrative_escalated = True
+
+        if result.narrative_escalated:
+            logging.getLogger(__name__).warning(
+                "narrative for incident %s was refused at the publication boundary twice and "
+                "needs a human: %s",
+                trajectory.incident_id,
+                result.narrative_error,
+            )
+        if completion is None:
             return seq
-        state.spend_tokens(completion.response.input_tokens, completion.response.output_tokens)
-        result.draft = completion.value
-        try:
-            result.narrative = narrative_renderer.render(completion.value, self._store)
-        except (
-            narrative_renderer.UnknownCitationError,
-            narrative_renderer.NarrativeLeakError,
-        ) as exc:
-            # A refused render is a finding, not a crash: the draft is kept so the failure can
-            # be read, and the investigation still has its verdict.
-            result.narrative_error = str(exc)
+
         seq += 1
         trajectory.add(
             TrajectoryStep(
@@ -353,13 +407,16 @@ class Investigation:
                 role=Scribe.ROLE,
                 kind=StepKind.MESSAGE,
                 at=datetime.now(UTC),
-                tokens_in=completion.response.input_tokens,
-                tokens_out=completion.response.output_tokens,
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
                 payload={
                     "attempts": completion.attempts,
                     "draft": completion.value.model_dump(),
                     "rendered": result.narrative is not None,
                     "render_error": result.narrative_error,
+                    "violations": list(result.citation_violations),
+                    "regenerated": result.narrative_regenerated,
+                    "escalated": result.narrative_escalated,
                 },
             )
         )

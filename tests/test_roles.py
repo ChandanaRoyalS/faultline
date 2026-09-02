@@ -1228,3 +1228,98 @@ def test_a_specialist_that_outlives_the_wall_clock_is_a_failed_dispatch_not_a_ha
     assert result.budget_exhausted, "a wall clock that ran out is exhaustion and must be flagged"
     timed_out = [s for s in result.trajectory.steps if s.payload.get("timed_out")]
     assert len(timed_out) == 1 and timed_out[0].payload["service"] == "cartservice"
+
+
+# --- T3.8: refused once, regenerated; refused twice, escalated -----------------------
+#
+# The renderer is the grounding gate and it was already strict. What T3.8 asked for beyond
+# that was the loop around it - "failures feed back for one regeneration, then page a human" -
+# and a violation metric. Neither existed: a refusal was terminal for the narrative, and
+# nothing counted how often the gate fired.
+
+
+def scribe_scripted(*drafts: str) -> ScriptedModel:
+    return ScriptedModel(
+        {"planner": [ONE_DISPATCH], "synthesizer": [VERDICT_REPLY], "scribe": list(drafts)}
+    )
+
+
+def test_a_refused_render_is_regenerated_once_with_the_violation_fed_back() -> None:
+    """The first draft cites evidence the store does not hold. The second draft gets told."""
+    model = scribe_scripted(draft_reply(["r-not-in-store"]), draft_reply([]))
+    engine, _ = full_engine(model, Budget(max_dispatch_rounds=1))
+
+    result = engine.run("incident-regen", triage_of("cartservice"), ANCHOR)
+
+    assert result.narrative is not None, "the regeneration rendered"
+    assert result.narrative_regenerated and not result.narrative_escalated
+    assert len(result.citation_violations) == 1
+    assert "r-not-in-store" in result.citation_violations[0]
+    assert not any("escalated" in flag for flag in result.flags)
+
+    scribe_calls = [call for call in model.calls if call.role == "scribe"]
+    assert len(scribe_calls) == 2, "one regeneration, not a loop"
+    retry = scribe_calls[1].messages[0]["content"]
+    assert "refused at the publication boundary" in retry
+    assert "r-not-in-store" in retry, "the violation itself is what the model is told"
+
+
+def test_the_feedback_goes_in_the_user_message_and_never_the_system_prompt() -> None:
+    """`SCRIBE_SYSTEM` is a frozen input. A run that never hits a violation must see the exact
+    prompt it saw before T3.8 existed, and a run that does must not move the freeze."""
+    model = scribe_scripted(draft_reply(["r-not-in-store"]), draft_reply([]))
+    engine, _ = full_engine(model, Budget(max_dispatch_rounds=1))
+
+    engine.run("incident-frozen", triage_of("cartservice"), ANCHOR)
+
+    first, second = (call for call in model.calls if call.role == "scribe")
+    assert first.system == second.system
+    assert "refused" not in first.system and "refused" not in second.system
+
+
+def test_a_second_refusal_escalates_to_a_human_and_flags_the_verdict() -> None:
+    """The plan's "then page a human". No pager here, so: a flag on the verdict T4.2 reads, a
+    warning in the log, and the escalation on the trajectory. Two attempts, never three."""
+    model = scribe_scripted(draft_reply(["r-bad-1"]), draft_reply(["r-bad-2"]))
+    engine, _ = full_engine(model, Budget(max_dispatch_rounds=1))
+
+    result = engine.run("incident-escalate", triage_of("cartservice"), ANCHOR)
+
+    assert result.narrative is None
+    assert result.narrative_escalated
+    assert len(result.citation_violations) == 2
+    assert any("escalated to human review after 2 refused render(s)" in f for f in result.flags)
+    assert sum(1 for call in model.calls if call.role == "scribe") == 2, (
+        "bounded, not retried forever"
+    )
+    assert result.verdict is not None, "the verdict survives; only the narrative is withheld"
+
+
+def test_violation_metrics_are_persisted_where_t4_3_reads_them() -> None:
+    """T4.3 computes its metric panel "from persisted trajectories … no new instrumentation
+    needed because P2 recorded everything". So the violations go on the scribe's step."""
+    model = scribe_scripted(draft_reply(["r-not-in-store"]), draft_reply([]))
+    engine, _ = full_engine(model, Budget(max_dispatch_rounds=1))
+
+    result = engine.run("incident-metrics", triage_of("cartservice"), ANCHOR)
+
+    step = next(s for s in result.trajectory.steps if s.role == "scribe")
+    assert step.payload["violations"] == result.citation_violations
+    assert step.payload["regenerated"] is True
+    assert step.payload["escalated"] is False
+    assert step.payload["rendered"] is True
+    assert step.tokens_in == 200 and step.tokens_out == 100, (
+        "both attempts are paid for and counted"
+    )
+
+
+def test_a_clean_render_asks_once_and_records_no_violation() -> None:
+    model = scribe_scripted(draft_reply([]))
+    engine, _ = full_engine(model, Budget(max_dispatch_rounds=1))
+
+    result = engine.run("incident-clean", triage_of("cartservice"), ANCHOR)
+
+    assert result.narrative is not None
+    assert result.citation_violations == []
+    assert not result.narrative_regenerated and not result.narrative_escalated
+    assert sum(1 for call in model.calls if call.role == "scribe") == 1
