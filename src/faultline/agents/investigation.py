@@ -30,7 +30,6 @@ from faultline.agents.roles import (
     Specialist,
     SpecialistRun,
     Synthesizer,
-    default_window,
 )
 from faultline.agents.stamp import runtime_version
 from faultline.agents.trajectory import (
@@ -172,12 +171,22 @@ class Investigation:
         self._role_models = role_models or {}
         self._effort = effort
 
-    def run(self, incident_id: str, triage: TriageResult, anchor: datetime) -> InvestigationResult:
+    def run(
+        self,
+        incident_id: str,
+        triage: TriageResult,
+        anchor: datetime,
+        now: datetime | None = None,
+    ) -> InvestigationResult:
+        """Investigate one incident. `anchor` is alert onset; `now` is when the investigation
+        began, defaulting to the clock. Every specialist window ends at `now` (T3.2b), so it is
+        fixed once here and recorded as the trajectory's `started_at` rather than read per
+        dispatch - a replay with the same two instants asks the same windows."""
         trajectory = Trajectory(
             incident_id=incident_id,
             model=self._model.name,
             effort=self._effort,
-            started_at=datetime.now(UTC),
+            started_at=now or datetime.now(UTC),
             role_models=dict(self._role_models),
             runtime_version=runtime_version(),
         )
@@ -484,10 +493,13 @@ class Investigation:
         outcomes: list[DispatchOutcome | None]
         if len(admitted) == 1:
             dispatch, at = admitted[0]
-            outcomes = [self._run_dispatch(dispatch, anchor, at)]
+            outcomes = [self._run_dispatch(dispatch, anchor, trajectory.started_at, at)]
         else:
             pool = ThreadPoolExecutor(max_workers=len(admitted), thread_name_prefix="specialist")
-            futures = [pool.submit(self._run_dispatch, d, anchor, at) for d, at in admitted]
+            futures = [
+                pool.submit(self._run_dispatch, d, anchor, trajectory.started_at, at)
+                for d, at in admitted
+            ]
             outcomes = []
             for future in futures:
                 remaining = max(1.0, state.budget.wall_clock_seconds - state.elapsed_seconds())
@@ -530,7 +542,9 @@ class Investigation:
         state.check()
         return seq
 
-    def _run_dispatch(self, dispatch: Any, anchor: datetime, seq: int) -> DispatchOutcome:
+    def _run_dispatch(
+        self, dispatch: Any, anchor: datetime, now: datetime, seq: int
+    ) -> DispatchOutcome:
         """One specialist, start to finish, **touching nothing shared.**
 
         Runs on a worker thread whenever a round has more than one dispatch, which is why it
@@ -541,7 +555,10 @@ class Investigation:
         service: str = dispatch.service
         question: str = dispatch.question
         specialist = self._specialists[name]
-        start, end = default_window(anchor)
+        # The window comes from the tool layer's policy, never from here and never from a model
+        # (T3.2b): onset - 30 min to now for three specialists, onset - 24 h for `changes`.
+        scoped = specialist.window(anchor, now)
+        start, end = scoped.start, scoped.end
         steps: list[TrajectoryStep] = []
 
         began = time.monotonic()
@@ -560,7 +577,9 @@ class Investigation:
                 payload={"question": question, "service": service},
                 tool_call=ToolCallRecord(
                     tool=tool_result.tool,
-                    request={"service": service, "window": [start.isoformat(), end.isoformat()]},
+                    # Per-query window logging on the record itself: which rule produced the
+                    # window and whether the ceiling clipped it, beside the window (T3.2b).
+                    request={"service": service, **scoped.as_request()},
                     result_id=tool_result.id,
                     envelope=rendered,
                 ),

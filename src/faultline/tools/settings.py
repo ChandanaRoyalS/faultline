@@ -31,7 +31,19 @@ class ToolSettings(BaseSettings):
     """Matches the rehearsal recorder's cap, so a bundle and a tool see the same shape."""
 
     max_window_seconds: int = 6 * 60 * 60
-    """Prometheus retention (CATALOG.md, "Prometheus keeps 6 hours"). A window longer than
-    retention returns a truthful-looking partial answer, which is worse than a refusal."""
+    """The ceiling on any telemetry window - the widest read `promql_query`, `logql_query` and
+    `trace_query` will perform. **Its justification changed and the number did not.** It was
+    Prometheus retention (CATALOG.md, "Prometheus keeps 6 hours"); T7.1 raised retention to 15d
+    in `compose/telemetry.yml` and this docstring was not updated until T3.2b. It stays six hours
+    as a *policy* bound: a full twelve times the default lookback, and the plan says unbounded
+    requests are refused, so something must be the bound. `WindowPolicy` is the only reader."""
+
+    default_lookback_seconds: int = 30 * 60
+    """How far before onset every specialist's window opens - the plan's `onset - 30 min`. The
+    forward end is the moment of investigation, not a fixed offset."""
+
+    change_lookback_seconds: int = 24 * 60 * 60
+    """The change analyst alone reaches back a day - the plan's `onset - 24 h`, "because causes
+    precede symptoms". Its ceiling is this plus `max_window_seconds` (see `WindowPolicy`)."""
 
     max_spans: int = 200
