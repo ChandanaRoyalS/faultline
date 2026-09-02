@@ -379,7 +379,65 @@ than the contract itself.
 
 ## Phase 3 — the agents
 
-### T3.x — nine agent roles *(designed, not built)*
+> **Numbering note (2026-09-02).** Until today this phase's headings were *T3.x, T3.2, T3.3,
+> T3.4, T3.4b, T3.4c, T3.5* — numbers this file's reconstruction assigned by splitting
+> ADR-0020's design at its seams, each marked *"not a task number the plan states"*. That marker
+> was honest and it was not enough: only T3.1 matched the specification, the specification's
+> T3.6, T3.7, T3.8 and T3.9 had no entry at all, and a reader asking "is T3.5 done?" was told
+> *built* about a task that is not the plan's T3.5. The headings below now carry the
+> specification's ids, and each says what it was called before. **The old labels are not
+> erased anywhere else**: `T3.4b` and `T3.4c` name the ADR-0021 work and the dispatch contract
+> in eleven ADR passages, in code comments and in the commit history, and rewriting the record
+> of what a change was called when it was made would be the reconstruction's mistake in
+> reverse. The table below is the mapping; the labels are aliases from here on.
+
+## Audit against the specification — Phase 3 (2026-09-02)
+
+The second check of this repository against `docs/spec/`, task by task against each
+deliverable column's own wording. Read from a fresh clone on 2026-09-01; the fixes that need
+no frozen key to move landed as #137–#140 the following day. No part of it delegated to an
+agent.
+
+**The mapping this file had wrong.**
+
+| Heading until 2026-09-02 | What the section describes | Specification id |
+|---|---|---|
+| T3.x — nine agent roles | ADR-0020, the layer's design | the phase's design entry; no task id |
+| T3.2 — the agent substrate | model boundary; trajectory store, envelope hash | **T3.6** evidence model and store (the model boundary has no spec id) |
+| T3.3 — planner and specialists | planner; logs, metrics, changes, traces | **T3.2** planner, **T3.3** logs, **T3.3b** metrics, **T3.4** changes |
+| T3.4 — synthesizer and scribe | verdict and narrative | **T3.7** synthesizer; the scribe has no spec id of its own |
+| T3.4b — verdict grounding | citation gate, two-ended truncation | **T3.8** citation validator |
+| T3.4c — the dispatch contract | one service per dispatch | **T3.2**, continued |
+| T3.5 — the investigation runner | the CLI, and T2.3's agent-driven transitions | **T3.5** parallel fan-out is the spec's task; the runner is its packaging |
+
+**Task by task.** *Found* is what a fresh clone showed on 2026-09-01; *closed by* is the PR
+that met the deliverable's wording, or where the remaining work is queued.
+
+| Task | Deliverable (specification) | Found | Closed by |
+|---|---|---|---|
+| T3.1 | Triage decisions persisted; noise gated before fan-out | **Computed, not asked**: `Triage(catalog, hop_radius)` — deterministic, no model, no `duplicate-of`. Persisted, and it does gate the fan-out | Batch B — a model-based triage with a strict schema moves `prompts` |
+| T3.2 | Plan objects; scoped fan-out | Delivered. `DispatchPlan`, one service per dispatch since T3.4c | — |
+| T3.2b | Tool-enforced window policy + per-query window logging | One window for every specialist, `onset − 10 min → onset + 5 min`, chosen in the agent layer; `change_history` never checked; no hint on refusal | **#139**. Planner's per-hypothesis widening → **Q17** (moves `prompts`) |
+| T3.2c | Budgeted briefing assembler + pull-rate metrics | Not built | Batch B |
+| T3.3 | Log evidence with signatures + sample lines + provenance | Delivered: scoped, capped, two-ended, typed | — |
+| T3.3b | Production metrics specialist | Specialist exists; no baseline range-query comparison, no change-point timestamps | Remaining. The templated-query half may need no frozen key; decided when reached |
+| T3.4 | Ranked suspicious-change evidence per incident | Deploy history yes, oldest first; no ranking; no repo-compare | **#140** ranks in the tool by causal tier, radius tier, hops, lead. Repo-compare → Batch B (a fifth tool moves `CAPABILITY_VERSION`) |
+| T3.5 | Concurrent investigations; kill-one-specialist test | Sequential loop. Degradation and the kill test were present | **#137** |
+| T3.6 | Evidence store with full provenance chain | Typed per modality with trust labels and windows; the provenance chain is split across `ToolResult`, `SpecialistFindings` and the envelope hash | Batch B — a unified `Evidence` object is a contract change |
+| T3.7 | Cited, ranked RCA reports | Delivered: `Verdict` with evidence ids, one bounded follow-up round | — |
+| T3.8 | Grounding enforcement gate + violation metrics | Gate yes, deterministic, blocks the report; no regeneration attempt, no violation metric | **#138** |
+| T3.9 | Remediation proposals attached to RCA reports | Not built: a type alias, deliberately (ADR-0028, Q7) | Batch B |
+| G3 | Full pipeline on ≥ 3 of 4 fault classes | Coverage is met — all four classes have scored verdicts — and **the pipeline the gate names has six stages and one does not exist**. Blocked on T3.9, not on coverage | with T3.9 |
+
+**Why two batches.** Four of the fixes moved nothing frozen and landed at once (#137–#140).
+The rest each move a frozen key — `prompts` through a system prompt or a contract schema, or
+`world` through `CAPABILITY_VERSION` — and every such move costs a comparability generation
+and a re-record. They land together, once, with Q13, Q15, Q16 and Q17 riding along, so the
+benchmark pays for one generation rather than six. Recorded in `docs/QUEUE.md`.
+
+---
+
+### The agent layer's design — ADR-0020's nine roles *(designed; formerly headed "T3.x")*
 Triage, planner, four specialists, synthesizer, proposer, scribe.
 
 **ADR-0020 designs the layer** against the same ten narratives T2.6 took its requirements
@@ -417,7 +475,13 @@ carries both model ids — a judged accuracy number is a function of two models.
 `src/faultline/agents/__init__.py:1`, `docs/adr/0020-agent-layer.md`, `docs/adr/0003:6`,
 `docs/adr/0004:41`, `docs/adr/0009:117`, `docs/adr/0019-tool-layer.md`
 
-### T3.1 — triage *(built)*
+### T3.1 — triage *(built; differs from the specification — see the audit above)*
+
+> **Audit note (2026-09-02).** The specification's T3.1 is a *"small model, strict output
+> schema"* with `duplicate-of` among its outputs. What is built is deterministic — the section
+> below gives the reason it was chosen, and the reason is a real one — but it is a deviation and
+> is indexed as one. Closing it moves `prompts` and belongs to Batch B.
+
 Scores triage, and **blast radius is what it scores on**. This is why the bundle manifest
 carries `alerts_over_window` with `began_after_revert` rather than only a snapshot.
 
@@ -466,7 +530,14 @@ changed is not a measurement.
 `docs/evidence/t3.1-edge-kinds/README.md`, `src/faultline/context/graph.py`,
 `src/evalharness/rehearse.py:590`
 
-### T3.2 — the agent substrate *(built)*
+### T3.6 — the evidence store, and the substrate the roles stand on *(built; formerly headed "T3.2")*
+
+> **Numbering note (2026-09-02).** The specification's T3.6 is the *evidence model* — typed
+> evidence with provenance, and *"raw results archived so every citation can be re-verified"*.
+> The trajectory store described here is that store; the provenance chain it holds is split
+> across three objects rather than one `Evidence` type, which the Phase 3 audit records as the
+> gap. The model boundary in this section has no specification id.
+
 The provider-agnostic model boundary and trajectory persistence — everything the roles stand on,
 with no roles in it. **Not a task number the plan states**; inferred from ADR-0020's design
 splitting cleanly at this seam, and recorded here so the work has a home. **contract not
@@ -492,7 +563,13 @@ bytes, matching sha256, closing nonce intact.
 `src/faultline/agents/trajectory.py`, `docs/adr/0020-agent-layer.md`,
 `docs/evidence/t3.2-trajectory-smoke/README.md`
 
-### T3.3 — planner and specialists *(built; first real dispatch not yet run)*
+### T3.2, T3.3, T3.3b, T3.4 — the planner and the four specialists *(built; formerly headed "T3.3")*
+
+> **Numbering note (2026-09-02).** Four specification tasks share this section: T3.2 the
+> planner, T3.3 the log analyst, T3.3b the metrics analyst, T3.4 the change analyst. What each
+> still owes is in the Phase 3 audit table above; T3.2b's window policy (#139) and T3.4's
+> ranking (#140) are recorded in ADR-0019's addenda.
+
 The planner and the four specialists, per ADR-0020 §2. **Not a task number the plan states** -
 inferred from the ADR's role table, same convention as T3.2. **contract not written.**
 
@@ -532,7 +609,12 @@ is re-asked as truncation, and a specialist that fails twice now fails alone.
 `src/faultline/agents/budget.py`, `src/faultline/agents/contracts.py`,
 `docs/adr/0020-agent-layer.md`, `docs/evidence/t3.3-first-dispatch/README.md`
 
-### T3.4 — synthesizer and scribe *(built; first end-to-end investigation run)*
+### T3.7 — the synthesizer, and the scribe *(built; formerly headed "T3.4")*
+
+> **Numbering note (2026-09-02).** The specification's T3.7 is the synthesizer — *"cited, ranked
+> RCA reports"*, one bounded follow-up round. The scribe, which writes the narrative from the
+> verdict, has no specification id; it is where T3.8's gate is enforced.
+
 The two roles that turn findings into a verdict and a narrative, per ADR-0020 §2. **Not a task
 number the plan states** - inferred from the ADR's role table, same convention as T3.2 and T3.3.
 **contract not written.**
@@ -577,7 +659,13 @@ is indistinguishable from the fabricated-citation case it exists to catch.
 `src/faultline/agents/investigation.py`, `src/faultline/agents/contracts.py`,
 `docs/adr/0020-agent-layer.md`, `docs/evidence/t3.4-first-investigation/README.md`
 
-### T3.4b — verdict grounding *(built; second live run captured)*
+### T3.8 — the citation validator: verdict grounding *(built; formerly headed "T3.4b")*
+
+> **Numbering note (2026-09-02).** This is the specification's T3.8 — *"a deterministic
+> checker … violations block the report"*, with *"one regeneration, then page a human"* and
+> violation metrics. The gate is below; the regeneration and the metrics landed at #138
+> (ADR-0021 addendum). `T3.4b` remains the label in ADR-0021 and the code.
+
 Two defects T3.4's smoke recorded, diagnosed from the stored trajectory before either was
 touched. **contract not written** - a follow-on to T3.4, same convention.
 
@@ -612,7 +700,11 @@ questions. n=2 is an observation, not a rate.
 `src/faultline/tools/tools.py`, `src/faultline/tools/results.py`,
 `docs/evidence/t3.4b-rerun/README.md`
 
-### T3.4c — the dispatch contract *(built; third live run captured)*
+### T3.2, continued — the dispatch contract *(built; formerly headed "T3.4c")*
+
+> **Numbering note (2026-09-02).** A refinement of the specification's T3.2 planner — its plan
+> objects gained the one-service rule here. `T3.4c` remains the label in the ADRs and the code.
+
 One defect from T3.4b's run and the decision it forced. **contract not written**, same
 convention as T3.4 and T3.4b.
 
@@ -655,7 +747,15 @@ positive remains the historical one. T4.1's first batch is where that record get
 `src/faultline/agents/roles.py`, `src/faultline/agents/grounding.py`,
 `docs/evidence/t3.4c-rerun/README.md`
 
-### T3.5 — the investigation runner, and the state machine it drives *(built)*
+### T3.5 — the fan-out's runner, and the T2.3 transitions it drives *(built; heading kept, scope corrected)*
+
+> **Numbering note (2026-09-02).** The paragraph below says *the plan called this task "state
+> machine"*. It did not: the specification's T3.5 is *Parallel fan-out* — concurrent specialists
+> with per-agent budgets, a failed specialist degrading rather than aborting — and the state
+> machine is T2.3. The sentence is left as written because it records what the reconstruction
+> believed; this note records what the specification says. The fan-out itself was sequential
+> until #137 (ADR-0020 addendum).
+
 **The plan called this task "state machine" and it is broader than that** - the machine's
 agent-driven transitions are one part of packaging the pipeline as an operational entrypoint.
 The difference is marked rather than resolved silently: the transitions this entry describes are
