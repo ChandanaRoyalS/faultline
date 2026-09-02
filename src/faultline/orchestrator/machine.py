@@ -145,15 +145,45 @@ INVESTIGATION_PHASES: tuple[tuple[IncidentState, str], ...] = (
     (IncidentState.PLANNING, "planner produced a dispatch plan"),
     (IncidentState.INVESTIGATING, "specialists ran their dispatches"),
     (IncidentState.SYNTHESIZING, "synthesizer produced a verdict"),
+    (IncidentState.PROPOSING, "proposer produced a remediation proposal"),
 )
 """What the runner walks, in order, once an investigation returns.
 
-**It stops at `SYNTHESIZING` and does not enter `PROPOSING`.** `PROPOSING` means a remediation
-proposal exists, and the proposer is the one role of the nine that T3.x has not built. An
-incident parked in `SYNTHESIZING` says exactly what happened - triage, planning, dispatch and a
-verdict - and claims nothing about a proposal. `SYNTHESIZING -> PROPOSING` stays in the table,
-unused, for the task that builds it.
+**`PROPOSING` is entered only when a proposal exists** - built at T3.9, and until then this
+tuple stopped at `SYNTHESIZING` because the proposer was the one role of the nine that had no
+implementation. It still stops there whenever the proposer did not run, was refused twice, or
+had no verdict to work from: an incident parked in `SYNTHESIZING` says exactly what happened and
+claims nothing about a proposal.
+
+**An abstention advances the state.** `remediation_class: "none"` is a proposal - the proposer
+ran, read the evidence and declined - and ADR-0022 §1.2 is explicit that an abstention is
+neither right nor wrong rather than absent. `PROPOSING` means *a proposal exists*, not *an
+action was proposed*, and the incident's next state is the action plane's to decide.
 """
+
+
+def phases_for(outcome: object) -> tuple[tuple[IncidentState, str], ...]:
+    """The phases a finished investigation **evidences**, in order, and no further.
+
+    One function because there are two walkers - `record_agent_outcome` here, and
+    `agents.runner.run_investigation`, which walks the same phases itself so it can persist the
+    incident after each one. T3.9 found them disagreeing: the proposer's state was added here
+    and the runner advanced to `PROPOSING` on every run, proposer or not. A rule with two
+    implementations has two behaviours, so the rule is here and both walk what it returns.
+
+    Typed as `object` for the same reason `record_agent_outcome` is: `faultline.agents` imports
+    `faultline.orchestrator` and not the other way round.
+    """
+    verdict = getattr(outcome, "verdict", None)
+    proposal = getattr(outcome, "proposal", None)
+    reached: list[tuple[IncidentState, str]] = []
+    for state, trigger in INVESTIGATION_PHASES:
+        if state is IncidentState.SYNTHESIZING and verdict is None:
+            break
+        if state is IncidentState.PROPOSING and proposal is None:
+            break
+        reached.append((state, trigger))
+    return tuple(reached)
 
 
 def record_agent_outcome(incident: Incident, outcome: object) -> None:
@@ -172,10 +202,7 @@ def record_agent_outcome(incident: Incident, outcome: object) -> None:
     score and nothing to propose from, and marking it as synthesized would put a state on the
     incident that its own trajectory contradicts.
     """
-    verdict = getattr(outcome, "verdict", None)
-    for state, trigger in INVESTIGATION_PHASES:
-        if state is IncidentState.SYNTHESIZING and verdict is None:
-            return
+    for state, trigger in phases_for(outcome):
         transition(incident, state, trigger=trigger)
 
 

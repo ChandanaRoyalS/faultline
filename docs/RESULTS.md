@@ -89,6 +89,14 @@ coverage, so accuracy and coverage are never quoted apart.
 `prompts:1b0e7cbb4c47`, agent `claude-opus-5`, judge `claude-haiku-4-5` — SHARED LINEAGE on every
 judged figure.**
 
+> **HEAD is no longer this pipeline (T3.9, 2026-09-02).** The remediation proposer added a sixth
+> stage, so its system prompt and the `Proposal` contract entered the stamp and HEAD is
+> `prompts:20088b22cede`. **Every figure below describes `prompts:1b0e7cbb4c47`, and none of
+> them describes the agent this repository now builds.** ADR-0028 §6 required the role to land
+> with a re-sweep and named this cost in advance; the re-sweep has not run. Nothing below is
+> altered, because a figure that was true of the pipeline that produced it stays true of it -
+> what changes is which pipeline a reader may attribute it to.
+
 **19 scored runs, over 10 of the 13 valid scenarios. Every one is a dev run: there is no
 current-world holdout figure at all**, and there will not be one — see *What remains*.
 

@@ -1,8 +1,8 @@
 # ADR-0028: The proposer, and what it would take to act
 
-- **Status:** accepted (design; nothing built)
-- **Date:** 2026-08-29
-- **Task:** T7.18
+- **Status:** accepted — **the proposer is built (T3.9, 2026-09-02); the action plane is not**
+- **Date:** 2026-08-29, addendum 2026-09-02
+- **Task:** T7.18, built at T3.9
 - **Builds on:** ADR-0003 (runtime), ADR-0019 (tool layer), ADR-0020 (agent layer), ADR-0022 (scoring), ADR-0008 (contamination), ADR-0027 (two working fixes)
 
 ## Context
@@ -243,3 +243,60 @@ are not simply a later commit in this one.
 
 Revisit if: an executor is built (fold axis 3 into ADR-0008 and re-pre-register the loop), or a
 scored run produces an unexpected working fix (§4's promotion rule applies, with a re-test).
+
+## Addendum (T3.9, 2026-09-02) — built, and what the building changed
+
+The role exists. `PROPOSER_SYSTEM`, the `Proposal` contract, `Proposer` in `agents/roles.py`,
+the stage wired after the citation gate, the `PROPOSING` state entered for the first time, and
+`trajectory_proposals` (migration 0002). §6's list of what a first implementation includes is
+what was built; §6's list of what it does not is what was not.
+
+**The stamp moved, as this ADR said it would.** `prompts:1b0e7cbb4c47` →
+`prompts:20088b22cede`. No sweep in `evals/runs/` describes HEAD, `docs/RESULTS.md` now says so
+in its own banner, and the re-sweep §6 requires has not run. The number was named in advance and
+paid on schedule, which is the only way this cost is ever acceptable.
+
+### Three decisions taken in the building, marked
+
+**The grounding check moved earlier, from the executor to the proposer.** §2 lists *"the evidence
+will not resolve"* among the executor's refusals. It is now also checked when the proposal is
+made: `rests_on` is resolved against the same store the narrative's citations resolve against,
+and an unresolvable id is refused, fed back once, and on a second refusal leaves **no proposal at
+all**. The argument is that an approver should never be shown a proposal resting on evidence that
+does not exist - the refusal is cheaper the earlier it happens, and the executor's copy of the
+check stays where §2 put it, because the store can change between proposing and approving.
+
+**An abstention advances `PROPOSING`.** `remediation_class: "none"` is a proposal: the proposer
+ran, read the evidence and declined, which ADR-0022 §1.2 counts as an outcome rather than an
+absence. So `PROPOSING` means *a proposal exists*, not *an action was proposed*. The alternative
+- advancing only on an actionable proposal - would make the state mean "the agent wanted to act",
+which is a claim about the agent's appetite rather than about the incident.
+
+**Runbooks are read from `knowledge/runbooks/`, not retrieved from the corpus.** T3.9's method
+column says *"seeded runbooks"*, and Q15's seeding is still queued. The proposer selects by id -
+`class-<fault-class>`, then the `action-<allowlist-id>` runbooks that one names - because the
+files are authored repository data that T4.1b's filter never excludes (ADR-0036), and a
+similarity search whose only job is to find the document whose name already states its class
+adds a failure mode and no information. Q15 remains what it was: the corpus path, which is the
+*synthesizer's* retrieval and not this one.
+
+### Two findings from the build
+
+**The runner and the state machine were walking the phases separately.** `INVESTIGATION_PHASES`
+gained `PROPOSING` and `agents.runner.run_investigation` - which walks the same tuple itself, so
+it can persist the incident after each transition - advanced into it on every run, proposer or
+none. Four tests caught it. The rule now lives in `machine.phases_for` and both walk what it
+returns; a rule with two implementations has two behaviours.
+
+**A contract's class docstring is a stamp input.** Pydantic writes it into
+`model_json_schema()` as the schema `description`, so editing the `Proposal` docstring moved
+`prompt_digest` mid-task. That is correct - the docstring is part of what a structured-output
+model is shown - and it is recorded here and in `tests/test_harness_run.py` so nobody diagnoses
+it twice.
+
+### What is still owed, unchanged
+
+The executor, any write tool, any credential on the world, the approval interface, and §4's
+prediction axis. A proposal is scored on three axes today and the fourth is reported as **not
+measured** - not passed, not omitted. ADR-0008's addendum holds the measurement boundary that
+keeps the fourth axis honest when someone builds it.

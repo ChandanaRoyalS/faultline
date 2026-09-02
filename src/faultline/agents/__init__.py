@@ -1,7 +1,9 @@
-"""The nine agent roles, the model boundary, and trajectory persistence (T3.x).
+"""The nine agent roles, the model boundary, and trajectory persistence.
 
-Triage is built (T3.1); the model boundary and trajectory store are built (T3.2). The other
-eight roles are not.
+**All nine are built as of T3.9.** Triage is deterministic rather than model-driven and says why
+in its own module; the proposer is the last to arrive and proposes only - the executor it
+proposes to is a separate system outside this runtime, and ADR-0028 §3 is the argument for why
+that is a boundary rather than a later commit.
 """
 
 from faultline.agents.budget import Budget, BudgetState
@@ -11,6 +13,7 @@ from faultline.agents.contracts import (
     Finding,
     NarrativeDraft,
     NarrativeSection,
+    Proposal,
     RuledOut,
     SpecialistFindings,
     Verdict,
@@ -24,7 +27,14 @@ from faultline.agents.model import (
     ModelResponse,
 )
 from faultline.agents.narrative import NarrativeLeakError, UnknownCitationError
-from faultline.agents.roles import Planner, Scribe, Specialist, Synthesizer, build_specialists
+from faultline.agents.roles import (
+    Planner,
+    Proposer,
+    Scribe,
+    Specialist,
+    Synthesizer,
+    build_specialists,
+)
 from faultline.agents.settings import AgentSettings
 from faultline.agents.trajectory import (
     InMemoryTrajectoryStore,
@@ -60,6 +70,8 @@ __all__ = [
     "NarrativeSection",
     "Planner",
     "PostgresTrajectoryStore",
+    "Proposal",
+    "Proposer",
     "RetrievalRecord",
     "RuledOut",
     "Scribe",

@@ -108,7 +108,11 @@ def test_diff_names_a_world_move() -> None:
 
 def test_the_prompt_hash_covers_every_system_constant() -> None:
     """Not the synthesizer's alone. A freeze that watched one prompt would miss a change to
-    any of the other three."""
+    any of the others.
+
+    **Five since T3.9** - the proposer's prompt joined the four, and the count is asserted
+    rather than inferred so that adding a role is a visible act with a stamp move attached.
+    """
     from faultline.agents import roles
 
     hashed = freeze.prompts_hash()
@@ -116,7 +120,13 @@ def test_the_prompt_hash_covers_every_system_constant() -> None:
         n for n in dir(roles) if n.endswith("_SYSTEM") and isinstance(getattr(roles, n), str)
     )
     assert hashed["constants"] == expected
-    assert len(expected) == 4
+    assert expected == [
+        "PLANNER_SYSTEM",
+        "PROPOSER_SYSTEM",
+        "SCRIBE_SYSTEM",
+        "SPECIALIST_SYSTEM",
+        "SYNTHESIZER_SYSTEM",
+    ]
 
 
 def test_the_corpus_item_reports_holdout_chunks_as_a_number() -> None:

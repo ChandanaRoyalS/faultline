@@ -44,6 +44,10 @@ class StepKind(StrEnum):
     wrong thing."""
 
     VERDICT = "verdict"
+    PROPOSAL = "proposal"
+    """A remediation proposal (T3.9). Distinct from `VERDICT` because the two are scored on
+    different axes and one can exist without the other: a verdict with no proposal is an
+    investigation that concluded and declined to act, which ADR-0028 §4 counts as an outcome."""
 
 
 @dataclass(slots=True)
@@ -261,6 +265,31 @@ class PostgresTrajectoryStore:
                             call.result_id,
                             call.envelope,
                             call.envelope_sha256,
+                        ),
+                    )
+                if step.kind is StepKind.PROPOSAL and step.payload.get("proposal"):
+                    # The scored columns, beside the payload rather than instead of it: a
+                    # replay reads the payload, and T4.2 groups on these (migration 0002).
+                    proposal = step.payload["proposal"]
+                    cur.execute(
+                        "INSERT INTO trajectory_proposals (trajectory_id, seq, "
+                        "remediation_class, action_id, target, rests_on, expected_effect, "
+                        "confirm_within_seconds, if_wrong, risk, blast_radius, accepted) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                        "ON CONFLICT (trajectory_id, seq) DO NOTHING",
+                        (
+                            trajectory.id,
+                            step.seq,
+                            proposal["remediation_class"],
+                            proposal["action_id"],
+                            proposal["target"],
+                            json.dumps(proposal["rests_on"]),
+                            proposal["expected_effect"],
+                            proposal["confirm_within_seconds"],
+                            proposal["if_wrong"],
+                            proposal["risk"],
+                            proposal["blast_radius"],
+                            bool(step.payload.get("accepted", False)),
                         ),
                     )
                 if step.retrieval is not None:

@@ -426,8 +426,8 @@ that met the deliverable's wording, or where the remaining work is queued.
 | T3.6 | Evidence store with full provenance chain | Typed per modality with trust labels and windows; the provenance chain is split across `ToolResult`, `SpecialistFindings` and the envelope hash | Batch B — a unified `Evidence` object is a contract change |
 | T3.7 | Cited, ranked RCA reports | Delivered: `Verdict` with evidence ids, one bounded follow-up round | — |
 | T3.8 | Grounding enforcement gate + violation metrics | Gate yes, deterministic, blocks the report; no regeneration attempt, no violation metric | **#138** |
-| T3.9 | Remediation proposals attached to RCA reports | Not built: a type alias, deliberately (ADR-0028, Q7) | Batch B |
-| G3 | Full pipeline on ≥ 3 of 4 fault classes | Coverage is met — all four classes have scored verdicts — and **the pipeline the gate names has six stages and one does not exist**. Blocked on T3.9, not on coverage | with T3.9 |
+| T3.9 | Remediation proposals attached to RCA reports | Not built: a type alias, deliberately (ADR-0028, Q7) | **#143** — the first Batch B item, and the first stamp move since dev sweep 5 |
+| G3 | Full pipeline on ≥ 3 of 4 fault classes | Coverage is met — all four classes have scored verdicts — and **the pipeline the gate names has six stages and one does not exist**. Blocked on T3.9, not on coverage | **the stage exists as of #143**; the gate is declarable once the six-stage pipeline has run on live scenarios, which is Batch B's re-sweep |
 
 **Two Phase 2 deviations closed alongside**, since both were free and both are contracts the
 later phases lean on. **D4**, *the blast-radius query lives in the agent, not the graph API*:
@@ -758,6 +758,41 @@ positive remains the historical one. T4.1's first batch is where that record get
 `docs/adr/0020-agent-layer.md`, `src/faultline/agents/contracts.py`,
 `src/faultline/agents/roles.py`, `src/faultline/agents/grounding.py`,
 `docs/evidence/t3.4c-rerun/README.md`
+
+### T3.9 — the remediation proposer *(built)*
+The ninth role, and the last of ADR-0020's nine to be written. **The first item of Phase 3's
+Batch B, and the first stamp move since dev sweep 5**: `PROPOSER_SYSTEM` entered `prompt_digest`
+and the `Proposal` contract entered `_CONTRACTS`, so HEAD is `prompts:20088b22cede` and
+**no sweep in `evals/runs/` describes it**. ADR-0028 §6 named that cost in advance and required
+the role to land with a re-sweep; `docs/RESULTS.md` carries the banner until it runs.
+
+**A proposal is a falsifiable claim about a change, never the change** - remediation class,
+action id from the allowlist, one target inside the incident's blast radius, the evidence by
+`result_id`, an `expected_effect` written as something the four tools could observe, a
+`confirm_within_seconds` so *"it did not work"* is decidable, an `if_wrong`, and mandatory
+`risk` and `blast_radius` notes. Not a command string, for the three reasons ADR-0028 §1 gives.
+
+**Four checks at proposal time**, each with an argument rather than a preference: an abstention
+must carry no action and no target; the action must be an allowlist id whose status is
+`available`, so `scale_service` is refused here rather than at approval time (ADR-0029 measured
+why it cannot run); the class must match the action's own class, because the catalog decides
+that; and the target must be in the radius, because ADR-0032 puts that check where the incident
+is in scope. A refusal is fed back once and a second refusal leaves no proposal - the shape T3.8
+established, at the same boundary.
+
+**The role holds no tools and there is no executor.** ADR-0028 §3: read-only in this runtime is
+a property of the tool surface rather than of a credential, so one write tool would remove it
+for every role at once. What was built is the proposer; the executor, the approval interface and
+§4's prediction axis are a second system and are recorded as owed.
+
+**ADR-0008 gained its third contamination axis** in the same change - the world as an oracle -
+recorded now, while nothing executes, rather than when someone is under pressure to ship an
+executor. **Q7 is discharged.**
+
+`src/faultline/agents/roles.py` (`Proposer`), `src/faultline/agents/contracts.py` (`Proposal`,
+`validate_proposal`), `migrations/versions/0002_trajectory_proposals.py`,
+`docs/adr/0028-the-proposer-and-the-action-plane.md` (addendum),
+`docs/adr/0008-contamination-model.md` (addendum)
 
 ### T3.5 — the fan-out's runner, and the T2.3 transitions it drives *(built; heading kept, scope corrected)*
 

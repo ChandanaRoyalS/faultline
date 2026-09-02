@@ -340,3 +340,34 @@ The specification is not amended. It is evidence about what was intended and bel
 week two, and it was right on the evidence available then — the gap was genuinely expected
 to close. Recording the correction here, where the contamination model lives, is what keeps
 a reader from following its promise to a task that cannot be delivered.
+
+## Addendum (T3.9, 2026-09-02) — the third axis arrives, and it is not armed
+
+ADR-0028 §5 anticipated this: *"ADR-0008 anticipated 'if a fifth contamination axis appears';
+this is one, and it appears from a capability rather than from a corpus. Recorded there, to be
+folded into ADR-0008 when the role is built."* The role is built. This is the fold.
+
+**Axis 3 — the world as an oracle.** If a proposal can be executed and its result observed, the
+world answers *"was your diagnosis right?"* without the agent having diagnosed anything. A loop
+that proposes, executes, observes and re-proposes converts diagnosis into **search**, and it
+would score well: the fault is real, and a small number of candidate fixes covers most of the
+catalog. That is not a better investigator. It is a worse one with a working oracle.
+
+**Axis 3 is not live, because nothing executes.** T3.9 built the proposer and no executor, so
+there is no observation to feed back and no loop to close. The axis is recorded now, while the
+reasoning is in front of us, rather than when someone is under pressure to ship an executor.
+
+**What the built role does to keep it that way**, and each of these is testable today:
+
+- **The proposer sees the verdict and the evidence ids, not the world.** It holds no tools, so it
+  cannot observe anything itself - not before proposing, and not after.
+- **One proposal per incident.** The role runs once. Its one regeneration is a *refusal* being
+  fed back - a fabricated `result_id` - never an observation of a result.
+- **Axes 1 and 2 apply unchanged.** Proposal prompts are hill-climbable and must never be tuned
+  against holdout; self-reference reaches the proposer through the verdict it inherits, and the
+  `exclude_origin` that governs the synthesizer's retrieval therefore governs this role too.
+
+**The obligation this creates.** An executor must not be built as *a later commit in the same
+system*. Its arrival is a new pre-registration and its own scoring, because a propose→observe→
+re-propose loop measures a different capability and would make every prior number incomparable.
+ADR-0028 §2 holds the approval boundary; this row holds the measurement one.

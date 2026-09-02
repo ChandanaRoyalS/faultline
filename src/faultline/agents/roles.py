@@ -20,14 +20,18 @@ from faultline.agents.contracts import (
     SPECIALISTS,
     DispatchPlan,
     NarrativeDraft,
+    Proposal,
     SpecialistFindings,
     SpecialistName,
     Verdict,
     partition_dispatch_services,
     validate_dispatch_services,
+    validate_proposal,
 )
 from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
 from faultline.agents.triage import TriageResult
+from faultline.context.allowlist import ActionStatus, load_allowlist
+from faultline.context.runbooks import Runbook, load_runbooks
 from faultline.tools.ranking import RankingContext
 from faultline.tools.results import ToolResult
 from faultline.tools.tools import Tools
@@ -493,6 +497,51 @@ class Synthesizer:
         return "\n".join(lines)
 
 
+PROPOSER_SYSTEM = """You are the remediation proposer in an incident investigation.
+
+You are given one verdict, the evidence ids behind it, the incident's blast radius, the actions
+this system is permitted to take, and the runbooks that apply. You hold no tools and you take no
+action. You produce **one proposal**, which is a claim somebody else will check.
+
+WHAT A PROPOSAL IS. Not a command. A claim of the form: this class of action, on this service,
+because of this evidence, should produce this observable effect within this long - and here is
+what would show it was wrong. Someone reads it, decides, and acts. Write it for that reader.
+
+`expected_effect` must be something the metrics and logs of this system could actually show -
+an error ratio falling, a latency percentile returning, a restart count stopping, a log line
+ceasing. If the effect you expect cannot be observed that way, say so in `if_wrong` and consider
+abstaining: an effect nobody can see is not a prediction.
+
+`risk` and `blast_radius` are required and are not formalities. `risk` is what this change breaks
+if the diagnosis is wrong. `blast_radius` is who else notices - the callers of the target service
+are named in the brief. A proposal whose risk section says "none" is one nobody should approve.
+
+CHOOSING AN ACTION. Use only the actions listed in the brief, by their exact id, and only ones
+listed as available. Their preconditions are stated; if the evidence does not meet them, that is
+a reason to abstain rather than to propose anyway. The target must be a service in the blast
+radius the brief gives you.
+
+CITING. `rests_on` holds result ids from the brief, in brackets, and nothing else. An id you did
+not see is a fabrication and will be refused. Cite the evidence the *proposal* rests on, which
+may be narrower than the evidence the verdict rests on.
+
+ABSTAINING IS A REAL ANSWER. Set `remediation_class` to "none" with an empty action and target
+when: the verdict's confidence is low, the evidence does not meet any action's preconditions, no
+permitted action addresses the mechanism, or the right fix is outside what this system may do. An
+abstention costs nothing and a wrong action costs a working service. Say why in `if_wrong`.
+
+Reply with JSON only, matching this schema:
+{"remediation_class": "rollback|restart|config_revert|scale|none",
+ "action_id": "<allowlist id, or empty when abstaining>",
+ "target": "<service, or empty when abstaining>",
+ "rests_on": ["<result_id>"],
+ "expected_effect": "<what should be observed, and how it would be measured>",
+ "confirm_within_seconds": <integer seconds>,
+ "if_wrong": "<what observation would falsify this>",
+ "risk": "<what this breaks if the diagnosis is wrong>",
+ "blast_radius": "<who else sees this change>"}"""
+
+
 SCRIBE_SYSTEM = """You are the scribe. You write the incident record a responder will read
 months later.
 
@@ -574,3 +623,148 @@ class Scribe:
             ),
             NarrativeDraft,
         )
+
+
+class Proposer:
+    """The verdict in, one proposal out. **No tools, and no path to one** (T3.9, ADR-0028).
+
+    ADR-0028 §3 is why this role holds nothing: read-only in this runtime is a property of the
+    tool surface rather than of a credential - Prometheus runs with `--web.enable-lifecycle` and
+    Loki's push endpoint is open, both unauthenticated - so a single write tool would remove the
+    property for every role at once, by neighbourhood rather than by name. The executor is a
+    separate process outside this runtime, and this role emits data it cannot act on.
+
+    §5 is why it sees so little: the verdict, the ids behind it, the blast radius, the permitted
+    actions and the applicable runbooks. Not the bundle, not the injection, not the scenario. A
+    proposal is durable material, and the argument that keeps raw envelopes away from the scribe
+    keeps them away from here.
+    """
+
+    ROLE = "proposer"
+
+    def __init__(
+        self,
+        model: LanguageModel,
+        max_tokens: int = 2000,
+        effort: str = "high",
+        runbooks: tuple[Runbook, ...] | None = None,
+    ) -> None:
+        self._model = model
+        self._max_tokens = max_tokens
+        self._effort = effort
+        self._runbooks = runbooks
+        """Loaded lazily from `knowledge/runbooks/`. **Read directly rather than retrieved**: the
+        runbooks are authored repository data that T4.1b's filter never excludes (ADR-0036), so
+        retrieval would add a similarity search whose only job is to find documents whose names
+        already say which class they cover. Q15's seeding is for the *synthesizer's* past-incident
+        path, where the corpus is the point."""
+
+    def propose(
+        self,
+        triage: TriageResult,
+        verdict: Verdict,
+        findings: list[SpecialistRun],
+        *,
+        violation: str | None = None,
+    ) -> Completion:
+        """One proposal, checked against the allowlist and the incident's own topology.
+
+        `violation` is a refusal fed back in the **user** message for the one regeneration T3.9
+        allows, exactly as the scribe's is (T3.8): `PROPOSER_SYSTEM` is a frozen input, so a run
+        that never hits a refusal sees the prompt byte-for-byte as it was.
+        """
+        scoped = {member.service for member in triage.blast_radius}
+        return ask(
+            self._model,
+            ModelRequest(
+                system=PROPOSER_SYSTEM,
+                messages=[
+                    {"role": "user", "content": self._brief(triage, verdict, findings, violation)}
+                ],
+                role=self.ROLE,
+                max_tokens=self._max_tokens,
+                effort=self._effort,
+            ),
+            Proposal,
+            check=lambda proposal: validate_proposal(proposal, scoped),
+        )
+
+    # --- the brief ---------------------------------------------------------------
+
+    def _brief(
+        self,
+        triage: TriageResult,
+        verdict: Verdict,
+        findings: list[SpecialistRun],
+        violation: str | None,
+    ) -> str:
+        lines = [
+            f"Conclusion: {verdict.root_cause}",
+            f"Fault class: {verdict.fault_class}. Fix class the synthesizer named: "
+            f"{verdict.remediation_class}. Confidence: {verdict.confidence}.",
+            f"Still open: {'; '.join(verdict.open_questions) or 'nothing recorded'}",
+            "",
+            "Services this incident reached (the only legal targets):",
+        ]
+        for member in triage.blast_radius:
+            reached = (
+                f", reached from {member.reached_from}" if member.reached_from else ", alerted"
+            )
+            lines.append(f"  {member.service} ({member.direction.value}{reached})")
+        lines += ["", "Evidence, by id:"]
+        for run in findings:
+            for found in run.findings.found:
+                lines.append(f"  [{found.result_id}] {run.specialist}: {found.statement}")
+        lines += ["", "Actions this system is permitted to take:"]
+        for action in load_allowlist().actions:
+            if action.status is not ActionStatus.AVAILABLE:
+                # Listed, with its reason, so the model does not propose it and then discover
+                # the refusal. ADR-0029's measurement is worth more in the brief than in a
+                # rejection message the run may never reach.
+                lines.append(
+                    f"  {action.id} ({action.remediation_class}): UNAVAILABLE - "
+                    f"{' '.join((action.unperformable_reason or '').split())}"
+                )
+                continue
+            lines.append(f"  {action.id} ({action.remediation_class}): {action.summary.strip()}")
+            for precondition in action.preconditions:
+                lines.append(f"      requires: {precondition}")
+            lines.append(f"      blast radius: {' '.join(action.blast_radius.split())}")
+            lines.append(f"      reversible: {'yes' if action.reversible else 'no'}")
+        applicable = self._applicable_runbooks(verdict)
+        if applicable:
+            lines += ["", "Runbooks that apply:"]
+            for runbook in applicable:
+                lines.append(f"  --- {runbook.title} ({runbook.id}) ---")
+                lines.append(runbook.body.strip())
+        if violation is not None:
+            lines += [
+                "",
+                "Your previous proposal was refused:",
+                f"  {violation}",
+                "Propose again, or abstain with remediation_class 'none' if no permitted action "
+                "fits the evidence.",
+            ]
+        return "\n".join(lines)
+
+    def _applicable_runbooks(self, verdict: Verdict) -> list[Runbook]:
+        """The fault-class runbook and the runbooks for the actions it names.
+
+        Selected by id rather than by similarity, and the ids are stable because ADR-0036 fixed
+        the naming: `class-<fault-class>` and `action-<allowlist-id>`, **hyphenated** where the
+        code's identifiers use underscores. The two vocabularies meeting here is exactly
+        ADR-0011's naming hazard in miniature, so the translation is one expression in one place
+        and a test reads the result back out of the brief.
+        """
+        if self._runbooks is None:
+            self._runbooks = load_runbooks()
+        by_id = {runbook.id: runbook for runbook in self._runbooks}
+        chosen: list[Runbook] = []
+        klass = by_id.get(f"class-{verdict.fault_class.replace('_', '-')}")
+        if klass is not None:
+            chosen.append(klass)
+            for action_id in klass.actions:
+                action_runbook = by_id.get(f"action-{action_id.replace('_', '-')}")
+                if action_runbook is not None and action_runbook not in chosen:
+                    chosen.append(action_runbook)
+        return chosen

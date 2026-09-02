@@ -17,6 +17,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from faultline.context.allowlist import ActionStatus, load_allowlist
 from faultline.context.catalog import ServiceCatalog
 
 _CATALOG: ServiceCatalog | None = None
@@ -138,6 +139,49 @@ class Verdict(BaseModel):
     six dispatches is a verdict nobody should trust, and the field makes saying so cheap."""
 
 
+class Proposal(BaseModel):
+    """A remediation proposal: **a falsifiable claim about a change, never the change** (T3.9).
+
+    ADR-0028 §1 fixes the shape and the reasons. Three of them, in the ADR's order of weight:
+    a command string can be diffed against ground truth and nothing else, while a predicate can
+    be *evaluated against the world* - the only thing that would make this benchmark measure
+    remediation rather than phrasing; a command string is untrusted text with an execution path
+    attached, arriving through the one role that was supposed to have no tools; and the four
+    tools already define the vocabulary an expected effect can be written in.
+
+    **`action_id` and `target` are drawn from catalogs, not written free.** The action is an id
+    in the allowlist catalog; the target is a service the catalog knows, canonicalised the
+    way dispatch services are. ADR-0011's reason: this world has two naming schemes and they are
+    not interchangeable, so a proposer emitting `cartservice` where the action plane needs
+    `cart-service` is a class of failure worth designing out rather than measuring.
+
+    **Abstention is a first-class output** (ADR-0022 §1.2, ADR-0028 §4): `remediation_class:
+    "none"` with `action_id: ""` is neither right nor wrong, and given the approval boundary it
+    is frequently the correct answer.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    remediation_class: RemediationClass
+    action_id: str = Field(description="An id from the allowlist catalog, or empty when abstaining")
+    target: str = Field(description="The one service the change lands on, or empty when abstaining")
+    rests_on: list[str] = Field(description="result_ids this proposal rests on")
+    expected_effect: str = Field(
+        description="What should be observed afterwards, as a predicate over metrics or logs"
+    )
+    confirm_within_seconds: int = Field(
+        ge=0,
+        le=3600,
+        description="How long that should take, so 'it did not work' is decidable",
+    )
+    if_wrong: str = Field(description="What observation would falsify this proposal")
+    risk: str = Field(description="What this change could break if the diagnosis is wrong")
+    blast_radius: str = Field(description="Who else sees the change, from the dependency graph")
+    """`risk` and `blast_radius` are **mandatory**, which is the plan's own word for them in
+    T3.9's method column. Neither has a default: a proposal that declines to say what it could
+    break is the proposal an approver most needs to see refuse."""
+
+
 class NarrativeSection(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -231,3 +275,71 @@ def partition_dispatch_services(plan: DispatchPlan) -> list[str]:
         kept.append(dispatch)
     plan.dispatches = kept
     return rejected
+
+
+def validate_proposal(proposal: Proposal, scoped: set[str]) -> None:
+    """A proposal names a real action, on a service inside the incident's own topology (T3.9).
+
+    **Canonicalises `target` in place**, the way `validate_dispatch_services` does, and raises
+    `ValueError` so a violation takes the same bounded re-ask as any other schema failure
+    (ADR-0003) rather than a lenient parse.
+
+    Four checks, and each has a reason in ADR-0028:
+
+    - **Abstention is legal and complete.** `remediation_class: "none"` must carry no action and
+      no target; an abstention with a target attached is a proposal pretending not to be one.
+    - **The action is an allowlist id**, and one whose `status` is `available`. `scale_service`
+      is in the catalog and unperformable - ADR-0029 measured why - so proposing it is refused
+      here rather than discovered at approval time. Read through `load_allowlist`, which is the
+      only thing that names the catalog file (`tests/test_allowlist.py` asserts it).
+    - **The class matches the action's own class.** The catalog says what `rollback_image`
+      remediates; a proposal that pairs it with `restart` is inconsistent with the document it
+      cites.
+    - **The target is inside the incident's scoped topology.** ADR-0032 puts this check at the
+      point where the incident is in scope, which is here and not in the catalog: the allowlist
+      names a *selector* (`incident_scoped_service`) and never a service. THREAT-MODEL's action
+      plane hard-rejects a mismatch before an approval is even requested; refusing it at
+      proposal time means the approver never sees one.
+    """
+    if proposal.remediation_class == "none":
+        if proposal.action_id or proposal.target:
+            raise ValueError(
+                "an abstaining proposal (remediation_class 'none') must name no action and no "
+                "target; leave action_id and target empty"
+            )
+        return
+
+    catalog = load_allowlist()
+    action = catalog.by_id(proposal.action_id)
+    if action is None:
+        legal = ", ".join(sorted(a.id for a in catalog.performable))
+        raise ValueError(
+            f"action_id {proposal.action_id!r} is not in the allowlist catalog. "
+            f"Legal values: {legal}."
+        )
+    if action.status is not ActionStatus.AVAILABLE:
+        raise ValueError(
+            f"action {action.id!r} is listed but cannot be performed in this world: "
+            f"{(action.unperformable_reason or '').strip()} Propose a different action, or "
+            f"abstain with remediation_class 'none'."
+        )
+    if action.remediation_class != proposal.remediation_class:
+        raise ValueError(
+            f"action {action.id!r} is a {action.remediation_class!r} action and the proposal "
+            f"calls it {proposal.remediation_class!r}. The catalog decides which class an "
+            f"action belongs to."
+        )
+
+    canonical = _legal(_catalog(), proposal.target)
+    if canonical is None:
+        raise ValueError(
+            f"target {proposal.target!r} is not a service this system knows. "
+            f"Legal values: {', '.join(sorted(_catalog().services))}."
+        )
+    if canonical not in scoped:
+        raise ValueError(
+            f"target {canonical!r} is outside this incident's blast radius "
+            f"({', '.join(sorted(scoped))}). An action may only touch a service the incident "
+            f"reached; propose one of those, or abstain with remediation_class 'none'."
+        )
+    proposal.target = canonical

@@ -580,14 +580,17 @@ WRITTEN_AT_RUNTIME: frozenset[IncidentState] = frozenset(
         IncidentState.PLANNING,
         IncidentState.INVESTIGATING,
         IncidentState.SYNTHESIZING,
+        IncidentState.PROPOSING,
         IncidentState.RESOLVED,
         IncidentState.FAILED,
     }
 )
+"""**`PROPOSING` moved here at T3.9**, which is the deliberate test edit the note below asks
+for. `machine.phases_for` advances an incident into it when, and only when, the proposer
+produced a proposal - an abstention included, since an abstention is a proposal."""
 
 NO_RUNTIME_WRITER: frozenset[IncidentState] = frozenset(
     {
-        IncidentState.PROPOSING,
         IncidentState.AWAITING_APPROVAL,
         IncidentState.EXECUTING,
         IncidentState.REJECTED,

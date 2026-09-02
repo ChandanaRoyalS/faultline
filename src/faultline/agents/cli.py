@@ -119,7 +119,13 @@ def run(argv: list[str] | None = None) -> int:
     from faultline.agents.budget import Budget
     from faultline.agents.investigation import Investigation
     from faultline.agents.model import LanguageModel, build_model
-    from faultline.agents.roles import Planner, Scribe, Synthesizer, build_specialists
+    from faultline.agents.roles import (
+        Planner,
+        Proposer,
+        Scribe,
+        Synthesizer,
+        build_specialists,
+    )
     from faultline.agents.runner import (
         Exit,
         NotInvestigableError,
@@ -227,6 +233,7 @@ def run(argv: list[str] | None = None) -> int:
         scribe=Scribe(model),
         corpus=corpus,
         retrieval_k=args.retrieval_k,
+        proposer=Proposer(model),
     )
 
     report = run_investigation(store, incident, engine, triage, anchor)

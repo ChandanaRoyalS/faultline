@@ -49,10 +49,19 @@ from typing import Any
 
 from pydantic import BaseModel
 
-from faultline.agents.contracts import DispatchPlan, NarrativeDraft, SpecialistFindings, Verdict
+from faultline.agents.contracts import (
+    DispatchPlan,
+    NarrativeDraft,
+    Proposal,
+    SpecialistFindings,
+    Verdict,
+)
 
 _CONTRACTS: tuple[type[BaseModel], ...] = tuple(
-    sorted((DispatchPlan, SpecialistFindings, Verdict, NarrativeDraft), key=lambda m: m.__name__)
+    sorted(
+        (DispatchPlan, SpecialistFindings, Verdict, NarrativeDraft, Proposal),
+        key=lambda m: m.__name__,
+    )
 )
 """Every schema a role prompt promises the model it will be held to."""
 
