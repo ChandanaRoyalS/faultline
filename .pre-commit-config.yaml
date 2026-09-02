@@ -15,15 +15,24 @@ repos:
       # evals/scenarios/artifacts/ under it is not. Adding a directory that holds captures
       # means adding it here. See evals/scenarios/ARTIFACTS.md.
       #
-      # Three trees now, each added after a hook had already rewritten a capture in it:
-      # bundles, then baselines, then docs/evidence. The cost of listing whole directories
-      # is that the authored files inside them - incident.md, and each evidence README -
+      # Four trees now, each added after a hook had already rewritten a capture in it:
+      # bundles, then baselines, then docs/evidence, then evals/runs. The cost of listing
+      # whole directories is that the authored files inside them - incident.md, each
+      # evidence README, and the sweep and pre-registration documents under evals/runs -
       # stop being formatted too. That is the trade already accepted for incident.md, and
       # it is the cheap side: an unformatted README is untidy, a rewritten capture is a
       # record of something the world did not produce.
       #
+      # evals/runs was the fourth, and it was added the same way as the other three: too
+      # late. Staging dev sweep 8's artifacts for their first commit, these hooks rewrote
+      # six run narratives - two for trailing whitespace, six for a missing final newline -
+      # before any pristine copy existed in git to restore from. Nothing in the text
+      # changed; the bytes did, and a narrative is model output recorded from a live run,
+      # not a document anyone authored. The instance is recorded in
+      # SWEEP-2026-09-02-batch-b.md rather than left as an unexplained diff.
+      #
       # Only the rewriting hooks are excluded. check-yaml, check-json,
-      # check-added-large-files and detect-private-key still apply to all three: they read
+      # check-added-large-files and detect-private-key still apply to all four: they read
       # and never write, and they are exactly the guards captures should keep.
       - id: trailing-whitespace
         exclude: &captured_evidence |
@@ -32,6 +41,7 @@ repos:
               evals/scenarios/artifacts   # rehearsal bundles
             | evals/baselines             # quiet-world captures
             | docs/evidence               # webhook payloads, service logs, psql dumps
+            | evals/runs                  # run artifacts: narratives, verdicts, transcripts
           ) /
       - id: end-of-file-fixer
         exclude: *captured_evidence
