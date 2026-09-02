@@ -30,7 +30,7 @@ from faultline.agents.investigation import (
 from faultline.agents.triage import TriageResult
 from faultline.archive import Archive, report_key
 from faultline.orchestrator import machine
-from faultline.orchestrator.models import Incident, IncidentState
+from faultline.orchestrator.models import Incident
 from faultline.orchestrator.store import IncidentStore
 
 
@@ -153,13 +153,12 @@ def run_investigation(
         )
 
     incident.investigation_id = result.trajectory.id
-    for state, trigger in machine.INVESTIGATION_PHASES:
-        if state is IncidentState.SYNTHESIZING and result.verdict is None:
-            advance(
-                lambda: machine.record_investigation_failure(incident, "no verdict was produced")
-            )
-            break
+    # **What the result evidences, decided in one place** (`machine.phases_for`) and walked
+    # here so the incident is persisted after each transition rather than once at the end.
+    for state, trigger in machine.phases_for(result):
         advance(partial(machine.transition, incident, state, trigger=trigger))
+    if result.verdict is None:
+        advance(lambda: machine.record_investigation_failure(incident, "no verdict was produced"))
 
     return RunReport(incident.id, result.trajectory.id, tuple(states), result, None, radius, edges)
 

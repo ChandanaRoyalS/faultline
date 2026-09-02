@@ -569,6 +569,26 @@ failing service, which S4 measured as the thing that actually predicts the outco
 """
 
 
+PROPOSER_DIGEST = "20088b22cede"
+"""**HEAD since T3.9, and no sweep in `evals/runs/` describes it.**
+
+The proposer's system prompt entered `prompt_digest` and the `Proposal` contract entered
+`_CONTRACTS`, which is the stamp doing exactly what it is for: a pipeline with a sixth stage is
+not the pipeline five sweeps measured. ADR-0028 §6 said so in advance - *"every recorded run
+becomes incomparable with everything after ... this is not avoidable and should not be worked
+around"* - and required the role to land with a re-sweep.
+
+**Until that re-sweep runs, every figure in `docs/RESULTS.md` describes `SWEEP_5_DIGEST` and
+none of them describes HEAD.** That is stated in RESULTS.md rather than left to this constant.
+
+One incidental finding worth keeping: a contract's **class docstring** is a stamp input, because
+pydantic writes it into `model_json_schema()` as the schema description. Editing the `Proposal`
+docstring moved this digest once during T3.9. That is correct behaviour - the docstring is part
+of what a structured-output model is shown - and it is written down here because it is the kind
+of thing a future reader would otherwise diagnose twice.
+"""
+
+
 def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """`runtime_version` is the package version plus a digest over every role system prompt and
     every contract schema, so it moves when and only when the agent is a different agent.
@@ -578,13 +598,17 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == SWEEP_5_DIGEST, (
-        f"expected the return-to-locus pipeline {SWEEP_5_DIGEST}. If a prompt or a contract "
-        f"moved again, no sweep in evals/runs/ describes the current agent."
+    assert prompt_digest() == PROPOSER_DIGEST, (
+        f"expected the six-stage pipeline {PROPOSER_DIGEST}. If a prompt or a contract moved "
+        f"again, no sweep in evals/runs/ describes the current agent - and none describes this "
+        f"one either until T3.9's re-sweep runs."
     )
-    assert len({SWEEP_1_DIGEST, SWEEP_2_DIGEST, SWEEP_4_DIGEST, SWEEP_5_DIGEST}) == 4, (
-        "four experiments"
+    assert prompt_digest() != SWEEP_5_DIGEST, (
+        "T3.9 added a stage, so HEAD is not the pipeline dev sweep 5 measured"
     )
+    assert (
+        len({SWEEP_1_DIGEST, SWEEP_2_DIGEST, SWEEP_4_DIGEST, SWEEP_5_DIGEST, PROPOSER_DIGEST}) == 5
+    ), "five pipelines, four of them measured"
 
 
 def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:
@@ -855,7 +879,7 @@ def test_the_correlate_budget_is_not_a_stamp_input() -> None:
     ):
         assert stamp_module.prompt_digest() == before
     stamp_module.prompt_digest.cache_clear()
-    assert stamp_module.runtime_version() == "faultline/0.0.1+prompts:1b0e7cbb4c47"
+    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{PROPOSER_DIGEST}"
 
 
 # --- T7.14: the rule that fires at rest ----------------------------------------------------

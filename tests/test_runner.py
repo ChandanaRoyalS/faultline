@@ -16,7 +16,7 @@ import pytest
 
 from faultline.agents.budget import Budget
 from faultline.agents.investigation import Investigation
-from faultline.agents.roles import Planner, Scribe, Synthesizer, build_specialists
+from faultline.agents.roles import Planner, Proposer, Scribe, Synthesizer, build_specialists
 from faultline.agents.runner import (
     Exit,
     NotInvestigableError,
@@ -57,7 +57,11 @@ def incident_in(state: IncidentState) -> Incident:
     return incident
 
 
-def engine_over(model: ScriptedModel) -> tuple[Investigation, InMemoryTrajectoryStore]:
+def engine_over(
+    model: ScriptedModel, proposing: bool = False
+) -> tuple[Investigation, InMemoryTrajectoryStore]:
+    """`proposing` off by default: most of these tests are about the states an investigation
+    without a proposer reaches, which is still a supported configuration (T3.9)."""
     trajectories = InMemoryTrajectoryStore()
     engine = Investigation(
         planner=Planner(model),
@@ -67,8 +71,38 @@ def engine_over(model: ScriptedModel) -> tuple[Investigation, InMemoryTrajectory
         budget=Budget(max_dispatch_rounds=1),
         synthesizer=Synthesizer(model),
         scribe=Scribe(model),
+        proposer=Proposer(model) if proposing else None,
     )
     return engine, trajectories
+
+
+PROPOSAL_REPLY = json.dumps(
+    {
+        "remediation_class": "config_revert",
+        "action_id": "revert_config",
+        "target": "cartservice",
+        "rests_on": [],
+        "expected_effect": "the error ratio returns below 1%",
+        "confirm_within_seconds": 300,
+        "if_wrong": "the ratio stays high",
+        "risk": "a revert on a healthy service moves traffic for nothing",
+        "blast_radius": "cartservice and its callers",
+    }
+)
+
+ABSTENTION_REPLY = json.dumps(
+    {
+        "remediation_class": "none",
+        "action_id": "",
+        "target": "",
+        "rests_on": [],
+        "expected_effect": "nothing - no permitted action addresses this",
+        "confirm_within_seconds": 0,
+        "if_wrong": "a change record appears that the specialists did not see",
+        "risk": "none taken, because nothing is proposed",
+        "blast_radius": "none",
+    }
+)
 
 
 def healthy_model() -> ScriptedModel:
@@ -148,10 +182,10 @@ def test_a_completed_investigation_walks_the_agent_driven_states() -> None:
     assert report.exit_code is Exit.CLEAN
 
 
-def test_it_stops_at_synthesizing_and_does_not_claim_a_proposal() -> None:
-    """`PROPOSING` means a remediation proposal exists, and the proposer is the one role of the
-    nine nobody has built. An incident parked in `SYNTHESIZING` says what happened and claims
-    nothing more."""
+def test_it_stops_at_synthesizing_when_no_proposer_ran() -> None:
+    """`PROPOSING` means a remediation proposal exists. The proposer was built at T3.9 and an
+    engine can still be configured without one - as this one is - and then an incident parked in
+    `SYNTHESIZING` says what happened and claims nothing more."""
     store = InMemoryIncidentStore()
     incident = incident_in(IncidentState.TRIAGING)
     store.save(incident)
@@ -433,3 +467,36 @@ def test_the_columns_that_caused_the_incident_are_in_the_migration_history() -> 
     history = "\n".join(p.read_text() for p in Path("migrations/versions").glob("*.py"))
     for column in ("rendered", "rendered_sha256"):
         assert column in history, f"{column} is in no revision"
+
+
+def test_a_proposal_advances_the_incident_to_proposing() -> None:
+    """`PROPOSING` means a proposal exists (T3.9). The runner and `record_agent_outcome` walk
+    the same `machine.phases_for`, which is the fix for the defect this test was written
+    against: the phase list gained the state and the runner advanced into it unconditionally."""
+    store = InMemoryIncidentStore()
+    incident = incident_in(IncidentState.TRIAGING)
+    store.save(incident)
+    model = healthy_model()
+    model._replies["proposer"] = [PROPOSAL_REPLY]
+    engine, _ = engine_over(model, proposing=True)
+
+    report = run_investigation(store, incident, engine, triage_for(incident), ANCHOR)
+
+    assert report.states == ("triaging", "planning", "investigating", "synthesizing", "proposing")
+    assert incident.state is IncidentState.PROPOSING
+    assert report.result is not None and report.result.proposal is not None
+
+
+def test_an_abstention_advances_the_state_too() -> None:
+    """An abstention is a proposal - the proposer ran, read the evidence and declined - and
+    ADR-0022 §1.2 says an abstention is neither right nor wrong rather than absent."""
+    store = InMemoryIncidentStore()
+    incident = incident_in(IncidentState.TRIAGING)
+    store.save(incident)
+    model = healthy_model()
+    model._replies["proposer"] = [ABSTENTION_REPLY]
+    engine, _ = engine_over(model, proposing=True)
+
+    run_investigation(store, incident, engine, triage_for(incident), ANCHOR)
+
+    assert incident.state is IncidentState.PROPOSING

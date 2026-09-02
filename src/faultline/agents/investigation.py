@@ -19,12 +19,14 @@ from faultline.agents.budget import Budget, BudgetState
 from faultline.agents.contracts import (
     DispatchPlan,
     NarrativeDraft,
+    Proposal,
     SpecialistName,
     Verdict,
 )
 from faultline.agents.model import LanguageModel
 from faultline.agents.roles import (
     Planner,
+    Proposer,
     SchemaValidationError,
     Scribe,
     Specialist,
@@ -81,6 +83,14 @@ class InvestigationResult:
     draft: NarrativeDraft | None = None
     narrative: str | None = None
     narrative_error: str | None = None
+    proposal: Proposal | None = None
+    """The remediation proposal, when one was made (T3.9). `None` means the proposer did not
+    run or was refused twice; an *abstention* is a proposal with `remediation_class: "none"`,
+    which is a different thing and must not be collapsed into this one (ADR-0022 §1.2)."""
+
+    proposal_violations: list[str] = field(default_factory=list)
+    proposal_escalated: bool = False
+
     citation_violations: list[str] = field(default_factory=list)
     """Every refusal the publication boundary issued for this run, in order (T3.8's
     violation metrics). Zero, one, or two: one means the regeneration succeeded, two means it
@@ -178,9 +188,11 @@ class Investigation:
         scribe: Scribe | None = None,
         corpus: Any = None,
         retrieval_k: int = 3,
+        proposer: Proposer | None = None,
     ) -> None:
         self._synthesizer = synthesizer
         self._scribe = scribe
+        self._proposer = proposer
         self._corpus = corpus
         self._retrieval_k = retrieval_k
         self._planner = planner
@@ -287,6 +299,11 @@ class Investigation:
         # evidence that genuinely exists. Saving here is idempotent with the save below.
         self._store.save(trajectory)
         seq = self._scribe_record(trajectory, state, result, triage, seq)
+        # **After the citation gate, which is the order Gate 3 names**: "triage, plan, parallel
+        # specialists, synthesis, validated citations, proposal". A proposal drawn from a
+        # verdict whose narrative could not be published is still a proposal about the verdict,
+        # so the gate's outcome does not block it - it is recorded beside it.
+        seq = self._propose(trajectory, state, result, triage, seq)
 
         trajectory.ended_at = datetime.now(UTC)
         trajectory.outcome = "budget_exhausted" if state.exhausted else "dispatched"
@@ -564,6 +581,92 @@ class Investigation:
         # still be *recorded* as exhaustion - ADR-0020 §5 flags it, and a flag nobody set is a
         # partial diagnosis presented as a complete one.
         state.check()
+        return seq
+
+    def _propose(
+        self,
+        trajectory: Trajectory,
+        state: BudgetState,
+        result: InvestigationResult,
+        triage: TriageResult,
+        seq: int,
+    ) -> int:
+        """One remediation proposal, or one recorded reason there is none (T3.9, ADR-0028).
+
+        **The proposal is refused when its evidence will not resolve.** ADR-0028 §2 lists that
+        among the executor's refusals - *"a `result_id` in `rests_on` is not in the store, which
+        is what a fabricated citation looks like"*. Checking it here as well is a deliberate
+        tightening, marked in ADR-0028's addendum: an approver should never be shown a proposal
+        resting on evidence that does not exist, and the store is the same store the narrative's
+        citations resolve against. One regeneration with the refusal fed back, then abstention -
+        the same shape as T3.8, because it is the same boundary.
+
+        A proposer that abstains has produced a **result**, not a failure. It is recorded as a
+        proposal with `remediation_class: "none"`, and only a schema failure or a second refusal
+        leaves `result.proposal` empty.
+        """
+        if self._proposer is None or result.verdict is None:
+            return seq
+        completion: Any = None
+        tokens_in = tokens_out = 0
+        violation: str | None = None
+        for attempt in (1, 2):
+            try:
+                completion = self._proposer.propose(
+                    triage, result.verdict, result.runs, violation=violation
+                )
+            except SchemaValidationError as failure:
+                state.spend_tokens(failure.response.input_tokens, failure.response.output_tokens)
+                result.failed_dispatches.append((Proposer.ROLE, str(failure)))
+                if attempt == 2:
+                    result.proposal_escalated = True
+                break
+            state.spend_tokens(completion.response.input_tokens, completion.response.output_tokens)
+            tokens_in += completion.response.input_tokens
+            tokens_out += completion.response.output_tokens
+            unresolved = [
+                result_id
+                for result_id in completion.value.rests_on
+                if self._store.envelope(result_id) is None
+            ]
+            if not unresolved:
+                result.proposal = completion.value
+                break
+            violation = (
+                f"rests_on cites {', '.join(sorted(unresolved))}, which the evidence store "
+                "cannot resolve. Cite only result ids that appear in brackets in the brief."
+            )
+            result.proposal_violations.append(violation)
+            if attempt == 2:
+                result.proposal_escalated = True
+
+        if result.proposal_escalated:
+            logging.getLogger(__name__).warning(
+                "the proposer for incident %s was refused twice and produced nothing: %s",
+                trajectory.incident_id,
+                result.proposal_violations[-1] if result.proposal_violations else "schema failure",
+            )
+        if completion is None:
+            return seq
+
+        seq += 1
+        trajectory.add(
+            TrajectoryStep(
+                seq=seq,
+                role=Proposer.ROLE,
+                kind=StepKind.PROPOSAL,
+                at=datetime.now(UTC),
+                tokens_in=tokens_in,
+                tokens_out=tokens_out,
+                payload={
+                    "attempts": completion.attempts,
+                    "proposal": completion.value.model_dump(),
+                    "accepted": result.proposal is not None,
+                    "violations": list(result.proposal_violations),
+                    "escalated": result.proposal_escalated,
+                },
+            )
+        )
         return seq
 
     def _run_dispatch(

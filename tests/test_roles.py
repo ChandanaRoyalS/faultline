@@ -22,6 +22,7 @@ from faultline.agents.investigation import Investigation
 from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
 from faultline.agents.roles import (
     Planner,
+    Proposer,
     SchemaValidationError,
     Scribe,
     Synthesizer,
@@ -1479,3 +1480,178 @@ def test_the_change_analyst_reads_changes_ranked_against_triage_s_own_radius() -
     assert "#1  4m before onset" in changes.envelope and 'radius="seed"' in changes.envelope
     stored = next(s for s in result.trajectory.steps if s.tool_call and s.role == "changes")
     assert stored.tool_call is not None and stored.tool_call.envelope == changes.envelope
+
+
+# --- the proposer: one falsifiable claim, or a recorded abstention (T3.9) --------------
+
+
+def proposal_reply(**overrides: Any) -> str:
+    body: dict[str, Any] = {
+        "remediation_class": "config_revert",
+        "action_id": "revert_config",
+        "target": "cartservice",
+        "rests_on": [],
+        "expected_effect": "cartservice error ratio returns below 1% on the calls_total ratio",
+        "confirm_within_seconds": 300,
+        "if_wrong": "the ratio stays above 1% five minutes after the revert",
+        "risk": "if the address was not the cause, the revert moves traffic for nothing",
+        "blast_radius": "cartservice and its callers, checkoutservice and frontend",
+    }
+    body.update(overrides)
+    return json.dumps(body)
+
+
+def proposing_engine(model: LanguageModel, budget: Budget) -> tuple[Any, Any]:
+    tools = Tools(ToolSettings(), changes=InMemoryChangeLog())
+    store = InMemoryTrajectoryStore()
+    engine = Investigation(
+        planner=Planner(model),
+        specialists=build_specialists(tools, model),
+        store=store,
+        model=model,
+        budget=budget,
+        synthesizer=Synthesizer(model),
+        scribe=Scribe(model),
+        proposer=Proposer(model),
+    )
+    return engine, store
+
+
+def run_with_proposal(reply: str, incident: str = "incident-proposal") -> Any:
+    """One investigation whose proposer answers with `reply`. Scripted twice, so a refusal is
+    answered with the same reply again rather than falling through to a schema failure - the
+    test for a *second* refusal needs the second attempt to be a refusal and not a crash."""
+    model = ScriptedModel(
+        {
+            "planner": [ONE_DISPATCH],
+            "synthesizer": [VERDICT_REPLY],
+            "scribe": [draft_reply([])],
+            "proposer": [reply, reply],
+        }
+    )
+    engine, store = proposing_engine(model, Budget(max_dispatch_rounds=1))
+    return engine.run(incident, triage_of("cartservice"), ANCHOR), store, model
+
+
+def test_a_proposal_is_a_falsifiable_claim_and_reaches_the_trajectory() -> None:
+    """ADR-0028 §1: a proposal is a claim about a change, not the change. It names an allowlist
+    action and a service inside the radius, cites the evidence by id, and says what should be
+    observed, how soon, and what would show it wrong."""
+    result, store, _ = run_with_proposal(proposal_reply())
+
+    assert result.proposal is not None
+    assert result.proposal.action_id == "revert_config"
+    assert result.proposal.target == "cartservice"
+    assert result.proposal.confirm_within_seconds == 300
+    assert result.proposal_violations == [] and not result.proposal_escalated
+
+    step = next(s for s in result.trajectory.steps if s.kind is StepKind.PROPOSAL)
+    assert step.role == "proposer" and step.payload["accepted"] is True
+    assert step.payload["proposal"]["expected_effect"]
+    # The proposal is the last step: Gate 3's pipeline ends there, after validated citations.
+    assert step.seq == max(s.seq for s in result.trajectory.steps)
+    assert store.trajectories[result.trajectory.id].steps[-1].kind is StepKind.PROPOSAL
+
+
+def test_the_proposer_may_not_name_an_action_this_world_cannot_perform() -> None:
+    """`scale_service` is in the allowlist and unperformable - ADR-0029 measured why. The check
+    is at proposal time, so an approver is never shown an action that cannot run."""
+    model = ScriptedModel(
+        {
+            "planner": [ONE_DISPATCH],
+            "synthesizer": [VERDICT_REPLY],
+            "scribe": [draft_reply([])],
+            "proposer": [
+                proposal_reply(remediation_class="scale", action_id="scale_service"),
+                proposal_reply(),
+            ],
+        }
+    )
+    engine, _ = proposing_engine(model, Budget(max_dispatch_rounds=1))
+
+    result = engine.run("incident-unperformable", triage_of("cartservice"), ANCHOR)
+
+    assert result.proposal is not None and result.proposal.action_id == "revert_config"
+    refusal = next(
+        call for call in model.calls if call.role == "proposer" and len(call.messages) > 1
+    )
+    assert "cannot be performed in this world" in refusal.messages[-1]["content"]
+
+
+def test_the_proposer_may_not_target_a_service_outside_the_blast_radius() -> None:
+    """ADR-0032 puts this check where the incident is in scope. The allowlist names a selector -
+    `incident_scoped_service` - and never a service, so the radius decides."""
+    model = ScriptedModel(
+        {
+            "planner": [ONE_DISPATCH],
+            "synthesizer": [VERDICT_REPLY],
+            "scribe": [draft_reply([])],
+            "proposer": [proposal_reply(target="adservice"), proposal_reply()],
+        }
+    )
+    engine, _ = proposing_engine(model, Budget(max_dispatch_rounds=1))
+
+    result = engine.run("incident-outside", triage_of("cartservice"), ANCHOR)
+
+    assert result.proposal is not None and result.proposal.target == "cartservice"
+    refusal = next(
+        call for call in model.calls if call.role == "proposer" and len(call.messages) > 1
+    )
+    assert "outside this incident's blast radius" in refusal.messages[-1]["content"]
+
+
+def test_a_proposal_resting_on_evidence_that_does_not_exist_is_refused_then_abstains() -> None:
+    """The publication boundary, reused rather than restated (ADR-0028 §2, T3.8's shape). A
+    fabricated result id is refused, the refusal is fed back once, and a second refusal leaves
+    no proposal at all - recorded, escalated, and never shown to an approver."""
+    result, _, model = run_with_proposal(proposal_reply(rests_on=["tr_deadbeef"]))
+
+    assert result.proposal is None
+    assert result.proposal_escalated
+    assert len(result.proposal_violations) == 2
+    assert "tr_deadbeef" in result.proposal_violations[0]
+    second = [call for call in model.calls if call.role == "proposer"][-1]
+    assert "cannot resolve" in second.messages[-1]["content"]
+    assert "tr_deadbeef" not in second.system, "the refusal never enters the frozen prompt"
+
+
+def test_an_abstention_is_a_proposal_and_is_recorded_as_one() -> None:
+    """ADR-0022 §1.2: an abstention is neither right nor wrong rather than absent. Given the
+    approval boundary it is frequently the correct output, so it must be storable."""
+    result, _, _ = run_with_proposal(
+        proposal_reply(
+            remediation_class="none",
+            action_id="",
+            target="",
+            expected_effect="nothing, because no permitted action addresses this",
+            if_wrong="a change record appears that the specialists did not see",
+        )
+    )
+
+    assert result.proposal is not None
+    assert result.proposal.remediation_class == "none"
+    assert result.proposal.action_id == "" and result.proposal.target == ""
+    assert not result.proposal_escalated
+
+
+def test_the_proposer_is_given_the_allowlist_the_radius_and_the_runbooks() -> None:
+    """T3.9's method column: *proposals reference the T2.4b allowlist catalog and seeded
+    runbooks; risk and blast-radius notes mandatory*. The brief carries all three, and the
+    runbook is selected by the verdict's fault class rather than by similarity."""
+    _, _, model = run_with_proposal(proposal_reply())
+
+    brief = next(call for call in model.calls if call.role == "proposer").messages[0]["content"]
+    assert "revert_config (config_revert)" in brief
+    assert "scale_service" in brief and "UNAVAILABLE" in brief
+    assert "cartservice (seed" in brief
+    assert "class-bad-config" in brief, "the verdict's fault class picks the runbook"
+    assert "action-revert-config" in brief, "and the runbook's own actions come with it"
+
+
+def test_the_proposer_holds_no_tools() -> None:
+    """ADR-0028 §3: read-only here is a property of the tool surface, not of a credential, so a
+    write path anywhere removes it everywhere. The role has no tool attribute to remove."""
+    proposer = Proposer(ScriptedModel({}))
+
+    assert not [name for name in dir(proposer) if "tool" in name.lower()]
+    assert not hasattr(proposer, "_tools")

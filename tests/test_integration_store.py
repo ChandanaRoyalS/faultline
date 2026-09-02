@@ -21,6 +21,12 @@ import psycopg
 import pytest
 from testcontainers.community.postgres import PostgresContainer
 
+from faultline.agents.trajectory import (
+    PostgresTrajectoryStore,
+    StepKind,
+    Trajectory,
+    TrajectoryStep,
+)
 from faultline.migrate import stamp_head, upgrade_head
 from faultline.orchestrator.models import (
     INVESTIGATING_STATES,
@@ -84,6 +90,7 @@ EXPECTED_TABLES = {
     "trajectory_steps",
     "trajectory_tool_calls",
     "trajectory_retrievals",
+    "trajectory_proposals",
     "incident_chunks",
     "change_records",
 }
@@ -109,6 +116,58 @@ def test_migrating_an_empty_database_builds_the_whole_schema(virgin_dsn: str) ->
         tables = {row[0] for row in cur.fetchall()}
 
     assert tables >= EXPECTED_TABLES, f"missing: {sorted(EXPECTED_TABLES - tables)}"
+
+
+def test_a_proposal_is_stored_in_its_own_columns(virgin_dsn: str) -> None:
+    """ADR-0028 §6 asked for the table, and T4.2 is why it is columns rather than JSONB alone:
+    a scorer grouping proposals by remediation class should not have to unpack a payload.
+
+    Against real Postgres, because the in-memory double cannot catch a column that is not
+    there - which is the failure mode T7.10 hit with `UndefinedColumn` on a live scenario.
+    """
+    upgrade_head(virgin_dsn)
+    with psycopg.connect(virgin_dsn) as conn:
+        store = PostgresTrajectoryStore(conn)
+        trajectory = Trajectory(
+            incident_id="incident-proposal",
+            model="m",
+            effort="high",
+            started_at=datetime.now(UTC),
+        )
+        trajectory.add(
+            TrajectoryStep(
+                seq=1,
+                role="proposer",
+                kind=StepKind.PROPOSAL,
+                at=datetime.now(UTC),
+                payload={
+                    "accepted": True,
+                    "proposal": {
+                        "remediation_class": "config_revert",
+                        "action_id": "revert_config",
+                        "target": "cartservice",
+                        "rests_on": ["tr_abc"],
+                        "expected_effect": "error ratio below 1%",
+                        "confirm_within_seconds": 300,
+                        "if_wrong": "the ratio stays high",
+                        "risk": "a revert on a healthy service",
+                        "blast_radius": "cartservice and its callers",
+                    },
+                },
+            )
+        )
+        store.save(trajectory)
+        conn.commit()
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT remediation_class, action_id, target, rests_on, accepted "
+                "FROM trajectory_proposals WHERE trajectory_id = %s",
+                (trajectory.id,),
+            )
+            row = cur.fetchone()
+
+    assert row == ("config_revert", "revert_config", "cartservice", ["tr_abc"], True)
 
 
 def test_upgrading_a_current_database_does_nothing(virgin_dsn: str) -> None:
