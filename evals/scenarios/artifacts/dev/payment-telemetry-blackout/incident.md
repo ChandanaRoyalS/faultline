@@ -3,7 +3,7 @@ origin: scenario:payment-telemetry-blackout
 split: dev
 fault_class: bad_config
 recorded_from: 2026-08-31T02:34:36+00:00
-capability: cap:9c416e0a
+capability: cap:c4d52d00
 onset_to_page: 6m16s
 page_to_fix: 5m00s
 fix_to_all_clear: 1m02s

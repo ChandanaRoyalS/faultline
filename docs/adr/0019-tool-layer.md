@@ -608,3 +608,82 @@ generation (Phase 3 Batch B), beside Q17. It is also a tool this world cannot ye
 demo's services are pulled images, not checked-out repositories (ADR-0026), so what a
 "repo-compare" compares here is the image and configuration history the change log already
 records. That is a design question for Batch B, not a reason to skip the ranking that was free.
+
+## Addendum (T3.3b, 2026-09-02) — a fifth tool, and the first `TOOL_BEHAVIOUR_REVISION` bump
+
+The plan's T3.3b promotes the metrics specialist: *"baseline range-query comparison (incident
+window vs. normal), saturation / error-rate / latency anomaly extraction, change-point
+timestamps"*, with *"the PromQL tool … the same parse-validate-and-cap treatment as LogQL
+(query-language sandboxing parity); baseline-comparison queries templated"*.
+
+### What the specialist used to get, and why it was not enough
+
+One range query for the error ratio, and a number. *"The error ratio is 0.4"* requires the
+reader to know this world's healthy value to mean anything, and the rehearsed narratives are
+full of wrong turns that start exactly there — T7.13's starved histogram read as degradation,
+T3.4 reading 15s of p95 as a fault when it was the top finite bucket of an empty histogram.
+Every narrative claim of the form *"the error rate was high"* was written by a person who had
+the baseline series in front of them and an agent that did not.
+
+`metric_baseline(service, template, start, end)` returns the incident window **and the window
+immediately before it, of the same length**, each summarised, with the timestamps where the
+series left its baseline. Not a fixed "healthy period": this repository has never recorded one,
+and comparing an incident against a constant somebody typed is worse than not comparing.
+Adjacent and equal-length, so the two summaries have comparable `n` and a slow drift shows up as
+a moved baseline rather than hiding behind a distant window.
+
+### Sandboxing parity, and what it does and does not mean
+
+`logql_query` takes a service and builds its selector; `promql_query` took a query string.
+Nothing in the pipeline lets a model reach that parameter, but the asymmetry was real, and
+`faultline/tools/metrics.py` closes it: a metric question is named by a `MetricTemplate` and
+rendered against a canonical service, so the only PromQL the specialist path sends is PromQL
+this repository wrote. **`promql_query` keeps its string parameter** — removing it would break
+the read-only URL test and the harness's own recorded queries, and the parity being asked for is
+that the specialist has a templated path, not that no such parameter exists anywhere.
+
+The four templates are the four `evalharness.prom` already captures on every bundle, expression
+for expression. That is deliberate: a comparison made live is then comparable with what the
+recorded corpus holds, and a narrative citing one can be checked against the other.
+
+### The change-point rule, stated so it can be argued with
+
+*Baseline mean plus three standard deviations, floored at the template's own alerting threshold,
+sustained for three consecutive samples, timestamped at the **first** sample of the run.*
+
+Every clause earns its place. **Three sigma alone is useless here** — the error ratio's healthy
+value is exactly zero with zero deviation, so any single nonzero sample is infinitely many sigmas
+out. **The floors are the alert rules' own numbers** (5% error ratio, 250ms p95), so a change
+point and an alert describe the same event; `call-rate` and `runtime-memory` have no measured
+threshold in this repository and get `0.0` rather than an invented one. **Three samples is 45
+seconds** at the recorder's scrape — shorter than the rules' own 2-3 minute `for`, deliberately:
+an alert must not fire on a blip, and this must not *miss* the moment a blip became a fault.
+**The timestamp is where the run started**, because the question is *when did this begin* and
+reporting the sample that satisfied the rule would put every change point three samples late.
+
+### Two things the build found
+
+**The baseline pair collides with the window ceiling.** T3.2b clips a window at
+`max_window_seconds`; a clipped window makes the pair *twice* the ceiling, and every
+historical-anchor run was refused. `metric_baseline` therefore has its own ceiling — twice the
+telemetry bound — derived the way `change_history`'s is rather than invented. The alternative,
+shortening the baseline to fit, was rejected: two summaries with different `n` are not a
+comparison.
+
+**An unreadable baseline is an error, not a comparison against nothing.** If the incident window
+reads and the baseline does not, the result carries an error rather than a delta. A delta
+computed from an unobserved baseline has the shape of a finding and none of the evidence, which
+is ADR-0019's founding distinction at the point where it would do the most damage.
+
+### The cost, paid once for two changes
+
+`TOOL_BEHAVIOUR_REVISION` goes to **2** — the first bump since it was created. It carries **Q18**
+with it: `neutralise` stripped the ESC byte and left `[31m` as literal text, because `\x1b` falls
+inside the `\x0e-\x1f` class that was written first in the alternation. Every envelope over a
+coloured stream carried escape residue against a docstring that said it did not.
+
+`CAPABILITY_VERSION` moves `cap:9c416e0a` → `cap:c4d52d00`, and with it the fifteen narrative
+capability stamps. **They were reviewed, not re-stamped** —
+`docs/design/t3.3b-capability-review.md` records the two questions the two changes imply, the one
+hit and why it is unaffected, and — because the guard's own message says a green run is not a
+proof — what the review did not ask.

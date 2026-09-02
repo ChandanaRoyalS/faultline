@@ -420,8 +420,8 @@ that met the deliverable's wording, or where the remaining work is queued.
 | T3.2b | Tool-enforced window policy + per-query window logging | One window for every specialist, `onset − 10 min → onset + 5 min`, chosen in the agent layer; `change_history` never checked; no hint on refusal | **#139**. Planner's per-hypothesis widening → **Q17** (moves `prompts`) |
 | T3.2c | Budgeted briefing assembler + pull-rate metrics | **Half true and unnamed**: specialists hold one modality each, the synthesizer holds no tools and retrieval is `k=3` — so context does arrive on demand. What was absent was any bound and any number | **#146**, with **Q16** riding the same `budget` move |
 | T3.3 | Log evidence with signatures + sample lines + provenance | Delivered: scoped, capped, two-ended, typed | — |
-| T3.3b | Production metrics specialist | Specialist exists; no baseline range-query comparison, no change-point timestamps | Remaining. The templated-query half may need no frozen key; decided when reached |
-| T3.4 | Ranked suspicious-change evidence per incident | Deploy history yes, oldest first; no ranking; no repo-compare | **#140** ranks in the tool by causal tier, radius tier, hops, lead. Repo-compare → Batch B (a fifth tool moves `CAPABILITY_VERSION`) |
+| T3.3b | Production metrics specialist | Specialist exists; no baseline range-query comparison, no change-point timestamps | **#147**, with **Q18**. One `world` generation: `metric_baseline`, templated queries, change points, `TOOL_BEHAVIOUR_REVISION` 1 → 2, and fifteen narrative stamps reviewed before being moved |
+| T3.4 | Ranked suspicious-change evidence per incident | Deploy history yes, oldest first; no ranking; no repo-compare | **#140** ranks in the tool by causal tier, radius tier, hops, lead. **Repo-compare stays unbuilt and is now Q19**: this world runs pulled images, not checkouts (ADR-0026), so the clause has no literal meaning here and a tool that re-read the change log under a second name would add surface and no evidence |
 | T3.5 | Concurrent investigations; kill-one-specialist test | Sequential loop. Degradation and the kill test were present | **#137** |
 | T3.6 | Evidence store with full provenance chain | Typed per modality with trust labels and windows; the provenance chain is split across `ToolResult`, `SpecialistFindings` and the envelope hash | **#144** — and **it moved no frozen key**, against this table's own prediction: binding provenance in the runtime rather than asking a model for it kept `Evidence` out of `_CONTRACTS` |
 | T3.7 | Cited, ranked RCA reports | Delivered: `Verdict` with evidence ids, one bounded follow-up round | — |
@@ -758,6 +758,41 @@ positive remains the historical one. T4.1's first batch is where that record get
 `docs/adr/0020-agent-layer.md`, `src/faultline/agents/contracts.py`,
 `src/faultline/agents/roles.py`, `src/faultline/agents/grounding.py`,
 `docs/evidence/t3.4c-rerun/README.md`
+
+### T3.3b — the metrics specialist gets a baseline *(built; Q18 rode along)*
+The specialist received a bare error ratio and a number. *"The error ratio is 0.4"* means nothing
+without this world's healthy value, and the rehearsed narratives are full of wrong turns that
+start there - T7.13's starved histogram read as degradation, T3.4 reading 15s of p95 as a fault.
+
+`metric_baseline` returns the incident window **and the equal-length window before it**, each
+summarised, with the timestamps where the series left its baseline. The change-point rule is
+arithmetic and stated: baseline mean plus three sigma, floored at the alert rules' own thresholds
+(5% error ratio, 250ms p95), sustained three samples, timestamped at the **first** sample of the
+run. Three sigma alone is useless on a world whose healthy error ratio is exactly zero.
+
+**Sandboxing parity**: a metric question is now named by a `MetricTemplate` and rendered against
+a canonical service, so the specialist path sends only PromQL this repository wrote - the four
+templates matching `evalharness.prom`'s expression for expression, so a live comparison and a
+recorded bundle describe the same series.
+
+**Two findings from the build.** The baseline pair collided with T3.2b's window ceiling - a
+clipped window made the pair twice the ceiling and every historical-anchor run was refused - so
+the tool has its own ceiling, derived like `change_history`'s. And an unreadable baseline is an
+**error**, not a comparison against nothing: a delta computed from an unobserved baseline has
+the shape of a finding and none of the evidence.
+
+**The `world` generation, spent once for two changes.** `TOOL_BEHAVIOUR_REVISION` 1 → 2, carrying
+**Q18** - `neutralise` stripped the ESC byte and left `[31m` in every envelope over a coloured
+stream. `CAPABILITY_VERSION` moves `cap:9c416e0a` → `cap:c4d52d00`, and the fifteen narrative
+stamps moved with it **after a review, not instead of one**
+(`docs/design/t3.3b-capability-review.md`).
+
+**Q13 and the repo-compare tool were assessed in this batch and declined**, each on its own
+terms: Q13's rule buys an alert no scenario can trigger while the `scale` mechanism does not
+exist (ADR-0024, ADR-0029), and repo-compare has no literal meaning over pulled images
+(ADR-0026), so it becomes **Q19** - blocked on a design, not on a generation.
+`src/faultline/tools/metrics.py`, `src/faultline/tools/tools.py`,
+`docs/adr/0019-tool-layer.md` (addendum), `docs/design/t3.3b-capability-review.md`
 
 ### T3.2c — progressive disclosure, bounded and measured *(built; Q16 rode along)*
 The plan asks that agents start from a minimal briefing and pull the rest on demand, with

@@ -25,10 +25,18 @@ from faultline.tools.results import ToolResult
 OPEN = "tool_result"
 CLOSE_PREFIX = f"</{OPEN}"
 
-CONTROL = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]|\x1b\[[0-9;]*[A-Za-z]")
+CONTROL = re.compile(r"\x1b\[[0-9;]*[A-Za-z]|[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 """Control characters and ANSI escape sequences, which are measured rather than theoretical:
 `cart-bad-image-tag`'s committed log capture contains five ANSI sequences, because .NET's
-console logger colours its output and promtail ships it verbatim."""
+console logger colours its output and promtail ships it verbatim.
+
+**The ANSI alternative comes first, and that ordering is the whole fix (Q18, landed T3.3b).**
+`\x1b` is `0x1b`, which the character class `\x0e-\x1f` also matches - so with the class
+written first, the alternation removed the ESC byte alone and left `[31m` in the text as
+literal characters. The docstring above claimed the sequences were stripped and they were not:
+every envelope over a coloured stream carried escape residue for a model to read past. Found at
+T3.6 while sampling result bodies onto `Evidence`; fixed here because it changes the bytes of
+every envelope, which is `TOOL_BEHAVIOUR_REVISION`'s question and the `world` key's."""
 
 
 def neutralise(text: str) -> str:

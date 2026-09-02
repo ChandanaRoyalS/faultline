@@ -26,6 +26,13 @@ from faultline.tools.changes import (
     ChangeRecord,
     Resource,
 )
+from faultline.tools.metrics import (
+    MetricTemplate,
+    change_points,
+    render_query,
+    summarise,
+    threshold_for,
+)
 from faultline.tools.ranking import RadiusStanding, RankingContext, rank_key
 from faultline.tools.results import LogLine, LogResult, MetricResult, Trust, Window
 from faultline.tools.settings import ToolSettings
@@ -838,3 +845,149 @@ def test_the_standing_is_in_the_envelope_where_the_synthesizer_can_compare_it() 
     rendered = envelope.render(result)
     assert 'radius="candidate_cause"' in rendered and 'hops="1"' in rendered
     assert "#1  1m before onset" in rendered
+
+
+# --- baseline comparison and change points (T3.3b) ---------------------------------
+
+
+def _range_payload(points: list[tuple[float, float]]) -> dict[str, Any]:
+    return {"data": {"result": [{"metric": {"service_name": "cartservice"}, "values": points}]}}
+
+
+def _flat(count: int, value: float, first: float) -> list[tuple[float, float]]:
+    return [(first + index * 15.0, value) for index in range(count)]
+
+
+def test_the_metrics_specialist_gets_a_comparison_rather_than_a_number() -> None:
+    """T3.3b: *baseline range-query comparison (incident window vs. normal)*. "p95 is 15s" is a
+    number; "15s against a baseline of 38ms" is evidence, and the rehearsed narratives show the
+    wrong turns start exactly where a reading is judged without one."""
+    baseline = _flat(20, 0.0, START.timestamp() - 1200)
+    incident = _flat(10, 0.0, START.timestamp()) + _flat(10, 0.4, START.timestamp() + 150)
+    calls: list[tuple[float, float]] = []
+
+    def fake_range(query: str, start: datetime, end: datetime, **kwargs: Any) -> dict[str, Any]:
+        calls.append((start.timestamp(), end.timestamp()))
+        return _range_payload(incident if start >= START else baseline)
+
+    with patch("faultline.telemetry.query_range", side_effect=fake_range):
+        result = Tools(ToolSettings()).metric_baseline(
+            "cartservice", MetricTemplate.ERROR_RATIO, START, START + timedelta(minutes=5)
+        )
+
+    assert result.error is None
+    assert result.baseline["mean"] == 0.0 and result.incident["mean"] == 0.2
+    assert result.baseline_window is not None
+    # The baseline is the window immediately before, of the same length: same `n` to compare on,
+    # and adjacent so a slow drift shows as a moved baseline instead of hiding behind a
+    # distant "healthy period" nobody recorded.
+    assert result.baseline_window.end == START
+    assert (result.baseline_window.end - result.baseline_window.start) == timedelta(minutes=5)
+    assert "mean moved from 0 to 0.2" in result.body()
+
+
+def test_a_change_point_is_the_moment_the_departure_started() -> None:
+    """Not the sample that satisfied the persistence rule - that would put every change point
+    `PERSIST` samples late, and the question a change point answers is *when did this start*."""
+    started = START.timestamp() + 150
+    incident = _flat(10, 0.0, START.timestamp()) + _flat(10, 0.4, started)
+
+    found = change_points(
+        incident, MetricTemplate.ERROR_RATIO, summarise(_flat(20, 0.0, 0.0)), tz=UTC
+    )
+
+    assert len(found) == 1
+    assert found[0].at == datetime.fromtimestamp(started, tz=UTC)
+    assert found[0].threshold == 0.05
+
+
+def test_three_sigma_alone_would_fire_on_a_world_whose_baseline_is_zero() -> None:
+    """The error ratio's healthy value here is exactly 0 and its standard deviation with it, so
+    any nonzero sample is infinitely many sigmas out. The floor is the alert rule's own 5%."""
+    quiet = summarise(_flat(20, 0.0, 0.0))
+    blip = _flat(5, 0.0, 0.0) + _flat(5, 0.02, 100.0)
+
+    assert threshold_for(MetricTemplate.ERROR_RATIO, quiet) == 0.05
+    assert change_points(blip, MetricTemplate.ERROR_RATIO, quiet) == []
+    assert change_points(_flat(5, 0.2, 0.0), MetricTemplate.ERROR_RATIO, quiet)
+
+
+def test_a_series_that_recovers_and_breaks_again_reports_two_change_points() -> None:
+    """A responder's real question is *did it recover* - answered by the shape of the list."""
+    quiet = summarise(_flat(20, 0.0, 0.0))
+    series = _flat(4, 0.4, 0.0) + _flat(4, 0.0, 100.0) + _flat(4, 0.4, 200.0)
+
+    assert len(change_points(series, MetricTemplate.ERROR_RATIO, quiet)) == 2
+
+
+def test_a_departure_shorter_than_the_persistence_rule_is_not_a_change_point() -> None:
+    quiet = summarise(_flat(20, 0.0, 0.0))
+    blip = _flat(3, 0.0, 0.0) + _flat(2, 0.9, 50.0) + _flat(5, 0.0, 100.0)
+
+    assert change_points(blip, MetricTemplate.ERROR_RATIO, quiet) == []
+
+
+def test_an_unreadable_baseline_is_an_error_not_a_comparison_against_nothing() -> None:
+    """ADR-0019's distinction, at the point it would do the most damage: a delta computed from
+    an unobserved baseline is the shape of a finding with none of the evidence."""
+
+    def fake_range(query: str, start: datetime, end: datetime, **kwargs: Any) -> dict[str, Any]:
+        if start < START:
+            raise RuntimeError("prometheus said no")
+        return _range_payload(_flat(4, 0.4, START.timestamp()))
+
+    with patch("faultline.telemetry.query_range", side_effect=fake_range):
+        result = Tools(ToolSettings()).metric_baseline(
+            "cartservice", MetricTemplate.ERROR_RATIO, START, START + timedelta(minutes=5)
+        )
+
+    assert result.empty and result.error is not None
+    assert "the baseline window could not be read" in result.error
+    assert "NO BASELINE" not in result.body(), "an error renders as an error, not as an absence"
+
+
+def test_the_only_promql_this_layer_sends_is_promql_it_wrote() -> None:
+    """*Query-language sandboxing parity*: `logql_query` builds its selector from a service and
+    the templated metric path now does the same, so a specialist names a question rather than
+    composing a query."""
+    for template in MetricTemplate:
+        rendered = render_query(template, "cartservice")
+        assert "cartservice" in rendered
+        assert set(MetricTemplate) == {
+            MetricTemplate.ERROR_RATIO,
+            MetricTemplate.CALL_RATE,
+            MetricTemplate.LATENCY_P95,
+            MetricTemplate.RUNTIME_MEMORY,
+        }
+    # The expressions match the recorder's, so a live comparison and a recorded bundle describe
+    # the same series (`evalharness.prom.METRIC_QUERIES`).
+    from evalharness.prom import METRIC_QUERIES
+
+    assert 'status_code="STATUS_CODE_ERROR"' in render_query(
+        MetricTemplate.ERROR_RATIO, "cartservice"
+    )
+    assert "histogram_quantile(0.95" in render_query(MetricTemplate.LATENCY_P95, "cartservice")
+    assert set(METRIC_QUERIES) >= {"error-ratio", "call-rate", "latency-p95"}
+
+
+def test_the_baseline_tool_has_a_ceiling_that_admits_its_own_default_window() -> None:
+    """Found by a test rather than by reasoning: the policy's clipped window sat exactly at the
+    telemetry ceiling, so the pair was twice it and every historical-anchor run was refused."""
+    policy = WindowPolicy(ToolSettings())
+
+    assert policy.ceiling_for("metric_baseline") == 2 * policy.ceiling_for("promql_query")
+    scoped = policy.for_specialist("metrics", START, START + timedelta(days=3))
+    assert scoped.clipped
+    assert (
+        policy.refusal("metric_baseline", scoped.start - (scoped.end - scoped.start), scoped.end)
+        is None
+    )
+
+
+def test_ansi_sequences_are_stripped_whole() -> None:
+    """**Q18**, landed with this world move. `\\x1b` is inside `\\x0e-\\x1f`, so with the control
+    class written first the alternation removed the ESC byte and left `[31m` as literal text -
+    in every envelope over a coloured stream, against a docstring that said otherwise."""
+    assert envelope.neutralise("\x1b[31mERROR\x1b[0m red") == "ERROR red"
+    assert envelope.neutralise("\x07bell\x00nul") == "bellnul"
+    assert envelope.neutralise("\x1b[1;32mgreen\x1b[m") == "green"

@@ -36,6 +36,7 @@ from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
 from faultline.agents.triage import TriageResult
 from faultline.context.allowlist import ActionStatus, load_allowlist
 from faultline.context.runbooks import Runbook, load_runbooks
+from faultline.tools.metrics import MetricTemplate
 from faultline.tools.ranking import RankingContext
 from faultline.tools.results import ToolResult
 from faultline.tools.tools import Tools
@@ -393,12 +394,11 @@ class Specialist:
         ranking: RankingContext | None = None,
     ) -> ToolResult:
         if self.name == "metrics":
-            query = (
-                f'sum by(service_name) (rate(calls_total{{service_name="{service}",'
-                'status_code="STATUS_CODE_ERROR"}[2m])) '
-                f'/ sum by(service_name) (rate(calls_total{{service_name="{service}"}}[2m]))'
-            )
-            return self._tools.promql_query(query, start, end)
+            # **A comparison, not a number** (T3.3b). The bare error-ratio range query said what
+            # the ratio was and left "is that unusual?" to a model that has never seen this
+            # world healthy. `metric_baseline` answers it with the preceding window of the same
+            # length, and extracts the timestamps where the series left it.
+            return self._tools.metric_baseline(service, MetricTemplate.ERROR_RATIO, start, end)
         if self.name == "logs":
             return self._tools.logql_query(service, start, end, limit=40)
         if self.name == "traces":

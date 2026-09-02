@@ -3,7 +3,7 @@ origin: scenario:recommendation-memory-squeeze
 split: holdout
 fault_class: resource_exhaustion
 recorded_from: 2026-08-30T01:03:52+00:00
-capability: cap:9c416e0a
+capability: cap:c4d52d00
 onset_to_page: 4m45s
 page_to_fix: 5m00s
 fix_to_all_clear: 1m45s

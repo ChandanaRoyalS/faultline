@@ -27,8 +27,16 @@ from datetime import datetime
 from typing import Any
 
 from faultline import telemetry
+from faultline.tools.metrics import (
+    MetricTemplate,
+    Summary,
+    change_points,
+    render_query,
+    summarise,
+)
 from faultline.tools.ranking import RankingContext, rank_changes
 from faultline.tools.results import (
+    BaselineResult,
     ChangeResult,
     LogLine,
     LogResult,
@@ -73,7 +81,7 @@ def two_ended_split(cap: int) -> tuple[int, int]:
     return oldest, cap - oldest
 
 
-TOOL_BEHAVIOUR_REVISION = 1
+TOOL_BEHAVIOUR_REVISION = 2
 """Bumped when a tool returns materially different evidence without changing the tool set.
 
 **The one input to `CAPABILITY_VERSION` that cannot be derived**, and it exists because the
@@ -89,6 +97,21 @@ produces differences nobody can act on, until nobody looks at it.
 
 Revision 1 is the surface as of T7.8: four tools, two-ended log retention, trust envelopes with
 per-call nonces, change records emitted by the injector.
+
+**Revision 2 (T3.3b, 2026-09-02)** is the first bump since, and it is bumped for two changes
+that both alter what a responder could conclude:
+
+- **`metric_baseline`**, a fifth tool. The metrics specialist no longer receives a bare error
+  ratio; it receives that ratio *against the preceding window of the same length*, with the
+  timestamps where the series left its baseline. Every narrative claim of the form "the error
+  rate was high" was written without a baseline in front of the agent, and is re-opened by this.
+- **`neutralise` now strips whole ANSI sequences** (Q18). It previously removed the ESC byte and
+  left `[31m` in the text, so every envelope over a coloured log stream carried escape residue
+  the model had to read past. `cart-bad-image-tag`'s capture has five such sequences.
+
+The tool *set* also grew, so `tool_surface()` moves too - the derivable half of
+`CAPABILITY_VERSION` catches that on its own. This constant is bumped for the second change,
+which nothing derivable would see.
 """
 
 ALLOWED_PATHS = frozenset({PROMETHEUS_QUERY_RANGE, LOKI_QUERY_RANGE, JAEGER_TRACES})
@@ -149,6 +172,109 @@ class Tools:
             for entry in raw
         ]
         return MetricResult(query=query, window=window, series=series, empty=not series)
+
+    def metric_baseline(
+        self,
+        service: str,
+        template: MetricTemplate,
+        start: datetime,
+        end: datetime,
+        step: int = 15,
+    ) -> BaselineResult:
+        """One templated metric, in the incident window and in the quiet window before it (T3.3b).
+
+        **The baseline is the window immediately preceding, of the same duration.** Not a fixed
+        "healthy period" - this world has no such period recorded, and inventing one would mean
+        comparing an incident against a constant somebody typed. Same duration so the two
+        summaries carry comparable `n`, and immediately preceding so a slow drift is visible as
+        a moved baseline rather than hidden by choosing a distant window.
+
+        Both windows are checked against the policy (T3.2b): the pair spans twice the incident
+        window, so a request near the ceiling is refused here rather than half-answered.
+        """
+        canonical = canonical_service(service)
+        query = render_query(template, canonical)
+        window = Window(start=start, end=end)
+        span = end - start
+        before = Window(start=start - span, end=start)
+        refusal = self._check_window("metric_baseline", query, before.start, end)
+        if refusal is not None:
+            return BaselineResult(
+                service=canonical,
+                template=template.value,
+                query=query,
+                window=window,
+                baseline_window=before,
+                error=refusal,
+                empty=True,
+            )
+
+        incident_points = self._points(query, start, end, step)
+        if isinstance(incident_points, str):
+            return BaselineResult(
+                service=canonical,
+                template=template.value,
+                query=query,
+                window=window,
+                baseline_window=before,
+                error=incident_points,
+                empty=True,
+            )
+        baseline_points = self._points(query, before.start, before.end, step)
+        if isinstance(baseline_points, str):
+            # **The incident window succeeded and the baseline did not.** Reported as an error
+            # rather than as a comparison against nothing: a delta computed from an unobserved
+            # baseline is the shape of a finding with none of the evidence.
+            return BaselineResult(
+                service=canonical,
+                template=template.value,
+                query=query,
+                window=window,
+                baseline_window=before,
+                error=f"the baseline window could not be read: {baseline_points}",
+                empty=True,
+            )
+
+        baseline = summarise(baseline_points)
+        incident = summarise(incident_points)
+        found = change_points(incident_points, template, baseline, tz=start.tzinfo)
+        return BaselineResult(
+            service=canonical,
+            template=template.value,
+            query=query,
+            window=window,
+            baseline_window=before,
+            incident=_as_stats(incident),
+            baseline=_as_stats(baseline),
+            changes=[
+                {"at": point.at.isoformat(), "value": point.value, "threshold": point.threshold}
+                for point in found
+            ],
+            empty=not incident_points,
+        )
+
+    def _points(
+        self, query: str, start: datetime, end: datetime, step: int
+    ) -> list[tuple[float, float]] | str:
+        """One range query, flattened to points, or the error string it failed with.
+
+        Summed across series rather than kept per-label: every template already aggregates with
+        `sum by(...)` on one service, so more than one series means the label set surprised us -
+        and a comparison that silently used the first would be reading whichever series
+        Prometheus listed first.
+        """
+        try:
+            payload = telemetry.query_range(
+                query, start, end, step=step, base=self._settings.prometheus_url
+            )
+        except Exception as exc:
+            return str(exc)
+        raw = payload.get("data", {}).get("result", [])
+        points: list[tuple[float, float]] = []
+        for entry in raw:
+            for at, value in entry.get("values", []):
+                points.append((float(at), float(value)))
+        return sorted(points)
 
     # --- logql ----------------------------------------------------------------
 
@@ -350,3 +476,15 @@ def prometheus_url(settings: ToolSettings, query: str, start: int, end: int, ste
         {"query": query, "start": str(start), "end": str(end), "step": str(step)}
     )
     return f"{settings.prometheus_url}{PROMETHEUS_QUERY_RANGE}?{params}"
+
+
+def _as_stats(summary: Summary) -> dict[str, float]:
+    """A `Summary` as the typed result stores it - plain floats, so a stored envelope and a
+    replayed one are the same JSON."""
+    return {
+        "samples": float(summary.samples),
+        "mean": summary.mean,
+        "minimum": summary.minimum,
+        "maximum": summary.maximum,
+        "stdev": summary.stdev,
+    }
