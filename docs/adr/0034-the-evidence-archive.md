@@ -62,9 +62,15 @@ Four integration tests run against a real MinIO container: the bucket created on
 connect, an envelope round-tripped unchanged, the archived bytes verified against the same
 sha256 Postgres records, and a missing key reading as `None` rather than raising.
 
-**Reports are not archived yet, and this is the honest half of the deliverable.** The plan
-says *"raw evidence payloads **and rendered reports**"*. Envelopes are written; the rendered
-narrative is not. `report_key()` exists and has no caller — a defined key scheme and an unused
-seam, recorded here rather than left for an audit to discover, which is what happened to T2.5
-and T2.7. It is a small piece of work and it belongs with whichever task owns the report
-surface; naming it here is the point.
+**Reports are archived too, in the change that followed within the hour.** The plan says
+*"raw evidence payloads **and rendered reports**"*. This ADR was first written with only
+envelopes done and `report_key()` defined but uncalled — a seam with no caller, which is
+exactly how T2.5 and T2.7 stayed invisible for weeks. `write_outputs` now takes the archive
+and writes the rendered narrative beside the file, the same bytes in both, keyed by
+**trajectory** rather than incident: an incident can be investigated more than once, and
+keying by incident would have the second report silently replace the first.
+
+The paragraph this replaced said reports were outstanding, and was still saying so inside the
+pull request that archived them — caught before merge. Recorded because it is the smallest
+possible instance of this project's recurring defect: a sentence that was true when written
+and false a commit later, with nothing checking.
