@@ -29,8 +29,19 @@ from datetime import datetime
 from enum import StrEnum
 
 from faultline.context.catalog import GraphPresence, ServiceCatalog
-from faultline.context.graph import EdgeKind
+from faultline.context.graph import Direction, EdgeKind, Reach
 from faultline.orchestrator.models import Incident, Severity
+
+__all__ = [
+    "BlastRadiusMember",
+    "Direction",
+    "EntryReason",
+    "Triage",
+    "TriageResult",
+]
+"""`Direction` is re-exported rather than defined here: it moved to the graph layer with the
+traversal at the Phase 2 audit's D4, and `from faultline.agents.triage import Direction` is how
+the call sites and the tests already spell it."""
 
 
 class EntryReason(StrEnum):
@@ -46,31 +57,6 @@ class EntryReason(StrEnum):
     """Reached across an edge with no measurement either way. **Included and flagged**, never
     silently promoted to `sync_edge`: it is in the radius because excluding it would assert a
     measurement nobody made, and it is marked because including it is not one either."""
-
-
-class Direction(StrEnum):
-    """Which way the edge was crossed, and therefore what membership claims.
-
-    The distinction is forced by what `edge_kind` measures. ADR-0017's addendum defines `sync`
-    as *a callee failure was observed to propagate to the caller* - a **directed** statement.
-    It licenses "this callee failed, so its caller is affected". It does not license the
-    reverse, and treating the graph as undirected reads a measurement backwards.
-    """
-
-    SEED = "seed"
-    ALSO_AFFECTED = "also_affected"
-    """Reached **upstream** (callee -> caller). Failure propagates this way, and it is
-    transitive - a caller of an affected caller is affected - so it is followed to the full hop
-    radius."""
-
-    CANDIDATE_CAUSE = "candidate_cause"
-    """Reached **downstream** (caller -> callee), one step, and only from a service that
-    actually alerted. This is not propagation: a callee of an erroring caller has not been shown
-    to be affected, it is a place the error might have come from. `email-wrong-image` is the
-    shape - `checkoutservice` alerted and `emailservice`, the broken one, never alerted at all.
-
-    One step, and only from seeds, because the claim does not compose: the callee of a
-    *candidate* is a candidate for a fault nobody has evidence of."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,27 +122,19 @@ class TriageResult:
 
 
 class Triage:
-    """Blast radius by traversal over measured edge kinds.
+    """An incident's blast radius: the graph's traversal, plus what only an incident knows.
 
-    Two traversals, because the graph carries two different claims and `sync` is a
-        **directed** measurement (ADR-0017's addendum: *a callee failure was observed to propagate
-        to the caller*).
+    **The traversal is `ServiceGraph.blast_radius` and lives in the context layer** - two
+    directions, `async` never crossed, upstream transitive and downstream one step, with the
+    reasoning for each recorded there. It moved at the Phase 2 audit's D4: T2.4's deliverable
+    names *"blast radius of service X"* as the graph API's core query, and it was assembled
+    inside this agent instead. The executor T6.2 specifies - which must reject an action whose
+    target sits outside the incident's scoped topology - needs the query where the plan put it.
 
-        **Upstream, transitive, to the hop radius** - callee to caller, which is the direction the
-        measurement licenses. If `adservice` dies its caller `frontend` is affected, and a caller of
-        an affected caller is affected too.
-
-        **Downstream, one step, from alerting services only** - caller to callee, which names where
-        an error could have come from. `email-wrong-image` is why this exists at all: checkout
-        alerted, and `emailservice`, the broken one, never alerted. It does not compose, so it is
-        not followed: the callee of a candidate is a candidate for a fault nobody has evidence of.
-
-        Treating the graph as undirected instead reads the measurement backwards and inflates the
-        result - from an `adservice` failure it reaches `cartservice`, which shares a caller with
-        `adservice` and has nothing to do with it.
-
-        `async` is not crossed in either direction. `frauddetectionservice` was dead for 852 seconds
-        while checkout kept completing orders, so neither tells you anything about the other.
+    **What stays here is everything the graph cannot answer.** Which services alerted and when;
+    whether the catalog has heard of a service at all and how it appears in the graph; which
+    reason to record for a member; and where an investigation should start. Those are incident
+    facts and catalog facts, and none of them is a traversal.
     """
 
     def __init__(self, catalog: ServiceCatalog, hop_radius: int) -> None:
@@ -168,7 +146,6 @@ class Triage:
 
     def run(self, incident: Incident) -> TriageResult:
         members: dict[str, BlastRadiusMember] = {}
-        unmeasured: list[tuple[str, str]] = []
 
         for episode in incident.episodes.values():
             if episode.service is None:
@@ -186,35 +163,9 @@ class Triage:
                 )
         seeds = list(members)
 
-        # Upstream: failure propagating to callers, transitively, to the hop radius.
-        frontier = [(service, 0) for service in seeds]
-        while frontier:
-            service, depth = frontier.pop(0)
-            if depth >= self._radius:
-                continue
-            for caller, kind, edge in self._callers_of(service):
-                if kind is EdgeKind.ASYNC:
-                    continue
-                self._note_unmeasured(kind, edge, unmeasured)
-                if caller in members:
-                    continue
-                members[caller] = self._member(
-                    caller, kind, Direction.ALSO_AFFECTED, depth + 1, service, edge
-                )
-                frontier.append((caller, depth + 1))
-
-        # Downstream: one step from what actually alerted, naming where the error could have
-        # come from. Not transitive - see `Direction.CANDIDATE_CAUSE`.
-        for service in seeds:
-            for callee, kind, edge in self._callees_of(service):
-                if kind is EdgeKind.ASYNC:
-                    continue
-                self._note_unmeasured(kind, edge, unmeasured)
-                if callee in members:
-                    continue
-                members[callee] = self._member(
-                    callee, kind, Direction.CANDIDATE_CAUSE, 1, service, edge
-                )
+        radius = self._catalog.graph.blast_radius(seeds, self._radius)
+        for reached in radius.reach:
+            members[reached.service] = self._member(reached)
 
         return TriageResult(
             incident_id=incident.id,
@@ -223,51 +174,23 @@ class Triage:
                 members.values(), key=lambda m: (m.hops, m.entered_at or datetime.max, m.service)
             ),
             start_from=self._start_from(members),
-            unmeasured_edges=sorted(unmeasured),
+            unmeasured_edges=sorted(radius.unmeasured_edges),
         )
 
     # --- helpers --------------------------------------------------------------
 
-    def _member(
-        self,
-        service: str,
-        kind: EdgeKind,
-        direction: Direction,
-        hops: int,
-        reached_from: str,
-        edge: tuple[str, str],
-    ) -> BlastRadiusMember:
-        unmeasured = kind is EdgeKind.UNMEASURED
+    def _member(self, reached: Reach) -> BlastRadiusMember:
+        """One reached service, as triage records it: the graph's claim plus the catalog's."""
+        unmeasured = reached.kind is EdgeKind.UNMEASURED
         return BlastRadiusMember(
-            service=service,
+            service=reached.service,
             reason=EntryReason.UNMEASURED_EDGE if unmeasured else EntryReason.SYNC_EDGE,
-            direction=direction,
-            presence=self._presence(service),
-            hops=hops,
-            reached_from=reached_from,
-            via_edge=edge if unmeasured else None,
+            direction=reached.direction,
+            presence=self._presence(reached.service),
+            hops=reached.hops,
+            reached_from=reached.reached_from,
+            via_edge=reached.edge if unmeasured else None,
         )
-
-    @staticmethod
-    def _note_unmeasured(
-        kind: EdgeKind, edge: tuple[str, str], seen: list[tuple[str, str]]
-    ) -> None:
-        if kind is EdgeKind.UNMEASURED and edge not in seen:
-            seen.append(edge)
-
-    def _callers_of(self, service: str) -> list[tuple[str, EdgeKind, tuple[str, str]]]:
-        return [
-            (edge.parent, edge.kind, (edge.parent, edge.child))
-            for edge in self._catalog.graph.edges
-            if edge.child == service
-        ]
-
-    def _callees_of(self, service: str) -> list[tuple[str, EdgeKind, tuple[str, str]]]:
-        return [
-            (edge.child, edge.kind, (edge.parent, edge.child))
-            for edge in self._catalog.graph.edges
-            if edge.parent == service
-        ]
 
     def _presence(self, service: str) -> GraphPresence | None:
         entry = self._catalog.get(service)

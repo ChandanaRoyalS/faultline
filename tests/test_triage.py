@@ -266,3 +266,58 @@ def test_severity_is_the_maximum_across_the_incidents_episodes() -> None:
     )
 
     assert triage().run(incident).severity is Severity.WARNING
+
+
+# --- the traversal is the graph's, and moving it changed nothing (Phase 2 audit D4) ------
+
+
+def test_the_blast_radius_query_is_on_the_graph_api() -> None:
+    """T2.4's deliverable names *blast radius of service X* as the graph API's core query, and
+    it was assembled inside the triage agent. It answers now without an incident, an episode or
+    a catalog - which is what lets T6.2's executor ask whether an action's target is inside the
+    incident's scoped topology without constructing an agent to find out."""
+    graph = ServiceCatalog.from_snapshot().graph
+
+    radius = graph.blast_radius(["cartservice"], ContextSettings().hop_radius)
+
+    reached = {entry.service: entry for entry in radius.reach}
+    assert "cartservice" not in reached, "seeds are the caller's; the graph reports what it added"
+    assert reached["checkoutservice"].direction is Direction.ALSO_AFFECTED
+    assert reached["checkoutservice"].hops == 1
+    assert all(entry.reached_from for entry in radius.reach)
+
+
+def test_the_seed_order_the_caller_gave_is_the_order_the_traversal_uses() -> None:
+    """A service reachable from two seeds records the **first** seed that reached it. The
+    extraction's first draft seeded from a set and this field followed hash order; twelve of the
+    91 seed sets in the equivalence probe differed on it. `reached_from` is quoted in narratives,
+    so an order that depends on a hash is an unreproducible claim."""
+    graph = ServiceCatalog.from_snapshot().graph
+    radius = ContextSettings().hop_radius
+
+    forward = {
+        e.service: e.reached_from
+        for e in graph.blast_radius(["adservice", "cartservice"], radius).reach
+    }
+    backward = {
+        e.service: e.reached_from
+        for e in graph.blast_radius(["cartservice", "adservice"], radius).reach
+    }
+
+    assert forward["frontend"] == "adservice"
+    assert backward["frontend"] == "cartservice"
+
+
+def test_triage_still_owns_everything_the_graph_cannot_answer() -> None:
+    """The split: the graph says which services and by which crossing; triage says which alerted
+    and when, how the catalog sees them, and where to start. A member reached across an
+    unmeasured edge still carries that reason and that edge."""
+    result = triage().run(incident_of(("checkoutservice", 0)))
+
+    members = {m.service: m for m in result.blast_radius}
+    assert members["checkoutservice"].reason is EntryReason.ALERTED
+    assert members["checkoutservice"].entered_at is not None
+    assert all(m.presence is not None or m.service not in members for m in result.blast_radius)
+    unmeasured = [m for m in result.blast_radius if m.reason is EntryReason.UNMEASURED_EDGE]
+    assert all(m.via_edge is not None for m in unmeasured)
+    assert result.start_from == "checkoutservice"

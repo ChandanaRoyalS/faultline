@@ -429,6 +429,18 @@ that met the deliverable's wording, or where the remaining work is queued.
 | T3.9 | Remediation proposals attached to RCA reports | Not built: a type alias, deliberately (ADR-0028, Q7) | Batch B |
 | G3 | Full pipeline on ≥ 3 of 4 fault classes | Coverage is met — all four classes have scored verdicts — and **the pipeline the gate names has six stages and one does not exist**. Blocked on T3.9, not on coverage | with T3.9 |
 
+**Two Phase 2 deviations closed alongside**, since both were free and both are contracts the
+later phases lean on. **D4**, *the blast-radius query lives in the agent, not the graph API*:
+T2.4's deliverable names *"blast radius of service X"* as the graph traversal API's core query,
+and the traversal was assembled inside `agents/triage.py`. It is now
+`ServiceGraph.blast_radius`, with triage keeping what only an incident knows — which services
+alerted and when, catalog presence, entry reasons, where to start. **Proved equivalent over all
+91 seed sets the graph admits**, before and after, which is how the extraction's one real defect
+was found: seeding the frontier from a set made `reached_from` follow hash order, and twelve of
+the 91 differed on it. **D5**, *the REST contract is generated at runtime and asserted nowhere*:
+`docs/contracts/ingest-openapi.json` is committed, `make openapi` regenerates it, and two tests
+assert that the app matches it and that no route escapes it.
+
 **Why two batches.** Four of the fixes moved nothing frozen and landed at once (#137–#140).
 The rest each move a frozen key — `prompts` through a system prompt or a contract schema, or
 `world` through `CAPABILITY_VERSION` — and every such move costs a comparability generation

@@ -4,6 +4,11 @@ The snapshot is `docs/evidence/t2.4-dependency-graph/dependencies.json` - the ca
 the runtime input are deliberately the same file, so there is no second copy to drift from
 the evidence it is documented by.
 
+**The blast-radius query lives here** (T2.4's *"graph traversal API with 'blast radius of
+service X' as the core query"*, Phase 2 audit finding D4). `ServiceGraph.blast_radius` is the
+traversal; `agents/triage.py` adds what only an incident knows - severity, entry times,
+catalog presence, where to start - and owns none of the graph reasoning.
+
 **Not queried at runtime.** Jaeger here is all-in-one with in-memory storage, so the graph
 exists only as long as the container and only covers spans inside the lookback: a restart
 empties it and a quiet world thins it. A correlation rule that changes its mind because the
@@ -15,6 +20,7 @@ from __future__ import annotations
 
 import json
 from collections import defaultdict, deque
+from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -50,6 +56,59 @@ Excluding these is the one judgement call in loading the graph, which is part of
 snapshot is committed: in a file the decision is visible in a diff, in a runtime query it is
 a filter nobody sees.
 """
+
+
+class Direction(StrEnum):
+    """Which way an edge was crossed to reach a service, and therefore what membership claims.
+
+    The distinction is forced by what `edge_kind` measures. ADR-0017's addendum defines `sync`
+    as *a callee failure was observed to propagate to the caller* - a **directed** statement.
+    It licenses "this callee failed, so its caller is affected". It does not license the
+    reverse, and treating the graph as undirected reads a measurement backwards.
+
+    Moved here from `agents/triage.py` at the Phase 2 audit's D4: the claim each direction makes
+    is a property of the measured graph, not of the agent that asked.
+    """
+
+    SEED = "seed"
+    ALSO_AFFECTED = "also_affected"
+    """Reached **upstream** (callee -> caller). Failure propagates this way, and it is
+    transitive - a caller of an affected caller is affected - so it is followed to the full hop
+    radius."""
+
+    CANDIDATE_CAUSE = "candidate_cause"
+    """Reached **downstream** (caller -> callee), one step, and only from a seed. This is not
+    propagation: a callee of an erroring caller has not been shown to be affected, it is a place
+    the error might have come from. `email-wrong-image` is the shape - `checkoutservice` alerted
+    and `emailservice`, the broken one, never alerted at all.
+
+    One step, and only from seeds, because the claim does not compose: the callee of a
+    *candidate* is a candidate for a fault nobody has evidence of."""
+
+
+@dataclass(frozen=True, slots=True)
+class Reach:
+    """One service the traversal reached, and the single edge crossing that reached it."""
+
+    service: str
+    direction: Direction
+    kind: EdgeKind
+    hops: int
+    reached_from: str
+    edge: tuple[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class RadiusResult:
+    """What the traversal found. **Seeds are not included** - the caller supplied them and
+    knows more about them (when each alerted, whether the catalog has heard of it) than the
+    graph does."""
+
+    reach: list[Reach]
+    unmeasured_edges: list[tuple[str, str]]
+    """Every unmeasured edge crossed, in crossing order. **Quoted with any use of the radius**,
+    the way every figure in this project carries its `n`: five of the graph's fifteen edges have
+    no measurement, so a radius that crossed one is a radius with a guess inside it."""
 
 
 class EdgeKind(StrEnum):
@@ -216,3 +275,112 @@ class ServiceGraph:
         for edge in self.edges:
             grouped[edge.kind].append(edge)
         return grouped
+
+    # --- the blast-radius query (T2.4's core query; Phase 2 audit D4) ----------------
+
+    def blast_radius(self, seeds: Sequence[str], radius: int) -> RadiusResult:
+        """Every service reachable from `seeds` by an edge whose measurement licenses the claim.
+
+        **Two traversals, because the graph carries two different claims** and `sync` is a
+        *directed* measurement (ADR-0017's addendum: a callee failure was observed to propagate
+        to the caller).
+
+        **Upstream, transitive, to `radius` hops** - callee to caller, the direction the
+        measurement licenses. If `adservice` dies its caller `frontend` is affected, and a caller
+        of an affected caller is affected too.
+
+        **Downstream, one step, from seeds only** - caller to callee, naming where an error could
+        have come from. `email-wrong-image` is why this exists: checkout alerted, and
+        `emailservice`, the broken one, never alerted. It does not compose, so it is not followed.
+
+        Treating the graph as undirected instead reads the measurement backwards and inflates the
+        result - from an `adservice` failure it reaches `cartservice`, which shares a caller with
+        `adservice` and has nothing to do with it.
+
+        `async` is not crossed in either direction. `frauddetectionservice` was dead for 852
+        seconds while checkout kept completing orders, so neither tells you anything about the
+        other.
+
+        **Order is part of the contract.** Upstream first in breadth-first order, then the
+        downstream step, each service claimed by the first crossing that reaches it - so a
+        service both upstream and downstream of the incident is `also_affected`, the stronger
+        claim. Callers rely on this: `TriageResult.blast_radius` is scored against recorded
+        bundles, and a set that reordered would not be the same evidence.
+        """
+        # **Seed order is the caller's and is preserved**, not collapsed into a set: a service
+        # reachable from two seeds records the first one that reached it, so iterating a set here
+        # would make `reached_from` follow hash order. Caught by the equivalence probe across all
+        # 91 seed sets - twelve of them differed on exactly this field.
+        ordered: list[str] = []
+        found: set[str] = set()
+        for seed in seeds:
+            service = canonical_service(seed)
+            if service not in found:
+                found.add(service)
+                ordered.append(service)
+        reach: list[Reach] = []
+        unmeasured: list[tuple[str, str]] = []
+
+        frontier: deque[tuple[str, int]] = deque((service, 0) for service in ordered)
+        while frontier:
+            service, depth = frontier.popleft()
+            if depth >= radius:
+                continue
+            for caller, kind, edge in self._callers_of(service):
+                if kind is EdgeKind.ASYNC:
+                    continue
+                _note_unmeasured(kind, edge, unmeasured)
+                if caller in found:
+                    continue
+                found.add(caller)
+                reach.append(
+                    Reach(
+                        service=caller,
+                        direction=Direction.ALSO_AFFECTED,
+                        kind=kind,
+                        hops=depth + 1,
+                        reached_from=service,
+                        edge=edge,
+                    )
+                )
+                frontier.append((caller, depth + 1))
+
+        for service in ordered:
+            for callee, kind, edge in self._callees_of(service):
+                if kind is EdgeKind.ASYNC:
+                    continue
+                _note_unmeasured(kind, edge, unmeasured)
+                if callee in found:
+                    continue
+                found.add(callee)
+                reach.append(
+                    Reach(
+                        service=callee,
+                        direction=Direction.CANDIDATE_CAUSE,
+                        kind=kind,
+                        hops=1,
+                        reached_from=service,
+                        edge=edge,
+                    )
+                )
+
+        return RadiusResult(reach=reach, unmeasured_edges=unmeasured)
+
+    def _callers_of(self, service: str) -> list[tuple[str, EdgeKind, tuple[str, str]]]:
+        return [
+            (edge.parent, edge.kind, (edge.parent, edge.child))
+            for edge in self.edges
+            if edge.child == service
+        ]
+
+    def _callees_of(self, service: str) -> list[tuple[str, EdgeKind, tuple[str, str]]]:
+        return [
+            (edge.child, edge.kind, (edge.parent, edge.child))
+            for edge in self.edges
+            if edge.parent == service
+        ]
+
+
+def _note_unmeasured(kind: EdgeKind, edge: tuple[str, str], seen: list[tuple[str, str]]) -> None:
+    if kind is EdgeKind.UNMEASURED and edge not in seen:
+        seen.append(edge)

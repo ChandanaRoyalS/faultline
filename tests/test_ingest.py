@@ -24,7 +24,9 @@ from faultline.ingest.models import GO_ZERO_TIME, AlertStatus, WebhookPayload
 from faultline.ingest.receiver import Receiver
 from faultline.ingest.stream import RecordingEventStream
 
-CAPTURE = Path(__file__).resolve().parents[1] / "docs" / "evidence" / "t2.1-webhook"
+REPO = Path(__file__).resolve().parents[1]
+CAPTURE = REPO / "docs" / "evidence" / "t2.1-webhook"
+CONTRACT = REPO / "docs" / "contracts" / "ingest-openapi.json"
 PAYLOADS = CAPTURE / "payloads.jsonl"
 
 RECEIVED = datetime(2026, 8, 24, 10, 41, tzinfo=UTC)
@@ -341,3 +343,37 @@ def test_the_route_rejects_a_body_that_is_not_an_alertmanager_delivery() -> None
         response = client.post("/api/v1/alerts", json={"nope": True})
 
     assert response.status_code == 422
+
+
+# --- the public REST contract is committed, not generated at review time (audit D5) -------
+
+
+def test_the_rest_contract_matches_the_committed_snapshot() -> None:
+    """T2.1's deliverable: *the FastAPI app's generated OpenAPI schema is the platform's public
+    REST contract from day one*. It was generated when the server ran and asserted nowhere, so a
+    breaking change to a public interface was invisible in review - the Phase 2 audit's D5.
+
+    The snapshot in `docs/contracts/` is that contract in a form a diff can read. When this
+    fails, the interface moved: `make openapi` regenerates it, and the regeneration belongs in
+    the same commit as the change, where a reviewer sees both halves at once.
+    """
+    from faultline.ingest.app import app
+
+    committed = json.loads(CONTRACT.read_text())
+
+    assert app.openapi() == committed
+
+
+def test_the_contract_covers_every_route_the_app_serves() -> None:
+    """A snapshot of a subset would pass while a whole route came or went. Routes are read off
+    the app, so adding one and forgetting the snapshot fails here as well as above."""
+    from faultline.ingest.app import app
+
+    served = {
+        route.path
+        for route in app.routes
+        if getattr(route, "path", "").startswith(("/api/", "/healthz"))
+    }
+    committed = json.loads(CONTRACT.read_text())
+
+    assert served == set(committed["paths"]) == {"/api/v1/alerts", "/healthz"}
