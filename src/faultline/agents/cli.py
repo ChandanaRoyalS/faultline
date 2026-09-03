@@ -395,6 +395,7 @@ def _run_b0(
     from faultline.agents.trajectory import (
         PostgresTrajectoryStore,
         StepKind,
+        ToolCallRecord,
         Trajectory,
         TrajectoryStep,
     )
@@ -408,7 +409,7 @@ def _run_b0(
     window = WindowPolicy(ToolSettings()).for_specialist("changes", anchor, started)
     alerting = [member.service for member in triage.alerting]
 
-    signals = baselines.signals_from_tools(tools, alerting, anchor, window)
+    signals, calls = baselines.signals_from_tools(tools, alerting, anchor, window)
     prediction = baselines.predict(signals, anchor)
 
     trajectory = Trajectory(
@@ -418,16 +419,25 @@ def _run_b0(
         started_at=started,
         runtime_version=baselines.BASELINE_RUNTIME,
     )
-    # One step per signal read. No completions: the absence of a COMPLETION step is how a reader
-    # of the trajectory sees that no model was asked anything.
-    for seq, service in enumerate(alerting, start=1):
+    # One step per tool call actually made, each carrying its envelope. No completions: the
+    # absence of a COMPLETION step is how a reader of the trajectory sees that no model was asked
+    # anything. The `ToolCallRecord` is what v1 omitted, so `trajectory_tool_calls` stayed empty
+    # and the metric panel reported *0 tool calls* beside *2 steps* - two true statements that
+    # together read as a defect. B0 does make tool calls; they belong in the table the panel reads.
+    for seq, call in enumerate(calls, start=1):
         trajectory.add(
             TrajectoryStep(
                 seq=seq,
                 role="B0",
                 kind=StepKind.TOOL_CALL,
                 at=datetime.now(UTC),
-                payload={"service": service, "signals": "change_history + error ratio"},
+                payload={"tool": call.tool, **call.request},
+                tool_call=ToolCallRecord(
+                    tool=call.tool,
+                    request=call.request,
+                    result_id=call.result_id,
+                    envelope=call.envelope,
+                ),
             )
         )
     trajectory.ended_at = datetime.now(UTC)
