@@ -65,6 +65,19 @@ class Metric:
     """Accuracy metrics only. ADR-0022 §1.2: an abstention is neither right nor wrong."""
 
 
+BASELINE_REASONS: dict[str, str] = {
+    "B0": "v1's single run is superseded; B0.2 has not run",
+    "B1": "built and tested; runs need credits",
+    "B2": "built and tested; runs need credits",
+}
+"""Why each baseline has no figure yet, as of 2026-09-03.
+
+**Stated rather than left blank**, because *"not run"* with no reason is a blank a reader has to
+guess at, and 'too expensive', 'not built' and 'forgotten' have very different implications for
+whether the rest of the table can be trusted. Each line here should shrink to nothing as the runs
+happen; a stale entry is visible the moment a baseline has a figure beside it.
+"""
+
 METRICS = (
     Metric("fault_class_correct", "fault class accuracy", skip_when_abstained=True),
     Metric("fix_class_correct", "fix class accuracy", skip_when_abstained=True),
@@ -173,8 +186,24 @@ CATALOG_HOLDOUT_THRESHOLD = 30
 """T1.6's switch: full-set with labeled split and explicit n below this, holdout-only above."""
 
 
-def report(a: Arm, b: Arm, catalog_size: int = 18, at: datetime | None = None) -> list[str]:
-    """The comparison report. Every figure carries mean, 95% CI, n and R by construction."""
+def report(
+    a: Arm,
+    b: Arm,
+    catalog_size: int = 18,
+    at: datetime | None = None,
+    baselines: dict[str, Arm] | None = None,
+    baseline_reasons: dict[str, str] | None = None,
+) -> list[str]:
+    """The comparison report. Every figure carries mean, 95% CI, n and R by construction.
+
+    **Every metric section carries a baseline panel** (T4.7): *"baseline columns mandatory in
+    every headline table"*. `baselines` is keyed by display id and may be empty - a baseline with
+    no runs is rendered as a row saying so, never left out, because a table without baseline rows
+    reads as one whose author did not think to ask. `baseline_columns.BaselinePanel` refuses to
+    construct if a baseline is missing entirely, so this cannot silently regress.
+    """
+    from evalharness import baseline_columns
+
     when = (at or datetime.now(UTC)).date().isoformat()
     shared = sorted(a.scenarios & b.scenarios)
     only_a = sorted(a.scenarios - b.scenarios)
@@ -254,6 +283,10 @@ def report(a: Arm, b: Arm, catalog_size: int = 18, at: datetime | None = None) -
             lines.append(f"- {row.figure.render()}")
             lines.append(f"  - {row.verdict}")
         lines.append("")
+        # T4.7. Printed for every metric, including when no baseline has run: the panel type
+        # refuses to exist without all three, so the only way this section disappears is if
+        # someone deletes these two lines, which a test catches.
+        lines += baseline_columns.panel(metric, baselines or {}, baseline_reasons).render()
 
     lines += [
         "## What this report does not say",
@@ -383,6 +416,12 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - console en
             parser.error("two fingerprints are required, or --list")
 
         left, right = arm(dsn, args.a), arm(dsn, args.b)
+        # T4.7's baseline columns, loaded from the same database. A baseline that has never run
+        # simply is not here, and `baseline_columns.panel` turns that into a row rather than a
+        # silence - so this returning `{}` is a supported state, not a degraded one.
+        from evalharness.baseline_columns import baseline_arms
+
+        loaded_baselines = baseline_arms(dsn)
     except psycopg.OperationalError as unreachable:
         print(f"REFUSED: the database is not reachable - {unreachable}")
         return 2
@@ -394,7 +433,18 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - console en
         )
         return 3
 
-    text = "\n".join(report(left, right, catalog_size=args.catalog_size)) + "\n"
+    text = (
+        "\n".join(
+            report(
+                left,
+                right,
+                catalog_size=args.catalog_size,
+                baselines=loaded_baselines,
+                baseline_reasons=BASELINE_REASONS,
+            )
+        )
+        + "\n"
+    )
     args.out.mkdir(parents=True, exist_ok=True)
     target = args.out / f"COMPARISON-{args.a}-vs-{args.b}.md"
     target.write_text(text)

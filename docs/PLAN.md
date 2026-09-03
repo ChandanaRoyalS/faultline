@@ -1091,7 +1091,7 @@ below is a promise broken; it is a phase two-fifths built, with the unbuilt part
 | T4.4 eval DB + reports | 7 | **7** | — *(closed 2026-09-03)* |
 | T4.5 CI smoke + nightly | 6 | **6** | — *(closed 2026-09-03; the eval workflows cannot pass until the world runs in Actions and the key has credit, and they are not required checks)* |
 | T4.6 run-variance protocol | 7 | **7** | — *(closed 2026-09-03)* |
-| T4.7 baseline suite | 6 | 5 | B0, B1 and B2 all run under the harness as their own configs. **The mandatory baseline columns and the measured manual-RCA reference remain**; no baseline has been *scored* yet — B1 and B2 runs need credits |
+| T4.7 baseline suite | 6 | 6 | B0, B1 and B2 run under the harness as their own configs, and every headline table carries all three by construction. **The measured manual-RCA reference remains** — it is self-timed by hand, n=5. No baseline has been *scored* yet; B1 and B2 runs need credits |
 | G4 | 1 | 0 | undeclared; blockers in `docs/GATES.md` |
 
 ### The four findings that are more than "not built yet"
@@ -1212,6 +1212,32 @@ the B1-versus-pipeline gap is decomposition **plus retrieval plus the proposal s
 decomposition alone. It is separable at no extra design cost: the pipeline already runs under
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
+
+**Baseline columns are mandatory by construction, not by convention.** ***Built 2026-09-03.***
+`evalharness.baseline_columns`. Every metric section of every comparison report carries a panel
+with a row for **all three** baselines, and `BaselinePanel` raises
+`IncompleteBaselinePanelError` if one is missing — the same enforcement shape `variance.Figure`
+already uses for the four-part figure, which `compare.py` describes as the difference between *a
+generator that follows the rule and one that cannot break it*. A convention would not have
+survived: this project watched one fail twice in a week, when `no-commit-on-main` turned out to
+guard one door of several and `TriageJudgement` sat outside `_CONTRACTS` for a whole sweep.
+
+**An unrun baseline is a row that says so, and this is the opposite of the tempting choice.** No
+baseline has been scored — B0's only run is v1's, superseded; B1 and B2 need credits. The tempting
+rendering omits the rows until there is something to put in them. That is backwards: a headline
+table with no baseline rows reads as one whose author did not think to ask, while three rows
+reading *not run* read as a project that knows what it has not measured. The second is true, and
+deciding it now costs nothing — before there is a number that would make omission convenient.
+Each row must also carry **why**: `BaselineRow` refuses a blank, because *too expensive*, *not
+built* and *forgotten* are not the same claim about whether the rest of the table can be trusted.
+
+**The panel prints no baseline-versus-pipeline delta.** `compare_metric` owns deltas and
+`variance.mde` decides whether one is resolvable; at n≈10 and R=1 this catalog's MDE is 28pp, so
+most baseline gaps will sit under it. A bare printed difference would invite exactly the reading
+that machinery exists to prevent. Rows carry each arm's own figure with n and R attached, and the
+comparison stays where the statistics live. Baselines are read through `Arm.per_scenario`, the
+same path a comparison uses, so a baseline cannot be scored under a different abstention rule
+(ADR-0022 §1.2) than the pipeline it controls for.
 
 **B2 landed on main with no PR, and the guard that should have stopped it was standing at the
 wrong door.** `7fae7b1` was applied with `git am` while the working tree happened to be on main
