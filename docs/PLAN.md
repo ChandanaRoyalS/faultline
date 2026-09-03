@@ -1213,6 +1213,46 @@ decomposition alone. It is separable at no extra design cost: the pipeline alrea
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
 
+## Phase 5 — audited 2026-09-03, and T5.1's read half built
+
+| task | deliverable | state |
+|---|---|---|
+| **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **read half built**; no frontend |
+| **T5.2** Slack notifier | lifecycle notifications | **nothing** — no Slack code anywhere |
+| **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **partial** — README is 358 lines; the other two are self-labelled skeletons (THREAT-MODEL says *"completed at T6.8"*); no demo video |
+| **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
+| **T5.5** deploy | live instance at a stable URL | needs a VM |
+
+**T5.1 says the frontend goes *"over the platform API"*, and there is no platform API.** The
+service's entire HTTP surface was `POST /api/v1/alerts` and `GET /healthz` — a write path and a
+health check. `faultline.api.view` is the read half, and it is the half that can be built and
+tested without a browser.
+
+Three decisions in it, each the opposite of the obvious one:
+
+**An unresolvable citation is shown, not dropped.** Dropping it would make a verdict resting on
+three real citations and one invented one indistinguishable from one resting on four — and an
+unresolvable id is exactly what a fabricated citation looks like (ADR-0028 §2; B2 produces them by
+construction). It is marked `resolved: false` in the surface where a reader is most likely to be
+persuaded by the *appearance* of evidence.
+
+**The deep link carries the query that actually ran**, read from `trajectory_tool_calls.request`,
+never re-derived. A reconstructed query is a *plausible* query, and a link landing a reader in data
+the agent never looked at manufactures corroboration — the opposite of what a citation is for.
+`change_history` reads Postgres and has no datasource, so it gets **no link rather than a wrong
+one**. Links are relative, because the platform does not know its own public URL and guessing one
+is how a demo link 404s on a stranger's machine — which is T5.4's entire point.
+
+**Every world-produced string sits under `untrusted`.** THREAT-MODEL thesis 1 covers that text
+reaching a *model*; **the incident view is the first place it reaches a browser**, which is an
+injection surface of a different kind — a frontend interpolating a log line into the DOM has an
+XSS hole fed by the monitored system's own logs. Nothing server-side can force a frontend to
+escape; what it can do is refuse to hand the text over unlabelled, so a renderer that treats it as
+markup has ignored a label rather than missed a subtlety. Timeline summaries are built from
+structural fields only — role, tool, service — because a summary quoting the world would put
+untrusted text outside the one block the label can follow. **`docs/THREAT-MODEL.md` gains a thesis
+when the frontend exists; this is the seam it attaches to.**
+
 **The sweep is complete, and it ends with two exemptions rather than two more fixes.** A final
 pass over `docs/`, `evals/` and `README.md` found one remaining assertion, in
 `evals/runs/SWEEP-2026-08-27-evidence.md`. It is **not a defect and must not be corrected.**
