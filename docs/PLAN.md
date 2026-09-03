@@ -415,8 +415,8 @@ that met the deliverable's wording, or where the remaining work is queued.
 
 | Task | Deliverable (specification) | Found | Closed by |
 |---|---|---|---|
-| T3.1 | Triage decisions persisted; noise gated before fan-out | **Computed, not asked**: `Triage(catalog, hop_radius)` — deterministic, no model, no `duplicate-of`. Persisted, and — correcting this row's own first reading — **it gated nothing**: every incident reaching the runner was investigated | **#145**. `Triager` judges disposition, `duplicate-of` and a fault-class prior; severity and the radius stay measured, so the scored number cannot move |
-| T3.2 | Plan objects; scoped fan-out | Delivered. `DispatchPlan`, one service per dispatch since T3.4c | — |
+| T3.1 | Triage decisions persisted; noise gated before fan-out | **Computed, not asked**: `Triage(catalog, hop_radius)` — deterministic, no model, no `duplicate-of`. Persisted, and — correcting this row's own first reading — **it gated nothing**: every incident reaching the runner was investigated | **#145**. `Triager` judges disposition, `duplicate-of` and a fault-class prior; severity and the radius stay measured, so the scored number cannot move. **One clause of this task is not delivered**: T3.1 specifies a *small* model and calls triage *"the natural home for the cheap-model routing tier"*, and `role_models` is empty, so triage runs the same frontier model as every other role. Deferred with a reason - `settings.py` states that per-role selection should be settled by T4.2's measured accuracy rather than a cost estimate - and deferred is still undelivered. See also **Q22**, which found that this role's model is not in the frozen manifest at all |
+| T3.2 | Plan objects; scoped fan-out | Delivered. `DispatchPlan`, one service per dispatch since T3.4c | **Partial, found by the Phase 3 audit (2026-09-03).** The plan objects and the scoped fan-out are delivered. The method column's other half - *"consumes the dependency graph **and top similar past incidents**"* - is not: retrieval at `k=3` reaches the synthesizer, and the planner's briefing is `incident` plus `round-one-findings`. **Q23**, which is a decision rather than a trigger |
 | T3.2b | Tool-enforced window policy + per-query window logging | One window for every specialist, `onset − 10 min → onset + 5 min`, chosen in the agent layer; `change_history` never checked; no hint on refusal | **#139**, and the planner's widening **closed at #148** (Q17). The clause is now complete |
 | T3.2c | Budgeted briefing assembler + pull-rate metrics | **Half true and unnamed**: specialists hold one modality each, the synthesizer holds no tools and retrieval is `k=3` — so context does arrive on demand. What was absent was any bound and any number | **#146**, with **Q16** riding the same `budget` move |
 | T3.3 | Log evidence with signatures + sample lines + provenance | Delivered: scoped, capped, two-ended, typed | — |
@@ -428,6 +428,31 @@ that met the deliverable's wording, or where the remaining work is queued.
 | T3.8 | Grounding enforcement gate + violation metrics | Gate yes, deterministic, blocks the report; no regeneration attempt, no violation metric | **#138** |
 | T3.9 | Remediation proposals attached to RCA reports | Not built: a type alias, deliberately (ADR-0028, Q7) | **#143** — the first Batch B item, and the first stamp move since dev sweep 5 |
 | G3 | Full pipeline on ≥ 3 of 4 fault classes | Coverage is met — all four classes have scored verdicts — and **the pipeline the gate names has six stages and one does not exist**. Blocked on T3.9, not on coverage | **DECLARED 2026-09-02**, citing [`SWEEP-2026-09-02-batch-b.md`](../evals/runs/SWEEP-2026-09-02-batch-b.md). All six stages executed on five scored runs across all four fault classes, and the gate passes on both readings of *"completes successfully"*: **4 of 4** classes completed, **3 of 4** also returned the correct class. **The sweep is 5 of the 8 registered runs** — `product-catalog-flag-failure` discarded four times on API billing, two scenarios never started. The gate's condition is over fault classes rather than scenario count and all four are represented, but the shortfall is stated here so the declaration is not read as resting on the sweep as registered |
+
+**Phase 3 audit, 2026-09-03.** Every clause of §6 - each item in the *What we're doing*, *How
+we'll do it* and *Deliverable* columns - checked against `origin/main`. **81.5 of 85 clauses
+delivered: 95.9%, a 4.1% deviation.** At task granularity, 11 of 12 complete = 92%. The number
+depends on how the clauses are cut and is stated so it can be disputed; the four gaps do not.
+
+| gap | task | status |
+|---|---|---|
+| the cheap-model routing tier | T3.1 | deferred to T4.2 with a reason in `settings.py` |
+| the planner consumes top similar past incidents | T3.2 | **was unrecorded** — now **Q23** |
+| the minimal briefing's three parts reach no single role | T3.2c | consequence of the above |
+| repo-compare | T3.4 | declined with an argument — **Q19** |
+
+**Over-delivered against the plan** in the same audit: the scribe (the proposal defers it past MVP),
+the trace analyst and Tempo (the proposal's production phase), `metric_baseline` as a fifth tool,
+the disclosure meter, and the freeze and run-variance machinery. **Two proposal clauses the plan
+never scheduled are partial**: `TraceResult` renders a flat span list rather than the proposal's
+*span-tree summarizer*, and there is no *log-pattern sampler* tool - signatures come from the
+specialist's own reading.
+
+**The audit's own finding was not a Phase 3 deliverable at all.** Batch B added two roles and
+updated neither registry that has to know about them: `stamp._CONTRACTS` omits `TriageJudgement`,
+so the schema the triage model is held to is **not in the stamp**, and `freeze.AGENT_ROLES` omits
+both new roles, so `model_map` records seven models for a run that calls nine. **Q21** and **Q22**,
+to land in one batch.
 
 **Two Phase 2 deviations closed alongside**, since both were free and both are contracts the
 later phases lean on. **D4**, *the blast-radius query lives in the agent, not the graph API*:
