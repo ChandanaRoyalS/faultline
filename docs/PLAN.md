@@ -1065,7 +1065,9 @@ repository; both are in `docs/spec/` now, so its blocking condition is lifted an
 grading it asked for. **Its Phase 4 findings all still hold** — arrived at again here
 independently, which is the useful part of the agreement.
 
-**23.5 of 55 clauses delivered: 43%.**
+**23.5 of 55 clauses delivered: 43%** at the time of the audit. **29.5 of 55 — 54% — after
+T4.1b and T4.3 closed on 2026-09-03**; the table below is kept as graded, with the closed rows
+marked, so the audit reads as a measurement taken on a date rather than a moving figure.
 
 **This is a completion figure, not a deviation figure**, and the distinction matters. Phase 3 was
 declared and graded at 98.2% *deviation from a finished phase*. **Phase 4 was never declared** —
@@ -1075,9 +1077,9 @@ below is a promise broken; it is a phase two-fifths built, with the unbuilt part
 | task | clauses | delivered | missing |
 |---|---|---|---|
 | T4.1 harness runner | 9 | **9** | — |
-| T4.1b leave-one-out enforcement | 6 | 4 | per-run filter counts; invalid-run detection |
+| T4.1b leave-one-out enforcement | 6 | **6** | — *(closed 2026-09-03)* |
 | T4.2 RCA scoring | 7 | 4.5 | top-3 accuracy; time-to-first-correct-hypothesis; calibration at n = 10, not ~30 |
-| T4.3 metric suite | 6 | 2 | tool-call validity rate; redundant-call rate; context-budget-overflow rate; **latency** |
+| T4.3 metric suite | 6 | **6** | — *(closed 2026-09-03)* |
 | T4.4 eval DB + reports | 7 | 3.5 | the eval schema; the comparison generator; mean/95% CI/n/R on every figure |
 | T4.5 CI smoke + nightly | 6 | **0** | all of it |
 | T4.6 run-variance protocol | 7 | 0.5 | repeat counts; pairing; confidence intervals; the MDE table |
@@ -1086,7 +1088,11 @@ below is a promise broken; it is a phase two-fifths built, with the unbuilt part
 
 ### The four findings that are more than "not built yet"
 
-**T4.1b — the exclusion filter is asked to fire and never checked.** `ContextStore.search`
+**T4.1b — the exclusion filter is asked to fire and never checked.** ***Closed 2026-09-03.***
+`excluded_count` records what the exclusion made unreachable, counted by origin rather than by
+candidates dropped, and a scored run whose filter removed nothing is written `INVALID.md` and
+exits 6 - marked invalid rather than annotated, as the clause requires. `NULL` stays distinct from
+`0`: rows recorded before the change are *unassessable* and never invalidate a run. `ContextStore.search`
 implements it as SQL `AND origin <> %(origin)s`: the rows are removed and **nothing counts them**.
 `RetrievalRecord.exclude_origin` records that the argument was *passed*, which is not the same
 claim. The plan asks for two further things - *"the count of filtered artifacts is logged per run,
@@ -1095,7 +1101,12 @@ neither exists, so a run where the filter removed three chunks is indistinguisha
 it matched nothing. The plan's own sentence is the reason this ranks above the unbuilt tasks:
 **"silent non-enforcement is how this defect returns."**
 
-**T4.3 — latency is not measured anywhere.** `Scored` holds tokens, cost, triage, fault class, fix
+**T4.3 — latency is not measured anywhere.** ***Closed 2026-09-03.*** The panel computes
+latency, tool-call validity, redundancy and the context-budget-overflow rate from rows that
+already existed - **no column was added and no call site was touched**, so the plan's *"no new
+instrumentation needed"* was tested rather than assumed and held. The one place it nearly did not:
+tool-call validity lives in the envelope's opening tag rather than a status column, and is read
+back with a parse pinned to the renderer by a round-trip test. `Scored` holds tokens, cost, triage, fault class, fix
 class and categories. There is no duration, and **G4's own *"dev-set median time-to-report ≤ 3
 minutes"* therefore has no measurement behind it**. The plan says this task needs *"no new
 instrumentation … because P2 recorded everything"*, and that is true - `TrajectoryStep.at` is
