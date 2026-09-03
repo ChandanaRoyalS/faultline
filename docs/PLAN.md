@@ -1213,7 +1213,7 @@ decomposition alone. It is separable at no extra design cost: the pipeline alrea
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
 
-**Gate 4's A/A check, built.** ***2026-09-03:*** `evalharness.aa`. Gate 4's fourth condition —
+**Gate 4's A/A check, built and invokable.** ***2026-09-03:*** `evalharness.aa`, reachable as `faultline-compare --aa <fingerprint>`. **A check nothing invokes is not a check** — it was library-only when first written, so Gate 4's fourth condition had no way to be run, and the CLI wiring is part of the deliverable rather than a convenience. Three exit codes, and conflating the middle two is the trap: `0` ran and passed, `1` ran and **failed** (so CI can gate on it — a condition nothing can fail is not a condition), `3` **could not be performed** (no runs, or R = 1), which must never read as the harness having invented a delta. Gate 4's fourth condition —
 *"the harness run twice under an identical config declares no significant difference. A harness
 that invents a delta between a config and itself will invent every delta it ever reports."*
 Everything else here measures the pipeline; this measures the **instrument**, and it is the only

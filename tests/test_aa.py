@@ -168,3 +168,40 @@ def test_a_result_with_no_comparable_metric_says_so_rather_than_passing() -> Non
     # `passed` without the emptiness guard would announce a clean bill of health for an
     # examination that never happened - the same shape as a guard over an empty vocabulary.
     assert empty.passed is False, "a check that compared nothing did not pass"
+
+
+# --- it is invokable, and its exit codes distinguish three things -----------------------------
+
+
+def test_the_check_is_reachable_from_the_compare_cli() -> None:
+    """**A check nothing invokes is not a check.** `aa.check` was library-only when first
+    written, so Gate 4's fourth condition had no way to be run."""
+    import inspect
+
+    from evalharness.compare import main
+
+    source = inspect.getsource(main)
+
+    assert '"--aa"' in source
+    assert "aa_check.check(" in source
+
+
+def test_the_cli_separates_failed_from_could_not_be_performed() -> None:
+    """Three outcomes, three codes, and conflating the middle two is the trap.
+
+    - `0` the check ran and passed
+    - `1` the check ran and **failed** - so CI can gate on it, because a condition nothing can
+      fail is not a condition
+    - `3` the check **could not be performed** (no runs, or R = 1), which must not read as the
+      harness having invented a delta
+    """
+    import inspect
+
+    from evalharness.compare import main
+
+    source = inspect.getsource(main)
+    refusal = source[source.index("if args.aa:") : source.index("if args.list:")]
+
+    assert "return 0 if result.passed else 1" in refusal
+    assert refusal.count("return 3") == 2, "no runs, and not enough repeats"
+    assert "NotEnoughRepeatsError" in refusal
