@@ -331,3 +331,46 @@ def test_the_seed_cli_refuses_a_holdout_root_with_an_error_not_a_traceback(
 
     assert run(["--dry-run", "--dev-root", str(HOLDOUT)]) == 2
     assert "holdout" in capsys.readouterr().err
+
+
+def test_excluded_count_counts_by_origin_not_by_candidates_dropped() -> None:
+    """**T4.1b's count, and why it is taken this way.**
+
+    A dropped-candidate count would be a number about the ranking: retrieval has two arms, each
+    takes its own top-k, and neither ever sees most of the corpus. What ADR-0008 axis 2 asserts
+    is that a scenario's own artifacts were *unreachable*, and this counts exactly those - so it
+    is the same number whatever the query was, which is what makes it an assertion about the
+    boundary rather than about one search.
+    """
+    from faultline.context.corpus import Chunk
+
+    def chunk(key: str, origin: str, section: str, index: int) -> Chunk:
+        return Chunk(
+            document_id=origin,
+            section=section,
+            section_index=index,
+            text=f"body of {key}",
+            origin=origin,
+            split="dev",
+            scenario_id=origin.removeprefix("scenario:"),
+            fault_class="bad_config",
+            scenario_fingerprint="fp",
+            recorded_from="t",
+            title=key,
+            source_path=f"{key}.md",
+        )
+
+    held = store()
+    held.add(
+        [
+            chunk("a", "scenario:cart-redis-misconfig", "Answer", 0),
+            # A second **section** of the same narrative, because the store is keyed on
+            # `document_id|section` - one document, many chunks, and the count is over chunks.
+            chunk("b", "scenario:cart-redis-misconfig", "Timeline", 1),
+            chunk("c", "authored", "Answer", 0),
+        ]
+    )
+
+    assert held.excluded_count("scenario:cart-redis-misconfig") == 2
+    assert held.excluded_count("authored") == 1
+    assert held.excluded_count("scenario:never-seeded") == 0

@@ -87,6 +87,20 @@ class RetrievalRecord:
     returned: list[str] = field(default_factory=list)
     scores: list[float] = field(default_factory=list)
 
+    excluded_count: int | None = None
+    """How many corpus chunks `exclude_origin` made unreachable (T4.1b).
+
+    **`exclude_origin` records that an exclusion was asked for; this records that it had
+    something to exclude.** The plan asks for both - *"the count of filtered artifacts is logged
+    per run, and a scored run where the filter did not fire is marked invalid, not merely
+    annotated"* - because the argument being passed is not evidence that anything was removed.
+
+    `None` means *not computed*, which is every row written before T4.1b and any retrieval with
+    no exclusion to count. It is deliberately distinct from `0`, which means the exclusion was
+    asked for and **matched nothing** - on a scored dev run that is a failed leave-one-out and
+    the harness refuses to count the run.
+    """
+
     rendered: list[str] = field(default_factory=list)
     """The retrieved lines **as the model read them**, verbatim (T7.9).
 
@@ -296,8 +310,9 @@ class PostgresTrajectoryStore:
                     r = step.retrieval
                     cur.execute(
                         "INSERT INTO trajectory_retrievals (trajectory_id, seq, query, k, "
-                        "exclude_origin, returned, scores, rendered, rendered_sha256) "
-                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                        "exclude_origin, returned, scores, rendered, rendered_sha256, "
+                        "excluded_count) "
+                        "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                         "ON CONFLICT (trajectory_id, seq) DO NOTHING",
                         (
                             trajectory.id,
@@ -309,6 +324,7 @@ class PostgresTrajectoryStore:
                             json.dumps(r.scores),
                             json.dumps(r.rendered),
                             r.rendered_sha256 if r.rendered else None,
+                            r.excluded_count,
                         ),
                     )
         self._conn.commit()
@@ -386,11 +402,20 @@ class PostgresTrajectoryStore:
                     tool=tool, request=request or {}, result_id=result_id, envelope=envelope
                 )
             cur.execute(
-                "SELECT seq, query, k, exclude_origin, returned, scores, rendered "
-                "FROM trajectory_retrievals WHERE trajectory_id = %s",
+                "SELECT seq, query, k, exclude_origin, returned, scores, rendered, "
+                "excluded_count FROM trajectory_retrievals WHERE trajectory_id = %s",
                 (trajectory_id,),
             )
-            for seq, query, k, exclude_origin, returned, scores, rendered in cur.fetchall():
+            for (
+                seq,
+                query,
+                k,
+                exclude_origin,
+                returned,
+                scores,
+                rendered,
+                excluded_count,
+            ) in cur.fetchall():
                 steps[seq].retrieval = RetrievalRecord(
                     query=query,
                     k=k,
@@ -400,6 +425,7 @@ class PostgresTrajectoryStore:
                     # Empty for anything recorded before T7.9. Read it as "the retrieved text
                     # was not kept", never as "nothing was retrieved" - `returned` says that.
                     rendered=rendered or [],
+                    excluded_count=excluded_count,
                 )
         trajectory.steps = [steps[seq] for seq in sorted(steps)]
         return trajectory

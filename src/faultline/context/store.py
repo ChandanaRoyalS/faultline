@@ -48,6 +48,28 @@ class PastIncidentStore(Protocol):
 
     def count(self) -> int: ...
 
+    def excluded_count(self, origin: str) -> int:
+        """How many chunks carry `origin`, and are therefore unreachable when it is excluded.
+
+        **T4.1b's "count of filtered artifacts", and the number that answers whether the filter
+        fired.** The plan asks for the count to be logged per run and for a scored run where the
+        filter did not fire to be *marked invalid, not merely annotated* - because
+        *"silent non-enforcement is how this defect returns"*.
+
+        **Counted by origin rather than by candidates dropped, and the difference is the whole
+        design.** A dropped-candidate count is implementation-specific: retrieval has two arms,
+        each takes its own top-k, and neither ever sees most of the corpus, so "how many rows the
+        exclusion removed from the ranking" is a number about the ranking rather than about the
+        contamination boundary. What ADR-0008 axis 2 actually asserts is that a scenario's own
+        artifacts were *unreachable*, and this is the count of exactly those.
+
+        **Zero is the signal.** On a scored dev run the scenario's own narrative is in the corpus
+        by construction - that is what leave-one-out means - so a zero here says either the
+        corpus does not hold it or the exclusion did not apply to it. Both invalidate the run's
+        leave-one-out claim, and neither is visible from `exclude_origin` alone, which records
+        only that an argument was passed.
+        """
+
     def search(self, query: str, k: int = 5, exclude_origin: str | None = None) -> list[Hit]:
         """Hybrid retrieval, with the exclusion applied to **both** arms.
 
@@ -103,6 +125,9 @@ class InMemoryPastIncidentStore:
 
     def count(self) -> int:
         return len(self.chunks)
+
+    def excluded_count(self, origin: str) -> int:
+        return sum(1 for chunk in self.chunks.values() if chunk.origin == origin)
 
     def search(self, query: str, k: int = 5, exclude_origin: str | None = None) -> list[Hit]:
         candidates = [
@@ -185,6 +210,12 @@ class PgVectorPastIncidentStore:
     def count(self) -> int:
         with self._conn.cursor() as cur:
             cur.execute("SELECT count(*) FROM incident_chunks")
+            row = cur.fetchone()
+            return int(row[0]) if row else 0
+
+    def excluded_count(self, origin: str) -> int:
+        with self._conn.cursor() as cur:
+            cur.execute("SELECT count(*) FROM incident_chunks WHERE origin = %s", (origin,))
             row = cur.fetchone()
             return int(row[0]) if row else 0
 

@@ -381,6 +381,7 @@ class Investigation:
                     # (T7.9). Rebuilding this at read time is what ADR-0020 calls replaying a
                     # different prompt.
                     rendered=list(result.retrieved),
+                    excluded_count=self._excluded_count(exclude),
                 ),
             )
 
@@ -565,9 +566,24 @@ class Investigation:
                 returned=[hit.chunk.document_id for hit in hits],
                 scores=[hit.score for hit in hits],
                 rendered=list(rendered),
+                excluded_count=self._excluded_count(exclude),
             ),
         )
         return rendered, seq
+
+    def _excluded_count(self, exclude: str | None) -> int | None:
+        """How many chunks this exclusion made unreachable, or `None` when there is no
+        exclusion to count (T4.1b).
+
+        Asked of the store rather than derived from the hits, because the hits are what survived
+        two top-k arms and cannot say what was removed before ranking. A store that predates this
+        method - a test double, a future backend - returns `None` rather than raising, and `None`
+        reads as *not computed* everywhere downstream, never as zero.
+        """
+        if exclude is None:
+            return None
+        counter = getattr(self._corpus, "excluded_count", None)
+        return counter(exclude) if callable(counter) else None
 
     @staticmethod
     def _planner_query(triage: TriageResult) -> str:
