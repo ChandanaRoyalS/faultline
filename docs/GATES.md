@@ -139,6 +139,56 @@ of its three stores. T2.5's verified self-hosted seam is unbuilt. The gate's con
 none of these, so they do not block it — they are recorded here so the declaration is not
 read as saying Phase 2 is complete.
 
+## G3 — declared 2026-09-02
+
+Full condition: *"The full pipeline — triage, plan, parallel specialists, synthesis, validated
+citations, proposal — completes successfully on at least 3 of the 4 fault classes."*
+
+Declared from [`SWEEP-2026-09-02-batch-b.md`](../evals/runs/SWEEP-2026-09-02-batch-b.md), which
+was scored against a pre-registration committed before any scenario ran.
+
+**All six stages executed on every scored run**, across all four fault classes. The sixth stage —
+the remediation proposer — did not exist before #143 and is why this gate was undeclarable until
+Batch B closed.
+
+| reading of *"completes successfully"* | result |
+|---|---|
+| the pipeline runs to completion | **4 of 4 classes** — zero gated, zero narratives refused, zero bounds exhausted |
+| and returns the correct fault class | **3 of 4 classes** — `resource_exhaustion`, `dependency_latency`, `bad_config` |
+
+The stricter reading passes **at exactly the threshold**, which is worth stating rather than
+resting on the weaker one: `bad_deploy` completed and was wrong.
+
+### Four things this declaration qualifies
+
+**The sweep is five of the eight runs it registered.** `product-catalog-flag-failure` was injected
+and discarded four times when the API returned a credit-balance error at the triage call, and
+`shipping-quote-misconfig` and `shipping-wrong-image` never started for the same reason. The gate's
+condition is over fault classes rather than scenario count and all four are represented — but this
+declaration does not rest on the sweep as registered, and §5 of the sweep document says which
+scenarios are unmeasured on this pipeline.
+
+**Two of the sweep's six predictions were falsified**, and neither falsification touches the gate's
+condition. `cart-bad-image-tag` returned `dependency_latency` against a `bad_deploy` label, and
+triage moved on that same scenario from `0.80 / 0.67` to `1.00 / 0.71` — the blast radius proving
+unstable across sweeps even when its seeds are identical, which is a finding the gate does not
+assess and Phase 4 should.
+
+**Accuracy is not what this gate measures.** *"Completes successfully"* is a pipeline condition;
+accuracy thresholds are Gate 4's and T4.2's. A reader taking 3-of-4 here as an accuracy claim
+would be reading a completion gate as a scoring one.
+
+**Nothing here attributes anything to Batch B.** Six changes landed together at `n = 1` per
+scenario, and the pre-registration says in its own words that the sweep cannot attribute a
+difference to any one of them.
+
+### What Gate 3 does not cover
+
+Phase 3 is **98.2% of its clauses** after Batch C (`docs/PLAN.md`, Phase 3 audit). Two are
+undelivered and neither blocks this gate: T3.1's cheap-model routing tier, deferred to T4.2's
+measured accuracy, and T3.4's repo-compare, declined as **Q19** because this world runs pulled
+images rather than checkouts.
+
 ## Known blockers on later gates
 
 Recorded here so they are not rediscovered.
@@ -149,6 +199,19 @@ takes one `SCENARIO` per invocation and there is no all-scenarios driver; separa
 are rejected inside seconds. The condition also requires an A/A check declaring null, a
 dev-set median time-to-report ≤ 3 minutes and cost ≤ $2 per incident, and the T4.7 baseline
 suite — none of which exists yet.
+
+**2026-09-03, the Phase 4 audit.** Every clause of the plan's §7 graded against the tree, now
+that both specification documents are in the repository and T7.62's blocking condition is
+lifted: **23.5 of 55 clauses delivered, 43%.** This is a completion figure and not a deviation
+figure — Phase 4 was never declared, unlike Phase 3. The grading is in `docs/PLAN.md`. What it
+adds to the list above: **T4.3 does not measure latency at all**, so this gate's own
+*"median time-to-report ≤ 3 minutes"* has no measurement behind it; **there is no eval database**
+— every `CREATE TABLE` in the tree is a platform table and eval runs persist as JSON manifests,
+so T4.4's comparison generator has nothing to read and `evals/reports/` is empty; **T4.5 is
+entirely absent** — one workflow file, three jobs, no eval smoke and no `schedule:`; and
+**T4.1b's exclusion filter is asked to fire but never checked** — the SQL removes rows and counts
+nothing, so a run where the filter matched nothing is indistinguishable from one where it worked.
+The plan's own words on that last one: *"silent non-enforcement is how this defect returns."*
 
 **G5.** Its condition requires the full demo from a clean clone. T7.48 rebuilt the world
 but reused local images and said so; no cold clone-and-pull has ever been run, and the demo
