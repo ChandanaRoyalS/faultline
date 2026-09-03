@@ -478,10 +478,15 @@ def test_every_retrieval_row_carries_exclude_origin(monkeypatch: pytest.MonkeyPa
     result = engine.run("incident-7", triage_of("cartservice"), ANCHOR)
 
     assert result.exclude_origin == "scenario:cart-redis-misconfig"
-    assert corpus.calls and corpus.calls[0][2] == "scenario:cart-redis-misconfig"
+    assert all(call[2] == "scenario:cart-redis-misconfig" for call in corpus.calls)
     rows = [s.retrieval for s in store.trajectories[result.trajectory.id].steps if s.retrieval]
-    assert len(rows) == 1
-    assert rows[0].exclude_origin == "scenario:cart-redis-misconfig"
+    # **Two rows since Batch C, and the count is asserted rather than relaxed.** Q23 gave the
+    # planner the top-3 past incidents T3.2 always specified, so an investigation now retrieves
+    # twice - once from triage alone to choose dispatches, once with the findings in hand to
+    # conclude. Both must carry the exclusion; a `>= 1` here would let a third retrieval land
+    # without one and this test would still pass, which is the failure it exists to prevent.
+    assert len(rows) == 2
+    assert all(row.exclude_origin == "scenario:cart-redis-misconfig" for row in rows)
 
 
 def test_production_retrieval_carries_no_exclusion_and_that_is_distinct(

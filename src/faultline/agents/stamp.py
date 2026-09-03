@@ -54,16 +54,26 @@ from faultline.agents.contracts import (
     NarrativeDraft,
     Proposal,
     SpecialistFindings,
+    TriageJudgement,
     Verdict,
 )
 
 _CONTRACTS: tuple[type[BaseModel], ...] = tuple(
     sorted(
-        (DispatchPlan, SpecialistFindings, Verdict, NarrativeDraft, Proposal),
+        (DispatchPlan, SpecialistFindings, Verdict, NarrativeDraft, Proposal, TriageJudgement),
         key=lambda m: m.__name__,
     )
 )
-"""Every schema a role prompt promises the model it will be held to."""
+"""Every schema a role prompt promises the model it will be held to.
+
+**`TriageJudgement` joined at Batch C, and its absence is why this tuple now has a test.** T3.1
+introduced it and T3.9 added `Proposal` in the same batch; one was registered here and one was
+not, so for the length of dev sweep 8 a change to what the triage model must return moved no
+frozen key. `freeze.prompts_hash()` did not cover the gap either - it hashes `*_SYSTEM` strings
+alone, so `TRIAGER_SYSTEM` was stamped and the schema it promises was not. An explicit tuple is
+still the right shape (a scan for every `BaseModel` in the module would stamp helper types nobody
+is held to); what it needed was a guard that fails when a role is validated against a schema this
+tuple does not name. See `tests/test_freeze.py`."""
 
 DIGEST_CHARS = 12
 """Enough to be unambiguous in a table, short enough to read. Not a security boundary."""

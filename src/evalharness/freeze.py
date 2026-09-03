@@ -27,7 +27,25 @@ from typing import Any
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
-AGENT_ROLES = ("planner", "metrics", "logs", "changes", "traces", "synthesizer", "scribe")
+AGENT_ROLES = (
+    "planner",
+    "metrics",
+    "logs",
+    "changes",
+    "traces",
+    "synthesizer",
+    "scribe",
+    "triage",
+    "proposer",
+)
+"""Every role whose model this manifest records. **Nine since Batch C, seven before it.**
+
+`triage` and `proposer` were added by Batch B and not added here, so `model_map()` recorded seven
+models for a run that called nine - and both resolve through the same `role_models` override map,
+so setting one would have changed what ran, changed the cost, and moved no frozen key. Dev sweep 8
+is not invalidated by this: the map was empty, all nine ran the one default, and the seven it
+recorded are accurate about the model that answered. What was missing was the manifest's ability
+to *notice* if they had not been. Pinned by a test that reads the roles out of `roles.py`."""
 
 
 def _sha(text: str) -> str:
