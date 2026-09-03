@@ -285,6 +285,83 @@ class LabelScore:
         }
 
 
+@dataclass(frozen=True, slots=True)
+class RankedScore:
+    """Top-1 and top-3 over a ranked list of candidates (T4.2).
+
+    T4.2 asks for *"root-cause top-1 and top-3 accuracy"*, and until the `Verdict` contract grew
+    `alternatives` there was only ever one candidate, so top-3 could not be computed - not from
+    a stored trajectory either, because a hypothesis the synthesizer weighed and set aside left
+    no record unless it was asked for.
+
+    **`depth` is reported beside the rates, and reading top-3 without it is a mistake.** An arm
+    whose verdicts carry no alternatives scores top-3 exactly equal to top-1, which looks like a
+    tie with a ranking arm and is not one. The rate at which the list is empty is a property of
+    the arm, so it travels with the figure.
+    """
+
+    truth: str
+    ranked: tuple[str, ...]
+    """The candidate values, best first. Position 0 is the verdict's own."""
+
+    also_correct: frozenset[str] = frozenset()
+
+    @property
+    def depth(self) -> int:
+        """How many candidates were offered. **One means the arm did not rank.**"""
+        return len(self.ranked)
+
+    def _hit(self, at: int) -> bool:
+        window = self.ranked[:at]
+        return any(value == self.truth or value in self.also_correct for value in window)
+
+    @property
+    def top_1(self) -> bool:
+        return self._hit(1)
+
+    @property
+    def top_3(self) -> bool:
+        return self._hit(3)
+
+    @property
+    def gained_by_ranking(self) -> bool:
+        """Right at 3 and wrong at 1. **The only runs top-3 is actually measuring**, and a figure
+        where this is never true is a figure reporting top-1 under another name."""
+        return self.top_3 and not self.top_1
+
+    def as_dict(self) -> dict[str, Any]:
+        return {
+            "truth": self.truth,
+            "ranked": list(self.ranked),
+            "depth": self.depth,
+            "top_1": self.top_1,
+            "top_3": self.top_3,
+            "gained_by_ranking": self.gained_by_ranking,
+        }
+
+
+def score_ranked(
+    truth: str,
+    verdict: dict[str, Any],
+    key: str,
+    also_correct: frozenset[str] = frozenset(),
+) -> RankedScore:
+    """Rank the verdict's own answer first, then its alternatives in the order given.
+
+    **Order is taken from the model, never re-sorted here.** The list is the model's ranking, and
+    a scorer that reordered it would be scoring its own ranking of the model's candidates.
+    Duplicates are dropped, keeping the earliest position: a candidate repeated at rank 2 does
+    not give a second chance at the same answer, and counting it would let an arm inflate top-3
+    by restating its top-1.
+    """
+    ordered: list[str] = []
+    for value in [verdict.get(key), *[c.get(key) for c in (verdict.get("alternatives") or [])]]:
+        text = (value or "").strip()
+        if text and text not in ordered:
+            ordered.append(text)
+    return RankedScore(truth=truth, ranked=tuple(ordered), also_correct=also_correct)
+
+
 def score_label(
     scenario_id: str,
     truth: str,
@@ -374,6 +451,25 @@ class ScoredRun:
     triage: TriageScore | None = None
     fault_class: LabelScore | None = None
     fix_class: LabelScore | None = None
+
+    service: LabelScore | None = None
+    """Which service the verdict blamed, against the scenario's injection target (T4.2).
+
+    **A gap nobody had named until top-3 forced it open.** The scorer graded triage
+    recall/precision, `fault_class` and `remediation_class` - so *which service broke* was never
+    scored at all, on a benchmark whose subject is finding out which service broke. `None` for
+    every run recorded before the `Verdict` contract carried the field, which is honest: those
+    runs were never asked.
+    """
+
+    ranked_class: RankedScore | None = None
+    """Top-1 and top-3 over `fault_class`. Weak on its own - four classes make top-3 near
+    75% by chance - and reported for completeness beside the one that carries information."""
+
+    ranked_service: RankedScore | None = None
+    """Top-1 and top-3 over the blamed service. **This is the top-3 figure worth reading**: the
+    catalog has thirteen services, so a top-3 hit is a real claim rather than an artefact of a
+    four-value label space."""
     categories: Categories = field(default_factory=Categories)
     tokens_in: int = 0
     tokens_out: int = 0
@@ -422,6 +518,13 @@ class ScoredRun:
             "triage": None if self.triage is None else self.triage.as_dict(),
             "fault_class": None if self.fault_class is None else self.fault_class.as_dict(),
             "fix_class": None if self.fix_class is None else self.fix_class.as_dict(),
+            # T4.2. `None` rather than a zero for a run recorded before the contract carried
+            # `service`: it was never asked, which is not the same as answering wrongly.
+            "service": None if self.service is None else self.service.as_dict(),
+            "ranked_class": None if self.ranked_class is None else self.ranked_class.as_dict(),
+            "ranked_service": (
+                None if self.ranked_service is None else self.ranked_service.as_dict()
+            ),
             "categories": self.categories.as_dict(),
             "tokens_in": self.tokens_in,
             "tokens_out": self.tokens_out,

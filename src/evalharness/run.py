@@ -33,7 +33,13 @@ from typing import Any
 from evalharness import freeze, gate, generations, metrics, variance
 from evalharness.prom import PROMETHEUS, QueryError, get_json
 from evalharness.provenance import recorder_provenance
-from evalharness.scoring import Categories, ScoredRun, score_label, score_triage
+from evalharness.scoring import (
+    Categories,
+    ScoredRun,
+    score_label,
+    score_ranked,
+    score_triage,
+)
 from injector.worldlock import WorldLock, WorldLockError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -525,6 +531,27 @@ def also_correct_fixes(scenario_id: str) -> frozenset[str]:
     return frozenset(r.value for r in Scenario.from_yaml(path).also_correct_remediation)
 
 
+def culprit_service(scenario_id: str) -> str:
+    """The service the injector actually broke, canonicalised (T4.2).
+
+    Read from the scenario file at scoring time, exactly as `also_correct_fixes` is and for the
+    same reason: this is a **scoring policy**, not a property of the recording. No bundle carries
+    it, none is re-recorded to gain it, and it stays outside `scenario_fingerprint` so no
+    previously recorded bundle is invalidated by scoring a new axis over it.
+
+    `canonical_service` because the scenario names a compose service (`ad-service`) and the agent
+    names an OTel `service.name` (`adservice`). ADR-0017 makes that one identity; comparing the
+    two raw strings would score every correct answer wrong.
+    """
+    path = REPO_ROOT / "evals/scenarios" / f"{scenario_id}.yaml"
+    if not path.exists():
+        return ""
+    from evalharness.scenario import Scenario
+    from injector.world import canonical_service
+
+    return str(canonical_service(Scenario.from_yaml(path).injection.target))
+
+
 def read_trajectory_facts(dsn: str, trajectory_id: str) -> dict[str, Any]:
     import psycopg
 
@@ -722,6 +749,20 @@ def score(
             bundle["expected_remediation_class"],
             verdict.get("remediation_class"),
             also_correct=also_correct_fixes(scenario_id),
+        ),
+        # T4.2's two new axes. `service` is scored only when the verdict carries one: a run
+        # recorded before the contract had the field was never asked, and `None` says that,
+        # where an empty-string comparison would silently score it wrong.
+        service=(
+            score_label(scenario_id, culprit_service(scenario_id), verdict.get("service"))
+            if verdict.get("service")
+            else None
+        ),
+        ranked_class=score_ranked(bundle["fault_class"], verdict, "fault_class"),
+        ranked_service=(
+            score_ranked(culprit_service(scenario_id), verdict, "service")
+            if verdict.get("service")
+            else None
         ),
         categories=Categories(
             # Disjoint on purpose: a budget-exhaustion flag and a contradiction flag each have

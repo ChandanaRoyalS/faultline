@@ -623,7 +623,7 @@ nobody planned to measure; none happened.
 """
 
 BATCH_C_DIGEST = "7c6894e9dd92"
-"""**HEAD.** The `TriageJudgement` schema entered the digest, which is the whole move.
+"""The `TriageJudgement` schema entered the digest, which is the whole move.
 
 Q21: the contract was written at T3.1, is what `validate_triage` holds the triage model to, and
 was never in `stamp._CONTRACTS` - so for the length of dev sweep 8, changing what the triage model
@@ -641,6 +641,37 @@ is why Q23's row said so in advance and why the sweep document for the next swee
 """
 
 
+TOP3_DIGEST = "ba8684b01201"
+"""**HEAD.** `Verdict` gained `service` and `alternatives`, and `SYNTHESIZER_SYSTEM` asks for both
+(T4.2).
+
+**The move was made deliberately at the cheapest moment it will ever cost.** T4.2 asks for
+*"root-cause top-1 and top-3 accuracy"*, and top-3 is not derivable from a stored trajectory: a
+verdict carrying one root cause can only be scored top-1, and a hypothesis the synthesizer weighed
+and set aside leaves no record unless it is asked for. So the contract had to grow, and growing it
+moves this digest.
+
+Batch C had already made dev sweep 8 a prior generation, so at the moment this landed **there were
+no scored figures on `BATCH_C_DIGEST` at all** - nothing to orphan, no re-record to pay for. The
+same change made after dev sweep 9 would have cost that sweep. The window was open because no
+sweep had run in it, and it closes at the next one.
+
+Two things landed in the same move, both required by T4.2 and both invisible before it:
+
+- `Verdict.service` - **the benchmark had no culprit-service axis at all.** The scorer graded
+  triage recall/precision, `fault_class` and `remediation_class`, so *which service broke* was
+  never scored, on a benchmark whose subject is finding out which service broke.
+- `Verdict.alternatives` - two ranked runners-up, each with a `why_not`. Top-3 over four fault
+  classes is near 75% by chance and worth little; over thirteen services it is a real claim, which
+  is why the service axis and the ranked axis had to arrive together.
+
+B1's and B2's own digests moved with it, without anyone editing a version marker: both derive from
+their prompts, and both prompts now ask for the same two fields. Asking the baselines the same
+question is a fairness requirement rather than a courtesy - a baseline never asked for runners-up
+would score its top-1 three times and lose a comparison it was never entered into.
+"""
+
+
 def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """`runtime_version` is the package version plus a digest over every role system prompt and
     every contract schema, so it moves when and only when the agent is a different agent.
@@ -650,8 +681,8 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == BATCH_C_DIGEST, (
-        f"expected Batch C's pipeline {BATCH_C_DIGEST}. If a prompt or a contract moved again, "
+    assert prompt_digest() == TOP3_DIGEST, (
+        f"expected T4.2's pipeline {TOP3_DIGEST}. If a prompt or a contract moved again, "
         f"add its digest here - and if it moved after a pre-registration was written, the sweep "
         f"it governs is measuring something nobody planned to measure."
     )
@@ -660,7 +691,8 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
         PROPOSER_DIGEST,
         TRIAGE_GATE_DIGEST,
         BATCH_B_DIGEST,
-    }, "HEAD is none of the pipelines before Batch C, dev sweep 8's included"
+        BATCH_C_DIGEST,
+    }, "HEAD is none of the earlier pipelines, dev sweep 8's and Batch C's included"
     assert (
         len(
             {
@@ -671,10 +703,11 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
                 PROPOSER_DIGEST,
                 TRIAGE_GATE_DIGEST,
                 BATCH_B_DIGEST,
+                BATCH_C_DIGEST,
             }
         )
-        == 7
-    ), "seven pipelines, four of them measured"
+        == 8
+    ), "eight pipelines, four of them measured — dev sweep 8 measured Batch B, not this"
 
 
 def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:
@@ -945,7 +978,7 @@ def test_the_correlate_budget_is_not_a_stamp_input() -> None:
     ):
         assert stamp_module.prompt_digest() == before
     stamp_module.prompt_digest.cache_clear()
-    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{BATCH_C_DIGEST}"
+    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{TOP3_DIGEST}"
 
 
 # --- T7.14: the rule that fires at rest ----------------------------------------------------

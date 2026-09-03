@@ -1086,7 +1086,7 @@ below is a promise broken; it is a phase two-fifths built, with the unbuilt part
 |---|---|---|---|
 | T4.1 harness runner | 9 | **9** | — |
 | T4.1b leave-one-out enforcement | 6 | **6** | — *(closed 2026-09-03)* |
-| T4.2 RCA scoring | 7 | 4.5 | top-3 accuracy; time-to-first-correct-hypothesis; calibration at n = 10, not ~30 |
+| T4.2 RCA scoring | 7 | 6 | **top-3 and a culprit-service axis land 2026-09-03**, and the stamp moved to `ba8684b01201` to carry them. Remaining: time-to-first-correct-hypothesis; calibration at n = 10, not ~30 |
 | T4.3 metric suite | 6 | **6** | — *(closed 2026-09-03)* |
 | T4.4 eval DB + reports | 7 | **7** | — *(closed 2026-09-03)* |
 | T4.5 CI smoke + nightly | 6 | **6** | — *(closed 2026-09-03; the eval workflows cannot pass until the world runs in Actions and the key has credit, and they are not required checks)* |
@@ -1212,6 +1212,52 @@ the B1-versus-pipeline gap is decomposition **plus retrieval plus the proposal s
 decomposition alone. It is separable at no extra design cost: the pipeline already runs under
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
+
+**T4.2 — top-3 accuracy, and the axis its absence was hiding.** ***Landed 2026-09-03; the stamp
+moved to `ba8684b01201`.***
+
+**Top-3 was not computable, and not from stored trajectories either.** A `Verdict` carrying one
+root cause can only ever be scored top-1, and a hypothesis the synthesizer weighed and set aside
+leaves no record unless it is asked for. So the contract grew `alternatives` — two ranked
+runners-up, each with a required `why_not`. That field is what makes the list worth having: three
+plausible causes cost nothing to emit and would inflate top-3 without representing any reasoning,
+and making the model say what *demotes* each candidate is the cheapest check that a ranking is a
+ranking rather than a sample. An empty list stays a legal answer, because a synthesizer that
+always produces two runners-up is padding.
+
+**Reaching for top-3 exposed a larger gap.** Top-3 over four fault classes is near 75% by chance
+and worth almost nothing; over thirteen services it is a real claim. Which is when it became
+visible that **the scorer graded triage recall/precision, `fault_class` and `remediation_class`
+and nothing else — so *which service broke* had never been scored at all**, on a benchmark whose
+subject is finding out which service broke. `Verdict.service` and a `service` label score land in
+the same move, with the truth read from `injection.target` at scoring time (the
+`also_correct_fixes` pattern: a scoring policy, not a property of the recording, so no bundle is
+re-recorded and no `scenario_fingerprint` moves). It is canonicalised — the scenario says
+`ad-service`, the agent says `adservice`, and comparing the raw strings would have scored every
+correct answer wrong.
+
+**`depth` travels with every top-3 figure.** An arm whose verdicts carry no alternatives scores
+top-3 exactly equal to top-1, which looks like a tie with a ranking arm and is not one.
+`gained_by_ranking` is the only thing top-3 measures beyond top-1, and a figure where it is never
+true is top-1 under another name.
+
+**On moving the stamp deliberately.** Batch C had already made dev sweep 8 a prior generation, so
+at the moment this landed there were **no scored figures on `BATCH_C_DIGEST` at all** — nothing to
+orphan, no re-record to pay for. The same change after dev sweep 9 would have cost that sweep. The
+window existed only because no sweep had run in it, and it closes at the next one. **Dev sweep 9's
+pre-registration must name `ba8684b01201`**, and dev sweep 8 is now two generations back rather
+than one.
+
+B1's and B2's runtime digests moved with it and nobody edited a version marker — both derive from
+their own prompts, and both prompts now ask for the same two fields. Asking the baselines the same
+question is a fairness requirement rather than a courtesy: a baseline never asked for runners-up
+would score its top-1 three times and lose a comparison it was never entered into.
+
+**Still open in T4.2:** time-to-first-correct-hypothesis, and judge calibration at ~30 graded runs
+against today's 10. The first is *partly* available — specialist findings and planner plans are
+stored with timestamps — but deciding a hypothesis is *correct* is a judgement, so a faithful
+version needs the judge, and a deterministic proxy keyed on the culprit service would be measuring
+time-to-first-correct-**suspect**, a different claim that would have to say so.
 
 **Baseline columns are mandatory by construction, not by convention.** ***Built 2026-09-03.***
 `evalharness.baseline_columns`. Every metric section of every comparison report carries a panel

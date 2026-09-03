@@ -146,6 +146,38 @@ FaultClass = Literal[
 RemediationClass = Literal["rollback", "restart", "config_revert", "scale", "none"]
 
 
+class Candidate(BaseModel):
+    """One ranked root-cause candidate below the verdict's own (T4.2).
+
+    **The shape top-3 accuracy needs, and it did not exist before.** T4.2 asks for *"root-cause
+    top-1 and top-3 accuracy (LLM judge, semantic equivalence)"*, and a verdict carrying exactly
+    one root cause can only ever be scored top-1. Top-3 is not derivable from a stored trajectory
+    afterwards: a hypothesis the synthesizer weighed and set aside leaves no record unless it is
+    asked for.
+
+    `service` is here and not on `Verdict` for a reason ADR-0020 §6 already fixed: `start_from`
+    is an entry point, not a culprit claim, and nothing in this pipeline named a culprit service
+    as a *claim* until now. A candidate is exactly the place a claim about a service belongs,
+    because it arrives ranked and with its reason attached.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    root_cause: str = Field(description="one sentence, in the same terms as the verdict's")
+    service: str = Field(description="the service this candidate blames")
+    fault_class: FaultClass
+    why_not: str = Field(
+        description="why this ranks below the one above it, in one sentence",
+    )
+    """**Required, and the field that makes the list worth having.**
+
+    A ranked list with no reasons is a list a model can pad to length: three plausible-sounding
+    causes cost nothing to emit and would inflate top-3 accuracy without representing any
+    reasoning that happened. Making the model say what *demotes* each candidate is the cheapest
+    available check that the ranking is a ranking rather than a sample.
+    """
+
+
 class Verdict(BaseModel):
     """What the synthesizer concluded. Cited, and citable back to stored evidence.
 
@@ -156,6 +188,14 @@ class Verdict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     root_cause: str
+    service: str = ""
+    """The service this verdict blames. **New at T4.2, and its absence was a gap nobody had
+    named.** The scorer graded triage recall/precision, `fault_class` and `remediation_class` -
+    so *which service broke* was never scored at all, on a benchmark whose whole subject is
+    finding out which service broke. Defaulted to empty rather than required, so every stored
+    verdict still validates and a run that predates the field is visibly unanswered rather than
+    silently wrong."""
+
     fault_class: FaultClass
     remediation_class: RemediationClass
     confidence: Literal["high", "medium", "low"]
@@ -164,6 +204,19 @@ class Verdict(BaseModel):
     open_questions: list[str]
     """What the evidence did not settle. A verdict that claims to have settled everything on
     six dispatches is a verdict nobody should trust, and the field makes saying so cheap."""
+
+    alternatives: list[Candidate] = Field(
+        default_factory=list,
+        description="up to 2 ranked runner-up causes, best first; empty if the evidence leaves "
+        "no plausible alternative",
+    )
+    """The second and third places top-3 accuracy scores against.
+
+    **Empty is a legal and meaningful answer**, not a failure to fill a field. An incident whose
+    evidence genuinely admits one explanation should say so, and a synthesizer that always
+    produces two runners-up is padding. That makes top-3 a figure that has to be read beside the
+    rate at which this list is empty - which is why `alternatives` is scored by count as well as
+    by content."""
 
 
 TriageDisposition = Literal["investigate", "duplicate", "noise"]
