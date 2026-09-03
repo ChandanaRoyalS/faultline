@@ -1080,7 +1080,7 @@ below is a promise broken; it is a phase two-fifths built, with the unbuilt part
 | T4.1b leave-one-out enforcement | 6 | **6** | — *(closed 2026-09-03)* |
 | T4.2 RCA scoring | 7 | 4.5 | top-3 accuracy; time-to-first-correct-hypothesis; calibration at n = 10, not ~30 |
 | T4.3 metric suite | 6 | **6** | — *(closed 2026-09-03)* |
-| T4.4 eval DB + reports | 7 | 3.5 | the eval schema; the comparison generator; mean/95% CI/n/R on every figure |
+| T4.4 eval DB + reports | 7 | 5 | the comparison generator; mean/95% CI/n/R on every figure — *(schema and fingerprint closed 2026-09-03)* |
 | T4.5 CI smoke + nightly | 6 | **0** | all of it |
 | T4.6 run-variance protocol | 7 | 0.5 | repeat counts; pairing; confidence intervals; the MDE table |
 | T4.7 baseline suite | 6 | **0** | B0, B1, B2; the measured manual-RCA reference |
@@ -1112,7 +1112,25 @@ minutes"* therefore has no measurement behind it**. The plan says this task need
 instrumentation … because P2 recorded everything"*, and that is true - `TrajectoryStep.at` is
 already stored - so what is missing is the computation, not the data.
 
-**T4.4 — there is no eval database.** Every `CREATE TABLE` in `src/` and `migrations/` is a
+**T4.4 — there is no eval database.** ***Schema and fingerprint closed 2026-09-03; the
+comparison generator is still owed.*** `eval_configs` and `eval_runs` exist, and
+`faultline-eval-db` loads the run tree into them. **The backfill is a finding in its own right**,
+and it is what the audit predicted the loader would surface:
+
+| | |
+|---|---|
+| runs recorded | **128** |
+| distinct configurations | **17** |
+| discarded | **41 — 32% of every run ever started** |
+| configurations with a complete fingerprint | **0** |
+
+The last row is expected rather than alarming: a fingerprint is complete when every known input
+was present, and T4.6's three - repeat count, judge version, seed policy - do not exist yet. It is
+recorded because it is the number that will move when T4.6 lands, and because **the fingerprint
+hashes what was present rather than substituting defaults**: two runs share one only when the same
+inputs were present and equal, so a run from before an input existed cannot silently average with
+one from after. The 32% discard rate is the one worth looking at directly - it is a headline
+property of this harness that no document stated before the table existed to compute it. Every `CREATE TABLE` in `src/` and `migrations/` is a
 platform table: `incidents`, `incident_episodes`, `incident_chunks`, `change_records`,
 `applied_events`, `trajectories`, `trajectory_steps`, `trajectory_tool_calls`,
 `trajectory_retrievals`, `trajectory_proposals`. Eval runs persist as JSON manifests on disk.
