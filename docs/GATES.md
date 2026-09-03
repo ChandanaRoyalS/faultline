@@ -204,8 +204,11 @@ suite — none of which exists yet.
 that both specification documents are in the repository and T7.62's blocking condition is
 lifted: **23.5 of 55 clauses delivered, 43%.** This is a completion figure and not a deviation
 figure — Phase 4 was never declared, unlike Phase 3. The grading is in `docs/PLAN.md`. What it
-adds to the list above: **T4.3 does not measure latency at all**, so this gate's own
-*"median time-to-report ≤ 3 minutes"* has no measurement behind it; **there is no eval database**
+adds to the list above: ~~**T4.3 does not measure latency at all**, so this gate's own
+*"median time-to-report ≤ 3 minutes"* has no measurement behind it~~ - **closed 2026-09-03**: the
+panel records wall-clock latency per run and compares it to the 3-minute threshold, though the
+gate's condition is the **dev-set median** and a median needs a catalog, so the gate still waits
+on runs; **there is no eval database**
 — every `CREATE TABLE` in the tree is a platform table and eval runs persist as JSON manifests,
 so T4.4's comparison generator has nothing to read and `evals/reports/` is empty; **T4.5 is
 entirely absent** — one workflow file, three jobs, no eval smoke and no `schedule:`; and

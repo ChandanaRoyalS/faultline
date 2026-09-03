@@ -30,7 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from evalharness import freeze, gate, generations
+from evalharness import freeze, gate, generations, metrics
 from evalharness.prom import PROMETHEUS, QueryError, get_json
 from evalharness.provenance import recorder_provenance
 from evalharness.scoring import Categories, ScoredRun, score_label, score_triage
@@ -548,6 +548,74 @@ def read_trajectory_facts(dsn: str, trajectory_id: str) -> dict[str, Any]:
         "runtime_version": row[1],
         "budget_exhausted": bool(row[2]),
     }
+
+
+def metric_panel(dsn: str, trajectory_id: str) -> metrics.MetricPanel:
+    """T4.3's panel, read from what the run already stored.
+
+    One connection, four reads, no writes and no new columns. The plan's method column claimed
+    *"no new instrumentation needed because P2 recorded everything"* and this function is where
+    that claim is either true or not: it is true, and the one place it was nearly not is tool-call
+    validity, which lives in the envelope's opening tag rather than in a column of its own.
+    """
+    import psycopg
+
+    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT extract(epoch FROM (ended_at - started_at)) FROM trajectories WHERE id = %s",
+            (trajectory_id,),
+        )
+        row = cur.fetchone()
+        # `ended_at` is NULL for a trajectory that never finished - a crashed run, which is
+        # discarded rather than scored. Zero rather than a guess; the panel says steps too.
+        wall_ms = int(float(row[0]) * 1000) if row and row[0] is not None else 0
+
+        cur.execute(
+            "SELECT kind, coalesce(sum(latency_ms),0), count(*) FROM trajectory_steps "
+            "WHERE trajectory_id = %s GROUP BY kind",
+            (trajectory_id,),
+        )
+        by_kind = {str(kind): (int(total), int(n)) for kind, total, n in cur.fetchall()}
+
+        cur.execute(
+            "SELECT c.tool, c.request, c.envelope FROM trajectory_tool_calls c "
+            "JOIN trajectory_steps s ON s.trajectory_id = c.trajectory_id AND s.seq = c.seq "
+            "WHERE c.trajectory_id = %s ORDER BY c.seq",
+            (trajectory_id,),
+        )
+        calls = [(str(tool), request or {}, str(envelope)) for tool, request, envelope in cur]
+
+        cur.execute(
+            "SELECT payload FROM trajectory_steps WHERE trajectory_id = %s "
+            "AND payload ? 'disclosure' ORDER BY seq DESC LIMIT 1",
+            (trajectory_id,),
+        )
+        found = cur.fetchone()
+        disclosure = (found[0] or {}).get("disclosure") if found else None
+
+        cur.execute(
+            "SELECT payload FROM trajectory_steps WHERE trajectory_id = %s "
+            "AND payload ? 'violations' ORDER BY seq DESC LIMIT 1",
+            (trajectory_id,),
+        )
+        found = cur.fetchone()
+        narrative = (found[0] or {}) if found else {}
+
+    tool_ms, _ = by_kind.get("tool_call", (0, 0))
+    completion_ms, _ = by_kind.get("completion", (0, 0))
+    return metrics.MetricPanel(
+        latency=metrics.Latency(
+            investigation_ms=wall_ms,
+            tool_ms=tool_ms,
+            model_ms=completion_ms,
+            steps=sum(n for _, n in by_kind.values()),
+        ),
+        tools=metrics.tool_calls(calls),
+        context=metrics.briefings(disclosure),
+        citation_violations=len(narrative.get("violations", []) or []),
+        narrative_regenerated=bool(narrative.get("regenerated", False)),
+        narrative_escalated=bool(narrative.get("escalated", False)),
+    )
 
 
 def retrieval_enforcement(dsn: str, trajectory_id: str) -> dict[str, Any]:
@@ -1104,8 +1172,13 @@ def main(argv: list[str] | None = None) -> int:
         # refused as a *result*, which is the distinction ADR-0022 §3.3 draws for discards.
         enforcement = retrieval_enforcement(dsn, trajectory_id)
         run.manifest["leave_one_out"] = enforcement
+        # T4.3's panel, computed from the same stored run and printed beside the accuracy block
+        # rather than inside it - these are the numbers that explain *why* accuracy moved, and
+        # folding them in would make them look like the thing being scored.
+        panel = metric_panel(dsn, trajectory_id)
+        run.manifest["metrics"] = panel.as_row()
         run.save_manifest()
-        report = scored.report()
+        report = scored.report() + "\n\n" + "\n".join(panel.render())
         run.write("report.txt", report + "\n")
         print("\n" + report)
         if enforcement["silent"]:
