@@ -1213,6 +1213,25 @@ decomposition alone. It is separable at no extra design cost: the pipeline alrea
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
 
+**G3's table row said "Not declared" for a day while its evidence section said otherwise.**
+***Corrected 2026-09-03.*** `docs/GATES.md` carries a summary table and a section per gate, and
+**the table is what a reader scans.** G3 was declared on 2026-09-02 with a full evidence section —
+four of four classes completing, three of four correct, and four stated qualifications — and its
+row still read *Not declared*. Anyone scanning the table would have concluded the gate had not
+passed while the evidence for it sat forty lines below.
+
+That is the failure `GATES.md` was written to fix, one level down: *"until 2026-09-01 nothing in
+this repository recorded whether any gate had ever passed, so the rule was enforced by memory."*
+The record existed; keeping its two halves agreeing was still enforced by memory.
+
+`tests/test_gates.py` now asserts the table and the sections can never disagree, in both
+directions, and that a declared row carries the same date as its section. **Verified to fail
+against the uncorrected file before the fix was applied**, the same discipline Q21 used — a guard
+that has never been seen to fail is a guard nobody has tested.
+
+A sweep across all eight gates found exactly one mismatch, which is the useful form of that
+result: the drift was real and it was isolated.
+
 **The manual-RCA reference, and the problem it has.** ***Harness built 2026-09-03:***
 `evalharness.manual_rca` and `faultline-manual-rca`. T4.7 asks for *"self-timed manual RCA on five
 dev scenarios, reported as n=5, self-timed, indicative — an unsourced number next to a rigorously

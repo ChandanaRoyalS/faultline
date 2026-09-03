@@ -16,7 +16,7 @@ authoritative; verify wording against it before relying on it.
 | G0 | CI green on an empty walking skeleton | **Declared 2026-09-01** |
 | G1 | injected fault → alert fires → visible on dashboards, zero AI | **Declared 2026-08-23** |
 | G2 | one alert → one agent → one persisted, rendered finding | **Declared 2026-09-01** — qualified |
-| G3 | end-to-end investigation passes on 3 scenario classes | Not declared |
+| G3 | end-to-end investigation passes on 3 scenario classes | **Declared 2026-09-02** — qualified |
 | G4 | one command runs and scores all 10 scenarios into a report | Not declared — blocked |
 | G5 | full demo runs from clean clone; MVP tagged | Not declared — unverified |
 | G6 | approval-gated remediation works; injection + storm tests pass | Not declared |
