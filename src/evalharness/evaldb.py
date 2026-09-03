@@ -119,7 +119,27 @@ def _setting(manifest: dict[str, Any], key: str) -> Any:
     """
     score = manifest.get("score") or {}
     if key == "runtime_version":
-        return score.get("runtime_version") or (manifest.get("freeze") or {}).get("runtime_version")
+        recorded = score.get("runtime_version")
+        if recorded:
+            return recorded
+        # **The freeze's stamp is not a fallback for a baseline run.** `freeze.runtime_version` is
+        # the *agent's* digest over role prompts and contract schemas, taken before injection as
+        # provenance of the harness code. A scored run overwrites it from the trajectory, so the
+        # distinction is invisible - until a run is **discarded**, which has no score block and on
+        # this catalog happens about a third of the time. A discarded B0 run would then be
+        # recorded, and its `eval_configs` row permanently labelled, under the runtime of the
+        # pipeline it is a control for: the one confusion this table exists to prevent, and worse
+        # than a NULL because it reads as authoritative (cf. the `compare.arm()` fix, #165).
+        #
+        # `None` rather than `baselines.BASELINE_RUNTIME`: that constant is the *current* version,
+        # so a discarded B0 v1 run would be stamped `B0.2` and become poolable with v2 - exactly
+        # the pooling the version marker exists to prevent. The run did not record what ran and
+        # the manifest cannot reconstruct it, so "not recorded" is the true answer.
+        #
+        # Agent runs store `baseline: null`, which is falsy, so their fallback is unchanged.
+        if manifest.get("baseline"):
+            return None
+        return (manifest.get("freeze") or {}).get("runtime_version")
     if key == "world_generation":
         return (manifest.get("comparability") or {}).get("generation")
     if key == "judge_version":

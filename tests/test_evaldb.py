@@ -92,6 +92,68 @@ def test_a_manifest_with_no_score_and_no_marker_is_a_discard_not_a_success() -> 
     assert evaldb.outcome_of({"scenario_id": "x"}) == "discarded"
 
 
+# --- the freeze stamp is not a fallback for a baseline run ---------------------------------
+
+AGENT_STAMP = "faultline/0.0.1+prompts:7c6894e9dd92"
+
+
+def test_a_scored_run_takes_its_runtime_from_the_trajectory_not_the_freeze() -> None:
+    """Both live in the manifest: `freeze.runtime_version` is the agent stamp taken before
+    injection as provenance of the harness code, `score.runtime_version` is read off the
+    trajectory and says what actually ran. The score block wins, which is why a scored B0 run
+    records `+baseline:B0` even though the freeze above it says otherwise."""
+    row = evaldb.row_of(
+        manifest(
+            baseline="b0",
+            score={"runtime_version": "faultline/0.0.1+baseline:B0.2"},
+            freeze={"runtime_version": AGENT_STAMP},
+        )
+    )
+
+    assert row.config.runtime_version == "faultline/0.0.1+baseline:B0.2"
+
+
+def test_a_discarded_baseline_run_is_not_labelled_with_the_agents_stamp() -> None:
+    """**The hole the score block was hiding.** A discard has no score block, so `_setting` fell
+    through to the freeze - and the freeze carries the *agent's* digest over role prompts and
+    contract schemas, which a no-LLM baseline never touched. A discarded B0 run would have been
+    recorded, and its `eval_configs` row permanently labelled, under the runtime of the pipeline
+    it is a control for. Worse than a NULL, because it reads as authoritative.
+
+    On this catalog roughly a third of runs discard, so this is a matter of when.
+    """
+    row = evaldb.row_of(
+        manifest(baseline="b0", score=None, freeze={"runtime_version": AGENT_STAMP})
+    )
+
+    assert row.config.runtime_version is None, "not recorded is the true answer"
+    assert row.config.runtime_version != AGENT_STAMP
+
+
+def test_it_is_not_backfilled_with_the_current_baseline_version_either() -> None:
+    """`BASELINE_RUNTIME` is the *current* version. Stamping a discarded v1 run with it would make
+    v1 poolable with v2 - precisely the pooling the version marker exists to prevent. The run did
+    not record what ran and the manifest cannot reconstruct it."""
+    from evalharness import baselines
+
+    row = evaldb.row_of(
+        manifest(baseline="b0", score=None, freeze={"runtime_version": AGENT_STAMP})
+    )
+
+    assert row.config.runtime_version != baselines.BASELINE_RUNTIME
+
+
+def test_a_discarded_agent_run_still_falls_back_to_the_freeze() -> None:
+    """The narrowing is to baseline runs only. Agent runs store `baseline: null`, which is falsy,
+    so their behaviour is unchanged - and for them the freeze stamp *is* the right answer, because
+    it is their own."""
+    row = evaldb.row_of(
+        manifest(baseline=None, score=None, freeze={"runtime_version": AGENT_STAMP})
+    )
+
+    assert row.config.runtime_version == AGENT_STAMP
+
+
 # --- flattening --------------------------------------------------------------------------
 
 
