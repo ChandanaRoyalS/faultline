@@ -194,6 +194,24 @@ class RunDir:
     def save_manifest(self) -> Path:
         return self.write("manifest.json", json.dumps(self.manifest, indent=2, default=str) + "\n")
 
+    def invalidate(self, reason: str, detail: str = "") -> Path:
+        """**Marked invalid, not merely annotated** (T4.1b).
+
+        Distinct from `discard`. A discarded run produced no result; an invalid run produced one
+        that must not be counted, and the difference is worth keeping in the file name because
+        the two answer different questions about a catalog: how often the harness fails, and how
+        often it produced a number nobody may use. The artifacts stay in both cases.
+        """
+        self.manifest["invalid"] = {"reason": reason, "at": datetime.now(UTC).isoformat()}
+        self.save_manifest()
+        return self.write(
+            "INVALID.md",
+            f"# Invalid run\n\n**Reason:** {reason}\n\n"
+            f"The run completed and was scored. **Its numbers must not be used**, and it is "
+            f"kept rather than deleted so that the count of invalid runs is itself a fact "
+            f"(T4.1b, ADR-0008 axis 2).\n\n{detail}\n",
+        )
+
     def discard(self, reason: str, detail: str = "") -> Path:
         """**Recorded, not deleted.** The directory stays and says why it is not a result."""
         self.manifest["discarded"] = {"reason": reason, "at": datetime.now(UTC).isoformat()}
@@ -532,6 +550,71 @@ def read_trajectory_facts(dsn: str, trajectory_id: str) -> dict[str, Any]:
     }
 
 
+def retrieval_enforcement(dsn: str, trajectory_id: str) -> dict[str, Any]:
+    """Did the leave-one-out filter actually remove anything? (T4.1b)
+
+    T4.1b's second half: *"the count of filtered artifacts is logged per run, and a scored run
+    where the filter did not fire is marked invalid, not merely annotated - silent
+    non-enforcement is how this defect returns."*
+
+    Three outcomes, and the third is the one that matters:
+
+    - **no benchmark retrieval** - every row has `exclude_origin IS NULL`. This is the product
+      case and it is legal; a live incident has no origin to exclude.
+    - **fired** - every excluding row removed at least one chunk.
+    - **did not fire** - a row asked for an exclusion and it matched **nothing**. On a scored dev
+      run the scenario's own narrative is in the corpus by construction, so a zero says either
+      the corpus does not hold it or the exclusion did not apply to it. Either way the run's
+      leave-one-out claim is unsupported and the run is not a result.
+
+    `NULL` counts are *not computed*, not zero: rows written before this task, and any store
+    that cannot count. They are reported as `unassessable` and never invalidate a run, because
+    refusing a run on a number nobody recorded would be inventing enforcement rather than
+    performing it.
+    """
+    import psycopg
+
+    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT seq, exclude_origin, excluded_count FROM trajectory_retrievals "
+            "WHERE trajectory_id = %s ORDER BY seq",
+            (trajectory_id,),
+        )
+        rows = cur.fetchall()
+    return classify_retrievals([(int(seq), origin, count) for seq, origin, count in rows])
+
+
+def classify_retrievals(rows: list[tuple[int, str | None, int | None]]) -> dict[str, Any]:
+    """The judgement, separated from the query so it can be tested without a database.
+
+    `rows` is `(seq, exclude_origin, excluded_count)` as stored. Kept pure deliberately: the
+    decision to refuse a run is the part that has to be right, and a rule reachable only through
+    Postgres is a rule exercised only by the integration suite.
+    """
+    excluding = [(seq, origin, count) for seq, origin, count in rows if origin is not None]
+    silent = [(seq, origin) for seq, origin, count in excluding if count == 0]
+    unassessable = [(seq, origin) for seq, origin, count in excluding if count is None]
+    return {
+        "retrievals": len(rows),
+        "excluding": len(excluding),
+        "filtered": {str(seq): count for seq, _, count in excluding},
+        "silent": [{"seq": seq, "exclude_origin": origin} for seq, origin in silent],
+        "unassessable": [{"seq": seq, "exclude_origin": origin} for seq, origin in unassessable],
+        "enforced": bool(excluding) and not silent and not unassessable,
+    }
+
+
+SILENT_FILTER_INVALID = (
+    "the leave-one-out filter was asked for and removed nothing. ADR-0008 axis 2 is the "
+    "assertion that a scenario's own artifacts are unreachable while it is scored, and a "
+    "retrieval that excluded an origin the corpus does not hold has asserted nothing. The run "
+    "is marked invalid rather than annotated, per T4.1b: silent non-enforcement is how this "
+    "defect returns. Usually the corpus was never seeded, or was seeded without this "
+    "scenario's narrative - check `faultline-seed` and the corpus row count, then run the "
+    "scenario again."
+)
+
+
 ZERO_STEP_DISCARD = (
     "the trajectory has no steps: nothing ran, so there is nothing to score. "
     "Rows like this exist from before T3.5's guard - `f7261a74-6c83-4070-a6d6-2b414d3929cb` "
@@ -606,7 +689,10 @@ def parser() -> argparse.ArgumentParser:
             "nothing was injected; 4 the run was discarded, and the reason is in the run "
             "directory's DISCARDED.md. A discarded run is never deleted. 5 the run was PAUSED "
             "on a clearable precondition - nothing was injected, nothing was discarded, and the "
-            "message says the remedy; clear it and start this scenario again."
+            "message says the remedy; clear it and start this scenario again. 6 the run "
+            "completed and "
+            "is INVALID - it was scored and its numbers must not be used; the reason is in the "
+            "run directory's INVALID.md."
         ),
     )
     p.add_argument("scenario_id")
@@ -1011,10 +1097,29 @@ def main(argv: list[str] | None = None) -> int:
             tokens_in=scored.tokens_in,
             tokens_out=scored.tokens_out,
         )
+        # **T4.1b, at the only point that can enforce it.** The investigation has finished and
+        # its retrievals are rows; whether the exclusion removed anything is now a fact about
+        # this run rather than a property of the code. Checked after scoring so the score is
+        # written either way - an invalid run keeps its artifacts and its numbers, and is
+        # refused as a *result*, which is the distinction ADR-0022 §3.3 draws for discards.
+        enforcement = retrieval_enforcement(dsn, trajectory_id)
+        run.manifest["leave_one_out"] = enforcement
         run.save_manifest()
         report = scored.report()
         run.write("report.txt", report + "\n")
         print("\n" + report)
+        if enforcement["silent"]:
+            run.invalidate("leave-one-out filter did not fire", SILENT_FILTER_INVALID)
+            print(f"\nINVALID: {SILENT_FILTER_INVALID}")
+            print(f"recorded, not deleted: {run.path / 'INVALID.md'}")
+            print(f"\nartifacts under {run.path}")
+            return 6
+        if enforcement["unassessable"]:
+            print(
+                f"\nNOTE: {len(enforcement['unassessable'])} retrieval(s) recorded no filter "
+                "count, so leave-one-out could not be assessed for them. Not invalid - "
+                "unassessable, which is a different fact and is on the manifest."
+            )
         print(f"\nartifacts under {run.path}")
         return 0
 

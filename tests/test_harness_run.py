@@ -1748,3 +1748,70 @@ def test_the_run_manifest_records_every_bound_it_was_held_to() -> None:
     assert "freeze.budget_bounds(args.max_tool_calls, args.max_tokens)" in source, (
         "the manifest must read the bounds rather than restate them"
     )
+
+
+# --- T4.1b: the filter is asked to fire, and now checked --------------------------------------
+
+
+def test_a_run_whose_exclusion_removed_nothing_is_invalid_not_annotated() -> None:
+    """**The clause this task exists to deliver.** T4.1b: *"a scored run where the filter did not
+    fire is marked invalid, not merely annotated - silent non-enforcement is how this defect
+    returns."*
+
+    A retrieval that excluded `scenario:X` and removed zero chunks has asserted nothing: on a
+    scored dev run the scenario's own narrative is in the corpus by construction, so a zero means
+    either the corpus does not hold it or the exclusion did not apply. Both leave ADR-0008 axis 2
+    unsupported, and the run's numbers are not usable.
+    """
+    from evalharness.run import classify_retrievals
+
+    verdict = classify_retrievals([(1, "scenario:cart-redis-misconfig", 0), (2, None, None)])
+
+    assert verdict["silent"] == [{"seq": 1, "exclude_origin": "scenario:cart-redis-misconfig"}]
+    assert verdict["enforced"] is False
+
+
+def test_a_run_whose_exclusion_removed_chunks_is_enforced() -> None:
+    """Two excluding retrievals, both of which removed something. This is what a scored dev run
+    looks like since Batch C gave the planner its own retrieval."""
+    from evalharness.run import classify_retrievals
+
+    verdict = classify_retrievals(
+        [(1, "scenario:ad-memory-squeeze", 3), (2, "scenario:ad-memory-squeeze", 3)]
+    )
+
+    assert verdict["enforced"] is True
+    assert verdict["silent"] == []
+    assert verdict["filtered"] == {"1": 3, "2": 3}
+
+
+def test_a_production_run_excludes_nothing_and_is_not_invalid() -> None:
+    """`exclude_origin IS NULL` is the product case and is legal - a live incident has no origin
+    to exclude. It is not `enforced` either, because there was nothing to enforce, and reporting
+    it as enforcement would be the same overclaim in the other direction."""
+    from evalharness.run import classify_retrievals
+
+    verdict = classify_retrievals([(1, None, None)])
+
+    assert verdict["silent"] == []
+    assert verdict["enforced"] is False
+    assert verdict["excluding"] == 0
+
+
+def test_an_uncounted_row_is_unassessable_and_never_invalid() -> None:
+    """**`NULL` is not zero**, and a run is never refused on a number nobody recorded.
+
+    Every retrieval row written before this task has no count, and the 60-odd of them in the
+    store cannot be backfilled - the corpus state they ran against no longer exists. Refusing
+    those runs retroactively would be inventing enforcement rather than performing it, so they
+    are reported as unassessable and left alone.
+    """
+    from evalharness.run import classify_retrievals
+
+    verdict = classify_retrievals([(1, "scenario:shipping-wrong-image", None)])
+
+    assert verdict["unassessable"] == [
+        {"seq": 1, "exclude_origin": "scenario:shipping-wrong-image"}
+    ]
+    assert verdict["silent"] == []
+    assert verdict["enforced"] is False

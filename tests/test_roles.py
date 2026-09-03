@@ -451,12 +451,27 @@ def full_engine(model: LanguageModel, budget: Budget, corpus: Any = None) -> tup
 class FakeCorpus:
     """Records what it was asked, so the exclusion can be asserted on the call, not the result."""
 
-    def __init__(self) -> None:
+    def __init__(self, holds: int = 1) -> None:
         self.calls: list[tuple[str, int, str | None]] = []
+        self._holds = holds
+        """How many chunks this corpus holds for an excluded origin. **Zero is the interesting
+        value**: an exclusion that matched nothing, which T4.1b says invalidates a scored run."""
 
     def search(self, query: str, k: int = 5, exclude_origin: str | None = None) -> list[Any]:
         self.calls.append((query, k, exclude_origin))
         return []
+
+    def excluded_count(self, origin: str) -> int:
+        return self._holds
+
+
+class UncountableCorpus(FakeCorpus):
+    """A store with no `excluded_count` at all - every store before T4.1b, and any future
+    backend that cannot answer the question. The runtime must record `None` for it and never
+    zero, because *not computed* and *matched nothing* are different facts and only one of them
+    invalidates a run."""
+
+    excluded_count = None  # type: ignore[assignment]
 
 
 ONE_DISPATCH = plan_reply(
@@ -1706,3 +1721,62 @@ def test_a_planner_widening_reaches_the_tool_and_the_record():  # type: ignore[n
     assert request["window_rule"] == "planner_widened"
     assert request["lookback_seconds"] == 36_000
     assert request["window"][0] == (ANCHOR - timedelta(hours=10)).isoformat()
+
+
+def test_a_retrieval_records_how_many_chunks_the_exclusion_removed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """**T4.1b's first half.** `exclude_origin` says an exclusion was asked for; this says it had
+    something to exclude. The filter is SQL, so a query whose exclusion matches nothing returns
+    what a query with no exclusion returns and the row looks identical - which is why the count
+    is recorded rather than inferred."""
+    monkeypatch.setenv("FAULTLINE_EVAL_SCENARIO", "cart-redis-misconfig")
+    corpus = FakeCorpus(holds=4)
+    model = ScriptedModel(
+        {"planner": [ONE_DISPATCH], "synthesizer": [VERDICT_REPLY], "scribe": [draft_reply([])]}
+    )
+    engine, store = full_engine(model, Budget(max_dispatch_rounds=1), corpus)
+
+    result = engine.run("incident-9", triage_of("cartservice"), ANCHOR)
+
+    rows = [s.retrieval for s in store.trajectories[result.trajectory.id].steps if s.retrieval]
+    assert rows and all(row.excluded_count == 4 for row in rows)
+
+
+def test_a_store_that_cannot_count_records_none_and_never_zero(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """**The distinction the whole enforcement rests on.** `None` is *not computed*; `0` is
+    *asked for and matched nothing*. Reading the first as the second would invalidate every run
+    recorded before T4.1b, and reading the second as the first would let a failed leave-one-out
+    through - which is the defect this task exists to close."""
+    monkeypatch.setenv("FAULTLINE_EVAL_SCENARIO", "cart-redis-misconfig")
+    model = ScriptedModel(
+        {"planner": [ONE_DISPATCH], "synthesizer": [VERDICT_REPLY], "scribe": [draft_reply([])]}
+    )
+    engine, store = full_engine(model, Budget(max_dispatch_rounds=1), UncountableCorpus())
+
+    result = engine.run("incident-10", triage_of("cartservice"), ANCHOR)
+
+    rows = [s.retrieval for s in store.trajectories[result.trajectory.id].steps if s.retrieval]
+    assert rows and all(row.excluded_count is None for row in rows)
+
+
+def test_a_production_retrieval_counts_nothing_because_it_excludes_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """No origin to exclude means no count to take. `None` here is correct rather than missing,
+    and the enforcement treats a run with no excluding retrieval as legal - it is the product
+    case, not a failed benchmark run."""
+    monkeypatch.delenv("FAULTLINE_EVAL_SCENARIO", raising=False)
+    corpus = FakeCorpus(holds=7)
+    model = ScriptedModel(
+        {"planner": [ONE_DISPATCH], "synthesizer": [VERDICT_REPLY], "scribe": [draft_reply([])]}
+    )
+    engine, store = full_engine(model, Budget(max_dispatch_rounds=1), corpus)
+
+    result = engine.run("incident-11", triage_of("cartservice"), ANCHOR)
+
+    rows = [s.retrieval for s in store.trajectories[result.trajectory.id].steps if s.retrieval]
+    assert rows and all(row.exclude_origin is None for row in rows)
+    assert all(row.excluded_count is None for row in rows)
