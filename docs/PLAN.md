@@ -1091,7 +1091,7 @@ below is a promise broken; it is a phase two-fifths built, with the unbuilt part
 | T4.4 eval DB + reports | 7 | **7** | — *(closed 2026-09-03)* |
 | T4.5 CI smoke + nightly | 6 | **6** | — *(closed 2026-09-03; the eval workflows cannot pass until the world runs in Actions and the key has credit, and they are not required checks)* |
 | T4.6 run-variance protocol | 7 | **7** | — *(closed 2026-09-03)* |
-| T4.7 baseline suite | 6 | 6 | B0, B1 and B2 run under the harness as their own configs, and every headline table carries all three by construction. **The measured manual-RCA reference remains** — it is self-timed by hand, n=5. No baseline has been *scored* yet; B1 and B2 runs need credits |
+| T4.7 baseline suite | 6 | 6 | B0, B1 and B2 run under the harness as their own configs, every headline table carries all three by construction, and the manual-RCA harness is built. **What remains is the five investigations themselves** — self-timed, by hand, and contaminated by authorship (below). No baseline has been *scored* yet; B1 and B2 runs need credits |
 | G4 | 1 | 0 | undeclared; blockers in `docs/GATES.md` |
 
 ### The four findings that are more than "not built yet"
@@ -1212,6 +1212,41 @@ the B1-versus-pipeline gap is decomposition **plus retrieval plus the proposal s
 decomposition alone. It is separable at no extra design cost: the pipeline already runs under
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
+
+**The manual-RCA reference, and the problem it has.** ***Harness built 2026-09-03:***
+`evalharness.manual_rca` and `faultline-manual-rca`. T4.7 asks for *"self-timed manual RCA on five
+dev scenarios, reported as n=5, self-timed, indicative — an unsourced number next to a rigorously
+sourced one damages the rigorous one."* Every latency figure here times the *pipeline*; saying it
+is fast needs something to be fast against, and until this exists *"three minutes to a report"* is
+a number with no denominator.
+
+**The only person available to do the manual RCA wrote the scenarios.** She authored every fault,
+injection and recorded narrative in this catalog, so timing her investigating `ad-memory-squeeze`
+measures **how long it takes someone who already knows the answer to confirm it** — a different
+and much smaller quantity. There is no fix inside this project: a second responder is not
+available, a holdout scenario does not help because she authored those too, and waiting for
+forgetting is not a method.
+
+So the contamination is **disclosed rather than mitigated**, and printed *above* the number rather
+than in a footnote. What the figure is: a **floor** on human time, from the most advantaged
+possible responder. What it is not: an estimate of how long a responder who did not know the
+answer would take. A floor is still worth having — a pipeline *slower* than someone who already
+knew the answer is a damning comparison, and one that is faster has beaten a fully-informed expert
+rather than a working one, which is the weaker claim the rendering makes.
+
+**Deliberately not a `variance.Figure`, and this inverts the usual rule.** Every other quantity
+here cannot be built without mean, CI, n and R — the rule that stops unsourced numbers reaching a
+report. Applying it here would do the opposite of its purpose: a CI around five self-timed
+observations from one contaminated rater implies a sampling model that does not exist, and would
+manufacture precisely the appearance of rigour the plan warns about. `render()` emits no interval
+and says so. *An unsourced number damages a sourced one by being made to look like it.*
+
+The clock is **wall-clock between `--start` and `--finish`**, never a duration typed in
+afterwards — a remembered duration errs in the direction that flatters the person remembering.
+`--give-up` is a first-class outcome, because an abandoned investigation is data about difficulty
+and dropping it would make the median a median over the easy ones. A refused record **leaves the
+clock running**: discarding the elapsed time would make the operator start again and time a
+second, shorter investigation of a scenario they have now already looked at.
 
 **Gate 4's A/A check, built and invokable.** ***2026-09-03:*** `evalharness.aa`, reachable as `faultline-compare --aa <fingerprint>`. **A check nothing invokes is not a check** — it was library-only when first written, so Gate 4's fourth condition had no way to be run, and the CLI wiring is part of the deliverable rather than a convenience. Three exit codes, and conflating the middle two is the trap: `0` ran and passed, `1` ran and **failed** (so CI can gate on it — a condition nothing can fail is not a condition), `3` **could not be performed** (no runs, or R = 1), which must never read as the harness having invented a delta. Gate 4's fourth condition —
 *"the harness run twice under an identical config declares no significant difference. A harness
