@@ -1163,7 +1163,7 @@ detectable**, so every ablation this repository can currently run is directional
 injection, the same triage, the same tools and window policy, and **the same scorer** — a
 baseline scored by a parallel code path is not a baseline. What it does not share is the part
 being controlled for: no planner, no specialists, no synthesizer, no model call at all. It carries
-its own `runtime_version` (`faultline/0.0.1+baseline:B0`) and `baseline` is a config-fingerprint
+its own `runtime_version` (`faultline/0.0.1+baseline:B0.2`) and `baseline` is a config-fingerprint
 input, so a B0 run can never share a configuration with an agent run. `evalharness.baselines` implements the plan's *"alert-label attribution +
 most-recent deploy in window + largest error-rate delta"* with no model call, and building it
 found two things about the benchmark rather than about the baseline:
@@ -1180,6 +1180,28 @@ the table.
 an interface and touches no configuration. So B0 predicts it from *the absence of a change*, which
 is a positive prediction and a fact about the injector rather than about incidents. A baseline
 that scores on this is telling the reader something true about the world's construction.
+
+**B0 v1 was wrong, its one run is kept, and the version marker moved.** v1's only live run
+(`20260903T031137Z-ad-memory-squeeze`) answered `dependency_latency`/`restart` against a truth of
+`resource_exhaustion`/`config_revert`. Three defects, none of them the heuristic's fault:
+
+| defect | what v1 did | what the plan says |
+|---|---|---|
+| the ordering | picked a suspect from alerts, then looked for changes **on that suspect** | *"most-recent deploy **in window**"* |
+| change rows | read `ChangeResult.records` as objects; they are dicts with no `service` key | — |
+| error series | read `result.points`; `MetricResult` has `series`, each with `points` | — |
+
+The first cost the run: `frontend` alerts first because it is the **propagator** (ADR-0020 §6),
+had no change on it, and the residual rule fired — while the `adservice` memory-limit change was
+in the window and never looked at. The second and third could not have shown themselves in that
+run at all, because `frontend` had no changes and signal 3 never executed. **Signal 1 alone was
+measured.** v2 makes the change the primary signal and uses alerts only to scope it.
+
+The misreading is visible in the plan's own words without any run, but it was **noticed** because
+of a failure. So the v1 run stays in the record, wrong; `BASELINE_VERSION` is now in the runtime
+string (v1's unversioned `…+baseline:B0` → `…+baseline:B0.2`) so the eval database can never pool
+the two generations; and the reasoning is in the module docstring rather than in a commit message
+nobody will find.
 
 **T4.5 — absent rather than partial.** ***Closed 2026-09-03, in two layers.***
 `eval-smoke.yml` triggers on the plan's prompt/context/model paths and runs a four-scenario
