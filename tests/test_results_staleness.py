@@ -104,13 +104,24 @@ def test_no_document_anywhere_says_head_is_a_stamp_that_it_is_not() -> None:
     for path in [*sorted(Path("docs").rglob("*.md")), Path("README.md")]:
         if not path.is_file():
             continue
-        if path.parts[:2] == ("docs", "adr"):
-            # **ADRs are exempt, and this is a category distinction rather than an escape hatch.**
+        if path.parts[:2] in {("docs", "adr"), ("evals", "runs")}:
+            # **Two exempt classes, both category distinctions rather than escape hatches.**
+            #
             # An ADR records what was decided and what was true when it was decided; a sentence in
-            # one is dated by construction, not an assertion about the present, and editing it to
-            # stay current would destroy the only thing it is for. ADR-0023 is the case in point -
-            # it says HEAD is `53fafe9c12bc`, which expired five stamps ago - and it carries a
-            # dated addendum saying so, which is the mitigation this exemption owes a reader.
+            # one is dated by construction, and editing it to stay current would destroy the only
+            # thing it is for. ADR-0023 is the case in point - it names a stamp that expired five
+            # generations ago - and it carries a dated addendum saying so, which is the mitigation
+            # that exemption owes a reader.
+            #
+            # `evals/runs/` is stronger: it is CAPTURED EVIDENCE, in the pre-commit exclusion list
+            # precisely because hooks once rewrote six sweep narratives. A sweep document naming
+            # the stamp it ran under is not a claim about the present at all - it is the record of
+            # what that sweep measured, and it is the one kind of document here that must never be
+            # edited to agree with today. `SWEEP-2026-08-27-evidence.md` names `53fafe9c12bc`
+            # forever, correctly, because that is what it ran under.
+            #
+            # A guard that forced either class to stay current would be asking the record to lie
+            # about when it was written.
             continue
         for stamp in asserts_head.findall(path.read_text()):
             if stamp != current:

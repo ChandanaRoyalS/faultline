@@ -1213,6 +1213,24 @@ decomposition alone. It is separable at no extra design cost: the pipeline alrea
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
 
+**The sweep is complete, and it ends with two exemptions rather than two more fixes.** A final
+pass over `docs/`, `evals/` and `README.md` found one remaining assertion, in
+`evals/runs/SWEEP-2026-08-27-evidence.md`. It is **not a defect and must not be corrected.**
+
+`evals/runs/` is captured evidence — in the pre-commit exclusion list precisely because hooks once
+rewrote six sweep narratives before anyone noticed. A sweep document naming the stamp it ran under
+is not a claim about the present at all; it is the record of what that sweep measured, and it
+names `53fafe9c12bc` correctly and forever. ADRs are exempt for the neighbouring reason, one
+degree weaker: dated by construction, and ADR-0023 carries an addendum rather than an edit.
+
+**A guard that forced either class to stay current would be asking the record to lie about when it
+was written** — which is the failure this whole sweep was chasing, arriving from the opposite
+direction. Both exemptions carry their reasoning in the test rather than a bare path list, because
+an unexplained exemption is indistinguishable from a loophole.
+
+Final state: every document that makes a *present-tense* claim about the stamp is now checked;
+every document whose sentences are dated by construction is exempt and says why.
+
 **The guard failed on the commit that documented the guard.** ***Same day.*** The PLAN entry
 below quoted the two stale claims **verbatim** in order to explain them — and the guard matched the
 quotes, so the commit fixing the defect shipped the defect.
