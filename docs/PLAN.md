@@ -1213,6 +1213,38 @@ decomposition alone. It is separable at no extra design cost: the pipeline alrea
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
 
+**Q20 landed: the pre-flight model check.** ***2026-09-03.*** `evalharness.preflight`. One
+capped completion on the configured model, **before the baseline gate** — therefore before the
+freeze and before injection.
+
+Dev sweep 8 **injected `product-catalog-flag-failure` four times and discarded all four** when the
+API answered `credit balance too low` at the triage call; two more scenarios never started for the
+same reason. Sixteen non-scored outcomes against six scored, and the cause was not the pipeline.
+The harness already refuses before touching the world when the *world* is not quiet; the model's
+reachability was not checked at all, so a run would break the world first and find out second.
+
+**One token, not a models-list call**, exactly as the queue row proposed: a completion proves
+reachability *and* balance, and sweep 8's failure was a balance failure on a perfectly valid key —
+the cheaper check would have passed it. Placed before the gate because the gate can wait out a
+300-second settle window, and finding an unreachable model after that wait throws the wait away
+too.
+
+**A failure is a refusal, not a discard.** Exit 3, nothing injected, world untouched — a run that
+never started is not a run that failed, and ADR-0022 §3.3 keeps that number honest on purpose. B0
+skips the check *without constructing a client*, since building one to skip it would put a
+connection into the latency of a baseline whose whole claim is that it makes no model call.
+
+Two things this does not do, both stated rather than discovered later. It **cannot catch a balance
+that runs out mid-run** — one token proves the account could be billed a moment ago, not eleven
+calls from now — so it narrows the window rather than closing it. And it deliberately catches
+`Exception` and not `BaseException`: Ctrl-C during the probe is the operator stopping the sweep,
+and reporting that as "the model could not be reached" would be the harness lying about why it
+stopped. That one was found by writing the test — the first fixture raised `KeyboardInterrupt` and
+hung the runner, which was the behaviour working.
+
+This is the change most likely to decide **dev sweep 9's prediction 9**, which registers that
+non-scored outcomes fall below 10%.
+
 **The judge calibration harness, blind.** ***Built 2026-09-03:*** `evalharness.calibration`
 and `faultline-calibrate`. T4.2 wants *"~30 manually graded runs [to] establish the agreement
 baseline **before trusting it**"*, and every root-cause agreement figure this repository publishes
