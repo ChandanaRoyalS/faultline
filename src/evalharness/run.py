@@ -30,7 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from evalharness import freeze, gate, generations, metrics
+from evalharness import freeze, gate, generations, metrics, variance
 from evalharness.prom import PROMETHEUS, QueryError, get_json
 from evalharness.provenance import recorder_provenance
 from evalharness.scoring import Categories, ScoredRun, score_label, score_triage
@@ -765,6 +765,17 @@ def parser() -> argparse.ArgumentParser:
     )
     p.add_argument("scenario_id")
     p.add_argument("--postgres-dsn", default=None)
+    p.add_argument(
+        "--tier",
+        default="manual",
+        choices=tuple(variance.TIERS),
+        help=(
+            "T4.6's repeat tier. Sets the repeat count recorded on the run and joins the config "
+            "fingerprint, so a run at one tier can never be averaged with a run at another "
+            "without the difference being visible. Default `manual`: one run by hand, an "
+            "observation and never a rate."
+        ),
+    )
     p.add_argument("--max-tool-calls", type=int, default=4)
     p.add_argument(
         "--max-tool-calls-changes",
@@ -1056,6 +1067,13 @@ def main(argv: list[str] | None = None) -> int:
                 )
                 return 3
             run.manifest["freeze"] = frozen
+            # **T4.6, on the run rather than in the operator's head.** `repeat_count` joins the
+            # config fingerprint, so two runs at different tiers cannot silently average; and
+            # `seed_policy` records that nothing here is seedable rather than leaving a reader
+            # to infer it from an absent field.
+            run.manifest["repeat_count"] = variance.TIERS[args.tier][0]
+            run.manifest["tier"] = args.tier
+            run.manifest["seed_policy"] = variance.SEED_POLICY
 
             generation = generations.generation_of(run.manifest)
             previous = previous_run_manifest(run.run_id)
