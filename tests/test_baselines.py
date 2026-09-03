@@ -156,3 +156,76 @@ def test_nothing_alerting_produces_no_prediction_rather_than_a_guess() -> None:
     assert prediction.service is None
     assert prediction.fault_class is None
     assert prediction.fix_class is None
+
+
+# --- B0 as a run under the standard harness ---------------------------------------------
+
+
+def test_b0_carries_its_own_runtime_and_never_the_agents_stamp() -> None:
+    """**The separation that makes B0 a control.** `runtime_version` is a digest over role
+    prompts and contract schemas; B0 uses none of them. Stamping it with the agent's digest would
+    put a baseline run in the same comparability generation as the pipeline it controls for -
+    which is exactly the comparison it exists to make possible."""
+    from faultline.agents.stamp import runtime_version
+
+    assert runtime_version() != baselines.BASELINE_RUNTIME
+    assert "baseline" in baselines.BASELINE_RUNTIME
+
+
+def test_the_artifact_has_every_field_the_scorer_reads() -> None:
+    """B0 is scored by `evalharness.run.score`, not by a parallel scorer - a baseline scored
+    differently is not a baseline. This asserts the artifact satisfies that reader."""
+    prediction = baselines.predict(
+        baselines.Signals(alerting=["cartservice"], changes=[change("cartservice", "image")]), ONSET
+    )
+    written = baselines.artifact(
+        incident_id="i-1",
+        trajectory_id="t-1",
+        blast_radius=["cartservice", "frontend"],
+        unmeasured_edges=2,
+        exclude_origin="scenario:cart-bad-image-tag",
+        prediction=prediction,
+    )
+
+    for field_name in (
+        "trajectory_id",
+        "blast_radius",
+        "unmeasured_edges",
+        "verdict",
+        "flags",
+        "failed_dispatches",
+        "narrative_error",
+    ):
+        assert field_name in written, f"the scorer reads {field_name}"
+    assert written["verdict"]["fault_class"] == "bad_deploy"
+    assert written["verdict"]["remediation_class"] == "rollback"
+
+
+def test_the_artifact_leaves_the_agents_fields_empty_rather_than_absent() -> None:
+    """A reader diffing a B0 artifact against an agent's should see which parts of the pipeline
+    B0 does not have, rather than which keys someone forgot."""
+    written = baselines.artifact(
+        "i", "t", [], 0, None, baselines.predict(baselines.Signals(), ONSET)
+    )
+
+    assert written["retrieved"] == []
+    assert written["proposal"] is None
+    assert written["disclosure"] == {}
+
+
+def test_a_baseline_run_cannot_share_a_config_fingerprint_with_an_agent_run() -> None:
+    """T4.7 wants baselines as *"ordinary configs in the eval DB"* - which only means anything if
+    they are **distinct** configs. `baseline` is a fingerprint input, so a B0 run and an agent
+    run on the same world and models still hash differently."""
+    from evalharness import evaldb
+
+    common = {
+        "scenario_id": "cart-redis-misconfig",
+        "models": {"planner": "claude-opus-5"},
+        "budget": {"max_tokens": 120000},
+    }
+    agent = evaldb.fingerprint(common)
+    baseline = evaldb.fingerprint({**common, "baseline": "b0"})
+
+    assert agent.fingerprint != baseline.fingerprint
+    assert "baseline" in agent.missing, "an agent run simply does not carry the input"

@@ -61,6 +61,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any, Protocol
 
 BASELINE_ID = "B0"
 DESCRIPTION = "no-LLM heuristic: alert attribution + most-recent change + largest error delta"
@@ -184,3 +185,112 @@ def predict(signals: Signals, onset: datetime) -> Prediction:
             ),
         ],
     )
+
+
+# --- B0 as a run under the standard harness ------------------------------------------------
+
+BASELINE_RUNTIME = "faultline/0.0.1+baseline:B0"
+"""**Deliberately not the agent's stamp.**
+
+`runtime_version` is a digest over every role system prompt and every contract schema, and B0
+uses none of them - so stamping it with the agent's digest would put B0's runs in the same
+comparability generation as the pipeline it is a control for, which is precisely the comparison
+it exists to make possible. A distinct runtime keeps them separable in `eval_runs` and makes the
+config fingerprint differ for the right reason.
+
+It also never moves. B0 is a fixed rule: if it changes, it is a different baseline and gets a
+different name, because a baseline that drifts is not a baseline.
+"""
+
+
+class Window(Protocol):
+    """The scoped window B0 reads, derived by the same `WindowPolicy` the agent's tools enforce.
+
+    Read-only members, because the window B0 is handed is a frozen `ScopedWindow` and a protocol
+    declaring them settable would refuse the very type this is meant to accept.
+    """
+
+    @property
+    def start(self) -> datetime: ...
+
+    @property
+    def end(self) -> datetime: ...
+
+
+class ToolLayer(Protocol):
+    """The two tools B0 is allowed. **Narrower than the agent's by design** - a baseline with the
+    same reach as the system it controls for measures nothing."""
+
+    def change_history(self, service: str, start: datetime, end: datetime) -> Any: ...
+
+    def promql_query(self, query: str, start: datetime, end: datetime) -> Any: ...
+
+
+def signals_from_tools(
+    tools: ToolLayer, alerting: list[str], onset: datetime, window: Window
+) -> Signals:
+    """Read B0's three signals through the same tool layer the agent uses.
+
+    **The same tools, deliberately.** A baseline reading the database directly would be measuring
+    a different world than the agent sees - different windows, different caps, different
+    refusals - and the comparison would silently be between two observation regimes rather than
+    between two methods.
+    """
+    from faultline.tools.metrics import MetricTemplate, render_query
+
+    changes: list[Change] = []
+    deltas: dict[str, float] = {}
+    for service in alerting:
+        history = tools.change_history(service, window.start, window.end)
+        changes += [
+            Change(service=record.service, at=record.at, resource=str(record.resource))
+            for record in getattr(history, "records", [])
+        ]
+        result = tools.promql_query(
+            render_query(MetricTemplate.ERROR_RATIO, service), window.start, window.end
+        )
+        points = [value for _, value in getattr(result, "points", []) if value == value]
+        if points:
+            # The delta is the window's peak against its own first sample: B0 has no baseline
+            # window of its own, and inventing one would give it a signal the plan did not.
+            deltas[service] = max(points) - points[0]
+    return Signals(alerting=list(alerting), changes=changes, error_deltas=deltas)
+
+
+def artifact(
+    incident_id: str,
+    trajectory_id: str,
+    blast_radius: list[str],
+    unmeasured_edges: int,
+    exclude_origin: str | None,
+    prediction: Prediction,
+) -> dict[str, object]:
+    """The verdict artifact, in exactly the shape `evalharness.run.score` reads.
+
+    B0 is scored by the same code path as the agent - not by a parallel scorer - because a
+    baseline scored differently is not a baseline. The fields the agent fills and B0 cannot
+    (`retrieved`, `disclosure`, `proposal`) are empty rather than absent, so a reader diffing two
+    artifacts sees which parts of the pipeline B0 does not have.
+    """
+    return {
+        "incident_id": incident_id,
+        "trajectory_id": trajectory_id,
+        "states": ["triaging"],
+        "blast_radius": list(blast_radius),
+        "unmeasured_edges": unmeasured_edges,
+        "exclude_origin": exclude_origin,
+        "verdict": {
+            "fault_class": prediction.fault_class,
+            "remediation_class": prediction.fix_class,
+            "summary": "; ".join(prediction.why),
+            "confidence": "n/a - B0 is a rule, not an estimate",
+        },
+        "flags": [],
+        "retrieved": [],
+        "failed_dispatches": [],
+        "narrative_error": None,
+        "disclosure": {},
+        "proposal": None,
+        "triage_judgement": None,
+        "baseline": prediction.as_row(),
+    }

@@ -7,7 +7,10 @@ model: every backend is imported inside `run()`, the same discipline as the othe
 from __future__ import annotations
 
 import argparse
-from datetime import UTC
+import json
+from datetime import UTC, datetime
+from pathlib import Path
+from typing import Any
 
 from faultline.agents.settings import AgentSettings
 from faultline.archive import connect_or_none
@@ -61,6 +64,16 @@ def parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument("--retrieval-k", type=int, default=3, help="default: %(default)s")
+    p.add_argument(
+        "--baseline",
+        choices=("b0",),
+        default=None,
+        help=(
+            "run a baseline instead of the agent (T4.7). `b0` is the no-LLM heuristic: no model "
+            "call, no context budget, scored by the same code path as the agent - which is what "
+            "makes it a control rather than a separate experiment."
+        ),
+    )
     p.add_argument(
         "--no-corpus",
         action="store_true",
@@ -191,6 +204,12 @@ def run(argv: list[str] | None = None) -> int:
     anchor = min(e.starts_at for e in incident.episodes.values())
     print(f"incident {incident.id}  state {incident.state.value}  anchor {anchor:%H:%M:%S}")
     print(f"triage: {triage.summary()}")
+
+    if args.baseline == "b0":
+        # **Before the corpus and before the model.** B0 has neither, and constructing an
+        # embedder and a model client it will not use would make its measured cost and latency
+        # describe a pipeline it is not.
+        return _run_b0(incident, triage, anchor, exclude, args, dsn, context)
 
     corpus = None
     if not args.no_corpus:
@@ -346,3 +365,90 @@ def _print_report(report: object) -> None:
     print(f"\nretrieval: exclude_origin={result.exclude_origin!r}, {len(result.retrieved)} hit(s)")
     if result.narrative is None:
         print(f"NARRATIVE NOT RENDERED: {result.narrative_error}")
+
+
+def _run_b0(
+    incident: Any,
+    triage: Any,
+    anchor: datetime,
+    exclude: str | None,
+    args: Any,
+    dsn: str,
+    context: Any,
+) -> int:
+    """B0, under the standard harness (T4.7).
+
+    **The same triage, the same tools, the same window policy, the same scorer.** Everything B0
+    shares with the agent it shares for a reason: a baseline observed through a different regime
+    would make the comparison a comparison of observation regimes rather than of methods. What it
+    does not share is the part being controlled for - no planner, no specialists, no synthesizer,
+    no model call at all.
+
+    It persists a trajectory like any run, because the harness discards a run whose trajectory has
+    no steps and because B0's tool calls are the record of what it actually looked at. The
+    trajectory's `model` is `none` and its `runtime_version` is B0's own, so nothing downstream
+    can mistake a baseline run for a pipeline run.
+    """
+    import psycopg
+
+    from evalharness import baselines
+    from faultline.agents.trajectory import (
+        PostgresTrajectoryStore,
+        StepKind,
+        Trajectory,
+        TrajectoryStep,
+    )
+    from faultline.tools.changelog import PostgresChangeLog
+    from faultline.tools.settings import ToolSettings
+    from faultline.tools.tools import Tools
+    from faultline.tools.window import WindowPolicy
+
+    started = datetime.now(UTC)
+    tools = Tools(ToolSettings(), PostgresChangeLog(psycopg.connect(dsn)))
+    window = WindowPolicy(ToolSettings()).for_specialist("changes", anchor, started)
+    alerting = [member.service for member in triage.alerting]
+
+    signals = baselines.signals_from_tools(tools, alerting, anchor, window)
+    prediction = baselines.predict(signals, anchor)
+
+    trajectory = Trajectory(
+        incident_id=incident.id,
+        model="none",
+        effort="none",
+        started_at=started,
+        runtime_version=baselines.BASELINE_RUNTIME,
+    )
+    # One step per signal read. No completions: the absence of a COMPLETION step is how a reader
+    # of the trajectory sees that no model was asked anything.
+    for seq, service in enumerate(alerting, start=1):
+        trajectory.add(
+            TrajectoryStep(
+                seq=seq,
+                role="B0",
+                kind=StepKind.TOOL_CALL,
+                at=datetime.now(UTC),
+                payload={"service": service, "signals": "change_history + error ratio"},
+            )
+        )
+    trajectory.ended_at = datetime.now(UTC)
+    trajectory.outcome = "baseline"
+    PostgresTrajectoryStore(psycopg.connect(dsn)).save(trajectory)
+
+    print(f"B0: {prediction.fault_class} / {prediction.fix_class}")
+    for line in prediction.why:
+        print(f"  {line}")
+
+    if args.out:
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        payload = baselines.artifact(
+            incident_id=incident.id,
+            trajectory_id=trajectory.id,
+            blast_radius=[m.service for m in triage.blast_radius],
+            unmeasured_edges=len(triage.unmeasured_edges),
+            exclude_origin=exclude,
+            prediction=prediction,
+        )
+        (out / f"{incident.id}-verdict.json").write_text(json.dumps(payload, indent=2) + "\n")
+        print(f"wrote {out / f'{incident.id}-verdict.json'}")
+    return 0

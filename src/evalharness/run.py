@@ -766,6 +766,17 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("scenario_id")
     p.add_argument("--postgres-dsn", default=None)
     p.add_argument(
+        "--baseline",
+        choices=("b0",),
+        default=None,
+        help=(
+            "score a baseline instead of the agent (T4.7). Same gate, same injection, same "
+            "scorer - the only difference is what investigates. `b0` makes no model call, so a "
+            "baseline run costs nothing and its cost of $0.00 is a measurement rather than a "
+            "missing value."
+        ),
+    )
+    p.add_argument(
         "--tier",
         default="manual",
         choices=tuple(variance.TIERS),
@@ -875,6 +886,11 @@ def _investigate(incident_id: str, scenario_id: str, out: Path, args: Any) -> tu
     ]
     if args.max_tool_calls_changes:
         cmd += ["--max-tool-calls-changes", str(args.max_tool_calls_changes)]
+    if getattr(args, "baseline", None):
+        # T4.7: a baseline runs through this same subprocess, with the same gate before it and
+        # the same scorer after it. Passing it as a flag rather than branching here is what
+        # makes it "an ordinary config in the eval DB" rather than a second harness.
+        cmd += ["--baseline", args.baseline]
     if args.postgres_dsn:
         cmd += ["--postgres-dsn", args.postgres_dsn]
     print(f"  $ {' '.join(cmd)}")
@@ -1071,6 +1087,7 @@ def main(argv: list[str] | None = None) -> int:
             # config fingerprint, so two runs at different tiers cannot silently average; and
             # `seed_policy` records that nothing here is seedable rather than leaving a reader
             # to infer it from an absent field.
+            run.manifest["baseline"] = args.baseline
             run.manifest["repeat_count"] = variance.TIERS[args.tier][0]
             run.manifest["tier"] = args.tier
             run.manifest["seed_policy"] = variance.SEED_POLICY

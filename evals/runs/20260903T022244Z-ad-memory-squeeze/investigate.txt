@@ -1,0 +1,14 @@
+incident ae4f548f-7f5d-4b5e-92fb-2cf7be679fa5  state triaging  anchor 02:26:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> failed
+trajectory: bd568e0f-c046-430d-92e5-ec2355df35eb
+triage could not be asked, so nothing was gated: BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CefiYUAZbDHHNdth3gvp4'}
+
+FAILED MID-INVESTIGATION: BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CefiYqm6FG4hNcdu7zNPx'}
+the trajectory holds everything that ran before the failure
+triage could not be asked for incident ae4f548f-7f5d-4b5e-92fb-2cf7be679fa5, so the investigation proceeds ungated: BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CefiYUAZbDHHNdth3gvp4'}
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10341.43it/s]
