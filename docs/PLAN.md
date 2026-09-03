@@ -978,7 +978,7 @@ question and belongs to a batch already spending the `world` generation.
 ### T3.9 — the remediation proposer *(built)*
 The ninth role, and the last of ADR-0020's nine to be written. **The first item of Phase 3's
 Batch B, and the first stamp move since dev sweep 5**: `PROPOSER_SYSTEM` entered `prompt_digest`
-and the `Proposal` contract entered `_CONTRACTS`, so HEAD is `prompts:20088b22cede` and
+and the `Proposal` contract entered `_CONTRACTS`, so HEAD **became** `prompts:20088b22cede` and
 **no sweep in `evals/runs/` describes it**. ADR-0028 §6 named that cost in advance and required
 the role to land with a re-sweep; `docs/RESULTS.md` carries the banner until it runs.
 
@@ -1212,6 +1212,30 @@ the B1-versus-pipeline gap is decomposition **plus retrieval plus the proposal s
 decomposition alone. It is separable at no extra design cost: the pipeline already runs under
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
+
+**The same defect was next door, and my fix had not looked.** ***2026-09-03.*** The staleness
+guard was written for `RESULTS.md` because that is where the problem was noticed — **so it was
+pointed at the file rather than at the class of problem**, and a repository-wide sweep immediately
+found three more assertions that a stamp is HEAD when it is not: two in *this file* and one in
+ADR-0023.
+
+The two here are **chronological log entries that were correct on the day they were written** —
+T3.9's *"so HEAD is `prompts:20088b22cede`"* and T4.14's *"HEAD is `1b0e7cbb4c47`"*. The fix is
+therefore the tense, not the stamp: *became*, and *was then*. **A log must not use the present
+tense for a value that moves**, and updating them to today's stamp would have been worse than
+leaving them — it would make a record of what happened into a claim about now.
+
+**ADR-0023 is exempt, and the exemption is a category distinction rather than an escape hatch.**
+An ADR records what was decided and what was true when it was decided; a sentence in one is dated
+by construction. Editing it to stay current would destroy the only thing it is for — which is
+that ADR's own thesis, *a freeze manifest outlives the pipeline it froze*, applied to itself. It
+keeps its sentence and gains a dated addendum saying HEAD moved five times since, which is the
+mitigation the exemption owes a reader.
+
+`tests/test_results_staleness.py` now checks **every** document, matching only the unambiguous
+`HEAD is <stamp>` ordering — which cannot be a report of someone else's claim, unlike the looser
+patterns that stay scoped to RESULTS.md. Mutation-tested by reintroducing the stale claim here and
+confirming it fails.
 
 **`docs/RESULTS.md` claimed two different, both-wrong stamps were HEAD.** ***Corrected
 2026-09-03.*** This is the most externally-visible document in the repository — the one a reader
@@ -2455,7 +2479,7 @@ network-path fix, unmoved by this stamp. Re-issues held at S4's 2 rather than re
 one of them is `product-catalog-flag-failure` re-asking a silent stream at its own target - the
 one place the sweep disobeys its own instruction. Cost rose to $3.83, the highest of the three.
 
-**Consequence for the holdout figures:** HEAD is `1b0e7cbb4c47`, so the holdout numbers describe a
+**Consequence for the holdout figures:** HEAD **was then** `1b0e7cbb4c47`, so the holdout numbers described a
 superseded pipeline again. ADR-0023's reporting obligation is discharged in RESULTS.md and
 README.md rather than asserted in a test - which is the case that ADR was written for, now
 occurring a second time and resolving the other way from T4.12.

@@ -72,6 +72,48 @@ def test_no_stamp_is_called_head_unless_it_is() -> None:
     )
 
 
+def test_no_document_anywhere_says_head_is_a_stamp_that_it_is_not() -> None:
+    """**The same defect lives next door, and the first version of this guard did not look.**
+
+    `RESULTS.md` was fixed and this file was scoped to it - so the identical stale claim sat in
+    `docs/PLAN.md` (twice) and in `README.md`'s reach, unexamined, because the guard was pointed
+    at the file where the problem had been noticed rather than at the class of problem.
+
+    Only the unambiguous ordering is matched here: `HEAD is <stamp>` asserts the present in any
+    document and cannot be a report of someone else's claim. The looser patterns above stay
+    scoped to RESULTS.md, whose prose is disciplined enough for them; applied repository-wide they
+    flag passages that *describe* a stale claim, which is the fragment-of-English mistake again.
+
+    **PLAN.md is a chronological log, and a log must not use the present tense for a moving
+    value.** Both offending entries were correct on the day they were written; the fix is
+    "HEAD became X" and "HEAD was then X", not a newer stamp.
+    """
+    from faultline.agents.stamp import prompt_digest
+
+    current = prompt_digest()
+    asserts_head = re.compile(r"HEAD(?: today)? is \*{0,2}`(?:prompts:)?([0-9a-f]{12})`")
+    stale: list[str] = []
+    for path in [*sorted(Path("docs").rglob("*.md")), Path("README.md")]:
+        if not path.is_file():
+            continue
+        if path.parts[:2] == ("docs", "adr"):
+            # **ADRs are exempt, and this is a category distinction rather than an escape hatch.**
+            # An ADR records what was decided and what was true when it was decided; a sentence in
+            # one is dated by construction, not an assertion about the present, and editing it to
+            # stay current would destroy the only thing it is for. ADR-0023 is the case in point -
+            # it says HEAD is `53fafe9c12bc`, which expired five stamps ago - and it carries a
+            # dated addendum saying so, which is the mitigation this exemption owes a reader.
+            continue
+        for stamp in asserts_head.findall(path.read_text()):
+            if stamp != current:
+                stale.append(f"{path}: {stamp}")
+
+    assert stale == [], (
+        f"{stale} — HEAD is {current}. A document asserting the present tense about a value that "
+        "moves will go stale; in a chronological log, write what HEAD *became*."
+    )
+
+
 def test_the_document_still_says_which_generation_its_figures_describe() -> None:
     """The guard above must not be satisfiable by deleting every mention of the stamp. The figures
     describe *some* pipeline, and a results document that does not say which is worse than one
