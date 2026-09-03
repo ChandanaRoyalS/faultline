@@ -30,7 +30,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from evalharness import freeze, gate, generations, metrics, variance
+from evalharness import freeze, gate, generations, metrics, preflight, variance
 from evalharness.prom import PROMETHEUS, QueryError, get_json
 from evalharness.provenance import recorder_provenance
 from evalharness.scoring import (
@@ -996,6 +996,7 @@ def main(argv: list[str] | None = None) -> int:
         )
         return 2
 
+    from faultline.agents.model import build_model
     from faultline.agents.settings import AgentSettings
     from faultline.context.settings import ContextSettings
 
@@ -1065,6 +1066,22 @@ def main(argv: list[str] | None = None) -> int:
             reason=f"faultline-eval {args.scenario_id}", force=bool(args.force_lock)
         ) as world:
             run.manifest["world_lock"] = world.info()
+            # **Q20: the cheapest check first.** The gate below can wait out a 300s settle
+            # window, and discovering an unreachable model after that wait would throw the wait
+            # away too. Dev sweep 8 injected one scenario four times before finding this at the
+            # triage call; one token would have refused before touching the world.
+            print("pre-flight: model reachable and billable...")
+            flight = preflight.require(
+                args.baseline,
+                settings.model,
+                lambda: build_model(
+                    settings.model,
+                    provider=settings.provider,
+                    base_url=settings.openai_base_url,
+                ),
+            )
+            run.manifest["preflight"] = flight.as_dict()
+            print(f"  {flight.detail or flight.skipped_because}")
             print("baseline gate...")
             reading = gate.require(
                 open_incidents(dsn),
@@ -1275,6 +1292,14 @@ def main(argv: list[str] | None = None) -> int:
         print(f"\nartifacts under {run.path}")
         return 0
 
+    except preflight.PreflightError as unreachable:
+        # **Not a discard.** Nothing was injected, the world is untouched, and the scenario has
+        # not been attempted - so it must not be counted as a run that produced no result. Exit 3,
+        # the same code the gate's own refusals use.
+        run.manifest["preflight"] = {"checked": True, "ok": False, "detail": str(unreachable)}
+        run.save_manifest()
+        print(f"REFUSED: {unreachable}")
+        return 3
     except WorldLockError as busy:
         # Not a discard and not a gate refusal: nothing was injected and this run never
         # started. Same shape as T7.32's pause.
