@@ -12,7 +12,16 @@ Deliverable: *"Budgeted briefing assembler + pull-rate metrics."*
 **Half of this was built and never called that.** The specialists have held one modality each
 since T3.3 and the synthesizer has never held a tool - so context does arrive on demand, through
 a planner that dispatches rather than through a role that asks. Retrieval has been `k=3` since
-T3.4, which is the plan's *"top-3 similar past incidents"* exactly.
+T3.4.
+
+**This docstring used to end that sentence with "which is the plan's *top-3 similar past
+incidents* exactly", and the Phase 3 audit (2026-09-03) found that claim too strong.** The count
+is exact; the consumer is not. T3.2 gives the *planner* the top similar past incidents and T3.2c
+puts them in the *minimal briefing*, and in this code they reach the **synthesizer** - the
+planner's brief is `incident` plus `round-one-findings`, and no single role receives the alert,
+the scoped topology and the top-3 together. Whether the synthesizer is the better consumer is a
+real question and may well be answered yes; **what was wrong was asserting the clause was met
+while the wiring differed.** The decision is queued as Q23.
 
 **What did not exist was any bound, and any number.** Each role assembled its own brief inline,
 appending until it ran out of things to append: the evidence board grows with the dispatch count,
