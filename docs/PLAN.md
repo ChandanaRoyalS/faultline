@@ -1057,6 +1057,71 @@ incidents in the corpus for why.
 
 ## Phase 4 — the eval harness
 
+## Audit against the specification — Phase 4 (2026-09-03)
+
+**Every clause of the plan's §7 graded against the tree.** T7.62 attempted this on 2026-09-01 and
+recorded that it could not be completed as specified because neither source document was in the
+repository; both are in `docs/spec/` now, so its blocking condition is lifted and this is the
+grading it asked for. **Its Phase 4 findings all still hold** — arrived at again here
+independently, which is the useful part of the agreement.
+
+**23.5 of 55 clauses delivered: 43%.**
+
+**This is a completion figure, not a deviation figure**, and the distinction matters. Phase 3 was
+declared and graded at 98.2% *deviation from a finished phase*. **Phase 4 was never declared** —
+G4 is undeclared and `docs/GATES.md` has listed its blockers since before this audit. Nothing
+below is a promise broken; it is a phase two-fifths built, with the unbuilt parts named.
+
+| task | clauses | delivered | missing |
+|---|---|---|---|
+| T4.1 harness runner | 9 | **9** | — |
+| T4.1b leave-one-out enforcement | 6 | 4 | per-run filter counts; invalid-run detection |
+| T4.2 RCA scoring | 7 | 4.5 | top-3 accuracy; time-to-first-correct-hypothesis; calibration at n = 10, not ~30 |
+| T4.3 metric suite | 6 | 2 | tool-call validity rate; redundant-call rate; context-budget-overflow rate; **latency** |
+| T4.4 eval DB + reports | 7 | 3.5 | the eval schema; the comparison generator; mean/95% CI/n/R on every figure |
+| T4.5 CI smoke + nightly | 6 | **0** | all of it |
+| T4.6 run-variance protocol | 7 | 0.5 | repeat counts; pairing; confidence intervals; the MDE table |
+| T4.7 baseline suite | 6 | **0** | B0, B1, B2; the measured manual-RCA reference |
+| G4 | 1 | 0 | undeclared; blockers in `docs/GATES.md` |
+
+### The four findings that are more than "not built yet"
+
+**T4.1b — the exclusion filter is asked to fire and never checked.** `ContextStore.search`
+implements it as SQL `AND origin <> %(origin)s`: the rows are removed and **nothing counts them**.
+`RetrievalRecord.exclude_origin` records that the argument was *passed*, which is not the same
+claim. The plan asks for two further things - *"the count of filtered artifacts is logged per run,
+and a scored run where the filter did not fire is marked invalid, not merely annotated"* - and
+neither exists, so a run where the filter removed three chunks is indistinguishable from one where
+it matched nothing. The plan's own sentence is the reason this ranks above the unbuilt tasks:
+**"silent non-enforcement is how this defect returns."**
+
+**T4.3 — latency is not measured anywhere.** `Scored` holds tokens, cost, triage, fault class, fix
+class and categories. There is no duration, and **G4's own *"dev-set median time-to-report ≤ 3
+minutes"* therefore has no measurement behind it**. The plan says this task needs *"no new
+instrumentation … because P2 recorded everything"*, and that is true - `TrajectoryStep.at` is
+already stored - so what is missing is the computation, not the data.
+
+**T4.4 — there is no eval database.** Every `CREATE TABLE` in `src/` and `migrations/` is a
+platform table: `incidents`, `incident_episodes`, `incident_chunks`, `change_records`,
+`applied_events`, `trajectories`, `trajectory_steps`, `trajectory_tool_calls`,
+`trajectory_retrievals`, `trajectory_proposals`. Eval runs persist as JSON manifests on disk.
+`evals/reports/` is **empty**; no comparison generator exists. What *is* delivered, and delivered
+well, is the config fingerprint: the freeze block is exactly what T4.4 asks for and more.
+
+**T4.5 — absent rather than partial.** `.github/workflows/` contains one file with three jobs:
+checks, docker, integration. No eval smoke, no `schedule:`, no nightly, no trend line, and
+therefore no place for T4.6's tiering to attach.
+
+### What this audit does not say
+
+It does not say the work done instead was wrong. T4.1's runner is complete against all nine of its
+clauses, the freeze path exceeds what T4.4 asks for, and the contamination refusals are real and
+fire. **It says the measurement apparatus is built and the measurement protocol is not** - no
+repeat counts, no confidence intervals, no baselines, no MDE table - which is the same shape T7.62
+described as *"a project auditing and repairing its own measurement apparatus, not a project
+executing a plan."* That was true on 2026-09-01 and the two days since went to Phase 3.
+
+
 > **Note for T4 scoring.** Triage's `start_from` is an **entry point, not a culprit claim** -
 > the earliest alerting service the graph can reason about, which is where a responder looks
 > first and not what caused the incident (ADR-0020 §6, `src/faultline/agents/triage.py`).
