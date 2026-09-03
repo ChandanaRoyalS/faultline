@@ -174,3 +174,29 @@ def test_the_report_refuses_to_attribute_a_difference_to_a_cause() -> None:
     text = "\n".join(compare.report(a, b, at=WHEN))
 
     assert "does not attribute a difference to a cause" in text
+
+
+def test_the_header_prints_whatever_runtime_each_arm_carries() -> None:
+    """**The reporting half of a defect found on the first live comparison.**
+
+    Arm B printed `not recorded` for a configuration whose runtime the table knew. The cause was
+    in `arm()`, not here: a discarded run has no score block and therefore no `runtime_version`,
+    and an unfiltered `LIMIT 1` over an arm that has discards can return one of them. The fix is
+    `AND runtime_version IS NOT NULL` in the query, which **only real Postgres exercises** - so
+    this asserts the half that is testable here, that the header prints what the arm carries, and
+    the query itself is covered by `tests/test_integration_store.py`.
+    """
+    a = arm("aaa", [run("s1", fault_class_correct=1.0)], runtime_version="faultline/0.0.1+x")
+    b = arm(
+        "bbb",
+        [run("s1", fault_class_correct=1.0)],
+        runtime_version="faultline/0.0.1+y",
+        discarded=5,
+    )
+
+    header = "\n".join(compare.report(a, b, at=WHEN)).split("## ")[0]
+    runtime_row = next(line for line in header.splitlines() if line.startswith("| runtime |"))
+
+    assert "faultline/0.0.1+x" in runtime_row
+    assert "faultline/0.0.1+y" in runtime_row
+    assert "not recorded" not in runtime_row

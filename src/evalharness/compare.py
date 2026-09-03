@@ -288,8 +288,16 @@ def arm(dsn: str, fingerprint: str) -> Arm:
         found = cur.fetchone()
         declared_r, runtime_version = (found[0], found[1]) if found else (None, None)
         if runtime_version is None:
+            # **`IS NOT NULL` matters here and its absence was a real defect.** A discarded run
+            # has no score block and therefore no `runtime_version`, so an unfiltered `LIMIT 1`
+            # returns whichever row the planner happens to reach first - and on an arm with
+            # discards that is often one of them, which printed `not recorded` for a
+            # configuration whose runtime the same table knows. Found on the first live
+            # comparison, where arm B showed `not recorded` and arm A, which had no discards,
+            # did not.
             cur.execute(
-                "SELECT runtime_version FROM eval_runs WHERE config_fingerprint = %s LIMIT 1",
+                "SELECT runtime_version FROM eval_runs WHERE config_fingerprint = %s "
+                "AND runtime_version IS NOT NULL LIMIT 1",
                 (fingerprint,),
             )
             row = cur.fetchone()
