@@ -1086,7 +1086,7 @@ below is a promise broken; it is a phase two-fifths built, with the unbuilt part
 |---|---|---|---|
 | T4.1 harness runner | 9 | **9** | — |
 | T4.1b leave-one-out enforcement | 6 | **6** | — *(closed 2026-09-03)* |
-| T4.2 RCA scoring | 7 | 6.5 | top-3, the culprit-service axis and **time-to-first-correct-hypothesis** all land 2026-09-03. Remaining: judge calibration at n = 10, not ~30 — which needs hand-grading rather than code |
+| T4.2 RCA scoring | 7 | 6.5 | top-3, the culprit-service axis, **time-to-first-correct-hypothesis** and the **blind calibration harness** all land 2026-09-03. Remaining: the grading itself — ~30 runs, by hand, and it has to be by hand |
 | T4.3 metric suite | 6 | **6** | — *(closed 2026-09-03)* |
 | T4.4 eval DB + reports | 7 | **7** | — *(closed 2026-09-03)* |
 | T4.5 CI smoke + nightly | 6 | **6** | — *(closed 2026-09-03; the eval workflows cannot pass until the world runs in Actions and the key has credit, and they are not required checks)* |
@@ -1212,6 +1212,42 @@ the B1-versus-pipeline gap is decomposition **plus retrieval plus the proposal s
 decomposition alone. It is separable at no extra design cost: the pipeline already runs under
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
+
+**The judge calibration harness, blind.** ***Built 2026-09-03:*** `evalharness.calibration`
+and `faultline-calibrate`. T4.2 wants *"~30 manually graded runs [to] establish the agreement
+baseline **before trusting it**"*, and every root-cause agreement figure this repository publishes
+is one model's opinion of another model's prose — defensible only once a human has checked it on
+the same runs.
+
+**Blind is the whole design, and it is the one property that cannot be added later.** `--next`
+prints the recorded narrative and the agent's, and nothing else; the judge's verdict is revealed
+only by `--grade`, after a grade is on disk. A harness showing both at once would measure how
+often a person confirms a machine — a different and much higher number that looks identical in the
+output. Runs already graded unblinded would have to be discarded, so it had to be right first
+time. **The test asserts the property rather than a symptom**: the blind view must be
+byte-identical whether the judge said `adjacent` or `different`. A first draft asserted that the
+word "adjacent" was absent and failed, because the rubric legitimately lists all three levels —
+the invariance formulation cannot be fooled that way.
+
+Grading order is **shuffled from a fixed seed**, never chronological: run directories sort by
+time, so chronological order is generation order, and a grader who can tell they are working
+forwards through the project's history has been told something about each run before reading it.
+Fixed, so a reader can confirm the order was not chosen once the grades were in.
+
+**Raw agreement is the wrong headline, and the existing record proves it.** The judged record is
+15 `same_mechanism`, 3 `adjacent`, 1 `different` over 19 runs. A grader who answered
+`same_mechanism` every time — contributing nothing — scores **79% raw agreement**, and *"79%
+agreement with human audit"* would be a number produced by a constant function. So the panel
+reports **Cohen's κ** beside it, with the band in words, and κ is `None` rather than 1.0 when both
+raters used a single category: reporting a constant function as a calibrated instrument is the
+specific failure this module exists to avoid.
+
+The ledger is append-only. A revision after the reveal is `--regrade`, which writes a **second**
+record marked not-blind and excluded from the figure — a changed mind is informative (it may say
+the rubric is ambiguous) and erasing it would make the ledger claim a confidence the grading did
+not have. And the panel says in its own output that **none of this shows the judge is right**:
+judge and grader can agree and both be wrong, and on a benchmark whose reference narrative that
+same grader wrote, they share a prior by construction.
 
 **Time-to-first-correct-hypothesis, judged, at one model call per run.** ***Built 2026-09-03.***
 `evalharness.first_correct`. It answers what no accuracy figure can: **when did the pipeline first
