@@ -250,14 +250,21 @@ class Planner:
         self._briefing_tokens = briefing_tokens
         self.briefing: Briefing | None = None
 
-    def plan(self, triage: TriageResult, findings: list[SpecialistRun] | None = None) -> Completion:
+    def plan(
+        self,
+        triage: TriageResult,
+        findings: list[SpecialistRun] | None = None,
+        retrieved: list[str] | None = None,
+    ) -> Completion:
         """The first plan, or the one follow-up round if findings are supplied.
 
         A plan that still names an illegal service after the re-ask keeps its legal dispatches
         and loses the rest, each loss carried on the completion. Only a plan with nothing legal
         left is a failure of the round.
         """
-        self.briefing = assemble(self.ROLE, self.sections(triage, findings), self._briefing_tokens)
+        self.briefing = assemble(
+            self.ROLE, self.sections(triage, findings, retrieved), self._briefing_tokens
+        )
         request = ModelRequest(
             system=PLANNER_SYSTEM,
             messages=[{"role": "user", "content": self.briefing.text}],
@@ -277,7 +284,11 @@ class Planner:
             return Completion(plan, failure.response, 2, tuple(rejected))
 
     @staticmethod
-    def sections(triage: TriageResult, findings: list[SpecialistRun] | None) -> list[Section]:
+    def sections(
+        triage: TriageResult,
+        findings: list[SpecialistRun] | None,
+        retrieved: list[str] | None = None,
+    ) -> list[Section]:
         alerting = ", ".join(
             f"{m.service} at {m.entered_at:%H:%M:%S}" for m in triage.alerting if m.entered_at
         )
@@ -308,11 +319,27 @@ class Planner:
                 "leave genuinely open; if nothing is open, dispatch the single cheapest "
                 "check that would confirm the leading explanation."
             )
+        # **The plan's clause, delivered at Batch C.** T3.2 says the planner *"consumes the
+        # dependency graph and top similar past incidents"*, and until now retrieval reached the
+        # synthesizer alone - so the graph half was delivered and the corpus half was asserted
+        # rather than built (Q23, found by the Phase 3 audit). It is droppable rather than
+        # essential for the same reason it is in the synthesizer's brief: a past incident tells
+        # you where to look and is never the answer, so a planner that lost it to the budget
+        # plans a worse round, not a wrong one.
+        past: list[str] = []
+        if retrieved:
+            past.append(
+                "Similar past incidents from the corpus. **Context for choosing what to ask, "
+                "never an answer**: a past incident with the same shape may have had a "
+                "different cause, and dispatching to confirm one is how that error is made."
+            )
+            past += [f"  {chunk}" for chunk in retrieved]
         return [
             Section(name="incident", priority=0, essential=True, lines=lines),
             # Essential too: a follow-up round that lost the first round's findings would
             # re-dispatch what it already knows, which is worse than not running at all.
             Section(name="round-one-findings", priority=10, essential=True, lines=round_two),
+            Section(name="past-incidents", priority=60, lines=past),
         ]
 
 

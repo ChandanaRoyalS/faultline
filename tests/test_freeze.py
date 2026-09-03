@@ -14,6 +14,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+from pydantic import BaseModel
+
 from evalharness import freeze
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -225,3 +227,65 @@ def test_the_committed_freeze_manifest_matches_the_pipeline_it_names() -> None:
 
     known = {SWEEP_1_DIGEST, SWEEP_2_DIGEST, SWEEP_4_DIGEST}
     assert frozen["runtime_version"].rsplit(":", 1)[-1] in known
+
+
+def test_contracts_tuple_names_every_schema_a_role_is_validated_against() -> None:
+    """**The guard Batch B needed and did not have.**
+
+    `stamp._CONTRACTS` is written by hand, which is the right shape - a scan for every
+    `BaseModel` in `contracts` would stamp helper types no model is ever held to, and the stamp
+    would then move for a refactor. What it needs instead is this: every schema that a
+    `validate_*` function checks a model's output against must be in the tuple, because that is
+    exactly the set whose change alters what the model is required to return.
+
+    Batch B added `Proposal` and did not add `TriageJudgement`, and for the length of dev sweep 8
+    a change to the triage contract moved no frozen key. This test is what makes that a failing
+    build rather than an audit finding.
+    """
+    import inspect
+
+    from faultline.agents import contracts
+    from faultline.agents.stamp import _CONTRACTS
+
+    checked: set[type] = set()
+    for name, fn in vars(contracts).items():
+        if not name.startswith("validate_") or not callable(fn):
+            continue
+        for parameter in inspect.signature(fn).parameters.values():
+            annotation = parameter.annotation
+            if isinstance(annotation, str):
+                annotation = getattr(contracts, annotation, None)
+            if inspect.isclass(annotation) and issubclass(annotation, BaseModel):
+                checked.add(annotation)
+
+    missing = sorted(model.__name__ for model in checked - set(_CONTRACTS))
+    assert not missing, (
+        f"{missing} are validated as role contracts and are not in stamp._CONTRACTS, so a "
+        "change to what the model must return would move no frozen key"
+    )
+
+
+def test_agent_roles_covers_every_role_that_calls_a_model() -> None:
+    """Every `ROLE` in `roles.py` is a role whose model `model_map()` must record.
+
+    `AGENT_ROLES` named seven while `roles.py` defined nine, so the frozen manifest recorded
+    seven models for a run that called nine - and because `role_models` is a single override map,
+    setting one of the two missing roles would have changed what ran and moved no stamp.
+
+    Read out of `roles.py` rather than restated here, for the same reason the run manifest reads
+    `budget_bounds()` rather than listing bounds: a hand-written copy of a list is a list that
+    goes stale, which is the defect this test exists to catch.
+    """
+    from evalharness.freeze import AGENT_ROLES
+    from faultline.agents import roles as roles_module
+
+    defined = {
+        obj.ROLE
+        for obj in vars(roles_module).values()
+        if isinstance(obj, type) and isinstance(getattr(obj, "ROLE", None), str)
+    }
+    missing = sorted(defined - set(AGENT_ROLES))
+    assert not missing, (
+        f"{missing} call a model under a role name that freeze.AGENT_ROLES does not list, so "
+        "model_map() would not record which model answered for them"
+    )

@@ -416,7 +416,7 @@ that met the deliverable's wording, or where the remaining work is queued.
 | Task | Deliverable (specification) | Found | Closed by |
 |---|---|---|---|
 | T3.1 | Triage decisions persisted; noise gated before fan-out | **Computed, not asked**: `Triage(catalog, hop_radius)` — deterministic, no model, no `duplicate-of`. Persisted, and — correcting this row's own first reading — **it gated nothing**: every incident reaching the runner was investigated | **#145**. `Triager` judges disposition, `duplicate-of` and a fault-class prior; severity and the radius stay measured, so the scored number cannot move. **One clause of this task is not delivered**: T3.1 specifies a *small* model and calls triage *"the natural home for the cheap-model routing tier"*, and `role_models` is empty, so triage runs the same frontier model as every other role. Deferred with a reason - `settings.py` states that per-role selection should be settled by T4.2's measured accuracy rather than a cost estimate - and deferred is still undelivered. See also **Q22**, which found that this role's model is not in the frozen manifest at all |
-| T3.2 | Plan objects; scoped fan-out | Delivered. `DispatchPlan`, one service per dispatch since T3.4c | **Partial, found by the Phase 3 audit (2026-09-03).** The plan objects and the scoped fan-out are delivered. The method column's other half - *"consumes the dependency graph **and top similar past incidents**"* - is not: retrieval at `k=3` reaches the synthesizer, and the planner's briefing is `incident` plus `round-one-findings`. **Q23**, which is a decision rather than a trigger |
+| T3.2 | Plan objects; scoped fan-out | Delivered. `DispatchPlan`, one service per dispatch since T3.4c | **Complete as of Batch C.** The Phase 3 audit (2026-09-03) found this task partial: the plan objects and the scoped fan-out were delivered and the method column's other half - *"consumes the dependency graph **and top similar past incidents**"* - was not, with retrieval reaching the synthesizer alone. **Q23 wired it** rather than arguing it away, and the planner now retrieves once from a triage-only query before the first round |
 | T3.2b | Tool-enforced window policy + per-query window logging | One window for every specialist, `onset − 10 min → onset + 5 min`, chosen in the agent layer; `change_history` never checked; no hint on refusal | **#139**, and the planner's widening **closed at #148** (Q17). The clause is now complete |
 | T3.2c | Budgeted briefing assembler + pull-rate metrics | **Half true and unnamed**: specialists hold one modality each, the synthesizer holds no tools and retrieval is `k=3` — so context does arrive on demand. What was absent was any bound and any number | **#146**, with **Q16** riding the same `budget` move |
 | T3.3 | Log evidence with signatures + sample lines + provenance | Delivered: scoped, capped, two-ended, typed | — |
@@ -437,8 +437,8 @@ depends on how the clauses are cut and is stated so it can be disputed; the four
 | gap | task | status |
 |---|---|---|
 | the cheap-model routing tier | T3.1 | deferred to T4.2 with a reason in `settings.py` |
-| the planner consumes top similar past incidents | T3.2 | **was unrecorded** — now **Q23** |
-| the minimal briefing's three parts reach no single role | T3.2c | consequence of the above |
+| the planner consumes top similar past incidents | T3.2 | **closed in Batch C** — wired, not argued away (Q23) |
+| the minimal briefing's three parts reach no single role | T3.2c | **closed with it** — the planner's brief now carries all three |
 | repo-compare | T3.4 | declined with an argument — **Q19** |
 
 **Over-delivered against the plan** in the same audit: the scribe (the proposal defers it past MVP),
@@ -452,7 +452,12 @@ specialist's own reading.
 updated neither registry that has to know about them: `stamp._CONTRACTS` omits `TriageJudgement`,
 so the schema the triage model is held to is **not in the stamp**, and `freeze.AGENT_ROLES` omits
 both new roles, so `model_map` records seven models for a run that calls nine. **Q21** and **Q22**,
-to land in one batch.
+both landed in Batch C with the guard tests that would have caught them, each verified to fail
+against the old code first.
+
+**After Batch C the deviation is 83.5 of 85 clauses: 98.2%.** The two that remain are T3.1's
+cheap-model routing tier, deferred to T4.2 with a reason, and T3.4's repo-compare, declined with
+an argument as Q19.
 
 **Two Phase 2 deviations closed alongside**, since both were free and both are contracts the
 later phases lean on. **D4**, *the blast-radius query lives in the agent, not the graph API*:

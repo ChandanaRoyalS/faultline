@@ -261,10 +261,15 @@ class Investigation:
         # One ranking context per investigation (T3.4): onset and triage's radius, so every
         # change dispatch is ranked on the same scale and the results compare across services.
         ranking = ranking_context(triage, anchor)
+        # T3.2's other half. Retrieved once, before the first round, and carried into the
+        # follow-up round unchanged: the query is built from triage alone because that is all
+        # that exists at plan time, so re-running it after the first round would spend a
+        # retrieval to receive the same rows.
+        past, seq = self._retrieve_for_planner(trajectory, triage, incident_id, meter, seq)
 
         while state.start_round():
             findings = result.runs or None
-            completion = self._planner.plan(triage, findings)
+            completion = self._planner.plan(triage, findings, past)
             state.spend_tokens(completion.response.input_tokens, completion.response.output_tokens)
             seq += 1
             trajectory.add(
@@ -516,6 +521,64 @@ class Investigation:
 
         origin = os.environ.get("FAULTLINE_EVAL_SCENARIO", "").strip()
         return f"scenario:{origin}" if origin else None
+
+    def _retrieve_for_planner(
+        self,
+        trajectory: Trajectory,
+        triage: TriageResult,
+        incident_id: str,
+        meter: DisclosureMeter,
+        seq: int,
+    ) -> tuple[list[str], int]:
+        """The planner's top-3 similar past incidents (T3.2), recorded like any retrieval.
+
+        **This is a second retrieval per investigation, not a move of the synthesizer's.** The
+        two ask different questions and neither answers the other's: the planner asks *what has
+        looked like this before*, from triage alone, to decide who to dispatch; the synthesizer
+        asks the same corpus with the findings in hand, which is a materially better query and
+        the reason its retrieval stays where it is. Collapsing them would deliver T3.2's clause
+        by degrading T3.7.
+
+        `exclude_origin` is passed here exactly as it is there - ADR-0008 axis 2 applies to every
+        benchmark retrieval, and a second one that skipped it would be a contamination hole in
+        the shape of a feature. T4.1b reads `trajectory_retrievals.exclude_origin` per row, so
+        two rows are two assertions rather than one weakened one.
+        """
+        if self._corpus is None:
+            return [], seq
+        exclude = self._exclusion_for(incident_id)
+        query = self._planner_query(triage)
+        hits = self._corpus.search(query, k=self._retrieval_k, exclude_origin=exclude)
+        rendered = [
+            f"{hit.chunk.scenario_id} / {hit.chunk.section}: {hit.chunk.text[:280]}" for hit in hits
+        ]
+        meter.pulled("\n".join(rendered))
+        seq += 1
+        record_retrieval(
+            trajectory,
+            seq,
+            Planner.ROLE,
+            RetrievalRecord(
+                query=query,
+                k=self._retrieval_k,
+                exclude_origin=exclude,
+                returned=[hit.chunk.document_id for hit in hits],
+                scores=[hit.score for hit in hits],
+                rendered=list(rendered),
+            ),
+        )
+        return rendered, seq
+
+    @staticmethod
+    def _planner_query(triage: TriageResult) -> str:
+        """Triage's own words, because nothing else exists yet.
+
+        Deliberately not the synthesizer's query with the findings clause removed: that query is
+        shaped around evidence and this one is shaped around a symptom, which is what a responder
+        has in the first minute and what the corpus's narratives open with.
+        """
+        services = ", ".join(m.service for m in triage.alerting)
+        return f"{services} {triage.severity.value} starting at {triage.start_from}"
 
     @staticmethod
     def _retrieval_query(triage: TriageResult, result: InvestigationResult) -> str:
