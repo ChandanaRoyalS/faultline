@@ -390,6 +390,16 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - console en
     parser.add_argument("a", nargs="?", help="baseline config fingerprint")
     parser.add_argument("b", nargs="?", help="candidate config fingerprint")
     parser.add_argument("--list", action="store_true", help="list configurations and exit")
+    parser.add_argument(
+        "--aa",
+        metavar="FINGERPRINT",
+        default=None,
+        help=(
+            "Gate 4's A/A check: split one configuration's runs in two and compare it against "
+            "itself. Needs R >= 2 - at R = 1 a scenario has one run and cannot be in both arms, "
+            "so there is no check to perform rather than a weak one."
+        ),
+    )
     parser.add_argument("--catalog-size", type=int, default=18)
     parser.add_argument("--out", type=Path, default=Path("evals/reports"))
     parser.add_argument("--postgres-dsn", default=None)
@@ -399,6 +409,27 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - console en
     import psycopg
 
     try:
+        if args.aa:
+            from evalharness import aa as aa_check
+
+            single = arm(dsn, args.aa)
+            if not single.runs:
+                print(f"REFUSED: {args.aa} has no scored runs")
+                return 3
+            try:
+                result = aa_check.check(single)
+            except aa_check.NotEnoughRepeatsError as thin:
+                # **Not a failure of the check** - the check could not be performed. Exit 3, the
+                # code every other "nothing ran" refusal uses, so a caller cannot read it as the
+                # harness having invented a delta.
+                print(f"REFUSED: {thin}")
+                return 3
+            print("\n".join(result.render()))
+            print(aa_check.mde_at(len(single.scenarios), single.declared_r or 1))
+            # **Exit 1 on failure, so CI can gate on it.** Gate 4 makes this a condition, and a
+            # condition nothing can fail is not one.
+            return 0 if result.passed else 1
+
         if args.list:
             with psycopg.connect(dsn) as conn, conn.cursor() as cur:
                 cur.execute(
