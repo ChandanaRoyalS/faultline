@@ -978,7 +978,7 @@ question and belongs to a batch already spending the `world` generation.
 ### T3.9 — the remediation proposer *(built)*
 The ninth role, and the last of ADR-0020's nine to be written. **The first item of Phase 3's
 Batch B, and the first stamp move since dev sweep 5**: `PROPOSER_SYSTEM` entered `prompt_digest`
-and the `Proposal` contract entered `_CONTRACTS`, so HEAD is `prompts:20088b22cede` and
+and the `Proposal` contract entered `_CONTRACTS`, so HEAD **became** `prompts:20088b22cede` and
 **no sweep in `evals/runs/` describes it**. ADR-0028 §6 named that cost in advance and required
 the role to land with a re-sweep; `docs/RESULTS.md` carries the banner until it runs.
 
@@ -1212,6 +1212,66 @@ the B1-versus-pipeline gap is decomposition **plus retrieval plus the proposal s
 decomposition alone. It is separable at no extra design cost: the pipeline already runs under
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
+
+**The sweep is complete, and it ends with two exemptions rather than two more fixes.** A final
+pass over `docs/`, `evals/` and `README.md` found one remaining assertion, in
+`evals/runs/SWEEP-2026-08-27-evidence.md`. It is **not a defect and must not be corrected.**
+
+`evals/runs/` is captured evidence — in the pre-commit exclusion list precisely because hooks once
+rewrote six sweep narratives before anyone noticed. A sweep document naming the stamp it ran under
+is not a claim about the present at all; it is the record of what that sweep measured, and it
+names `53fafe9c12bc` correctly and forever. ADRs are exempt for the neighbouring reason, one
+degree weaker: dated by construction, and ADR-0023 carries an addendum rather than an edit.
+
+**A guard that forced either class to stay current would be asking the record to lie about when it
+was written** — which is the failure this whole sweep was chasing, arriving from the opposite
+direction. Both exemptions carry their reasoning in the test rather than a bare path list, because
+an unexplained exemption is indistinguishable from a loophole.
+
+Final state: every document that makes a *present-tense* claim about the stamp is now checked;
+every document whose sentences are dated by construction is exempt and says why.
+
+**The guard failed on the commit that documented the guard.** ***Same day.*** The PLAN entry
+below quoted the two stale claims **verbatim** in order to explain them — and the guard matched the
+quotes, so the commit fixing the defect shipped the defect.
+
+The test's own docstring had claimed the unambiguous `HEAD is <stamp>` ordering *"cannot be a
+report of someone else's claim"*. **That was wrong, and it was disproved within minutes by the
+same commit that asserted it**: a verbatim quotation uses exactly that ordering, because a
+faithful quote reproduces the grammar of the thing quoted.
+
+The fix is to **describe rather than quote** — *"T3.9's entry, which asserted `20088b22cede` was
+current"* — which loses nothing a reader needs and cannot be mistaken for an assertion. The
+alternative, teaching the regex to skip quotation marks, is more prose-parsing, and the whole
+lesson of the previous four instances is that prose-parsing is where this keeps going wrong.
+
+Fourth instance, and the sharpest: a guard against stale claims, caught by itself, on the text
+explaining what it guards against.
+
+**The same defect was next door, and my fix had not looked.** ***2026-09-03.*** The staleness
+guard was written for `RESULTS.md` because that is where the problem was noticed — **so it was
+pointed at the file rather than at the class of problem**, and a repository-wide sweep immediately
+found three more assertions that a stamp is HEAD when it is not: two in *this file* and one in
+ADR-0023.
+
+The two here are **chronological log entries that were correct on the day they were written** —
+T3.9's entry, which asserted `20088b22cede` was current, and T4.14's, which asserted
+`1b0e7cbb4c47` was. *(Described rather than quoted — see below.)* The fix is
+therefore the tense, not the stamp: *became*, and *was then*. **A log must not use the present
+tense for a value that moves**, and updating them to today's stamp would have been worse than
+leaving them — it would make a record of what happened into a claim about now.
+
+**ADR-0023 is exempt, and the exemption is a category distinction rather than an escape hatch.**
+An ADR records what was decided and what was true when it was decided; a sentence in one is dated
+by construction. Editing it to stay current would destroy the only thing it is for — which is
+that ADR's own thesis, *a freeze manifest outlives the pipeline it froze*, applied to itself. It
+keeps its sentence and gains a dated addendum saying HEAD moved five times since, which is the
+mitigation the exemption owes a reader.
+
+`tests/test_results_staleness.py` now checks **every** document, matching only the unambiguous
+`HEAD is <stamp>` ordering — which cannot be a report of someone else's claim, unlike the looser
+patterns that stay scoped to RESULTS.md. Mutation-tested by reintroducing the stale claim here and
+confirming it fails.
 
 **`docs/RESULTS.md` claimed two different, both-wrong stamps were HEAD.** ***Corrected
 2026-09-03.*** This is the most externally-visible document in the repository — the one a reader
@@ -2455,7 +2515,7 @@ network-path fix, unmoved by this stamp. Re-issues held at S4's 2 rather than re
 one of them is `product-catalog-flag-failure` re-asking a silent stream at its own target - the
 one place the sweep disobeys its own instruction. Cost rose to $3.83, the highest of the three.
 
-**Consequence for the holdout figures:** HEAD is `1b0e7cbb4c47`, so the holdout numbers describe a
+**Consequence for the holdout figures:** HEAD **was then** `1b0e7cbb4c47`, so the holdout numbers described a
 superseded pipeline again. ADR-0023's reporting obligation is discharged in RESULTS.md and
 README.md rather than asserted in a test - which is the case that ADR was written for, now
 occurring a second time and resolving the other way from T4.12.

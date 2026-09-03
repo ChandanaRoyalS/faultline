@@ -72,6 +72,67 @@ def test_no_stamp_is_called_head_unless_it_is() -> None:
     )
 
 
+def test_no_document_anywhere_says_head_is_a_stamp_that_it_is_not() -> None:
+    """**The same defect lives next door, and the first version of this guard did not look.**
+
+    `RESULTS.md` was fixed and this file was scoped to it - so the identical stale claim sat in
+    `docs/PLAN.md` (twice) and in `README.md`'s reach, unexamined, because the guard was pointed
+    at the file where the problem had been noticed rather than at the class of problem.
+
+    Only the `HEAD is <stamp>` ordering is matched here. **This docstring previously claimed that
+    ordering "cannot be a report of someone else's claim", and that was wrong** - disproved within
+    minutes by the very commit asserting it, whose PLAN entry quoted the two stale claims verbatim
+    to explain them and was duly flagged. A faithful quotation reproduces the grammar of the thing
+    quoted, so a quote and an assertion are the same string.
+
+    The resolution is on the writing side, not the regex side: **describe a stale claim rather
+    than reproducing it.** Teaching the pattern to skip quotation marks would be more
+    prose-parsing, and prose-parsing is where the previous four instances of this went wrong.
+
+    The looser patterns above stay scoped to RESULTS.md, whose prose is disciplined enough for
+    them; applied repository-wide they flag passages that merely *describe* a stale claim.
+
+    **PLAN.md is a chronological log, and a log must not use the present tense for a moving
+    value.** Both offending entries were correct on the day they were written; the fix is
+    "HEAD became X" and "HEAD was then X", not a newer stamp.
+    """
+    from faultline.agents.stamp import prompt_digest
+
+    current = prompt_digest()
+    asserts_head = re.compile(r"HEAD(?: today)? is \*{0,2}`(?:prompts:)?([0-9a-f]{12})`")
+    stale: list[str] = []
+    for path in [*sorted(Path("docs").rglob("*.md")), Path("README.md")]:
+        if not path.is_file():
+            continue
+        if path.parts[:2] in {("docs", "adr"), ("evals", "runs")}:
+            # **Two exempt classes, both category distinctions rather than escape hatches.**
+            #
+            # An ADR records what was decided and what was true when it was decided; a sentence in
+            # one is dated by construction, and editing it to stay current would destroy the only
+            # thing it is for. ADR-0023 is the case in point - it names a stamp that expired five
+            # generations ago - and it carries a dated addendum saying so, which is the mitigation
+            # that exemption owes a reader.
+            #
+            # `evals/runs/` is stronger: it is CAPTURED EVIDENCE, in the pre-commit exclusion list
+            # precisely because hooks once rewrote six sweep narratives. A sweep document naming
+            # the stamp it ran under is not a claim about the present at all - it is the record of
+            # what that sweep measured, and it is the one kind of document here that must never be
+            # edited to agree with today. `SWEEP-2026-08-27-evidence.md` names `53fafe9c12bc`
+            # forever, correctly, because that is what it ran under.
+            #
+            # A guard that forced either class to stay current would be asking the record to lie
+            # about when it was written.
+            continue
+        for stamp in asserts_head.findall(path.read_text()):
+            if stamp != current:
+                stale.append(f"{path}: {stamp}")
+
+    assert stale == [], (
+        f"{stale} — HEAD is {current}. A document asserting the present tense about a value that "
+        "moves will go stale; in a chronological log, write what HEAD *became*."
+    )
+
+
 def test_the_document_still_says_which_generation_its_figures_describe() -> None:
     """The guard above must not be satisfiable by deleting every mention of the stamp. The figures
     describe *some* pipeline, and a results document that does not say which is worse than one

@@ -55,6 +55,23 @@ sweep measured that pipeline as net harmful against a floor registered in advanc
 instruction was reverted. HEAD is `53fafe9c12bc` again - the stamp the holdout ran under - so the
 holdout figures describe the current agent once more.
 
+### Addendum (2026-09-03) — the sentence above expired, and this ADR is why that is fine
+
+**HEAD is no longer `53fafe9c12bc`.** It moved five times after this was written -
+`20088b22cede`, `a7330c098770`, `bc222a353936` (dev sweep 8), `7c6894e9dd92` (Batch C) and
+`ba8684b01201` (T4.2) - so the holdout figures once again describe a superseded pipeline, exactly
+as they did before T4.12's revert.
+
+The sentence is left standing rather than corrected. An ADR records what was decided and what was
+true when it was decided; editing it to stay current would make it a description of the present
+and destroy the only thing it is for. **That is this ADR's own thesis applied to itself** - a
+freeze manifest outlives the pipeline it froze, and so does a decision record.
+
+A repository-wide guard (`tests/test_results_staleness.py`) fails when any *document* asserts a
+stamp is HEAD and it is not. **ADRs are exempt, deliberately**: a dated record is not a claim
+about the present, and holding one to that standard is a category error. This addendum is the
+mitigation the exemption owes a reader.
+
 That is the point rather than a footnote. Under the old assertion the guard would have passed
 before the experiment and after it, and failed only in the middle, while the holdout record was
 never in any danger at any of those three moments. A guard that fires on the deliberate act and
