@@ -1086,7 +1086,7 @@ below is a promise broken; it is a phase two-fifths built, with the unbuilt part
 |---|---|---|---|
 | T4.1 harness runner | 9 | **9** | — |
 | T4.1b leave-one-out enforcement | 6 | **6** | — *(closed 2026-09-03)* |
-| T4.2 RCA scoring | 7 | 6 | **top-3 and a culprit-service axis land 2026-09-03**, and the stamp moved to `ba8684b01201` to carry them. Remaining: time-to-first-correct-hypothesis; calibration at n = 10, not ~30 |
+| T4.2 RCA scoring | 7 | 6.5 | top-3, the culprit-service axis and **time-to-first-correct-hypothesis** all land 2026-09-03. Remaining: judge calibration at n = 10, not ~30 — which needs hand-grading rather than code |
 | T4.3 metric suite | 6 | **6** | — *(closed 2026-09-03)* |
 | T4.4 eval DB + reports | 7 | **7** | — *(closed 2026-09-03)* |
 | T4.5 CI smoke + nightly | 6 | **6** | — *(closed 2026-09-03; the eval workflows cannot pass until the world runs in Actions and the key has credit, and they are not required checks)* |
@@ -1212,6 +1212,36 @@ the B1-versus-pipeline gap is decomposition **plus retrieval plus the proposal s
 decomposition alone. It is separable at no extra design cost: the pipeline already runs under
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
+
+**Time-to-first-correct-hypothesis, judged, at one model call per run.** ***Built 2026-09-03.***
+`evalharness.first_correct`. It answers what no accuracy figure can: **when did the pipeline first
+hold the right idea?** A run that reaches it in its second dispatch and one that reaches it only in
+the synthesizer score identically on every other axis, and they are not the same run — the second
+is one dropped step away from being wrong.
+
+**The affordability question had a wrong answer and a right one.** Judging each trajectory step
+separately multiplies the judge's cost by the trajectory length — which is what made this look
+credit-hungry, and it is why it sat unbuilt. It is not needed: the answer is a **single position in
+a list**, so the judge is handed the whole ordered list once and returns the index. Extraction is
+deterministic and free — a trajectory already stores the planner's dispatch questions, every
+specialist's `found` statements and the verdict, each with a `seq` and an `at`.
+
+**The cheap alternative was rejected, and is computed anyway.** The first step naming the culprit
+*service* needs no judge and costs nothing — and measures something else. The planner dispatches at
+the alerting service in its first plan on nearly every run, so a string match scores the correct
+suspect at position 0 on a run that did not understand the incident until position 6: a
+near-constant that would look like a measurement. `suspect_first_named` exists because **the gap
+between the two is the interesting part** — a run where the service is named at 0 and the mechanism
+understood at 9 was pointed at the right place while believing the wrong thing, which nothing else
+in this repository shows. It is never reported as this metric.
+
+Three things travel with every figure, each closing a way it would read as better than it is:
+**`adjacent` does not count** (right subsystem, wrong mechanism is where a wrong investigation
+spends most of its time, and counting it would make this shortest for the pipelines that flail most
+confidently); **a run that never reaches it has no time** and is excluded from the mean rather than
+scored as slow, with the reach rate printed beside the mean so the exclusion cannot flatter an arm
+that is right once and fast; and **`depth`**, because a figure over a list of length one is not a
+measurement of ordering. The lineage note and both model ids reach the row, per ADR-0020 §1.
 
 **Dev sweep 9 is pre-registered.** ***Written 2026-09-03, before any scenario runs:***
 [`evals/runs/PREREGISTRATION-2026-09-03-top3.md`](../evals/runs/PREREGISTRATION-2026-09-03-top3.md).
