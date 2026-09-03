@@ -1073,8 +1073,8 @@ repository; both are in `docs/spec/` now, so its blocking condition is lifted an
 grading it asked for. **Its Phase 4 findings all still hold** — arrived at again here
 independently, which is the useful part of the agreement.
 
-**23.5 of 55 clauses delivered: 43%** at the time of the audit. **40 of 55 — 73% — after
-T4.1b, T4.3, T4.4 and T4.6 closed on 2026-09-03**; the table below is kept as graded, with the closed rows
+**23.5 of 55 clauses delivered: 43%** at the time of the audit. **46 of 55 — 84% — after
+T4.1b, T4.3, T4.4, T4.5 and T4.6 closed on 2026-09-03**; the table below is kept as graded, with the closed rows
 marked, so the audit reads as a measurement taken on a date rather than a moving figure.
 
 **This is a completion figure, not a deviation figure**, and the distinction matters. Phase 3 was
@@ -1089,7 +1089,7 @@ below is a promise broken; it is a phase two-fifths built, with the unbuilt part
 | T4.2 RCA scoring | 7 | 4.5 | top-3 accuracy; time-to-first-correct-hypothesis; calibration at n = 10, not ~30 |
 | T4.3 metric suite | 6 | **6** | — *(closed 2026-09-03)* |
 | T4.4 eval DB + reports | 7 | **7** | — *(closed 2026-09-03)* |
-| T4.5 CI smoke + nightly | 6 | **0** | all of it |
+| T4.5 CI smoke + nightly | 6 | **6** | — *(closed 2026-09-03; the eval workflows cannot pass until the world runs in Actions and the key has credit, and they are not required checks)* |
 | T4.6 run-variance protocol | 7 | **7** | — *(closed 2026-09-03)* |
 | T4.7 baseline suite | 6 | **0** | B0, B1, B2; the measured manual-RCA reference |
 | G4 | 1 | 0 | undeclared; blockers in `docs/GATES.md` |
@@ -1158,9 +1158,19 @@ second is larger by 1.43×. Both columns are now printed under their own names. 
 this catalog is worth stating plainly: **at n ≈ 10 and R = 1, nothing smaller than 28pp is
 detectable**, so every ablation this repository can currently run is directional only.
 
-**T4.5 — absent rather than partial.** `.github/workflows/` contains one file with three jobs:
-checks, docker, integration. No eval smoke, no `schedule:`, no nightly, no trend line, and
-therefore no place for T4.6's tiering to attach.
+**T4.5 — absent rather than partial.** ***Closed 2026-09-03, in two layers.***
+`eval-smoke.yml` triggers on the plan's prompt/context/model paths and runs a four-scenario
+subset — one per fault class, including the one dev sweep 8 got wrong, because a suite made only
+of scenarios that pass cannot detect a regression on the hard one. `eval-nightly.yml` runs the
+runnable catalog on a schedule and appends to the eval database. Both print the plan's
+**non-citable** label, which is asserted by a test rather than remembered.
+
+**Neither can pass yet**, and that is stated rather than hidden: they need a world running in
+Actions and a funded key, so they are separate workflows rather than jobs inside `ci`, and a test
+asserts `ci` still contains only the three world-free jobs. The second layer is that test file —
+guards that run on every push and need neither a world nor a key: the smoke subset covers every
+fault class, names only scenarios that exist and are runnable, refuses before booting the world
+when there is no key (Q20's finding, applied before it can recur), and shares one world lock.
 
 ### What this audit does not say
 
