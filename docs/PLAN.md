@@ -436,10 +436,10 @@ depends on how the clauses are cut and is stated so it can be disputed; the four
 
 | gap | task | status |
 |---|---|---|
-| the cheap-model routing tier | T3.1 | deferred to T4.2 with a reason in `settings.py` |
+| the cheap-model routing tier | T3.1 | **open work — Q24** *(was: deferred; reopened 2026-09-03 under CLAUDE.md rule 7)* |
 | the planner consumes top similar past incidents | T3.2 | **closed in Batch C** — wired, not argued away (Q23) |
 | the minimal briefing's three parts reach no single role | T3.2c | **closed with it** — the planner's brief now carries all three |
-| repo-compare | T3.4 | declined with an argument — **Q19** |
+| repo-compare | T3.4 | **open work — Q19** *(was: declined; reopened 2026-09-03, the world's own configuration is git-tracked)* |
 
 **Over-delivered against the plan** in the same audit: the scribe (the proposal defers it past MVP),
 the trace analyst and Tempo (the proposal's production phase), `metric_baseline` as a fifth tool,
@@ -456,8 +456,16 @@ both landed in Batch C with the guard tests that would have caught them, each ve
 against the old code first.
 
 **After Batch C the deviation is 83.5 of 85 clauses: 98.2%.** The two that remain are T3.1's
-cheap-model routing tier, deferred to T4.2 with a reason, and T3.4's repo-compare, declined with
-an argument as Q19.
+cheap-model routing tier and T3.4's repo-compare.
+
+**Both were reopened on 2026-09-03** under CLAUDE.md rule 7, which says the specified deliverable
+is built and an alternative is admissible only after an attempt has failed. Neither had been
+attempted. Repo-compare was declined because *this world runs pulled images* - true of the
+services and false of the world, whose compose files, alert rules, scenario definitions and
+service catalog are git-tracked here and are what a responder actually diffs. The cheap-model tier
+was deferred because its validation needs noise scenarios this catalog does not contain, which is
+a fact about measuring it rather than about building it. **They are open work with routes named
+(Q19, Q24), and Phase 3 is 98.2% with two clauses owed rather than two clauses argued away.**
 
 **Two Phase 2 deviations closed alongside**, since both were free and both are contracts the
 later phases lean on. **D4**, *the blast-radius query lives in the agent, not the graph API*:
