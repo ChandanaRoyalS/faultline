@@ -1091,7 +1091,7 @@ below is a promise broken; it is a phase two-fifths built, with the unbuilt part
 | T4.4 eval DB + reports | 7 | **7** | — *(closed 2026-09-03)* |
 | T4.5 CI smoke + nightly | 6 | **6** | — *(closed 2026-09-03; the eval workflows cannot pass until the world runs in Actions and the key has credit, and they are not required checks)* |
 | T4.6 run-variance protocol | 7 | **7** | — *(closed 2026-09-03)* |
-| T4.7 baseline suite | 6 | 4 | B0 and B1 run under the harness as their own configs. **B2, the mandatory baseline columns and the manual-RCA reference remain** |
+| T4.7 baseline suite | 6 | 5 | B0, B1 and B2 all run under the harness as their own configs. **The mandatory baseline columns and the measured manual-RCA reference remain**; no baseline has been *scored* yet — B1 and B2 runs need credits |
 | G4 | 1 | 0 | undeclared; blockers in `docs/GATES.md` |
 
 ### The four findings that are more than "not built yet"
@@ -1212,6 +1212,39 @@ the B1-versus-pipeline gap is decomposition **plus retrieval plus the proposal s
 decomposition alone. It is separable at no extra design cost: the pipeline already runs under
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
+
+**B2 — the model's prior, with nothing to look at.** ***Built 2026-09-03.*** `--baseline b2` on
+both commands. Alert text, the service catalog and triage's blast radius; **no tools at all**, one
+model call, a `Verdict` against the same contract and the same scorer.
+
+**"No tool access" is enforced by the signature, not by the prompt.** `baseline_prior.investigate`
+takes no `tools` argument, nothing in the module imports `faultline.tools`, and a test asserts
+that over the *parsed imports* rather than the source text — the docstrings cite
+`faultline.tools.changes` when explaining the leak boundary, and a grep would call that a
+violation. A rule stated only in a system prompt is a rule a model can be argued out of, which is
+THREAT-MODEL thesis 1 applied to a baseline.
+
+**On "frontier model".** The plan says *"frontier model"*; its purpose clause says *"isolating how
+much accuracy comes from the model's prior rather than the investigation"*. Read as *a different,
+better model*, those conflict — swapping the model confounds the prior with the model. B2 runs
+whatever the run is configured with, which is the pipeline's own and today a frontier model, so
+both readings hold at once. Running B2 on a deliberately stronger model is then a different
+experiment, expressible with `--model` and visibly a different config in the eval DB.
+
+**Two findings fall out of B2 for free.** Concluding without looking is an *error* in B1 and *the
+method* in B2 — the same behaviour, valid or not according to what the run was for. And B2 has no
+result ids, so any it cites are fabricated: the artifact records the claim in the baseline block,
+empties `evidence` (nothing there resolves), and flags the run. A baseline that invents citations
+is a measurement about what happens when a model is asked for evidence it does not have.
+
+**What a high B2 score would mean, written before the number exists.** If B2 scores near the
+pipeline on `fault_class`, the pipeline's advantage is not in classifying — it is in naming the
+culprit *service*, citing evidence, and being checkable, which are separately scored. A headline
+leading with fault-class accuracy while B2 sits just behind is a headline choosing its best
+number. Two properties of this catalog also inflate B2 and must travel with it: `dependency_latency`
+is the only class with no change signature, and fault class determines remediation class exactly
+across all eighteen scenarios — so B2 gets the remediation axis free for every class it guesses
+right.
 
 **B0 v1 was wrong, its one run is kept, and the version marker moved.** v1's only live run
 (`20260903T031137Z-ad-memory-squeeze`) answered `dependency_latency`/`restart` against a truth of

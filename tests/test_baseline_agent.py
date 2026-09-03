@@ -356,7 +356,7 @@ def test_both_clis_offer_b1_and_neither_reaches_a_backend_to_say_so() -> None:
 
     for build in (eval_parser, investigate_parser):
         flag = next(a for a in build()._actions if a.dest == "baseline")
-        assert set(flag.choices or ()) == {"b0", "b1"}
+        assert set(flag.choices or ()) == {"b0", "b1", "b2"}
 
 
 def test_a_b1_run_cannot_share_a_config_fingerprint_with_an_agent_or_b0_run() -> None:

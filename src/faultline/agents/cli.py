@@ -66,7 +66,7 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--retrieval-k", type=int, default=3, help="default: %(default)s")
     p.add_argument(
         "--baseline",
-        choices=("b0", "b1"),
+        choices=("b0", "b1", "b2"),
         default=None,
         help=(
             "run a baseline instead of the agent (T4.7). `b0` is the no-LLM heuristic: no model "
@@ -74,7 +74,9 @@ def parser() -> argparse.ArgumentParser:
             "makes it a control rather than a separate experiment. `b1` is one agent with all "
             "four tools and no fan-out: it chooses its own calls, reads every result in one "
             "conversation, and concludes - so a b1-versus-agent gap is about structure rather "
-            "than about capability."
+            "than about capability. `b2` is the model's prior alone: alert text and the service "
+            "catalog, no tool access at all, one call - it answers how much of any accuracy "
+            "figure needed the world to be looked at."
         ),
     )
     p.add_argument(
@@ -213,6 +215,10 @@ def run(argv: list[str] | None = None) -> int:
         # embedder and a model client it will not use would make its measured cost and latency
         # describe a pipeline it is not.
         return _run_b0(incident, triage, anchor, exclude, args, dsn, context)
+    if args.baseline == "b2":
+        # **Before the corpus, before the tool layer.** B2 has no tools by construction, and
+        # building a change-log connection it cannot reach would put a connect in its latency.
+        return _run_b2(incident, triage, anchor, exclude, args, dsn)
     if args.baseline == "b1":
         # **Before the corpus, after the model.** B1 makes model calls and needs one built; it
         # has no retrieval, and constructing an embedder it will not use would put a
@@ -593,6 +599,102 @@ def _run_b1(
         out = Path(args.out)
         out.mkdir(parents=True, exist_ok=True)
         payload = baseline_agent.artifact(
+            incident_id=incident.id,
+            trajectory_id=trajectory.id,
+            blast_radius=[m.service for m in triage.blast_radius],
+            unmeasured_edges=len(triage.unmeasured_edges),
+            exclude_origin=exclude,
+            run=run,
+        )
+        (out / f"{incident.id}-verdict.json").write_text(json.dumps(payload, indent=2) + "\n")
+        print(f"wrote {out / f'{incident.id}-verdict.json'}")
+    return 0
+
+
+def _run_b2(
+    incident: Any,
+    triage: Any,
+    anchor: datetime,
+    exclude: str | None,
+    args: Any,
+    dsn: str,
+) -> int:
+    """B2, under the standard harness (T4.7).
+
+    **The same triage, the same scorer, and no tool layer at all.** `baseline_prior.investigate`
+    takes no `tools` argument, so "no tool access" is enforced by the signature rather than by a
+    sentence in a prompt - a rule stated only in a prompt is a rule a model can be argued out of.
+    Nothing here constructs `Tools`, and no change-log connection is opened.
+
+    One `COMPLETION` step and no `TOOL_CALL` steps: the trajectory's shape is itself the record
+    that B2 looked at nothing, so T4.3's metric panel reports zero tool calls as a measurement
+    rather than as a gap.
+    """
+    import psycopg
+
+    from evalharness import baseline_prior
+    from faultline.agents.model import build_model
+    from faultline.agents.settings import AgentSettings
+    from faultline.agents.trajectory import (
+        PostgresTrajectoryStore,
+        StepKind,
+        Trajectory,
+        TrajectoryStep,
+    )
+    from faultline.context.catalog import ServiceCatalog
+
+    settings = AgentSettings()
+    started = datetime.now(UTC)
+    model = build_model(args.model, provider=settings.provider, base_url=settings.openai_base_url)
+
+    run = baseline_prior.investigate(
+        incident=incident,
+        triage=triage,
+        catalog=ServiceCatalog.from_snapshot(),
+        anchor=anchor,
+        model=model,
+        effort=settings.effort,
+    )
+
+    trajectory = Trajectory(
+        incident_id=incident.id,
+        model=run.model or args.model,
+        effort=settings.effort,
+        started_at=started,
+        runtime_version=baseline_prior.runtime_version(),
+        role_models={baseline_prior.BASELINE_ID.lower(): run.model or args.model},
+    )
+    trajectory.add(
+        TrajectoryStep(
+            seq=1,
+            role=baseline_prior.BASELINE_ID,
+            kind=StepKind.COMPLETION,
+            at=datetime.now(UTC),
+            payload={"attempts": run.attempts, "error": run.error, "tool_calls": 0},
+            tokens_in=run.tokens_in,
+            tokens_out=run.tokens_out,
+        )
+    )
+    trajectory.ended_at = datetime.now(UTC)
+    trajectory.outcome = "baseline"
+    PostgresTrajectoryStore(psycopg.connect(dsn)).save(trajectory)
+
+    if run.error:
+        print(f"\nB2 FAILED: {run.error}")
+    else:
+        verdict = run.verdict
+        print(f"\nB2: {verdict.fault_class} / {verdict.remediation_class} ({verdict.confidence})")
+        print(f"  {verdict.root_cause}")
+        print("  looked at nothing - this is the model's prior")
+    if run.invented_evidence:
+        # Not a crash and not silently dropped. B2 read no envelopes, so every id it offered is
+        # fabricated; the artifact records the claim and empties the citation.
+        print(f"  CITED {len(run.invented_evidence)} result id(s) without looking at anything")
+
+    if args.out:
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        payload = baseline_prior.artifact(
             incident_id=incident.id,
             trajectory_id=trajectory.id,
             blast_radius=[m.service for m in triage.blast_radius],
