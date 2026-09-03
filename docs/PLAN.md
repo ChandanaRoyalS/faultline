@@ -1213,6 +1213,32 @@ decomposition alone. It is separable at no extra design cost: the pipeline alrea
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
 
+**`docs/RESULTS.md` claimed two different, both-wrong stamps were HEAD.** ***Corrected
+2026-09-03.*** This is the most externally-visible document in the repository — the one a reader
+deciding whether to believe the figures actually reads.
+
+It went wrong in the way a document with *good* discipline goes wrong. RESULTS.md already carried
+a staleness banner — *"HEAD is no longer this pipeline"*, written 2026-09-02 and correct that day,
+naming `prompts:a7330c098770`. **The stamp then moved four more times and the banner did not**, so
+it went on reading as a statement about the present while naming a generation four behind. Three
+other passages still called `prompts:1b0e7cbb4c47` *"current HEAD"* — five generations after it
+stopped being one.
+
+`tests/test_results_staleness.py` now fails whenever a stamp in that document is claimed, **in the
+present tense**, to be HEAD and is not. The tense carries the distinction: *"is HEAD"* and
+*"current HEAD"* expire; *"was HEAD when it ran"* never does, which is how the corrected passages
+are now worded. A second test stops the guard being satisfied by deleting every mention of the
+stamp, since a results document that does not say which pipeline it describes is worse than one
+that says the wrong thing — the wrong thing is at least checkable.
+
+**The first version of that guard was itself wrong, and instructively.** It flagged any stamp
+within 90 characters of the word HEAD, and fired on the *corrected* lineage sentence — which lists
+four superseded stamps and then says which is current, and is entirely right. That is the third
+time in this session a substring near another substring was mistaken for a claim (the rubric that
+lists `adjacent`; the passage quoting *"three minutes to a report"*). Three is enough to name it:
+**a fragment of English is not a property**, and the fix each time was to assert the property
+instead.
+
 **G3's table row said "Not declared" for a day while its evidence section said otherwise.**
 ***Corrected 2026-09-03.*** `docs/GATES.md` carries a summary table and a section per gate, and
 **the table is what a reader scans.** G3 was declared on 2026-09-02 with a full evidence section —

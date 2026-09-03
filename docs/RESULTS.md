@@ -89,9 +89,19 @@ coverage, so accuracy and coverage are never quoted apart.
 `prompts:1b0e7cbb4c47`, agent `claude-opus-5`, judge `claude-haiku-4-5` — SHARED LINEAGE on every
 judged figure.**
 
-> **HEAD is no longer this pipeline (T3.9 and T3.1, 2026-09-02).** The remediation proposer added
-> a sixth stage and triage gained a judgement half, so two role prompts and two contracts entered
-> the stamp; HEAD is `prompts:a7330c098770`, by way of `prompts:20088b22cede`. **The `budget`
+> **HEAD is no longer this pipeline, and is now five generations away (updated 2026-09-03).**
+> The remediation proposer added a sixth stage and triage gained a judgement half, so two role
+> prompts and two contracts entered the stamp (T3.9 and T3.1, 2026-09-02) — by way of
+> `prompts:20088b22cede` and `prompts:a7330c098770`. Since then: `prompts:bc222a353936` (Batch B,
+> which dev sweep 8 measured), `prompts:7c6894e9dd92` (Batch C — `TriageJudgement` entered
+> `_CONTRACTS`), and **HEAD today is `prompts:ba8684b01201`** (T4.2 — `Verdict` gained `service`
+> and ranked `alternatives`).
+>
+> *The line above previously named `a7330c098770` as HEAD and was correct on the day it was
+> written. It then went stale through four stamp moves while continuing to read as a statement
+> about the present. `tests/test_results_staleness.py` now fails when any stamp in this document
+> is called HEAD and is not — a banner is a snapshot, and the fix for a snapshot going stale is a
+> check rather than a better snapshot.* **The `budget`
 > block moved too** (T3.2c and Q16): four bounds became eight, adding a briefing cap, a
 > per-incident dollar cap and the price table that cap is computed at. Every figure below was
 > recorded under the four. **Every figure below describes `prompts:1b0e7cbb4c47`, and none of
@@ -235,12 +245,12 @@ when and only when the agent changes, so a table can say which pipeline produced
 | `prompts:59bf438b2a96` | dev sweep 1 |
 | `prompts:53fafe9c12bc` | dev sweeps 2 and 3, **the holdout run**, and both variance experiments — the synthesizer taught the taxonomy. Sweep 3 raised a budget bound and moved no prompt, which is why it shares sweep 2's stamp: ADR-0022 keeps budget out of the digest so that raising a bound reads as the same agent given more room. |
 | `prompts:bf7605651ef2` | **dev sweep 4 only** — the planner taught that an empty stream is silence rather than a bad query (T4.12). Measured net harmful against a floor registered before the run — coverage 6/7 → 4/7 — and **reverted**. This stamp was HEAD for the length of one sweep and exists now only in that sweep's record. |
-| `prompts:1b0e7cbb4c47` | **dev sweep 5 and current HEAD** — T4.12's instruction decomposed: silence changes the evidence **class**, not the **subject**, and a localized service keeps its claim until its evidence classes are exhausted (T4.14). Every registered condition met; **coverage 7/7, fault class 7/7**. |
+| `prompts:1b0e7cbb4c47` | **dev sweep 5, and the generation every figure in this document describes** — T4.12's instruction decomposed: silence changes the evidence **class**, not the **subject**, and a localized service keeps its claim until its evidence classes are exhausted (T4.14). Every registered condition met; **coverage 7/7, fault class 7/7**. |
 
 A test pins the current value and fails loudly if it moves, with the reason spelled out.
 
 **The holdout has now been entered three times, under two stamps, and each table says which.**
-Entries 1 and 2 measured `53fafe9c12bc`; entry 3 measured `1b0e7cbb4c47`, which is HEAD. Entries 1
+Entries 1 and 2 measured `53fafe9c12bc`; entry 3 measured `1b0e7cbb4c47`, which was HEAD when it ran and is now five generations behind. Entries 1
 and 2 stand unedited as measurements of a prior agent — supersession resolved by re-entering under
 a pre-registered protocol rather than by leaving the figure stale, which is the third distinct way
 this project has handled it (see
@@ -429,7 +439,7 @@ Every entry is numbered and counted in [ADR-0022's ledger](adr/0022-evaluation-h
 number of holdout runs is deliberately impossible to hide. **Each table below says which pipeline
 produced it, because they are not the same agent.**
 
-#### Entry 3 — stamp `prompts:1b0e7cbb4c47` (**current HEAD**), `changes` bound 8
+#### Entry 3 — stamp `prompts:1b0e7cbb4c47` (**HEAD when it ran; superseded five times since**), `changes` bound 8
 
 | scenario | ground truth | fault class | class of fix | judge |
 |---|---|---|---|---|
