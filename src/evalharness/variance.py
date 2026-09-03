@@ -106,12 +106,26 @@ class Figure:
         return (self.high - self.low) / 2
 
     def render(self) -> str:
-        scale = 100 if self.unit == "pp" else 1
         return (
-            f"{self.label}: {self.mean * scale:+.1f}{self.unit} "
-            f"[95% CI {self.low * scale:+.1f}, {self.high * scale:+.1f}]  "
+            f"{self.label}: {self._show(self.mean)} "
+            f"[95% CI {self._show(self.low)}, {self._show(self.high)}]  "
             f"n={self.n}  R={self.r}"
         )
+
+    def _show(self, value: float) -> str:
+        """One quantity, in the unit's own conventions.
+
+        Percentage points scale by 100 and take one decimal; money takes the symbol in front and
+        two decimals, because `+0.1$` is both misplaced and too coarse to distinguish a cost
+        change worth acting on from one that is noise; milliseconds are whole numbers.
+        """
+        if self.unit == "pp":
+            return f"{value * 100:+.1f}pp"
+        if self.unit == "$":
+            return f"{'+' if value >= 0 else '-'}${abs(value):.2f}"
+        if self.unit == "ms":
+            return f"{value:+,.0f}ms"
+        return f"{value:+.3f}{self.unit}"
 
     def as_row(self) -> dict[str, Any]:
         return {

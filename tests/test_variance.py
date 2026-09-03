@@ -153,3 +153,11 @@ def test_the_seed_policy_records_that_nothing_here_is_seedable() -> None:
     """T4.6 asks for *"the same seeds where seedable"*. Nothing is, and saying so is the point -
     an absent field cannot distinguish "considered and rejected" from "never thought about"."""
     assert "unseeded" in v.SEED_POLICY
+
+
+def test_each_unit_renders_in_its_own_conventions() -> None:
+    """`+0.1$` is both misplaced and too coarse to tell a cost change worth acting on from noise.
+    Percentage points scale and take a decimal; money takes the symbol in front and two."""
+    assert "+8.0pp" in v.Figure("m", 0.08, -0.02, 0.18, 6, 1, "pp").render()
+    assert "+$0.11" in v.Figure("m", 0.1128, 0.09, 0.13, 6, 1, "$").render()
+    assert "+12,346ms" in v.Figure("m", 12345.6, 9000, 15000, 6, 1, "ms").render()
