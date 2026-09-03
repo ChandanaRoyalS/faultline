@@ -767,13 +767,14 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--postgres-dsn", default=None)
     p.add_argument(
         "--baseline",
-        choices=("b0",),
+        choices=("b0", "b1"),
         default=None,
         help=(
             "score a baseline instead of the agent (T4.7). Same gate, same injection, same "
             "scorer - the only difference is what investigates. `b0` makes no model call, so a "
             "baseline run costs nothing and its cost of $0.00 is a measurement rather than a "
-            "missing value."
+            "missing value. `b1` is one agent with all four tools and no fan-out, so it costs "
+            "real tokens and a b1-versus-agent gap is about structure rather than capability."
         ),
     )
     p.add_argument(

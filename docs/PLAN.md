@@ -1091,7 +1091,7 @@ below is a promise broken; it is a phase two-fifths built, with the unbuilt part
 | T4.4 eval DB + reports | 7 | **7** | — *(closed 2026-09-03)* |
 | T4.5 CI smoke + nightly | 6 | **6** | — *(closed 2026-09-03; the eval workflows cannot pass until the world runs in Actions and the key has credit, and they are not required checks)* |
 | T4.6 run-variance protocol | 7 | **7** | — *(closed 2026-09-03)* |
-| T4.7 baseline suite | 6 | 2 | B0 runs under the harness as its own config. **B1, B2, the mandatory baseline columns and the manual-RCA reference remain** |
+| T4.7 baseline suite | 6 | 4 | B0 and B1 run under the harness as their own configs. **B2, the mandatory baseline columns and the manual-RCA reference remain** |
 | G4 | 1 | 0 | undeclared; blockers in `docs/GATES.md` |
 
 ### The four findings that are more than "not built yet"
@@ -1180,6 +1180,38 @@ the table.
 an interface and touches no configuration. So B0 predicts it from *the absence of a change*, which
 is a positive prediction and a fact about the injector rather than about incidents. A baseline
 that scores on this is telling the reader something true about the world's construction.
+
+**B1 — one agent, all tools, no fan-out.** ***Built 2026-09-03.*** `faultline-eval --baseline b1`
+and `faultline-investigate --baseline b1`. One model chooses each call, the harness executes it
+through **`Specialist.query` — the pipeline's own code path** — and the envelope comes back into
+the same conversation; when it has enough, it returns a `Verdict` against the same contract the
+synthesizer is held to, scored by the same scorer.
+
+The plan's *"promoted from a one-off ablation"* had nothing to promote: every ablation this
+codebase mentions is T7.3's, which is Phase 7 and unbuilt. B1 is therefore built directly as a
+permanent baseline — the deliverable the plan names; the clause described a route to it.
+
+Four decisions that could each have been made silently, and were not:
+
+| decision | why it is not the obvious choice |
+|---|---|
+| B1's prompt and schema live **outside** `roles.py` and `stamp._CONTRACTS` | `prompt_digest()` scans that module for `*_SYSTEM` names and hashes that tuple. A B1 prompt in either would move the **agent's** `runtime_version` and orphan every figure recorded before it — a baseline that invalidates what it controls for. A test asserts the digest still reads `7c6894e9dd92`. |
+| B1's runtime digest is **derived**, not hand-bumped | B0's behaviour is code, so a manual `BASELINE_VERSION` is honest — a code change is visible in review. B1's behaviour is mostly a prompt, and a prompt edit is exactly what a manual marker forgets. `runtime_version()` hashes the prompt and both schemas, so it moves by itself. |
+| tool calls go through **`Specialist.query`** | Not a parallel implementation. That function decides `metrics` means `metric_baseline` on the error ratio, `logs` means `logql_query` at limit 40. A second copy would drift, and a B1-versus-agent difference would then be partly a difference in *what was asked*. |
+| B1 keeps `UNTRUSTED_RULE` | Otherwise the gap would be partly a difference in **security posture**, which is not what is being measured. |
+
+**Its budget is the sum of the pipeline's per-specialist bounds, as one pooled total** — equal
+permission, measured consumption. Any other construction is arbitrary: one specialist's bound
+starves B1, no bound makes it a different experiment. **This has to be watched rather than
+assumed:** if B1 routinely exhausts while the pipeline does not, the number is a statement about
+the bound, not about the structure. `budget_exhausted` is on the trajectory and T4.2 reports
+exhausted runs separately, so the record can answer it — but a reader has to know to ask.
+
+**The confound, named rather than discovered.** B1 has no retrieval, no proposer and no scribe, so
+the B1-versus-pipeline gap is decomposition **plus retrieval plus the proposal step**, not
+decomposition alone. It is separable at no extra design cost: the pipeline already runs under
+`--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
+run has been scored yet** — the runs need credits.
 
 **B0 v1 was wrong, its one run is kept, and the version marker moved.** v1's only live run
 (`20260903T031137Z-ad-memory-squeeze`) answered `dependency_latency`/`restart` against a truth of
