@@ -1073,7 +1073,7 @@ repository; both are in `docs/spec/` now, so its blocking condition is lifted an
 grading it asked for. **Its Phase 4 findings all still hold** — arrived at again here
 independently, which is the useful part of the agreement.
 
-**23.5 of 55 clauses delivered: 43%** at the time of the audit. **46.5 of 55 — 85% — after
+**23.5 of 55 clauses delivered: 43%** at the time of the audit. **48 of 55 — 87% — after
 T4.1b, T4.3, T4.4, T4.5 and T4.6 closed on 2026-09-03**; the table below is kept as graded, with the closed rows
 marked, so the audit reads as a measurement taken on a date rather than a moving figure.
 
@@ -1091,7 +1091,7 @@ below is a promise broken; it is a phase two-fifths built, with the unbuilt part
 | T4.4 eval DB + reports | 7 | **7** | — *(closed 2026-09-03)* |
 | T4.5 CI smoke + nightly | 6 | **6** | — *(closed 2026-09-03; the eval workflows cannot pass until the world runs in Actions and the key has credit, and they are not required checks)* |
 | T4.6 run-variance protocol | 7 | **7** | — *(closed 2026-09-03)* |
-| T4.7 baseline suite | 6 | 0.5 | **B0's heuristic is built; it is not yet a config in the eval DB.** B1, B2, the mandatory baseline columns, and the manual-RCA reference all remain |
+| T4.7 baseline suite | 6 | 2 | B0 runs under the harness as its own config. **B1, B2, the mandatory baseline columns and the manual-RCA reference remain** |
 | G4 | 1 | 0 | undeclared; blockers in `docs/GATES.md` |
 
 ### The four findings that are more than "not built yet"
@@ -1158,8 +1158,13 @@ second is larger by 1.43×. Both columns are now printed under their own names. 
 this catalog is worth stating plainly: **at n ≈ 10 and R = 1, nothing smaller than 28pp is
 detectable**, so every ablation this repository can currently run is directional only.
 
-**T4.7 — no baselines.** ***B0's heuristic built 2026-09-03; the clause is not met until it runs
-under the harness.*** `evalharness.baselines` implements the plan's *"alert-label attribution +
+**T4.7 — no baselines.** ***B0 runs under the harness as of 2026-09-03.*** `faultline-eval
+--baseline b0` and `faultline-investigate --baseline b0`: the same baseline gate, the same
+injection, the same triage, the same tools and window policy, and **the same scorer** — a
+baseline scored by a parallel code path is not a baseline. What it does not share is the part
+being controlled for: no planner, no specialists, no synthesizer, no model call at all. It carries
+its own `runtime_version` (`faultline/0.0.1+baseline:B0`) and `baseline` is a config-fingerprint
+input, so a B0 run can never share a configuration with an agent run. `evalharness.baselines` implements the plan's *"alert-label attribution +
 most-recent deploy in window + largest error-rate delta"* with no model call, and building it
 found two things about the benchmark rather than about the baseline:
 

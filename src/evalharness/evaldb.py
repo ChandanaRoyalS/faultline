@@ -48,6 +48,7 @@ from pathlib import Path
 from typing import Any
 
 FINGERPRINT_INPUTS = (
+    "baseline",
     "runtime_version",
     "models",
     "efforts",
@@ -123,6 +124,12 @@ def _setting(manifest: dict[str, Any], key: str) -> Any:
         return (manifest.get("comparability") or {}).get("generation")
     if key == "judge_version":
         return (manifest.get("judge") or {}).get("judge_model")
+    if key == "baseline":
+        # T4.7: a baseline is a different configuration from the agent by definition, and this
+        # is what keeps them from sharing a fingerprint. `None` for an agent run, so agent runs
+        # recorded before baselines existed are unaffected - the input is simply missing for
+        # them, which `missing` records and the hash reflects.
+        return manifest.get("baseline")
     if key in {"repeat_count", "seed_policy"}:
         # T4.6's, and deliberately not defaulted. A run that never stated its repeat count has
         # not claimed to be a single observation; it has claimed nothing, and `missing` says so.
