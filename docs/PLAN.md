@@ -1213,6 +1213,33 @@ decomposition alone. It is separable at no extra design cost: the pipeline alrea
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
 
+**Dev sweep 9 is pre-registered.** ***Written 2026-09-03, before any scenario runs:***
+[`evals/runs/PREREGISTRATION-2026-09-03-top3.md`](../evals/runs/PREREGISTRATION-2026-09-03-top3.md).
+Nine predictions, each falsifiable, on `ba8684b01201`.
+
+**Two generations, not one**, and the document leads with it: sweep 8 measured `bc222a353936`,
+Batch C moved it to `7c6894e9dd92` with no sweep following, and T4.2 moved it again. So this sweep
+**cannot separate Batch C's effects from T4.2's**, and nothing in it may be read as attributing a
+difference to either. That is the cost of having moved the stamp while it was free, paid where it
+is visible.
+
+**Q23 has its own row, because the stamp cannot see it.** The planner now receives the top-3
+similar past incidents T3.2 specified — a real change to what a model is shown, moving no digest,
+since a briefing's contents are neither a system prompt nor a contract schema. A reader comparing
+sweep 8 to sweep 9 by stamp alone would attribute any planner difference to the T4.2 prompt move,
+and would be wrong. Q23's queue entry required the governing sweep to say so; this is where it
+says it.
+
+The sharpest registered prediction is **prediction 2**: on `ad-memory-squeeze` the pipeline names
+`adservice` and not `frontend`. B0 v1 failed at exactly that point — earliest alerting service,
+which is the propagator, ADR-0020 §6's trap. The pipeline has always returned the right *class*
+here and has never been asked for the *service*. **If it names `frontend`, five sweeps of
+`resource_exhaustion` ✔ need re-reading**, and the sweep will have earned its cost on one row.
+
+Scope is five scenarios — the ones sweep 8 actually scored — plus **B0.2 on the same five**, which
+is in because it makes no model call and costs \$0.00. B1 and B2 are out, and that is a budget
+decision stated as one rather than a methodological claim.
+
 **T4.2 — top-3 accuracy, and the axis its absence was hiding.** ***Landed 2026-09-03; the stamp
 moved to `ba8684b01201`.***
 
