@@ -79,10 +79,18 @@ def test_no_document_anywhere_says_head_is_a_stamp_that_it_is_not() -> None:
     `docs/PLAN.md` (twice) and in `README.md`'s reach, unexamined, because the guard was pointed
     at the file where the problem had been noticed rather than at the class of problem.
 
-    Only the unambiguous ordering is matched here: `HEAD is <stamp>` asserts the present in any
-    document and cannot be a report of someone else's claim. The looser patterns above stay
-    scoped to RESULTS.md, whose prose is disciplined enough for them; applied repository-wide they
-    flag passages that *describe* a stale claim, which is the fragment-of-English mistake again.
+    Only the `HEAD is <stamp>` ordering is matched here. **This docstring previously claimed that
+    ordering "cannot be a report of someone else's claim", and that was wrong** - disproved within
+    minutes by the very commit asserting it, whose PLAN entry quoted the two stale claims verbatim
+    to explain them and was duly flagged. A faithful quotation reproduces the grammar of the thing
+    quoted, so a quote and an assertion are the same string.
+
+    The resolution is on the writing side, not the regex side: **describe a stale claim rather
+    than reproducing it.** Teaching the pattern to skip quotation marks would be more
+    prose-parsing, and prose-parsing is where the previous four instances of this went wrong.
+
+    The looser patterns above stay scoped to RESULTS.md, whose prose is disciplined enough for
+    them; applied repository-wide they flag passages that merely *describe* a stale claim.
 
     **PLAN.md is a chronological log, and a log must not use the present tense for a moving
     value.** Both offending entries were correct on the day they were written; the fix is

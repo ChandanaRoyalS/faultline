@@ -1213,6 +1213,23 @@ decomposition alone. It is separable at no extra design cost: the pipeline alrea
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
 
+**The guard failed on the commit that documented the guard.** ***Same day.*** The PLAN entry
+below quoted the two stale claims **verbatim** in order to explain them — and the guard matched the
+quotes, so the commit fixing the defect shipped the defect.
+
+The test's own docstring had claimed the unambiguous `HEAD is <stamp>` ordering *"cannot be a
+report of someone else's claim"*. **That was wrong, and it was disproved within minutes by the
+same commit that asserted it**: a verbatim quotation uses exactly that ordering, because a
+faithful quote reproduces the grammar of the thing quoted.
+
+The fix is to **describe rather than quote** — *"T3.9's entry, which asserted `20088b22cede` was
+current"* — which loses nothing a reader needs and cannot be mistaken for an assertion. The
+alternative, teaching the regex to skip quotation marks, is more prose-parsing, and the whole
+lesson of the previous four instances is that prose-parsing is where this keeps going wrong.
+
+Fourth instance, and the sharpest: a guard against stale claims, caught by itself, on the text
+explaining what it guards against.
+
 **The same defect was next door, and my fix had not looked.** ***2026-09-03.*** The staleness
 guard was written for `RESULTS.md` because that is where the problem was noticed — **so it was
 pointed at the file rather than at the class of problem**, and a repository-wide sweep immediately
@@ -1220,7 +1237,8 @@ found three more assertions that a stamp is HEAD when it is not: two in *this fi
 ADR-0023.
 
 The two here are **chronological log entries that were correct on the day they were written** —
-T3.9's *"so HEAD is `prompts:20088b22cede`"* and T4.14's *"HEAD is `1b0e7cbb4c47`"*. The fix is
+T3.9's entry, which asserted `20088b22cede` was current, and T4.14's, which asserted
+`1b0e7cbb4c47` was. *(Described rather than quoted — see below.)* The fix is
 therefore the tense, not the stamp: *became*, and *was then*. **A log must not use the present
 tense for a value that moves**, and updating them to today's stamp would have been worse than
 leaving them — it would make a record of what happened into a claim about now.
