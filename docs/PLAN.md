@@ -1213,6 +1213,35 @@ decomposition alone. It is separable at no extra design cost: the pipeline alrea
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
 
+**B2 landed on main with no PR, and the guard that should have stopped it was standing at the
+wrong door.** `7fae7b1` was applied with `git am` while the working tree happened to be on main
+after a shell restart, then pushed. `no-commit-on-main` never fired, and could not have:
+**`git am` runs `applypatch-msg`, `pre-applypatch` and `post-applypatch`, never `pre-commit`.**
+Every patch in this project's handover workflow lands by `git am`, so the hole had been open for
+weeks and only opened *onto main* the one time the branch step was missed.
+
+The commit is kept rather than reverted or force-pushed. The review had actually happened — the
+patch and its reasoning were read before it was applied — so what failed was the mechanism, not
+the scrutiny, and rewriting a pushed branch to make a process slip invisible is the thing this
+repository refuses to do everywhere else (B0 v1's wrong run, #154's superseded draft, every
+discard). It is recorded here instead.
+
+The fix moves the guard to the **push**, which is where a local mistake becomes a shared one and
+where one check covers every entrance at once — `git am`, `cherry-pick`, `merge`, `rebase`, and
+`commit --no-verify` alike. A like-for-like hook was never available: the pre-commit framework
+has no `pre-applypatch` stage, and finding that out is what moved the guard somewhere better than
+the hole it was patching. `scripts/no-push-to-main.sh`, `pre-push` added to
+`default_install_hook_types`, and `tests/test_repo_guards.py` asserting both guards are
+configured, executable, valid shell, and — **run rather than read** — that the new one actually
+refuses on main and passes elsewhere. The old guard was correct and still let this through
+because nobody had checked *which door it stood at*.
+
+Its justification is checked too. The first draft of the script's comment claimed every commit on
+main arrives by squash-merge; the check falsified it — 24 early commits predate the rule — and the
+claim was narrowed to the last 40, where it holds except for `7fae7b1` itself. A test now fails if
+a second non-PR commit ever appears there, because a guard resting on a false premise is one
+somebody is right to delete.
+
 **B2 — the model's prior, with nothing to look at.** ***Built 2026-09-03.*** `--baseline b2` on
 both commands. Alert text, the service catalog and triage's blast radius; **no tools at all**, one
 model call, a `Verdict` against the same contract and the same scorer.

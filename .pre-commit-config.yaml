@@ -1,4 +1,4 @@
-default_install_hook_types: [pre-commit, commit-msg]
+default_install_hook_types: [pre-commit, commit-msg, pre-push]
 
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -77,3 +77,17 @@ repos:
         entry: scripts/no-commit-on-main.sh
         always_run: true
         pass_filenames: false
+      # The same rule at the boundary that matters. `no-commit-on-main` guards the
+      # `pre-commit` stage, which `git am` never runs - it runs applypatch-msg,
+      # pre-applypatch and post-applypatch instead - so a patch applied while on main
+      # committed and pushed unguarded. That is how B2 (7fae7b1) reached main with no PR.
+      # Guarding the push covers every entrance at once (am, cherry-pick, merge, rebase,
+      # and `commit --no-verify`), and the pre-commit framework has no pre-applypatch
+      # stage, so a like-for-like hook was never available. Escape: `git push --no-verify`.
+      - id: no-push-to-main
+        name: refuse a push from main (branch first)
+        language: system
+        entry: scripts/no-push-to-main.sh
+        always_run: true
+        pass_filenames: false
+        stages: [pre-push]
