@@ -189,6 +189,20 @@ class TrajectoryStore(Protocol):
 
     def get(self, trajectory_id: str) -> Trajectory | None: ...
 
+    def latest_for_incident(self, incident_id: str) -> Trajectory | None:
+        """The most recent trajectory for one incident, or `None` if it was never investigated.
+
+        **The link existed in the data and not in this protocol.** `trajectories.incident_id` has
+        been a column since T3.5, but nothing could traverse it: a caller holding an incident had
+        no way to reach what investigated it. T5.1's view is the first reader that needs to, and
+        adding the method is cheaper and more honest than putting a `trajectory_id` on `Incident`,
+        which would duplicate the edge and let the two copies disagree.
+
+        **Latest, and that is a decision.** An incident can be investigated more than once - a
+        re-run after a transient failure leaves two - and a view showing an arbitrary one would
+        show a different answer on each refresh. The newest is the one a responder means.
+        """
+
     def envelope(self, result_id: str) -> str | None:
         """The rendered envelope for one tool result, byte for byte as it was stored."""
 
@@ -204,6 +218,10 @@ class InMemoryTrajectoryStore:
 
     def get(self, trajectory_id: str) -> Trajectory | None:
         return self.trajectories.get(trajectory_id)
+
+    def latest_for_incident(self, incident_id: str) -> Trajectory | None:
+        found = [t for t in self.trajectories.values() if t.incident_id == incident_id]
+        return max(found, key=lambda t: t.started_at) if found else None
 
     def envelope(self, result_id: str) -> str | None:
         for trajectory in self.trajectories.values():
@@ -350,6 +368,19 @@ class PostgresTrajectoryStore:
                 trajectory.id,
                 exc_info=True,
             )
+
+    def latest_for_incident(self, incident_id: str) -> Trajectory | None:
+        """The newest trajectory for one incident. Two statements rather than a join, because
+        `get` already assembles steps, tool calls and retrievals and duplicating that here is how
+        the two readers drift apart."""
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "SELECT id FROM trajectories WHERE incident_id = %s "
+                "ORDER BY started_at DESC LIMIT 1",
+                (incident_id,),
+            )
+            row = cur.fetchone()
+        return self.get(row[0]) if row else None
 
     def get(self, trajectory_id: str) -> Trajectory | None:
         with self._conn.cursor() as cur:

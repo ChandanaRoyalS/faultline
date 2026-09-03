@@ -1223,6 +1223,33 @@ run has been scored yet** — the runs need credits.
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
 | **T5.5** deploy | live instance at a stable URL | needs a VM |
 
+**And the routes that serve it.** ***Same day.*** `faultline.api.incidents` — `GET
+/api/v1/incidents` and `GET /api/v1/incidents/{id}`. The view module assembled a payload and
+**nothing served it**, which is the same shape as the A/A check that sat library-only until its
+CLI landed. Twice in one day is enough to treat *"and the caller"* as part of a deliverable rather
+than as follow-up.
+
+**The incident→trajectory edge existed in the data and not in the protocol.**
+`trajectories.incident_id` has been a column since T3.5, but `TrajectoryStore` offered only
+`get(trajectory_id)` — so a caller holding an incident had no way to reach what investigated it.
+I first wrote the route against `incident.trajectory_id`, **a field that does not exist**; the
+honest fix is `latest_for_incident` on the store, not a new field on `Incident`, because a second
+copy of an edge is a second copy that can disagree. *Latest* is a decision, not a detail: a
+re-run after a transient failure leaves two trajectories, and a view showing an arbitrary one
+would show a different answer on each refresh.
+
+**Read-only structurally, not by convention.** The router never imports a writer and a test
+asserts its routes offer no verb but `GET` — a read surface that could mutate would be an action
+plane nobody designed, which is THREAT-MODEL thesis 2's boundary.
+
+**And it inherits the unauthenticated port, in the wider direction.** `app.py` records that
+`POST /api/v1/alerts` is unauthenticated and that anything reaching the port can fabricate an
+incident (thesis 3). These routes sit on the same port: **anything reaching it can read every
+incident, every log line the agent quoted, and every query it ran** — a wider exposure than the
+write path's, because incident data carries the monitored world's telemetry. T5.5 puts *"basic
+auth on the UI"*; until then it is a recorded hole rather than an overlooked one, and it belongs
+beside thesis 3 when T6.8 does the security pass.
+
 **T5.1 says the frontend goes *"over the platform API"*, and there is no platform API.** The
 service's entire HTTP surface was `POST /api/v1/alerts` and `GET /healthz` — a write path and a
 health check. `faultline.api.view` is the read half, and it is the half that can be built and
