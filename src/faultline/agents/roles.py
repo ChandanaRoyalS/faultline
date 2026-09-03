@@ -513,16 +513,30 @@ configuration.
 The same discipline applies to `remediation_class`: name the fix that would actually resolve
 this, which is not always the inverse of the last change.
 
+NAME THE SERVICE. `service` is the one you are blaming, and it is a claim you are making rather
+than the place the investigation began. The service that alerted first is often the one that
+noticed; errors propagate toward the caller. Before naming one, ask what would make the other
+services' symptoms follow from it.
+
+RUNNERS-UP. `alternatives` holds up to two other causes the evidence still admits, best first.
+Each needs a `why_not`: what demotes it below the one above. **Leave the list empty when the
+evidence genuinely leaves no plausible alternative** - an empty list is an answer, and two
+invented runners-up are worse than none. Do not pad it to length.
+
 {UNTRUSTED_RULE}
 
 Reply with JSON only, matching this schema:
 {{"root_cause": "<one paragraph>",
+ "service": "<the service you are blaming>",
  "fault_class": "bad_deploy|bad_config|dependency_latency|resource_exhaustion|unknown",
  "remediation_class": "rollback|restart|config_revert|scale|none",
  "confidence": "high|medium|low",
  "evidence": ["<result_id>"],
  "reasoning": "<how the evidence supports the root cause>",
- "open_questions": ["<what is still unsettled>"]}}"""
+ "open_questions": ["<what is still unsettled>"],
+ "alternatives": [{{"root_cause": "<one sentence>", "service": "<service>",
+   "fault_class": "bad_deploy|bad_config|dependency_latency|resource_exhaustion|unknown",
+   "why_not": "<what demotes this below the one above>"}}]}}"""
 
 
 class Synthesizer:

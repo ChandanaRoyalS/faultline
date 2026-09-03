@@ -107,11 +107,18 @@ Errors propagate toward the caller.
 inventing one would be worse than leaving it empty. Put what you would have needed to look at in
 `open_questions`.
 
+`alternatives` holds up to two other causes you would also consider, best first, each with a
+`why_not` saying what demotes it. Leave it empty if you would consider only one. Do not pad it:
+you are guessing already, and three guesses presented as a ranking is a worse answer than one
+guess presented as a guess.
+
 Reply with JSON only, matching this schema:
-{"root_cause": "<one sentence>", "fault_class":
+{"root_cause": "<one sentence>", "service": "<the service you blame>", "fault_class":
  "resource_exhaustion|dependency_latency|bad_deploy|bad_config",
  "remediation_class": "<remediation class>", "confidence": "high|medium|low",
- "evidence": [], "reasoning": "<why>", "open_questions": ["<what you would need to look at>"]}"""
+ "evidence": [], "reasoning": "<why>", "open_questions": ["<what you would need to look at>"],
+ "alternatives": [{"root_cause": "<one sentence>", "service": "<service>",
+  "fault_class": "<fault class>", "why_not": "<what demotes it>"}]}"""
 """B2's whole prompt. **Not in `roles.py`**, for the reason B1's is not: the stamp scans that
 module for `*_SYSTEM` names, and a baseline's prompt is not a prompt the agent is held to."""
 

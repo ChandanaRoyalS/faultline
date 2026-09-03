@@ -385,11 +385,17 @@ def investigate(
             "content": (
                 ("Your tool budget is spent. " if run.budget_exhausted else "")
                 + "Give your verdict now, as JSON only, matching this schema:\n"
-                '{"root_cause": "<one sentence>", '
+                '{"root_cause": "<one sentence>", "service": "<the service you blame>", '
                 '"fault_class": "resource_exhaustion|dependency_latency|bad_deploy|bad_config", '
                 '"remediation_class": "<remediation class>", "confidence": "high|medium|low", '
                 '"evidence": ["<result_id>"], "reasoning": "<why>", "open_questions": ["<what '
-                'the evidence did not settle>"]}'
+                'the evidence did not settle>"], '
+                # **Asked of the baselines too, and that is a fairness requirement rather than
+                # a courtesy** (T4.2). Top-3 accuracy compares a ranked list against a ranked
+                # list; a baseline never asked for runners-up would score its top-1 three times
+                # and lose a comparison it was never entered into.
+                '"alternatives": [{"root_cause": "<one sentence>", "service": "<service>", '
+                '"fault_class": "<fault class>", "why_not": "<what demotes it>"}]}'
             ),
         }
     ]
