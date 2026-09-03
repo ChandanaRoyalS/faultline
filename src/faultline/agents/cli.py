@@ -66,12 +66,15 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--retrieval-k", type=int, default=3, help="default: %(default)s")
     p.add_argument(
         "--baseline",
-        choices=("b0",),
+        choices=("b0", "b1"),
         default=None,
         help=(
             "run a baseline instead of the agent (T4.7). `b0` is the no-LLM heuristic: no model "
             "call, no context budget, scored by the same code path as the agent - which is what "
-            "makes it a control rather than a separate experiment."
+            "makes it a control rather than a separate experiment. `b1` is one agent with all "
+            "four tools and no fan-out: it chooses its own calls, reads every result in one "
+            "conversation, and concludes - so a b1-versus-agent gap is about structure rather "
+            "than about capability."
         ),
     )
     p.add_argument(
@@ -210,6 +213,11 @@ def run(argv: list[str] | None = None) -> int:
         # embedder and a model client it will not use would make its measured cost and latency
         # describe a pipeline it is not.
         return _run_b0(incident, triage, anchor, exclude, args, dsn, context)
+    if args.baseline == "b1":
+        # **Before the corpus, after the model.** B1 makes model calls and needs one built; it
+        # has no retrieval, and constructing an embedder it will not use would put a
+        # sentence-transformer load into its measured latency.
+        return _run_b1(incident, triage, anchor, exclude, args, dsn, context)
 
     corpus = None
     if not args.no_corpus:
@@ -458,6 +466,139 @@ def _run_b0(
             unmeasured_edges=len(triage.unmeasured_edges),
             exclude_origin=exclude,
             prediction=prediction,
+        )
+        (out / f"{incident.id}-verdict.json").write_text(json.dumps(payload, indent=2) + "\n")
+        print(f"wrote {out / f'{incident.id}-verdict.json'}")
+    return 0
+
+
+def _run_b1(
+    incident: Any,
+    triage: Any,
+    anchor: datetime,
+    exclude: str | None,
+    args: Any,
+    dsn: str,
+    context: Any,
+) -> int:
+    """B1, under the standard harness (T4.7).
+
+    **One agent, all four tools, no fan-out.** The same triage, the same tool layer, the same
+    window policy and the same scorer as the pipeline; what it does not have is the pipeline -
+    no planner, no specialists, no synthesizer, no scribe, no retrieval, no proposer. One model
+    chooses each call, reads every envelope in one conversation, and concludes.
+
+    Every model call is recorded as a `COMPLETION` step and every tool call as a `TOOL_CALL` step
+    with its `ToolCallRecord`, so T4.3's metric panel reads B1 exactly as it reads the pipeline.
+    """
+    import psycopg
+
+    from evalharness import baseline_agent
+    from faultline.agents.budget import Budget
+    from faultline.agents.model import build_model
+    from faultline.agents.settings import AgentSettings
+    from faultline.agents.trajectory import (
+        PostgresTrajectoryStore,
+        StepKind,
+        ToolCallRecord,
+        Trajectory,
+        TrajectoryStep,
+    )
+    from faultline.tools.changelog import PostgresChangeLog
+    from faultline.tools.settings import ToolSettings
+    from faultline.tools.tools import Tools
+
+    settings = AgentSettings()
+    started = datetime.now(UTC)
+    tools = Tools(ToolSettings(), PostgresChangeLog(psycopg.connect(dsn)))
+    model = build_model(args.model, provider=settings.provider, base_url=settings.openai_base_url)
+    budget = Budget(
+        max_tool_calls_per_specialist=args.max_tool_calls,
+        per_specialist_tool_calls=(
+            {"changes": args.max_tool_calls_changes} if args.max_tool_calls_changes else {}
+        ),
+        max_tokens=args.max_tokens,
+        wall_clock_seconds=args.wall_clock,
+        max_dispatch_rounds=args.max_rounds,
+    )
+
+    run = baseline_agent.investigate(
+        incident=incident,
+        triage=triage,
+        anchor=anchor,
+        now=started,
+        tools=tools,
+        model=model,
+        budget=budget,
+        effort=settings.effort,
+    )
+
+    trajectory = Trajectory(
+        incident_id=incident.id,
+        model=run.model or args.model,
+        effort=settings.effort,
+        started_at=started,
+        runtime_version=baseline_agent.runtime_version(),
+        role_models={baseline_agent.BASELINE_ID.lower(): run.model or args.model},
+        budget_exhausted=run.budget_exhausted,
+    )
+    for seq, look in enumerate(run.looks, start=1):
+        trajectory.add(
+            TrajectoryStep(
+                seq=seq,
+                role=baseline_agent.BASELINE_ID,
+                kind=StepKind.TOOL_CALL,
+                at=datetime.now(UTC),
+                payload={"tool": look.tool, "why": look.why, **look.request},
+                tool_call=ToolCallRecord(
+                    tool=look.tool,
+                    request=look.request,
+                    result_id=look.result_id,
+                    envelope=look.envelope,
+                ),
+            )
+        )
+    # One COMPLETION step carrying the whole conversation's usage. **Not one per turn**: the
+    # per-turn responses are not retained, and inventing a split across turns would put a number
+    # in the record that nothing measured. The turn count is in the payload so a reader can see
+    # how many calls the total covers.
+    trajectory.add(
+        TrajectoryStep(
+            seq=len(run.looks) + 1,
+            role=baseline_agent.BASELINE_ID,
+            kind=StepKind.COMPLETION,
+            at=datetime.now(UTC),
+            payload={"turns": run.turns, "error": run.error},
+            tokens_in=run.tokens_in,
+            tokens_out=run.tokens_out,
+        )
+    )
+    trajectory.ended_at = datetime.now(UTC)
+    trajectory.outcome = "baseline"
+    PostgresTrajectoryStore(psycopg.connect(dsn)).save(trajectory)
+
+    if run.error:
+        print(f"\nB1 FAILED: {run.error}")
+        print("the trajectory holds every tool call it made before the failure")
+    else:
+        verdict = run.verdict
+        print(f"\nB1: {verdict.fault_class} / {verdict.remediation_class} ({verdict.confidence})")
+        print(f"  {verdict.root_cause}")
+    print(f"  {run.tool_calls} tool calls over {run.turns} turns", end="")
+    print(" (budget exhausted)" if run.budget_exhausted else "")
+    for look in run.looks:
+        print(f"    {look.tool}:{look.service}  {look.why}")
+
+    if args.out:
+        out = Path(args.out)
+        out.mkdir(parents=True, exist_ok=True)
+        payload = baseline_agent.artifact(
+            incident_id=incident.id,
+            trajectory_id=trajectory.id,
+            blast_radius=[m.service for m in triage.blast_radius],
+            unmeasured_edges=len(triage.unmeasured_edges),
+            exclude_origin=exclude,
+            run=run,
         )
         (out / f"{incident.id}-verdict.json").write_text(json.dumps(payload, indent=2) + "\n")
         print(f"wrote {out / f'{incident.id}-verdict.json'}")
