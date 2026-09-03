@@ -1,0 +1,107 @@
+# T4.5: the full catalog, nightly, with its results appended to the eval database.
+#
+# **Not a required check and never will be** - it runs on a schedule, so there is no pull request
+# for it to gate. Its job is the trend line: every run lands in `eval_runs` under a config
+# fingerprint, and `faultline-compare` reads them.
+#
+# Cost is the reason this is nightly rather than per-push. Fifteen runnable scenarios at dev sweep
+# 8's measured $0.70 is roughly $10.50 a night, which is a real number and belongs here rather
+# than in a surprise invoice.
+#
+# R=1, like the smoke suite, and for the same reason: nightly is change detection. The plan's
+# weekly R=3 consolidation is the tier that produces something comparable, and it is not this
+# workflow.
+name: eval-nightly
+
+on:
+  schedule:
+    # 04:00 UTC. After the day's merges, before anyone looks.
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: eval-world
+  cancel-in-progress: false
+
+jobs:
+  nightly:
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        run: uv sync --all-extras --all-groups
+
+      - name: Refuse early if there is no key
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "REFUSED: no ANTHROPIC_API_KEY secret. Nothing was started."
+            exit 1
+          fi
+
+      - name: Bring up the platform and the world
+        id: boot
+        run: make eval-up
+
+      - name: Migrate and seed
+        run: |
+          uv run faultline-migrate
+          uv run faultline-seed --create-schema
+
+      - name: The catalog
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          # `--runs-remaining` counts down so the baseline gate can project kafka's memory over
+          # the work still to come (T7.33). A scenario whose bundle carries INVALID.md is not
+          # runnable and is skipped by the catalog listing itself.
+          IDS=$(uv run python -c "
+          from pathlib import Path
+          import sys
+          sys.path.insert(0, 'src')
+          from evalharness.scenario import load_catalog
+          root = Path('evals/scenarios')
+          runnable = [
+              s.id for s in load_catalog(root)
+              if not (root / 'artifacts' / 'dev' / s.id / 'INVALID.md').is_file()
+              and not (root / 'artifacts' / 'holdout' / s.id / 'INVALID.md').is_file()
+          ]
+          print(' '.join(sorted(runnable)))
+          ")
+          REMAINING=$(echo "$IDS" | wc -w | tr -d ' ')
+          for ID in $IDS; do
+            echo "::group::$ID"
+            # A discard must not end the night. Every outcome is a row (T4.4) and a catalog run
+            # that stopped at the first failure would report the catalog it got through.
+            uv run faultline-eval "$ID" --tier nightly --runs-remaining "$REMAINING" || true
+            REMAINING=$((REMAINING - 1))
+            echo "::endgroup::"
+          done
+
+      # **`always()` alone was wrong and the first red run proved it.** When the key check
+      # refuses, nothing has been started - and an unconditional `always()` here ran the database
+      # load against a Postgres that was never booted, failing a second time with an error about
+      # a database when the real answer was "there is no key". Conditioned on the boot step
+      # having actually run, so a refusal produces one clear failure instead of a cascade.
+      - name: Append to the eval database
+        if: always() && steps.boot.outcome != 'skipped'
+        run: uv run faultline-eval-db load
+
+      - name: Tear down
+        if: always() && steps.boot.outcome != 'skipped'
+        run: make eval-down
+
+      - uses: actions/upload-artifact@v4
+        # Also conditioned: `evals/runs/` holds 128 committed run directories, so an
+        # unconditional upload ships the repository's whole recorded history as a
+        # build artifact on every refusal.
+        if: always() && steps.boot.outcome != 'skipped'
+        with:
+          name: nightly-run-artifacts
+          path: evals/runs/
