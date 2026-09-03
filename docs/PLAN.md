@@ -1213,6 +1213,38 @@ decomposition alone. It is separable at no extra design cost: the pipeline alrea
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
 
+**Gate 4's A/A check, built.** ***2026-09-03:*** `evalharness.aa`. Gate 4's fourth condition —
+*"the harness run twice under an identical config declares no significant difference. A harness
+that invents a delta between a config and itself will invent every delta it ever reports."*
+Everything else here measures the pipeline; this measures the **instrument**, and it is the only
+figure whose failure would invalidate all the others at once.
+
+**It needs R ≥ 2, and every sweep so far has been R = 1.** Pairing needs each scenario in both
+arms, and at R = 1 a scenario has one run — so there is no A/A check to perform, not a weak one.
+**The check cannot be run on any data that currently exists**; it needs the `weekly` (R = 3) or
+`published` (R = 5) tier. `split` refuses rather than quietly pairing whatever it can, because an
+A/A check over the two scenarios that happened to repeat is a check over two scenarios wearing the
+name of a check over the catalog.
+
+**Alternating, not first-half/second-half.** A chronological split puts every early run in one arm,
+so any drift over the sweep lands entirely on one side and reads as a delta — precisely the
+artefact this check exists to detect, and a split manufacturing it would make the check fail for
+the one reason it must not.
+
+**Passing is weak evidence, and the rendered output says so.** At n ≈ 10 the MDE is 28pp at R = 1
+and near 11pp at R = 5, so almost any A/A comparison reports *no measurable effect* — passing is
+close to automatic. The result therefore carries the **observed delta** on every metric, not just
+the verdict: 0.5pp is reassuring, 25pp sitting under the MDE is alarming, and the verdict alone
+cannot tell them apart.
+
+**And the defect this file nearly shipped with, recorded because it is the session's recurring
+shape:** `passed` was `all(...)` over the comparisons, and `all()` of an empty list is `True` — so
+a check that compared nothing would have announced a clean bill of health for an examination it
+never performed. Caught while writing the last test. It is the same vacuous-success trap as a
+guard over an empty vocabulary, a top-3 figure over a list of length one, and a κ of 1.0 from two
+constant raters — four instances in one day, which is enough to call it a pattern rather than a
+coincidence.
+
 **Q20 landed: the pre-flight model check.** ***2026-09-03.*** `evalharness.preflight`. One
 capped completion on the configured model, **before the baseline gate** — therefore before the
 freeze and before injection.
