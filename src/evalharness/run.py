@@ -1348,10 +1348,17 @@ def main(argv: list[str] | None = None) -> int:
         # **And it says so on disk, via `refuse`.** This branch wrote a manifest and returned,
         # while the gate's branch below called `Run.refuse` - so the patch that established that
         # a refusal is not a discard reached one of the two refusal paths. Thirty pre-flight
-        # refusals landed in `evals/runs/` carrying neither `REFUSED.md` nor a `refused` key; the
-        # discard rate survived only because `evaldb.outcome_of` recovers the distinction from an
-        # absent `injected_at`, which is a second mechanism covering for a missing first.
-        # `HeadroomExhaustedError.is_pause` was the first version of this same near-miss.
+        # refusals landed in `evals/runs/` carrying neither `REFUSED.md` nor a `refused` key.
+        #
+        # **Correction.** This comment first said the discard rate survived anyway, because
+        # `evaldb.outcome_of` recovers a refusal from an absent `injected_at`. That was written
+        # from the recovery's docstring and its labelled branch, and it was wrong: the fallthrough
+        # below that branch read `else "discarded"`, so these thirty - carrying no label at all -
+        # were counted as discards and took the recorded rate from 16.7% to 28.6%. The figure did
+        # move, CI went red on `main`, and the recovery covered the case it was written for while
+        # defaulting the unlabelled one to the very label it exists to correct. Both are fixed;
+        # see `evaldb.outcome_of`. `HeadroomExhaustedError.is_pause` was the first version of this
+        # same near-miss, and this is the third time the argument was applied in one place.
         run.manifest["preflight"] = {"checked": True, "ok": False, "detail": str(unreachable)}
         run.refuse(preflight.PreflightError.discard_reason, str(unreachable))
         print(f"REFUSED: {unreachable}")
