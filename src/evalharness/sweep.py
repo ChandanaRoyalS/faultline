@@ -39,8 +39,22 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from evalharness import variance
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_ROOT = REPO_ROOT / "evals/scenarios"
+
+MEDIAN_RUN_USD = 0.53
+"""Measured over the 87 recorded agent runs that carry a cost: median $0.53, range $0.26-$0.88.
+
+**Printed before the sweep starts, not estimated afterwards.** CLAUDE.md rule 8: a blocker with a
+price can be cleared; one without is indistinguishable from a blocker with no solution. An
+operator about to spend an hour of world time and real money should see the number first.
+"""
+
+DISCARD_RATE = 0.33
+"""44 of 132 runs discarded, measured twice - 32% at n=128 and 33.3% at n=132. A sweep is budgeted
+against the runs it will *start*, not the ones it will score."""
 
 EXIT_NAMES = {
     0: "scored",
@@ -71,6 +85,32 @@ def runnable(root: Path = SCENARIO_ROOT) -> list[str]:
         )
 
     return sorted(s.id for s in load_catalog(root) if not blocked(s.id))
+
+
+class UnknownScenarioError(ValueError):
+    """A named scope that includes something the catalog cannot run."""
+
+
+def select(ids: list[str], only: str) -> list[str]:
+    """The scenarios a `--only` scope names, in the order it names them.
+
+    **A pure function, and that is deliberate.** The first version of this lived inside `main()`,
+    so the only way to test it was to call `main()` - which uses the real shell runner and
+    therefore launched actual `faultline-eval` subprocesses. Running the test suite created six
+    run directories and, on a machine with a live world, would have injected faults. A parser that
+    can only be exercised by running the thing it configures is not a parser anybody can test.
+
+    **Refuses an unknown id rather than narrowing silently.** A pre-registered scope that quietly
+    dropped a scenario would produce a sweep whose document claims five and whose record holds
+    four, and the discrepancy would surface as an unexplained `n` weeks later.
+    """
+    wanted = [name.strip() for name in only.split(",") if name.strip()]
+    unknown = [name for name in wanted if name not in ids]
+    if unknown:
+        raise UnknownScenarioError(
+            f"not runnable scenarios: {', '.join(unknown)}. Runnable: {', '.join(ids)}"
+        )
+    return wanted
 
 
 @dataclass(slots=True)
@@ -130,10 +170,28 @@ class SweepResult:
 def sweep(
     ids: list[str],
     *,
+    repeats: int = 1,
     extra: list[str] | None = None,
     runner: Any = None,
 ) -> SweepResult:
-    """Run each scenario once, counting down `--runs-remaining`.
+    """The catalog, `repeats` times, counting down `--runs-remaining` across the whole job.
+
+    **`repeats` exists because the tier flag alone was a lie.** `faultline-eval --tier weekly`
+    writes `repeat_count = 3` into the manifest and runs **once**; nothing in it repeats. A driver
+    that passed the tier through and made a single pass would have produced a catalog of runs each
+    *declaring* R = 3 while R = 1 actually happened - a corrupt fingerprint, and precisely the
+    "declared R and observed runs per scenario differ" mismatch `compare.report` warns about. The
+    declared repeat count and the number of passes are now the same number by construction.
+
+    **Catalog-major, not scenario-major**: every scenario once before any scenario twice. Running a
+    scenario's three repeats back to back would measure it against three nearly identical world
+    states and understate run-to-run variance, which is the one quantity R > 1 exists to estimate.
+
+    That does mean `aa.split` - which takes the first run of each scenario into one arm and the
+    second into the other - ends up splitting pass 1 against pass 2, so world drift between passes
+    lands between the arms. **That is the check working rather than a flaw in it**: drift the
+    harness would attribute to a config change in any other comparison is exactly what an A/A check
+    exists to expose.
 
     `runner` is the seam the tests substitute at: a callable taking the argv list and returning an
     exit code. The default shells out to `faultline-eval`, which is what ADR-0004 requires — the
@@ -141,13 +199,23 @@ def sweep(
     """
     launch = runner or _shell
     result = SweepResult()
-    for index, scenario_id in enumerate(ids):
-        remaining = len(ids) - index
-        argv = ["faultline-eval", scenario_id, "--runs-remaining", str(remaining), *(extra or [])]
-        print(f"\n=== [{index + 1}/{len(ids)}] {scenario_id}   $ {' '.join(argv)}", flush=True)
-        code = int(launch(argv))
-        result.outcomes.append(Outcome(scenario_id=scenario_id, exit_code=code))
-        print(f"=== {scenario_id}: {EXIT_NAMES.get(code, code)}", flush=True)
+    total = len(ids) * repeats
+    done = 0
+    for pass_number in range(1, repeats + 1):
+        for scenario_id in ids:
+            done += 1
+            argv = [
+                "faultline-eval",
+                scenario_id,
+                "--runs-remaining",
+                str(total - done + 1),
+                *(extra or []),
+            ]
+            label = f"[{done}/{total}] pass {pass_number}/{repeats} {scenario_id}"
+            print(f"\n=== {label}   $ {' '.join(argv)}", flush=True)
+            code = int(launch(argv))
+            result.outcomes.append(Outcome(scenario_id=scenario_id, exit_code=code))
+            print(f"=== {scenario_id}: {EXIT_NAMES.get(code, code)}", flush=True)
     return result
 
 
@@ -170,6 +238,17 @@ def parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--tier", default=None, help="passed through to faultline-eval (T4.6)")
     p.add_argument("--list", action="store_true", help="print the scenarios and exit")
+    p.add_argument(
+        "--only",
+        default=None,
+        metavar="ID,ID,...",
+        help=(
+            "run exactly these scenarios instead of the catalog. **For a pre-registered scope**: "
+            "a registration that names five scenarios is a commitment to five, and running the "
+            "catalog instead would be a different experiment than the one committed before the "
+            "fact. Refuses an id that is not runnable rather than silently skipping it"
+        ),
+    )
     p.add_argument("--max-tool-calls", default=None)
     p.add_argument("--max-tool-calls-changes", default=None)
     p.add_argument("--max-tokens", default=None)
@@ -181,6 +260,13 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     ids = runnable()
+
+    if args.only:
+        try:
+            ids = select(ids, args.only)
+        except UnknownScenarioError as refusal:
+            print(f"REFUSED: {refusal}")
+            return 3
 
     if args.list:
         print(f"{len(ids)} runnable scenario(s):")
@@ -204,7 +290,17 @@ def main(argv: list[str] | None = None) -> int:
         if value is not None:
             extra += [f"--{flag.replace('_', '-')}", str(value)]
 
-    result = sweep(ids, extra=extra)
+    # **The declared repeat count and the number of passes are the same number.** A tier that
+    # declared R = 3 while one pass ran would put a corrupt fingerprint on every run in the sweep.
+    repeats = variance.TIERS[args.tier][0] if args.tier else 1
+    estimate = len(ids) * repeats
+    print(
+        f"{len(ids)} scenario(s) x {repeats} pass(es) = {estimate} run(s). "
+        f"At the recorded median of ${MEDIAN_RUN_USD:.2f}/run that is about "
+        f"${estimate * MEDIAN_RUN_USD:.0f}, and the measured discard rate is "
+        f"{DISCARD_RATE:.0%} - budget about ${estimate * MEDIAN_RUN_USD / (1 - DISCARD_RATE):.0f}."
+    )
+    result = sweep(ids, repeats=repeats, extra=extra)
     print("\n".join(result.render()))
     return result.exit_code
 
