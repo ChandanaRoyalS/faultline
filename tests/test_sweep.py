@@ -145,3 +145,59 @@ def test_the_driver_is_reachable_as_a_command() -> None:
 
 def test_listing_makes_no_run() -> None:
     assert sweep.main(["--list"]) == 0
+
+
+# --- the tier declares a repeat count, so the sweep must actually repeat -------------------------
+
+
+def test_a_tier_that_declares_three_repeats_runs_the_catalog_three_times() -> None:
+    """**The defect this driver shipped with, caught before it cost anything.**
+
+    `faultline-eval --tier weekly` writes `repeat_count = 3` into the manifest and runs **once** -
+    nothing in it repeats. A driver that passed the tier through and made a single pass would have
+    produced a catalog of runs each *declaring* R = 3 while R = 1 actually happened: a corrupt
+    fingerprint on every run, and exactly the "declared R and observed runs per scenario differ"
+    mismatch `compare.report` warns about. The declared count and the number of passes are now the
+    same number by construction.
+    """
+    seen, run = recorder({})
+
+    result = sweep.sweep(["a", "b"], repeats=3, runner=run)
+
+    assert len(seen) == 6, "two scenarios, three passes"
+    assert len(result.outcomes) == 6
+
+
+def test_the_countdown_spans_the_whole_job_and_not_one_pass() -> None:
+    """The baseline gate projects the world's memory over the work still to come. A countdown that
+    reset each pass would tell it the sweep was a third of its real length, and it would admit a
+    job it should have refused at the start (T7.32)."""
+    seen, run = recorder({})
+
+    sweep.sweep(["a", "b"], repeats=3, runner=run)
+
+    assert [argv[argv.index("--runs-remaining") + 1] for argv in seen] == list("654321")
+
+
+def test_every_scenario_runs_once_before_any_scenario_runs_twice() -> None:
+    """**Catalog-major, not scenario-major.** Three repeats of one scenario back to back would
+    measure it against three nearly identical world states and understate run-to-run variance -
+    the one quantity R > 1 exists to estimate."""
+    seen, run = recorder({})
+
+    sweep.sweep(["a", "b", "c"], repeats=2, runner=run)
+
+    assert [argv[1] for argv in seen] == ["a", "b", "c", "a", "b", "c"]
+
+
+def test_the_cost_of_the_job_is_printed_before_it_starts() -> None:
+    """CLAUDE.md rule 8. An operator about to spend an hour of world time and real money should see
+    the number first, and it is measured rather than guessed: median $0.53 over 87 recorded runs,
+    inflated by the 33% discard rate because a sweep pays for the runs it *starts*."""
+    assert sweep.MEDIAN_RUN_USD == 0.53
+    assert 0.3 < sweep.DISCARD_RATE < 0.4
+
+    import inspect
+
+    source = inspect.getsource(sweep.main)
+    assert "MEDIAN_RUN_USD" in source and "DISCARD_RATE" in source

@@ -39,8 +39,22 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
+from evalharness import variance
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_ROOT = REPO_ROOT / "evals/scenarios"
+
+MEDIAN_RUN_USD = 0.53
+"""Measured over the 87 recorded agent runs that carry a cost: median $0.53, range $0.26-$0.88.
+
+**Printed before the sweep starts, not estimated afterwards.** CLAUDE.md rule 8: a blocker with a
+price can be cleared; one without is indistinguishable from a blocker with no solution. An
+operator about to spend an hour of world time and real money should see the number first.
+"""
+
+DISCARD_RATE = 0.33
+"""44 of 132 runs discarded, measured twice - 32% at n=128 and 33.3% at n=132. A sweep is budgeted
+against the runs it will *start*, not the ones it will score."""
 
 EXIT_NAMES = {
     0: "scored",
@@ -130,10 +144,28 @@ class SweepResult:
 def sweep(
     ids: list[str],
     *,
+    repeats: int = 1,
     extra: list[str] | None = None,
     runner: Any = None,
 ) -> SweepResult:
-    """Run each scenario once, counting down `--runs-remaining`.
+    """The catalog, `repeats` times, counting down `--runs-remaining` across the whole job.
+
+    **`repeats` exists because the tier flag alone was a lie.** `faultline-eval --tier weekly`
+    writes `repeat_count = 3` into the manifest and runs **once**; nothing in it repeats. A driver
+    that passed the tier through and made a single pass would have produced a catalog of runs each
+    *declaring* R = 3 while R = 1 actually happened - a corrupt fingerprint, and precisely the
+    "declared R and observed runs per scenario differ" mismatch `compare.report` warns about. The
+    declared repeat count and the number of passes are now the same number by construction.
+
+    **Catalog-major, not scenario-major**: every scenario once before any scenario twice. Running a
+    scenario's three repeats back to back would measure it against three nearly identical world
+    states and understate run-to-run variance, which is the one quantity R > 1 exists to estimate.
+
+    That does mean `aa.split` - which takes the first run of each scenario into one arm and the
+    second into the other - ends up splitting pass 1 against pass 2, so world drift between passes
+    lands between the arms. **That is the check working rather than a flaw in it**: drift the
+    harness would attribute to a config change in any other comparison is exactly what an A/A check
+    exists to expose.
 
     `runner` is the seam the tests substitute at: a callable taking the argv list and returning an
     exit code. The default shells out to `faultline-eval`, which is what ADR-0004 requires — the
@@ -141,13 +173,23 @@ def sweep(
     """
     launch = runner or _shell
     result = SweepResult()
-    for index, scenario_id in enumerate(ids):
-        remaining = len(ids) - index
-        argv = ["faultline-eval", scenario_id, "--runs-remaining", str(remaining), *(extra or [])]
-        print(f"\n=== [{index + 1}/{len(ids)}] {scenario_id}   $ {' '.join(argv)}", flush=True)
-        code = int(launch(argv))
-        result.outcomes.append(Outcome(scenario_id=scenario_id, exit_code=code))
-        print(f"=== {scenario_id}: {EXIT_NAMES.get(code, code)}", flush=True)
+    total = len(ids) * repeats
+    done = 0
+    for pass_number in range(1, repeats + 1):
+        for scenario_id in ids:
+            done += 1
+            argv = [
+                "faultline-eval",
+                scenario_id,
+                "--runs-remaining",
+                str(total - done + 1),
+                *(extra or []),
+            ]
+            label = f"[{done}/{total}] pass {pass_number}/{repeats} {scenario_id}"
+            print(f"\n=== {label}   $ {' '.join(argv)}", flush=True)
+            code = int(launch(argv))
+            result.outcomes.append(Outcome(scenario_id=scenario_id, exit_code=code))
+            print(f"=== {scenario_id}: {EXIT_NAMES.get(code, code)}", flush=True)
     return result
 
 
@@ -204,7 +246,17 @@ def main(argv: list[str] | None = None) -> int:
         if value is not None:
             extra += [f"--{flag.replace('_', '-')}", str(value)]
 
-    result = sweep(ids, extra=extra)
+    # **The declared repeat count and the number of passes are the same number.** A tier that
+    # declared R = 3 while one pass ran would put a corrupt fingerprint on every run in the sweep.
+    repeats = variance.TIERS[args.tier][0] if args.tier else 1
+    estimate = len(ids) * repeats
+    print(
+        f"{len(ids)} scenario(s) x {repeats} pass(es) = {estimate} run(s). "
+        f"At the recorded median of ${MEDIAN_RUN_USD:.2f}/run that is about "
+        f"${estimate * MEDIAN_RUN_USD:.0f}, and the measured discard rate is "
+        f"{DISCARD_RATE:.0%} - budget about ${estimate * MEDIAN_RUN_USD / (1 - DISCARD_RATE):.0f}."
+    )
+    result = sweep(ids, repeats=repeats, extra=extra)
     print("\n".join(result.render()))
     return result.exit_code
 
