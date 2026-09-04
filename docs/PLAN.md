@@ -1235,6 +1235,62 @@ run has been scored yet** — the runs need credits.
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
 | **T5.5** deploy | live instance at a stable URL | needs a VM |
 
+### T4.7 — dev sweep 9: the culprit service, scored for the first time
+
+**Both arms of the registered scope ran.** B0.2 on five scenarios at \$0.0000, then the pipeline on
+the same five at **\$2.9949** — below the registered \$3.50 floor. Nine predictions; five held,
+three failed, and one clause was declined rather than fired. The full accounting is
+[`SWEEP-2026-09-04-top3.md`](../evals/runs/SWEEP-2026-09-04-top3.md) and is not restated here.
+
+**The result worth carrying into this document:** until T4.2 the benchmark scored triage,
+`fault_class` and `remediation_class`, and never *which service broke* — on a benchmark whose
+subject is finding out which service broke. It now does, and the first measurement is **4 correct
+out of the 4 runs that produced a verdict**, including `ad-memory-squeeze`, where triage started
+from `frontend` and the verdict named `adservice`. B0.2 took that trap on four of its five runs the
+same morning. ADR-0020 §6's warning that `start_from` is an entry point and not a culprit claim is
+now a measured difference between two arms.
+
+The mechanism axis, which every accuracy figure this project has published is about, was right on
+**2 of the 3 runs that answered**. Those are not the same skill and the benchmark had been
+reporting only the weaker one.
+
+| | pipeline | B0.2 |
+|---|---|---|
+| culprit service | **4 / 4** | not scored — B0 names no service |
+| fault class correct | 2 | 1 |
+| answered | 3 of 5 | 5 of 5 |
+| cost | \$2.9949 | **\$0.0000** |
+
+**Nothing here separates the arms on fault class.** Two against one, at four scored verdicts,
+against an MDE of roughly 28pp at n=10. And B0.2's coverage advantage is a heuristic always
+guessing, not competence — reading coverage as accuracy would invert the ranking.
+
+**Top-3 must not be published as a column at this stamp.** Three of four verdicts carried no
+alternative, so top-3 equals top-1 by construction. That was prediction 4's registered consequence
+and it is applied rather than reconsidered; `ScoredRun.report` now prints depth beside the rates so
+the distinction cannot be lost.
+
+**`bad_deploy` is still a sample of one.** `cart-bad-image-tag` produced no verdict — the
+synthesizer returned two ranked alternatives each carrying a `remediation_class`, `Candidate`
+forbids extras, and validation failed twice. It was not diagnosed wrongly a second time; it was
+never diagnosed. Queued as **Q25**, because the fix moves `prompt_digest` off `ba8684b01201`, and
+the comparability cost of that move is four scored runs and will never be smaller.
+
+**Gate 4's per-run latency condition is failing and not close:** 273s, 165s, 237s, 279s, 183s
+against a 180-second bar. Four of five breach it. Its A/A condition needs R ≥ 2 and is a different
+experiment with its own pre-registration.
+
+**Five defects, every one found by running something green.** `faultline-judge`'s default target
+was every scored run *and it overwrote them* — 79 judged manifests, one omitted argument from
+being rewritten by the repository's own tool. Its cost line billed a Haiku judge at Opus rates.
+`ScoredRun.report` printed two axes of three, so the stamp's headline capability was invisible at
+the terminal. `PreflightError` never called `Run.refuse`. The sweep asked thirty times whether a
+missing credential had appeared. Four are fixed; Q25 is queued.
+
+**What T4.7 still owes:** the manual-RCA baseline, 0 of 5, which needs a human investigator and is
+contaminated by authorship; and B1/B2, out of scope for this sweep as a budget decision rather than
+a methodological one.
+
 ### T4.4 — the comparison generator, run on real data for the first time
 
 **Built, tested, green, and never once pointed at the record it exists to read.** `faultline-eval-db
@@ -1261,7 +1317,25 @@ the same 132:
 | carrying `DISCARDED.md` | 44 |
 | of those, **injected something** | **22** — the real discards |
 | of those, **never started** | **22** — 10 `baseline gate refused`, 10 `pipeline-down`, 2 others |
-| **true discard rate** | **22 / 132 = 16.7%** |
+| **true discard rate** | **22 / 121 runs that started = 18.2%** — ***corrected twice; see below*** |
+
+***Corrected again, 2026-09-04, after dev sweep 9.*** Two things were wrong with `22 / 132 =
+16.7%` and only one of them was the label on disk.
+
+**The denominator counted runs that never happened.** 132 is every directory, refusals included. A
+refusal costs nothing and injected nothing, so putting it in the denominator of a rate about runs
+that *do* happen means a bad afternoon of refusals makes the pipeline look healthier. The rate is
+stated over the runs that started — 22 discarded against 99 scored — and `sweep.DISCARD_RATE` is
+now asserted against the committed record by `tests/test_evaldb.py` so the constant and the tree
+cannot drift.
+
+**And the recovery had a default that undid it.** `evaldb.outcome_of` recovered a mislabelled
+refusal from an absent `injected_at`, but only inside `if manifest.get("discarded")`; beneath that
+branch it read `else "discarded"`. The pre-flight refusal path wrote a manifest with no outcome
+label at all, so **thirty of them on 2026-09-04 were counted as discards and took the recorded rate
+to 28.6%** — the exact inflation this correction exists to prevent, arriving through the
+correction's own default two days later, and caught by CI going red on `main` rather than by
+anyone reading it.
 
 **`HeadroomExhaustedError` had already made this argument for itself.** Its docstring says a
 discard is *"a run that happened and produced no result"* and that recording a refusal as one
