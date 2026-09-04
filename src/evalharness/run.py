@@ -785,6 +785,31 @@ def score(
 
 # --- the protocol ---------------------------------------------------------------
 
+EXIT_CODES: dict[int, str] = {
+    0: "the run completed and was scored",
+    2: "the world lock is held by another driver; nothing was injected",
+    3: "the baseline gate refused and nothing was injected",
+    4: "the run was discarded; the reason is in the run directory's DISCARDED.md, and a "
+    "discarded run is never deleted",
+    5: "the run was PAUSED on a clearable precondition - nothing was injected, nothing was "
+    "discarded, and the message says the remedy",
+    6: "the run completed and is INVALID - it was scored and its numbers must not be used; "
+    "the reason is in the run directory's INVALID.md",
+}
+"""**This CLI's contract, in one place.** ADR-0004 keeps the harness outside the product and has
+it read `faultline-investigate`'s exit code; `faultline-eval` is read the same way in turn — by
+CI, by `faultline-sweep`, and by a person.
+
+It was prose in an argparse epilog and bare integers at the return sites, which is fine until
+something else has to *interpret* a code. `evalharness.sweep` does, and a second hand-written
+copy of this mapping is how a driver comes to print `exit 6` for a run the harness calls INVALID.
+The epilog below is generated from it, so the help text cannot drift from the table.
+"""
+
+
+def exit_codes_epilog() -> str:
+    return "Exit codes: " + "; ".join(f"{code} {why}" for code, why in sorted(EXIT_CODES.items()))
+
 
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
@@ -793,16 +818,7 @@ def parser() -> argparse.ArgumentParser:
             "One scored run: baseline gate, inject, correlate, investigate, revert, confirm, "
             "score (T4.1, ADR-0022 §3)."
         ),
-        epilog=(
-            "Exit codes: 0 the run completed and was scored; 3 the baseline gate refused and "
-            "nothing was injected; 4 the run was discarded, and the reason is in the run "
-            "directory's DISCARDED.md. A discarded run is never deleted. 5 the run was PAUSED "
-            "on a clearable precondition - nothing was injected, nothing was discarded, and the "
-            "message says the remedy; clear it and start this scenario again. 6 the run "
-            "completed and "
-            "is INVALID - it was scored and its numbers must not be used; the reason is in the "
-            "run directory's INVALID.md."
-        ),
+        epilog=exit_codes_epilog(),
     )
     p.add_argument("scenario_id")
     p.add_argument("--postgres-dsn", default=None)

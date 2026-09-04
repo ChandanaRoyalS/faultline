@@ -48,33 +48,35 @@ eval-down:
 	$(MAKE) world-down
 	docker compose --profile eval down
 
-# One scored scenario, end to end: baseline gate, inject, correlate, investigate, revert,
-# confirm recovery, score. Real model calls - see README's "Scoring a scenario".
+# The whole catalog, unattended - which is what Gate 4's condition actually says:
+# "make eval injects, runs, scores, and reports all 10 scenarios unattended".
 #
-# T7.47: this was a stub echoing "eval harness arrives in Phase 4" long after it had. A
-# documented target that does nothing is worse than an absent one. G4's condition names
-# `make eval` and is met when this has scored the catalog and the A/A check declares null.
+# It used to refuse without SCENARIO, so the command the gate names could only ever run one
+# scenario and the gate could not be met by the thing it named. The only catalog driver was a
+# shell loop inside .github/workflows/eval-nightly.yml - real, working, and reachable only by
+# GitHub. `faultline-sweep` is that loop, in Python, tested, and runnable at a terminal.
 #
-# INTENT is mandatory and has no default, because the baseline gate projects kafka's memory
-# over the work still to come and cannot do that unless told what the work is (T7.33).
+# INTENT stays mandatory for a SINGLE scenario and has no default, because the baseline gate
+# projects kafka's memory over the work still to come and cannot do that unless told what the
+# work is (T7.33). A sweep needs no INTENT: it knows how much work is coming and counts down.
 SCENARIO ?=
 INTENT   ?=
+TIER     ?=
 eval:
 ifeq ($(strip $(SCENARIO)),)
-	@echo "usage: make eval SCENARIO=<id> INTENT=--single-run"
-	@echo "       make eval SCENARIO=<id> INTENT='--runs-remaining N'   # part of a sweep"
-	@echo ""
-	@echo "scenario ids: uv run faultline-inject list"
-	@exit 2
-endif
+	uv run faultline-sweep $(if $(strip $(TIER)),--tier $(TIER),) \
+		--max-tool-calls 4 --max-tool-calls-changes 8 --max-tokens 120000
+else
 ifeq ($(strip $(INTENT)),)
-	@echo "refusing: INTENT is required - --single-run, or --runs-remaining N."
-	@echo "The gate projects kafka's memory over the work still to come and cannot"
-	@echo "do that unless told what the work is (T7.33). Nothing was injected."
+	@echo "refusing: INTENT is required when you name one SCENARIO - --single-run, or"
+	@echo "--runs-remaining N. The gate projects kafka's memory over the work still to"
+	@echo "come and cannot do that unless told what the work is (T7.33). Nothing was"
+	@echo "injected. For the whole catalog, run \`make eval\` with no SCENARIO."
 	@exit 2
 endif
 	uv run faultline-eval $(SCENARIO) $(INTENT) \
 		--max-tool-calls 4 --max-tool-calls-changes 8 --max-tokens 120000
+endif
 
 # ---- T5.3: the demo ----
 # One narrated run of the whole system, end to end, against the live world. Makes real

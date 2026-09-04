@@ -1073,14 +1073,26 @@ repository; both are in `docs/spec/` now, so its blocking condition is lifted an
 grading it asked for. **Its Phase 4 findings all still hold** — arrived at again here
 independently, which is the useful part of the agreement.
 
-**23.5 of 55 clauses delivered: 43%** at the time of the audit. **48 of 55 — 87% — after
-T4.1b, T4.3, T4.4, T4.5 and T4.6 closed on 2026-09-03**; the table below is kept as graded, with the closed rows
-marked, so the audit reads as a measurement taken on a date rather than a moving figure.
+**23.5 of 55 clauses delivered: 43%** at the time of the audit. **53.5 of 55 — 97% — after
+T4.1b, T4.2, T4.3, T4.4, T4.5, T4.6 and T4.7 closed on 2026-09-03**; the table below is kept as
+graded, with the closed rows marked, so the audit reads as a measurement taken on a date rather
+than a moving figure.
+
+**That headline said 48 for a day, and its own table said 53.5.** It was written when five tasks
+had closed and never moved when T4.2's and T4.7's rows did — the third stale number found in this
+document, after `RESULTS.md`'s two wrong HEAD stamps and the *"still open"* paragraph below.
+**Summing the rows is now the check**: `tests/test_docs_pack.py` fails if the headline and the
+column disagree, because a figure a reader can verify by addition is one they will.
+
+**And 97% is the wrong number to take away.** It grades *is the machinery built*, not *has the
+measurement been taken*, and for this phase those come apart badly: 0 scored runs at the current
+stamp, 0 of 3 baselines run, 0 of ~30 blind grades, 0 of 5 manual RCAs, 0 comparison reports. The
+instrument is built and calibrated on paper. **It has not been read since the stamp last moved.**
 
 **This is a completion figure, not a deviation figure**, and the distinction matters. Phase 3 was
 declared and graded at 98.2% *deviation from a finished phase*. **Phase 4 was never declared** —
 G4 is undeclared and `docs/GATES.md` has listed its blockers since before this audit. Nothing
-below is a promise broken; it is a phase two-fifths built, with the unbuilt parts named.
+below is a promise broken; it is a phase built and not yet run, with the unrun parts named.
 
 | task | clauses | delivered | missing |
 |---|---|---|---|
@@ -1791,11 +1803,16 @@ their own prompts, and both prompts now ask for the same two fields. Asking the 
 question is a fairness requirement rather than a courtesy: a baseline never asked for runners-up
 would score its top-1 three times and lose a comparison it was never entered into.
 
-**Still open in T4.2:** time-to-first-correct-hypothesis, and judge calibration at ~30 graded runs
-against today's 10. The first is *partly* available — specialist findings and planner plans are
-stored with timestamps — but deciding a hypothesis is *correct* is a judgement, so a faithful
-version needs the judge, and a deterministic proxy keyed on the culprit service would be measuring
-time-to-first-correct-**suspect**, a different claim that would have to say so.
+**Still open in T4.2 — and this paragraph was itself stale for a day.** It read *"still open:
+time-to-first-correct-hypothesis"* while the section above it said the same metric was **built**,
+both sentences in this file at once. What is *actually* open is the **grading**: ~30 blind grades,
+by hand, which is the one measurement here that a model cannot take without destroying what it
+measures. The judged pool is 78 runs, so the target is reachable today.
+
+The design note that paragraph carried is still true and is kept: a deterministic proxy keyed on
+the culprit service would be measuring time-to-first-correct-**suspect**, a different claim that
+would have to say so. `first_correct.suspect_first_named` computes it and the module refuses to
+report it as this metric.
 
 **Baseline columns are mandatory by construction, not by convention.** ***Built 2026-09-03.***
 `evalharness.baseline_columns`. Every metric section of every comparison report carries a panel

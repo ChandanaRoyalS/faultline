@@ -244,18 +244,68 @@ def test_the_panel_never_claims_the_judge_is_right() -> None:
 def judged_run(
     root: Path, run_id: str, agreement: str, narrative: str = "the agent's prose"
 ) -> None:
+    """A judged run on disk, **with its judge block produced by the judge**.
+
+    The first version of this helper hand-wrote `{"agreement": ...}`, which is the key the reader
+    expected and **not the one the writer emits** - `JudgeResult.agreement` serialises as
+    `root_cause_agreement`. So the fixture agreed with the bug, every test here passed, and
+    `faultline-calibrate` reported an empty pool against a run tree holding 78 judged runs.
+
+    A fixture that encodes the reader's assumption tests the reader against itself. This one is
+    built by the producer, so the two sides cannot drift apart without a failure here.
+    """
+    from evalharness.judge import JudgeResult
+
     directory = root / run_id
     directory.mkdir(parents=True)
+    judged = JudgeResult(
+        scenario_id="ad-memory-squeeze",
+        run_id=run_id,
+        agent_model="agent",
+        judge_model="judge",
+        shared_lineage=False,
+        lineage_note="",
+        scored=True,
+        agreement=agreement,
+        agreement_reason="the judge's reasoning here",
+    )
     (directory / "manifest.json").write_text(
         json.dumps(
             {
                 "scenario_id": "ad-memory-squeeze",
                 "score": {"run_id": run_id},
-                "judge": {"agreement": agreement, "agreement_reason": "the judge's reasoning here"},
+                "judge": judged.as_dict(),
             }
         )
     )
     (directory / f"{run_id}-narrative.md").write_text(narrative)
+
+
+def test_the_reader_and_the_writer_agree_on_where_the_agreement_lives(tmp_path: Path) -> None:
+    """**The defect this file shipped with, asserted at the seam it crossed.**
+
+    `judged_runs` read one key and `JudgeResult.as_dict()` wrote another, and nothing failed:
+    the harness printed "every judged run has a grade (0 recorded)", which reads exactly like a
+    finished job rather than a broken filter. That is T4.1b's clause arriving in the one place
+    whose purpose is checking whether an automated verdict can be trusted.
+    """
+    from evalharness.calibration_cli import judged_runs
+    from evalharness.judge import AGREEMENT_KEY, JudgeResult
+
+    written = JudgeResult(
+        scenario_id="s",
+        run_id="r",
+        agent_model="a",
+        judge_model="j",
+        shared_lineage=False,
+        lineage_note="",
+        scored=True,
+        agreement="adjacent",
+    ).as_dict()
+
+    assert AGREEMENT_KEY in written, "the constant must name a key the writer actually emits"
+    judged_run(tmp_path, "r1", "adjacent")
+    assert judged_runs(tmp_path)["r1"]["agreement"] == "adjacent"
 
 
 def test_next_shows_both_narratives_and_never_the_judges_verdict(

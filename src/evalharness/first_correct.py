@@ -269,6 +269,32 @@ Reply with JSON only:
 {"index": <0-based index, or -1>, "reason": "<one sentence naming what that entry commits to>"}"""
 
 
+def steps_for(dsn: str, trajectory_id: str) -> list[dict[str, Any]]:
+    """The trajectory's steps in the shape `hypotheses` reads, straight out of Postgres.
+
+    **The missing half of this module.** Everything above was reachable only from its own tests
+    for a day: nothing in `src/` imported it, no console script named it, and T4.2's
+    time-to-first-correct-hypothesis was therefore built and unrunnable. `aa.check` was
+    library-only until its CLI landed and `api/view` assembled a payload nothing served — this is
+    the **third** instance, and it shipped in the same session as the sentence *"a check nothing
+    invokes is not a check"*.
+
+    Reads the same three columns `run.metric_panel` does, from the same table, with no writes.
+    """
+    import psycopg
+
+    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT seq, role, kind, at, payload FROM trajectory_steps "
+            "WHERE trajectory_id = %s ORDER BY seq",
+            (trajectory_id,),
+        )
+        return [
+            {"seq": seq, "role": role, "kind": kind, "at": at, "payload": payload or {}}
+            for seq, role, kind, at, payload in cur.fetchall()
+        ]
+
+
 def judge_first_correct(
     model: Any,
     settings: Any,

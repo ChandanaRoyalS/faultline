@@ -34,6 +34,26 @@ applies here too. This file covers what is specific to an agent working in this 
    scenarios the catalog does not contain, which is a fact about measuring it rather than about
    building it. Both are open work with routes named. A rule whose first application costs
    nothing is a rule that was not needed.
+8. **Price the blocker, never just name it** — when a task cannot finish without API spend, say
+   **how much**, what it buys, and what the estimate is measured from, in the same message that
+   reports the blocker. Never "this needs credits" on its own. Mark an unmeasured estimate as
+   unmeasured and give its range.
+
+   **Added 2026-09-04, after eight messages had said "needs credits" and none had said a
+   number.** Phase 4 sat at 97% of its clauses built and 0% of its measurements taken, and the
+   reason it stayed there was that nobody had been told it cost about sixty dollars. A blocker
+   with no price is indistinguishable from a blocker with no solution, and the person who can
+   clear it cannot act on the first if it is reported as the second.
+
+   The costs are in the tree and do not need guessing: `score.cost_usd` in every run manifest is
+   what that run actually spent. **Measured over 87 recorded agent runs: median $0.53, range
+   $0.26–$0.88.** The judge adds ~$0.04 per run. B0 costs $0.00 — it makes no model call.
+   **Historical discard rate is 32%**, so a sweep is budgeted at ~1.3× its nominal cost.
+
+   The same rule applies to the other scarce resource. Work that needs *a person* — the blind
+   judge grading, the self-timed manual RCA — is named as such, with an hour estimate, and never
+   left as "pending". Those two are human measurements by construction: a model doing them would
+   be measuring itself.
 
 ## Do NOT build
 
