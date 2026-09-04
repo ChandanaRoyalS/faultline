@@ -1288,6 +1288,21 @@ asserted `"B minus" not in baseline_section` and broke on a caption saying the `
 does *not* apply. It asserts against the number now: B0 scores 1.00, so its row must read
 `100.0pp` and not the `+0.0pp` a delta against arm A would have printed.
 
+**Then the corrected report was read again, and two more things were wrong.** Both were visible
+only in a rendered report and neither would have failed a test.
+
+**`n` is not the pairing count, and nothing said so.** The header read *"Paired on 8 scenario(s)"*
+and fault-class accuracy then reported **n = 6**. `compare_metric` drops a scenario lacking that
+metric in *either* arm, silently — so a reader had no way to tell a data gap from a harness bug.
+The dropped names were already carried on `Comparison.scenarios`; only the saying was missing. Each
+metric whose `n` falls short now names the scenarios that could not be paired and why.
+
+**A confidence interval rendered as `[-$0.00, +$0.08]`.** The lower bound was a small negative that
+rounded away, and `-$0.00` reads as a quantity too small to have a sign at all while looking like a
+rendering fault. **Rounding decides the digits, so it decides the sign**: a value that rounds to
+zero now prints `+`, and a value that is genuinely negative keeps its `-` — which matters most for
+cost, the one figure a reader wants signed.
+
 ### T4.2 — what the calibration pool actually is, measured before grading it
 
 **The harness was about to produce a number worth nothing, and the reason was in the data.**

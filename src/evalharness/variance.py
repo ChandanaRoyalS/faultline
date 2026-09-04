@@ -118,14 +118,25 @@ class Figure:
         Percentage points scale by 100 and take one decimal; money takes the symbol in front and
         two decimals, because `+0.1$` is both misplaced and too coarse to distinguish a cost
         change worth acting on from one that is noise; milliseconds are whole numbers.
+
+        **A value that rounds to zero prints as `+`, never `-`.** The first real comparison report
+        rendered a CI as `[-$0.00, +$0.08]`: the lower bound was a small negative that rounded
+        away, and `-$0.00` reads as a quantity too small to have a sign at all while looking like
+        a rendering fault. Rounding decides the digits, so it decides the sign too.
         """
+        rounded = round(value, 4 if self.unit == "$" else 6)
+        sign = "+" if rounded >= 0 else "-"
         if self.unit == "pp":
-            return f"{value * 100:+.1f}pp"
+            shown = f"{abs(value) * 100:.1f}"
+            return f"{'+' if float(shown) == 0 else sign}{shown}pp"
         if self.unit == "$":
-            return f"{'+' if value >= 0 else '-'}${abs(value):.2f}"
+            shown = f"{abs(value):.2f}"
+            return f"{'+' if float(shown) == 0 else sign}${shown}"
         if self.unit == "ms":
-            return f"{value:+,.0f}ms"
-        return f"{value:+.3f}{self.unit}"
+            shown = f"{abs(value):,.0f}"
+            return f"{'+' if float(shown.replace(',', '')) == 0 else sign}{shown}ms"
+        shown = f"{abs(value):.3f}"
+        return f"{'+' if float(shown) == 0 else sign}{shown}{self.unit}"
 
     def as_row(self) -> dict[str, Any]:
         return {

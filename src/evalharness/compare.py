@@ -295,6 +295,23 @@ def report(
         for row in found:
             lines.append(f"- {row.figure.render()}")
             lines.append(f"  - {row.verdict}")
+            # **A metric's n is not the pairing count, and the first real report never said so.**
+            # `compare_metric` drops a scenario that lacks this metric in *either* arm, silently -
+            # so the header said "paired on 8 scenario(s)" and fault class then reported n=6 with
+            # nothing to tell a reader whether two scenarios were missing a score or the harness
+            # had a bug. The list is already carried on `Comparison.scenarios`; only the saying
+            # was missing.
+            expected = len(by_split[row.scope]) if row.scope in by_split else len(shared)
+            if len(row.scenarios) < expected:
+                absent = sorted(
+                    (by_split[row.scope] if row.scope in by_split else set(shared))
+                    - set(row.scenarios)
+                )
+                lines.append(
+                    f"  - n is {len(row.scenarios)} of {expected} paired scenario(s): "
+                    f"{', '.join(f'`{name}`' for name in absent)} recorded no value for this "
+                    "metric in one arm or both, so the pair could not be formed"
+                )
         lines.append("")
         # T4.7. Printed for every metric, including when no baseline has run: the panel type
         # refuses to exist without all three, so the only way this section disappears is if

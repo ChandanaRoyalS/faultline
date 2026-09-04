@@ -209,3 +209,32 @@ def test_a_large_delta_at_a_real_n_is_still_reported_as_detectable() -> None:
     said = v.verdict(0.9, n=30, r=5)
 
     assert "above the MDE" in said and "detectable" in said
+
+
+def test_a_value_that_rounds_to_zero_never_prints_a_minus() -> None:
+    """**The first real comparison report rendered a CI as `[-$0.00, +$0.08]`.** The lower bound
+    was a small negative that rounded away, and `-$0.00` reads as a quantity too small to have a
+    sign at all while looking like a rendering fault. Rounding decides the digits, so it decides
+    the sign."""
+
+    def shown(value: float, unit: str) -> str:
+        return v.Figure(label="x", mean=value, low=value, high=value, n=3, r=1, unit=unit)._show(
+            value
+        )
+
+    assert shown(-0.0001, "$") == "+$0.00"
+    assert shown(-0.0001, "pp") == "+0.0pp"
+    assert shown(0.0, "$") == "+$0.00"
+
+
+def test_a_real_negative_keeps_its_sign() -> None:
+    """The fix must not swallow the sign of a value that is actually negative - a cost that went
+    down is the one figure in the report a reader most wants to see signed."""
+
+    def shown(value: float, unit: str) -> str:
+        return v.Figure(label="x", mean=value, low=value, high=value, n=3, r=1, unit=unit)._show(
+            value
+        )
+
+    assert shown(-0.04, "$") == "-$0.04"
+    assert shown(-0.19, "pp") == "-19.0pp"

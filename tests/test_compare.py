@@ -280,3 +280,48 @@ def test_arms_that_declared_no_repeat_count_are_not_described_as_mismatched() ->
     assert "Neither arm recorded a declared R" in rendered
     assert "use the lower declared R" not in rendered
     assert "computed at **R = 1**" in rendered
+
+
+def test_a_metric_whose_n_is_below_the_pairing_count_says_which_scenarios_dropped() -> None:
+    """**The first real report said "paired on 8 scenario(s)" and then reported n=6**, with nothing
+    to tell a reader whether two scenarios were missing a score or the harness had a bug.
+
+    `compare_metric` drops a scenario lacking the metric in *either* arm, silently. The list was
+    already carried on `Comparison.scenarios`; only the saying was missing.
+    """
+    from evalharness.compare import METRICS, Arm, Run, report
+
+    key = METRICS[0].key
+    a = Arm(
+        fingerprint="aaa",
+        runs=[
+            Run("s1", "dev", {key: 1.0}),
+            Run("s2", "dev", {key: 1.0}),
+            Run("s3", "dev", {}),  # scored, but this metric never recorded
+        ],
+    )
+    b = Arm(
+        fingerprint="bbb",
+        runs=[Run(name, "dev", {key: 1.0}) for name in ("s1", "s2", "s3")],
+    )
+
+    rendered = "\n".join(report(a, b))
+
+    assert "Paired on 3 scenario(s)" in rendered
+    assert "n is 2 of 3 paired scenario(s)" in rendered
+    assert "`s3`" in rendered
+    assert "could not be formed" in rendered
+
+
+def test_a_metric_present_everywhere_says_nothing_extra() -> None:
+    """The note is a discrepancy report, not a per-metric footer - one that always printed would
+    be noise and would stop being read."""
+    from evalharness.compare import METRICS, Arm, Run, report
+
+    key = METRICS[0].key
+    arms = [
+        Arm(fingerprint=f, runs=[Run(name, "dev", {key: 1.0}) for name in ("s1", "s2", "s3")])
+        for f in ("aaa", "bbb")
+    ]
+
+    assert "paired scenario(s):" not in "\n".join(report(*arms))
