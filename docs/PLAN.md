@@ -1235,6 +1235,153 @@ run has been scored yet** — the runs need credits.
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
 | **T5.5** deploy | live instance at a stable URL | needs a VM |
 
+### T4.4 — the comparison generator, run on real data for the first time
+
+**Built, tested, green, and never once pointed at the record it exists to read.** `faultline-eval-db
+load` and `faultline-compare` had only ever seen fixtures. Running them cost nothing — no model
+calls, no world — and produced the repository's first comparison report, `914b0ef503bd` →
+`8372133897ae`, 17 scored runs against 31.
+
+Three facts from the loader that were inference until now:
+
+| | |
+|---|---|
+| runs / configurations | **132 / 20** |
+| discarded | **44 — 33.3%**, at n=128 a day earlier it was 32% |
+| configurations with a complete fingerprint | **0 of 20** |
+| scored runs at the **current** stamp `ba8684b01201` | **0** — it has no configuration at all |
+
+**The completeness figure will not move when code lands, only when runs happen.** `docs/PLAN.md`
+predicted 0-of-N would rise once T4.6 added `repeat_count`, `judge_version` and `seed_policy`. It
+landed; it is still 0 of 20, because a run cannot retroactively acquire an input that did not exist
+when it ran. That is the fingerprint behaving correctly — it hashes what was present rather than
+substituting defaults — and the prediction was simply wrong about what would move it.
+
+**And the report had four defects, one of them serious.**
+
+**A single observation, declared detectable.** The only line above the MDE in a thirteen-metric
+report was `fix class accuracy (holdout): +100.0pp [95% CI +100.0pp, +100.0pp] n=1 R=1 — above the
+MDE, a delta this size is detectable`. **One paired observation.** So it was simultaneously the
+line a reader would quote and the least supportable in the document. `variance.mde` is a normal
+approximation over `n` and returns a number for `n = 1` as cheerfully as for `n = 30`; nothing in
+it knew there was no sampling distribution to approximate. `verdict()` now refuses **both** verdicts
+below `MIN_N_FOR_VERDICT = 3`, and the floor is not a taste call: at `n = 1` there are zero degrees
+of freedom, which is *why* the interval printed as zero-width — `[+100.0pp, +100.0pp]` is the
+observation repeated, not a bound — and at `n = 2` the two-sided 95% `t` critical value is 12.7.
+
+**Baseline absolutes printed with delta signs, under a delta heading.** `variance.Figure` renders
+every figure signed, so B0's triage recall of 1.00 appeared as `+100.0pp` immediately beneath
+*"Reported as B minus A"*. The table now says the rows are absolute and that a leading `+` is the
+figure's own sign.
+
+**A catalog size that was never right.** `--catalog-size` defaulted to a hardcoded `18`; the
+catalog is 19 with 2 unrunnable. That number decides whether T1.6's headline policy has switched to
+holdout-only, so a stale constant was a stale *policy claim* in every generated report. Counted
+from `sweep.runnable()` now.
+
+**A warning about a mismatch that was really an absence.** Both arms declared no `R` — they predate
+T4.6 — and the report said *"the figures below use the lower declared R"*. Absent and differing are
+different facts; it now says neither arm recorded one and that the figures fall back to R = 1.
+
+**And the seventh instance of one mistake.** `test_the_report_does_not_compute_a_baseline_delta`
+asserted `"B minus" not in baseline_section` and broke on a caption saying the `B minus A` framing
+does *not* apply. It asserts against the number now: B0 scores 1.00, so its row must read
+`100.0pp` and not the `+0.0pp` a delta against arm A would have printed.
+
+**Then the corrected report was read again, and two more things were wrong.** Both were visible
+only in a rendered report and neither would have failed a test.
+
+**`n` is not the pairing count, and nothing said so.** The header read *"Paired on 8 scenario(s)"*
+and fault-class accuracy then reported **n = 6**. `compare_metric` drops a scenario lacking that
+metric in *either* arm, silently — so a reader had no way to tell a data gap from a harness bug.
+The dropped names were already carried on `Comparison.scenarios`; only the saying was missing. Each
+metric whose `n` falls short now names the scenarios that could not be paired and why.
+
+**A confidence interval rendered as `[-$0.00, +$0.08]`.** The lower bound was a small negative that
+rounded away, and `-$0.00` reads as a quantity too small to have a sign at all while looking like a
+rendering fault. **Rounding decides the digits, so it decides the sign**: a value that rounds to
+zero now prints `+`, and a value that is genuinely negative keeps its `-` — which matters most for
+cost, the one figure a reader wants signed.
+
+### T4.2 — what the calibration pool actually is, measured before grading it
+
+**The harness was about to produce a number worth nothing, and the reason was in the data.**
+Grading started, and the second run it served was `20260828T154652Z-shipping-wrong-image` — an
+**abstention**. The run returned `fault_class: unknown`; its narrative says *"I decline to infer
+one from the error shape."* ADR-0022 §1.2 makes that a legal answer rather than a wrong one, and
+the judge, with no claim to compare against, grades **every abstention `different` by
+construction**. `docs/RESULTS.md` already excluded abstentions from its own agreement figure for
+exactly this reason. The calibration harness did not know, so it served them.
+
+Then the pool was measured, which nobody had done:
+
+| | |
+|---|---|
+| runs the harness offered | 78 |
+| abstentions — judged `different` mechanically | **−17** |
+| real pool | **61** |
+| **distinct scenarios in those 61** | **13** |
+| `cart-redis-misconfig` alone | **14 rows** |
+| judge verdicts on the pool | `same_mechanism` 57 · `adjacent` 3 · `different` 1 |
+
+**17 of the 18 `different` verdicts in the entire record are abstentions.** The judge has made one
+non-abstention `different` call, ever.
+
+**The 61 rows are not 61 judgements.** A grader who has read a scenario's recorded narrative is
+not a blind reader of it the next thirteen times — they already hold a verdict, and later grades
+on that scenario are correlated with the first by construction. Thirty rows drawn uniformly would
+be perhaps eight distinct cases counted as thirty.
+
+**And the skew breaks κ outright, which reverses this module's own headline decision.** The
+module was written arguing that κ must lead because raw agreement flatters on a skewed pool. Half
+right: a grader answering `same_mechanism` every time posts ~93% while contributing nothing. What
+the argument missed is that **κ here is not more trustworthy, only less stable.** On the real
+distribution — 28 `same_mechanism`, 2 `adjacent`:
+
+| grader disagreements | raw agreement | **κ** |
+|---|---|---|
+| one | 96.7% | **0.65** — "substantial" |
+| two | 93.3% | **0.00** — "no better than chance" |
+
+Same grader, one extra row. With four non-modal rows in the whole record, a uniform shuffle makes
+the headline a lottery over which of them got graded. So raw agreement leads, the **confusion
+table** is printed beside it — a grader who reads `adjacent` as `same_mechanism` and one who reads
+it as `different` post the same rate and disagree about opposite things — and κ prints with an
+instability flag. *A figure that swings on one row is not made trustworthy by being the
+theoretically correct one.*
+
+**The order now covers the record instead of sampling it.** Every scenario before any repeat,
+every non-modal verdict inside the first pass: 17 grades reach full coverage, and by 30 the
+informative rows are all in. **The grader is told none of this**, and that is a requirement rather
+than an omission — a row the grader knows was selected for being interesting has been pre-judged
+for them, which is a subtler unblinding than seeing the judge's answer and much harder to notice
+afterwards.
+
+**Two rendering defects caught by printing the report and reading it**, not by a test: an
+undefined κ rendered as `— — **unstable**`, two em-dashes and a warning about a number that does
+not exist; and `1 grades over 1 distinct scenario(s)`.
+
+**And the grading stopped at five, deliberately, with the label that says so.** Five blind grades
+over five distinct scenarios, **one of them a disagreement** — which is a real partial result and
+more informative than a clean run of seventeen would have been. It stopped because the only person
+available to grade is the person who wrote the recorded narratives, and grading is the one
+measurement here a model cannot take: `judge.require_lineage` already refuses a judge that shares
+a tuning lineage with the agent it grades, and a model grading *the judge* is the same violation
+entering by a door the code cannot see. **A calibration written by a model and filed under a
+human's name would make the one figure that certifies every other figure a fabrication.**
+
+So the state is recorded rather than pending. `calibration.standing()` returns
+**`JUDGE NOT CALIBRATED — 5 of ~30`**, and `judged_rows` — the single place in this repository
+that produces a cross-run judged figure — prints it above the table, beside the shared-lineage
+warning it already carried. Same mechanism as `smoke.NON_CITABLE` and the same stated reason:
+*"so a smoke number can't be screenshotted into a README six weeks later."*
+
+**The label retires itself.** It reads the ledger rather than taking a count, so no call site can
+pass a stale number; unblinded regrades cannot clear it; and at 30 blind grades it becomes
+`Judge calibrated against 30 blind human grades over N scenario(s)` with nobody having to remember
+to delete a caveat. A warning that needs a human to retract it is the opposite failure and just as
+bad.
+
 ### T5.3 — the two skeletons, and the thesis that had been wrong for weeks
 
 *"ARCHITECTURE.md with the system diagram and ADR index; a threat-model document."* Written like

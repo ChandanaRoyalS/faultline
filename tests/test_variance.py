@@ -161,3 +161,80 @@ def test_each_unit_renders_in_its_own_conventions() -> None:
     assert "+8.0pp" in v.Figure("m", 0.08, -0.02, 0.18, 6, 1, "pp").render()
     assert "+$0.11" in v.Figure("m", 0.1128, 0.09, 0.13, 6, 1, "$").render()
     assert "+12,346ms" in v.Figure("m", 12345.6, 9000, 15000, 6, 1, "ms").render()
+
+
+# --- a verdict needs a sampling distribution to be a verdict about -------------------------------
+
+
+def test_neither_verdict_is_issued_at_one_paired_observation() -> None:
+    """**Found by running the comparison generator on real data for the first time.**
+
+    Its first report carried exactly one line above the MDE:
+
+        fix class accuracy (holdout): +100.0pp [95% CI +100.0pp, +100.0pp]  n=1  R=1
+        above the MDE (88.6pp at n=1, R=1) - a delta this size is detectable
+
+    One paired observation, declared detectable - and the only "detectable" line in a
+    thirteen-metric report, so the line a reader would quote and the least supportable in the
+    document. `mde()` is a normal approximation over n and returns a number for n=1 as cheerfully
+    as for n=30; nothing in it knows there is no sampling distribution to approximate.
+    """
+    said = v.verdict(1.0, n=1)
+
+    assert "detectable" not in said.replace("either 'detectable'", "")
+    assert "not assessable at n=1" in said
+    assert "zero width" in said
+
+
+def test_two_observations_are_also_refused() -> None:
+    """One degree of freedom, where the two-sided 95% t critical value is 12.7 - any interval it
+    produces spans more than the measurable range of a proportion."""
+    said = v.verdict(1.0, n=2)
+
+    assert "not assessable at n=2" in said
+    assert "12.7" in said
+
+
+def test_three_is_where_the_words_start_meaning_something() -> None:
+    """The floor is the smallest n at which both verdicts are claims about something real. Above
+    it the plan's rule applies unchanged."""
+    assert v.MIN_N_FOR_VERDICT == 3
+    assert "not assessable" not in v.verdict(1.0, n=3)
+    assert "no measurable effect" in v.verdict(0.001, n=3)
+
+
+def test_a_large_delta_at_a_real_n_is_still_reported_as_detectable() -> None:
+    """The floor must not swallow the verdict the plan asks for - a delta above its MDE at a
+    workable n is exactly what a comparison exists to report."""
+    said = v.verdict(0.9, n=30, r=5)
+
+    assert "above the MDE" in said and "detectable" in said
+
+
+def test_a_value_that_rounds_to_zero_never_prints_a_minus() -> None:
+    """**The first real comparison report rendered a CI as `[-$0.00, +$0.08]`.** The lower bound
+    was a small negative that rounded away, and `-$0.00` reads as a quantity too small to have a
+    sign at all while looking like a rendering fault. Rounding decides the digits, so it decides
+    the sign."""
+
+    def shown(value: float, unit: str) -> str:
+        return v.Figure(label="x", mean=value, low=value, high=value, n=3, r=1, unit=unit)._show(
+            value
+        )
+
+    assert shown(-0.0001, "$") == "+$0.00"
+    assert shown(-0.0001, "pp") == "+0.0pp"
+    assert shown(0.0, "$") == "+$0.00"
+
+
+def test_a_real_negative_keeps_its_sign() -> None:
+    """The fix must not swallow the sign of a value that is actually negative - a cost that went
+    down is the one figure in the report a reader most wants to see signed."""
+
+    def shown(value: float, unit: str) -> str:
+        return v.Figure(label="x", mean=value, low=value, high=value, n=3, r=1, unit=unit)._show(
+            value
+        )
+
+    assert shown(-0.04, "$") == "-$0.04"
+    assert shown(-0.19, "pp") == "-19.0pp"

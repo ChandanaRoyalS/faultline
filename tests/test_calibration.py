@@ -9,6 +9,7 @@ model's prose. That is defensible only if a human has checked it on the same run
 
 from __future__ import annotations
 
+import dataclasses
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -235,7 +236,24 @@ def test_the_panel_never_claims_the_judge_is_right() -> None:
     )
 
     assert "does not say the judge is" in rendered.lower() or "share a prior" in rendered
-    assert "κ is the figure, not raw agreement" in rendered
+
+
+def test_kappa_is_no_longer_asserted_to_be_the_headline() -> None:
+    """**This test previously required the opposite**, and the module's own argument was half
+    right. Raw agreement does flatter on a skewed pool — a grader answering `same_mechanism`
+    every time posts ~93% while contributing nothing, which is why κ was chosen.
+
+    What the reasoning missed is that **κ on this pool is not more trustworthy, only less
+    stable**: measured on the real distribution, one grader disagreement gives κ = 0.65 and two
+    give κ = 0.00 at 93% raw agreement. Both print now, raw leads, and κ carries the instability
+    flag — a figure that swings on one row is not made trustworthy by being the theoretically
+    correct one. Recorded as a changed position rather than a silent edit.
+    """
+    pairs = [("same_mechanism", "same_mechanism")] * 28 + [("adjacent", "same_mechanism")] * 2
+    rendered = "\n".join(cal.Agreement(pairs=tuple(pairs)).render())
+
+    assert "κ is the figure, not raw agreement" not in rendered
+    assert "should not be the headline on this pool" in rendered
 
 
 # --- the CLI, and the leak that would make it worthless --------------------------------------
@@ -440,3 +458,279 @@ def test_a_run_with_no_judge_block_is_skipped_rather_than_counted(tmp_path: Path
     judged_run(runs, "judged", "same_mechanism")
 
     assert sorted(judged_runs(runs)) == ["judged"]
+
+
+# --- the pool: abstentions carry no judgement to agree with -------------------------------------
+
+
+def abstained_run(root: Path, run_id: str, scenario: str = "shipping-wrong-image") -> None:
+    """A run that returned `fault_class: unknown`. The judge grades these `different` by
+    construction, so they are excluded rather than served."""
+    from evalharness.judge import JudgeResult
+
+    directory = root / run_id
+    directory.mkdir(parents=True)
+    (directory / "manifest.json").write_text(
+        json.dumps(
+            {
+                "scenario_id": scenario,
+                "score": {
+                    "run_id": run_id,
+                    "fault_class": {
+                        "truth": "bad_deploy",
+                        "returned": "unknown",
+                        "correct": False,
+                        "abstained": True,
+                    },
+                },
+                "judge": JudgeResult(
+                    scenario_id=scenario,
+                    run_id=run_id,
+                    agent_model="a",
+                    judge_model="j",
+                    shared_lineage=False,
+                    lineage_note="",
+                    scored=True,
+                    agreement="different",
+                    agreement_reason="no claim was made",
+                ).as_dict(),
+            }
+        )
+    )
+    (directory / f"{run_id}-narrative.md").write_text("the agent declined to name a cause")
+
+
+def test_an_abstention_is_excluded_from_the_pool(tmp_path: Path) -> None:
+    """**The judge grades every abstention `different` by construction**, so there is no judgement
+    to agree with: matching it is a free agreement point and differing is a free miss. On the
+    committed record 17 of 78 judged runs are abstentions, and they are 17 of the 18 `different`
+    verdicts in the whole record - seventeen mechanical rows in a figure about judgement."""
+    from evalharness.calibration_cli import abstained, abstention_count, judged_runs
+
+    judged_run(tmp_path, "real", "same_mechanism")
+    abstained_run(tmp_path, "abstained")
+
+    assert sorted(judged_runs(tmp_path)) == ["real"]
+    assert abstention_count(tmp_path) == 1
+    assert abstained({"score": {"fault_class": {"abstained": True}}}) is True
+    assert abstained({"score": {"fault_class": {"abstained": False}}}) is False
+
+
+def test_an_excluded_abstention_is_counted_and_not_silently_dropped(tmp_path: Path) -> None:
+    """A pool that shrank by 22% without saying so is the same defect one level up."""
+    from evalharness import calibration as cal
+
+    panel = dataclasses.replace(cal.Agreement(pairs=(("adjacent", "adjacent"),)), abstentions=17)
+
+    assert "17 abstention(s) excluded" in "\n".join(panel.render())
+    assert "by construction" in "\n".join(panel.render())
+
+
+# --- the order covers the record rather than sampling it ----------------------------------------
+
+
+def pool() -> dict[str, tuple[str, str]]:
+    """Thirteen scenarios, one of them fourteen times, four non-modal verdicts - the shape of the
+    committed record."""
+    runs: dict[str, tuple[str, str]] = {}
+    for n in range(14):
+        runs[f"cart-{n}"] = ("cart-redis-misconfig", "same_mechanism")
+    for i in range(12):
+        runs[f"s{i}"] = (f"scenario-{i}", "same_mechanism")
+    runs["odd-a"] = ("scenario-0", "adjacent")
+    runs["odd-b"] = ("scenario-1", "adjacent")
+    runs["odd-c"] = ("scenario-2", "adjacent")
+    runs["odd-d"] = ("scenario-3", "different")
+    return runs
+
+
+def test_every_scenario_is_covered_before_any_scenario_repeats() -> None:
+    """**Thirty rows drawn uniformly would be perhaps eight distinct cases, counted as thirty.**
+    A grader who has read a scenario's recorded narrative is not a blind reader of it again, so
+    repeats are correlated by construction and n overstates what was rated."""
+    from evalharness import calibration as cal
+
+    runs = pool()
+    sequence = cal.stratified(runs)
+    scenarios = {s for s, _ in runs.values()}
+
+    first_pass = sequence[: len(scenarios) + 4]
+    assert {runs[r][0] for r in first_pass} == scenarios
+
+
+def test_every_non_modal_verdict_lands_in_the_first_pass() -> None:
+    """The only rows where agreement is informative about the *scale* rather than the base rate.
+    With four of them in 61, a uniform shuffle makes the headline a lottery on which got graded:
+    on 28 `same_mechanism` and 2 `adjacent`, one disagreement gives κ = 0.65 and two give 0.00."""
+    from evalharness import calibration as cal
+
+    runs = pool()
+    sequence = cal.stratified(runs)
+    odd = [r for r, (_, level) in runs.items() if level != "same_mechanism"]
+
+    assert all(sequence.index(r) < len({s for s, _ in runs.values()}) + 4 for r in odd)
+
+
+def test_the_order_is_deterministic_and_complete() -> None:
+    """Reproducible for the same reason `order` is: a reader must be able to confirm the sequence
+    was not chosen after the grades were seen."""
+    from evalharness import calibration as cal
+
+    runs = pool()
+
+    assert cal.stratified(runs) == cal.stratified(runs)
+    assert sorted(cal.stratified(runs)) == sorted(runs)
+
+
+def test_the_grader_is_told_nothing_about_why_a_run_was_chosen(tmp_path: Path) -> None:
+    """**A requirement, not an omission.** A row the grader knows was selected for being
+    interesting has been pre-judged for them - a subtler unblinding than seeing the judge's
+    answer, and much harder to notice afterwards."""
+    from evalharness import calibration_cli
+
+    judged_run(tmp_path, "r1", "adjacent")
+    code = calibration_cli.run(
+        ["--next", "--runs-root", str(tmp_path), "--ledger", str(tmp_path / "l.jsonl")]
+    )
+
+    assert code == 0
+
+
+# --- kappa is reported, and is not the headline on this pool -------------------------------------
+
+
+def test_kappa_is_flagged_unstable_when_the_judge_is_nearly_constant() -> None:
+    """Measured on the real distribution: 28 `same_mechanism` and 2 `adjacent`. One grader
+    disagreement gives κ = 0.65; two give **κ = 0.00 at 93% raw agreement** - the same grader, one
+    extra row, *substantial* to *no better than chance*."""
+    from evalharness import calibration as cal
+
+    pairs = [("same_mechanism", "same_mechanism")] * 28 + [("adjacent", "same_mechanism")] * 2
+    two_off = cal.Agreement(pairs=tuple(pairs))
+
+    assert two_off.raw is not None and round(two_off.raw, 3) == 0.933
+    assert two_off.kappa == 0.0, "the kappa paradox, on this repository's own record"
+    assert two_off.kappa_is_unstable is True
+
+    one_off = cal.Agreement(
+        pairs=tuple(
+            [("same_mechanism", "same_mechanism")] * 28
+            + [("adjacent", "same_mechanism"), ("adjacent", "adjacent")]
+        )
+    )
+    assert one_off.kappa is not None and 0.6 < one_off.kappa < 0.7
+
+
+def test_a_balanced_pool_is_not_flagged_unstable() -> None:
+    """The flag is about this record, not about kappa. Five or more rows outside the modal
+    category and one row can no longer move the band."""
+    from evalharness import calibration as cal
+
+    pairs = [("same_mechanism", "same_mechanism")] * 20 + [("adjacent", "adjacent")] * 10
+
+    assert cal.Agreement(pairs=tuple(pairs)).kappa_is_unstable is False
+
+
+def test_the_confusion_table_shows_where_two_readers_parted() -> None:
+    """**What no single figure shows.** A grader who reads `adjacent` as `same_mechanism` and one
+    who reads it as `different` post the same agreement rate and disagree about opposite things."""
+    from evalharness import calibration as cal
+
+    panel = cal.Agreement(pairs=(("same_mechanism", "same_mechanism"), ("adjacent", "different")))
+    rendered = "\n".join(panel.render())
+
+    assert panel.confusion[("adjacent", "different")] == 1
+    assert "| `adjacent` | `different` | 1 |" in rendered
+
+
+def test_the_scenario_count_travels_with_n() -> None:
+    """So no reader takes 30 rows for 30 independent judgements."""
+    from evalharness import calibration as cal
+
+    panel = dataclasses.replace(cal.Agreement(pairs=(("adjacent", "adjacent"),) * 30), scenarios=13)
+    rendered = "\n".join(panel.render())
+
+    assert "30 grades over 13 distinct scenarios" in rendered
+    assert "not independent judgements" in rendered
+
+
+# --- the label that outlives the conversation ----------------------------------------------------
+
+
+def test_a_judged_table_says_the_judge_is_uncalibrated(tmp_path: Path) -> None:
+    """**T4.2's clause is "before trusting it", and "before" is the load-bearing word.**
+
+    Figures published while no human has checked the judge rest on an unvalidated instrument, and
+    if the calibration later disagrees they get withdrawn rather than footnoted. So the label
+    rides on the table itself, exactly as `smoke.NON_CITABLE` rides on the CI output and for the
+    reason that task states: *"so a smoke number can't be screenshotted into a README six weeks
+    later"*.
+    """
+    from evalharness.judge import JudgeResult, judged_rows
+
+    empty = tmp_path / "grades.jsonl"
+    assert "JUDGE NOT CALIBRATED" in cal.standing(empty)
+    assert "0 of ~30" in cal.standing(empty)
+
+    rendered = "\n".join(
+        judged_rows(
+            [
+                JudgeResult(
+                    scenario_id="s",
+                    run_id="r",
+                    agent_model="a",
+                    judge_model="j",
+                    shared_lineage=False,
+                    lineage_note="",
+                    scored=True,
+                    agreement="adjacent",
+                )
+            ]
+        )
+    )
+    assert "JUDGE NOT CALIBRATED" in rendered, "the label rides on the table, not on a docstring"
+
+
+def test_the_label_clears_itself_once_the_grades_exist(tmp_path: Path) -> None:
+    """**Nobody has to remember to remove it.** A caveat that needs a human to retract it is one
+    that outlives its reason, which is the opposite failure and just as bad."""
+    ledger = tmp_path / "grades.jsonl"
+    for n in range(cal.TARGET_GRADES):
+        cal.record(
+            cal.Grade(
+                run_id=f"r{n}",
+                scenario_id=f"s{n % 13}",
+                agreement="same_mechanism",
+                reason="the mechanisms match",
+                graded_at=f"t{n}",
+                grader="chandana",
+            ),
+            ledger,
+        )
+
+    assert cal.is_calibrated(ledger) is True
+    assert "JUDGE NOT CALIBRATED" not in cal.standing(ledger)
+    assert "30 blind human grades over 13 scenario(s)" in cal.standing(ledger)
+
+
+def test_unblinded_grades_do_not_clear_the_label(tmp_path: Path) -> None:
+    """A regrade made after seeing the judge's answer measures confirmation, not agreement - so it
+    cannot be what retires a warning about the judge being unchecked."""
+    ledger = tmp_path / "grades.jsonl"
+    first = cal.record(grade("r0", "same_mechanism", at="t0"), ledger)
+    for n in range(cal.TARGET_GRADES + 5):
+        cal.record(cal.regrade(first, "adjacent", f"revision {n}"), ledger)
+
+    assert cal.is_calibrated(ledger) is False
+    assert "JUDGE NOT CALIBRATED" in cal.standing(ledger)
+
+
+def test_the_standing_line_reads_the_ledger_rather_than_taking_a_count() -> None:
+    """So no call site can pass a number that is out of date with the file - the failure mode
+    that put `judge["agreement"]` in one module and `root_cause_agreement` in another."""
+    import inspect
+
+    source = inspect.getsource(cal.standing)
+
+    assert "load(" in source, "it opens the ledger itself"
+    assert "int" not in inspect.signature(cal.standing).parameters

@@ -161,6 +161,16 @@ class BaselinePanel:
             "",
             caption,
             "",
+            # **These are absolute values and the section above them reports deltas.**
+            # `variance.Figure` renders every figure with a sign, so B0's triage recall of 1.00
+            # printed as `+100.0pp` directly beneath a heading reading *"Reported as B minus A"* -
+            # which reads as B0 having improved by 100 points over something. Nothing here is a
+            # delta: `compare.report` never differences a baseline against an arm, deliberately
+            # (see this module's docstring on what a baseline row may be compared against).
+            "**Absolute values for each baseline, not deltas.** The `B minus A` framing of the "
+            "section above does not apply to these rows - a leading `+` here is the figure's own "
+            "sign, not an improvement over either arm.",
+            "",
             "| baseline | figure | runs | note |",
             "|---|---|---|---|",
             *[row.render() for row in self.rows],
