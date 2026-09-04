@@ -486,7 +486,15 @@ def judged_rows(
     first = results[0]
     stamp = f"judge `{first.judge_model}` vs agent `{first.agent_model}`"
     warn = " — **SHARED LINEAGE**" if first.shared_lineage else ""
-    lines = [f"Judged by {stamp}{warn}.", ""]
+    # **T4.2's label, and this is the only table it could ride on.** `judged_rows` is the one
+    # place in the repository that produces a cross-run judged figure, so it is where "no human
+    # has checked this instrument" has to be said - the same argument that put the shared-lineage
+    # warning on the line above, one level further out. `smoke.NON_CITABLE`'s reason applies
+    # verbatim: a convention in a reviewer's memory survives until the first person who was not
+    # in the conversation.
+    from evalharness.calibration import standing
+
+    lines = [f"Judged by {stamp}{warn}.", "", f"**{standing()}**", ""]
 
     generations = generations or {}
     buckets: dict[str, list[JudgeResult]] = {}

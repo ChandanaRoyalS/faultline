@@ -86,6 +86,27 @@ not chosen after the grades were seen. See the module docstring on why chronolog
 worse than useless.
 """
 
+UNCALIBRATED = (
+    "JUDGE NOT CALIBRATED - {n} of ~{target} blind human grades on file. Every root-cause "
+    "agreement figure below is one model's opinion of another model's prose, and no human has "
+    "checked it at the sample size T4.2 asks for. Treat these as provisional: a figure that "
+    "turns out to disagree with a human audit is withdrawn, not footnoted."
+)
+"""Printed wherever a judge-derived figure is produced, until the ledger reaches its target.
+
+**The same mechanism as `smoke.NON_CITABLE`, for the same stated reason**: *"so a smoke number
+can't be screenshotted into a README six weeks later"*. A convention that lives in a reviewer's
+memory survives until the first person who was not in the conversation.
+
+T4.2's clause is *"~30 manually graded runs establish the agreement baseline **before trusting
+it**"*. The "before" is the load-bearing word: figures published while this label stands are
+resting on an unvalidated instrument, and if the calibration later comes back weak they get
+withdrawn rather than annotated. The label disappears on its own when the grades exist - nobody
+has to remember to remove it.
+"""
+
+CALIBRATED = "Judge calibrated against {n} blind human grades over {scenarios} scenario(s)."
+
 TARGET_GRADES = 30
 """T4.2's *"~30 manually graded runs"*. Reported against, never enforced - a partial calibration
 is a real result and refusing to print one below the target would hide the state the project is
@@ -491,3 +512,20 @@ def regrade(original: Grade, agreement_level: str, reason: str) -> Grade:
         blind=False,
         supersedes=original.graded_at,
     )
+
+
+def standing(ledger: Path = LEDGER) -> str:
+    """One line saying what human backing the judge's figures currently have.
+
+    **Returned as text so a caller cannot accidentally print the figures without it.** Reads the
+    ledger directly rather than taking a count, so no call site can pass a number that is out of
+    date with the file.
+    """
+    blind = [g for g in current(load(ledger)).values() if g.blind]
+    if len(blind) >= TARGET_GRADES:
+        return CALIBRATED.format(n=len(blind), scenarios=len({g.scenario_id for g in blind}))
+    return UNCALIBRATED.format(n=len(blind), target=TARGET_GRADES)
+
+
+def is_calibrated(ledger: Path = LEDGER) -> bool:
+    return len([g for g in current(load(ledger)).values() if g.blind]) >= TARGET_GRADES

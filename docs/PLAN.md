@@ -1293,6 +1293,27 @@ afterwards.
 undefined κ rendered as `— — **unstable**`, two em-dashes and a warning about a number that does
 not exist; and `1 grades over 1 distinct scenario(s)`.
 
+**And the grading stopped at five, deliberately, with the label that says so.** Five blind grades
+over five distinct scenarios, **one of them a disagreement** — which is a real partial result and
+more informative than a clean run of seventeen would have been. It stopped because the only person
+available to grade is the person who wrote the recorded narratives, and grading is the one
+measurement here a model cannot take: `judge.require_lineage` already refuses a judge that shares
+a tuning lineage with the agent it grades, and a model grading *the judge* is the same violation
+entering by a door the code cannot see. **A calibration written by a model and filed under a
+human's name would make the one figure that certifies every other figure a fabrication.**
+
+So the state is recorded rather than pending. `calibration.standing()` returns
+**`JUDGE NOT CALIBRATED — 5 of ~30`**, and `judged_rows` — the single place in this repository
+that produces a cross-run judged figure — prints it above the table, beside the shared-lineage
+warning it already carried. Same mechanism as `smoke.NON_CITABLE` and the same stated reason:
+*"so a smoke number can't be screenshotted into a README six weeks later."*
+
+**The label retires itself.** It reads the ledger rather than taking a count, so no call site can
+pass a stale number; unblinded regrades cannot clear it; and at 30 blind grades it becomes
+`Judge calibrated against 30 blind human grades over N scenario(s)` with nobody having to remember
+to delete a caveat. A warning that needs a human to retract it is the opposite failure and just as
+bad.
+
 ### T5.3 — the two skeletons, and the thesis that had been wrong for weeks
 
 *"ARCHITECTURE.md with the system diagram and ADR index; a threat-model document."* Written like

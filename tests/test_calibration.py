@@ -652,3 +652,85 @@ def test_the_scenario_count_travels_with_n() -> None:
 
     assert "30 grades over 13 distinct scenarios" in rendered
     assert "not independent judgements" in rendered
+
+
+# --- the label that outlives the conversation ----------------------------------------------------
+
+
+def test_a_judged_table_says_the_judge_is_uncalibrated(tmp_path: Path) -> None:
+    """**T4.2's clause is "before trusting it", and "before" is the load-bearing word.**
+
+    Figures published while no human has checked the judge rest on an unvalidated instrument, and
+    if the calibration later disagrees they get withdrawn rather than footnoted. So the label
+    rides on the table itself, exactly as `smoke.NON_CITABLE` rides on the CI output and for the
+    reason that task states: *"so a smoke number can't be screenshotted into a README six weeks
+    later"*.
+    """
+    from evalharness.judge import JudgeResult, judged_rows
+
+    empty = tmp_path / "grades.jsonl"
+    assert "JUDGE NOT CALIBRATED" in cal.standing(empty)
+    assert "0 of ~30" in cal.standing(empty)
+
+    rendered = "\n".join(
+        judged_rows(
+            [
+                JudgeResult(
+                    scenario_id="s",
+                    run_id="r",
+                    agent_model="a",
+                    judge_model="j",
+                    shared_lineage=False,
+                    lineage_note="",
+                    scored=True,
+                    agreement="adjacent",
+                )
+            ]
+        )
+    )
+    assert "JUDGE NOT CALIBRATED" in rendered, "the label rides on the table, not on a docstring"
+
+
+def test_the_label_clears_itself_once_the_grades_exist(tmp_path: Path) -> None:
+    """**Nobody has to remember to remove it.** A caveat that needs a human to retract it is one
+    that outlives its reason, which is the opposite failure and just as bad."""
+    ledger = tmp_path / "grades.jsonl"
+    for n in range(cal.TARGET_GRADES):
+        cal.record(
+            cal.Grade(
+                run_id=f"r{n}",
+                scenario_id=f"s{n % 13}",
+                agreement="same_mechanism",
+                reason="the mechanisms match",
+                graded_at=f"t{n}",
+                grader="chandana",
+            ),
+            ledger,
+        )
+
+    assert cal.is_calibrated(ledger) is True
+    assert "JUDGE NOT CALIBRATED" not in cal.standing(ledger)
+    assert "30 blind human grades over 13 scenario(s)" in cal.standing(ledger)
+
+
+def test_unblinded_grades_do_not_clear_the_label(tmp_path: Path) -> None:
+    """A regrade made after seeing the judge's answer measures confirmation, not agreement - so it
+    cannot be what retires a warning about the judge being unchecked."""
+    ledger = tmp_path / "grades.jsonl"
+    first = cal.record(grade("r0", "same_mechanism", at="t0"), ledger)
+    for n in range(cal.TARGET_GRADES + 5):
+        cal.record(cal.regrade(first, "adjacent", f"revision {n}"), ledger)
+
+    assert cal.is_calibrated(ledger) is False
+    assert "JUDGE NOT CALIBRATED" in cal.standing(ledger)
+
+
+def test_the_standing_line_reads_the_ledger_rather_than_taking_a_count() -> None:
+    """So no call site can pass a number that is out of date with the file - the failure mode
+    that put `judge["agreement"]` in one module and `root_cause_agreement` in another."""
+    import inspect
+
+    source = inspect.getsource(cal.standing)
+
+    assert "load(" in source, "it opens the ledger itself"
+    assert "int" not in inspect.signature(cal.standing).parameters
