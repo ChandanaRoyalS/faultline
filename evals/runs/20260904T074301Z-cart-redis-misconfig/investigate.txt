@@ -1,0 +1,7 @@
+incident 7f19b556-15c0-4686-9955-b40984a7e05c  state triaging  anchor 07:45:30
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: earliest alerting service (no error-ratio series available)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20260904T074301Z-cart-redis-misconfig/7f19b556-15c0-4686-9955-b40984a7e05c-verdict.json
