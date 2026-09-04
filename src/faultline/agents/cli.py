@@ -128,6 +128,14 @@ def parser() -> argparse.ArgumentParser:
         metavar="N",
         help="dispatch rounds; default: %(default)s",
     )
+    p.add_argument(
+        "--no-notify",
+        action="store_true",
+        help=(
+            "do not send a report-ready notification even if FAULTLINE_NOTIFY_SLACK_WEBHOOK_URL "
+            "is set. A scored run (one given --exclude-origin) is already silent (T5.2)"
+        ),
+    )
     return p
 
 
@@ -279,12 +287,58 @@ def run(argv: list[str] | None = None) -> int:
         store, incident, engine, triage, anchor, triager=None if args.no_gate else Triager(model)
     )
     _print_report(report)
+    announce_report(report, incident.id, exclude=exclude, suppressed=args.no_notify)
     if args.out:
         from pathlib import Path
 
         for path in write_outputs(report, Path(args.out), archive):
             print(f"wrote {path}")
     return int(report.exit_code)
+
+
+SCORED_RUN_IS_NOT_AN_INCIDENT = (
+    "this is a scored run (--exclude-origin was given), and a benchmark is not an incident "
+    "lifecycle"
+)
+
+
+def announce_report(
+    report: object,
+    incident_id: str,
+    *,
+    exclude: str | None = None,
+    suppressed: bool = False,
+    announcer: object | None = None,
+) -> object:
+    """T5.2's *"report ready"* half. Returns the `Delivery`, so the decision can be tested.
+
+    **A scored run sends nothing, and that is the important case.** `evalharness.run` invokes this
+    CLI as a subprocess once per scenario per repeat, so a published sweep is fifty invocations. If
+    each posted to Slack, an on-call channel would fill with reports about faults the benchmark
+    injected on purpose - and somebody would go and fix one, which corrupts the measurement and
+    wastes a responder in the same move. `--exclude-origin` is the harness's own marker (retrieval
+    exclusion exists only for scored runs, per ADR-0009's leakage rule), so it is read as the
+    signal rather than a second flag the harness would have to remember to pass.
+
+    An operator who passes `--exclude-origin` by hand gets no notification. That is the safe
+    direction of the error: a missing message costs a click, and the other way costs a responder
+    chasing an injected fault.
+
+    The three baselines return before this is reached at all. A baseline exists to be measured; it
+    is never an operational response, so it has no lifecycle to notify about.
+    """
+    from faultline.notify import SILENT
+
+    if suppressed:
+        return SILENT.report_ready(incident_id, report)
+    if exclude:
+        print(f"\nno notification sent: {SCORED_RUN_IS_NOT_AN_INCIDENT}")
+        return SILENT.report_ready(incident_id, report)
+    if announcer is None:
+        from faultline.notify.slack import from_settings
+
+        announcer = from_settings()
+    return announcer.report_ready(incident_id, report)  # type: ignore[attr-defined]
 
 
 def _print_report(report: object) -> None:

@@ -1218,10 +1218,83 @@ run has been scored yet** — the runs need credits.
 | task | deliverable | state |
 |---|---|---|
 | **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **read half built**; no frontend |
-| **T5.2** Slack notifier | lifecycle notifications | **nothing** — no Slack code anywhere |
+| **T5.2** Slack notifier | lifecycle notifications | **built** — both events, linked into T5.1's screen |
 | **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **partial** — README is 358 lines; the other two are self-labelled skeletons (THREAT-MODEL says *"completed at T6.8"*); no demo video |
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
 | **T5.5** deploy | live instance at a stable URL | needs a VM |
+
+### T5.2 — the notifier, and the second renderer fed untrusted telemetry
+
+*"Webhook notifications on incident open and report ready, with links into the UI."*
+`src/faultline/notify/`: `messages` (pure text), `announce` (the seam), `slack` (the only socket),
+`settings`. Two call sites — `Orchestrator._open` and `faultline-investigate` — and **no new
+dependency**: one `urllib.request` POST of `{"text": ...}`. T5.2's stated value is *"near-zero
+cost"*, and a task justified by cheapness should not be why a clean clone resolves a bigger
+environment, which is exactly what T5.4 rehearses.
+
+**"Formatting kept minimal" is a security property here, not a matter of taste.** T5.1 established
+that world-produced text reaching a *renderer* is a different surface from the same text reaching a
+*model*. A Slack channel is the second renderer this system feeds, and it is the worse one:
+`textContent` has no equivalent, because the mrkdwn parse happens on Slack's side after the bytes
+have left the process. So `view.py`'s answer — label it, let the renderer decide — is unavailable,
+and the stronger rule takes its place: **there is no trusted path for caller data.** The only
+unescaped text in a message is a literal in `messages.py`. Not the root cause, not the service
+name, not the incident id.
+
+**Three mechanisms, three attacks, and none of them covers another.** Escaping `&<>` stops
+`<!channel>`, which **pages an entire on-call channel**, and Slack's explicit link syntax. The code
+span — backticks stripped first so it cannot be closed from inside — stops **auto-linking of a bare
+URL**, which escaping does not touch at all: `see http://evil.example/fix` in a log line becomes a
+clickable link carrying this platform's authority. Collapsing whitespace stops the third, and it is
+the one that would have been missed: a root cause containing `\n\n*Approved by:* sre-oncall`
+**forges a line that reads exactly like a line this module wrote**. The first two are about the
+reader clicking something; the third is about the reader *believing* something. The test asserts
+the property directly — hostile input produces the same number of lines as benign input.
+
+**The webhook URL is a credential, and every HTTP library leaks it into logs.**
+`hooks.slack.com/services/T…/B…/…` is a bearer token wearing a URL's clothes. `SecretStr` handles
+the obvious half. The non-obvious half: `requests.HTTPError` and `httpx.HTTPStatusError` both
+render as `… for url '<the webhook>'`, so **logging a failed notification writes the live
+credential to disk** — and a revoked webhook, the case most likely to fail, is the case most likely
+to be logged. `urllib` happens not to today, which is a fact about one `__str__` and not a property
+to rest on, so every string the module emits goes through `scrub()`, `__repr__` is overridden
+(a frozen dataclass would otherwise print its first field, the secret, into every traceback), and a
+test drives a real 404 and asserts the path is absent.
+
+**Plaintext is refused rather than downgraded**, loopback excepted — which is also what lets the
+tests drive the real class against a real `http.server` rather than a mock of `urlopen`.
+
+**A notification never fails an incident, and the guard is deliberately doubled.**
+`SlackWebhook.send` returns a `Delivery` instead of raising, which covers timeouts and 404s;
+`Announcer` wraps the call anyway, which covers a `Notifier` that violates the protocol's contract.
+The second looks redundant and is the one that matters, because the first is a promise this package
+cannot enforce on somebody else's class. What being wrong costs is already recorded here: at T3.5's
+smoke a `ModuleNotFoundError` before the first model call moved a live incident to `FAILED`, which
+ADR-0016 makes terminal.
+
+**A scored run sends nothing — and only half of that could be done in code.** `evalharness.run`
+invokes `faultline-investigate` once per scenario per repeat, so a published sweep is fifty
+invocations; fifty reports about faults the benchmark injected on purpose would fill an on-call
+channel, and somebody would go and fix one — corrupting the measurement and wasting a responder in
+the same move. The CLI suppresses on `--exclude-origin`, the harness's own marker, which it cannot
+forget to pass because omitting it would leak the answer into retrieval and fail the run louder.
+
+**The orchestrator cannot do the same, by construction.** ADR-0004 keeps the harness outside the
+product and a scenario injects a *genuine* fault precisely so the pipeline meets it as one, so
+nothing in the alert says "this is a measurement". The eval profile therefore suppresses by
+configuration — an unset webhook, or `--no-notify` — and `orchestrator/cli.py` records why rather
+than implying the code handles it. **An asymmetry named rather than discovered.**
+
+**One defect caught by looking, again.** The flagged heading first read `*Report ready* - flagged,
+read the flags before acting `inc-…``, which parses as a sentence with the incident id stranded at
+the end of it. What an outcome *means* now goes on its own line under the heading. No assertion
+would have found that; rendering four realistic messages and reading them did — the same route that
+found T5.1's washed-out body text.
+
+**And the notification is announced after the durable write**, on `_open` only. A join does not
+announce, a reopen inside the settle window does not announce, and a Redis redelivery inherits
+`apply`'s idempotency rather than needing its own — a channel reporting one recurring fault as
+several would corrupt the count a reader uses to decide how bad a night this is.
 
 **And the page, with its escaping verified in a real browser.** ***Same day.***
 `src/faultline/api/static/incident.html`, served at `/ui/incidents/{id}` from the same origin it
