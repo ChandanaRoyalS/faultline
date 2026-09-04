@@ -215,13 +215,23 @@ def test_the_comparison_report_carries_a_baseline_panel_for_every_metric() -> No
 def test_the_report_does_not_compute_a_baseline_delta() -> None:
     """Nothing here subtracts a baseline from the pipeline. `compare_metric` owns deltas, and
     `variance.mde` decides whether one is resolvable - at n≈10, R=1 this catalog's MDE is 28pp,
-    so a bare printed difference would invite exactly the reading that machinery prevents."""
+    so a bare printed difference would invite exactly the reading that machinery prevents.
+
+    **This asserted `"B minus" not in baseline_section` and broke on a caption saying the `B minus
+    A` framing does *not* apply to these rows.** Seventh instance of one mistake in this
+    repository: a fragment of English is not a property. The property is that a baseline row
+    carries the baseline's **own** value, so it is asserted against the number.
+    """
     from evalharness.compare import report
 
     a = arm_of("aaa", {"s1": 1.0})
     b = arm_of("bbb", {"s1": 0.0})
-
+    # B0 scores 1.0. If anything differenced it against either arm the row would read +0.0pp
+    # (against A) or +100.0pp (against B); its own value is what must appear.
     rendered = "\n".join(report(a, b, baselines={"B0": arm_of("f0", {"s1": 1.0})}))
 
     baseline_section = rendered[rendered.index("### Baselines") :]
-    assert "B minus" not in baseline_section
+    b0_row = next(line for line in baseline_section.splitlines() if line.startswith("| B0 "))
+
+    assert "100.0pp" in b0_row, "the baseline's own figure, not a difference from an arm"
+    assert "+0.0pp" not in b0_row, "which is what a delta against arm A would have printed"

@@ -200,3 +200,83 @@ def test_the_header_prints_whatever_runtime_each_arm_carries() -> None:
     assert "faultline/0.0.1+x" in runtime_row
     assert "faultline/0.0.1+y" in runtime_row
     assert "not recorded" not in runtime_row
+
+
+# --- what the first real report got wrong --------------------------------------------------------
+
+
+def test_a_baseline_table_says_its_figures_are_absolute() -> None:
+    """**`variance.Figure` renders every figure with a sign**, so B0's triage recall of 1.00
+    printed as `+100.0pp` directly under a heading reading *"Reported as B minus A"* - which reads
+    as B0 having improved by 100 points over something. Nothing in a baseline row is a delta;
+    `compare.report` never differences a baseline against an arm, deliberately."""
+    from evalharness.baseline_columns import BaselinePanel, BaselineRow
+    from evalharness.variance import Figure
+
+    rendered = "\n".join(
+        BaselinePanel(
+            metric_label="triage recall",
+            rows=[
+                BaselineRow(
+                    baseline="B0",
+                    description="no-LLM heuristic",
+                    figure=Figure(label="B0 triage recall", mean=1.0, low=1.0, high=1.0, n=1, r=1),
+                    runs=1,
+                    note="",
+                ),
+                BaselineRow(
+                    baseline="B1",
+                    description="one agent",
+                    figure=None,
+                    runs=0,
+                    note="runs need credits",
+                ),
+                BaselineRow(
+                    baseline="B2",
+                    description="model prior",
+                    figure=None,
+                    runs=0,
+                    note="runs need credits",
+                ),
+            ],
+        ).render()
+    )
+
+    assert "Absolute values for each baseline, not deltas" in rendered
+    assert "not an improvement over either arm" in rendered
+
+
+def test_the_catalog_size_is_counted_rather_than_typed() -> None:
+    """It was hardcoded `18`; the catalog is 19 with 2 unrunnable, so every generated report stated
+    a size that was never right. The number decides whether T1.6's headline policy has switched to
+    holdout-only, so a stale constant is a stale policy claim in the report."""
+    import inspect
+
+    from evalharness.compare import main
+    from evalharness.sweep import runnable
+
+    source = inspect.getsource(main)
+
+    assert '"--catalog-size", type=int, default=None' in source
+    assert "len(runnable())" in source
+    assert 18 not in {len(runnable())}, "if the catalog ever is 18, this guard proves nothing"
+
+
+def test_arms_that_declared_no_repeat_count_are_not_described_as_mismatched() -> None:
+    """The first real report printed *"the figures below use the lower declared R"* for two arms
+    that declared none - these configurations predate `repeat_count` being a fingerprint input, so
+    there is nothing to be lower than. Absent and differing are different facts."""
+    from evalharness.compare import METRICS, Arm, Run, report
+
+    def arm_of(fingerprint: str) -> Arm:
+        return Arm(
+            fingerprint=fingerprint,
+            runs=[Run(f"s{n}", "dev", {METRICS[0].key: 1.0}) for n in range(4)],
+            declared_r=None,
+        )
+
+    rendered = "\n".join(report(arm_of("aaa"), arm_of("bbb")))
+
+    assert "Neither arm recorded a declared R" in rendered
+    assert "use the lower declared R" not in rendered
+    assert "computed at **R = 1**" in rendered

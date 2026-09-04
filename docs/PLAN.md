@@ -1235,6 +1235,59 @@ run has been scored yet** — the runs need credits.
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
 | **T5.5** deploy | live instance at a stable URL | needs a VM |
 
+### T4.4 — the comparison generator, run on real data for the first time
+
+**Built, tested, green, and never once pointed at the record it exists to read.** `faultline-eval-db
+load` and `faultline-compare` had only ever seen fixtures. Running them cost nothing — no model
+calls, no world — and produced the repository's first comparison report, `914b0ef503bd` →
+`8372133897ae`, 17 scored runs against 31.
+
+Three facts from the loader that were inference until now:
+
+| | |
+|---|---|
+| runs / configurations | **132 / 20** |
+| discarded | **44 — 33.3%**, at n=128 a day earlier it was 32% |
+| configurations with a complete fingerprint | **0 of 20** |
+| scored runs at the **current** stamp `ba8684b01201` | **0** — it has no configuration at all |
+
+**The completeness figure will not move when code lands, only when runs happen.** `docs/PLAN.md`
+predicted 0-of-N would rise once T4.6 added `repeat_count`, `judge_version` and `seed_policy`. It
+landed; it is still 0 of 20, because a run cannot retroactively acquire an input that did not exist
+when it ran. That is the fingerprint behaving correctly — it hashes what was present rather than
+substituting defaults — and the prediction was simply wrong about what would move it.
+
+**And the report had four defects, one of them serious.**
+
+**A single observation, declared detectable.** The only line above the MDE in a thirteen-metric
+report was `fix class accuracy (holdout): +100.0pp [95% CI +100.0pp, +100.0pp] n=1 R=1 — above the
+MDE, a delta this size is detectable`. **One paired observation.** So it was simultaneously the
+line a reader would quote and the least supportable in the document. `variance.mde` is a normal
+approximation over `n` and returns a number for `n = 1` as cheerfully as for `n = 30`; nothing in
+it knew there was no sampling distribution to approximate. `verdict()` now refuses **both** verdicts
+below `MIN_N_FOR_VERDICT = 3`, and the floor is not a taste call: at `n = 1` there are zero degrees
+of freedom, which is *why* the interval printed as zero-width — `[+100.0pp, +100.0pp]` is the
+observation repeated, not a bound — and at `n = 2` the two-sided 95% `t` critical value is 12.7.
+
+**Baseline absolutes printed with delta signs, under a delta heading.** `variance.Figure` renders
+every figure signed, so B0's triage recall of 1.00 appeared as `+100.0pp` immediately beneath
+*"Reported as B minus A"*. The table now says the rows are absolute and that a leading `+` is the
+figure's own sign.
+
+**A catalog size that was never right.** `--catalog-size` defaulted to a hardcoded `18`; the
+catalog is 19 with 2 unrunnable. That number decides whether T1.6's headline policy has switched to
+holdout-only, so a stale constant was a stale *policy claim* in every generated report. Counted
+from `sweep.runnable()` now.
+
+**A warning about a mismatch that was really an absence.** Both arms declared no `R` — they predate
+T4.6 — and the report said *"the figures below use the lower declared R"*. Absent and differing are
+different facts; it now says neither arm recorded one and that the figures fall back to R = 1.
+
+**And the seventh instance of one mistake.** `test_the_report_does_not_compute_a_baseline_delta`
+asserted `"B minus" not in baseline_section` and broke on a caption saying the `B minus A` framing
+does *not* apply. It asserts against the number now: B0 scores 1.00, so its row must read
+`100.0pp` and not the `+0.0pp` a delta against arm A would have printed.
+
 ### T4.2 — what the calibration pool actually is, measured before grading it
 
 **The harness was about to produce a number worth nothing, and the reason was in the data.**

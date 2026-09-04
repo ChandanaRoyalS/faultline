@@ -51,6 +51,7 @@ from datetime import UTC, datetime
 from typing import Any
 
 from evalharness import variance
+from evalharness.sweep import runnable
 
 
 @dataclass(frozen=True, slots=True)
@@ -231,7 +232,19 @@ def report(
         "",
     ]
 
-    if (a.declared_r or 1) != (a.observed_r) or (b.declared_r or 1) != (b.observed_r):
+    if a.declared_r is None or b.declared_r is None:
+        # **Not the same thing as a mismatch**, and the first real report said the wrong one: it
+        # printed "the figures below use the lower declared R" for two arms that declared none.
+        # These configurations predate T4.6, so `repeat_count` was not a fingerprint input when
+        # they ran and cannot be added retroactively - the figures fall back to R = 1.
+        lines += [
+            "> **Neither arm recorded a declared R.** Both predate the repeat count becoming a "
+            f"fingerprint input (T4.6), and observed runs per scenario are {a.observed_r:.2f} and "
+            f"{b.observed_r:.2f}. The figures below are computed at **R = 1** - the honest "
+            "fallback, and a floor on what they claim rather than a description of what ran.",
+            "",
+        ]
+    elif a.declared_r != a.observed_r or b.declared_r != b.observed_r:
         lines += [
             "> **Declared R and observed runs per scenario differ.** The figures below use the "
             "lower declared R, because a configuration declared at one repeat count that ran a "
@@ -400,7 +413,11 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - console en
             "so there is no check to perform rather than a weak one."
         ),
     )
-    parser.add_argument("--catalog-size", type=int, default=18)
+    # **Counted, not typed.** It was hardcoded `18` and the catalog is 19 with 2 unrunnable, so
+    # every generated report stated a size that was never right. The number decides whether T1.6's
+    # headline policy has switched to holdout-only, so a stale constant here is a stale policy
+    # claim in the report - `sweep.runnable()` is the same list a sweep would actually run.
+    parser.add_argument("--catalog-size", type=int, default=None)
     parser.add_argument("--out", type=Path, default=Path("evals/reports"))
     parser.add_argument("--postgres-dsn", default=None)
     args = parser.parse_args(argv)
@@ -469,7 +486,7 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - console en
             report(
                 left,
                 right,
-                catalog_size=args.catalog_size,
+                catalog_size=args.catalog_size or len(runnable()),
                 baselines=loaded_baselines,
                 baseline_reasons=BASELINE_REASONS,
             )

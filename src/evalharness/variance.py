@@ -199,10 +199,50 @@ def mde(n: int, p: float = 0.5, rho: float = RHO_ASSUMED, r: int = 1) -> float:
     return (Z_ALPHA + Z_BETA) * math.sqrt(2 * p * (1 - p) * (1 - rho) / (n * r))
 
 
+MIN_N_FOR_VERDICT = 3
+"""Below this many paired observations, **neither verdict may be issued**.
+
+**Found by running the comparison generator on real data for the first time.** The first report it
+produced carried one line above the MDE, and it was this:
+
+> `fix class accuracy (holdout): +100.0pp [95% CI +100.0pp, +100.0pp] n=1 R=1`
+> `above the MDE (88.6pp at n=1, R=1) - a delta this size is detectable`
+
+**One paired observation, declared detectable.** It was the only "detectable" line in a
+thirteen-metric report, so it is the line a reader would quote, and it is the least supportable
+one in the document. The MDE formula is a normal approximation over `n` observations and returns a
+number for `n = 1` as cheerfully as for `n = 30`; nothing in it knows that at `n = 1` there is no
+sampling distribution to approximate.
+
+The floor is not a taste call:
+
+- **`n = 1` has zero degrees of freedom.** No interval is estimable, which is why the reported CI
+  was `[+100.0pp, +100.0pp]` - a zero-width interval is the observation repeated, not a bound.
+- **`n = 2` has one**, where the two-sided 95% `t` critical value is **12.7**. Any interval it
+  produces spans more than the measurable range of a proportion.
+
+So three is the smallest `n` at which the words "detectable" and "no measurable effect" mean
+anything at all. Below it the honest output is neither.
+"""
+
+
 def verdict(observed: float, n: int, r: int = 1, rho: float = RHO_ASSUMED) -> str:
     """The plan's rule, applied: *"a delta below its MDE is reported as 'no measurable effect at
     this catalog size'"* - which it calls stronger interview material than a fabricated 3-point
-    win, and which is the only honest reading of a delta this catalog cannot detect."""
+    win, and which is the only honest reading of a delta this catalog cannot detect.
+
+    **Refuses both verdicts below `MIN_N_FOR_VERDICT`.** "No measurable effect" and "detectable"
+    are both claims about a sampling distribution, and at one or two paired observations there
+    isn't one - see the constant for the report line that found this.
+    """
+    if n < MIN_N_FOR_VERDICT:
+        return (
+            f"not assessable at n={n} - a delta needs at least {MIN_N_FOR_VERDICT} paired "
+            f"observations before either 'detectable' or 'no measurable effect' means anything. "
+            f"At n=1 the interval has zero width because there is nothing to estimate it from, "
+            f"and at n=2 the t critical value is 12.7. This is one observation reported as one "
+            f"observation."
+        )
     threshold = mde(n, r=r, rho=rho)
     if abs(observed) < threshold:
         return (
