@@ -158,18 +158,36 @@ def _setting(manifest: dict[str, Any], key: str) -> Any:
 
 
 def outcome_of(manifest: dict[str, Any]) -> str:
-    """`scored`, `invalid`, `discarded` or `paused`.
+    """`scored`, `invalid`, `refused`, `discarded` or `paused`.
 
     Order matters: a run can be both scored and invalid - T4.1b's silent-filter case produces a
     score and then refuses it - and `invalid` is the answer, because the question this column
     answers is *may these numbers be used*.
+
+    **`refused` is recovered from `injected_at`, not from the label on disk**, and that recovery
+    is the point. Gate refusals were written as discards until 2026-09-04, and the correction is a
+    *reading* of the record rather than an edit to it: a discard is a run that **happened** and
+    produced no result, and a manifest with no `injected_at` never started.
+
+    Measured over the 132 runs on disk when this was found: **44 discards, of which 22 had never
+    injected anything** - 10 `baseline gate refused`, 10 `pipeline-down`, 2 others. So the
+    discard rate this repository quoted, budgeted sweeps against, and recorded in `docs/PLAN.md`
+    as *"a headline property of this harness"* - **33%** - was double the truth of **16.7%**.
+    `HeadroomExhaustedError` had already made exactly this argument for itself and carried
+    `is_pause`; nothing carried it for the other refusals.
+
+    Nothing on disk is rewritten. Those 22 manifests keep the words they were written with.
     """
     if manifest.get("invalid"):
         return "invalid"
-    if manifest.get("discarded"):
-        return "discarded"
+    if manifest.get("refused"):
+        return "refused"
     if manifest.get("paused"):
         return "paused"
+    if manifest.get("discarded"):
+        # The retroactive half. `injected_at` is on every manifest ever written, so a refusal
+        # mislabelled as a discard is distinguishable now without touching the file.
+        return "discarded" if manifest.get("injected_at") else "refused"
     return "scored" if manifest.get("score") else "discarded"
 
 
