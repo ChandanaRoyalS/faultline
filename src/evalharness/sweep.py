@@ -53,9 +53,16 @@ price can be cleared; one without is indistinguishable from a blocker with no so
 operator about to spend an hour of world time and real money should see the number first.
 """
 
-DISCARD_RATE = 0.33
-"""44 of 132 runs discarded, measured twice - 32% at n=128 and 33.3% at n=132. A sweep is budgeted
-against the runs it will *start*, not the ones it will score."""
+DISCARD_RATE = 0.17
+"""22 of 132 runs discarded. A sweep is budgeted against the runs it will *start*, not the ones it
+will score.
+
+**This read 0.33 for a day, and the 33% was half gate refusals.** 44 of 132 runs carried a
+`DISCARDED.md`, but 22 of those had no `injected_at` - they never started, so they cost nothing and
+belong in no discard rate. `evaldb.outcome_of` recovers the distinction from `injected_at` without
+rewriting a single manifest; see its docstring. The true figure is **16.7%**, and the number this
+repository quoted, budgeted against, and recorded in `docs/PLAN.md` as a headline property was
+exactly double it."""
 
 GATE_REFUSED = 3
 PAUSED = 5

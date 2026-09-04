@@ -24,6 +24,9 @@ def manifest(**overrides: object) -> dict:
         "efforts": {"default": "medium"},
         "budget": {"max_tokens": 120000},
         "score": {"runtime_version": "faultline/0.0.1+prompts:7c6894e9dd92"},
+        # **A run that started.** Without this a discard is indistinguishable from a gate
+        # refusal, which is the distinction `outcome_of` recovers - see its docstring.
+        "injected_at": "2026-09-03T00:05:00+00:00",
     }
     base.update(overrides)
     return base
@@ -206,4 +209,46 @@ def test_every_recorded_manifest_flattens_without_special_casing() -> None:
     assert len(rows) > 100
     assert all(row.run_id for row in rows), "every row must be identifiable"
     assert all(row.scenario_id for row in rows)
-    assert {row.outcome for row in rows} <= {"scored", "discarded", "paused", "invalid"}
+    assert {row.outcome for row in rows} <= {
+        "scored",
+        "discarded",
+        "refused",
+        "paused",
+        "invalid",
+    }
+
+
+def test_a_gate_refusal_is_not_a_discard_even_when_it_was_written_as_one() -> None:
+    """**Measured over the 132 runs on disk: 44 discards, 22 of which never injected anything.**
+
+    10 `baseline gate refused`, 10 `pipeline-down`, 2 others. So the discard rate this repository
+    quoted, budgeted sweeps against, and recorded in `docs/PLAN.md` as *"a headline property of
+    this harness"* — **33%** — was double the truth of **16.7%**. `HeadroomExhaustedError` had
+    already made this argument for itself and carried `is_pause`; nothing carried it for the rest.
+
+    The correction is a **reading** of the record, not an edit to it. `injected_at` is on every
+    manifest ever written, so a refusal mislabelled as a discard is recoverable without touching
+    a byte — which matters, because captured evidence is never rewritten.
+    """
+    started = manifest(discarded={"reason": "run failed"}, score=None)
+    never_started = manifest(discarded={"reason": "pipeline-down"}, score=None, injected_at=None)
+
+    assert evaldb.outcome_of(started) == "discarded", "the fault went in and the run happened"
+    assert evaldb.outcome_of(never_started) == "refused", "nothing was injected"
+
+
+def test_the_correction_holds_on_the_committed_record() -> None:
+    """Asserted against the real tree rather than a fixture, because the whole finding is about
+    what the real tree contains."""
+    import collections
+    import json
+
+    counts = collections.Counter(
+        evaldb.outcome_of(json.loads((d / "manifest.json").read_text()))
+        for d in sorted(RUNS.iterdir())
+        if d.is_dir() and (d / "manifest.json").is_file()
+    )
+
+    assert counts["refused"] > 0, "the record holds refusals that were written as discards"
+    total = sum(counts.values())
+    assert counts["discarded"] / total < 0.25, "the true discard rate, not the reported 33%"

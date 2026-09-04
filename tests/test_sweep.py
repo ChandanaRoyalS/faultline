@@ -195,7 +195,7 @@ def test_the_cost_of_the_job_is_printed_before_it_starts() -> None:
     the number first, and it is measured rather than guessed: median $0.53 over 87 recorded runs,
     inflated by the 33% discard rate because a sweep pays for the runs it *starts*."""
     assert sweep.MEDIAN_RUN_USD == 0.53
-    assert 0.3 < sweep.DISCARD_RATE < 0.4
+    assert 0.1 < sweep.DISCARD_RATE < 0.25, "the true rate, after gate refusals were separated"
 
     import inspect
 

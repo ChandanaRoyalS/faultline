@@ -1247,9 +1247,34 @@ Three facts from the loader that were inference until now:
 | | |
 |---|---|
 | runs / configurations | **132 / 20** |
-| discarded | **44 — 33.3%**, at n=128 a day earlier it was 32% |
+| discarded | **44 — 33.3%** ~~a headline property~~ — **half of these never injected anything; see below** |
 | configurations with a complete fingerprint | **0 of 20** |
 | scored runs at the **current** stamp `ba8684b01201` | **0** — it has no configuration at all |
+
+**And that 33% was wrong, which the first live sweep is what found.** ***Corrected 2026-09-04.***
+A gate refusal wrote `DISCARDED.md`, so a run the gate stopped *before it touched the world*
+entered the discard count beside runs that injected a fault and produced nothing. Measured over
+the same 132:
+
+| | |
+|---|---|
+| carrying `DISCARDED.md` | 44 |
+| of those, **injected something** | **22** — the real discards |
+| of those, **never started** | **22** — 10 `baseline gate refused`, 10 `pipeline-down`, 2 others |
+| **true discard rate** | **22 / 132 = 16.7%** |
+
+**`HeadroomExhaustedError` had already made this argument for itself.** Its docstring says a
+discard is *"a run that happened and produced no result"* and that recording a refusal as one
+*"would inflate the discard count with events that cost nothing"* — and it carries `is_pause` to
+act on it. Nothing carried it for the other refusals, so the argument was right, written down, and
+applied in one place out of three.
+
+**The correction is a reading of the record, not an edit to it.** `injected_at` is on every
+manifest ever written, so `evaldb.outcome_of` recovers `refused` from `discarded` without touching
+a byte of captured evidence — and new refusals write `REFUSED.md` instead.
+
+The figure had been quoted in this document, in `sweep.DISCARD_RATE`, and in every sweep budget:
+**a sweep was being budgeted at 1.33× when 1.20× was the truth.**
 
 **The completeness figure will not move when code lands, only when runs happen.** `docs/PLAN.md`
 predicted 0-of-N would rise once T4.6 added `repeat_count`, `judge_version` and `seed_policy`. It

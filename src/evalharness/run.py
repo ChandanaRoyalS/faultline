@@ -218,8 +218,40 @@ class RunDir:
             f"(T4.1b, ADR-0008 axis 2).\n\n{detail}\n",
         )
 
+    def refuse(self, reason: str, detail: str = "") -> Path:
+        """A run the gate would not let start. **Recorded, and not a discard.**
+
+        `GateRefusedError`'s own docstring says it: *"The world is not fit to inject into. Nothing
+        was injected."* A discard is a run that **happened** and produced no result; this is a run
+        that never started, and conflating them inflates the one number ADR-0022 §3.3 keeps
+        visible so that it means something.
+
+        **Measured, and it was exactly half.** Of 44 discards on disk, 22 carried no `injected_at`
+        - 10 `baseline gate refused`, 10 `pipeline-down`, 2 others. So the headline discard rate
+        this repository has been quoting and budgeting against, **33%, was double the truth of
+        16.7%.** `HeadroomExhaustedError` had already made this argument for itself and carried
+        `is_pause` to act on it; nothing carried it for the other refusals.
+
+        **Nothing on disk is rewritten.** Those 22 manifests keep the label they were written
+        with; the distinction is recoverable from `injected_at`, which every manifest already has,
+        so the correct figure is a *reading* of the record rather than an edit to it.
+        """
+        self.manifest["refused"] = {"reason": reason, "at": datetime.now(UTC).isoformat()}
+        self.save_manifest()
+        return self.write(
+            "REFUSED.md",
+            f"# Refused run\n\n**Reason:** {reason}\n\n"
+            f"**Nothing was injected and this scenario was not attempted.** This is not a "
+            f"discard: a discard is a run that happened and produced no result. Recorded rather "
+            f"than deleted, so a refusal that recurs is visible as a pattern.\n\n{detail}\n",
+        )
+
     def discard(self, reason: str, detail: str = "") -> Path:
-        """**Recorded, not deleted.** The directory stays and says why it is not a result."""
+        """**Recorded, not deleted.** The directory stays and says why it is not a result.
+
+        For a run that **started**. A gate refusal uses `refuse` - see its docstring for the
+        measurement that separated them.
+        """
         self.manifest["discarded"] = {"reason": reason, "at": datetime.now(UTC).isoformat()}
         self.save_manifest()
         return self.write(
@@ -1338,7 +1370,9 @@ def main(argv: list[str] | None = None) -> int:
             run.save_manifest()
             print(f"PAUSED: {refused}")
             return 5
-        run.discard(getattr(refused, "discard_reason", "baseline gate refused"), str(refused))
+        # **Refused, not discarded.** Nothing was injected - the base class says so - so this
+        # must not enter the discard count. See `Run.refuse`.
+        run.refuse(getattr(refused, "discard_reason", "baseline gate refused"), str(refused))
         print(f"REFUSED: {refused}")
         return 3
     except (RunError, subprocess.TimeoutExpired) as failure:
