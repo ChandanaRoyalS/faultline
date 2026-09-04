@@ -7,12 +7,24 @@ manifest beside the deterministic score.
 **Time-to-first-correct-hypothesis is judged here too**, and this is the only place it could be.
 It needs a judge, the same lineage rule, and the same reference document - three things this pass
 already has - and it must not be a call inside a *scored* run, where it would put judge latency
-and judge spend into the figures the run is measuring. One extra model call per run, ~$0.03 at
-the rates the budget records.
+and judge spend into the figures the run is measuring. One extra model call per run.
 
 **It degrades rather than fails.** A run whose trajectory is not in the database - an archived
 tree, a different machine, a run predating the table - records why it could not be measured and
 the judging continues. An unmeasurable metric must not cost a pass its agreement figures.
+
+## `run_ids` are optional, and the default used to be the destructive one
+
+`faultline-judge` with no arguments selects **every scored run on disk** and writes
+`manifest["judge"]` on each. There are 79 judged runs in `evals/runs/`; that invocation rewrote
+all of them, in place, and charged for it. Rewriting captured evidence is the one rule this
+repository does not bend (ADR-0022 §3.1), and it was one omitted argument away from being broken
+by the repository's own tool - not by a bug, but by the default.
+
+So a run that already carries a `judge` block is **skipped and counted**, and overwriting one
+takes `--rejudge` typed on purpose. The guard is deliberately on the *manifest*, not on the
+argument list: naming a judged run explicitly is exactly what someone does by accident when
+re-running a command from their shell history.
 """
 
 from __future__ import annotations
@@ -53,8 +65,27 @@ def parser() -> argparse.ArgumentParser:
             "nothing invokes is not a metric"
         ),
     )
+    p.add_argument(
+        "--rejudge",
+        action="store_true",
+        help=(
+            "judge runs that already carry a judge block, overwriting it. Off by default: the "
+            "default selection is every scored run, and the last 79 of those are already judged"
+        ),
+    )
     p.add_argument("--postgres-dsn", default=None, help="where the trajectories are")
     return p
+
+
+def already_judged(manifest: dict[str, Any]) -> bool:
+    """Whether this run's manifest already carries a judge's answer.
+
+    **Any non-empty `judge` block counts, including one that records why the run was not scored.**
+    A run whose narrative was refused has been through the pass and its outcome is on disk; going
+    again would overwrite a recorded fact with an identical one at best, and at worst with a
+    different one from a different judge, silently.
+    """
+    return bool(manifest.get("judge"))
 
 
 NOT_MEASURED = "not measured"
@@ -119,37 +150,71 @@ def run(argv: list[str] | None = None) -> int:
         require_lineage,
     )
 
-    settings = JudgeSettings.from_env()
+    try:
+        settings = JudgeSettings.from_env()
+    except JudgeUnconfiguredError as refusal:
+        print(f"REFUSED: {refusal}")
+        return 3
     root = Path(args.runs_root) if args.runs_root else RUN_ROOT
     wanted = set(args.run_ids)
     # `load_run` drops demo runs, so the default sweep never judges one. Naming a demo run
     # explicitly still works: the rule is that no *aggregate* counts it, not that it may
     # never be looked at (T5.3).
-    runs = [
+    selected = [
         loaded
         for directory in sorted(root.iterdir())
         if directory.is_dir() and (not wanted or directory.name in wanted)
         if (loaded := load_run(directory, allow_demo=bool(wanted))) is not None
     ]
-    if not runs:
+    if not selected:
         print("no scored runs to judge")
+        return 0
+
+    # **Skipped and counted, never silently dropped.** A pass that shrank its own workload
+    # without saying so is the defect `calibration_cli.abstention_count` exists to avoid, one
+    # level up.
+    standing = [loaded for loaded in selected if already_judged(loaded["manifest"])]
+    runs = selected if args.rejudge else [r for r in selected if not already_judged(r["manifest"])]
+    if standing:
+        print(
+            f"{len(standing)} run(s) already carry a judge block and are "
+            + (
+                "being OVERWRITTEN (--rejudge)"
+                if args.rejudge
+                else "skipped; --rejudge overwrites them"
+            )
+        )
+    # **Before the configuration check, deliberately.** Nothing will be written and no model will
+    # be called, so demanding a judge model here would demand configuration for work that is not
+    # going to happen - and it would answer the operator who re-ran a finished command with
+    # "set FAULTLINE_JUDGE_MODEL" instead of "this is already done".
+    if not runs:
+        print("every selected run is already judged; nothing to do")
         return 0
 
     try:
         model_id = settings.require_model()
-        shared, why = require_lineage(runs[0]["agent_model"], settings)
+        shared, why = require_lineage(selected[0]["agent_model"], settings)
     except (JudgeUnconfiguredError, LineageViolationError) as refusal:
         print(f"REFUSED: {refusal}")
         return 3
 
-    print(f"judge {model_id}   agent {runs[0]['agent_model']}")
+    print(f"judge {model_id}   agent {selected[0]['agent_model']}")
     print(
         f"lineage: {'SHARED - every figure carries the violation' if shared else 'clear'} ({why})"
     )
     print(f"{len(runs)} scored run(s) to judge")
     if args.dry_run:
         for loaded in runs:
-            state = "REFUSED NARRATIVE" if loaded["narrative_refused"] else "would judge"
+            # The narrative file is checked here for the same reason `judge_run` checks it: a
+            # run with no narrative is reported, not judged. A preview that says "would judge"
+            # for a run that will record "NOT JUDGED" is not a preview of anything.
+            if loaded["narrative_refused"]:
+                state = "REFUSED NARRATIVE"
+            elif not loaded["narrative"]:
+                state = "NO NARRATIVE - would be reported, not judged"
+            else:
+                state = "would judge"
             print(f"  {loaded['scenario_id']:32} {state}")
         return 0
 
@@ -187,7 +252,19 @@ def run(argv: list[str] | None = None) -> int:
     print("\n" + table)
     tin = sum(r.tokens_in for r in results)
     tout = sum(r.tokens_out for r in results)
-    print(f"\nJUDGE COST  in {tin} / out {tout} tokens   ${tin / 1e6 * 5 + tout / 1e6 * 25:.4f}")
+    if settings.usd_per_mtok is None:
+        print(
+            f"\nJUDGE COST  in {tin} / out {tout} tokens   NOT PRICED - set "
+            "FAULTLINE_JUDGE_USD_PER_MTOK=IN,OUT for this judge. This line used to bill at the "
+            "agent's $5/$25, which for a claude-haiku-4-5 judge overstated 79 passes by about 5x."
+        )
+    else:
+        usd_in, usd_out = settings.usd_per_mtok
+        print(
+            f"\nJUDGE COST  in {tin} / out {tout} tokens   "
+            f"${tin / 1e6 * usd_in + tout / 1e6 * usd_out:.4f}   "
+            f"at ${usd_in}/${usd_out} per Mtok for {model_id}"
+        )
     if args.out:
         Path(args.out).write_text(table + "\n")
         print(f"wrote {args.out}")
