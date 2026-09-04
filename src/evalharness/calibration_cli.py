@@ -56,7 +56,16 @@ def judged_runs(root: Path) -> dict[str, dict[str, Any]]:
 
     A run without a `judge` block has not been judged, so there is nothing to calibrate against -
     it is skipped rather than counted as a disagreement.
+
+    **The key comes from `judge.AGREEMENT_KEY`, not from a literal here.** This function read
+    `judge["agreement"]` for a day. No manifest has ever held that key - `JudgeResult.agreement`
+    serialises as `root_cause_agreement` - so it skipped **all 78 judged runs** and printed
+    "every judged run has a grade (0 recorded)", which reads exactly like a finished job. A
+    filter that silently matches nothing is the defect T4.1b's clause is about, arriving in the
+    one harness whose whole purpose is checking whether an automated verdict can be trusted.
     """
+    from evalharness.judge import AGREEMENT_KEY
+
     found: dict[str, dict[str, Any]] = {}
     if not root.is_dir():
         return found
@@ -66,13 +75,13 @@ def judged_runs(root: Path) -> dict[str, dict[str, Any]]:
             continue
         manifest = json.loads(manifest_path.read_text())
         judge = manifest.get("judge") or {}
-        if not judge.get("agreement"):
+        if not judge.get(AGREEMENT_KEY):
             continue
         narratives = sorted(directory.glob("*-narrative.md"))
         found[directory.name] = {
             "run_id": directory.name,
             "scenario_id": manifest.get("scenario_id", ""),
-            "agreement": judge["agreement"],
+            "agreement": judge[AGREEMENT_KEY],
             "agreement_reason": judge.get("agreement_reason", ""),
             "narrative": narratives[0].read_text() if narratives else "",
         }

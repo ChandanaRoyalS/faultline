@@ -22,6 +22,67 @@ import pytest
 REPO = Path(__file__).resolve().parents[1]
 ARCHITECTURE = REPO / "docs/ARCHITECTURE.md"
 THREAT_MODEL = REPO / "docs/THREAT-MODEL.md"
+PLAN = REPO / "docs/PLAN.md"
+
+
+# --- a headline that disagrees with the table under it -------------------------------------------
+
+
+def test_the_phase_4_headline_is_the_sum_of_its_own_table() -> None:
+    """**The third stale number in this document**, after `RESULTS.md`'s two wrong HEAD stamps and
+    a *"still open"* paragraph contradicted by the section above it.
+
+    The headline read `48 of 55` while its own rows summed to 53.5: it was written when five tasks
+    had closed and never moved when two more did. Nothing had to be edited for it to go wrong,
+    which is the whole failure mode — and it is a figure **a reader can check by addition**, so
+    the check belongs here rather than in a reviewer's attention.
+    """
+    text = PLAN.read_text()
+    headline = re.search(r"\*\*([\d.]+) of (\d+) — \d+% — after", text)
+    assert headline, "the Phase 4 headline is gone or reworded; this guard needs updating with it"
+
+    rows = re.findall(r"^\| T4\.[0-9b]+ [^|]*\| *(\d+) *\| *\*{0,2}([\d.]+)\*{0,2} *\|", text, re.M)
+    gate = re.search(r"^\| G4 \| *(\d+) *\| *(\d+) *\|", text, re.M)
+    assert rows and gate, "the Phase 4 grading table is gone or reshaped"
+
+    clauses = sum(int(c) for c, _ in rows) + int(gate.group(1))
+    delivered = sum(float(d) for _, d in rows) + float(gate.group(2))
+
+    assert float(headline.group(1)) == delivered, "the headline disagrees with its own rows"
+    assert int(headline.group(2)) == clauses
+
+
+def test_the_headline_does_not_read_as_a_measurement_having_been_taken() -> None:
+    """97% grades *is the machinery built*, not *has the measurement been taken*, and for Phase 4
+    those come apart badly. A reader quoting the percentage without that sentence beside it would
+    be quoting the opposite of what the phase's own purpose is."""
+    text = PLAN.read_text()
+    section = text[text.index("## Audit against the specification — Phase 4") :][:4000]
+
+    assert "the wrong number to take away" in section
+    assert "has not been read since the stamp last moved" in section
+
+
+# --- the calibration pool ------------------------------------------------------------------------
+
+
+def test_the_calibration_harness_can_see_the_judged_runs_on_disk() -> None:
+    """**It saw zero for a day**, across a run tree holding 78 judged runs, because it read
+    `judge["agreement"]` and the judge writes `root_cause_agreement`. It reported that as *"every
+    judged run has a grade (0 recorded)"* — a filter matching nothing, rendered as a finished job.
+
+    Asserted against the real tree rather than a fixture, because the fixture had the same bug:
+    it hand-wrote the key the reader expected instead of the one the writer emits.
+    """
+    from evalharness.calibration_cli import judged_runs
+
+    runs = REPO / "evals/runs"
+    if not runs.is_dir():  # pragma: no cover - the tree is committed
+        pytest.skip("no run tree")
+
+    found = judged_runs(runs)
+    assert len(found) > 30, f"only {len(found)} gradable runs; T4.2 needs ~30"
+    assert all(entry["narrative"] for entry in found.values()), "a run with nothing to grade"
 
 
 @pytest.fixture(scope="module")

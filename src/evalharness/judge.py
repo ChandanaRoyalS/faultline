@@ -274,6 +274,17 @@ def require_lineage(agent_model: str, settings: JudgeSettings) -> tuple[bool, st
 
 # --- judging one run -----------------------------------------------------------
 
+AGREEMENT_KEY = "root_cause_agreement"
+"""The key `JudgeResult.as_dict()` writes the agreement under, **named because the attribute and
+the key differ** - `JudgeResult.agreement` serialises as `root_cause_agreement`.
+
+That rename inside `as_dict()` cost T4.2 its calibration harness for a day: `calibration_cli`
+read `judge["agreement"]`, which no manifest has ever contained, so it reported an empty pool
+across a run tree holding **78 judged runs** - and reported it as "nothing to grade" rather than
+as an error, which is the failure mode this repository keeps naming. One constant, read by both
+sides, and a round-trip test so a future rename breaks something.
+"""
+
 
 @dataclass(frozen=True, slots=True)
 class JudgeResult:
@@ -306,7 +317,7 @@ class JudgeResult:
             "lineage_note": self.lineage_note,
             "scored": self.scored,
             "not_scored_because": self.not_scored_because,
-            "root_cause_agreement": self.agreement,
+            AGREEMENT_KEY: self.agreement,
             "agreement_reason": self.agreement_reason,
             "dead_ends_closed": list(self.dead_ends_closed),
             "dead_ends_missed": list(self.dead_ends_missed),

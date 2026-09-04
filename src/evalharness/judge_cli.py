@@ -1,8 +1,18 @@
-"""`faultline-judge` - score the narratives of runs already on disk (T4.4).
+"""`faultline-judge` - score the narratives of runs already on disk (T4.4, T4.2).
 
 No world, no injections, no incidents. The narratives are files; this reads them, compares each
 against its scenario's recorded `incident.md`, and writes the judge's answers back into the run
 manifest beside the deterministic score.
+
+**Time-to-first-correct-hypothesis is judged here too**, and this is the only place it could be.
+It needs a judge, the same lineage rule, and the same reference document - three things this pass
+already has - and it must not be a call inside a *scored* run, where it would put judge latency
+and judge spend into the figures the run is measuring. One extra model call per run, ~$0.03 at
+the rates the budget records.
+
+**It degrades rather than fails.** A run whose trajectory is not in the database - an archived
+tree, a different machine, a run predating the table - records why it could not be measured and
+the judging continues. An unmeasurable metric must not cost a pass its agreement figures.
 """
 
 from __future__ import annotations
@@ -11,6 +21,7 @@ import argparse
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
 
 def parser() -> argparse.ArgumentParser:
@@ -33,7 +44,64 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="check configuration and lineage, list what would be judged, and make no model call",
     )
+    p.add_argument(
+        "--no-first-correct",
+        action="store_true",
+        help=(
+            "skip T4.2's time-to-first-correct-hypothesis. It is one extra model call per run "
+            "(~$0.03) and needs the trajectory in Postgres; on by default because a metric "
+            "nothing invokes is not a metric"
+        ),
+    )
+    p.add_argument("--postgres-dsn", default=None, help="where the trajectories are")
     return p
+
+
+NOT_MEASURED = "not measured"
+"""What a run records when first-correct could not be computed. **A stated absence, not a
+missing key** - ADR-0019's rule that empty is evidence and errored is not, applied to a metric:
+a run with no trajectory in reach and a run where the pipeline never held the right idea are
+different facts, and a missing field would read as the second."""
+
+
+def _first_correct(
+    model: object, settings: object, loaded: dict[str, Any], *, dsn: str | None
+) -> dict[str, Any]:
+    """T4.2's index, or a recorded reason it could not be taken.
+
+    Every failure here is caught and written down. The judging pass's own product is the
+    agreement figures; losing all of them because one trajectory was unreachable would be a
+    metric taking its host down with it.
+    """
+    from evalharness.first_correct import hypotheses, judge_first_correct, steps_for
+
+    trajectory_id = (loaded["manifest"].get("score") or {}).get("trajectory_id")
+    if not trajectory_id:
+        return {"measured": False, "why": f"{NOT_MEASURED}: the run recorded no trajectory id"}
+    try:
+        if dsn is None:
+            from faultline.context.settings import ContextSettings
+
+            dsn = ContextSettings().postgres_dsn
+        items = hypotheses(steps_for(dsn, str(trajectory_id)))
+    except Exception as unreachable:  # a database that is not there is not a scoring failure
+        return {"measured": False, "why": f"{NOT_MEASURED}: {type(unreachable).__name__}"}
+    if not items:
+        # **Empty is evidence.** A trajectory that made no claim at all is a real outcome - a run
+        # gated before fan-out has exactly this shape - and it is not the same as a failure.
+        return {"measured": True, "index": -1, "why": "the trajectory holds no hypothesis"}
+    try:
+        found = judge_first_correct(
+            model,
+            settings,
+            scenario_id=loaded["scenario_id"],
+            run_id=loaded["run_id"],
+            agent_model=loaded["agent_model"],
+            items=items,
+        )
+    except Exception as failure:
+        return {"measured": False, "why": f"{NOT_MEASURED}: {type(failure).__name__}"}
+    return {"measured": True, **found.as_dict()}
 
 
 def run(argv: list[str] | None = None) -> int:
@@ -101,6 +169,10 @@ def run(argv: list[str] | None = None) -> int:
         verdict = result.agreement if result.scored else f"NOT JUDGED ({result.not_scored_because})"
         print(f"  {result.scenario_id:32} {verdict}")
         loaded["manifest"]["judge"] = result.as_dict()
+        if not args.no_first_correct:
+            loaded["manifest"]["first_correct"] = _first_correct(
+                model, settings, loaded, dsn=args.postgres_dsn
+            )
         loaded["manifest_path"].write_text(
             json.dumps(loaded["manifest"], indent=2, default=str) + "\n"
         )

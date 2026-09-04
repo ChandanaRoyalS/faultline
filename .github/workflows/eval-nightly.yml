@@ -57,32 +57,16 @@ jobs:
       - name: The catalog
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
-        run: |
-          # `--runs-remaining` counts down so the baseline gate can project kafka's memory over
-          # the work still to come (T7.33). A scenario whose bundle carries INVALID.md is not
-          # runnable and is skipped by the catalog listing itself.
-          IDS=$(uv run python -c "
-          from pathlib import Path
-          import sys
-          sys.path.insert(0, 'src')
-          from evalharness.scenario import load_catalog
-          root = Path('evals/scenarios')
-          runnable = [
-              s.id for s in load_catalog(root)
-              if not (root / 'artifacts' / 'dev' / s.id / 'INVALID.md').is_file()
-              and not (root / 'artifacts' / 'holdout' / s.id / 'INVALID.md').is_file()
-          ]
-          print(' '.join(sorted(runnable)))
-          ")
-          REMAINING=$(echo "$IDS" | wc -w | tr -d ' ')
-          for ID in $IDS; do
-            echo "::group::$ID"
-            # A discard must not end the night. Every outcome is a row (T4.4) and a catalog run
-            # that stopped at the first failure would report the catalog it got through.
-            uv run faultline-eval "$ID" --tier nightly --runs-remaining "$REMAINING" || true
-            REMAINING=$((REMAINING - 1))
-            echo "::endgroup::"
-          done
+        # **This was twenty lines of shell**, and it was the only thing in the repository that
+        # could run a catalog - so Gate 4's condition could not be met by `make eval`, the command
+        # it names, and the logic that did meet it was untested and reachable only by GitHub.
+        # `faultline-sweep` is that loop with tests behind it: the same countdown, the same "a
+        # discard must not end the night", the same INVALID.md exclusion.
+        #
+        # `|| true` stays. The sweep exits 1 on a partial catalog, deliberately - a night that
+        # scored eight of seventeen is not a pass - but the steps after this one load and label
+        # what *did* run, and a red step here would skip them.
+        run: uv run faultline-sweep --tier nightly || true
 
       # **`always()` alone was wrong and the first red run proved it.** When the key check
       # refuses, nothing has been started - and an unconditional `always()` here ran the database
