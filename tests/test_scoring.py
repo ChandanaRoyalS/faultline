@@ -16,6 +16,8 @@ import pytest
 from evalharness.scoring import (
     CLASS_DISPUTES,
     Categories,
+    LabelScore,
+    RankedScore,
     ScoredRun,
     dispute_for,
     score_label,
@@ -555,3 +557,66 @@ def test_recording_a_second_fix_does_not_move_the_scenario_fingerprint() -> None
             f"{name}: recording a second working fix moved the fingerprint, which would "
             "invalidate the bundle. It must stay out of the fingerprint (ADR-0027)."
         )
+
+
+# --- the service axis, printed (T4.2) ------------------------------------------
+#
+# `service` and `ranked_service` were scored and written to the manifest from the day T4.2
+# landed, and `report()` printed neither. Dev sweep 9 ran five scenarios to answer "which
+# service broke", got it right four times out of four, and said so only inside a JSON file.
+
+
+def test_the_blamed_service_is_printed_beside_the_classes() -> None:
+    report = ScoredRun(
+        "r",
+        "s",
+        "t",
+        service=LabelScore(truth="adservice", returned="adservice", abstained=False, dispute=None),
+        categories=Categories(),
+    ).report()
+    assert "service     adservice vs adservice - correct" in report
+
+
+def test_naming_the_propagator_prints_as_wrong_rather_than_not_printing() -> None:
+    """The trap ADR-0020 §6 names: `frontend` is where the errors surface, not where the fault
+    is. B0.2 answered it on four of five scenarios."""
+    report = ScoredRun(
+        "r",
+        "s",
+        "t",
+        service=LabelScore(truth="adservice", returned="frontend", abstained=False, dispute=None),
+        categories=Categories(),
+    ).report()
+    assert "service     frontend vs adservice - WRONG" in report
+
+
+def test_a_run_that_was_never_asked_for_a_service_says_so() -> None:
+    """`None` means the field predates T4.2, which is not the same as answering wrongly."""
+    assert "service     not produced" in ScoredRun("r", "s", "t", categories=Categories()).report()
+
+
+def test_depth_one_says_top_three_equals_top_one_by_construction() -> None:
+    """**The figure that must not be published without its depth.** Three of dev sweep 9's four
+    scored runs offered no alternative, so their top-3 is top-1 wearing a hat."""
+    report = ScoredRun(
+        "r",
+        "s",
+        "t",
+        ranked_service=RankedScore(truth="adservice", ranked=("adservice",)),
+        categories=Categories(),
+    ).report()
+    assert "top1 hit, top3 hit, depth 1" in report
+    assert "top-3 = top-1 by construction" in report
+
+
+def test_a_ranked_verdict_prints_its_order_and_whether_ranking_earned_anything() -> None:
+    report = ScoredRun(
+        "r",
+        "s",
+        "t",
+        ranked_service=RankedScore(truth="redis-cart", ranked=("cartservice", "redis-cart")),
+        categories=Categories(),
+    ).report()
+    assert "top1 miss, top3 hit, depth 2" in report
+    assert "gained by ranking: yes" in report
+    assert "ranked: cartservice > redis-cart" in report

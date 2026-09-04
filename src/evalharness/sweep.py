@@ -256,6 +256,21 @@ def sweep(
     total = len(ids) * repeats
     done = 0
     injected_something = False
+    # **Set when a scenario exhausts every retry on a clearable code; the scenarios after it are
+    # launched once each instead of `retries` times.**
+    #
+    # A retry answers "has the world settled yet". It cannot answer "is there a credential", and
+    # on 2026-09-04 a sweep asked six times per scenario, sixty seconds apart, whether an
+    # unresolvable API key had resolved itself: thirty launches and twenty-five minutes for a
+    # condition the first six had already proven unchangeable. The signal is not the exit code,
+    # which is 3 either way - it is the *previous scenario having burned its whole budget*. A
+    # refusal that survived every attempt on the scenario before it is not transient.
+    #
+    # Every scenario is still launched, so every scenario still gets an outcome row: the sweep
+    # reports the catalog it attempted, which is what T4.4 is about. Only the re-asking stops, and
+    # one scored run clears it - a world that let a run through is one whose refusals are worth
+    # retrying again.
+    standing_refusal = False
 
     for pass_number in range(1, repeats + 1):
         for scenario_id in ids:
@@ -276,12 +291,19 @@ def sweep(
                 wait(settle)
 
             code = 0
-            for attempt in range(1, retries + 1):
+            budget = 1 if standing_refusal else retries
+            if standing_refusal:
+                print(
+                    f"--- not retrying {scenario_id}: the previous scenario refused on every one "
+                    f"of {retries} attempts, so the condition is standing rather than transient",
+                    flush=True,
+                )
+            for attempt in range(1, budget + 1):
                 label = f"[{done}/{total}] pass {pass_number}/{repeats} {scenario_id}"
-                tail = "" if attempt == 1 else f"  (attempt {attempt}/{retries})"
+                tail = "" if attempt == 1 else f"  (attempt {attempt}/{budget})"
                 print(f"\n=== {label}{tail}   $ {' '.join(argv)}", flush=True)
                 code = int(launch(argv))
-                if code not in CLEARABLE or attempt == retries:
+                if code not in CLEARABLE or attempt == budget:
                     break
                 print(
                     f"=== {scenario_id}: {EXIT_NAMES.get(code, code)} - nothing was injected, "
@@ -292,6 +314,9 @@ def sweep(
 
             if code == 0:
                 injected_something = True
+                standing_refusal = False
+            elif code in CLEARABLE and budget > 1:
+                standing_refusal = True
             result.outcomes.append(
                 Outcome(scenario_id=scenario_id, exit_code=code, attempts=attempt)
             )

@@ -575,7 +575,17 @@ class ScoredRun:
                 )
             else:
                 lines.append(f"  reachability answerable by: {', '.join(classes)}")
-        for name, score in (("fault class", self.fault_class), ("fix class", self.fix_class)):
+        for name, score in (
+            ("fault class", self.fault_class),
+            ("fix class", self.fix_class),
+            # **The service axis prints here or it does not print at all.** T4.2 added `service`
+            # and `ranked_service`, both scored and both written to the manifest - and this loop
+            # covered two axes, so dev sweep 9 ran five scenarios to answer "which service broke"
+            # and answered it only inside a JSON file nobody opened. The stamp's headline
+            # capability was invisible at the terminal it was run from. A measurement taken and
+            # not shown is the same defect as a check nothing invokes, one step later.
+            ("service", self.service),
+        ):
             if score is None:
                 lines.append(f"  {name:11} not produced")
                 continue
@@ -590,6 +600,24 @@ class ScoredRun:
                 lines.append(
                     f"    disputed boundary, {score.dispute.resolved_by}: {score.dispute.why}"
                 )
+        if self.ranked_service is not None:
+            ranked = self.ranked_service
+            # **`depth` travels with the rate, always.** A verdict carrying no alternatives scores
+            # top-3 exactly equal to top-1, which reads as a tie with a ranking arm and is not
+            # one. Dev sweep 9 measured depth 1 on three of four scored runs, so its top-3 column
+            # would have been top-1 wearing a hat - and printing the rates without the depth is
+            # how that gets published.
+            lines.append(
+                f"  {'ranked':11} top1 {'hit' if ranked.top_1 else 'miss'}, "
+                f"top3 {'hit' if ranked.top_3 else 'miss'}, depth {ranked.depth}"
+                + (
+                    "  (top-3 = top-1 by construction: the verdict offered no alternative)"
+                    if ranked.depth == 1
+                    else f"  gained by ranking: {'yes' if ranked.gained_by_ranking else 'no'}"
+                )
+            )
+            if ranked.depth > 1:
+                lines.append(f"    ranked: {' > '.join(ranked.ranked)}")
         lines.append(f"  coverage: {'reached a class' if self.reached_a_class else 'abstained'}")
         lines.append("")
 

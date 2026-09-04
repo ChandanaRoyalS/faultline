@@ -7,6 +7,7 @@ encode are exactly the ones a live test would be least likely to produce on dema
 
 from __future__ import annotations
 
+import ast
 import json
 import os
 from datetime import UTC, datetime, timedelta
@@ -1848,3 +1849,66 @@ def test_an_uncounted_row_is_unassessable_and_never_invalid() -> None:
     ]
     assert verdict["silent"] == []
     assert verdict["enforced"] is False
+
+
+# --- both refusal paths record themselves the same way (2026-09-04) ------------
+
+
+def _handlers_in_main() -> dict[str, ast.ExceptHandler]:
+    """Every `except` clause in `run.main`, keyed by the exception name it catches.
+
+    Read as an AST rather than as prose: this file and `run.py` both discuss `refuse` and
+    `discard` in comments explaining the distinction, and a substring check would pass on the
+    explanation of the bug it is meant to catch. ADR-0032, fifth instance.
+    """
+    import ast as _ast
+    import inspect
+
+    from evalharness import run as run_module
+
+    tree = _ast.parse(inspect.getsource(run_module.main))
+    found: dict[str, _ast.ExceptHandler] = {}
+    for node in _ast.walk(tree):
+        if isinstance(node, _ast.ExceptHandler) and node.type is not None:
+            name = _ast.unparse(node.type).rsplit(".", 1)[-1]
+            found[name] = node
+    return found
+
+
+def _calls(handler: object) -> set[str]:
+    import ast as _ast
+
+    return {
+        _ast.unparse(node.func).rsplit(".", 1)[-1]
+        for node in _ast.walk(handler)  # type: ignore[arg-type]
+        if isinstance(node, _ast.Call)
+    }
+
+
+def test_the_preflight_refusal_writes_a_refusal_marker_like_the_gates_does() -> None:
+    """**The patch that separated a refusal from a discard reached one of the two refusal paths.**
+
+    `except gate.GateRefusedError` called `Run.refuse`; `except preflight.PreflightError` saved a
+    manifest and returned. Thirty pre-flight refusals landed in `evals/runs/` on 2026-09-04
+    carrying neither `REFUSED.md` nor a `refused` key, and the discard rate survived only because
+    `evaldb.outcome_of` recovers the distinction from an absent `injected_at` - a second mechanism
+    covering for a missing first. `HeadroomExhaustedError.is_pause` was the same near-miss a
+    stamp earlier.
+    """
+    handlers = _handlers_in_main()
+    assert "PreflightError" in handlers
+    assert "refuse" in _calls(handlers["PreflightError"])
+
+
+def test_the_gate_refusal_still_writes_one() -> None:
+    handlers = _handlers_in_main()
+    assert "GateRefusedError" in handlers
+    assert "refuse" in _calls(handlers["GateRefusedError"])
+
+
+def test_neither_refusal_path_records_a_discard() -> None:
+    """A discard is a run that happened and produced no result. Nothing was injected in either
+    of these, and conflating them inflates the one number ADR-0022 §3.3 keeps visible."""
+    handlers = _handlers_in_main()
+    for name in ("PreflightError", "GateRefusedError"):
+        assert "discard" not in _calls(handlers[name]), name

@@ -171,11 +171,39 @@ def test_the_check_runs_before_the_baseline_gate_in_the_harness() -> None:
 
 def test_a_preflight_refusal_exits_three_and_is_not_recorded_as_a_discard() -> None:
     """ADR-0022 §3.3 keeps the discard number honest precisely so it means something, and a run
-    that never started is not a run that failed."""
-    from pathlib import Path
+    that never started is not a run that failed.
 
-    source = Path("src/evalharness/run.py").read_text()
-    handler = source[source.index("except preflight.PreflightError") :][:700]
+    **Read as an AST, not as a 700-character slice of source.** This test took the first 700
+    characters after `except preflight.PreflightError` and looked for `return 3` in them, and it
+    broke the moment a comment was added to that handler explaining why a refusal is not a
+    discard - the check failed on the prose written to document the very rule it enforces. Ninth
+    instance of substring-on-prose in this repository, and the technique ADR-0032 settled after
+    the third: walk the tree and ask the structural question.
+    """
+    import ast
+    import inspect
 
-    assert "return 3" in handler
-    assert "run.discard(" not in handler, "a refusal before injection is not a discard"
+    from evalharness import run as run_module
+
+    tree = ast.parse(inspect.getsource(run_module.main))
+    handler = next(
+        node
+        for node in ast.walk(tree)
+        if isinstance(node, ast.ExceptHandler)
+        and node.type is not None
+        and ast.unparse(node.type).endswith("PreflightError")
+    )
+    returns = {
+        node.value.value
+        for node in ast.walk(handler)
+        if isinstance(node, ast.Return) and isinstance(node.value, ast.Constant)
+    }
+    calls = {
+        ast.unparse(node.func).rsplit(".", 1)[-1]
+        for node in ast.walk(handler)
+        if isinstance(node, ast.Call)
+    }
+
+    assert returns == {3}
+    assert "discard" not in calls, "a refusal before injection is not a discard"
+    assert "refuse" in calls, "and it must say so on disk, like the gate's refusal does"

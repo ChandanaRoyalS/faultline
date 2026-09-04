@@ -379,3 +379,75 @@ def test_the_library_function_does_not_sleep_by_default() -> None:
 
     assert parameters["settle"].default == 0
     assert parameters["retries"].default == 1
+
+
+# --- a refusal that is not transient (2026-09-04) -------------------------------
+
+
+def test_a_standing_refusal_stops_the_re_asking_after_one_scenario() -> None:
+    """**Thirty launches and twenty-five minutes for a missing API key.**
+
+    A retry answers "has the world settled yet". It cannot answer "is there a credential", and
+    the exit code is 3 either way. The distinguishing fact is the *previous* scenario having
+    burned its whole retry budget: a refusal that survived six attempts sixty seconds apart is
+    not waiting on anything.
+    """
+    launches, run = recorder({"a": 3, "b": 3, "c": 3, "d": 3, "e": 3})
+    naps, sleep = waiter()
+
+    result = sweep.sweep(["a", "b", "c", "d", "e"], runner=run, retries=6, sleeper=sleep)
+
+    assert [o.attempts for o in result.outcomes] == [6, 1, 1, 1, 1]
+    assert len(launches) == 10, "6 for the first scenario, 1 each for the rest - not 30"
+    assert naps == [sweep.RETRY_WAIT_SECONDS] * 5
+
+
+def test_every_scenario_still_gets_an_outcome_row() -> None:
+    """The sweep reports the catalog it attempted. Only the re-asking stops."""
+    _, run = recorder({"a": 3, "b": 3, "c": 3})
+    _naps, sleep = waiter()
+
+    result = sweep.sweep(["a", "b", "c"], runner=run, retries=6, sleeper=sleep)
+
+    assert [o.scenario_id for o in result.outcomes] == ["a", "b", "c"]
+    assert result.scored == 0
+    assert result.exit_code == 1
+
+
+def test_one_scored_run_makes_refusals_worth_retrying_again() -> None:
+    """A world that let a run through is a world whose next refusal may well be transient."""
+    seen: list[str] = []
+
+    def script(argv: list[str]) -> int:
+        scenario = argv[1]
+        seen.append(scenario)
+        if scenario == "a":
+            return 3  # exhausts its budget, standing refusal set
+        if scenario == "b":
+            return 0  # scores, clearing it
+        return 3 if seen.count("c") < 2 else 0  # c may retry again
+
+    _naps, sleep = waiter()
+    result = sweep.sweep(["a", "b", "c"], runner=script, retries=3, sleeper=sleep)
+
+    assert [o.attempts for o in result.outcomes] == [3, 1, 2]
+    assert result.outcomes[2].scored is True
+
+
+def test_a_transient_refusal_on_the_first_scenario_does_not_disarm_the_rest() -> None:
+    """The trigger is *exhausting* the budget, not refusing once. A scenario that refuses twice
+    and then scores has told us the condition clears."""
+    seen: list[str] = []
+
+    def script(argv: list[str]) -> int:
+        scenario = argv[1]
+        seen.append(scenario)
+        if scenario == "a":
+            return 3 if seen.count("a") < 3 else 0
+        return 3 if seen.count("b") < 2 else 0
+
+    _naps, sleep = waiter()
+    result = sweep.sweep(["a", "b"], runner=script, retries=6, sleeper=sleep)
+
+    assert [o.attempts for o in result.outcomes] == [3, 2]
+    assert result.scored == 2

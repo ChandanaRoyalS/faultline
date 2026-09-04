@@ -1344,8 +1344,16 @@ def main(argv: list[str] | None = None) -> int:
         # **Not a discard.** Nothing was injected, the world is untouched, and the scenario has
         # not been attempted - so it must not be counted as a run that produced no result. Exit 3,
         # the same code the gate's own refusals use.
+        #
+        # **And it says so on disk, via `refuse`.** This branch wrote a manifest and returned,
+        # while the gate's branch below called `Run.refuse` - so the patch that established that
+        # a refusal is not a discard reached one of the two refusal paths. Thirty pre-flight
+        # refusals landed in `evals/runs/` carrying neither `REFUSED.md` nor a `refused` key; the
+        # discard rate survived only because `evaldb.outcome_of` recovers the distinction from an
+        # absent `injected_at`, which is a second mechanism covering for a missing first.
+        # `HeadroomExhaustedError.is_pause` was the first version of this same near-miss.
         run.manifest["preflight"] = {"checked": True, "ok": False, "detail": str(unreachable)}
-        run.save_manifest()
+        run.refuse(preflight.PreflightError.discard_reason, str(unreachable))
         print(f"REFUSED: {unreachable}")
         return 3
     except WorldLockError as busy:
