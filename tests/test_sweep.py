@@ -201,3 +201,74 @@ def test_the_cost_of_the_job_is_printed_before_it_starts() -> None:
 
     source = inspect.getsource(sweep.main)
     assert "MEDIAN_RUN_USD" in source and "DISCARD_RATE" in source
+
+
+# --- a pre-registered scope is a commitment, not a default ---------------------------------------
+
+
+def test_only_selects_exactly_the_named_scenarios_in_the_order_given() -> None:
+    """**`evals/runs/PREREGISTRATION-2026-09-03-top3.md` registers five scenarios, one run each.**
+    A registration written before the fact is a commitment to a scope; running the catalog instead
+    would be a different experiment, and the whole value of registering is that the scope cannot
+    move once the balance is in view."""
+    five = sweep.runnable()[:5]
+
+    assert sweep.select(sweep.runnable(), ",".join(five)) == five
+    assert sweep.select(["a", "b", "c"], "c, a") == ["c", "a"], "the order it names them"
+
+
+def test_an_unrunnable_id_is_refused_rather_than_skipped() -> None:
+    """**Refused, never silently narrowed.** A scope that quietly dropped a scenario would produce
+    a sweep whose document claims five and whose record holds four, and the discrepancy would
+    surface as an unexplained `n` weeks later - the shape of every stale number this repository has
+    had to correct."""
+    import pytest
+
+    with pytest.raises(sweep.UnknownScenarioError) as refusal:
+        sweep.select(["ad-memory-squeeze"], "ad-memory-squeeze,not-a-scenario")
+
+    assert "not-a-scenario" in str(refusal.value)
+    assert "Runnable:" in str(refusal.value), "and it says what it would have accepted"
+
+
+def test_the_scope_parser_is_a_function_nothing_has_to_run_to_test() -> None:
+    """**The defect this file shipped with, for about four minutes.**
+
+    The first version parsed `--only` inside `main()`, so the only way to exercise it was to call
+    `main()` - which uses the real shell runner and launched actual `faultline-eval` subprocesses.
+    Running the test suite created six run directories, and on a machine with a live world it
+    would have injected faults. A parser that can only be tested by running the thing it
+    configures is not a parser anybody can test.
+    """
+    import ast
+    import inspect
+    import textwrap
+
+    assert "select(" in inspect.getsource(sweep.main), "main delegates rather than parsing inline"
+
+    # **Over the AST, not the source text.** The first version asserted `"subprocess" not in
+    # inspect.getsource(sweep.select)` and failed on `select`'s own docstring, which explains the
+    # subprocess bug - the eighth time in this repository that a fragment of English has been
+    # mistaken for a property. `tests/test_allowlist.py` already solved this shape: parse the
+    # function and look at what it *calls*, "docstrings excluded, since prose may name what code
+    # must not do" (ADR-0032).
+    tree = ast.parse(textwrap.dedent(inspect.getsource(sweep.select)))
+    names = {
+        node.id if isinstance(node, ast.Name) else node.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Name | ast.Attribute)
+    }
+
+    assert not names & {"subprocess", "run", "_shell", "sweep", "Popen"}, (
+        f"select reaches something that executes: {sorted(names & {'subprocess', 'run', '_shell'})}"
+    )
+
+
+def test_a_named_scope_still_honours_its_tier() -> None:
+    """Scope and repeat count are independent: a registration may name five scenarios at R=3 as
+    easily as at R=1."""
+    seen, run = recorder({})
+
+    sweep.sweep(sweep.select(["a", "b", "c"], "a,b"), repeats=2, runner=run)
+
+    assert [argv[1] for argv in seen] == ["a", "b", "a", "b"]

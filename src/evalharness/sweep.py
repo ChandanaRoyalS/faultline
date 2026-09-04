@@ -87,6 +87,32 @@ def runnable(root: Path = SCENARIO_ROOT) -> list[str]:
     return sorted(s.id for s in load_catalog(root) if not blocked(s.id))
 
 
+class UnknownScenarioError(ValueError):
+    """A named scope that includes something the catalog cannot run."""
+
+
+def select(ids: list[str], only: str) -> list[str]:
+    """The scenarios a `--only` scope names, in the order it names them.
+
+    **A pure function, and that is deliberate.** The first version of this lived inside `main()`,
+    so the only way to test it was to call `main()` - which uses the real shell runner and
+    therefore launched actual `faultline-eval` subprocesses. Running the test suite created six
+    run directories and, on a machine with a live world, would have injected faults. A parser that
+    can only be exercised by running the thing it configures is not a parser anybody can test.
+
+    **Refuses an unknown id rather than narrowing silently.** A pre-registered scope that quietly
+    dropped a scenario would produce a sweep whose document claims five and whose record holds
+    four, and the discrepancy would surface as an unexplained `n` weeks later.
+    """
+    wanted = [name.strip() for name in only.split(",") if name.strip()]
+    unknown = [name for name in wanted if name not in ids]
+    if unknown:
+        raise UnknownScenarioError(
+            f"not runnable scenarios: {', '.join(unknown)}. Runnable: {', '.join(ids)}"
+        )
+    return wanted
+
+
 @dataclass(slots=True)
 class Outcome:
     scenario_id: str
@@ -212,6 +238,17 @@ def parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--tier", default=None, help="passed through to faultline-eval (T4.6)")
     p.add_argument("--list", action="store_true", help="print the scenarios and exit")
+    p.add_argument(
+        "--only",
+        default=None,
+        metavar="ID,ID,...",
+        help=(
+            "run exactly these scenarios instead of the catalog. **For a pre-registered scope**: "
+            "a registration that names five scenarios is a commitment to five, and running the "
+            "catalog instead would be a different experiment than the one committed before the "
+            "fact. Refuses an id that is not runnable rather than silently skipping it"
+        ),
+    )
     p.add_argument("--max-tool-calls", default=None)
     p.add_argument("--max-tool-calls-changes", default=None)
     p.add_argument("--max-tokens", default=None)
@@ -223,6 +260,13 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     ids = runnable()
+
+    if args.only:
+        try:
+            ids = select(ids, args.only)
+        except UnknownScenarioError as refusal:
+            print(f"REFUSED: {refusal}")
+            return 3
 
     if args.list:
         print(f"{len(ids)} runnable scenario(s):")
