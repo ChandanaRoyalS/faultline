@@ -1,0 +1,48 @@
+run 20260904T090732Z-cart-bad-image-tag   scenario cart-bad-image-tag
+trajectory 133f9b2d-5b9c-4b85-aa0a-4884b7a30cb4   runtime faultline/0.0.1+prompts:ba8684b01201
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (10/10 alerted services predicted)
+  precision 0.71  (10/14 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): adservice, paymentservice, productcatalogservice, recommendationservice
+  unmeasured edges crossed: 5 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class None vs bad_deploy - ABSTAINED (excluded from accuracy; counted in coverage)
+  fix class   None vs rollback - ABSTAINED (excluded from accuracy; counted in coverage)
+  coverage: abstained
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        1  synthesizer produced no valid findings: schema validation failed twice (2 validation errors for Verdict
+alternatives.0.remediation_class
+  Extra inputs are not permitted [type=extra_forbidden, input_value='config_revert', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
+alternatives.1.remediation_class
+  Extra inputs are not permitted [type=extra_forbidden, input_value='rollback', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden)
+  specialists failed alone 1  synthesizer: schema validation failed twice (2 validation errors for Verdict
+alternatives.0.remediation_class
+  Extra inputs are not permitted [type=extra_forbidden, input_value='config_revert', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
+alternatives.1.remediation_class
+  Extra inputs are not permitted [type=extra_forbidden, input_value='rollback', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden)
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 23158 / out 10928 tokens   $0.3890
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        164.8s (within G4's 3-minute per-run comparison) tools 0.9s  models 0.0s  steps 19
+  tool calls     7 total, 7 valid, 0 errored, 1 redundant  validity 1.00  redundancy 0.14
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 4 empty, 2 truncated
+  context budget 2 briefing(s), 0 over budget (0.00), 0 section(s) dropped, largest 1878 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false

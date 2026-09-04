@@ -1,0 +1,26 @@
+incident c333c042-1e41-4390-903e-824de4f31504  state triaging  anchor 09:12:00
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> failed
+trajectory: 133f9b2d-5b9c-4b85-aa0a-4884b7a30cb4
+triage judged: investigate (medium confidence, suspects unknown)
+  Ten services alerting within ~two minutes at critical severity, spreading from checkout/frontend outward, is not dismissible. No open incident to attribute it to, and the fan-out pattern could equally be a checkout-path dependency, a deploy, or resource pressure.
+investigation: 2 round(s), 7 dispatch(es), 19 step(s) 1 failed dispatch(es)
+  FAILED DISPATCH synthesizer: schema validation failed twice (2 validation errors for Verdict
+alternatives.0.remediation_class
+  Extra inputs are not permitted [type=extra_forbidden, input_value='config_revert', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden
+alternatives.1.remediation_class
+  Extra inputs are not permitted [type=extra_forbidden, input_value='rollback', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden)
+
+context: 2351 pushed / 7084 pulled (pull rate 0.7508), 0 section(s) dropped
+
+NO VERDICT: the synthesizer produced nothing that validated
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260904T090732Z-cart-bad-image-tag/c333c042-1e41-4390-903e-824de4f31504-verdict.json
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11244.20it/s]

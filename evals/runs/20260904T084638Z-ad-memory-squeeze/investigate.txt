@@ -1,0 +1,43 @@
+incident 15fec1cc-f7cf-4d6e-9e82-96f15befefa7  state triaging  anchor 08:50:00
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 878986ca-dc63-46a3-ba1a-932bc29ad9e9
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend plus the load generator indicate user-facing impact, not an isolated synthetic-traffic blip. With five unexamined downstream dependencies and no open incident to fold this into, it warrants investigation.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : restart_service (restart)
+  target      : adservice
+  expect      : Recreating the adservice container should restore a listening gRPC endpoint on the frontend→adservice edge. Observable within a few minutes: (1) frontend Loki lines matching `Error: 14 UNAVAILABLE: No connection established` stop appearing — the density seen through 08:51:56 in {service="frontend"} should drop to zero; (2) new Jaeger traces for AdService/GetAds contain an adservice *server* span paired with the frontend client span, where today none exists; (3) GetAds client-span duration falls from the ~2.0–3.1s connect-deadline cluster to the low-millisecond range typical of the other frontend→backend edges in the same sample; (4) the frontend HTTP GET and loadgenerator HTTP GET parents of those traces stop carrying error status.
+  within      : 300s
+  risk        : The mechanism behind adservice's unreachability was never examined; it is inferred entirely from the client side. If adservice is in fact up and the fault lies in frontend's connection pool/name resolution or in the network path between them, this restart takes down a working service and adds a second outage on top of the first. The action is irreversible and destroys exactly the forensic state that would settle the open question — process uptime, accumulated restart count, accept-queue depth and any in-memory crash context — so a wrong diagnosis here also makes the crash-loop-versus-refused-connection distinction harder to make afterwards. If the true cause is a bad bind address or flag set at deploy time, the restart brings the service back with the same bad configuration and buys nothing while costing the evidence.
+  blast radius: One container: adservice, for the duration of the recreate, discarding its in-process cache. frontend is the only inbound caller named in the dependency graph and it is already failing every GetAds call, so during the recreate it sees the same UNAVAILABLE it sees now — no new class of failure for it. loadgenerator sees whatever frontend surfaces. cartservice, checkoutservice, productcatalogservice and recommendationservice are untouched; their frontend edges are healthy in the trace sample and stay that way. Anyone reading adservice restart-count or uptime metrics after this point sees a discontinuity caused by us, not by the incident.
+  if wrong    : Falsified if, after the container is recreated, frontend still emits code-14 'No connection established' lines and failing traces still show a frontend tcp.connect child erroring at ~3s with no adservice server span — that means the target is not reachable for a reason a restart cannot fix (wrong bind address or port, DNS/network path, or a startup crash), and the next step is adservice's own logs, exit codes and restart counts, none of which were ever queried. Also treat as falsified-in-effect if recovery lasts only minutes and the same signature returns: that is a crash-loop, and repeated restarts would mask it. Note one limit on observability: frontend's aggregate error ratio [tr_53ecba761e7a] will NOT confirm this fix — it sat at ~0.6%, an order of magnitude below the prior hour, while traces showed hard failures, so that metric is not a valid confirmation channel here and confirmation must come from the log-line and trace-span checks above.
+  rests on    : tr_767b14a37402, tr_f63a4744e746
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 24045 pushed / 5470 pulled (pull rate 0.1853), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_767b14a37402, tr_f63a4744e746, tr_6e861adb861e
+  root cause  : User-facing failures originate on the frontend→adservice edge: adservice is not accepting gRPC connections, so frontend's AdService/GetAds calls hang at the TCP connect layer for ~2-3s and then fail with gRPC status 14 UNAVAILABLE, propagating up through frontend's HTTP handler to loadgenerator [tr_767b14a37402, tr_f63a4744e746]. Every failing trace lacks an adservice server span and carries the error on a frontend tcp.connect child span, placing the fault at adservice's reachability rather than in frontend logic or any other backend. No dispatch ever examined adservice itself, so why it is unreachable — process down, crash-looping, saturated accept queue, or wrong bind address — remains undetermined, and I leave fault_class unknown rather than guess.
+  OPEN        : adservice was never investigated: its logs, restart counts, saturation metrics and change history are entirely unexamined, so the mechanism is inferred only from the client side.
+  OPEN        : Onset is unpinned — frontend log lines begin only at ~08:46:49 within the queried selector, and change-history windows start at 08:50, missing the hours before onset [tr_f63a4744e746, tr_d1ce6822c2ac].
+  OPEN        : Why frontend's aggregate error ratio fell to a ninth of the prior hour while traces show hard failures [tr_53ecba761e7a] — sampling artifact, traffic mix, or a distinct earlier problem before 07:50.
+
+flags: none
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260904T084638Z-ad-memory-squeeze/15fec1cc-f7cf-4d6e-9e82-96f15befefa7-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260904T084638Z-ad-memory-squeeze/15fec1cc-f7cf-4d6e-9e82-96f15befefa7-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9343.45it/s]
