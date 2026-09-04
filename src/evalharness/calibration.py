@@ -56,6 +56,7 @@ from __future__ import annotations
 
 import json
 import random
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -174,9 +175,70 @@ def order(run_ids: list[str], seed: int = SHUFFLE_SEED) -> list[str]:
     return shuffled
 
 
-def next_ungraded(run_ids: list[str], grades: list[Grade]) -> str | None:
+def stratified(runs: dict[str, tuple[str, str]], seed: int = SHUFFLE_SEED) -> list[str]:
+    """Grading order that covers the record instead of sampling it.
+
+    `runs` maps run id to `(scenario_id, judge_level)`.
+
+    **Uniform random order was the wrong default here, and the pool is why.** Measured on the
+    committed record: 61 gradable runs spanning **13 distinct scenarios**, one of them 14 times,
+    and the judge said `same_mechanism` on 57 of the 61. Two consequences, and the second is the
+    one that decides the design:
+
+    **The rows are not independent.** A grader who has read one scenario's recorded narrative is
+    not a blind reader of it the next thirteen times - they already hold a verdict, and their
+    later grades on that scenario are correlated with their first by construction. Thirty rows
+    drawn uniformly would be perhaps eight distinct cases, counted as thirty.
+
+    **κ is a lottery on four rows.** Only four runs in the pool carry a judge verdict other than
+    `same_mechanism`. On 28 `same_mechanism` and 2 `adjacent`, one grader disagreement gives
+    κ = 0.65 and two give **κ = 0.00 at 93% raw agreement** - so the headline would be decided by
+    which of those four a shuffle happened to deal.
+
+    So the order is built to cover: **every scenario once before any scenario twice**, and every
+    non-modal judge verdict inside the first pass. Within that, shuffled from the same fixed seed.
+
+    **The grader is told none of this, and that is a requirement rather than an omission.** A row
+    the grader knows was selected for being interesting has been pre-judged for them - a subtler
+    unblinding than seeing the judge's answer, and harder to notice afterwards. `--next` prints
+    the same two documents for a stratified row as for any other.
+    """
+    modal = Counter(level for _, level in runs.values()).most_common(1)
+    common = modal[0][0] if modal else ""
+
+    remaining = set(order(sorted(runs), seed))
+    passes: list[str] = []
+    while remaining:
+        seen: set[str] = set()
+        this_pass: list[str] = []
+        for run_id in order(sorted(remaining), seed):
+            scenario, _ = runs[run_id]
+            if scenario not in seen:
+                seen.add(scenario)
+                this_pass.append(run_id)
+        # Every non-modal verdict joins the first pass, wherever its scenario already sits: they
+        # are the only rows where agreement is informative about the *scale* rather than about
+        # the base rate, and a first pass without them measures the base rate alone.
+        if not passes:
+            this_pass += [
+                run_id
+                for run_id in order(sorted(remaining), seed)
+                if runs[run_id][1] != common and run_id not in this_pass
+            ]
+        passes += order(this_pass, seed)
+        remaining -= set(this_pass)
+    return passes
+
+
+def next_ungraded(
+    run_ids: list[str],
+    grades: list[Grade],
+    runs: dict[str, tuple[str, str]] | None = None,
+) -> str | None:
+    """The next run to grade. Stratified when the caller can say what each run is."""
     graded = set(current(grades))
-    for run_id in order(run_ids):
+    sequence = stratified(runs, SHUFFLE_SEED) if runs else order(run_ids)
+    for run_id in sequence:
         if run_id not in graded:
             return run_id
     return None
@@ -193,20 +255,75 @@ class Agreement:
     """Grades excluded because they were not blind. **Excluded, not counted** - a grade made after
     seeing the judge's answer measures confirmation, not agreement."""
 
+    abstentions: int = 0
+    """Runs excluded from the pool because the pipeline **abstained** (`fault_class: unknown`).
+
+    **The judge grades every abstention `different` by construction**, so there is no judgement to
+    agree with: matching it is a free agreement point and differing is a free disagreement, and
+    either way the row is noise. `docs/RESULTS.md` already excludes abstentions from its own
+    agreement figure for this reason; this harness served them for a day because it did not know.
+
+    Counted rather than silently dropped - 17 of the 78 runs on disk are abstentions, and a pool
+    that shrank by 22% without saying so is the same defect one level up."""
+
+    scenarios: int = 0
+    """Distinct scenarios among the graded runs. **The number that says what n is worth.**
+
+    61 gradable runs span 13 scenarios, one of them 14 times. A grader who has read a scenario's
+    recorded narrative is not a blind reader of it again, so repeats are correlated by
+    construction and `n` overstates the information. Printed beside `n` so no reader takes 30
+    rows for 30 independent judgements."""
+
     @property
     def n(self) -> int:
         return len(self.pairs)
 
     @property
     def raw(self) -> float | None:
-        """Proportion of runs the two rated identically.
+        """Proportion of runs the two rated identically. **The headline, with its own caveat.**
 
-        **Not the headline.** See the module docstring: with 15 of 19 judged `same_mechanism`, a
-        grader who always answered `same_mechanism` scores 79% here while contributing nothing.
+        This module was written believing κ should lead and raw agreement was the misleading one.
+        Half of that is right: a grader who answered `same_mechanism` every time would post ~93%
+        here while contributing nothing, so raw agreement alone flatters.
+
+        **But κ on this pool is worse, not better.** Measured on 28 `same_mechanism` and 2
+        `adjacent`, one grader disagreement yields κ = 0.65 and two yield **κ = 0.00 at 93% raw
+        agreement** - the same grader, one extra row, "substantial" to "no better than chance".
+        With four non-modal rows in the whole record, κ is decided by which of them got graded.
+
+        So both print, raw leads, and κ carries `kappa_is_unstable`. A number that swings on one
+        row is not made trustworthy by being the theoretically correct one.
         """
         if not self.pairs:
             return None
         return sum(1 for a, b in self.pairs if a == b) / self.n
+
+    @property
+    def confusion(self) -> dict[tuple[str, str], int]:
+        """Every (judge, grader) cell with a count. **What a single figure cannot show.**
+
+        The interesting question is not "how often did they agree" but *where they parted* - a
+        grader who reads `adjacent` as `same_mechanism` and one who reads it as `different` post
+        the same agreement rate and disagree about opposite things.
+        """
+        cells: dict[tuple[str, str], int] = {}
+        for pair in self.pairs:
+            cells[pair] = cells.get(pair, 0) + 1
+        return cells
+
+    @property
+    def kappa_is_unstable(self) -> bool:
+        """Whether one row could move κ across an interpretation band.
+
+        True when the judge's verdicts are concentrated: fewer than five rows outside its modal
+        category is the condition measured on this record, where κ swings from 0.65 to 0.00 on a
+        single grader disagreement.
+        """
+        if not self.pairs:
+            return False
+        judge = [a for a, _ in self.pairs]
+        modal = max(LEVELS, key=judge.count)
+        return sum(1 for level in judge if level != modal) < 5
 
     @property
     def expected(self) -> float | None:
@@ -270,16 +387,65 @@ class Agreement:
         if raw is None:
             return [*lines, "*No blind grades recorded yet.*", ""]
         lines += [
-            f"| raw agreement | {raw:.0%} |",
+            "| | |",
             "|---|---|",
-            f"| Cohen's κ | {'—' if kappa is None else f'{kappa:.2f}'} |",
+            f"| raw agreement | **{raw:.0%}** |",
+            # The flag rides on κ only when there **is** a κ. An undefined κ is not an unstable
+            # one, and "— — **unstable**" was what the first draft printed: two em-dashes and a
+            # warning about a number that does not exist.
+            f"| Cohen's κ | {'—' if kappa is None else f'{kappa:.2f}'}"
+            + (
+                " **— unstable on this pool, see below**"
+                if kappa is not None and self.kappa_is_unstable
+                else ""
+            )
+            + " |",
             f"| reading | {self.interpretation()} |",
+            f"| distinct scenarios | {self.scenarios or '—'} |",
             "",
-            "**κ is the figure, not raw agreement.** The judged record is heavily skewed toward "
-            "`same_mechanism`, so a grader who answered it every time would post a high raw "
-            "number while contributing nothing. κ subtracts the agreement expected by chance "
-            "from each rater's own distribution.",
+            "**Where they parted**, which no single figure shows — a grader who reads `adjacent` "
+            "as `same_mechanism` and one who reads it as `different` post the same agreement rate "
+            "and disagree about opposite things:",
             "",
+            "| judge | grader | n |",
+            "|---|---|---|",
+        ]
+        lines += [
+            f"| `{judge}` | `{grader}`{' ✓' if judge == grader else ''} | {n} |"
+            for (judge, grader), n in sorted(self.confusion.items(), key=lambda kv: -kv[1])
+        ]
+        lines += [""]
+
+        if self.kappa_is_unstable:
+            lines += [
+                "**κ is reported and should not be the headline on this pool.** Fewer than five "
+                "graded runs carry a judge verdict outside its modal category, and κ's chance "
+                "term is dominated by that skew: measured on 28 `same_mechanism` and 2 "
+                "`adjacent`, **one** grader disagreement gives κ = 0.65 and **two** give κ = 0.00 "
+                "at 93% raw agreement. Same grader, one extra row, "
+                "*substantial* to *no better than chance*. A figure that swings on one row is not "
+                "made trustworthy by being the theoretically correct one.",
+                "",
+            ]
+        if self.scenarios:
+            lines += [
+                f"**{self.n} grade{'' if self.n == 1 else 's'} over {self.scenarios} distinct "
+                f"scenario{'' if self.scenarios == 1 else 's'}.** Repeats of one "
+                "scenario are **not independent judgements**: a grader who has read a scenario's "
+                "recorded narrative already holds a verdict on it, so `n` overstates how much was "
+                "actually rated. The grading order covers every scenario before repeating any.",
+                "",
+            ]
+        if self.abstentions:
+            lines += [
+                f"**{self.abstentions} abstention(s) excluded from the pool.** A run that returned "
+                "`fault_class: unknown` made no claim, and the judge grades every abstention "
+                "`different` **by construction** — so matching it is a free agreement point and "
+                "differing is a free disagreement. `docs/RESULTS.md` excludes them from its own "
+                "agreement figure for the same reason.",
+                "",
+            ]
+        lines += [
             "Neither figure says the judge is **right**. It says a human reading the same two "
             "documents reached the same verdict at some rate - and on a benchmark whose "
             "reference narrative that same human wrote, judge and grader share a prior by "

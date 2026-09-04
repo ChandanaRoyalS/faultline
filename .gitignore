@@ -19,3 +19,7 @@ world/
 # overrides holding it broken. Machine-local by definition.
 .faultline/
 .DS_Store
+
+# T4.2's calibration ledger is a RECORD, not an artifact - it is committed deliberately.
+# Listed here as a negation so nobody adds `evals/*` above and silently stops tracking it.
+!evals/calibration/grades.jsonl

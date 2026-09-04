@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import argparse
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -34,9 +35,10 @@ def parser() -> argparse.ArgumentParser:
             "measures confirmation, not agreement."
         ),
         epilog=(
-            "The headline figure is Cohen's kappa, not raw agreement: the judged record is "
-            "heavily skewed toward same_mechanism, so a grader who answered it every time would "
-            "post a high raw number while contributing nothing."
+            "The pool excludes abstentions - a run that returned fault_class:unknown made no "
+            "claim, and the judge grades every abstention `different` by construction. Grading "
+            "order covers every scenario before repeating any: 61 gradable runs span 13 "
+            "scenarios, and repeats of one scenario are not independent judgements."
         ),
     )
     p.add_argument("--next", action="store_true", help="show the next ungraded run, blind")
@@ -77,6 +79,8 @@ def judged_runs(root: Path) -> dict[str, dict[str, Any]]:
         judge = manifest.get("judge") or {}
         if not judge.get(AGREEMENT_KEY):
             continue
+        if abstained(manifest):
+            continue
         narratives = sorted(directory.glob("*-narrative.md"))
         found[directory.name] = {
             "run_id": directory.name,
@@ -86,6 +90,40 @@ def judged_runs(root: Path) -> dict[str, dict[str, Any]]:
             "narrative": narratives[0].read_text() if narratives else "",
         }
     return found
+
+
+def abstained(manifest: dict[str, Any]) -> bool:
+    """Whether the pipeline declined to name a fault class on this run.
+
+    **An abstention has nothing to calibrate against.** ADR-0022 §1.2 makes `unknown` a legal
+    answer rather than a wrong one, and the judge - having no claim to compare - grades every
+    abstention `different` by construction. Agreeing with that is a free point and disagreeing is
+    a free miss; the row measures the grader's guess about a convention, not their reading.
+
+    Measured on the committed record: **17 of 78** judged runs are abstentions, and they account
+    for **17 of the 18 `different` verdicts in the entire record**. Including them would have put
+    seventeen mechanical rows into a figure whose whole purpose is checking a judgement.
+    """
+    fault_class = (manifest.get("score") or {}).get("fault_class") or {}
+    return bool(fault_class.get("abstained"))
+
+
+def abstention_count(root: Path) -> int:
+    """How many runs the pool excluded. **Counted, never silently dropped** - a pool that shrank
+    by 22% without saying so is the same defect one level up."""
+    total = 0
+    if not root.is_dir():
+        return 0
+    from evalharness.judge import AGREEMENT_KEY
+
+    for directory in sorted(root.iterdir()):
+        manifest_path = directory / "manifest.json"
+        if not (directory.is_dir() and manifest_path.is_file()):
+            continue
+        manifest = json.loads(manifest_path.read_text())
+        if (manifest.get("judge") or {}).get(AGREEMENT_KEY) and abstained(manifest):
+            total += 1
+    return total
 
 
 def run(argv: list[str] | None = None) -> int:
@@ -100,13 +138,23 @@ def run(argv: list[str] | None = None) -> int:
     judged = judged_runs(root)
     grades = cal.load(ledger)
 
+    # `(scenario_id, judge_level)` per run - what `cal.stratified` needs to cover the record
+    # rather than sample it. **The grader is never shown either.**
+    strata = {k: (v["scenario_id"], v["agreement"]) for k, v in judged.items()}
+
     if args.report:
         panel = cal.agreement({k: v["agreement"] for k, v in judged.items()}, grades)
+        graded = set(cal.current(grades))
+        panel = replace(
+            panel,
+            abstentions=abstention_count(root),
+            scenarios=len({s for run_id, (s, _) in strata.items() if run_id in graded}),
+        )
         print("\n".join(panel.render()))
         return 0
 
     if args.next:
-        run_id = cal.next_ungraded(sorted(judged), grades)
+        run_id = cal.next_ungraded(sorted(judged), grades, runs=strata)
         if run_id is None:
             print(f"every judged run has a grade ({len(cal.current(grades))} recorded)")
             return 0

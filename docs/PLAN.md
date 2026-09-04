@@ -1235,6 +1235,64 @@ run has been scored yet** — the runs need credits.
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
 | **T5.5** deploy | live instance at a stable URL | needs a VM |
 
+### T4.2 — what the calibration pool actually is, measured before grading it
+
+**The harness was about to produce a number worth nothing, and the reason was in the data.**
+Grading started, and the second run it served was `20260828T154652Z-shipping-wrong-image` — an
+**abstention**. The run returned `fault_class: unknown`; its narrative says *"I decline to infer
+one from the error shape."* ADR-0022 §1.2 makes that a legal answer rather than a wrong one, and
+the judge, with no claim to compare against, grades **every abstention `different` by
+construction**. `docs/RESULTS.md` already excluded abstentions from its own agreement figure for
+exactly this reason. The calibration harness did not know, so it served them.
+
+Then the pool was measured, which nobody had done:
+
+| | |
+|---|---|
+| runs the harness offered | 78 |
+| abstentions — judged `different` mechanically | **−17** |
+| real pool | **61** |
+| **distinct scenarios in those 61** | **13** |
+| `cart-redis-misconfig` alone | **14 rows** |
+| judge verdicts on the pool | `same_mechanism` 57 · `adjacent` 3 · `different` 1 |
+
+**17 of the 18 `different` verdicts in the entire record are abstentions.** The judge has made one
+non-abstention `different` call, ever.
+
+**The 61 rows are not 61 judgements.** A grader who has read a scenario's recorded narrative is
+not a blind reader of it the next thirteen times — they already hold a verdict, and later grades
+on that scenario are correlated with the first by construction. Thirty rows drawn uniformly would
+be perhaps eight distinct cases counted as thirty.
+
+**And the skew breaks κ outright, which reverses this module's own headline decision.** The
+module was written arguing that κ must lead because raw agreement flatters on a skewed pool. Half
+right: a grader answering `same_mechanism` every time posts ~93% while contributing nothing. What
+the argument missed is that **κ here is not more trustworthy, only less stable.** On the real
+distribution — 28 `same_mechanism`, 2 `adjacent`:
+
+| grader disagreements | raw agreement | **κ** |
+|---|---|---|
+| one | 96.7% | **0.65** — "substantial" |
+| two | 93.3% | **0.00** — "no better than chance" |
+
+Same grader, one extra row. With four non-modal rows in the whole record, a uniform shuffle makes
+the headline a lottery over which of them got graded. So raw agreement leads, the **confusion
+table** is printed beside it — a grader who reads `adjacent` as `same_mechanism` and one who reads
+it as `different` post the same rate and disagree about opposite things — and κ prints with an
+instability flag. *A figure that swings on one row is not made trustworthy by being the
+theoretically correct one.*
+
+**The order now covers the record instead of sampling it.** Every scenario before any repeat,
+every non-modal verdict inside the first pass: 17 grades reach full coverage, and by 30 the
+informative rows are all in. **The grader is told none of this**, and that is a requirement rather
+than an omission — a row the grader knows was selected for being interesting has been pre-judged
+for them, which is a subtler unblinding than seeing the judge's answer and much harder to notice
+afterwards.
+
+**Two rendering defects caught by printing the report and reading it**, not by a test: an
+undefined κ rendered as `— — **unstable**`, two em-dashes and a warning about a number that does
+not exist; and `1 grades over 1 distinct scenario(s)`.
+
 ### T5.3 — the two skeletons, and the thesis that had been wrong for weeks
 
 *"ARCHITECTURE.md with the system diagram and ADR index; a threat-model document."* Written like
