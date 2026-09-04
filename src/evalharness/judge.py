@@ -201,6 +201,33 @@ class JudgeModel:
 # --- settings ------------------------------------------------------------------
 
 
+def prices(raw: str) -> tuple[float, float] | None:
+    """`"1,5"` -> `(1.0, 5.0)`. Empty is unset; malformed **refuses rather than falling back**.
+
+    A price that failed to parse and quietly became `None` would print the same "not configured"
+    line as a price nobody set, and the operator who did set one would read that line as proof
+    the judge is free. Two different facts must not share one message.
+    """
+    if not raw.strip():
+        return None
+    parts = raw.split(",")
+    try:
+        if len(parts) != 2:
+            raise ValueError(f"expected two comma-separated numbers, got {len(parts)}")
+        usd_in, usd_out = (float(p) for p in parts)
+    except ValueError as bad:
+        raise JudgeUnconfiguredError(
+            f"FAULTLINE_JUDGE_USD_PER_MTOK={raw!r} is not usable: {bad}. "
+            "Give it as IN,OUT dollars per million tokens, e.g. '1,5'. Unset it to have the "
+            "judging pass report tokens with no dollar figure."
+        ) from bad
+    if usd_in < 0 or usd_out < 0:
+        raise JudgeUnconfiguredError(
+            f"FAULTLINE_JUDGE_USD_PER_MTOK={raw!r} is negative. A judge does not pay you."
+        )
+    return (usd_in, usd_out)
+
+
 @dataclass(frozen=True, slots=True)
 class JudgeSettings:
     """Read from `FAULTLINE_JUDGE_*`. **No default model, deliberately.**
@@ -218,6 +245,22 @@ class JudgeSettings:
     allow_shared_lineage: bool = False
     """Opt in to judging with a lineage violation. **Refuses without it; see `require_lineage`.**"""
 
+    usd_per_mtok: tuple[float, float] | None = None
+    """Price per million tokens, in and out, **for this judge - which is not the agent.**
+
+    `None` means unset, and unset prints token counts with no dollar figure. That is the point.
+    `judge_cli` priced every judging pass at `tokens_in/1e6*5 + tokens_out/1e6*25` - the agent's
+    Opus rates, hard-coded beside a judge that is `claude-haiku-4-5` on **all 79 judged runs on
+    disk**. The last pass printed \\$0.1626 for work costing roughly \\$0.03, and the module's own
+    docstring said "~\\$0.03", so the code and its documentation disagreed with each other inside
+    a number the budget quotes.
+
+    A default here would be the same mistake with better manners. No rate is right for an unknown
+    model, and the agent's rate is the one value guaranteed to be wrong. So the figure is withheld
+    until someone states it: an absence that says why is evidence (ADR-0019), and a confident
+    wrong number is not.
+    """
+
     @classmethod
     def from_env(cls, environ: dict[str, str] | None = None) -> JudgeSettings:
         import os
@@ -228,6 +271,7 @@ class JudgeSettings:
             max_tokens=int(env.get("FAULTLINE_JUDGE_MAX_TOKENS", "2000")),
             effort=env.get("FAULTLINE_JUDGE_EFFORT", "medium"),
             allow_shared_lineage=env.get("FAULTLINE_JUDGE_ALLOW_SHARED_LINEAGE", "") == "1",
+            usd_per_mtok=prices(env.get("FAULTLINE_JUDGE_USD_PER_MTOK", "")),
         )
 
     def require_model(self) -> str:
