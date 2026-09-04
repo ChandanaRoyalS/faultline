@@ -34,11 +34,20 @@ thesis 3 when T6.8 does the security pass.
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import FileResponse
 
 from faultline.api import view
+
+PAGE = Path(__file__).parent / "static" / "incident.html"
+"""T5.1's one screen, served from the same origin as the API it polls.
+
+Same-origin so the page needs no CORS and the API needs no allowlist - a read surface that had to
+name the origins allowed to call it would be one more thing to get wrong before a demo, and T5.4
+rehearses this from a clean clone."""
 
 router = APIRouter(prefix="/api/v1")
 
@@ -92,3 +101,18 @@ def build(incidents: Any, trajectories: Any) -> APIRouter:
         return view.incident_view(incident, trajectories.latest_for_incident(incident_id))
 
     return bound
+
+
+def page_router() -> APIRouter:
+    """The page itself. Separate from `build` because it needs no stores - a router that took
+    them to serve a static file would suggest the file depends on them."""
+    pages = APIRouter()
+
+    @pages.get("/ui/incidents/{incident_id}")
+    def incident_page(incident_id: str) -> FileResponse:
+        # The id is not interpolated into the HTML: the page reads it from its own URL. A server
+        # that templated it in would be building markup out of a request parameter, which is the
+        # injection this whole surface is careful about.
+        return FileResponse(PAGE, media_type="text/html")
+
+    return pages

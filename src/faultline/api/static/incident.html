@@ -1,0 +1,144 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Faultline — incident</title>
+<!--
+  T5.1's one screen. "No design system, just clean hierarchy."
+
+  EVERY string under an `untrusted` key is written with textContent and never innerHTML.
+  That is not a style preference. THREAT-MODEL thesis 1 says telemetry is attacker-influenced
+  text; this page is where that text reaches a renderer, and `el.innerHTML = statement` would be
+  an XSS hole fed by the monitored system's own logs. `text()` below is the only way any
+  world-produced string enters the DOM, and a Playwright test asserts a hostile log line renders
+  as characters rather than as an element.
+-->
+<style>
+  /* Colours are stated, not inherited. `color-scheme` alone leaves body text to the user
+     agent's default, which rendered washed-out grey in the first screenshot of this page - on
+     the one screen T5.1 calls the demo's most convincing moment. Both schemes are defined. */
+  :root { color-scheme: light dark; --fg: #14161a; --bg: #fff;
+          --line: #d6d9de; --dim: #5b6270; --bad: #b3261e; --link: #0b57d0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e8eb; --bg: #14161a;
+            --line: #333840; --dim: #9aa2ae; --bad: #f2b8b5; --link: #a8c7fa; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; }
+  a { color: var(--link); }
+  main { max-width: 60rem; margin: 0 auto; padding: 1.5rem; }
+  h1 { font-size: 1.25rem; margin: 0 0 .25rem; }
+  h2 { font-size: .8rem; text-transform: uppercase; letter-spacing: .08em;
+       color: var(--dim); margin: 2rem 0 .5rem; }
+  .meta { color: var(--dim); font-size: .85rem; }
+  .card { border: 1px solid var(--line); border-radius: 6px; padding: .75rem 1rem; margin: .5rem 0; }
+  .verdict { border-left: 3px solid currentColor; }
+  .role { font-weight: 600; }
+  ol.timeline { list-style: none; padding: 0; margin: 0; }
+  ol.timeline li { display: grid; grid-template-columns: 5.5rem 7rem 1fr; gap: .5rem;
+                   padding: .2rem 0; border-bottom: 1px solid var(--line); }
+  .cite { display: inline-block; margin: .15rem .3rem .15rem 0; padding: .1rem .4rem;
+          border: 1px solid var(--line); border-radius: 4px; font-size: .8rem; }
+  .cite.unresolved { border-style: dashed; color: var(--bad); }
+  .alt { padding-left: .75rem; border-left: 2px solid var(--line); margin: .5rem 0; }
+  code { font-size: .85em; }
+</style>
+<main>
+  <h1 id="title">loading…</h1>
+  <div class="meta" id="meta"></div>
+  <h2>Report</h2><div id="report" class="meta">not yet investigated</div>
+  <h2>Evidence</h2><div id="evidence" class="meta">none yet</div>
+  <h2>Timeline</h2><ol class="timeline" id="timeline"></ol>
+</main>
+<script>
+  const POLL_MS = 3000;   // T5.1 offers polling or SSE; polling is the one with no server state.
+  const id = new URLSearchParams(location.search).get("id") || location.pathname.split("/").pop();
+
+  // The ONLY way world-produced text enters the DOM. See the comment at the top of this file.
+  const text = (tag, value, cls) => {
+    const el = document.createElement(tag);
+    el.textContent = value == null ? "" : String(value);
+    if (cls) el.className = cls;
+    return el;
+  };
+  const clear = (el) => { while (el.firstChild) el.removeChild(el.firstChild); return el; };
+
+  function cite(c) {
+    const label = c.resolved ? `${c.tool}${c.service ? " · " + c.service : ""}`
+                             : `unresolved · ${c.result_id}`;
+    if (c.resolved && c.deep_link) {
+      const a = text("a", label, "cite");
+      a.href = c.deep_link;                       // built server-side from the stored query
+      a.title = c.untrusted.query;                // title is a property, not markup
+      return a;
+    }
+    const span = text("span", label, c.resolved ? "cite" : "cite unresolved");
+    if (!c.resolved) span.title = "this citation resolves to nothing — it may be fabricated";
+    return span;
+  }
+
+  function render(v) {
+    document.getElementById("title").textContent = `Incident ${v.incident_id}`;
+    clear(document.getElementById("meta")).append(
+      text("span", `${v.state} · ${v.severity} · opened ${v.opened_at ?? "—"} · ` +
+                   v.episodes.map(e => `${e.alertname} on ${e.service}`).join(", "))
+    );
+
+    const report = clear(document.getElementById("report"));
+    if (v.report) {
+      const card = document.createElement("div");
+      card.className = "card verdict";
+      card.append(
+        text("div", `${v.report.fault_class} · ${v.report.remediation_class}` +
+                    (v.report.service ? ` · ${v.report.service}` : "") +
+                    ` · ${v.report.confidence} confidence`, "role"),
+        text("p", v.report.untrusted.root_cause)
+      );
+      const cites = document.createElement("div");
+      v.report.cites.forEach(c => cites.append(cite(c)));
+      card.append(cites);
+      v.report.alternatives.forEach(a => {
+        const alt = document.createElement("div");
+        alt.className = "alt";
+        alt.append(text("div", `#${a.rank} ${a.service ?? ""} · ${a.fault_class ?? ""}`, "meta"),
+                   text("div", a.untrusted.root_cause),
+                   text("div", `ruled below: ${a.untrusted.why_not}`, "meta"));
+        alt.append();
+        card.append(alt);
+      });
+      report.append(card);
+    } else {
+      report.append(text("span", "not yet investigated"));
+    }
+
+    const evidence = clear(document.getElementById("evidence"));
+    if (!v.evidence.length) evidence.append(text("span", "none yet"));
+    v.evidence.forEach(card => {
+      const box = document.createElement("div");
+      box.className = "card";
+      box.append(text("div", card.role, "role"));
+      card.untrusted.statements.forEach(s => box.append(text("p", s)));
+      card.untrusted.ruled_out.forEach(r => box.append(text("div", `ruled out: ${r}`, "meta")));
+      const cites = document.createElement("div");
+      card.cites.forEach(c => cites.append(cite(c)));
+      box.append(cites);
+      evidence.append(box);
+    });
+
+    const timeline = clear(document.getElementById("timeline"));
+    v.timeline.forEach(entry => {
+      const li = document.createElement("li");
+      li.append(text("span", entry.at.slice(11, 19), "meta"),
+                text("span", entry.role, "role"),
+                text("span", entry.summary));
+      timeline.append(li);
+    });
+  }
+
+  async function poll() {
+    try {
+      const response = await fetch(`/api/v1/incidents/${encodeURIComponent(id)}`);
+      if (response.ok) render(await response.json());
+    } catch (_) { /* a failed poll is a missed frame, never a broken page */ }
+    setTimeout(poll, POLL_MS);
+  }
+  poll();
+</script>

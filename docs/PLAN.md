@@ -1223,6 +1223,33 @@ run has been scored yet** — the runs need credits.
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
 | **T5.5** deploy | live instance at a stable URL | needs a VM |
 
+**And the page, with its escaping verified in a real browser.** ***Same day.***
+`src/faultline/api/static/incident.html`, served at `/ui/incidents/{id}` from the same origin it
+polls — same-origin so the read surface needs no CORS allowlist, which is one fewer thing to get
+wrong before T5.4's clean-clone rehearsal.
+
+**The `untrusted` label was advice until something obeyed it.** The page's only route into the DOM
+is a `text()` helper using `textContent`; `innerHTML`, `insertAdjacentHTML`, `document.write` and
+`outerHTML` appear nowhere in its code. That is checked two ways: a structural assertion over the
+source, and — the one that matters — **Chromium loading the page against a stub API whose log line
+is `<img src=x onerror="window.__pwned=1">`**, then asserting `window.__pwned` is undefined. A
+payload that would fire on `innerHTML` renders as characters.
+
+**The unresolved citation is not clickable.** A link to nothing is worse than a marked absence, so
+a fabricated `result_id` renders as a dashed red chip rather than an anchor — asserted in the
+browser test, because *"the clickable citation is the demo's most convincing moment"* and the
+convincing has to be earned by the resolvable ones.
+
+**One defect caught by looking rather than asserting.** The first screenshot showed washed-out
+grey body text: the page set `color-scheme: light dark` and no explicit colours, leaving them to
+the user agent. Every colour is now stated for both schemes. A test suite would never have caught
+it — it took rendering the page and looking at it.
+
+**And the fifth instance of one mistake.** The source assertion first read `"innerHTML" not in
+source` and failed **on the comment explaining why `innerHTML` is never used**. Comments are
+stripped before the check now, and the test additionally asserts the comment is still *there*. A
+fragment of English is not a property; the property is about code.
+
 **And the routes that serve it.** ***Same day.*** `faultline.api.incidents` — `GET
 /api/v1/incidents` and `GET /api/v1/incidents/{id}`. The view module assembled a payload and
 **nothing served it**, which is the same shape as the A/A check that sat library-only until its
