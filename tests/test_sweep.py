@@ -272,3 +272,110 @@ def test_a_named_scope_still_honours_its_tier() -> None:
     sweep.sweep(sweep.select(["a", "b", "c"], "a,b"), repeats=2, runner=run)
 
     assert [argv[1] for argv in seen] == ["a", "b", "a", "b"]
+
+
+# --- runs cannot go back to back, and the first real sweep proved it -----------------------------
+
+
+def waiter() -> tuple[list[float], object]:
+    naps: list[float] = []
+
+    def sleep(seconds: float) -> None:
+        naps.append(seconds)
+
+    return naps, sleep
+
+
+def test_a_run_that_injected_is_followed_by_a_settle_wait() -> None:
+    """**The defect the first real B0 sweep found.** It scored scenario 1 and the gate refused 2
+    through 5: *"incident … resolved at … and is still inside the orchestrator's 300s settle
+    window - a firing episode now would reopen it rather than open a new incident, and this run's
+    alerts would be attributed to the previous one."*
+
+    The gate was right and the driver was wrong. Every scored run leaves a resolved incident that
+    blocks the next for five minutes, so a sweep running back to back can only ever score its
+    first scenario.
+    """
+    _, run = recorder({})
+    naps, sleep = waiter()
+
+    sweep.sweep(["a", "b", "c"], runner=run, settle=300, sleeper=sleep)
+
+    assert naps == [300, 300], "after a and after b, not before a"
+
+
+def test_nothing_is_waited_for_until_something_has_been_injected() -> None:
+    """A sweep whose first scenarios all refuse has broken nothing, and should not sit idle for
+    five minutes apiece waiting for a world it never touched to settle."""
+    _, run = recorder({"a": 3, "b": 3})
+    naps, sleep = waiter()
+
+    sweep.sweep(["a", "b", "c"], runner=run, settle=300, retries=1, sleeper=sleep)
+
+    assert naps == [], "a and b injected nothing; c is the first run, so nothing to settle from"
+
+
+def test_a_refused_scenario_is_relaunched_because_nothing_was_injected() -> None:
+    """**Not a re-run.** The harness's own refusal says *"nothing was injected and this scenario
+    has not been attempted"*, so there is no run to repeat - which matters, because ADR-0022
+    section 3.3 forbids re-running a *scored* run to improve a number and that rule must not be
+    read as forbidding this."""
+    attempts = {"n": 0}
+
+    def flaky(argv: list[str]) -> int:
+        attempts["n"] += 1
+        return 3 if attempts["n"] < 3 else 0  # refused twice, then the world is ready
+
+    naps, sleep = waiter()
+    result = sweep.sweep(["a"], runner=flaky, retries=6, sleeper=sleep)
+
+    assert attempts["n"] == 3
+    assert result.outcomes[0].scored is True
+    assert result.outcomes[0].attempts == 3
+    assert naps == [sweep.RETRY_WAIT_SECONDS, sweep.RETRY_WAIT_SECONDS]
+
+
+def test_a_discarded_run_is_never_relaunched() -> None:
+    """**A discard means the fault was injected and the run happened.** Relaunching it would be a
+    second attempt at a scored measurement, which is exactly the thing ADR-0022 section 3.3
+    forbids - and the difference between that and retrying a refusal is whether the world was
+    touched."""
+    attempts = {"n": 0}
+
+    def discards(argv: list[str]) -> int:
+        attempts["n"] += 1
+        return 4
+
+    naps, sleep = waiter()
+    result = sweep.sweep(["a"], runner=discards, retries=6, sleeper=sleep)
+
+    assert attempts["n"] == 1, "once, and recorded"
+    assert result.outcomes[0].name == "discarded"
+    assert naps == []
+
+
+def test_retries_are_bounded_so_an_unclearable_refusal_ends() -> None:
+    """A gate refusal can be unclearable - the orchestrator down, the world unhealthy. Retrying
+    forever would turn a sweep into a hang, and the operator would learn nothing they could not
+    have learned from the first refusal."""
+    _naps, sleep = waiter()
+    _, run = recorder({"a": 3})
+
+    result = sweep.sweep(["a"], runner=run, retries=3, sleeper=sleep)
+
+    assert result.outcomes[0].attempts == 3
+    assert result.outcomes[0].name == "gate refused"
+
+
+def test_the_library_function_does_not_sleep_by_default() -> None:
+    """**The second defect in this commit.** `settle` and `retries` first defaulted to the real
+    300s and 6, and the suite hung: every existing test called `sweep()` without a sleeper and
+    tried to nap for twenty minutes. Waiting is a property of running against a live world, which
+    is `main()`'s job - a library function whose default behaviour is to sleep is one nobody can
+    call in a test without knowing to disarm it."""
+    import inspect
+
+    parameters = inspect.signature(sweep.sweep).parameters
+
+    assert parameters["settle"].default == 0
+    assert parameters["retries"].default == 1

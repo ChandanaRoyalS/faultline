@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import subprocess
+import time
 from collections import Counter
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -55,6 +56,35 @@ operator about to spend an hour of world time and real money should see the numb
 DISCARD_RATE = 0.33
 """44 of 132 runs discarded, measured twice - 32% at n=128 and 33.3% at n=132. A sweep is budgeted
 against the runs it will *start*, not the ones it will score."""
+
+GATE_REFUSED = 3
+PAUSED = 5
+CLEARABLE = frozenset({GATE_REFUSED, PAUSED})
+"""Exit codes where **nothing was injected and the scenario has not been attempted**.
+
+The harness says so itself: *"THIS IS A PAUSE, NOT A DISCARD - nothing was injected and this
+scenario has not been attempted. Recycle, then start again from here."* Retrying one of these is
+not a re-run, because there is no run to repeat - which matters, because ADR-0022 section 3.3
+forbids re-running a scored run to improve a number and that rule must not be read as forbidding
+this.
+"""
+
+SETTLE_SECONDS = 300
+"""The orchestrator's settle window, and **the reason a sweep could only ever score its first
+scenario**.
+
+Measured on the first real B0 sweep: scenario 1 scored, and 2 through 5 were refused with
+*"incident … resolved at … and is still inside the orchestrator's 300s settle window - a firing
+episode now would reopen it rather than open a new incident, and this run's alerts would be
+attributed to the previous one."*
+
+The gate was right and the driver was wrong. Runs back to back cannot work: every scored run
+leaves a resolved incident that blocks the next one for five minutes. Mirrors
+`OrchestratorSettings.settle_window_seconds`, and `--settle` overrides it for a deployment that
+has changed that value.
+"""
+
+RETRY_WAIT_SECONDS = 60
 
 EXIT_NAMES = {
     0: "scored",
@@ -117,6 +147,9 @@ def select(ids: list[str], only: str) -> list[str]:
 class Outcome:
     scenario_id: str
     exit_code: int
+    attempts: int = 1
+    """How many times this scenario was launched. **Above 1 only for clearable refusals**, where
+    nothing was injected - never for a discard, which is recorded once and never repeated."""
 
     @property
     def name(self) -> str:
@@ -173,6 +206,9 @@ def sweep(
     repeats: int = 1,
     extra: list[str] | None = None,
     runner: Any = None,
+    settle: int = 0,
+    retries: int = 1,
+    sleeper: Any = None,
 ) -> SweepResult:
     """The catalog, `repeats` times, counting down `--runs-remaining` across the whole job.
 
@@ -180,27 +216,40 @@ def sweep(
     writes `repeat_count = 3` into the manifest and runs **once**; nothing in it repeats. A driver
     that passed the tier through and made a single pass would have produced a catalog of runs each
     *declaring* R = 3 while R = 1 actually happened - a corrupt fingerprint, and precisely the
-    "declared R and observed runs per scenario differ" mismatch `compare.report` warns about. The
-    declared repeat count and the number of passes are now the same number by construction.
+    "declared R and observed runs per scenario differ" mismatch `compare.report` warns about.
+
+    **`settle` exists because runs cannot go back to back.** Every scored run leaves a resolved
+    incident, and a firing inside the orchestrator's 300s settle window **reopens that incident
+    rather than opening a new one** - so the next scenario's alerts would be attributed to the
+    previous scenario. The first real sweep scored 1 of 5 and the gate refused the other four for
+    exactly this. Waiting after a run that injected is cheaper than retrying it afterwards.
+
+    **A clearable refusal is retried; a discard never is.** Exit 3 and 5 mean *nothing was
+    injected and this scenario has not been attempted* - the harness says so in the refusal - so
+    launching again is not a re-run and ADR-0022 section 3.3's ban on re-running a scored run to
+    improve a number does not reach it. A discard (exit 4) is recorded once and left alone.
 
     **Catalog-major, not scenario-major**: every scenario once before any scenario twice. Running a
     scenario's three repeats back to back would measure it against three nearly identical world
     states and understate run-to-run variance, which is the one quantity R > 1 exists to estimate.
 
-    That does mean `aa.split` - which takes the first run of each scenario into one arm and the
-    second into the other - ends up splitting pass 1 against pass 2, so world drift between passes
-    lands between the arms. **That is the check working rather than a flaw in it**: drift the
-    harness would attribute to a config change in any other comparison is exactly what an A/A check
-    exists to expose.
+    **`settle` and `retries` default to off, and that is deliberate.** The first version defaulted
+    them to the real 300s and 6, and the test suite hung: every existing test called `sweep()`
+    without a sleeper and tried to nap for twenty minutes. Waiting is a property of *running a
+    sweep against a live world*, which is `main()`'s job; a library function whose default
+    behaviour is to sleep is one nobody can call in a test without knowing to disarm it.
 
-    `runner` is the seam the tests substitute at: a callable taking the argv list and returning an
-    exit code. The default shells out to `faultline-eval`, which is what ADR-0004 requires — the
-    harness drives the product through its public interface, and its **exit code is the contract**.
+    `runner` and `sleeper` are the seams the tests substitute at. The default `runner` shells out to
+    `faultline-eval`, which is what ADR-0004 requires: the harness drives the product through its
+    public interface, and its **exit code is the contract**.
     """
     launch = runner or _shell
+    wait = sleeper or time.sleep
     result = SweepResult()
     total = len(ids) * repeats
     done = 0
+    injected_something = False
+
     for pass_number in range(1, repeats + 1):
         for scenario_id in ids:
             done += 1
@@ -211,10 +260,34 @@ def sweep(
                 str(total - done + 1),
                 *(extra or []),
             ]
-            label = f"[{done}/{total}] pass {pass_number}/{repeats} {scenario_id}"
-            print(f"\n=== {label}   $ {' '.join(argv)}", flush=True)
-            code = int(launch(argv))
-            result.outcomes.append(Outcome(scenario_id=scenario_id, exit_code=code))
+            # **Wait before, not after.** The block is the *previous* incident's settle window, so
+            # the pause belongs in front of the run that would trip over it - and only when
+            # something has actually been injected, so a sweep whose first scenarios all refuse
+            # does not sit idle for five minutes apiece having broken nothing.
+            if injected_something and settle:
+                print(f"--- settling {settle}s before {scenario_id}", flush=True)
+                wait(settle)
+
+            code = 0
+            for attempt in range(1, retries + 1):
+                label = f"[{done}/{total}] pass {pass_number}/{repeats} {scenario_id}"
+                tail = "" if attempt == 1 else f"  (attempt {attempt}/{retries})"
+                print(f"\n=== {label}{tail}   $ {' '.join(argv)}", flush=True)
+                code = int(launch(argv))
+                if code not in CLEARABLE or attempt == retries:
+                    break
+                print(
+                    f"=== {scenario_id}: {EXIT_NAMES.get(code, code)} - nothing was injected, "
+                    f"retrying in {RETRY_WAIT_SECONDS}s",
+                    flush=True,
+                )
+                wait(RETRY_WAIT_SECONDS)
+
+            if code == 0:
+                injected_something = True
+            result.outcomes.append(
+                Outcome(scenario_id=scenario_id, exit_code=code, attempts=attempt)
+            )
             print(f"=== {scenario_id}: {EXIT_NAMES.get(code, code)}", flush=True)
     return result
 
@@ -254,6 +327,29 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--max-tokens", default=None)
     p.add_argument("--baseline", choices=("b0", "b1", "b2"), default=None)
     p.add_argument("--postgres-dsn", default=None)
+    p.add_argument(
+        "--settle",
+        type=int,
+        default=SETTLE_SECONDS,
+        metavar="SECONDS",
+        help=(
+            "wait this long after a run that injected, before the next one. Mirrors the "
+            "orchestrator's settle window: a firing inside it reopens the previous incident "
+            "instead of opening a new one, so back-to-back runs attribute one scenario's alerts "
+            "to another. 0 disables it (default: %(default)s)"
+        ),
+    )
+    p.add_argument(
+        "--retries",
+        type=int,
+        default=6,
+        metavar="N",
+        help=(
+            "how many times to relaunch a scenario the gate refused. A refusal means nothing was "
+            "injected and the scenario has not been attempted, so this is not a re-run. A "
+            "discarded run is never retried (default: %(default)s)"
+        ),
+    )
     return p
 
 
@@ -300,7 +396,7 @@ def main(argv: list[str] | None = None) -> int:
         f"${estimate * MEDIAN_RUN_USD:.0f}, and the measured discard rate is "
         f"{DISCARD_RATE:.0%} - budget about ${estimate * MEDIAN_RUN_USD / (1 - DISCARD_RATE):.0f}."
     )
-    result = sweep(ids, repeats=repeats, extra=extra)
+    result = sweep(ids, repeats=repeats, extra=extra, settle=args.settle, retries=args.retries)
     print("\n".join(result.render()))
     return result.exit_code
 
