@@ -414,5 +414,60 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "cart-redis-misconfig",
+    "run_id": "20260904T094456Z-cart-redis-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "adjacent",
+    "agreement_reason": "Both identify cartservice as the culprit with a connection failure, but the agent narrative stops at 'unable to accept new connections' while the recorded narrative precisely names the mechanism: wrong Redis port in configuration (6380 vs 6379).",
+    "dead_ends_closed": [
+      "email service 500s",
+      "bad release on frontend",
+      "bad release on checkoutservice",
+      "quiet rollback"
+    ],
+    "dead_ends_missed": [
+      "cartservice's actual logs and restart pattern",
+      "cartservice's configuration and changes",
+      "why cartservice's error rate was zero"
+    ],
+    "traps": [
+      {
+        "trap": "loadgenerator's high error rate as primary signal",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "cartservice's flat-zero error rate as evidence of health",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "fifteen seconds between service groups as causal ordering",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent correctly narrows to cartservice as the unreachable dependency but never observes cartservice's logs directly\u2014the restart loop, the connection string naming port 6380, the unhandled exceptions\u2014and thus cannot confirm the specific misconfiguration. It states explicitly 'no dispatch ever queried cartservice' and 'confidence is low.' The recorded narrative uses those logs to close the mechanism precisely and explains why the error rate trap is misleading.",
+    "tokens_in": 5321,
+    "tokens_out": 387
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 36,
+    "depth": 37,
+    "elapsed_ms": 135168,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 36 identifies cartservice as unable to accept new connections, which is the mechanism by which the wrong Redis port caused cartservice to crash on startup and never accept traffic.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

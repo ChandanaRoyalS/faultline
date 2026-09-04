@@ -400,5 +400,61 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "frauddetection-memory-squeeze",
+    "run_id": "20260904T100443Z-frauddetection-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a memory ceiling reduction to 200 MiB below the JVM's working set (~326 MiB in recorded, inferred from crash loop in agent), causing kernel termination during startup.",
+    "dead_ends_closed": [
+      "application-level crash with named cause",
+      "clean scale-down or operator stop",
+      "hung or wedged single process",
+      "routine rollout producing one restart",
+      "ad-hoc human change"
+    ],
+    "dead_ends_missed": [
+      "metric instrumentation/label mismatch affecting call-count visibility",
+      "what drove platform-automation to re-apply a previously reverted limit",
+      "downstream impact on Kafka consumer lag and upstream producers"
+    ],
+    "traps": [
+      {
+        "trap": "single no-traffic alert on low-volume service is monitoring artifact/flaky alert",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "error-ratio metrics as primary diagnostic for service health",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "no customer-visible symptom implies low severity",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative properly closes the same hypotheses as recorded and identifies identical root cause, but labels confidence as 'medium' rather than definitive, primarily due to three unresolved unknowns: exact onset timing (log truncation obscures true start), absence of direct OOMKilled evidence, and lack of control experiment from earlier apply/revert cycle.",
+    "tokens_in": 6465,
+    "tokens_out": 400
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 18,
+    "depth": 19,
+    "elapsed_ms": 112637,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 18 identifies that the memory limit was reduced below the JVM's heap initialization requirements, causing the kernel to kill the process during startup, which is the exact mechanism stated in the narrative: 'The kernel killed it, the orchestrator restarted it, and it hit the same wall.'",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

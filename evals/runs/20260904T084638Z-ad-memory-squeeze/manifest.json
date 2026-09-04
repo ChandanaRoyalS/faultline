@@ -407,5 +407,59 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "ad-memory-squeeze",
+    "run_id": "20260904T084638Z-ad-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a memory limit reduction below the JVM's configured footprint causing repeated process kills during startup; the agent narrative concludes adservice is not accepting gRPC connections, inferring the mechanism entirely from client-side timeout/connection errors without investigating adservice itself.",
+    "dead_ends_closed": [
+      "productcatalogservice error ratio and change history",
+      "frontend's own change history"
+    ],
+    "dead_ends_missed": [
+      "adservice logs (sixteen startup attempts indicating repeated kills)",
+      "adservice runtime metrics (heap series disappearance)",
+      "adservice memory ceiling change in change history",
+      "adservice restart counts or saturation"
+    ],
+    "traps": [
+      {
+        "trap": "frontend's error ratio fell during incident, appearing healthier than baseline",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "gRPC status 14 UNAVAILABLE could indicate slow peer, not dead one",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "process death from outside looks like connection failure on client side",
+        "outcome": "took"
+      }
+    ],
+    "notes": "The agent correctly ruled out frontend itself and productcatalogservice, and correctly identified that adservice was unreachable, but stopped at inferring the mechanism from client-side symptoms. It explicitly acknowledged adservice was never investigated and left the root cause open; the recorded narrative closes it via adservice's own logs showing repeated killed startups and the change history showing the memory limit reduction. The agent's conclusion that 'adservice is not accepting gRPC connections' is consistent with the evidence but not the same as identifying why\u2014a dead process that never starts also fails to accept connections.",
+    "tokens_in": 4853,
+    "tokens_out": 430
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 28,
+    "depth": 29,
+    "elapsed_ms": 128408,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 28 identifies that adservice is not accepting gRPC connections, which is the mechanism of the recorded narrative: the container memory limit was cut below the JVM's working set, causing the process to be killed during startup and never complete initialization to accept traffic.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

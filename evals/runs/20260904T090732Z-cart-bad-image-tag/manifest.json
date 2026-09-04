@@ -397,5 +397,38 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "cart-bad-image-tag",
+    "run_id": "20260904T090732Z-cart-bad-image-tag",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": false,
+    "not_scored_because": "the run wrote no narrative",
+    "root_cause_agreement": null,
+    "agreement_reason": "",
+    "dead_ends_closed": [],
+    "dead_ends_missed": [],
+    "traps": [],
+    "notes": "",
+    "tokens_in": 0,
+    "tokens_out": 0
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 21,
+    "depth": 31,
+    "elapsed_ms": 72168,
+    "role": "traces",
+    "kind": "finding",
+    "reason": "Entry 21 identifies that CartService/GetCart is the deepest erroring downstream span with ERROR status, which directly commits to cartservice being the broken component - the same mechanism as the narrative's root cause that cartservice ceased to exist due to an unpublished image tag.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }
