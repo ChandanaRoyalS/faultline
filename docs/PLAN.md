@@ -1217,11 +1217,85 @@ run has been scored yet** — the runs need credits.
 
 | task | deliverable | state |
 |---|---|---|
-| **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **read half built**; no frontend |
+| **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **built** — view, routes, page |
 | **T5.2** Slack notifier | lifecycle notifications | **built** — both events, linked into T5.1's screen |
-| **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **partial** — README is 358 lines; the other two are self-labelled skeletons (THREAT-MODEL says *"completed at T6.8"*); no demo video |
+| **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **2 of 5** — ARCHITECTURE and THREAT-MODEL written; README already real; **no demo video** (needs a live world), **no MVP-cut bullets** |
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
 | **T5.5** deploy | live instance at a stable URL | needs a VM |
+
+### T5.3 — the two skeletons, and the thesis that had been wrong for weeks
+
+*"ARCHITECTURE.md with the system diagram and ADR index; a threat-model document."* Written like
+internal engineering docs, per the plan's note. `docs/ARCHITECTURE.md` 29 → ~300 lines,
+`docs/THREAT-MODEL.md` 40 → ~250. **Two of T5.3's five deliverables**; the demo video needs a live
+world and the MVP-cut bullets need Gate 5's numbers, and both are recorded as not done rather than
+quietly folded into "docs pack complete".
+
+**THREAT-MODEL thesis 2 was false in the present tense, and the correction had already been
+written somewhere else.** It read: *"Write credentials exist only in the executor service, which
+validates actions against an allowlist and a single-use, action-bound human-approval token."* Both
+halves were wrong today:
+
+- **There is no executor.** No approval service, no write credential, no action plane — and no task
+  number for one. This is a *stronger* position than the document claimed, not a weaker one: a
+  component that does not exist cannot be compromised. But "an agent cannot write because the
+  executor validates its token" and "an agent cannot write because there is nothing to write with"
+  are different sentences, and only the second is true.
+- **Read-only is not a credential property.** ADR-0019 §4 measured it — Prometheus runs with
+  `--web.enable-lifecycle` and Loki's push endpoint is open, both unauthenticated, so *"an agent
+  with a raw HTTP client and the endpoint could reload Prometheus's configuration or write
+  fabricated log lines into the corpus it is investigating."*
+
+**The ADR said so at the time, in a sentence addressed to this exact reader:** *"that has to be
+stated rather than assumed by anyone reading thesis 2."* The correction was made in the ADR and
+never propagated, and nothing cross-reads the two. **A documented-but-unpropagated correction is
+the same failure as `RESULTS.md` naming a stale stamp** — right somewhere, wrong where it is read.
+
+**Three theses added, all found by building rather than by review.** That is the finding, and the
+document says so at the bottom: T6.8 should be expected to find things this file does not list.
+
+- **Thesis 4 — the same unauthenticated port now reads.** T5.1 put three `GET` routes on the port
+  thesis 3 describes. **Anything reaching it can read every incident, every log line the agent
+  quoted, and every query it ran** — wider than the write path's exposure, because incident data
+  carries the monitored world's telemetry.
+- **Thesis 5 — untrusted telemetry reaches renderers, not only models.** Thesis 1 is about text
+  reaching a *model*. The browser and Slack are two instances with different defences, and Slack is
+  the harder one because there is no `textContent` on the far side. The count is now two, and every
+  future integration gets the same question.
+- **Thesis 6 — retrieval gives attacker text a long half-life.** The corpus quarantine is a
+  *contamination* control, not a security one: it stops holdout answers reaching a benchmark and
+  would not notice a poisoned narrative sitting in the right directory. The product case is the
+  dangerous one — a deployment seeds from its own past incidents, and a poisoned past incident is
+  retrieved as precedent for every future incident that resembles it.
+
+**Theses 4-6 were appended rather than ordered by importance**, and that is deliberate: four source
+files cite a thesis *by number*, so inserting one at the top would leave every citation pointing at
+the wrong argument with nothing failing. `tests/test_docs_pack.py` now asserts that every number
+the source cites has a heading, and that the numbering has no gaps.
+
+**The diagram was rendered in Chromium and read, which is the only thing that caught three of its
+defects.** Mermaid was loaded into a headless page, `mermaid.render` called on each fence, and the
+SVG screenshotted. A test suite would have passed all three: the first version put **the eval
+harness at the top** — mermaid ranks by edge direction, and `injector → world` hoisted it above
+everything, so the document opened with the measurement apparatus rather than with an incident; an
+edge labelled *"trust-enveloped results"* sat on the wrong arrow entirely; and after splitting the
+diagram in two, a long edge label rendered **clipped behind the Postgres cylinder** and a
+subgraph-sourced arrow read as *Postgres → notifier*, a flow that does not exist. The last one is
+now prose. **Same lesson as T5.1's washed-out body text, and the second time in three tasks that
+looking beat asserting.**
+
+**Thirteen guards, because both documents go stale by addition.** A new ADR is written somewhere
+else, so an index rots with nobody editing it; the same is true of the roles, the tools, the exit
+codes and the package paths. All mutation-verified: dropping ADR-0036 from the index fails,
+renumbering thesis 1 fails, mistyping a node id fails (**mermaid draws an empty box for an unknown
+id rather than erroring**, so a typo is invisible in the render too), and **creating
+`agents/executor.py` fails with a message telling you to rewrite thesis 2** — the guard is what
+will notice when the action plane finally exists.
+
+**And a sixth instance of one mistake, in the file whose docstring warns about it.** The tool-count
+guard first asserted `f"{len(surface)} tools"` and failed, because the heading spells it *"five
+tools"*. Asserting on a rendering of a number is the same error as asserting on a fragment of
+English: the property is the count, and `5` and `five` are two spellings of it.
 
 ### T5.2 — the notifier, and the second renderer fed untrusted telemetry
 
