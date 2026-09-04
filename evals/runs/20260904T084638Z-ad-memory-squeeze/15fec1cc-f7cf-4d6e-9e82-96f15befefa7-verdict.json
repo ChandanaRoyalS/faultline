@@ -1,0 +1,156 @@
+{
+  "incident_id": "15fec1cc-f7cf-4d6e-9e82-96f15befefa7",
+  "trajectory_id": "878986ca-dc63-46a3-ba1a-932bc29ad9e9",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "User-facing failures originate on the frontend\u2192adservice edge: adservice is not accepting gRPC connections, so frontend's AdService/GetAds calls hang at the TCP connect layer for ~2-3s and then fail with gRPC status 14 UNAVAILABLE, propagating up through frontend's HTTP handler to loadgenerator [tr_767b14a37402, tr_f63a4744e746]. Every failing trace lacks an adservice server span and carries the error on a frontend tcp.connect child span, placing the fault at adservice's reachability rather than in frontend logic or any other backend. No dispatch ever examined adservice itself, so why it is unreachable \u2014 process down, crash-looping, saturated accept queue, or wrong bind address \u2014 remains undetermined, and I leave fault_class unknown rather than guess.",
+    "service": "adservice",
+    "fault_class": "unknown",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_767b14a37402",
+      "tr_f63a4744e746",
+      "tr_6e861adb861e"
+    ],
+    "reasoning": "Traces isolate the failing edge: erroring traces show a frontend GetAds client span in error with no adservice server span, and a child tcp.connect span erroring after ~3.08s \u2014 a connection never established, not an error reply [tr_767b14a37402]. Frontend logs corroborate independently: only code 14 with a no-connection detail from the gRPC client path, no DEADLINE_EXCEEDED, no auth or local application errors [tr_f63a4744e746]. Frontend is exonerated as origin \u2014 it keeps serving, most spans complete in milliseconds, and its change log is empty [tr_767b14a37402, tr_105258a8909e]. productcatalogservice is cleared by a flat-zero error ratio with a live denominator [tr_6e861adb861e] plus paired error-free server spans [tr_767b14a37402]; its empty Loki result reflects a mismatched label selector [tr_17087e71682e]. Fault class stays unknown because the class must name adservice's mechanism, and adservice was never dispatched against.",
+    "open_questions": [
+      "adservice was never investigated: its logs, restart counts, saturation metrics and change history are entirely unexamined, so the mechanism is inferred only from the client side.",
+      "Onset is unpinned \u2014 frontend log lines begin only at ~08:46:49 within the queried selector, and change-history windows start at 08:50, missing the hours before onset [tr_f63a4744e746, tr_d1ce6822c2ac].",
+      "Why frontend's aggregate error ratio fell to a ninth of the prior hour while traces show hard failures [tr_53ecba761e7a] \u2014 sampling artifact, traffic mix, or a distinct earlier problem before 07:50."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "adservice exhausted a local resource (heap, thread pool, or accept backlog), staying alive but no longer accepting connections, producing multi-second connect timeouts.",
+        "service": "adservice",
+        "fault_class": "resource_exhaustion",
+        "why_not": "Plausible and consistent with hangs rather than immediate refusals, but no adservice memory, CPU, thread or restart telemetry was ever collected to support it over a simple not-running pod."
+      },
+      {
+        "root_cause": "adservice is running a bad artifact or version that fails to bind its listener, so no server ever accepts the frontend's connections.",
+        "service": "adservice",
+        "fault_class": "bad_deploy",
+        "why_not": "No change record was queried for adservice at all, so there is no positive evidence of a recent rollout; this is speculation about an act rather than an observed mechanism."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    " / Confirm before scoping: - The alert's `service_name` label names where errors are *counted*, not necessarily where\n  they originate. A dependency returning errors shows up on its caller's ratio too.\n- Rank the affected services by ratio. The one with the highest ratio and the fewest inbound\n  edges in t",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24045,
+    "pulled_tokens": 5470,
+    "pull_rate": 0.1853,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 425,
+        "content_tokens": 427,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1488,
+        "content_tokens": 1491,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7431,
+        "content_tokens": 7407,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6814,
+        "content_tokens": 6816,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7887,
+        "content_tokens": 7891,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "adservice",
+    "rests_on": [
+      "tr_767b14a37402",
+      "tr_f63a4744e746"
+    ],
+    "expected_effect": "Recreating the adservice container should restore a listening gRPC endpoint on the frontend\u2192adservice edge. Observable within a few minutes: (1) frontend Loki lines matching `Error: 14 UNAVAILABLE: No connection established` stop appearing \u2014 the density seen through 08:51:56 in {service=\"frontend\"} should drop to zero; (2) new Jaeger traces for AdService/GetAds contain an adservice *server* span paired with the frontend client span, where today none exists; (3) GetAds client-span duration falls from the ~2.0\u20133.1s connect-deadline cluster to the low-millisecond range typical of the other frontend\u2192backend edges in the same sample; (4) the frontend HTTP GET and loadgenerator HTTP GET parents of those traces stop carrying error status.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, after the container is recreated, frontend still emits code-14 'No connection established' lines and failing traces still show a frontend tcp.connect child erroring at ~3s with no adservice server span \u2014 that means the target is not reachable for a reason a restart cannot fix (wrong bind address or port, DNS/network path, or a startup crash), and the next step is adservice's own logs, exit codes and restart counts, none of which were ever queried. Also treat as falsified-in-effect if recovery lasts only minutes and the same signature returns: that is a crash-loop, and repeated restarts would mask it. Note one limit on observability: frontend's aggregate error ratio [tr_53ecba761e7a] will NOT confirm this fix \u2014 it sat at ~0.6%, an order of magnitude below the prior hour, while traces showed hard failures, so that metric is not a valid confirmation channel here and confirmation must come from the log-line and trace-span checks above.",
+    "risk": "The mechanism behind adservice's unreachability was never examined; it is inferred entirely from the client side. If adservice is in fact up and the fault lies in frontend's connection pool/name resolution or in the network path between them, this restart takes down a working service and adds a second outage on top of the first. The action is irreversible and destroys exactly the forensic state that would settle the open question \u2014 process uptime, accumulated restart count, accept-queue depth and any in-memory crash context \u2014 so a wrong diagnosis here also makes the crash-loop-versus-refused-connection distinction harder to make afterwards. If the true cause is a bad bind address or flag set at deploy time, the restart brings the service back with the same bad configuration and buys nothing while costing the evidence.",
+    "blast_radius": "One container: adservice, for the duration of the recreate, discarding its in-process cache. frontend is the only inbound caller named in the dependency graph and it is already failing every GetAds call, so during the recreate it sees the same UNAVAILABLE it sees now \u2014 no new class of failure for it. loadgenerator sees whatever frontend surfaces. cartservice, checkoutservice, productcatalogservice and recommendationservice are untouched; their frontend edges are healthy in the trace sample and stay that way. Anyone reading adservice restart-count or uptime metrics after this point sees a discontinuity caused by us, not by the incident."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend plus the load generator indicate user-facing impact, not an isolated synthetic-traffic blip. With five unexamined downstream dependencies and no open incident to fold this into, it warrants investigation."
+  }
+}

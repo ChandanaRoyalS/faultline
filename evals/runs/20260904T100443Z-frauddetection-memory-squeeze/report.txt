@@ -1,0 +1,36 @@
+run 20260904T100443Z-frauddetection-memory-squeeze   scenario frauddetection-memory-squeeze
+trajectory f0624bca-ba25-4c7e-986b-078065194a5f   runtime faultline/0.0.1+prompts:ba8684b01201
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (1/1 alerted services predicted)
+  precision 1.00  (1/1 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): none
+  unmeasured edges crossed: 0 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class resource_exhaustion vs resource_exhaustion - correct
+  fix class   config_revert vs config_revert - correct
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 40805 / out 11659 tokens   $0.4955
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        183.3s (OVER G4's 3-minute per-run comparison) tools 0.1s  models 0.0s  steps 16
+  tool calls     4 total, 4 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 2 empty, 1 truncated
+  context budget 5 briefing(s), 3 over budget (0.60), 2 section(s) dropped, largest 6026 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false

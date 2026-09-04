@@ -1,0 +1,38 @@
+incident 61d3e31c-1ee3-4f71-b991-35a0fcbbb8a0  state triaging  anchor 09:47:30
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 226f62ed-41f2-4336-8528-6cc2853a98c7
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service alerting across frontend and checkout within seconds is a real user-facing failure that cannot be dismissed, and no open incident could account for it. Shared downstream dependencies of both seeds are the natural first place to look, but nothing yet points to a specific fault class.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Wrong if cartservice is wedged in a state a restart would clear at once - the cost is ~15 more minutes of elevated frontend/checkoutservice error ratio and failing PlaceOrder. Confirmed correct if cartservice's own records name a deploy or config edit on the cart path, since restart_service would not address that mechanism and, being irreversible, would destroy the evidence.
+  rests on    : tr_6a2d28774230, tr_4e849cc9d524, tr_e3eed71e136f
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 31262 pushed / 8270 pulled (pull rate 0.2092), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : restart
+  confidence  : low
+  evidence    : tr_6a2d28774230, tr_4e849cc9d524, tr_27a1865a306a
+  root cause  : Every sampled PlaceOrder trace terminates at checkoutservice's call to hipstershop.CartService/GetCart, the innermost span marked ERROR, with the error propagating up through checkoutservice and both frontend spans [tr_6a2d28774230]. Failures are immediate (GetCart 0.3-2.5ms), not hangs, and frontend logs gRPC status 14 UNAVAILABLE with 'no connection established' - a connect-time refusal, not a handler response [tr_4e849cc9d524]. checkoutservice logs no errors and keeps accepting requests, so it is a relay victim [tr_27a1865a306a]. The condition is partial and sustained (error ratios ~4x and ~3.5x, change points at 09:10:15, majority of calls still succeed) with no change records on either alerting service [tr_e3eed71e136f][tr_740bc3210ab8][tr_87bb27270cc6][tr_679c97b448f4]. A sustained, fractional, connect-time refusal from one backend is most consistent with cartservice (or its cart store) being unable to accept new connections - capacity/connection exhaustion. No dispatch queried cartservice directly, so the mechanism is inferred.
+  OPEN        : No dispatch queried cartservice - its logs, metrics, restart/OOM history and change record are entirely unobserved, so 'exhaustion' is inferred from the refusal pattern rather than measured.
+  OPEN        : The frontend change query covered only 09:47:30 onward, and no change query covered cartservice, so a pre-09:10 change on the cart path remains possible.
+  OPEN        : Frontend traces failed with a 503 from Jaeger [tr_1bce9211df57], so frontend's other downstream edges were never checked; some UNAVAILABLE errors may target a peer other than cartservice.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260904T094456Z-cart-redis-misconfig/61d3e31c-1ee3-4f71-b991-35a0fcbbb8a0-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260904T094456Z-cart-redis-misconfig/61d3e31c-1ee3-4f71-b991-35a0fcbbb8a0-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11210.06it/s]

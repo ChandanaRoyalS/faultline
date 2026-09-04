@@ -1,0 +1,85 @@
+{
+  "incident_id": "c333c042-1e41-4390-903e-824de4f31504",
+  "trajectory_id": "133f9b2d-5b9c-4b85-aa0a-4884b7a30cb4",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "failed"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:cart-bad-image-tag",
+  "verdict": null,
+  "flags": [
+    "synthesizer produced no valid findings: schema validation failed twice (2 validation errors for Verdict\nalternatives.0.remediation_class\n  Extra inputs are not permitted [type=extra_forbidden, input_value='config_revert', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nalternatives.1.remediation_class\n  Extra inputs are not permitted [type=extra_forbidden, input_value='rollback', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden)"
+  ],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **3m18s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five"
+  ],
+  "failed_dispatches": [
+    [
+      "synthesizer",
+      "schema validation failed twice (2 validation errors for Verdict\nalternatives.0.remediation_class\n  Extra inputs are not permitted [type=extra_forbidden, input_value='config_revert', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden\nalternatives.1.remediation_class\n  Extra inputs are not permitted [type=extra_forbidden, input_value='rollback', input_type=str]\n    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden)"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 2351,
+    "pulled_tokens": 7084,
+    "pull_rate": 0.7508,
+    "dropped_sections": 0,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 473,
+        "content_tokens": 476,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1878,
+        "content_tokens": 1882,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      }
+    ]
+  },
+  "proposal": null,
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Ten services alerting within ~two minutes at critical severity, spreading from checkout/frontend outward, is not dismissible. No open incident to attribute it to, and the fan-out pattern could equally be a checkout-path dependency, a deploy, or resource pressure."
+  }
+}
