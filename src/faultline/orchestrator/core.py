@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from datetime import timedelta
 
 from faultline.ingest.models import AlertEvent, AlertStatus
+from faultline.notify.announce import SILENT, Announcer
 from faultline.orchestrator.cap import InvestigationCap
 from faultline.orchestrator.correlation import CorrelationPolicy
 from faultline.orchestrator.machine import transition
@@ -53,11 +54,15 @@ class Orchestrator:
         policy: CorrelationPolicy,
         cap: InvestigationCap,
         settle_window: timedelta,
+        announcer: Announcer = SILENT,
     ) -> None:
         self._store = store
         self._policy = policy
         self._cap = cap
         self._settle = settle_window
+        self._announcer = announcer
+        """T5.2. Defaults to an announcer that sends nothing, so no existing caller changes and
+        no test acquires a network dependency by accident."""
 
     def apply(self, event: AlertEvent) -> Applied:
         """Apply one event. Idempotent on `(episode_key, status)`.
@@ -104,6 +109,13 @@ class Orchestrator:
         self._attach(incident, event, rule)
         self._admit_or_queue(incident)
         self._store.save(incident)
+        # **After the durable write, and only here.** Same rule as the consumer's write-then-ack:
+        # a notification about an incident that failed to persist is a message about something
+        # that does not exist. And only on `_open` - a reopen inside the settle window is the
+        # same incident, and a channel that announced it twice would be reporting one fault as
+        # two. `apply()` is idempotent on (episode_key, status), so a stream redelivery of the
+        # opening event never reaches this line a second time.
+        self._announcer.incident_opened(incident)
         return Applied(incident_id=incident.id, opened=True)
 
     def _attach(self, incident: Incident, event: AlertEvent, rule: JoinRule) -> None:

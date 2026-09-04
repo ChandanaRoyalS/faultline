@@ -52,6 +52,15 @@ def parser() -> argparse.ArgumentParser:
         action="store_true",
         help="process one batch and exit, instead of looping",
     )
+    p.add_argument(
+        "--no-notify",
+        action="store_true",
+        help=(
+            "do not send incident-opened notifications even if FAULTLINE_NOTIFY_SLACK_WEBHOOK_URL "
+            "is set. Use this when running against a world a benchmark is injecting faults into "
+            "(T5.2)"
+        ),
+    )
     return p
 
 
@@ -90,6 +99,19 @@ def run(argv: list[str] | None = None) -> int:
 
     store = PostgresIncidentStore(psycopg.connect(args.postgres_dsn))
 
+    # T5.2. **The orchestrator cannot tell a benchmark's fault from a real one, and that is by
+    # design**: ADR-0004 keeps the harness outside the product, and a scenario injects a genuine
+    # fault into the demo world precisely so the pipeline meets it as one. Nothing in the alert
+    # says "this is a measurement". So the eval profile suppresses notifications by
+    # configuration - an unset webhook, or `--no-notify` - and there is no code path that could
+    # do it instead. `faultline-investigate` *is* told (the harness passes `--exclude-origin`)
+    # and suppresses its own half; this half is operational discipline, recorded rather than
+    # papered over.
+    from faultline.notify import SILENT
+    from faultline.notify.slack import from_settings as notifier_from_settings
+
+    announcer = SILENT if args.no_notify else notifier_from_settings()
+
     settle = timedelta(seconds=args.settle_window)
     loop = ConsumerLoop(
         source=source,
@@ -98,6 +120,7 @@ def run(argv: list[str] | None = None) -> int:
             policy=TimeOverlapPolicy(settle),
             cap=InvestigationCap(args.max_concurrent),
             settle_window=settle,
+            announcer=announcer,
         ),
         batch=settings.batch_size,
     )
