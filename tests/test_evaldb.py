@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 
-from evalharness import evaldb
+from evalharness import evaldb, sweep
 
 RUNS = Path("evals/runs")
 
@@ -89,10 +89,41 @@ def test_invalid_outranks_scored_because_the_question_is_may_these_numbers_be_us
     assert evaldb.outcome_of({"paused": {"reason": "settle window"}}) == "paused"
 
 
-def test_a_manifest_with_no_score_and_no_marker_is_a_discard_not_a_success() -> None:
-    """The conservative reading. A run that recorded no score did not produce one, and counting
-    it as scored would inflate every rate computed over the table."""
-    assert evaldb.outcome_of({"scenario_id": "x"}) == "discarded"
+def test_a_manifest_with_no_score_and_no_marker_is_never_read_as_a_success() -> None:
+    """The conservative reading, and it is still conservative. A run that recorded no score did
+    not produce one, and counting it as scored would inflate every rate computed over the table.
+
+    **Which kind of non-success it is now turns on `injected_at`**, the same question the labelled
+    branch asks. This test previously pinned the answer to `discarded` outright, which is what
+    made `else "discarded"` look correct: a run with no marker *and no injection* is a refusal,
+    and calling it a discard puts a run that never happened into the rate for runs that did.
+    """
+    assert evaldb.outcome_of({"scenario_id": "x"}) == "refused", "nothing was injected"
+    assert evaldb.outcome_of({"scenario_id": "x", "injected_at": "2026-09-04T08:00:00Z"}) == (
+        "discarded"
+    ), "the fault went in and nothing came out"
+    for outcome in ("refused", "discarded"):
+        assert outcome != "scored"
+
+
+def test_the_premise_the_recovery_rests_on_holds_on_the_committed_record() -> None:
+    """**`injected_at` is present on every manifest that produced a score.**
+
+    The whole recovery reads an absent `injected_at` as "nothing was injected". If a scored run
+    could lack the field, that reading would quietly move real results into `refused` - so the
+    premise is asserted against the tree rather than trusted from a docstring. Measured today:
+    61 manifests lack `injected_at` and not one of them carries a `score`.
+    """
+    import json
+
+    offenders = [
+        d.name
+        for d in sorted(RUNS.iterdir())
+        if d.is_dir() and (d / "manifest.json").is_file()
+        if (m := json.loads((d / "manifest.json").read_text())).get("score")
+        and not m.get("injected_at")
+    ]
+    assert offenders == [], f"scored runs with no injected_at break the recovery: {offenders}"
 
 
 # --- the freeze stamp is not a fallback for a baseline run ---------------------------------
@@ -237,9 +268,41 @@ def test_a_gate_refusal_is_not_a_discard_even_when_it_was_written_as_one() -> No
     assert evaldb.outcome_of(never_started) == "refused", "nothing was injected"
 
 
+def test_a_manifest_with_no_outcome_label_at_all_is_not_a_discard_by_default() -> None:
+    """**The defect the loose bound above was hiding.**
+
+    The pre-flight refusal path wrote a manifest carrying a `preflight` block and nothing else -
+    no `discarded`, no `refused`, no `score`. `outcome_of` recovered the mislabelled case in the
+    branch above and then fell through to `else "discarded"`, so the unlabelled case became a
+    discard by default. Thirty of these landed on 2026-09-04 and the recorded discard rate went
+    from 16.7% to 28.6% in one afternoon - the exact inflation this function exists to stop,
+    arriving through its own default.
+    """
+    unlabelled = manifest(score=None, injected_at=None)
+    unlabelled.pop("discarded", None)
+    unlabelled["preflight"] = {"checked": True, "ok": False, "detail": "no credential"}
+
+    assert evaldb.outcome_of(unlabelled) == "refused"
+
+
+def test_an_unlabelled_manifest_that_did_inject_is_still_a_discard() -> None:
+    """The recovery must not run the other way. A run that injected and recorded no outcome is a
+    run that happened and produced no result, which is what a discard is."""
+    crashed = manifest(score=None)
+    crashed.pop("discarded", None)
+
+    assert evaldb.outcome_of(crashed) == "discarded"
+
+
 def test_the_correction_holds_on_the_committed_record() -> None:
     """Asserted against the real tree rather than a fixture, because the whole finding is about
-    what the real tree contains."""
+    what the real tree contains.
+
+    **The bound is stated against the runs that started, not against every directory.** A refusal
+    costs nothing and injected nothing, so counting it in the denominator of a discard *rate*
+    dilutes the number a sweep budgets against - the more refusals a bad afternoon produces, the
+    healthier the pipeline would look.
+    """
     import collections
     import json
 
@@ -250,5 +313,7 @@ def test_the_correction_holds_on_the_committed_record() -> None:
     )
 
     assert counts["refused"] > 0, "the record holds refusals that were written as discards"
-    total = sum(counts.values())
-    assert counts["discarded"] / total < 0.25, "the true discard rate, not the reported 33%"
+    started = counts["discarded"] + counts["scored"]
+    assert counts["discarded"] / started == pytest.approx(sweep.DISCARD_RATE, abs=0.02), (
+        "the constant sweeps budget against must track the record it is derived from"
+    )

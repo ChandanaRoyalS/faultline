@@ -188,7 +188,20 @@ def outcome_of(manifest: dict[str, Any]) -> str:
         # The retroactive half. `injected_at` is on every manifest ever written, so a refusal
         # mislabelled as a discard is distinguishable now without touching the file.
         return "discarded" if manifest.get("injected_at") else "refused"
-    return "scored" if manifest.get("score") else "discarded"
+    if manifest.get("score"):
+        return "scored"
+    # **The fallthrough asks the same question, and it did not.** It read
+    # `else "discarded"`, so a manifest carrying no outcome label at all became a discard by
+    # default - and the pre-flight refusal path wrote exactly that shape, a manifest with a
+    # `preflight` block and nothing else. Thirty of them landed on 2026-09-04 and the recorded
+    # discard rate went from 16.7% to 28.6% overnight, which is the inflation this function was
+    # written to stop, arriving through its own default two days later.
+    #
+    # The claim that this function protected the figure was made in dev sweep 9's document and in
+    # `run.py`'s comment, from reading the branch above and not the line below it. Both are
+    # corrected in this change. **A recovery that covers the labelled case and defaults the
+    # unlabelled one to the very label it exists to correct is not a recovery.**
+    return "discarded" if manifest.get("injected_at") else "refused"
 
 
 @dataclass(frozen=True, slots=True)

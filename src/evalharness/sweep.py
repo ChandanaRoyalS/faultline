@@ -53,16 +53,21 @@ price can be cleared; one without is indistinguishable from a blocker with no so
 operator about to spend an hour of world time and real money should see the number first.
 """
 
-DISCARD_RATE = 0.17
-"""22 of 132 runs discarded. A sweep is budgeted against the runs it will *start*, not the ones it
-will score.
+DISCARD_RATE = 0.18
+"""**22 discarded against 121 runs that started** - 99 scored plus those 22. A sweep is budgeted
+against the runs it will start, and a run that never started costs nothing to budget for.
 
 **This read 0.33 for a day, and the 33% was half gate refusals.** 44 of 132 runs carried a
 `DISCARDED.md`, but 22 of those had no `injected_at` - they never started, so they cost nothing and
-belong in no discard rate. `evaldb.outcome_of` recovers the distinction from `injected_at` without
-rewriting a single manifest; see its docstring. The true figure is **16.7%**, and the number this
-repository quoted, budgeted against, and recorded in `docs/PLAN.md` as a headline property was
-exactly double it."""
+belong in no discard rate. The number this repository quoted, budgeted against, and recorded in
+`docs/PLAN.md` as a headline property was exactly double the truth.
+
+**Then it read 0.17, and the denominator was wrong in the other direction.** 22 of *132* put
+refusals into the denominator of a rate about runs that happen, so every bad afternoon of refusals
+would have made the pipeline look healthier. The denominator is now the runs that started, and
+`tests/test_evaldb.py` asserts this constant against the committed record so the two cannot drift.
+
+Both corrections are *readings* of the record. No manifest has been rewritten."""
 
 GATE_REFUSED = 3
 PAUSED = 5
