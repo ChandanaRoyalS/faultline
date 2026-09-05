@@ -22,6 +22,7 @@ from functools import lru_cache
 import redis
 from fastapi import FastAPI
 
+from faultline.api import auth
 from faultline.ingest.dedupe import RedisEpisodeLog
 from faultline.ingest.models import WebhookPayload
 from faultline.ingest.receiver import Receiver
@@ -29,6 +30,21 @@ from faultline.ingest.settings import IngestSettings
 from faultline.ingest.stream import RedisEventStream
 
 app = FastAPI(title="Faultline ingest", version="0.0.1")
+"""T2.1's receiver, **unchanged and still decorated directly onto the app object.**
+
+The obvious refactor here is to move these two routes onto an `APIRouter` so that
+`faultline.api.app` can mount them beside T5.1's read routes. It was written, and reverted, because
+**FastAPI 0.141 resolves `include_router` lazily**: an included router appears in `app.routes` as an
+opaque `_IncludedRouter` marker with no `.path`, and the routes never flatten - not after setup, not
+after a request. Requests route correctly; enumeration silently returns nothing.
+
+`test_the_contract_covers_every_route_the_app_serves` enumerates `app.routes` to check the committed
+OpenAPI snapshot covers everything served. Under the refactor it saw an empty set, compared it
+against an empty snapshot, and **passed while asserting nothing** - a guard against undocumented
+routes, disabled by a change that had no reason to touch it. `faultline.api.app` composes from
+`app.router` instead, which costs nothing and leaves that test measuring what it was written to
+measure.
+"""
 
 
 @lru_cache(maxsize=1)
@@ -81,6 +97,14 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--port", type=int, default=settings.port, help="default: %(default)s")
     p.add_argument("--redis-url", default=settings.redis_url, help="default: %(default)s")
     p.add_argument("--stream", default=settings.stream, help="default: %(default)s")
+    p.add_argument(
+        "--postgres-dsn",
+        default=None,
+        help=(
+            "also serve T5.1's incident read surface and screen from this database. "
+            f"Requires {auth.PASSWORD_VAR}. Omitted, this process is the alert receiver alone."
+        ),
+    )
     return p
 
 
@@ -101,5 +125,16 @@ def run(argv: list[str] | None = None) -> int:
     os.environ["FAULTLINE_INGEST_STREAM"] = args.stream
     receiver.cache_clear()
 
-    uvicorn.run(app, host=args.host, port=args.port)
+    # **Not the module-level `app`.** That one is the receiver alone and is what T2.1's tests
+    # import; serving it here is what left T5.1's routes reachable from nothing for two days.
+    # `assemble` builds a fresh one, and mounts the read half only when asked.
+    from faultline.api.app import assemble
+
+    try:
+        served = assemble(postgres_dsn=args.postgres_dsn)
+    except auth.Unconfigured as refusal:
+        print(refusal)
+        return 3
+
+    uvicorn.run(served, host=args.host, port=args.port)
     return 0
