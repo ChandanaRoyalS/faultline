@@ -60,7 +60,18 @@ curl -sS -u faultline:$FAULTLINE_API_PASSWORD localhost:8001/api/v1/incidents
 The last returns an empty list until §3.3 loads a snapshot — that is correct, and it is a different
 answer from a 404, which would mean the read surface never mounted.
 
-Tear down with `docker compose -f compose.yml -f compose.rehearsal.yml down -v`.
+Tear down with `docker compose -f compose.yml -f compose.rehearsal.yml down -v`. That `-v` is
+safe **because the deployment is compose project `faultline-deploy`**, a different project from the
+repository's own `faultline` — see the note at the top of `compose.yml` for what happened the first
+time it was not.
+
+**The first rehearsal found a real defect, which is the argument for this section.** `compose.yml`
+declared `name: faultline`, the same project compose derives for the repository's own
+`docker-compose.yml`, so it attached to the running development Postgres and pointed the
+deployment's DSN at the developer's database. It failed safe by luck rather than design — an
+existing volume keeps its original password — and against an empty one it would have handed the
+deployment live development data. Cost of finding it here: four minutes. Cost of finding it on a
+public VM: a published database.
 
 **What a rehearsal covers:** the image, its `CMD`, the DSN, the credential refusal, the migration,
 and the read surface. **What it cannot:** the certificate and the DNS record. Those stay first-run

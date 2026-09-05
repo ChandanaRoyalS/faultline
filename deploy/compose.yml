@@ -13,7 +13,21 @@
 # an object store open to the internet. A deployment whose exposure depends on remembering which
 # profile is selected is one profile flag away from an incident of its own.
 
-name: faultline
+# **`faultline-deploy`, not `faultline`.** Compose derives a project name from the directory when
+# none is given, so the repository's own `docker-compose.yml` is project `faultline` - and this
+# file naming itself the same thing does not create a deployment, it *joins* the developer's one.
+#
+# Found on the first rehearsal, which is the entire reason `compose.rehearsal.yml` exists. With
+# `name: faultline` this file attached to the running `faultline-postgres-1`, reported the dev
+# Redis and MinIO as orphans it might remove, and pointed the deployment's DSN at the development
+# database. It failed safe by luck rather than design: `POSTGRES_PASSWORD` initialises only an
+# empty volume, so the existing one kept the old password, authentication failed and the container
+# exited. Had the volume been empty, a `--build` in the wrong directory would have been enough to
+# hand a public deployment the developer's database, and `docker compose down -v` in either
+# directory would have destroyed the other's data.
+#
+# The project name is what separates the two, so it is the first line of the file.
+name: faultline-deploy
 
 services:
   postgres:

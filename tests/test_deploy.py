@@ -21,6 +21,7 @@ string and exited from T0 until T5.5, because nothing ever started the image.
 from __future__ import annotations
 
 import re
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -74,6 +75,50 @@ def test_the_platform_is_reachable_from_caddy_without_being_public(compose: dict
     every port - so this asserts the intent is written down, not that it is load-bearing."""
     assert compose["services"]["faultline"]["expose"] == ["8000"]
     assert "faultline:8000" in CADDYFILE.read_text()
+
+
+# --- the deployment is not the developer's platform ----------------------------------------------
+
+
+def test_the_deployment_has_its_own_compose_project(compose: dict) -> None:
+    """**The guard for the defect the first rehearsal found.**
+
+    Compose derives a project name from the directory when none is given, so the repository's own
+    `docker-compose.yml` is project `faultline`. This file declared `name: faultline` too, and so
+    did not create a deployment - it joined the developer's one, attaching to the running
+    `faultline-postgres-1` and pointing the deployment's DSN at the development database.
+
+    It failed safe by luck: `POSTGRES_PASSWORD` initialises only an empty volume, so the existing
+    one kept its old password and authentication failed. Against an empty volume, one `--build` in
+    the wrong directory hands a public deployment the developer's data, and `down -v` in either
+    directory destroys the other's.
+    """
+    development = yaml.safe_load((REPO_ROOT / "docker-compose.yml").read_text()).get("name")
+
+    # **The distribution name, not `REPO_ROOT.name`.** The first version of this guard compared
+    # against the checkout directory, which is what compose actually uses - and so passed in a
+    # clone named anything else while failing in one named `faultline`. A test whose verdict
+    # depends on what the operator called their directory is worse than no test: it is green
+    # wherever it was written. `pyproject.toml` names the project the same way in every clone,
+    # and it is the name a clone gets by default.
+    distribution = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text())["project"]["name"]
+
+    assert compose.get("name"), "deploy/compose.yml must name its project explicitly"
+    assert compose["name"] != development
+    assert compose["name"] not in {distribution, REPO_ROOT.name}, (
+        f"project {compose['name']!r} collides with the name compose derives for the "
+        "repository's own docker-compose.yml in a default clone, so this file would join "
+        "the developer's platform rather than create a deployment"
+    )
+
+
+def test_the_deployment_shares_no_volume_name_with_development(compose: dict) -> None:
+    """Belt and braces. Volumes are namespaced by project, so distinct project names already
+    separate them - this fails loudly if someone later sets `external: true` or a fixed `name:`
+    on one, which would reconnect the two through the back door."""
+    for volume in (compose.get("volumes") or {}).values():
+        assert not (volume or {}).get("external"), "an external volume is shared, by definition"
+        assert not (volume or {}).get("name"), "a fixed volume name escapes the project namespace"
 
 
 # --- the read surface is actually mounted -------------------------------------------------------

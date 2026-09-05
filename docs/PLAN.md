@@ -1270,6 +1270,23 @@ which lives only in Postgres. So the two things that make this screen worth depl
 the two a repo-only loader cannot reconstruct. `make deploy-snapshot` exports; the snapshot is
 gitignored, because it carries the monitored world's telemetry.
 
+**The rehearsal earned itself in four minutes.** The first run of
+`compose.rehearsal.yml` found that `compose.yml` declared **`name: faultline`** — the same compose
+project the repository's own `docker-compose.yml` derives from its directory. So the file did not
+create a deployment; it *joined the developer's platform*, attached to the running
+`faultline-postgres-1`, reported the dev Redis and MinIO as orphans it might remove, and pointed
+the deployment's DSN at the development database. **It failed safe by luck, not design:**
+`POSTGRES_PASSWORD` initialises only an empty volume, so the existing one kept its old password and
+authentication failed. Against an empty volume, one `--build` in the wrong directory hands a public
+deployment the developer's data, and `docker compose down -v` in either directory destroys the
+other's. Now `faultline-deploy`, guarded by `test_the_deployment_has_its_own_compose_project`.
+
+**And that guard was wrong on its first writing, in the way this project keeps finding.** It
+compared against `REPO_ROOT.name` — which is what compose actually uses — and therefore **passed in
+a clone directory named anything else while failing in one named `faultline`.** Green wherever it
+was written, which is worse than absent. It now reads the distribution name from `pyproject.toml`,
+the name every default clone gets, and was checked in both directions before being kept.
+
 **Written and never run, and said so in the file itself.** No Docker daemon was available where
 these were authored, so `deploy/compose.yml` has been reviewed and committed without once being
 started — the tenth instance of this arc's defect, declared in advance rather than discovered
