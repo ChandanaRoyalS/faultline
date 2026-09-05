@@ -536,6 +536,7 @@ Reply with JSON only, matching this schema:
  "open_questions": ["<what is still unsettled>"],
  "alternatives": [{{"root_cause": "<one sentence>", "service": "<service>",
    "fault_class": "bad_deploy|bad_config|dependency_latency|resource_exhaustion|unknown",
+   "remediation_class": "rollback|restart|config_revert|scale|none",
    "why_not": "<what demotes this below the one above>"}}]}}"""
 
 
