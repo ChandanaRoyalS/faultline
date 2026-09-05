@@ -64,14 +64,27 @@ services:
       FAULTLINE_API_USER: ${FAULTLINE_API_USER:-faultline}
       FAULTLINE_API_PASSWORD: ${FAULTLINE_API_PASSWORD:?set FAULTLINE_API_PASSWORD in deploy/.env}
       FAULTLINE_INGEST_REDIS_URL: ""
+      # **The database password reaches libpq here, not through the DSN below.** Two reasons,
+      # and the first was found by running it:
+      #
+      # 1. A DSN is a URL. `openssl rand -base64 24` emits `/` and `+`, and a `/` in the
+      #    password ends the authority section - libpq then read the host as `faultline` and the
+      #    password's tail as the port, and the container crash-looped on
+      #    `Servname not supported for ai_socktype`. Percent-encoding in YAML would work and
+      #    would be one more thing for an operator to get right at 2am; not putting a secret in
+      #    a URL at all is free.
+      # 2. `command:` is visible in `docker inspect`, `docker compose config` and the process
+      #    list. `PGPASSWORD` is at least confined to the container's environment.
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
     command:
       - faultline-ingest
       - --host
       - "0.0.0.0"
       - --port
       - "8000"
+      # No password in the DSN - libpq takes it from PGPASSWORD above.
       - --postgres-dsn
-      - postgresql://faultline:${POSTGRES_PASSWORD}@postgres:5432/faultline
+      - postgresql://faultline@postgres:5432/faultline
     # **No `ports:` either.** Caddy is the only way in, so the credential is never sent over
     # plain HTTP — basic auth is base64, not encryption, and a password posted to port 8000 in
     # the clear is a password published.

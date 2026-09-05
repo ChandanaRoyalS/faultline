@@ -135,6 +135,33 @@ def test_the_deployment_starts_the_read_surface(compose: dict) -> None:
     assert "@postgres:5432/" in dsn, "the DSN must name the compose service, not localhost"
 
 
+def test_no_password_is_interpolated_into_the_dsn(compose: dict) -> None:
+    """**A DSN is a URL, and a password is arbitrary bytes.**
+
+    Found by running it. `openssl rand -base64 24` - which `env.example` recommends - emits `/`
+    and `+`. A `/` in an interpolated password ends the URL's authority section, so libpq read the
+    host as `faultline` and the password's tail as the port, and the container crash-looped on
+    `Servname not supported for ai_socktype`. Percent-encoding in YAML would also work and would be
+    one more thing to get right; not putting a secret in a URL is free.
+
+    Second reason, independent of the first: `command:` is visible in `docker inspect`,
+    `docker compose config` and the process list.
+    """
+    service = compose["services"]["faultline"]
+    dsn = service["command"][service["command"].index("--postgres-dsn") + 1]
+
+    assert "${POSTGRES_PASSWORD" not in dsn, (
+        "the database password must not be interpolated into the DSN - any URL-special "
+        "character in it silently repoints the connection. Pass PGPASSWORD instead."
+    )
+    assert ":" not in dsn.split("//", 1)[1].split("@", 1)[0], (
+        f"the DSN carries a password in its userinfo: {dsn}"
+    )
+    assert service["environment"]["PGPASSWORD"].startswith("${POSTGRES_PASSWORD:?"), (
+        "libpq needs the password from PGPASSWORD once it is out of the DSN"
+    )
+
+
 def test_the_credential_is_passed_and_has_no_default(compose: dict) -> None:
     """`assemble` raises before it connects if the password is unset, so a deployment that forgot
     it fails at boot rather than serving. This asserts compose does not paper over that with a

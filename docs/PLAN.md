@@ -1287,6 +1287,20 @@ a clone directory named anything else while failing in one named `faultline`.** 
 was written, which is worse than absent. It now reads the distribution name from `pyproject.toml`,
 the name every default clone gets, and was checked in both directions before being kept.
 
+**The second thing the rehearsal found, and it would have failed identically on the VM.** The
+container crash-looped on
+
+    psycopg.OperationalError: failed to resolve host 'faultline'
+    [Errno -8] Servname not supported for ai_socktype
+
+**A DSN is a URL and a password is arbitrary bytes.** `env.example` recommends
+`openssl rand -base64 24`, whose alphabet includes `/` and `+`; a `/` in the interpolated password
+ends the URL's authority section, so libpq read the host as `faultline` and the password's tail as
+the port. **Every third or fourth generated password breaks the deployment, and none of them breaks
+it visibly** - the error names a host nobody configured. The password now reaches libpq through
+`PGPASSWORD` and the DSN carries no credential at all, which also takes it out of `docker inspect`
+and the process list. Guarded by `test_no_password_is_interpolated_into_the_dsn`.
+
 **Written and never run, and said so in the file itself.** No Docker daemon was available where
 these were authored, so `deploy/compose.yml` has been reviewed and committed without once being
 started — the tenth instance of this arc's defect, declared in advance rather than discovered
