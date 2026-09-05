@@ -657,7 +657,9 @@ def test_the_scenario_count_travels_with_n() -> None:
 # --- the label that outlives the conversation ----------------------------------------------------
 
 
-def test_a_judged_table_says_the_judge_is_uncalibrated(tmp_path: Path) -> None:
+def test_a_judged_table_says_the_judge_is_uncalibrated(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     """**T4.2's clause is "before trusting it", and "before" is the load-bearing word.**
 
     Figures published while no human has checked the judge rest on an unvalidated instrument, and
@@ -665,10 +667,18 @@ def test_a_judged_table_says_the_judge_is_uncalibrated(tmp_path: Path) -> None:
     rides on the table itself, exactly as `smoke.NON_CITABLE` rides on the CI output and for the
     reason that task states: *"so a smoke number can't be screenshotted into a README six weeks
     later"*.
+
+    **The ledger is a fixture, and it was not.** `judged_rows` calls `standing()` with no
+    argument, so this test read the repository's real `grades.jsonl` - and passed only because
+    that file happened to hold fewer than thirty blind grades. The thirtieth landed and `main`
+    went red, on a test asserting a caveat that had correctly cleared. It was green for a reason
+    it did not state, which is the same defect as a check nothing invokes: what it verified was
+    the state of the project, not the behaviour of the function.
     """
     from evalharness.judge import JudgeResult, judged_rows
 
     empty = tmp_path / "grades.jsonl"
+    monkeypatch.setattr(cal, "LEDGER", empty)
     assert "JUDGE NOT CALIBRATED" in cal.standing(empty)
     assert "0 of ~30" in cal.standing(empty)
 
@@ -689,6 +699,53 @@ def test_a_judged_table_says_the_judge_is_uncalibrated(tmp_path: Path) -> None:
         )
     )
     assert "JUDGE NOT CALIBRATED" in rendered, "the label rides on the table, not on a docstring"
+
+
+def test_the_uncalibrated_label_is_driven_by_the_ledger_and_not_hard_coded(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The complement of the test above, and the reason it needed a fixture in the first place.
+
+    One test pinning the label present and another pinning it absent, both against ledgers they
+    control, is what makes the pair say something about `judged_rows`. Reading the live file said
+    something about today.
+    """
+    from evalharness.judge import JudgeResult, judged_rows
+
+    ledger = tmp_path / "grades.jsonl"
+    for n in range(cal.TARGET_GRADES):
+        cal.record(
+            cal.Grade(
+                run_id=f"r{n}",
+                scenario_id=f"s{n}",
+                agreement="same_mechanism",
+                reason="a sentence",
+                graded_at="2026-09-04T00:00:00Z",
+                grader="chandana",
+            ),
+            ledger,
+        )
+    monkeypatch.setattr(cal, "LEDGER", ledger)
+
+    rendered = "\n".join(
+        judged_rows(
+            [
+                JudgeResult(
+                    scenario_id="s",
+                    run_id="r",
+                    agent_model="a",
+                    judge_model="j",
+                    shared_lineage=False,
+                    lineage_note="",
+                    scored=True,
+                    agreement="adjacent",
+                )
+            ]
+        )
+    )
+
+    assert "JUDGE NOT CALIBRATED" not in rendered
+    assert "calibrated against" in rendered.lower()
 
 
 def test_the_label_clears_itself_once_the_grades_exist(tmp_path: Path) -> None:
