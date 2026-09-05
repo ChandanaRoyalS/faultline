@@ -133,3 +133,178 @@ def test_the_settle_matches_the_harness_so_the_two_clocks_start_alike() -> None:
     from evalharness import run
 
     assert blind.SETTLE_AFTER_ALERT_SECONDS == run.SETTLE_AFTER_ALERT_SECONDS
+
+
+# --- the driver (T4.7) ---------------------------------------------------------
+#
+# `blind.py` shipped with the draw, the seal, the pool arithmetic and tests for all three, and
+# nothing that ran them. Seventh instance in this project of a thing that was built, green, and
+# uninvoked - and it arrived in the commit whose tests assert the module's purity.
+
+
+def test_the_pool_is_dev_sweep_nines_five() -> None:
+    """**Pinned in code, and named in the protocol before the first draw.** A pool chosen per
+    invocation is a pool that can be narrowed after a bad attempt, which is the self-timed version
+    of re-running a scored run to improve a number."""
+    from evalharness import blind_cli
+
+    assert set(blind_cli.POOL) == {
+        "ad-memory-squeeze",
+        "cart-bad-image-tag",
+        "cart-dependency-latency",
+        "cart-redis-misconfig",
+        "frauddetection-memory-squeeze",
+    }
+
+
+def test_the_protocol_names_the_same_five_as_the_code() -> None:
+    """Two lists that must agree, so a test holds them together rather than a reviewer."""
+    from evalharness import blind_cli
+
+    protocol = (
+        Path(__file__).parent.parent / "evals/manual-rca/PROTOCOL-2026-09-05.md"
+    ).read_text()
+    for scenario_id in blind_cli.POOL:
+        assert f"`{scenario_id}`" in protocol, f"{scenario_id} is drawn but not registered"
+
+
+def test_status_does_not_print_the_scenario(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """**`--status` exists so she can check her clock without opening the seal**, and a status
+    line that named the draw would *be* the seal."""
+    from evalharness import blind_cli
+
+    seal_path = tmp_path / "seal.json"
+    blind.seal(
+        blind.Draw(
+            scenario_id="frauddetection-memory-squeeze",
+            pool=("a", "b", "c", "d", "e"),
+            drawn_at="2026-09-05T00:00:00+00:00",
+            incident_id="inc-1",
+            clock_started_at="2026-09-05T00:00:00+00:00",
+        ),
+        seal_path,
+    )
+
+    assert (
+        blind_cli.run(["--status", "--seal", str(seal_path), "--ledger", str(tmp_path / "l")]) == 0
+    )
+    out = capsys.readouterr().out
+    assert "inc-1" in out
+    assert "1 in 5" in out
+    assert "frauddetection" not in out
+
+
+def test_an_answer_without_a_draw_is_refused(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from evalharness import blind_cli
+
+    code = blind_cli.run(
+        ["--answer", "--fault-class", "x", "--service", "y", "--seal", str(tmp_path / "none.json")]
+    )
+    assert code == 3
+    assert "no draw is open" in capsys.readouterr().out
+
+
+def test_an_answer_missing_the_service_is_refused_and_the_clock_keeps_running(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """T4.2 made *which service broke* a scored axis. And the refusal leaves the clock alone:
+    discarding the elapsed time would send her back to start a second, shorter investigation of a
+    fault she has now seen."""
+    from evalharness import blind_cli
+
+    seal_path = tmp_path / "seal.json"
+    blind.seal(
+        blind.Draw(
+            scenario_id="ad-memory-squeeze",
+            pool=("a", "b"),
+            drawn_at="2026-09-05T00:00:00+00:00",
+            clock_started_at="2026-09-05T00:00:00+00:00",
+        ),
+        seal_path,
+    )
+
+    code = blind_cli.run(
+        ["--answer", "--fault-class", "resource_exhaustion", "--seal", str(seal_path)]
+    )
+
+    assert code == 3
+    assert "still running" in capsys.readouterr().out
+    assert seal_path.exists(), "the draw must survive a refused answer"
+
+
+def test_the_attempt_takes_its_scenario_from_the_seal_not_the_operator(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """**The design's one load-bearing detail.** A flow that asked her to name the scenario when
+    recording would require her to know it, undoing the draw at the last step.
+
+    The revert is stubbed: this test is about what gets written, and shelling out to
+    `faultline-inject` here would need a world.
+    """
+    from evalharness import blind_cli
+    from evalharness import manual_rca as rca
+
+    monkeypatch.setattr(blind_cli, "_sh", lambda argv: (0, ""))
+    seal_path, ledger = tmp_path / "seal.json", tmp_path / "attempts.jsonl"
+    blind.seal(
+        blind.Draw(
+            scenario_id="cart-redis-misconfig",
+            pool=("a", "b", "c", "d", "e"),
+            drawn_at="2026-09-05T00:00:00+00:00",
+            incident_id="inc-9",
+            clock_started_at="2026-09-05T00:00:00+00:00",
+        ),
+        seal_path,
+    )
+
+    code = blind_cli.run(
+        [
+            "--answer",
+            "--fault-class",
+            "bad_config",
+            "--service",
+            "cartservice",
+            "--seal",
+            str(seal_path),
+            "--ledger",
+            str(ledger),
+        ]
+    )
+
+    assert code == 0
+    written = rca.load(ledger)
+    assert [a.scenario_id for a in written] == ["cart-redis-misconfig"]
+    assert written[0].elapsed_seconds > 0
+    assert "1 in 5" in written[0].notes, "the prior travels with the attempt"
+    assert not seal_path.exists(), "the seal is opened once and removed"
+    assert "it was   : cart-redis-misconfig" in capsys.readouterr().out
+
+
+def test_giving_up_is_recorded_rather_than_dropped(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An investigation abandoned after twenty minutes is data about difficulty, and dropping it
+    would make the median a median over the easy ones."""
+    from evalharness import blind_cli
+    from evalharness import manual_rca as rca
+
+    monkeypatch.setattr(blind_cli, "_sh", lambda argv: (0, ""))
+    seal_path, ledger = tmp_path / "seal.json", tmp_path / "attempts.jsonl"
+    blind.seal(
+        blind.Draw(
+            scenario_id="cart-bad-image-tag",
+            pool=("a", "b"),
+            drawn_at="2026-09-05T00:00:00+00:00",
+            clock_started_at="2026-09-05T00:00:00+00:00",
+        ),
+        seal_path,
+    )
+
+    assert blind_cli.run(["--give-up", "--seal", str(seal_path), "--ledger", str(ledger)]) == 0
+    written = rca.load(ledger)
+    assert written[0].gave_up is True
+    assert written[0].fault_class == ""
