@@ -71,6 +71,14 @@ class Draw:
     pool: tuple[str, ...]
     drawn_at: str
     incident_id: str = ""
+    clock_started_at: str = ""
+    """When the responder was handed the incident. **Held in the seal and nowhere else.**
+
+    `manual_rca_cli`'s clock lives in `in-progress.json` with the scenario id inside it, which is
+    exactly right for the unblinded flow and would leak the draw in this one - an operator
+    checking whether her clock is running would be told what she is looking for. One file, marked
+    once, holding both.
+    """
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -78,6 +86,7 @@ class Draw:
             "pool": list(self.pool),
             "drawn_at": self.drawn_at,
             "incident_id": self.incident_id,
+            "clock_started_at": self.clock_started_at,
         }
 
     @property
@@ -136,6 +145,7 @@ def unseal(path: Path = SEAL) -> Draw:
         pool=tuple(held["pool"]),
         drawn_at=held["drawn_at"],
         incident_id=held.get("incident_id", ""),
+        clock_started_at=held.get("clock_started_at", ""),
     )
 
 
