@@ -1229,11 +1229,72 @@ run has been scored yet** — the runs need credits.
 
 | task | deliverable | state |
 |---|---|---|
-| **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **built** — view, routes, page |
+| **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **built and served** — view, routes, page, **and since T5.1b an application that mounts them** |
 | **T5.2** Slack notifier | lifecycle notifications | **built** — both events, linked into T5.1's screen |
-| **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **2 of 5** — ARCHITECTURE and THREAT-MODEL written; README already real; **no demo video** (needs a live world), **no MVP-cut bullets** |
+| **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **2 of 5** — ARCHITECTURE and THREAT-MODEL written; README **stale**, its Results block still headlines dev sweep 7 at `1b0e7cbb4c47` while HEAD is `b6837dd449ca`; **no demo video** (needs a live world), **no MVP-cut bullets** |
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
-| **T5.5** deploy | live instance at a stable URL | needs a VM |
+| **T5.5** deploy | live instance at a stable URL | needs a VM. The credential it specifies landed early, with T5.1b |
+
+### T5.1b — the routes were served by nothing, and twelve passing tests said otherwise
+
+**The defect.** `faultline.api.incidents` exports `build()` and `page_router()`. `grep -rn` for
+either across `src/` returned **one hit, inside a docstring**. Nothing in any running process
+mounted them. `faultline-ingest` served `faultline.ingest.app.app`, which is T2.1's receiver and has
+exactly two routes on it.
+
+So: `view.py` assembled a payload nothing served, `incident.html` polled an API nothing answered,
+and **T5.2's Slack notification linked to `/ui/incidents/{id}` on every deployment including a
+correct one, where it 404'd.** The notifier had been shipped, reviewed and merged pointing at a path
+that did not exist.
+
+**Why the suite did not notice.** `tests/test_incident_routes.py` constructs its own `FastAPI()`,
+mounts the router on it, and asserts the routes behave. Every one of those assertions is true. None
+of them is about the application this project serves, so the suite could not distinguish *the router
+works* from *the router is reachable* — and only the first was ever the case. This is the **eighth**
+instance of the arc's standing defect, and `incidents.py`'s own second sentence had already named it:
+*"A view nobody can fetch is a view nobody has."* Written about `view.py`; still true of the module
+that said it.
+
+**The fix.** `faultline.api.app.assemble()` builds one app from the receiver's router plus T5.1's
+two routers, and `faultline-ingest` serves that instead of the bare receiver. `tests/test_api_app.py`
+asserts against **the assembled app only** — no stand-in — including that the exact path
+`notify.messages.UI_PATH` builds is served.
+
+**Read half opt-in, credential mandatory.** Without `--postgres-dsn` the process is byte-for-byte
+T2.1's receiver: no Postgres dependency acquired because a later task needed one. With a DSN, the
+read routes mount **behind basic auth or not at all** — `assemble` raises before it connects if
+`FAULTLINE_API_PASSWORD` is unset. That is T5.5's *"basic auth on the UI"*, pulled forward, because
+mounting the routes is what turns `incidents.py`'s recorded hole from theoretical into real and the
+two belong in one commit. `POST /api/v1/alerts` stays open, deliberately: Alertmanager sends no
+credential of any kind (measured, eight deliveries, `docs/evidence/t2.1-webhook/`), so a password
+there would not authenticate anyone — it would stop the alerts.
+
+**And the ninth, found by opening the page.** With the routes served for the first time,
+`GET /api/v1/incidents` returned `{"incidents": [], "truncated": false}` against a database holding
+every investigation this project has run. The route had borrowed `correlation_candidates(now)` -
+the orchestrator's query, which **excludes terminal states by design** - so the list a responder
+uses to find last night's report could show only incidents still open. Its tests passed because
+every test incident was fresh and therefore a candidate. `IncidentStore.recent(limit)` added to the
+protocol and both stores; the route uses it; `test_the_list_shows_finished_incidents_too` fails
+without the fix. Three days between the tests going green and the first real request.
+
+**Two things found on the way, both worth more than the feature.**
+
+**1. `main` was failing `make check`.** `uv run mypy` returned three `no-untyped-def` errors in
+`evalharness/blind_cli.py` — `args`, `blind` and `rca` unannotated — from T4.7. `ci.yml` runs mypy
+as its own step, so **CI was red on main and Gate 0's condition was not holding.** Fixed here rather
+than in a follow-up: a red main makes every subsequent PR's CI unreadable, and T5.4's clean-clone
+rehearsal runs `make check` as its first step.
+
+**2. The obvious refactor would have silently disabled a guard.** Moving the receiver's two routes
+onto an `APIRouter` is the tidy way to compose them, and it was written first. **FastAPI 0.141
+resolves `include_router` lazily**: the routes never appear in `app.routes`, which holds an opaque
+marker instead. Requests route correctly. But
+`test_the_contract_covers_every_route_the_app_serves` enumerates `app.routes` to check the committed
+OpenAPI snapshot covers everything served — under the refactor it compared an empty set against an
+empty snapshot and **passed while asserting nothing.** The receiver keeps its decorators;
+`assemble` composes from `app.router`. Recorded because the failure is invisible: a green test that
+has stopped testing looks exactly like a green test.
 
 ### T4.7 — dev sweep 9: the culprit service, scored for the first time
 

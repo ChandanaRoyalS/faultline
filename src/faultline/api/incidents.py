@@ -33,7 +33,7 @@ thesis 3 when T6.8 does the security pass.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -67,7 +67,15 @@ def build(incidents: Any, trajectories: Any) -> APIRouter:
 
     @bound.get("/incidents")
     def list_incidents() -> dict[str, Any]:
-        found = incidents.correlation_candidates(datetime.now(UTC))
+        # `recent`, **not `correlation_candidates`**. The first version of this route borrowed
+        # the orchestrator's query, which by design excludes every finished incident - so the
+        # list a responder uses to find last night's report could show only what was still open,
+        # and against a database of completed investigations it returned `[]`. Found on the
+        # route's first real use, three days after its tests went green: the test incidents were
+        # all fresh and therefore all candidates.
+        #
+        # One more than the cap, so `truncated` is measured rather than inferred from a full page.
+        found = incidents.recent(LIST_LIMIT + 1)
         ordered = sorted(
             found, key=lambda i: getattr(i, "opened_at", None) or datetime.min, reverse=True
         )

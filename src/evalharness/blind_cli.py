@@ -37,6 +37,7 @@ import subprocess
 import time
 from datetime import UTC, datetime
 from pathlib import Path
+from types import ModuleType
 
 POOL: tuple[str, ...] = (
     "ad-memory-squeeze",
@@ -142,7 +143,7 @@ def run(argv: list[str] | None = None) -> int:
     return 0
 
 
-def _abandon(blind, seal_path: Path) -> int:
+def _abandon(blind: ModuleType, seal_path: Path) -> int:
     """Close a draw that ended for a reason that is not a result. **Silently.**
 
     **This exists because the ad-hoc version leaked.** The first draw was closed with a script
@@ -174,7 +175,13 @@ def _abandon(blind, seal_path: Path) -> int:
     return 0
 
 
-def _draw(args, blind, rca, seal_path: Path, ledger: Path) -> int:
+def _draw(
+    args: argparse.Namespace,
+    blind: ModuleType,
+    rca: ModuleType,
+    seal_path: Path,
+    ledger: Path,
+) -> int:
     from evalharness import gate
     from evalharness.run import open_incidents, settling_incidents, wait_for_incident
 
@@ -243,7 +250,13 @@ def _draw(args, blind, rca, seal_path: Path, ledger: Path) -> int:
     return 0
 
 
-def _record(args, blind, rca, seal_path: Path, ledger: Path) -> int:
+def _record(
+    args: argparse.Namespace,
+    blind: ModuleType,
+    rca: ModuleType,
+    seal_path: Path,
+    ledger: Path,
+) -> int:
     if not blind.sealed(seal_path):
         print("REFUSED: no draw is open. Nothing is being timed.")
         return 3

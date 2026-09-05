@@ -1,4 +1,4 @@
-.PHONY: help install lint format type test check up down eval-up eval-down eval demo \
+.PHONY: help install lint format type test check up down eval-up eval-down eval demo ui \
         ffs-stub world-up world-down world-ps world-logs dashboards
 
 help:
@@ -85,6 +85,26 @@ endif
 # docs/demo/transcript.txt for anyone who would rather read than run.
 demo:
 	uv run faultline-demo
+
+# ---- T5.1: the screen ----
+# `faultline-ingest` serves the receiver alone unless it is given a DSN. With one it also serves
+# the incident read routes and the page - one process, one port, so the Slack link T5.2 sends and
+# a browser reach the same place.
+#
+# FAULTLINE_API_PASSWORD is mandatory and gets no default here either. A Makefile that invented one
+# would put a known password on every deployment that copied this line, which is how a credential
+# becomes decoration. `?=` so an operator who exported a real one keeps it.
+FAULTLINE_API_PASSWORD ?=
+PLATFORM_DSN ?= postgresql://faultline:faultline-dev@localhost:5432/faultline
+
+ui: ## serve the incident screen on :8000 (needs `make up`)
+	@if [ -z "$(FAULTLINE_API_PASSWORD)" ]; then \
+		echo "REFUSED: set FAULTLINE_API_PASSWORD first, e.g."; \
+		echo "  FAULTLINE_API_PASSWORD=local-only make ui"; \
+		echo "The screen serves every log line and query an investigation touched."; \
+		exit 3; \
+	fi
+	uv run faultline-ingest --postgres-dsn "$(PLATFORM_DSN)"
 
 # ---- T1.1: the world (OpenTelemetry Demo, pinned) ----
 OTEL_DEMO_VERSION := v1.2.1
