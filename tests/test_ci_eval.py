@@ -83,16 +83,21 @@ def test_the_smoke_result_is_labelled_non_citable_and_says_why() -> None:
 
 
 def test_the_smoke_workflow_prints_the_label_whenever_a_run_happened() -> None:
-    """The label must survive a failed run - a partial smoke result is exactly the kind that gets
-    quoted - but must not fire when nothing was started, because a label on a run that never
-    began labels nothing."""
+    """The label must survive a failed *run* - a partial smoke result is exactly the kind that
+    gets quoted - but must not fire when there is nothing to label.
+
+    The condition tightened from `!= 'skipped'` to `== 'success'` when the first boot failure
+    showed that a failed boot is not skipped either. A label on a sweep that never started
+    labels nothing, the same argument one state further along; a sweep that started and scored
+    two of four still gets labelled, because `always()` covers the sweep step's own failure.
+    """
     steps = workflow("eval-smoke")["jobs"]["smoke"]["steps"]
     printing = [s for s in steps if "NON_CITABLE" in str(s.get("run", ""))]
 
     assert printing, "the smoke workflow must print the non-citable label"
     condition = printing[0].get("if", "")
     assert "always()" in condition
-    assert "steps.boot.outcome != 'skipped'" in condition
+    assert "steps.boot.outcome == 'success'" in condition
 
 
 def test_no_cleanup_step_runs_when_the_world_was_never_booted() -> None:
@@ -114,10 +119,58 @@ def test_no_cleanup_step_runs_when_the_world_was_never_booted() -> None:
             condition = str(step.get("if", ""))
             if "always()" not in condition:
                 continue
-            assert "steps.boot.outcome != 'skipped'" in condition, (
+            assert "steps.boot.outcome" in condition, (
                 f"{name}: {step.get('name') or step.get('uses')} runs unconditionally after a "
                 "refusal, when nothing was started"
             )
+
+
+def test_a_step_that_consumes_the_boot_requires_the_boot_to_have_succeeded() -> None:
+    """**`!= 'skipped'` was wrong one state later than `always()` was.**
+
+    The refusal case was fixed and the failure case was not: a boot that *fails* is not
+    `'skipped'` either. So the first real boot failure - kafka unhealthy eight seconds in -
+    produced two errors, a dependency failure and a database error from a load that should never
+    have started, and the second one is the kind that sends a reader looking at Postgres.
+
+    A step that reads what the boot produced needs the boot to have **succeeded**. `Tear down` is
+    the one exception, and deliberately: cleaning up after a half-started world is exactly when
+    cleanup matters.
+    """
+    for name, job in (("eval-smoke", "smoke"), ("eval-nightly", "nightly")):
+        for step in workflow(name)["jobs"][job]["steps"]:
+            label = str(step.get("name") or step.get("uses"))
+            condition = str(step.get("if", ""))
+            if "always()" not in condition:
+                continue
+            if label == "Tear down":
+                assert "!= 'skipped'" in condition, "cleanup must survive a half-started world"
+                continue
+            assert "== 'success'" in condition, (
+                f"{name}: {label} runs after a failed boot and consumes what the boot makes"
+            )
+
+
+def test_a_failed_boot_captures_why_before_the_teardown_removes_it() -> None:
+    """**The first boot failure took its own evidence with it.** Kafka went unhealthy, the boot
+    failed on the dependency, `Tear down` removed the container, and the run that would say why
+    produced nothing to read - so diagnosing it would have meant failing again.
+
+    This is ADR-0022 §3.3's rule applied one level out: a run that produced no result is recorded
+    with its reason rather than deleted. A boot that fails is the same kind of event, and it
+    costs nothing to capture because it happens before the first model call.
+    """
+    for name, job in (("eval-smoke", "smoke"), ("eval-nightly", "nightly")):
+        steps = workflow(name)["jobs"][job]["steps"]
+        names = [str(s.get("name") or s.get("uses")) for s in steps]
+        diagnostic = [s for s in steps if "docker ps -a" in str(s.get("run", ""))]
+
+        assert diagnostic, f"{name} discards the reason its world did not come up"
+        assert "steps.boot.outcome == 'failure'" in str(diagnostic[0]["if"])
+        assert "logs" in str(diagnostic[0]["run"]), "container logs, not only a process list"
+        assert names.index(str(diagnostic[0]["name"])) < names.index("Tear down"), (
+            f"{name}: the diagnostic runs after the teardown that deletes what it would read"
+        )
 
 
 # --- the workflows themselves -----------------------------------------------------------------
