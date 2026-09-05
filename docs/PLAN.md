@@ -1301,6 +1301,21 @@ it visibly** - the error names a host nobody configured. The password now reache
 `PGPASSWORD` and the DSN carries no credential at all, which also takes it out of `docker inspect`
 and the process list. Guarded by `test_no_password_is_interpolated_into_the_dsn`.
 
+**The third: the migration and the platform resolved the database independently.** The documented
+`docker compose exec faultline faultline-migrate` failed on `Connection refused` **while the
+platform beside it, in the same container, was serving happily** — `--dsn` defaults to none and
+falls through to `OrchestratorSettings.postgres_dsn`, which is `localhost:5432`: right on a
+developer's machine, wrong inside a container where localhost *is* the container. Fixed with
+`FAULTLINE_ORCH_POSTGRES_DSN` in the environment rather than a flag in the documented command, so
+anything else run in that container reaches the same database without its author remembering.
+**The failure this now guards is quieter than the one that was seen:** a deployment that migrates
+one database and serves another starts cleanly and answers every request against an unmigrated
+schema.
+
+**What the first working rehearsal proved.** `{"status":"ok"}` on `/healthz`, **`401` on
+`/api/v1/incidents`** — the read surface mounted, behind the credential, in the image, from a
+clean build. The 401 is the assertion that matters: it is the one that fails open.
+
 **Written and never run, and said so in the file itself.** No Docker daemon was available where
 these were authored, so `deploy/compose.yml` has been reviewed and committed without once being
 started — the tenth instance of this arc's defect, declared in advance rather than discovered

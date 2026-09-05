@@ -162,6 +162,28 @@ def test_no_password_is_interpolated_into_the_dsn(compose: dict) -> None:
     )
 
 
+def test_the_migration_and_the_app_agree(compose: dict) -> None:
+    """**They resolve their database independently, so they can disagree.**
+
+    `faultline-migrate --dsn` defaults to none and falls through to
+    `OrchestratorSettings.postgres_dsn`, whose default is `localhost:5432` - right on a
+    developer's machine, wrong inside a container where localhost *is* the container. The
+    documented `docker compose exec faultline faultline-migrate` failed on `Connection refused`
+    while the platform beside it served happily from the same network.
+
+    The failure mode this guards is worse than that one, because it is quiet: a deployment that
+    migrates one database and serves another starts cleanly and answers every request against an
+    unmigrated schema.
+    """
+    service = compose["services"]["faultline"]
+    served = service["command"][service["command"].index("--postgres-dsn") + 1]
+    migrated = service["environment"]["FAULTLINE_ORCH_POSTGRES_DSN"]
+
+    assert migrated == served, (
+        f"the app serves {served} and migrations would run against {migrated}"
+    )
+
+
 def test_the_credential_is_passed_and_has_no_default(compose: dict) -> None:
     """`assemble` raises before it connects if the password is unset, so a deployment that forgot
     it fails at boot rather than serving. This asserts compose does not paper over that with a

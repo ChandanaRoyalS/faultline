@@ -76,6 +76,20 @@ services:
       # 2. `command:` is visible in `docker inspect`, `docker compose config` and the process
       #    list. `PGPASSWORD` is at least confined to the container's environment.
       PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      # **What `faultline-migrate` connects to**, and it is not the flag below.
+      #
+      # `--dsn` defaults to none, which falls through to `OrchestratorSettings.postgres_dsn`,
+      # whose default is `localhost:5432` - correct on a developer's machine and wrong inside a
+      # container, where localhost is the container. The documented
+      # `docker compose exec faultline faultline-migrate` failed on `Connection refused` while the
+      # platform beside it was serving happily from the same compose network, because the two
+      # resolve their database independently.
+      #
+      # Set here rather than added to the documented command, so that anything else run inside
+      # this container - a second migration, `psql`, whatever a future task needs - reaches the
+      # same database without each caller remembering. `test_the_migration_and_the_app_agree`
+      # asserts the two DSNs name one database.
+      FAULTLINE_ORCH_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
     command:
       - faultline-ingest
       - --host
