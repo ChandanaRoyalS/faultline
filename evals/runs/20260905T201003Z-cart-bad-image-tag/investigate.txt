@@ -1,0 +1,23 @@
+incident c3946332-542a-4d24-bf78-2a937b8d13a7  state triaging  anchor 20:13:30
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> failed
+trajectory: a2c81c27-60e7-4ae4-bf54-fbdd8793bff7
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service alerting on frontend and checkout within seconds points to a real user-facing failure, not a quiet system, and no open incident could account for it. The shared downstream fan-out gives no single obvious culprit yet, so the fault class stays unknown.
+investigation: 2 round(s), 7 dispatch(es), 19 step(s) 1 failed dispatch(es)
+  FAILED DISPATCH synthesizer: schema validation failed twice (1 validation error for Verdict
+alternatives.0.alternatives_note
+  Extra inputs are not permitted [type=extra_forbidden, input_value='', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden)
+
+context: 2237 pushed / 4356 pulled (pull rate 0.6607), 0 section(s) dropped
+
+NO VERDICT: the synthesizer produced nothing that validated
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260905T201003Z-cart-bad-image-tag/c3946332-542a-4d24-bf78-2a937b8d13a7-verdict.json
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8265.98it/s]
