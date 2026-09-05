@@ -514,18 +514,30 @@ def regrade(original: Grade, agreement_level: str, reason: str) -> Grade:
     )
 
 
-def standing(ledger: Path = LEDGER) -> str:
+def standing(ledger: Path | None = None) -> str:
     """One line saying what human backing the judge's figures currently have.
 
     **Returned as text so a caller cannot accidentally print the figures without it.** Reads the
     ledger directly rather than taking a count, so no call site can pass a number that is out of
     date with the file.
+
+    **`None` rather than `LEDGER` as the default, and it matters.** A default argument is bound
+    once, at import - so `def standing(ledger: Path = LEDGER)` captured the module-level path
+    forever, and nothing could redirect it afterwards. `judged_rows` calls this with no argument,
+    so its label was wired to the repository's real `grades.jsonl` with no seam, and the test
+    covering that label read the live file: it asserted the caveat appears, passed for two weeks
+    because the ledger held fewer than thirty grades, and went red on `main` the moment the
+    thirtieth landed and the caveat correctly cleared. **A test that was green for a reason it
+    did not state.** Resolving the path at call time gives it a seam and makes the docstring's
+    first sentence true.
     """
-    blind = [g for g in current(load(ledger)).values() if g.blind]
+    blind = [g for g in current(load(ledger if ledger is not None else LEDGER)).values() if g.blind]
     if len(blind) >= TARGET_GRADES:
         return CALIBRATED.format(n=len(blind), scenarios=len({g.scenario_id for g in blind}))
     return UNCALIBRATED.format(n=len(blind), target=TARGET_GRADES)
 
 
-def is_calibrated(ledger: Path = LEDGER) -> bool:
-    return len([g for g in current(load(ledger)).values() if g.blind]) >= TARGET_GRADES
+def is_calibrated(ledger: Path | None = None) -> bool:
+    """Same reasoning as `standing`: the path is resolved when asked, not when imported."""
+    grades = current(load(ledger if ledger is not None else LEDGER)).values()
+    return len([g for g in grades if g.blind]) >= TARGET_GRADES
