@@ -1,0 +1,43 @@
+incident 2ff49695-0294-4b0b-9228-35396600a822  state triaging  anchor 20:43:15
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: b9d077d7-70b5-4840-916d-e4eb5e28ebbc
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts hitting checkout and frontend simultaneously, with loadgenerator reflecting user-facing impact, cannot be dismissed. No open incidents to attribute this to, and the alerts alone don't distinguish a bad deploy from a failing downstream dependency.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : cartservice
+  expect      : Redeploying cartservice at its prior image tag should bring a serving process back. Observable as: cart-service Loki lines resuming within ~60s with the startup sequence seen at 20:17:57 ('Successfully connected to Redis', 'Initialization completed') where the stream is currently silent after the 20:39:40 shutdown; and checkoutservice's CartService/GetCart spans in Jaeger ceasing to error, with traces continuing past prepareOrderItemsAndShippingQuoteFromCart into the fan-out currently absent. cartservice emits no calls_total series at all, so its own metrics cannot confirm recovery — judge on logs and traces.
+  within      : 300s
+  risk        : All five recorded states reference the same hotfix.2 tag, so the 'prior' image is not a known-good artifact and may carry the same defect. If the outage is actually redis-cart, host resources, or a bad container spec, this recreate buys nothing and adds another unexplained transition to a timeline already missing the 20:18-20:39 logs. In-process cart cache is discarded.
+  blast radius: cartservice only, for the recreate duration. checkoutservice is the named inbound caller and sees connection resets — its GetCart calls already fail, so marginal harm is small. frontend and loadgenerator see it transitively.
+  if wrong    : Falsified if no cartservice log lines appear within ~2 minutes (image-pull failure or crash before logging), or startup lines appear then stop again within minutes (crash loop not fixed by the tag), or GetCart keeps failing in ~2-3ms while cartservice logs show a healthy process (fault is upstream of the container). Also treat as wrong if platform-automation re-applies hotfix.2 within minutes — the rollout loop would overwrite this, and pausing that automation is outside what this system may do.
+  rests on    : tr_7b57d562352b, tr_059e08eac79c, tr_a600c8d24b9b
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 28027 pushed / 8363 pulled (pull rate 0.2298), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_7b57d562352b, tr_059e08eac79c, tr_a600c8d24b9b, tr_eca59f9bf8dc, tr_db596185663b, tr_4f516e08a1f8
+  root cause  : cartservice is not running. Its logs end with a clean application shutdown at ~20:39:40 and produce nothing thereafter, coinciding with a platform-automation image-reference update to the v1.2.1-cartservice-hotfix.2 tag at 20:39:41 [tr_7b57d562352b, tr_059e08eac79c]. The replacement workload never came back up. Every failing checkout trace terminates at checkoutservice's outbound CartService/GetCart span — the deepest and first errored span — failing in ~2-3ms with no fan-out to any other dependency and propagating ERROR up to the frontend [tr_a600c8d24b9b]. That fast-fail profile is the signature of an unavailable endpoint, not a slow or erroring handler, and checkoutservice itself keeps serving normally with no changes and no error logs [tr_eca59f9bf8dc, tr_db596185663b]. The same hotfix tag had been applied and reverted five times in the window, an unstable rollout loop [tr_7b57d562352b]. The artifact that should be serving carts is not serving, so checkout cannot complete an order.
+  OPEN        : No container-runtime evidence: restart counts, exit codes, OOM kills, image-pull errors and readiness state for cartservice pods are unobserved, so 'never started' vs 'crash-looping' vs 'image pull failure' is unresolved.
+  OPEN        : cartservice emits no calls_total series in either incident or baseline windows, an instrumentation gap predating the incident, so its health cannot be confirmed from metrics at all [tr_4f516e08a1f8].
+  OPEN        : The ~3.5 minute gap between shutdown (20:39:40) and alert onset (20:43:15) is unexplained, and the cartservice log window is truncated from ~20:18 to ~20:39 [tr_059e08eac79c].
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260905T203936Z-cart-bad-image-tag/2ff49695-0294-4b0b-9228-35396600a822-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260905T203936Z-cart-bad-image-tag/2ff49695-0294-4b0b-9228-35396600a822-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9555.49it/s]
