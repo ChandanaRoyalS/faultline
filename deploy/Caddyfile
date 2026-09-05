@@ -1,0 +1,21 @@
+# TLS terminates here and the platform never sees a plain-HTTP request.
+#
+# Basic auth sends the password base64-encoded, which is transport encoding and not encryption.
+# Over plain HTTP that is a published password, so the credential `faultline.api.auth` checks is
+# only worth having behind this. Caddy obtains and renews a certificate from Let's Encrypt
+# automatically on the first request to SITE_ADDRESS, and redirects :80 to :443 by default.
+
+{$SITE_ADDRESS} {
+	# The alert receiver would also be reachable through here if anything posted to it. Nothing
+	# does in this deployment: the world is not running, so no Alertmanager exists to send one.
+	# The route is left rather than blocked so that a deployment that later grows a world does
+	# not need a different Caddyfile.
+	reverse_proxy faultline:8000
+
+	# Not `log { output discard }`. A deployment nobody can see the traffic of is one where the
+	# first sign of a credential being brute-forced is the bill.
+	log {
+		output stdout
+		format console
+	}
+}

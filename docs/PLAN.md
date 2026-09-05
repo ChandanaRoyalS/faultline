@@ -1233,7 +1233,52 @@ run has been scored yet** — the runs need credits.
 | **T5.2** Slack notifier | lifecycle notifications | **built** — both events, linked into T5.1's screen |
 | **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **2 of 5** — ARCHITECTURE and THREAT-MODEL written; README **stale**, its Results block still headlines dev sweep 7 at `1b0e7cbb4c47` while HEAD is `b6837dd449ca`; **no demo video** (needs a live world), **no MVP-cut bullets** |
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
-| **T5.5** deploy | live instance at a stable URL | needs a VM. The credential it specifies landed early, with T5.1b |
+| **T5.5** deploy | live instance at a stable URL | **written, never run** — `deploy/` holds the compose file, Caddyfile, env example, procedure and cost. Needs a VM and a domain. Rehearsable locally first |
+
+### T5.5 — the deployment, and the placeholder `CMD` that had been there since T0
+
+**What goes up is the record, not the world.** The OpenTelemetry demo is ~20 containers, wants
+16 GB, and exists to be broken on purpose; a thing whose job is to fail is a poor foundation for
+the one URL a stranger is given. `deploy/` serves the platform and a snapshot of investigations
+that already happened — real verdicts, real citations, real deep-links — on three containers at
+**$6.49/month** (Hetzner CX23, 2 vCPU / 4 GB). `deploy/README.md` §5 prices the version with a
+live world at $9.99–$101.49 and argues against it as the stable URL.
+
+**The Dockerfile could not have started anything.** Its `CMD` printed a version string and exited,
+labelled *"Placeholder entrypoint until T2.1 (ingest API) exists"* — written before there was a
+server to start, and never revisited across the twenty tasks after T2.1 shipped one. Under
+`restart: unless-stopped` that is an infinite restart loop logging a success message. Nothing ever
+ran the image, so nothing ever noticed; `deploy/` is the first thing that would have.
+
+**Three decisions worth the words.**
+
+**A separate compose file, not another profile on `docker-compose.yml`.** That file publishes
+5432, 6379 and 9000 on the host for a developer's convenience. The same lines on a public VM are a
+database and an object store open to the internet, and **an exposure that depends on remembering
+which profile is selected is one flag away from an incident of its own.** In `deploy/compose.yml`
+only Caddy publishes anything.
+
+**Caddy, for TLS, and it is not decoration.** Basic auth is base64 — transport encoding, not
+encryption. The credential T5.1b added is worth having only behind HTTPS, so a deployment that
+skipped TLS would be publishing the password it introduced. Caddy gets a certificate from Let's
+Encrypt on first request, which is the cheapest correct answer to *"a stable URL"*.
+
+**A database snapshot, not a loader from `evals/runs/`.** The committed run directories carry the
+manifest and the verdict but **not the trajectory** — no steps, no tool calls, no `request`
+fields. The timeline and every citation deep-link are built from `trajectory_tool_calls.request`,
+which lives only in Postgres. So the two things that make this screen worth deploying are exactly
+the two a repo-only loader cannot reconstruct. `make deploy-snapshot` exports; the snapshot is
+gitignored, because it carries the monitored world's telemetry.
+
+**Written and never run, and said so in the file itself.** No Docker daemon was available where
+these were authored, so `deploy/compose.yml` has been reviewed and committed without once being
+started — the tenth instance of this arc's defect, declared in advance rather than discovered
+later. Two responses rather than an assertion that it is fine: `tests/test_deploy.py` guards the
+four failures that are invisible until the VM is public (a published database port, a missing
+`--postgres-dsn`, the placeholder `CMD`, an undocumented variable), and
+`deploy/compose.rehearsal.yml` runs the whole thing on a laptop — image, `CMD`, DSN, credential
+refusal, migration, read surface — everything but the certificate. **`deploy/README.md` §1a is the
+first section after the cost, not an appendix.**
 
 ### T5.1b — the routes were served by nothing, and twelve passing tests said otherwise
 

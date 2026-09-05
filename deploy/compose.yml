@@ -1,0 +1,87 @@
+# T5.5 — the trimmed deployment.
+#
+# Three containers: Postgres, the platform, and Caddy for TLS. **No world.** The OpenTelemetry
+# demo is ~20 containers and 16 GB, it exists to be broken on purpose, and a stable URL is the one
+# thing it cannot be. What this serves is the record of investigations that already happened —
+# real verdicts, real citations, real deep-links — restored from a snapshot.
+#
+#   deploy/README.md          the procedure, the cost, and what this deliberately does not include
+#   docker-compose.yml        the development profiles; this file is not that one
+#
+# Not `docker-compose.yml` with another profile, deliberately. That file publishes 5432, 6379 and
+# 9000 on the host for a developer's convenience; the same lines on a public VM are a database and
+# an object store open to the internet. A deployment whose exposure depends on remembering which
+# profile is selected is one profile flag away from an incident of its own.
+
+name: faultline
+
+services:
+  postgres:
+    # Same image as development. `pgvector/pgvector:pg16` rather than plain postgres because
+    # ADR-0002 puts the vector store inside the system of record — and because a snapshot taken
+    # from a pgvector database will not restore into one without the extension.
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: faultline
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: faultline
+    # **No `ports:`.** Reachable only from the compose network, which is the whole difference
+    # between this file and the development one. The snapshot goes in through `docker compose exec`.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U faultline"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  faultline:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # The read surface mounts only when this is passed, and refuses to start without a
+      # password — see `faultline.api.auth`. Both come from deploy/.env.
+      FAULTLINE_API_USER: ${FAULTLINE_API_USER:-faultline}
+      FAULTLINE_API_PASSWORD: ${FAULTLINE_API_PASSWORD:?set FAULTLINE_API_PASSWORD in deploy/.env}
+      FAULTLINE_INGEST_REDIS_URL: ""
+    command:
+      - faultline-ingest
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      - --postgres-dsn
+      - postgresql://faultline:${POSTGRES_PASSWORD}@postgres:5432/faultline
+    # **No `ports:` either.** Caddy is the only way in, so the credential is never sent over
+    # plain HTTP — basic auth is base64, not encryption, and a password posted to port 8000 in
+    # the clear is a password published.
+    expose:
+      - "8000"
+
+  caddy:
+    # Automatic TLS from Let's Encrypt on first request, which is the cheapest correct answer to
+    # "a stable URL" and the reason this container exists at all rather than a bare port.
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - faultline
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in deploy/.env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+
+volumes:
+  pgdata:
+  caddydata:
+  caddyconfig:
