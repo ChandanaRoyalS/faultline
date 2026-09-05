@@ -166,6 +166,30 @@ class Candidate(BaseModel):
     root_cause: str = Field(description="one sentence, in the same terms as the verdict's")
     service: str = Field(description="the service this candidate blames")
     fault_class: FaultClass
+    remediation_class: RemediationClass | None = Field(
+        default=None,
+        description="the fix that would resolve this candidate, if it were the answer",
+    )
+    """**Added at Q25, after the model volunteered it and the contract threw the verdict away.**
+
+    `SYNTHESIZER_SYSTEM` says *"the same discipline applies to `remediation_class`: name the fix
+    that would actually resolve this"* three paragraphs above the RUNNERS-UP paragraph, and its
+    JSON schema block omitted the key from the candidate shape. On `cart-bad-image-tag` the model
+    read the prose, filled it in on both alternatives, and `extra="forbid"` rejected the reply
+    twice: **the run recorded no verdict, no service, no fault class and no narrative, and cost
+    $0.3890 of a five-run registered scope.** It was also the only run in dev sweep 9 carrying
+    two alternatives, so prediction 4 - *at least 3 of 5 carry an alternative* - was measured with
+    the ranker's best sample deleted by the schema.
+
+    Three routes were priced in `docs/QUEUE.md`. This is the first: the model's instinct was
+    right, an alternative root cause with no proposed fix is half a claim, and T4.2's top-3
+    scoring extends to remediation for free. `extra="ignore"` would have been cheaper and would
+    have silently discarded something the model meant to say.
+
+    **Optional, and that is not a hedge.** A candidate whose fix is genuinely undetermined should
+    say so by omission rather than by guessing `none`, which already means *"no action fits"* on
+    `Verdict` and would be a claim rather than a gap. `None` here reads as unstated.
+    """
     why_not: str = Field(
         description="why this ranks below the one above it, in one sentence",
     )

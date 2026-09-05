@@ -95,7 +95,7 @@ def test_both_arms_keep_the_configs_identity() -> None:
         fingerprint="abc123",
         runs=[Run("s0", "dev", {ACCURACY.key: 1.0}), Run("s0", "dev", {ACCURACY.key: 1.0})],
         declared_r=2,
-        runtime_version="faultline/0.0.1+prompts:ba8684b01201",
+        runtime_version="faultline/0.0.1+prompts:42e34a1811c4",
     )
 
     left, right = aa.split(arm)

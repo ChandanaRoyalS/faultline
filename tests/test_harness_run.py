@@ -643,7 +643,7 @@ is why Q23's row said so in advance and why the sweep document for the next swee
 
 
 TOP3_DIGEST = "ba8684b01201"
-"""**HEAD.** `Verdict` gained `service` and `alternatives`, and `SYNTHESIZER_SYSTEM` asks for both
+"""`Verdict` gained `service` and `alternatives`, and `SYNTHESIZER_SYSTEM` asks for both
 (T4.2).
 
 **The move was made deliberately at the cheapest moment it will ever cost.** T4.2 asks for
@@ -673,6 +673,29 @@ would score its top-1 three times and lose a comparison it was never entered int
 """
 
 
+Q25_DIGEST = "42e34a1811c4"
+"""**HEAD.** `Candidate` gained an optional `remediation_class`, and `SYNTHESIZER_SYSTEM`'s schema
+block names it (Q25).
+
+**Moved to fix a contract that threw a verdict away.** On `cart-bad-image-tag` the synthesizer
+returned two ranked alternatives, each carrying a `remediation_class` the prose primes and the
+schema block omitted, and `extra="forbid"` rejected the reply twice: no verdict, no service, no
+fault class, no narrative, $0.3890 of a five-run registered scope. It was the only run in dev
+sweep 9 carrying two alternatives, so the prediction about ranking depth was measured with the
+ranker's best sample deleted by the schema.
+
+**The window argument, one sweep later than TOP3's.** That move landed when Batch C had left no
+scored figures to orphan. This one does not have that luxury - it costs dev sweep 9's four scored
+verdicts, and it was made anyway because four is the smallest that cost will ever be. Every run
+recorded at `ba8684b01201` from here raises it, and the contract is broken in a way that destroys
+whole runs.
+
+**Only the schema block changed in the prompt.** No prose was edited, so a behavioural difference
+at this stamp is attributable to the key the model may now emit rather than to a rewording it was
+also handed.
+"""
+
+
 def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """`runtime_version` is the package version plus a digest over every role system prompt and
     every contract schema, so it moves when and only when the agent is a different agent.
@@ -682,8 +705,8 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == TOP3_DIGEST, (
-        f"expected T4.2's pipeline {TOP3_DIGEST}. If a prompt or a contract moved again, "
+    assert prompt_digest() == Q25_DIGEST, (
+        f"expected Q25's pipeline {Q25_DIGEST}. If a prompt or a contract moved again, "
         f"add its digest here - and if it moved after a pre-registration was written, the sweep "
         f"it governs is measuring something nobody planned to measure."
     )
@@ -693,7 +716,8 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
         TRIAGE_GATE_DIGEST,
         BATCH_B_DIGEST,
         BATCH_C_DIGEST,
-    }, "HEAD is none of the earlier pipelines, dev sweep 8's and Batch C's included"
+        TOP3_DIGEST,
+    }, "HEAD is none of the earlier pipelines, dev sweep 9's included"
     assert (
         len(
             {
@@ -705,10 +729,11 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
                 TRIAGE_GATE_DIGEST,
                 BATCH_B_DIGEST,
                 BATCH_C_DIGEST,
+                TOP3_DIGEST,
             }
         )
-        == 8
-    ), "eight pipelines, four of them measured — dev sweep 8 measured Batch B, not this"
+        == 9
+    ), "nine pipelines, five of them measured — dev sweep 9 measured TOP3, not this"
 
 
 def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:
@@ -979,7 +1004,7 @@ def test_the_correlate_budget_is_not_a_stamp_input() -> None:
     ):
         assert stamp_module.prompt_digest() == before
     stamp_module.prompt_digest.cache_clear()
-    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{TOP3_DIGEST}"
+    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{Q25_DIGEST}"
 
 
 # --- T7.14: the rule that fires at rest ----------------------------------------------------

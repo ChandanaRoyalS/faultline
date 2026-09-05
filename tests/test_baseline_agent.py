@@ -134,7 +134,7 @@ def test_importing_b1_does_not_move_the_agents_stamp() -> None:
     # The ledger constant lives in `test_harness_run.py` as TOP3_DIGEST. Asserted by value here
     # rather than imported, so this file fails loudly if B1's prompt ever leaks into the
     # agent's digest - importing the constant would make the two move together and prove nothing.
-    assert prompt_digest() == "ba8684b01201", "B1 must not appear in the agent's stamp."
+    assert prompt_digest() == "42e34a1811c4", "B1 must not appear in the agent's stamp."
 
 
 def test_b1s_prompt_is_not_a_role_prompt() -> None:
