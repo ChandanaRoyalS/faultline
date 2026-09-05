@@ -75,15 +75,31 @@ in a reviewer's memory survives until the first person who was not in the conver
 CONTAMINATION = (
     "THE RESPONDER AUTHORED THESE SCENARIOS. She wrote every fault, injection and recorded "
     "narrative in this catalog, so these timings measure how long it takes someone who already "
-    "knows the answer to confirm it - not how long a responder would take to find it. This is a "
-    "FLOOR on human time, produced by the most advantaged possible responder, and a pipeline "
-    "that beats it has beaten a fully-informed expert rather than a working one."
+    "knows the answer set to RECOGNISE which of it is live - not how long a responder would take "
+    "to find an answer they did not have. The fault was drawn blind from a stated pool and sealed "
+    "until after the answer was recorded, which is the only reduction in contamination available "
+    "here; it does not remove it. This is a FLOOR on human time, produced by the most advantaged "
+    "possible responder, and a pipeline that beats it has beaten a fully-informed expert rather "
+    "than a working one."
 )
 """Printed **above** the number, never in a footnote.
 
-There is no fix available inside this project: a second responder is not available, a holdout
-scenario does not help because she authored those too, and waiting for forgetting is not a method.
-So the contamination is disclosed rather than mitigated, and disclosed where it cannot be skipped.
+**Revised 2026-09-05, before the first attempt was recorded**, when the draw became blind. The
+earlier wording said these timings measure *"how long it takes someone who already knows the
+answer to confirm it"*, which was true of the unblinded design it described and would have been
+an overstatement of the one actually run: the responder still authored every scenario, but she is
+not told which of the pool is live until she has answered. What the number measures is
+recognition, not confirmation.
+
+**The revision is legitimate only because no attempt existed yet.** A contamination statement
+edited after the figures it qualifies were recorded would be a figure being re-described to suit
+its result, which is the thing this whole apparatus exists to prevent. The seal was designed
+first, the banner was corrected to match it, and the ledger was empty for both.
+
+There is no further fix available inside this project: a second responder is not available, a
+holdout scenario does not help because she authored those too, and waiting for forgetting is not
+a method. So what remains is disclosed rather than mitigated, and disclosed where it cannot be
+skipped.
 """
 
 
