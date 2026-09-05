@@ -13,7 +13,7 @@ the corpus values most, and a default of `[]` would let it do that silently.
 
 from __future__ import annotations
 
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -25,6 +25,53 @@ _CATALOG: ServiceCatalog | None = None
 SpecialistName = Literal["metrics", "logs", "changes", "traces"]
 
 SPECIALISTS: tuple[SpecialistName, ...] = ("metrics", "logs", "changes", "traces")
+
+
+REPORTED = ConfigDict(extra="allow")
+"""**For a contract that reports what a model found: unexpected keys are accepted and recorded.**
+
+`extra="forbid"` was the obvious choice and it was wrong in a specific way here: one unexpected key
+destroys the *entire* reply, and these replies are whole verdicts. Measured twice on
+`cart-bad-image-tag`, an hour apart:
+
+- **`ba8684b01201`** - two alternatives each carrying a `remediation_class` the prompt's prose
+  primes and its schema block omitted. Rejected twice. No verdict, no service, no fault class, no
+  narrative. $0.3890.
+- **`42e34a1811c4`** - `remediation_class` was added as a real field, and the model invented
+  `alternatives_note` instead, valued `""`. Rejected twice. $0.3433.
+
+**$0.7323 for zero verdicts, and each fix closed exactly one key.** The second failure is what
+`PREREGISTRATION-2026-09-05-q25.md`'s first prediction registered as the larger finding.
+
+**Why `allow` and not `ignore`.** Ignoring silently discards whatever the model meant, which is
+exactly how `remediation_class` stayed invisible until it broke a run. With `allow`, `model_extra`
+holds the keys and `unexpected_fields` puts them on the manifest, so the next volunteered field
+arrives as a signal - and an empty one like `alternatives_note` is visible as noise.
+
+**Nothing declared is weakened.** Every field keeps its type and every required field stays
+required: a reply missing `fault_class`, or carrying one outside the literal, is rejected exactly
+as before. The relaxation covers keys nobody asked for, and refusing those cost whole runs.
+"""
+
+REQUESTED = ConfigDict(extra="forbid")
+"""**For a contract through which a model asks the harness to do something: unexpected keys are
+still refused, and that is a boundary rather than a formality.**
+
+**This distinction was forced by a test, and the test was right.**
+`test_the_window_is_told_to_the_specialist_never_asked_of_it` asserts that a planner cannot name
+its own query window - *"the window is a property of the incident and the evidence already read;
+no contract has a field through which a model could name one"* - and it enforces that through
+`extra="forbid"` on `Dispatch`. A blanket relaxation would have opened it silently, and the
+opening would have been invisible because nothing reads a `window` key: the model would simply
+have been able to send one.
+
+So the policy is not "relax the contracts". It is **relax the ones whose extras are inert, and
+keep refusing the ones where an unexpected key is an attempted instruction.** A `Verdict` is read
+field by field and an extra changes nothing; a `Dispatch` is a request that drives what the
+harness queries, and an extra there is surface.
+
+`Proposal` keeps this for the same reason: it names an action against the world.
+"""
 
 
 class Dispatch(BaseModel):
@@ -43,7 +90,7 @@ class Dispatch(BaseModel):
     all while looking exactly like the shape that means everything.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = REQUESTED
 
     specialist: SpecialistName
     service: str
@@ -79,7 +126,7 @@ class Dispatch(BaseModel):
 
 
 class SkippedSpecialist(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = REQUESTED
 
     specialist: SpecialistName
     reason: str
@@ -95,7 +142,7 @@ class DispatchPlan(BaseModel):
     chose nothing.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = REQUESTED
 
     dispatches: list[Dispatch] = Field(min_length=1)
     skipped: list[SkippedSpecialist] = Field(
@@ -112,7 +159,7 @@ class Finding(BaseModel):
     its evidence as free text would be the pass-through path that rule removes.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = REPORTED
 
     statement: str
     result_id: str = Field(description="The tool result this rests on")
@@ -122,7 +169,7 @@ class Finding(BaseModel):
 class RuledOut(BaseModel):
     """One thing a specialist checked and eliminated. Required output, not a bonus."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = REPORTED
 
     hypothesis: str
     result_id: str
@@ -130,7 +177,7 @@ class RuledOut(BaseModel):
 
 
 class SpecialistFindings(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = REPORTED
 
     found: list[Finding]
     ruled_out: list[RuledOut]
@@ -161,7 +208,7 @@ class Candidate(BaseModel):
     because it arrives ranked and with its reason attached.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = REPORTED
 
     root_cause: str = Field(description="one sentence, in the same terms as the verdict's")
     service: str = Field(description="the service this candidate blames")
@@ -209,7 +256,7 @@ class Verdict(BaseModel):
     list of `result_id`s a validator can resolve rather than prose a reader has to trust.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = REPORTED
 
     root_cause: str
     service: str = ""
@@ -270,7 +317,7 @@ class TriageJudgement(BaseModel):
     - **`confidence`** and **`reasoning`**, so a declined investigation can be argued with.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = REPORTED
 
     disposition: TriageDisposition
     duplicate_of: str | None = Field(
@@ -302,7 +349,7 @@ class Proposal(BaseModel):
     is frequently the correct answer.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = REQUESTED
 
     remediation_class: RemediationClass
     action_id: str = Field(description="An id from the allowlist catalog, or empty when abstaining")
@@ -325,7 +372,7 @@ class Proposal(BaseModel):
 
 
 class NarrativeSection(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = REPORTED
 
     heading: str
     body: str = Field(description="The scribe's own words. Never pasted tool output.")
@@ -343,7 +390,7 @@ class NarrativeDraft(BaseModel):
     against the store. Free-form pass-through from tool output to corpus has nowhere to happen.
     """
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = REPORTED
 
     title: str
     sections: list[NarrativeSection] = Field(min_length=1)
@@ -514,3 +561,35 @@ def validate_triage(judgement: TriageJudgement, known_incidents: set[str]) -> No
             f"duplicate_of names {judgement.duplicate_of!r} but the disposition is "
             f"{judgement.disposition!r}. Only a 'duplicate' disposition may name one."
         )
+
+
+def unexpected_fields(payload: dict[str, Any]) -> dict[str, list[str]]:
+    """Keys a verdict carries that `Verdict` and `Candidate` never asked for.
+
+    **The other half of `MODEL_FILLED`.** Accepting an unexpected key without recording it is
+    `extra="ignore"` wearing a better name: the model would still be trying to say something and
+    the record would still be silent about it. This is what makes the relaxation an observation
+    rather than a shrug.
+
+    Computed from the declared field names rather than from a hand-written list, so a field added
+    to either model stops being reported here the moment it exists - which is what happened to
+    `remediation_class` between two stamps, and is the transition worth being able to see.
+
+    Returns `{}` when the model said only what it was asked. **Empty is the expected case**, and a
+    reader who finds a non-empty one is looking at either a field worth adding or a field worth
+    knowing the model invents.
+    """
+    declared_verdict = set(Verdict.model_fields)
+    declared_candidate = set(Candidate.model_fields)
+
+    found: dict[str, list[str]] = {}
+    extra_top = sorted(k for k in payload if k not in declared_verdict)
+    if extra_top:
+        found["verdict"] = extra_top
+    for index, candidate in enumerate(payload.get("alternatives") or ()):
+        if not isinstance(candidate, dict):
+            continue
+        extra = sorted(k for k in candidate if k not in declared_candidate)
+        if extra:
+            found[f"alternatives[{index}]"] = extra
+    return found

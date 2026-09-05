@@ -673,9 +673,10 @@ would score its top-1 three times and lose a comparison it was never entered int
 """
 
 
-Q25_DIGEST = "42e34a1811c4"
-"""**HEAD.** `Candidate` gained an optional `remediation_class`, and `SYNTHESIZER_SYSTEM`'s schema
-block names it (Q25).
+Q25B_DIGEST = "b6837dd449ca"
+"""**HEAD.** Reporting contracts accept unexpected keys and the harness records them; requesting
+contracts still refuse them (Q25b). Reached by way of `42e34a1811c4`, which added
+`Candidate.remediation_class` and lasted one run.
 
 **Moved to fix a contract that threw a verdict away.** On `cart-bad-image-tag` the synthesizer
 returned two ranked alternatives, each carrying a `remediation_class` the prose primes and the
@@ -705,8 +706,8 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == Q25_DIGEST, (
-        f"expected Q25's pipeline {Q25_DIGEST}. If a prompt or a contract moved again, "
+    assert prompt_digest() == Q25B_DIGEST, (
+        f"expected Q25's pipeline {Q25B_DIGEST}. If a prompt or a contract moved again, "
         f"add its digest here - and if it moved after a pre-registration was written, the sweep "
         f"it governs is measuring something nobody planned to measure."
     )
@@ -1004,7 +1005,7 @@ def test_the_correlate_budget_is_not_a_stamp_input() -> None:
     ):
         assert stamp_module.prompt_digest() == before
     stamp_module.prompt_digest.cache_clear()
-    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{Q25_DIGEST}"
+    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{Q25B_DIGEST}"
 
 
 # --- T7.14: the rule that fires at rest ----------------------------------------------------
