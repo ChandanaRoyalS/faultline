@@ -620,3 +620,70 @@ def test_a_ranked_verdict_prints_its_order_and_whether_ranking_earned_anything()
     assert "top1 miss, top3 hit, depth 2" in report
     assert "gained by ranking: yes" in report
     assert "ranked: cartservice > redis-cart" in report
+
+
+# --- keys nobody asked for (Q25b) ----------------------------------------------
+
+
+def test_a_verdict_that_says_only_what_was_asked_reports_nothing() -> None:
+    """**Empty is the expected case.** A field that appears only when it is non-empty is one
+    nobody knows to look for, so the manifest carries `{}` rather than omitting the key."""
+    from faultline.agents.contracts import unexpected_fields
+
+    assert unexpected_fields({"fault_class": "bad_deploy", "alternatives": []}) == {}
+
+
+def test_an_invented_top_level_key_is_named() -> None:
+    from faultline.agents.contracts import unexpected_fields
+
+    found = unexpected_fields({"fault_class": "bad_deploy", "vibe": "off"})
+
+    assert found == {"verdict": ["vibe"]}
+
+
+def test_an_invented_candidate_key_is_named_with_its_position() -> None:
+    """**The literal regression, twice over.** `remediation_class` on `ba8684b01201` and
+    `alternatives_note` on `42e34a1811c4`, each of which destroyed a whole verdict on
+    `cart-bad-image-tag` for $0.7323 and no diagnosis."""
+    from faultline.agents.contracts import unexpected_fields
+
+    found = unexpected_fields(
+        {
+            "fault_class": "bad_deploy",
+            "alternatives": [
+                {"root_cause": "a", "service": "b", "fault_class": "bad_config", "why_not": "c"},
+                {
+                    "root_cause": "a",
+                    "service": "b",
+                    "fault_class": "bad_config",
+                    "why_not": "c",
+                    "alternatives_note": "",
+                },
+            ],
+        }
+    )
+
+    assert found == {"alternatives[1]": ["alternatives_note"]}
+
+
+def test_a_field_that_becomes_real_stops_being_unexpected() -> None:
+    """`remediation_class` was an invented key at one stamp and a declared field at the next.
+    Computed from the model's declared fields rather than a hand-written list, so that transition
+    happens on its own - and it is the transition worth being able to see."""
+    from faultline.agents.contracts import unexpected_fields
+
+    found = unexpected_fields(
+        {
+            "alternatives": [
+                {
+                    "root_cause": "a",
+                    "service": "b",
+                    "fault_class": "bad_config",
+                    "why_not": "c",
+                    "remediation_class": "rollback",
+                }
+            ]
+        }
+    )
+
+    assert found == {}

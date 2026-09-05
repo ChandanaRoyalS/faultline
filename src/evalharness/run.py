@@ -40,6 +40,7 @@ from evalharness.scoring import (
     score_ranked,
     score_triage,
 )
+from faultline.agents.contracts import unexpected_fields
 from injector.worldlock import WorldLock, WorldLockError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -761,6 +762,13 @@ def score(
 ) -> ScoredRun:
     """Everything deterministic, from the artifact the CLI wrote and the trajectory it named."""
     verdict = artifact.get("verdict") or {}
+    # **Recorded, not discarded.** `MODEL_FILLED` accepts keys nobody asked for; this is what
+    # makes that an observation rather than a shrug. Two runs on `cart-bad-image-tag` were
+    # destroyed by unexpected keys before the policy changed, and one of those keys -
+    # `remediation_class` - turned out to be worth adding.
+    unexpected = unexpected_fields(verdict)
+    if unexpected:
+        print(f"unexpected fields in the verdict (accepted and recorded): {unexpected}")
     flags = tuple(artifact.get("flags") or ())
     failed = tuple(f"{name}: {why}" for name, why in artifact.get("failed_dispatches") or ())
     contradictions = tuple(f for f in flags if f.startswith("contradiction:"))
@@ -1285,6 +1293,11 @@ def main(argv: list[str] | None = None) -> int:
                 f"Its transcript is in {run.path / 'investigate.txt'}."
             )
         artifact = json.loads(artifact_path.read_text())
+        # **On the manifest, where a reader of the record finds it.** `MODEL_FILLED` accepts keys
+        # nobody asked for; recording them here is what separates that from `extra="ignore"`.
+        # `{}` is the expected value and is written anyway - a field that appears only when it is
+        # non-empty is one nobody knows to look for.
+        run.manifest["unexpected_fields"] = unexpected_fields(artifact.get("verdict") or {})
         trajectory_id = artifact.get("trajectory_id")
         facts = read_trajectory_facts(dsn, trajectory_id) if trajectory_id else {"steps": 0}
         if facts["steps"] == 0:

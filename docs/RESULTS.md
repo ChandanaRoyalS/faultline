@@ -95,9 +95,10 @@ judged figure.**
 > `prompts:20088b22cede` and `prompts:a7330c098770`. Since then: `prompts:bc222a353936` (Batch B,
 > which dev sweep 8 measured), `prompts:7c6894e9dd92` (Batch C — `TriageJudgement` entered
 > `_CONTRACTS`), `prompts:ba8684b01201` (T4.2 — `Verdict` gained `service` and ranked
-> `alternatives`, and **dev sweep 9 measured it**), and **HEAD today is
-> `prompts:42e34a1811c4`** (Q25 — `Candidate` gained an optional `remediation_class`, after the
-> contract's `extra="forbid"` threw away a whole verdict on `cart-bad-image-tag`).
+> `alternatives`, and **dev sweep 9 measured it**), and `prompts:42e34a1811c4` (Q25 — `Candidate` gained an optional
+> `remediation_class`; it lasted one run), and **HEAD today is `prompts:b6837dd449ca`** (Q25b —
+> reporting contracts accept unexpected keys and record them, requesting contracts still refuse
+> them, after `extra="forbid"` destroyed two whole verdicts on `cart-bad-image-tag` for $0.7323).
 >
 > *The line above previously named `a7330c098770` as HEAD and was correct on the day it was
 > written. It then went stale through four stamp moves while continuing to read as a statement
