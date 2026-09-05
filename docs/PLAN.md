@@ -1269,6 +1269,15 @@ two belong in one commit. `POST /api/v1/alerts` stays open, deliberately: Alertm
 credential of any kind (measured, eight deliveries, `docs/evidence/t2.1-webhook/`), so a password
 there would not authenticate anyone — it would stop the alerts.
 
+**And the ninth, found by opening the page.** With the routes served for the first time,
+`GET /api/v1/incidents` returned `{"incidents": [], "truncated": false}` against a database holding
+every investigation this project has run. The route had borrowed `correlation_candidates(now)` -
+the orchestrator's query, which **excludes terminal states by design** - so the list a responder
+uses to find last night's report could show only incidents still open. Its tests passed because
+every test incident was fresh and therefore a candidate. `IncidentStore.recent(limit)` added to the
+protocol and both stores; the route uses it; `test_the_list_shows_finished_incidents_too` fails
+without the fix. Three days between the tests going green and the first real request.
+
 **Two things found on the way, both worth more than the feature.**
 
 **1. `main` was failing `make check`.** `uv run mypy` returned three `no-untyped-def` errors in

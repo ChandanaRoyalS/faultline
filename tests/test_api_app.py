@@ -68,7 +68,7 @@ def test_healthz_answers_on_the_assembled_app() -> None:
 
 
 class FakeIncidents:
-    def correlation_candidates(self, _resolved_since: object) -> list[object]:
+    def recent(self, _limit: int) -> list[object]:
         return []
 
     def get(self, _incident_id: str) -> None:

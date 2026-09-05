@@ -14,7 +14,7 @@ from fastapi.testclient import TestClient
 
 from faultline.agents.trajectory import InMemoryTrajectoryStore, Trajectory
 from faultline.api.incidents import LIST_LIMIT, build
-from faultline.orchestrator.models import Episode, Incident, Severity
+from faultline.orchestrator.models import Episode, Incident, IncidentState, Severity
 from faultline.orchestrator.store import InMemoryIncidentStore
 
 NOW = datetime(2026, 9, 3, 12, 0, tzinfo=UTC)
@@ -60,6 +60,27 @@ def test_the_list_returns_incidents_newest_first() -> None:
 
     assert [row["incident_id"] for row in body["incidents"]] == ["new", "old"]
     assert body["incidents"][0]["services"] == ["cartservice"]
+
+
+def test_the_list_shows_finished_incidents_too() -> None:
+    """The defect the screen showed on its first real use: `{"incidents": []}` against a database
+    of completed investigations.
+
+    The route had borrowed `correlation_candidates(now)`, the orchestrator's query, which excludes
+    terminal states by design. Every test incident here was fresh, so every one was a candidate,
+    and the list looked complete. A responder looking for last night's report is looking for a
+    `RESOLVED` incident - the one state that query is built to leave out.
+    """
+    finished = incident("done", minutes=120)
+    finished.state = IncidentState.RESOLVED
+    finished.resolved_at = NOW - timedelta(minutes=60)
+    failed = incident("broke", minutes=90)
+    failed.state = IncidentState.FAILED
+
+    body = client([finished, failed, incident("open", minutes=1)]).get("/api/v1/incidents").json()
+
+    assert [row["incident_id"] for row in body["incidents"]] == ["open", "broke", "done"]
+    assert {row["state"] for row in body["incidents"]} == {"open", "failed", "resolved"}
 
 
 def test_a_missing_incident_is_a_404_not_an_empty_view() -> None:

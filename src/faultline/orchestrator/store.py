@@ -61,6 +61,17 @@ class IncidentStore(Protocol):
     def correlation_candidates(self, resolved_since: datetime) -> list[Incident]:
         """Every non-terminal incident, plus any resolved at or after `resolved_since`."""
 
+    def recent(self, limit: int) -> list[Incident]:
+        """The newest `limit` incidents by `opened_at`, **in every state.**
+
+        The orchestrator never needs this - it asks for candidates and for the queue, both of
+        which exclude finished work by design. The incident list T5.1's screen is reached from
+        needs exactly the opposite: a responder looking for last night's report is looking for an
+        incident that is `RESOLVED`, and the first version of that route reused
+        `correlation_candidates(now)` and so could show only incidents still open. It returned
+        `[]` against a database of finished investigations on its first real use.
+        """
+
     def queued(self) -> list[Incident]: ...
 
     def active_count(self) -> int:
@@ -112,6 +123,12 @@ class InMemoryIncidentStore:
             return True
         closed_at = incident.resolved_at or datetime.min
         return incident.state is IncidentState.RESOLVED and closed_at >= resolved_since
+
+    def recent(self, limit: int) -> list[Incident]:
+        ordered = sorted(
+            self.incidents.values(), key=lambda i: i.opened_at or datetime.min, reverse=True
+        )
+        return ordered[:limit]
 
     def queued(self) -> list[Incident]:
         return [i for i in self.incidents.values() if i.state is IncidentState.QUEUED]
@@ -231,6 +248,11 @@ class PostgresIncidentStore:
             "WHERE NOT (state = ANY(%s)) OR (state = 'resolved' AND resolved_at >= %s)",
             ([s.value for s in TERMINAL], resolved_since),
         )
+
+    def recent(self, limit: int) -> list[Incident]:
+        # No WHERE: every state, including the three terminal ones `correlation_candidates`
+        # exists to exclude. `_load` takes a SQL suffix, not strictly a predicate.
+        return self._load("ORDER BY opened_at DESC LIMIT %s", (limit,))
 
     def queued(self) -> list[Incident]:
         return self._load("WHERE state = 'queued'", ())
