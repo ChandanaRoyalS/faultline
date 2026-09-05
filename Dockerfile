@@ -22,5 +22,11 @@ WORKDIR /app
 COPY --from=base /app /app
 ENV PATH="/app/.venv/bin:$PATH"
 USER appuser
-# Placeholder entrypoint until T2.1 (ingest API) exists.
-CMD ["python", "-c", "import faultline; print(f'faultline {faultline.__version__} - platform arrives at T2.1')"]
+# T5.5. The placeholder that stood here until now printed a version string and exited - written
+# before T2.1 had a server to start, and never revisited once it did. An image whose CMD exits
+# immediately is an image nobody ran, and `deploy/` is the first thing that would have.
+#
+# `faultline-ingest` serves the alert receiver alone. `deploy/compose.yml` passes --postgres-dsn,
+# which adds T5.1's incident read surface and screen on the same port, behind basic auth.
+EXPOSE 8000
+CMD ["faultline-ingest", "--host", "0.0.0.0", "--port", "8000"]

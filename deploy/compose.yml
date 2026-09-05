@@ -1,0 +1,128 @@
+# T5.5 — the trimmed deployment.
+#
+# Three containers: Postgres, the platform, and Caddy for TLS. **No world.** The OpenTelemetry
+# demo is ~20 containers and 16 GB, it exists to be broken on purpose, and a stable URL is the one
+# thing it cannot be. What this serves is the record of investigations that already happened —
+# real verdicts, real citations, real deep-links — restored from a snapshot.
+#
+#   deploy/README.md          the procedure, the cost, and what this deliberately does not include
+#   docker-compose.yml        the development profiles; this file is not that one
+#
+# Not `docker-compose.yml` with another profile, deliberately. That file publishes 5432, 6379 and
+# 9000 on the host for a developer's convenience; the same lines on a public VM are a database and
+# an object store open to the internet. A deployment whose exposure depends on remembering which
+# profile is selected is one profile flag away from an incident of its own.
+
+# **`faultline-deploy`, not `faultline`.** Compose derives a project name from the directory when
+# none is given, so the repository's own `docker-compose.yml` is project `faultline` - and this
+# file naming itself the same thing does not create a deployment, it *joins* the developer's one.
+#
+# Found on the first rehearsal, which is the entire reason `compose.rehearsal.yml` exists. With
+# `name: faultline` this file attached to the running `faultline-postgres-1`, reported the dev
+# Redis and MinIO as orphans it might remove, and pointed the deployment's DSN at the development
+# database. It failed safe by luck rather than design: `POSTGRES_PASSWORD` initialises only an
+# empty volume, so the existing one kept the old password, authentication failed and the container
+# exited. Had the volume been empty, a `--build` in the wrong directory would have been enough to
+# hand a public deployment the developer's database, and `docker compose down -v` in either
+# directory would have destroyed the other's data.
+#
+# The project name is what separates the two, so it is the first line of the file.
+name: faultline-deploy
+
+services:
+  postgres:
+    # Same image as development. `pgvector/pgvector:pg16` rather than plain postgres because
+    # ADR-0002 puts the vector store inside the system of record — and because a snapshot taken
+    # from a pgvector database will not restore into one without the extension.
+    image: pgvector/pgvector:pg16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: faultline
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: faultline
+    # **No `ports:`.** Reachable only from the compose network, which is the whole difference
+    # between this file and the development one. The snapshot goes in through `docker compose exec`.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U faultline"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  faultline:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # The read surface mounts only when this is passed, and refuses to start without a
+      # password — see `faultline.api.auth`. Both come from deploy/.env.
+      FAULTLINE_API_USER: ${FAULTLINE_API_USER:-faultline}
+      FAULTLINE_API_PASSWORD: ${FAULTLINE_API_PASSWORD:?set FAULTLINE_API_PASSWORD in deploy/.env}
+      FAULTLINE_INGEST_REDIS_URL: ""
+      # **The database password reaches libpq here, not through the DSN below.** Two reasons,
+      # and the first was found by running it:
+      #
+      # 1. A DSN is a URL. `openssl rand -base64 24` emits `/` and `+`, and a `/` in the
+      #    password ends the authority section - libpq then read the host as `faultline` and the
+      #    password's tail as the port, and the container crash-looped on
+      #    `Servname not supported for ai_socktype`. Percent-encoding in YAML would work and
+      #    would be one more thing for an operator to get right at 2am; not putting a secret in
+      #    a URL at all is free.
+      # 2. `command:` is visible in `docker inspect`, `docker compose config` and the process
+      #    list. `PGPASSWORD` is at least confined to the container's environment.
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      # **What `faultline-migrate` connects to**, and it is not the flag below.
+      #
+      # `--dsn` defaults to none, which falls through to `OrchestratorSettings.postgres_dsn`,
+      # whose default is `localhost:5432` - correct on a developer's machine and wrong inside a
+      # container, where localhost is the container. The documented
+      # `docker compose exec faultline faultline-migrate` failed on `Connection refused` while the
+      # platform beside it was serving happily from the same compose network, because the two
+      # resolve their database independently.
+      #
+      # Set here rather than added to the documented command, so that anything else run inside
+      # this container - a second migration, `psql`, whatever a future task needs - reaches the
+      # same database without each caller remembering. `test_the_migration_and_the_app_agree`
+      # asserts the two DSNs name one database.
+      FAULTLINE_ORCH_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
+    command:
+      - faultline-ingest
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8000"
+      # No password in the DSN - libpq takes it from PGPASSWORD above.
+      - --postgres-dsn
+      - postgresql://faultline@postgres:5432/faultline
+    # **No `ports:` either.** Caddy is the only way in, so the credential is never sent over
+    # plain HTTP — basic auth is base64, not encryption, and a password posted to port 8000 in
+    # the clear is a password published.
+    expose:
+      - "8000"
+
+  caddy:
+    # Automatic TLS from Let's Encrypt on first request, which is the cheapest correct answer to
+    # "a stable URL" and the reason this container exists at all rather than a bare port.
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      - faultline
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in deploy/.env}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddydata:/data
+      - caddyconfig:/config
+
+volumes:
+  pgdata:
+  caddydata:
+  caddyconfig:

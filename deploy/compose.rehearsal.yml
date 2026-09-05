@@ -1,0 +1,32 @@
+# Rehearse the deployment on a laptop, before a VM exists (T5.5).
+#
+#   docker compose -f compose.yml -f compose.rehearsal.yml up -d --build
+#
+# **Why this file exists.** Everything in `compose.yml` was written, reviewed and committed without
+# once being started: no Docker daemon was available where it was authored. That is the exact shape
+# of defect this project has now found nine times - built, green, never run - and the honest
+# response is to make running it cost nothing rather than to assert it is fine.
+#
+# It changes two things and **nothing else**:
+#
+#   1. Caddy is scaled to zero. TLS needs a real hostname and a DNS record; neither exists here,
+#      and Let's Encrypt rate-limits failed challenges.
+#   2. The platform publishes 8001 on the host, so a browser can reach it without Caddy.
+#
+# So a rehearsal exercises the image, the CMD, the DSN, the credential refusal, the migration and
+# the read surface - everything except the certificate. What it cannot rehearse is §3.4's TLS check
+# and the A record, and those stay first-run risks on the VM.
+#
+# **8001, not 8000.** `make ui` and the development receiver both use 8000, and a rehearsal that
+# collided with them would look like a deployment failure. Open http://localhost:8001/healthz.
+
+services:
+  caddy:
+    # `deploy: replicas: 0` rather than a profile, so the service stays defined and one file can
+    # be read against the other without wondering what was removed.
+    deploy:
+      replicas: 0
+
+  faultline:
+    ports:
+      - "8001:8000"

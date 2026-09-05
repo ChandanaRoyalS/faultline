@@ -328,8 +328,24 @@ src/faultline/     the platform: ingest, orchestrator, agents, context, tools
 src/injector/      chaos injector CLI — reversible faults with ground-truth labels
 src/evalharness/   the measurement layer: scenarios, scoring, variance protocol
 evals/scenarios/   the labeled scenario catalog (dev/holdout split at authoring)
+deploy/            the trimmed deployment: compose, TLS, procedure and cost (T5.5)
 docs/adr/          every non-obvious decision, recorded
 ```
+
+### The incident screen
+
+With the platform up (`make up`), one process serves the alert receiver and the incident view on
+the same port:
+
+```bash
+FAULTLINE_API_PASSWORD=local-only make ui
+```
+
+Then `http://localhost:8000/api/v1/incidents` for the list, and
+`http://localhost:8000/ui/incidents/<id>` for one incident's timeline, verdict, evidence cards and
+citation deep-links. **The password is mandatory and has no default** — the screen serves every log
+line an agent quoted and every query it ran. To put it on a URL, see
+[`deploy/README.md`](deploy/README.md).
 
 ## Development
 

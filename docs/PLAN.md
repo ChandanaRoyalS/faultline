@@ -1233,7 +1233,98 @@ run has been scored yet** — the runs need credits.
 | **T5.2** Slack notifier | lifecycle notifications | **built** — both events, linked into T5.1's screen |
 | **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **2 of 5** — ARCHITECTURE and THREAT-MODEL written; README **stale**, its Results block still headlines dev sweep 7 at `1b0e7cbb4c47` while HEAD is `b6837dd449ca`; **no demo video** (needs a live world), **no MVP-cut bullets** |
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
-| **T5.5** deploy | live instance at a stable URL | needs a VM. The credential it specifies landed early, with T5.1b |
+| **T5.5** deploy | live instance at a stable URL | **written, never run** — `deploy/` holds the compose file, Caddyfile, env example, procedure and cost. Needs a VM and a domain. Rehearsable locally first |
+
+### T5.5 — the deployment, and the placeholder `CMD` that had been there since T0
+
+**What goes up is the record, not the world.** The OpenTelemetry demo is ~20 containers, wants
+16 GB, and exists to be broken on purpose; a thing whose job is to fail is a poor foundation for
+the one URL a stranger is given. `deploy/` serves the platform and a snapshot of investigations
+that already happened — real verdicts, real citations, real deep-links — on three containers at
+**$6.49/month** (Hetzner CX23, 2 vCPU / 4 GB). `deploy/README.md` §5 prices the version with a
+live world at $9.99–$101.49 and argues against it as the stable URL.
+
+**The Dockerfile could not have started anything.** Its `CMD` printed a version string and exited,
+labelled *"Placeholder entrypoint until T2.1 (ingest API) exists"* — written before there was a
+server to start, and never revisited across the twenty tasks after T2.1 shipped one. Under
+`restart: unless-stopped` that is an infinite restart loop logging a success message. Nothing ever
+ran the image, so nothing ever noticed; `deploy/` is the first thing that would have.
+
+**Three decisions worth the words.**
+
+**A separate compose file, not another profile on `docker-compose.yml`.** That file publishes
+5432, 6379 and 9000 on the host for a developer's convenience. The same lines on a public VM are a
+database and an object store open to the internet, and **an exposure that depends on remembering
+which profile is selected is one flag away from an incident of its own.** In `deploy/compose.yml`
+only Caddy publishes anything.
+
+**Caddy, for TLS, and it is not decoration.** Basic auth is base64 — transport encoding, not
+encryption. The credential T5.1b added is worth having only behind HTTPS, so a deployment that
+skipped TLS would be publishing the password it introduced. Caddy gets a certificate from Let's
+Encrypt on first request, which is the cheapest correct answer to *"a stable URL"*.
+
+**A database snapshot, not a loader from `evals/runs/`.** The committed run directories carry the
+manifest and the verdict but **not the trajectory** — no steps, no tool calls, no `request`
+fields. The timeline and every citation deep-link are built from `trajectory_tool_calls.request`,
+which lives only in Postgres. So the two things that make this screen worth deploying are exactly
+the two a repo-only loader cannot reconstruct. `make deploy-snapshot` exports; the snapshot is
+gitignored, because it carries the monitored world's telemetry.
+
+**The rehearsal earned itself in four minutes.** The first run of
+`compose.rehearsal.yml` found that `compose.yml` declared **`name: faultline`** — the same compose
+project the repository's own `docker-compose.yml` derives from its directory. So the file did not
+create a deployment; it *joined the developer's platform*, attached to the running
+`faultline-postgres-1`, reported the dev Redis and MinIO as orphans it might remove, and pointed
+the deployment's DSN at the development database. **It failed safe by luck, not design:**
+`POSTGRES_PASSWORD` initialises only an empty volume, so the existing one kept its old password and
+authentication failed. Against an empty volume, one `--build` in the wrong directory hands a public
+deployment the developer's data, and `docker compose down -v` in either directory destroys the
+other's. Now `faultline-deploy`, guarded by `test_the_deployment_has_its_own_compose_project`.
+
+**And that guard was wrong on its first writing, in the way this project keeps finding.** It
+compared against `REPO_ROOT.name` — which is what compose actually uses — and therefore **passed in
+a clone directory named anything else while failing in one named `faultline`.** Green wherever it
+was written, which is worse than absent. It now reads the distribution name from `pyproject.toml`,
+the name every default clone gets, and was checked in both directions before being kept.
+
+**The second thing the rehearsal found, and it would have failed identically on the VM.** The
+container crash-looped on
+
+    psycopg.OperationalError: failed to resolve host 'faultline'
+    [Errno -8] Servname not supported for ai_socktype
+
+**A DSN is a URL and a password is arbitrary bytes.** `env.example` recommends
+`openssl rand -base64 24`, whose alphabet includes `/` and `+`; a `/` in the interpolated password
+ends the URL's authority section, so libpq read the host as `faultline` and the password's tail as
+the port. **Every third or fourth generated password breaks the deployment, and none of them breaks
+it visibly** - the error names a host nobody configured. The password now reaches libpq through
+`PGPASSWORD` and the DSN carries no credential at all, which also takes it out of `docker inspect`
+and the process list. Guarded by `test_no_password_is_interpolated_into_the_dsn`.
+
+**The third: the migration and the platform resolved the database independently.** The documented
+`docker compose exec faultline faultline-migrate` failed on `Connection refused` **while the
+platform beside it, in the same container, was serving happily** — `--dsn` defaults to none and
+falls through to `OrchestratorSettings.postgres_dsn`, which is `localhost:5432`: right on a
+developer's machine, wrong inside a container where localhost *is* the container. Fixed with
+`FAULTLINE_ORCH_POSTGRES_DSN` in the environment rather than a flag in the documented command, so
+anything else run in that container reaches the same database without its author remembering.
+**The failure this now guards is quieter than the one that was seen:** a deployment that migrates
+one database and serves another starts cleanly and answers every request against an unmigrated
+schema.
+
+**What the first working rehearsal proved.** `{"status":"ok"}` on `/healthz`, **`401` on
+`/api/v1/incidents`** — the read surface mounted, behind the credential, in the image, from a
+clean build. The 401 is the assertion that matters: it is the one that fails open.
+
+**Written and never run, and said so in the file itself.** No Docker daemon was available where
+these were authored, so `deploy/compose.yml` has been reviewed and committed without once being
+started — the tenth instance of this arc's defect, declared in advance rather than discovered
+later. Two responses rather than an assertion that it is fine: `tests/test_deploy.py` guards the
+four failures that are invisible until the VM is public (a published database port, a missing
+`--postgres-dsn`, the placeholder `CMD`, an undocumented variable), and
+`deploy/compose.rehearsal.yml` runs the whole thing on a laptop — image, `CMD`, DSN, credential
+refusal, migration, read surface — everything but the certificate. **`deploy/README.md` §1a is the
+first section after the cost, not an appendix.**
 
 ### T5.1b — the routes were served by nothing, and twelve passing tests said otherwise
 

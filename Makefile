@@ -1,5 +1,5 @@
 .PHONY: help install lint format type test check up down eval-up eval-down eval demo ui \
-        ffs-stub world-up world-down world-ps world-logs dashboards
+        ffs-stub world-up world-down world-ps world-logs dashboards deploy-snapshot
 
 help:
 	@grep -E '^[a-z][a-z0-9-]*:' Makefile | sed 's/:.*//' | tr '\n' ' '; echo
@@ -105,6 +105,20 @@ ui: ## serve the incident screen on :8000 (needs `make up`)
 		exit 3; \
 	fi
 	uv run faultline-ingest --postgres-dsn "$(PLATFORM_DSN)"
+
+# ---- T5.5: the deployment ----
+# The trimmed deployment serves the record of investigations that already happened, so it needs
+# a snapshot from a machine that ran them. `evals/runs/` is not enough: the committed manifests
+# carry the verdict but not the trajectory, and the timeline and every citation deep-link are
+# built from trajectory_tool_calls.request, which lives only in Postgres.
+#
+# Gitignored output. It carries the monitored world's telemetry - every log line an agent quoted.
+deploy/snapshot.sql.gz: ## export the platform database for deploy/README.md section 3.3
+	@docker compose --profile platform exec -T postgres \
+		pg_dump -U faultline --clean --if-exists faultline | gzip > $@
+	@echo "wrote $@ ($$(du -h $@ | cut -f1)). deploy/README.md section 3.3 says where it goes."
+
+deploy-snapshot: deploy/snapshot.sql.gz
 
 # ---- T1.1: the world (OpenTelemetry Demo, pinned) ----
 OTEL_DEMO_VERSION := v1.2.1
