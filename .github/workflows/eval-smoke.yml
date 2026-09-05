@@ -38,7 +38,11 @@ concurrency:
 jobs:
   smoke:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Four scenarios, three 300-second settle windows between them, plus a fifteen-service
+    # boot. The old 45 left no margin over the waits alone once `faultline-sweep` started
+    # honouring them, and a smoke run killed by its own timeout looks identical to a pipeline
+    # that hung.
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
@@ -71,16 +75,25 @@ jobs:
       - name: Smoke subset
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        # **This was the loop the nightly already shed, and it could not have passed.** Four
+        # `faultline-eval` calls back to back, `set -e`, no settle between them: every scored run
+        # leaves a resolved incident, and a firing inside the orchestrator's 300s window reopens
+        # it rather than opening a new one. Scenario 1 would score, scenario 2 would be refused
+        # with exit 3, and `set -e` would end the job there - after spending on scenario 1. The
+        # first real sweep scored 1 of 5 for exactly this reason before `faultline-sweep` learned
+        # to wait.
+        #
+        # So the smoke subset runs through the same driver as the nightly, with the same tested
+        # countdown, settle and retry. `smoke.SMOKE_SCENARIOS` stays the single source of truth
+        # for which four scenarios these are - the scope is read out of it rather than restated
+        # here, so the workflow cannot drift from the module a test already pins.
+        #
+        # No `|| true`, unlike the nightly. A nightly that scored eight of seventeen still has
+        # something to load and label; a pre-merge smoke that did not complete its four is a
+        # failed check, which is the whole point of it being a check.
         run: |
-          set -e
-          COUNT=$(uv run python -c "from evalharness import smoke; print(len(smoke.SMOKE_SCENARIOS))")
-          REMAINING=$COUNT
-          for ID in $(uv run python -c "from evalharness import smoke; print(' '.join(smoke.scenario_ids()))"); do
-            echo "::group::$ID"
-            uv run faultline-eval "$ID" --tier ci-smoke --runs-remaining "$REMAINING"
-            REMAINING=$((REMAINING - 1))
-            echo "::endgroup::"
-          done
+          uv run faultline-sweep --tier ci-smoke \
+            --only "$(uv run python -c 'from evalharness import smoke; print(",".join(smoke.scenario_ids()))')"
 
       # **`always()` alone was wrong and the first red run proved it.** When the key check
       # refuses, nothing has been started - and an unconditional `always()` here ran the database
