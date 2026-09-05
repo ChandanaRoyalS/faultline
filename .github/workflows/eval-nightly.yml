@@ -68,13 +68,45 @@ jobs:
         # what *did* run, and a red step here would skip them.
         run: uv run faultline-sweep --tier nightly || true
 
-      # **`always()` alone was wrong and the first red run proved it.** When the key check
-      # refuses, nothing has been started - and an unconditional `always()` here ran the database
-      # load against a Postgres that was never booted, failing a second time with an error about
-      # a database when the real answer was "there is no key". Conditioned on the boot step
-      # having actually run, so a refusal produces one clear failure instead of a cascade.
+      # **`always()` alone was wrong, and `!= 'skipped'` was wrong one state later.** The key
+      # check refusing means nothing was started, and an unconditional `always()` ran the
+      # database load against a Postgres that was never booted. Conditioning on the boot having
+      # *run* fixed the refusal case and left the failure case: a boot that fails is not
+      # `'skipped'` either, so the first real boot failure produced two errors - a kafka
+      # dependency failure, and a database error from a load that should never have started.
+      #
+      # A step that consumes what the boot produced needs the boot to have **succeeded**. Only
+      # `Tear down` keeps `!= 'skipped'`, because cleaning up after a half-started world is
+      # exactly when cleanup matters.
+      - name: Why the world did not come up
+        # **The first boot failed and took its own evidence with it.** Kafka went unhealthy
+        # eight seconds after starting, the boot failed on the dependency, and `Tear down` ran
+        # and removed the container - so the run that would say why produced nothing to read,
+        # and the next attempt would have had to fail again to be diagnosed.
+        #
+        # This is the harness's own rule applied to its CI: a discarded run is recorded with its
+        # reason, never deleted. A boot that fails is the same kind of event, and it costs
+        # nothing to capture because it happens before the first model call.
+        if: failure() && steps.boot.outcome == 'failure'
+        run: |
+          echo "::group::containers"
+          docker ps -a
+          echo "::endgroup::"
+          echo "::group::kafka"
+          (cd world && docker compose --progress plain \
+            -f docker-compose.yml \
+            -f ../compose/world-arm64.override.yml \
+            -f ../compose/telemetry.yml \
+            logs --no-color --tail 200 kafka) || echo "kafka has no logs to give"
+          echo "::endgroup::"
+          echo "::group::memory and disk"
+          free -m || true
+          df -h / || true
+          nproc || true
+          echo "::endgroup::"
+
       - name: Append to the eval database
-        if: always() && steps.boot.outcome != 'skipped'
+        if: always() && steps.boot.outcome == 'success'
         run: uv run faultline-eval-db load
 
       - name: Tear down
@@ -85,7 +117,7 @@ jobs:
         # Also conditioned: `evals/runs/` holds 128 committed run directories, so an
         # unconditional upload ships the repository's whole recorded history as a
         # build artifact on every refusal.
-        if: always() && steps.boot.outcome != 'skipped'
+        if: always() && steps.boot.outcome == 'success'
         with:
           name: nightly-run-artifacts
           path: evals/runs/

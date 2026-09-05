@@ -2184,6 +2184,50 @@ guards that run on every push and need neither a world nor a key: the smoke subs
 fault class, names only scenarios that exist and are runnable, refuses before booting the world
 when there is no key (Q20's finding, applied before it can recur), and shares one world lock.
 
+***2026-09-04: both conditions were tried and the first one is measured, not assumed.*** The key
+was funded and set as a repository secret; the refusal cleared for the first time. Two defects
+surfaced before the world did, both found by running the thing rather than reading it: the smoke
+workflow **still carried the four-call bash loop the nightly shed**, which would have scored
+scenario 1 and been refused on scenario 2 for the settle window `faultline-sweep` exists to
+respect; and `always() && steps.boot.outcome != 'skipped'` caught the refusal case and not the
+failure case, so a failed boot ran the database load against a Postgres that never came up.
+
+**Then the world booted on `ubuntu-latest`, and this is the part worth recording.** Fifteen
+services started clean on x86 — the arm64 override was not the obstacle, which was the obvious
+guess and the wrong one. **Kafka went unhealthy eight seconds in** and every dependant refused:
+
+```
+java.lang.NullPointerException
+  at jdk.internal.platform.cgroupv2.CgroupV2Subsystem.getInstance(CgroupV2Subsystem.java:81)
+Exception thrown by the agent : java.lang.NullPointerException
+```
+
+The demo's kafka image is Confluent's, `clusterID` dated **2022-12-09**. Its JMX agent asks the
+JVM for container metrics at startup and that JDK's **cgroup v2** parser throws on the runner's
+layout. The runner had **13.7 GB of 15.9 free, 74 GB of disk and 4 cores** — this is not
+resource pressure, not the pipeline, and not the world's configuration. It is a host/JDK
+interaction in a three-year-old image.
+
+**T4.5 is therefore blocked on the runner, and the blocker is priced rather than named.** Every
+route through it touches the world:
+
+| route | cost |
+|---|---|
+| a JVM flag on kafka in `world-arm64.override.yml` | **moves `compose_digest`** → re-founds the world → ~6h re-record, holdout entries stranded (the group-A cost, spent on a CI runner) |
+| a CI-only fourth override outside `compose_files` | **worse** — runs would claim the recorded world's digest while running a different world, which is precisely what the digest exists to catch and would catch nothing, because the file is not in the list it hashes |
+| adding that override *to* `compose_files` under a CI flag | honest: the digest moves, CI runs record as their own comparability generation, never pooled. Needs a code change and a rule that the file is never layered locally |
+| a self-hosted runner | no digest move at all, and a GitHub-triggered process on a personal machine is its own decision |
+
+**None is taken.** T4.5's check is built, correct, and demonstrably unable to run here — and the
+reason is now a captured log rather than the sentence *"neither is true today"* that stood in
+this document for two days without anyone knowing which of the two conditions was the real one.
+**It was the world, not the key.**
+
+The diagnostic that produced this is now part of both workflows and ordered ahead of the
+teardown, because the first boot failure deleted its own evidence: kafka went unhealthy, the
+container was removed, and diagnosing it would have required failing again. That is ADR-0022
+§3.3's rule one level out — a run that produced no result is recorded with its reason.
+
 ### What this audit does not say
 
 It does not say the work done instead was wrong. T4.1's runner is complete against all nine of its

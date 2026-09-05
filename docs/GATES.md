@@ -216,6 +216,26 @@ entirely absent** — one workflow file, three jobs, no eval smoke and no `sched
 nothing, so a run where the filter matched nothing is indistinguishable from one where it worked.
 The plan's own words on that last one: *"silent non-enforcement is how this defect returns."*
 
+**2026-09-04, G4's latency clause and T4.5's runner, both measured.** Dev sweep 9 timed five
+runs against the gate's own three-minute bar: **273s, 165s, 237s, 279s, 183s — four of five over
+it**, and the one inside it is the run that died before synthesis. The gate's condition is the
+dev-set median, and the median of those five is 237s. **G4's latency clause is failing, not
+merely unmeasured**, and it is the first time this document can say which.
+
+The same day, **T4.5's CI smoke was run for the first time** and the reason it cannot pass is now
+a captured log rather than an assumption. The key was funded and set; that condition cleared. The
+world then booted fifteen services clean on `ubuntu-latest` — the arm64 override was not the
+obstacle — and **kafka's JVM threw `NullPointerException` in
+`jdk.internal.platform.cgroupv2.CgroupV2Subsystem.getInstance`**, a 2022-vintage JDK failing to
+parse the runner's cgroup v2 layout. Every dependant refused. The runner had 13.7 GB free of
+15.9, 74 GB of disk and 4 cores, so this is not resource pressure.
+
+**Of the two conditions this document has listed for a year — "a world running in Actions" and
+"a key with credit" — it was the world, and the obstacle is one image's JDK.** Every route past
+it moves `compose_digest` and re-founds the world, which is the most expensive action available
+to this project; `docs/PLAN.md`'s T4.5 section prices the four routes and takes none of them.
+**T4.5's check is built, correct, and blocked on the runner for a stated reason.**
+
 **G5.** Its condition requires the full demo from a clean clone. T7.48 rebuilt the world
 but reused local images and said so; no cold clone-and-pull has ever been run, and the demo
 has never been executed from one. **2026-09-01 — the first measured evidence
