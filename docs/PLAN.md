@@ -1232,7 +1232,39 @@ run has been scored yet** — the runs need credits.
 | **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **built and served** — view, routes, page, **and since T5.1b an application that mounts them** |
 | **T5.2** Slack notifier | lifecycle notifications | **built** — both events, linked into T5.1's screen |
 | **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **2 of 5** — ARCHITECTURE and THREAT-MODEL written; README **stale**, its Results block still headlines dev sweep 7 at `1b0e7cbb4c47` while HEAD is `b6837dd449ca`; **no demo video** (needs a live world), **no MVP-cut bullets** |
-| **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **untagged** |
+| **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **checklist written, rehearsal not run.** `docs/RELEASE.md`; README now names all 16 console scripts, guarded |
+
+### T5.4 — the front door named one command of sixteen
+
+**T7.46's sharpest finding, measured.** It reported that README documents the demo and the injector
+and never the scored harness. Counted at T5.4: **README named 1 of 16 console scripts** — only
+`faultline-inject`. Every figure in the results section was produced by one of the other fifteen,
+and a reader could read the whole page and be unable to reproduce a single cell. The one command
+they might guess at, `faultline-eval`, answers `REFUSED: say whether this is one run or part of a
+sweep` — a requirement documented only in `docs/PLAN.md`.
+
+**That is what "reproducible MVP" fails on**, and it is a documentation defect rather than a
+missing capability, which is why it went sixteen scripts deep without anyone noticing.
+
+README now carries two tables — the harness and the platform — and
+`tests/test_readme_covers_the_commands.py` fails if a script exists that the front door never
+names.
+
+**The guard was wrong on its first writing, for the third time in two tasks.** It accepted a
+command documented in *any page README links to*, one hop being close enough. It caught **one** of
+the sixteen: README links to `docs/PLAN.md`, and a 4,000-line task record mentions everything. **A
+guard that a link to the task record satisfies is one the original defect passes.** Now README
+itself, no allowlist and no hops — and checked in both directions before being kept.
+
+**`docs/RELEASE.md` is the checklist, and its premise is that the rehearsal has never been run.**
+`docs/GATES.md` §G5 already records why the near-misses do not count: T7.48 rebuilt the world
+**reusing local images** and said so. A clean-clone rehearsal that reuses anything is a rehearsal
+of the machine it ran on. The checklist says to record what failed, and notes that a rehearsal with
+no findings is either the first flawless one in this project's history or one that was not really
+run — the deployment's first rehearsal found three defects in fifteen minutes.
+
+**Still owed by T5.4: the rehearsal itself, and the tag.** Neither costs money; the rehearsal costs
+about $0.60 for `make demo` and an hour of pulling images.
 | **T5.5** deploy | live instance at a stable URL | **written, never run** — `deploy/` holds the compose file, Caddyfile, env example, procedure and cost. Needs a VM and a domain. Rehearsable locally first |
 
 ### T5.5 — the deployment, and the placeholder `CMD` that had been there since T0

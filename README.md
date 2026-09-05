@@ -120,6 +120,39 @@ score. **Recording a *new* scenario is a different job** with a contract worth r
 which steps wait and for how long, and why a recorder that looks stuck is usually working:
 [the rehearsal contract](evals/scenarios/ARTIFACTS.md).
 
+## The rest of the harness
+
+`make eval` wraps `faultline-eval`. Everything else that produced a number in this repository is
+below — **until T5.4 none of these were named here**, so every figure in the results section came
+from a command the front door did not mention, and a reader could read the whole page and still be
+unable to reproduce one.
+
+| command | what it does |
+|---|---|
+| `faultline-eval` | one scored run. Needs `--single-run` or `--runs-remaining N`; refuses without |
+| `faultline-sweep` | the whole catalog, unattended. Counts the runs down for the gate itself |
+| `faultline-judge` | grades a run's narrative. Skips anything already judged unless `--rejudge` |
+| `faultline-compare` | two arms side by side — a pipeline sweep against a baseline |
+| `faultline-eval-db` | the run record as a queryable table: outcomes, stamps, costs |
+| `faultline-calibrate` | the human grades that measure whether the judge can be trusted |
+| `faultline-render` | a recorded bundle → the readable pages in [docs/bundles/](docs/bundles/) |
+| `faultline-manual-rca` | times a human investigating, for the MTTR comparison's left-hand side |
+| `faultline-blind-rca` | the same, drawn blind from a sealed pool |
+
+And the platform itself, if you want to run it rather than measure it:
+
+| command | what it does |
+|---|---|
+| `faultline-migrate` | applies the schema. A clean clone needs this before anything stores |
+| `faultline-seed` | loads the retrieval corpus |
+| `faultline-ingest` | the alert receiver, and with `--postgres-dsn` the incident screen |
+| `faultline-orchestrate` | consumes alert events and opens incidents |
+| `faultline-investigate` | runs one investigation against an open incident |
+| `faultline-demo` | the narrated end-to-end run `make demo` calls |
+
+Every one takes `--help`. To put the screen on a URL, see [`deploy/`](deploy/README.md); to cut a
+release, [`docs/RELEASE.md`](docs/RELEASE.md).
+
 ## Bundles
 
 Every recorded rehearsal, rendered as a readable page — what broke, what paged and in what
