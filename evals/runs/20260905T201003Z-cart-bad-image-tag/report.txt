@@ -1,0 +1,43 @@
+run 20260905T201003Z-cart-bad-image-tag   scenario cart-bad-image-tag
+trajectory a2c81c27-60e7-4ae4-bf54-fbdd8793bff7   runtime faultline/0.0.1+prompts:42e34a1811c4
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    0.80  (8/10 alerted services predicted)
+  precision 0.67  (8/12 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): frauddetectionservice, quoteservice
+  extra  (predicted, not alerted): adservice, paymentservice, productcatalogservice, recommendationservice
+  unmeasured edges crossed: 4 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class None vs bad_deploy - ABSTAINED (excluded from accuracy; counted in coverage)
+  fix class   None vs rollback - ABSTAINED (excluded from accuracy; counted in coverage)
+  service     not produced
+  coverage: abstained
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        1  synthesizer produced no valid findings: schema validation failed twice (1 validation error for Verdict
+alternatives.0.alternatives_note
+  Extra inputs are not permitted [type=extra_forbidden, input_value='', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden)
+  specialists failed alone 1  synthesizer: schema validation failed twice (1 validation error for Verdict
+alternatives.0.alternatives_note
+  Extra inputs are not permitted [type=extra_forbidden, input_value='', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden)
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 16264 / out 10480 tokens   $0.3433
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        151.9s (within G4's 3-minute per-run comparison) tools 0.2s  models 0.0s  steps 19
+  tool calls     7 total, 6 valid, 1 errored, 1 redundant  validity 0.86  redundancy 0.14
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 3 empty, 2 truncated
+  context budget 2 briefing(s), 0 over budget (0.00), 0 section(s) dropped, largest 1756 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false
