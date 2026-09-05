@@ -1,0 +1,1 @@
+2026-09-05: one draw opened (incident a982fb83) and closed unexamined before any evidence was looked at. Reverted without revealing the scenario, no attempt recorded, pool unchanged at five. The session moved to Q25.
