@@ -150,11 +150,25 @@ def test_the_pool_is_dev_sweep_nines_five() -> None:
 
     assert set(blind_cli.POOL) == {
         "ad-memory-squeeze",
-        "cart-bad-image-tag",
         "cart-dependency-latency",
         "cart-redis-misconfig",
         "frauddetection-memory-squeeze",
     }
+
+
+def test_the_leaked_scenario_cannot_be_drawn() -> None:
+    """**`cart-bad-image-tag` was spoiled and is out.** A revert command shelled out without
+    capturing stdout, the injector printed the scenario name, and the responder was handed the
+    answer to a fault she had not investigated. It cannot be timed as a recognition task now.
+
+    Pinned by a test rather than left to a docstring, because the tempting repair - quietly
+    putting it back once the leak is a few weeks old - is exactly the move `POOL`'s own docstring
+    forbids, and the person most likely to make it is the one who remembers the reason.
+    """
+    from evalharness import blind_cli
+
+    assert "cart-bad-image-tag" not in blind_cli.POOL
+    assert len(blind_cli.POOL) == 4, "n=4 against T4.7's five, and the reference says so"
 
 
 def test_the_protocol_names_the_same_five_as_the_code() -> None:
@@ -308,3 +322,58 @@ def test_giving_up_is_recorded_rather_than_dropped(
     written = rca.load(ledger)
     assert written[0].gave_up is True
     assert written[0].fault_class == ""
+
+
+def test_abandoning_a_draw_never_prints_the_scenario(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """**The regression that cost the deliverable an n.** The first draw was closed with a script
+    typed at the terminal that shelled out to `faultline-inject stop` without capturing stdout, so
+    the injector printed the scenario name and the responder was handed an answer she had not
+    worked for. A procedure that exists only as a command someone composes under time pressure is
+    a procedure with no properties."""
+    from evalharness import blind_cli
+
+    calls: list[list[str]] = []
+    monkeypatch.setattr(blind_cli, "_sh", lambda argv: (calls.append(argv), (0, ""))[1])
+    seal_path = tmp_path / "seal.json"
+    blind.seal(
+        blind.Draw(
+            scenario_id="frauddetection-memory-squeeze",
+            pool=("a", "b"),
+            drawn_at="2026-09-05T00:00:00+00:00",
+            clock_started_at="2026-09-05T00:00:00+00:00",
+        ),
+        seal_path,
+    )
+
+    assert blind_cli.run(["--abandon", "--seal", str(seal_path)]) == 0
+    out = capsys.readouterr().out
+
+    assert "frauddetection" not in out, "the scenario must not reach the terminal"
+    assert calls == [["faultline-inject", "stop", "frauddetection-memory-squeeze"]]
+    assert not seal_path.exists()
+
+
+def test_abandoning_records_no_attempt(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """`--give-up` records an abandoned investigation, which is data about difficulty. `--abandon`
+    records nothing, because nothing was investigated. Conflating them would put a void into the
+    median's denominator."""
+    from evalharness import blind_cli
+    from evalharness import manual_rca as rca
+
+    monkeypatch.setattr(blind_cli, "_sh", lambda argv: (0, ""))
+    seal_path, ledger = tmp_path / "seal.json", tmp_path / "attempts.jsonl"
+    blind.seal(
+        blind.Draw(
+            scenario_id="ad-memory-squeeze",
+            pool=("a", "b"),
+            drawn_at="2026-09-05T00:00:00+00:00",
+            clock_started_at="2026-09-05T00:00:00+00:00",
+        ),
+        seal_path,
+    )
+
+    blind_cli.run(["--abandon", "--seal", str(seal_path), "--ledger", str(ledger)])
+
+    assert rca.load(ledger) == []

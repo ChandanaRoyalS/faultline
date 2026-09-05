@@ -40,17 +40,31 @@ from pathlib import Path
 
 POOL: tuple[str, ...] = (
     "ad-memory-squeeze",
-    "cart-bad-image-tag",
     "cart-dependency-latency",
     "cart-redis-misconfig",
     "frauddetection-memory-squeeze",
 )
-"""Dev sweep 9's five, so every manual timing has a pipeline timing beside it on the same scenario
-at world generation `f5bd108f4f70`.
+"""Four of dev sweep 9's five, so every manual timing has a pipeline timing beside it on the same
+scenario at world generation `f5bd108f4f70`.
 
 **Pinned here rather than passed**, and named in `PROTOCOL-2026-09-05.md` before the first draw.
 A pool chosen per-invocation is a pool that can be narrowed after a bad attempt, which is the
 self-timed version of re-running a scored run to improve a number.
+
+**`cart-bad-image-tag` was in this tuple and is not any more, because the seal leaked.** The first
+draw was opened and closed unexamined when the session changed direction, and the command used to
+revert it shelled out to `faultline-inject stop` without capturing stdout - so the injector printed
+`reverted cart-bad-image-tag` and the responder was told the name of a fault she had not
+investigated.
+
+**Narrowing a pool after the fact is exactly what the paragraph above forbids**, which is why this
+is written here rather than done quietly. The removal is not a choice about which scenarios suit
+the result; it is the only honest response to one being spoiled, and it costs the deliverable its
+n. T4.7 asks for five. **This reference will be n=4 and will say so.**
+
+The lost scenario is the `bad_deploy` one, so the manual reference now covers three fault classes
+where the pipeline's covers four - and `bad_deploy` is the class this catalog is thinnest on
+already.
 """
 
 
@@ -70,6 +84,15 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--answer", action="store_true", help="record a conclusion and stop the clock")
     p.add_argument("--give-up", action="store_true", help="record an abandoned investigation")
     p.add_argument("--status", action="store_true", help="is a draw open, and for how long")
+    p.add_argument(
+        "--abandon",
+        action="store_true",
+        help=(
+            "close an open draw without recording an attempt: reverts the fault and clears the "
+            "seal WITHOUT printing which scenario it was. For a draw ended by something other "
+            "than the investigation - not a substitute for --give-up, which is a result"
+        ),
+    )
     p.add_argument("--fault-class", default="")
     p.add_argument("--service", default="")
     p.add_argument("--notes", default="")
@@ -108,12 +131,46 @@ def run(argv: list[str] | None = None) -> int:
         print(f"  drawn from {held.prior}. Answer with --answer or --give-up.")
         return 0
 
+    if args.abandon:
+        return _abandon(blind, seal_path)
     if args.draw:
         return _draw(args, blind, rca, seal_path, ledger)
     if args.answer or args.give_up:
         return _record(args, blind, rca, seal_path, ledger)
 
     parser().print_help()
+    return 0
+
+
+def _abandon(blind, seal_path: Path) -> int:
+    """Close a draw that ended for a reason that is not a result. **Silently.**
+
+    **This exists because the ad-hoc version leaked.** The first draw was closed with a script
+    composed at the terminal that shelled out to `faultline-inject stop` without capturing stdout,
+    so the injector printed `reverted cart-bad-image-tag` and the responder was handed the answer
+    to a fault she had not investigated. `cart-bad-image-tag` left the pool permanently and the
+    reference dropped from n=5 to n=4.
+
+    A procedure that only exists as a command someone types under time pressure is a procedure
+    with no properties. This one captures the subprocess output and never prints the scenario -
+    the one thing the improvised version forgot.
+
+    **Not a substitute for `--give-up`.** That records an abandoned *investigation*, which is data
+    about difficulty. This records nothing at all, because nothing was investigated.
+    """
+    if not blind.sealed(seal_path):
+        print("REFUSED: no draw is open. Nothing to abandon.")
+        return 3
+    held = blind.unseal(seal_path)
+    code, out = _sh(["faultline-inject", "stop", held.scenario_id])
+    seal_path.unlink()
+    print("draw abandoned. The fault is reverted and the scenario was not printed.")
+    if code != 0:
+        print("  WARNING: the revert reported an error. Check the world before drawing again.")
+        print(f"  {out}")
+    print("  No attempt was recorded. Write the void into evals/manual-rca/VOIDED-DRAWS.md,")
+    print("  and say whether you looked at any evidence - if you did, that scenario leaves the")
+    print("  pool and the reference loses an n. Only you can answer that.")
     return 0
 
 
