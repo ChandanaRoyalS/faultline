@@ -11,7 +11,7 @@ from pathlib import Path
 
 import yaml
 
-from evalharness import smoke
+from evalharness import smoke, sweep
 
 WORKFLOWS = Path(__file__).parent.parent / ".github" / "workflows"
 SCENARIOS = Path(__file__).parent.parent / "evals" / "scenarios"
@@ -185,3 +185,65 @@ def test_the_required_checks_are_still_only_the_world_free_ones() -> None:
     for job in ci["jobs"].values():
         runs = " ".join(str(s.get("run", "")) for s in job["steps"])
         assert "faultline-eval " not in runs, "ci must not inject faults"
+
+
+# --- neither workflow may hand-roll a catalog loop (T4.5) --------------------------------------
+
+
+def test_no_eval_workflow_drives_faultline_eval_directly() -> None:
+    """**The smoke workflow kept the loop the nightly shed, and it could not have passed.**
+
+    Four `faultline-eval` calls back to back under `set -e`, with no wait between them: every
+    scored run leaves a resolved incident, and a firing inside the orchestrator's 300-second
+    window reopens it rather than opening a new one. Scenario 1 scores, scenario 2 is refused
+    with exit 3, and the job ends there having already spent money. That is not a hypothetical -
+    the first real sweep scored 1 of 5 before `faultline-sweep` learned to wait.
+
+    The countdown, the settle, the retry and the "a discard must not end the run" rule all live
+    in `faultline-sweep` with tests behind them. A workflow that calls `faultline-eval` in a shell
+    loop is a second, untested copy of that logic reachable only by GitHub.
+    """
+    for name, job in (("eval-smoke", "smoke"), ("eval-nightly", "nightly")):
+        for step in workflow(name)["jobs"][job]["steps"]:
+            script = str(step.get("run", ""))
+            if "faultline-eval " not in script:
+                continue
+            assert "faultline-sweep" in script, (
+                f"{name}: {step.get('name')} drives faultline-eval directly; use faultline-sweep"
+            )
+
+
+def test_the_smoke_scope_is_read_from_the_module_not_restated() -> None:
+    """`smoke.SMOKE_SCENARIOS` is the single source of truth for which four scenarios these are.
+    A workflow listing them itself is a second list that goes stale silently - and the scenario
+    ids would be the easiest thing in the world to quietly edit to dodge a failing one."""
+    steps = workflow("eval-smoke")["jobs"]["smoke"]["steps"]
+    running = [s for s in steps if "faultline-sweep" in str(s.get("run", ""))]
+
+    assert running, "the smoke workflow must run the sweep"
+    script = str(running[0]["run"])
+    assert "smoke.scenario_ids()" in script
+    for scenario_id in smoke.scenario_ids():
+        assert scenario_id not in script, f"{scenario_id} is hard-coded in the workflow"
+
+
+def test_the_smoke_run_does_not_swallow_its_own_failure() -> None:
+    """The nightly carries `|| true` because a partial catalog still has something to load and
+    label. A pre-merge smoke that did not complete its four is a failed check, and that is the
+    entire point of it being one."""
+    steps = workflow("eval-smoke")["jobs"]["smoke"]["steps"]
+    script = next(str(s["run"]) for s in steps if "faultline-sweep" in str(s.get("run", "")))
+
+    assert "|| true" not in script
+
+
+def test_the_timeout_clears_the_settle_windows_it_now_honours() -> None:
+    """Three 300-second waits between four scenarios is fifteen minutes of deliberate idling
+    before a single model call. A smoke run killed by its own timeout is indistinguishable from a
+    pipeline that hung, which is the worst possible failure for a change-detection check."""
+    job = workflow("eval-smoke")["jobs"]["smoke"]
+    settles = (len(smoke.SMOKE_SCENARIOS) - 1) * (sweep.SETTLE_SECONDS / 60)
+
+    assert job["timeout-minutes"] > settles * 2, (
+        "the timeout must leave room for the runs themselves, not only for the waits"
+    )
