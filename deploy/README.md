@@ -60,9 +60,17 @@ On any machine with Docker, from a clone:
 cd faultline/deploy
 cp env.example .env
 $EDITOR .env
+docker network create faultline-deploy-net
+docker compose config | grep FAULTLINE_API_PASSWORD_HASH     # must print a hash - see §3.1
 docker compose -f compose.yml -f compose.rehearsal.yml up -d
 docker compose -f compose.yml -f compose.rehearsal.yml exec faultline faultline-migrate
 ```
+
+`docker network create` first, because `compose.yml` declares the network `external` — the world
+joins it too, and neither project may own its lifetime (see the note in that file). Without it
+`up` stops on *"network faultline-deploy-net declared as external, but could not be found"*. This
+line was missing from the first version of this section and was found by reading the new
+`compose.yml` against it, which is the second-cheapest way to find it; the cheapest is running it.
 
 Filling in `.env` for a rehearsal: `SITE_ADDRESS` can be anything, since Caddy is not running.
 `FAULTLINE_IMAGE` must be a real sha from the registry — that is half of what a rehearsal is for.
@@ -87,10 +95,11 @@ curl -sS -u faultline:$FAULTLINE_API_PASSWORD localhost:8001/api/v1/incidents
 The last returns an empty list until §3.5 loads a snapshot or the world produces one — that is
 correct, and it is a different answer from a 404, which would mean the read surface never mounted.
 
-Tear down with `docker compose -f compose.yml -f compose.rehearsal.yml down -v`. That `-v` is safe
-**because the deployment is compose project `faultline-deploy`**, a different project from the
-repository's own `faultline` — see the note at the top of `compose.yml` for what happened the first
-time it was not.
+Tear down with `docker compose -f compose.yml -f compose.rehearsal.yml down -v`, then
+`docker network rm faultline-deploy-net` — `down` does not remove an external network, by design.
+That `-v` is safe **because the deployment is compose project `faultline-deploy`**, a different
+project from the repository's own `faultline` — see the note at the top of `compose.yml` for what
+happened the first time it was not.
 
 **The first rehearsal found a real defect, which is the argument for this section.** `compose.yml`
 declared `name: faultline`, the same project compose derives for the repository's own
