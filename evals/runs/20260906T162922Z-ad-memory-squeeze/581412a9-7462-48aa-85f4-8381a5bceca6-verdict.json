@@ -1,0 +1,164 @@
+{
+  "incident_id": "581412a9-7462-48aa-85f4-8381a5bceca6",
+  "trajectory_id": "a806f7d7-941b-477e-9de0-811057950d26",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "At 16:29:26 platform-automation lowered adservice's container memory limit to 256m and, unlike the four earlier apply/revert cycles in the same window, never reverted it [tr_f8569b1421de]. Within ~20 seconds adservice stops serving requests and begins repeating a JVM/OTel startup banner seven times with geometrically lengthening gaps - a container killed during JVM initialization and restarted under supervisor backoff, never reaching a gRPC listening state [tr_d369b4d0ec9f]. With no ad backend endpoint bound, frontend fails at connection setup: gRPC code 14 UNAVAILABLE with 'no connection established' [tr_764cb8a15010], and the only error-bearing traces bottom out in a frontend-side tcp.connect (~3.06s) under AdService/GetAds with no adservice server span at all [tr_51a83bb19688]. All other frontend routes are healthy, which is why damage is partial and bursty [tr_9fa1c42d9f11].",
+    "service": "adservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_f8569b1421de",
+      "tr_d369b4d0ec9f",
+      "tr_51a83bb19688",
+      "tr_764cb8a15010",
+      "tr_9fa1c42d9f11",
+      "tr_1e5a2f5c8626"
+    ],
+    "reasoning": "Timing, mechanism and caller symptom converge. The only unreverted change in the blast radius lands three minutes before adservice's transition from serving to restart-looping [tr_f8569b1421de, tr_d369b4d0ec9f]. Lengthening restart gaps with no server-ready line is a crash loop, not a deploy or drain [tr_d369b4d0ec9f]. Frontend's failure is transport-level - connection never established, deepest span a frontend-side tcp.connect with no adservice server span - exactly what a callee with no listening endpoint produces, explaining why frontend alerted while the fault is one hop down [tr_764cb8a15010, tr_51a83bb19688]. I class this resource_exhaustion, not bad_config: the limit edit is how it started; being killed for exceeding available memory is what is happening. Alternatives close out - no changes on frontend or productcatalogservice [tr_8c933b789e58], cartservice's chaos actions were all reverted hours before onset [tr_1e5a2f5c8626], and cart/catalog/currency/shipping/payment/email legs are fast and error-free [tr_51a83bb19688]. Restoring the prior memory limit is the fix, since four earlier cycles show adservice serves fine under it.",
+    "open_questions": [
+      "No direct kill evidence: no OOMKilled event, exit code 137, or JVM OutOfMemoryError was observed, and that negative sits on a truncated log result [tr_d369b4d0ec9f]. Memory saturation and restart-count metrics for adservice were never queried [tr_1b0cbf96a106].",
+      "Frontend gRPC errors appear from ~15:48 [tr_764cb8a15010], before the 16:29 adservice transition; whether those are the same fault, another callee, or noise is unresolved since the log lines name no target.",
+      "Frontend's error ratio dips to zero and peaks near 37% [tr_9fa1c42d9f11] rather than failing the ad branch consistently; the source of that intermittency, the unmeasured edge triage flagged, and loadgenerator's earlier alert were never investigated."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "adservice crash-loops for a reason internal to its startup (agent incompatibility, corrupt state, init-time dependency failure) and the memory-limit change three minutes earlier is coincidental.",
+        "service": "adservice",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "The four prior apply/revert cycles show adservice starts fine without the constraint, and the transition follows the unreverted apply by ~20 seconds; no startup exception or bind failure appears in the returned lines [tr_f8569b1421de, tr_d369b4d0ec9f]."
+      },
+      {
+        "root_cause": "A cluster-level networking or service-discovery fault makes the adservice endpoint unreachable from frontend while adservice itself is fine.",
+        "service": "frontend",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "adservice's own logs show it not serving any request after ~16:29:23 [tr_d369b4d0ec9f], so unreachability is explained at the callee; a network-only fault would not produce a restart loop in the backend."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "redis-cart-dependency-latency / Resolution: The delay was removed from the Redis container's interface and latency returned to baseline as the\nalert windows drained. **Class of fix: `restart`** - the intervention was on the container carrying\nthe fault, not a revert of any application configuration. Nothing about cartservi",
+    "cart-redis-misconfig / Root cause: cartservice was configured with the wrong Redis port. The dependency was never\nunhealthy; only the address was wrong.\n\nBecause cart validates its Redis connection during startup rather than on first use, the\nwrong address stopped the process coming up at all. Cart did not degrade",
+    "cart-redis-misconfig / Resolution: `REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and\nthe no-traffic alerts cleared \u2014 those six services had never been broken, only starved.\nEverything was clear at **T+10m32s**, 3m01s after the fix.\n\nClass of fix: **config_revert**. Nothing had"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 33095,
+    "pulled_tokens": 9250,
+    "pull_rate": 0.2184,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 425,
+        "content_tokens": 427,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2315,
+        "content_tokens": 2318,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 10294,
+        "content_tokens": 10271,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 9313,
+        "content_tokens": 9315,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10748,
+        "content_tokens": 10726,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "adservice",
+    "rests_on": [
+      "tr_f8569b1421de",
+      "tr_d369b4d0ec9f",
+      "tr_51a83bb19688"
+    ],
+    "expected_effect": "Removing the 256m memory limit applied at 16:29:26 and never reverted should let the JVM finish init. In Loki {service=\"ad-service\"}: the startup banner stops repeating (backoff ladder ends) and 'received ad request' lines resume within ~90s. Frontend's 'Error: 14 UNAVAILABLE: No connection established' lines cease and its error ratio settles near 0; AdService/GetAds traces show an adservice server span instead of a ~3.06s frontend tcp.connect.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if after 5 minutes the banner still repeats with no request lines \u2014 the kill cause would not be the memory cap, since no OOMKilled event, exit 137, or OutOfMemoryError was observed and that negative rests on a truncated log [tr_d369b4d0ec9f]. Partially falsified if adservice recovers but frontend still logs code 14, since those errors predate 16:29 and name no target. Also falsified if platform-automation re-applies the 256m limit and the loop returns.",
+    "risk": "Removes a memory guardrail: if adservice actually leaks, it now grows unbounded and can pressure co-located containers instead of crash-looping. Recreate discards in-process cache and resets backoff. If the real cause is a JVM/agent or image fault, this spends the config-revert lever and leaves the loop running. Automation owns all nine changes here and may overwrite the revert, causing flapping.",
+    "blast_radius": "adservice recreated; frontend (its only inbound caller) sees resets during recreate \u2014 no worse than the current total absence of a listener. loadgenerator sees ad-branch requests change; other frontend routes are unaffected."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity with frontend alerting alongside the load generator points to real user-facing impact, not a lone synthetic signal. No open incidents to attribute it to, and the alerts alone don't distinguish a bad deploy from a slow downstream dependency."
+  }
+}

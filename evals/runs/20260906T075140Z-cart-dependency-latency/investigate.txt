@@ -1,0 +1,43 @@
+incident d1c863c5-93b7-4e6b-a09f-e3f7319a0b89  state triaging  anchor 07:55:00
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 697049ee-abc1-469b-9401-58516702d327
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four services alerting within 15 seconds along the cart/checkout/frontend path is not a single quiet latency warning, and no open incident covers it. The fan-out from cartservice to its callers suggests a shared downstream dependency, but that is only a prior for ordering dispatches.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Removing the 07:51:49 traffic-shaping attachment (eth0 delay=300ms) and recreating cartservice should drop cartservice HGET/HMSET child spans from ~300ms to single-digit ms, GetCart from ~301-307ms and AddItem from ~601-617ms to low ms, checkout PlaceOrder from ~2.44-2.48s toward sub-100ms, and checkout-service log step gaps from ~1.2s back to the ~20ms seen at 07:25. I do not predict the checkout error ratio returns to zero.
+  within      : 300s
+  risk        : The recreate resets in-flight connections and discards cart cache. Worse, change history holds repeated apply/revert cycles for three knobs; if 'previous configuration' resolves wrongly it could re-apply the REDIS_ADDR=6380 override, breaking cart persistence outright — a hard failure replacing a slow one.
+  blast radius: cartservice callers named in the graph: frontend and checkoutservice see connection resets during the recreate; frontend browse/add-to-cart and checkout PlaceOrder briefly fail, and loadgenerator's error counts rise for that interval.
+  if wrong    : Falsified if HGET spans remain ~300ms after 5 minutes — the delay then lives outside cartservice's own namespace config (consistent with the 300-900ms client/server span gap in tr_fee4e8770864). Also unaddressed: checkoutservice errors began 07:33:15, ~18 min before the attachment, with no peer ever named; if that ~17% error ratio persists, a second cause is still live.
+  rests on    : tr_eafb0e1462b1, tr_fee4e8770864, tr_0c326ffdbbb4
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 25028 pushed / 8745 pulled (pull rate 0.2589), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_eafb0e1462b1, tr_fee4e8770864, tr_0c326ffdbbb4
+  root cause  : A traffic-shaping container was attached to cart-service's network namespace at 07:51:49, ~3 minutes before onset, injecting a fixed 300ms/0-jitter delay on eth0 with no matching removal recorded, unlike every earlier cycle [tr_eafb0e1462b1]. Every cart Redis round trip therefore pays a constant ~300ms toll: GetCart ~301-307ms is essentially one HGET, AddItem ~601-617ms is HGET+HMSET at ~300ms each, reads and writes penalized identically with no fast outliers [tr_fee4e8770864]. Callers inherit the wait: checkout PlaceOrder runs ~2.44-2.48s dominated by two cart calls while its other downstreams stay sub-25ms [tr_fee4e8770864], and its logs show orders still completing but ~50x slower, with no errors and no peer named [tr_0c326ffdbbb4]. cartservice itself is healthy and continuously serving [tr_78352b904ff8]. The hotfix image was reverted ~13m before onset and REDIS_ADDR ~1.3h before, so neither was in effect [tr_eafb0e1462b1]. The mechanism is waiting on an artificially delayed network path, not a wrong value in the service's own config nor a wrong artifact.
+  OPEN        : checkoutservice's error-ratio change point is 07:33:15, ~18 minutes before the 07:51:49 attachment [tr_01482d1a5f6a, tr_eafb0e1462b1] — errors starting before the blamed change are unexplained.
+  OPEN        : No failing span or error log was ever tied to a named peer; all sampled PlaceOrder traces succeeded [tr_fee4e8770864] and retained checkout lines are all info severity [tr_0c326ffdbbb4], so the ~17% error ratio's mechanism is inferred, not observed.
+  OPEN        : Both log results are truncated to oldest 8 / newest 32 lines, and cartservice request rate, latency, restarts and replica counts were never measured [tr_78352b904ff8, tr_0c326ffdbbb4, tr_780df684e072], so mid-window failures and concurrent saturation cannot be positively excluded.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T075140Z-cart-dependency-latency/d1c863c5-93b7-4e6b-a09f-e3f7319a0b89-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T075140Z-cart-dependency-latency/d1c863c5-93b7-4e6b-a09f-e3f7319a0b89-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8566.93it/s]

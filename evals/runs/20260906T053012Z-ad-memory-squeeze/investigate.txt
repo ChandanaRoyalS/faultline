@@ -1,0 +1,44 @@
+incident 18e00695-cb13-4dc3-ad6b-af9f5978f3d8  state triaging  anchor 05:33:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 91e7df0a-5f5d-42d9-b00c-0ce16e4ec970
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity on frontend with loadgenerator alerting simultaneously indicates user-facing failure, not an isolated synthetic-load artifact. No open incidents to fold this into, and the alerts alone don't distinguish a bad deploy from a failing downstream dependency.
+investigation: 2 round(s), 9 dispatch(es), 26 step(s) BUDGET EXHAUSTED (metrics tool calls: 4 of 4 used)
+
+=== PROPOSAL ===
+  action      : restart_service (restart)
+  target      : adservice
+  expect      : Recreating adservice should restore a listener at its advertised gRPC endpoint. Within minutes: frontend->adservice GetAds spans stop being ERROR and gain an adservice server-side span, dropping from 1.8-3.1s toward the sub-10ms range of frontend's other edges [tr_9a634247001e]; frontend stops logging 'Error: 14 UNAVAILABLE: No connection established' in Loki [tr_50ac94ec3a65]; frontend's error-ratio query falls from its steady ~6.7% toward zero [tr_c2c0ad8cea56].
+  within      : 300s
+  risk        : The mechanism inside adservice was never measured, so this treats an unidentified fault. If adservice is crash-looping or OOMing, the recreate destroys the exited container's log tail — the evidence needed to name the mechanism — and buys one more crash cycle. If bad config or an active fault injection is the cause, the restart re-applies it and yields a no-op that may be misread as ruling adservice out. The action is not reversible.
+  blast radius: adservice only, for the duration of the recreate. frontend is its sole inbound caller in this graph; during the recreate its GetAds calls fail the same way they already do, so no new user-visible degradation. adservice's in-process ad cache is discarded, so early requests after restart may be slower.
+  if wrong    : If after five minutes frontend still logs status 14 and GetAds still fails on the connect-phase child with no adservice server span, the process-state diagnosis is wrong: the mechanism is crash-loop, OOM, a wrong bind address, or an unreverted injected fault of the kind cycled against cartservice. Improvement that decays within minutes indicates crash-loop. adservice restart count and target availability were never queried, so recovery must be read from the frontend edge and adservice logs, not metrics.
+  rests on    : tr_9a634247001e, tr_50ac94ec3a65, tr_c2c0ad8cea56
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 36435 pushed / 6664 pulled (pull rate 0.1546), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_9a634247001e, tr_50ac94ec3a65, tr_c2c0ad8cea56, tr_2ec6e72b8156, tr_a81fea393463
+  root cause  : Frontend's errors originate downstream: every errored outbound span in the sampled window is on the frontend->adservice GetAds edge, the calls hang ~1.8-3.1s and fail on the connect-phase child span with no adservice server-side span present [tr_9a634247001e], and frontend's logs carry only gRPC status 14 UNAVAILABLE with a no-connection-established detail raised inside the grpc-js client with empty metadata — a transport-level connect failure, not a status returned by a live handler [tr_50ac94ec3a65]. The partial ~6.7% frontend error ratio [tr_c2c0ad8cea56] matches a single non-critical-path dependency being unreachable while catalog, cart, recommendation and checkout paths complete normally. adservice is therefore not accepting connections at its advertised endpoint. What is failing inside adservice — process down, crash-loop, OOM, or a wrong listener address — was never measured: no adservice-scoped dispatch was ever run, and the metrics budget was spent on services whose series were empty in both windows [tr_f2e14992f758, tr_242f22d5bca1, tr_269aad10749b]. I name the service confidently and decline to name the mechanism.
+  OPEN        : adservice was never queried — no logs, change history, restart counts or target availability. The mechanism (crash, OOM, crash-loop, wrong bind address, injected fault) is entirely unsettled.
+  OPEN        : Is an unreverted fault injection active against adservice? The platform-automation cycling seen on cartservice [tr_a81fea393463] could equally have targeted adservice, which would change both class and remediation.
+  OPEN        : Onset is unpinned: frontend logs were truncated so 05:30:21 is an upper bound on first error [tr_50ac94ec3a65], and the 3/3 edge failure rate comes from a 200-span truncated sample, not a window-wide fraction [tr_9a634247001e].
+
+=== FLAGGED ===
+  budget exhausted: metrics tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T053012Z-ad-memory-squeeze/18e00695-cb13-4dc3-ad6b-af9f5978f3d8-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T053012Z-ad-memory-squeeze/18e00695-cb13-4dc3-ad6b-af9f5978f3d8-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9789.78it/s]

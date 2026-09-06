@@ -1,0 +1,160 @@
+{
+  "incident_id": "0d2a8a87-ad65-410c-b2d7-9dd15513627d",
+  "trajectory_id": "58fd1aff-a6de-4884-b667-bc40431ed377",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "Frontend is not the failing service; it is the caller reporting a downstream that never accepts a connection. Its logs show uniform gRPC status 14 UNAVAILABLE with a no-connection detail and stack frames entirely inside the grpc-js client, spanning the whole window from ~06:29 onward [tr_747c25dd511f]. Every frontend edge that was actually observed is healthy \u2014 productcatalogservice, cartservice with sub-millisecond redis children, recommendationservice and the full checkoutservice fan-out all have matching callee spans and no timeout-scale durations [tr_7e77922a8924]. The one frontend dependency that never appears in the sampled traces is adservice [tr_7e77922a8924], which is also the unmeasured edge triage flagged and the only frontend dependency no specialist was dispatched to; a target refusing connections produces exactly that absence, since no server span is ever created. Impact is fail-soft: frontend aggregate error ratio fell below baseline [tr_1a7ce49839c6] and checkout completed orders end to end with gapless topic offsets [tr_0449bb177f2b]. What is wrong inside adservice \u2014 crashed process, wrong listen port, bad artifact \u2014 is not established by anything on this board, so the mechanism stays unknown.",
+    "service": "adservice",
+    "fault_class": "unknown",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_747c25dd511f",
+      "tr_7e77922a8924",
+      "tr_1a7ce49839c6"
+    ],
+    "reasoning": "The signature is connection establishment, not application error and not latency: code 14 with empty metadata and a client-library-only stack, with DEADLINE_EXCEEDED explicitly absent [tr_747c25dd511f]. Traces positively exonerate the investigated edges by showing paired client/server spans and a ~34ms worst case [tr_7e77922a8924], corroborated by cartservice serving normally through 07:17:33 [tr_9cac90ebd922] and checkoutservice at zero error ratio with sequential order offsets [tr_0449bb177f2b]. That leaves the missing adservice edge as the only frontend dependency consistent with the observed UNAVAILABLE errors, and the below-baseline frontend error ratio [tr_1a7ce49839c6] fits an ad call failing outside the counted request path. Change records give no competing trigger: frontend, productcatalogservice and checkoutservice have no recorded changes [tr_2edea16d005f], and every cartservice chaos injection was reverted 37+ minutes before onset [tr_3059af5848eb].",
+    "open_questions": [
+      "No dispatch touched adservice \u2014 its logs, restart history, and pod state are entirely unobserved, so the attribution rests on an absence in a truncated 200-span trace sample rather than a positive observation.",
+      "Frontend's error lines name no target host, port or RPC method [tr_747c25dd511f], so the failing peer is inferred, not identified.",
+      "Frontend logs and cart/checkout logs are truncated around 07:15:30, and the 07:15 alert onset is unexplained given the error condition already existed at 06:29 \u2014 what changed at 07:15 is unsettled."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A shared platform component (service mesh sidecar, DNS, or endpoint controller) is failing to resolve or connect one frontend upstream, with adservice merely the visible casualty.",
+        "service": "frontend",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Nothing on the board tests the mesh or DNS layer, but a platform-wide connectivity fault should have broken more than one edge; the other frontend edges all completed normally [tr_7e77922a8924]."
+      },
+      {
+        "root_cause": "Residual effects of the cartservice chaos experiments (REDIS_ADDR override, 300ms delay sidecar) left cartservice or its clients in a degraded connection state.",
+        "service": "cartservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "All injections were reverted 37-78 minutes before onset [tr_3059af5848eb], and cartservice was serving cart lifecycles with fast redis children at the end of the window [tr_9cac90ebd922][tr_7e77922a8924]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / Resolution: `REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and\nthe no-traffic alerts cleared \u2014 those six services had never been broken, only starved.\nEverything was clear at **T+10m32s**, 3m01s after the fix.\n\nClass of fix: **config_revert**. Nothing had",
+    "redis-cart-dependency-latency / Resolution: The delay was removed from the Redis container's interface and latency returned to baseline as the\nalert windows drained. **Class of fix: `restart`** - the intervention was on the container carrying\nthe fault, not a revert of any application configuration. Nothing about cartservi",
+    "cart-redis-misconfig / Root cause: cartservice was configured with the wrong Redis port. The dependency was never\nunhealthy; only the address was wrong.\n\nBecause cart validates its Redis connection during startup rather than on first use, the\nwrong address stopped the process coming up at all. Cart did not degrade"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 44866,
+    "pulled_tokens": 10313,
+    "pull_rate": 0.1869,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 425,
+        "content_tokens": 427,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2876,
+        "content_tokens": 2879,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 14203,
+        "content_tokens": 14180,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 12844,
+        "content_tokens": 12846,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 14518,
+        "content_tokens": 14521,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_7e77922a8924",
+      "tr_747c25dd511f",
+      "tr_1a7ce49839c6",
+      "tr_0449bb177f2b"
+    ],
+    "expected_effect": "No action is proposed, so no effect should be expected or observed. The correct next step is observation, not remediation: pull adservice logs, container restart/exit history, and change history, and re-run the frontend trace query without the 200-span truncation. Those would either produce a positive observation of adservice process state (crash loop, listen failure, non-existent container) that meets restart_service's precondition, or name a deploy/config change that meets rollback_image's or revert_config's.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "This abstention is wrong if adservice is in fact down and its outage is causing user-visible harm that the current evidence cannot see. That would show up as a rising frontend error ratio on ad-serving routes specifically (the current query aggregates only by service_name and carries no route or dependency labels [tr_1a7ce49839c6]), or as adservice logs showing repeated process exits. Note also that the effect a restart would be judged by is not currently observable: adservice emits nothing on this board, so there is no metric or log line whose change would confirm the fix worked. An unobservable effect is not a prediction, which is itself a reason not to act yet.",
+    "risk": "The risk of acting is what drives this abstention. restart_service requires evidence pointing at process state; the only support for an adservice fault is the absence of a frontend\u2192adservice edge in a sample explicitly marked truncated at 200 spans and rated low confidence [tr_7e77922a8924], plus frontend gRPC status 14 lines that name no host, port, or RPC method [tr_747c25dd511f]. Restarting is irreversible and discards in-process state. If adservice is actually healthy and merely under-sampled, or if the real fault is a wrong listen port or bad artifact, a restart destroys the process state that would have identified the mechanism and returns the service to the same broken condition, having spent the one diagnostic snapshot available. If the fault is elsewhere entirely, the restart is a change made to a working service during an incident. rollback_image and revert_config are equally unsupported: no change history has been queried for adservice at all, so neither precondition is met.",
+    "blast_radius": "Nothing changes, so nobody sees anything. Had a restart been proposed, it would have hit adservice alone, and its inbound edge is frontend \u2014 which is already fail-soft on this path: frontend's aggregate error ratio is running at roughly two-thirds of baseline [tr_1a7ce49839c6] and checkoutservice is completing full order flows with gapless topic offsets 955\u2013962 [tr_0449bb177f2b]. There is no user-visible degradation currently pressing enough to justify acting ahead of the evidence."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on frontend followed by the load generator indicates user-facing impact rather than an isolated warning, and no open incident covers it. The cause could be any of the five downstream dependencies, so evidence is needed."
+  }
+}

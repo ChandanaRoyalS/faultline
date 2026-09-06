@@ -1,0 +1,43 @@
+incident 8d481ee9-5033-43f1-b600-295d6e059de1  state triaging  anchor 16:13:30
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 7d954925-bfd4-4033-a483-a0d058b16077
+triage judged: investigate (medium confidence, suspects unknown)
+  A single critical-severity alert on frauddetectionservice with no open incidents to fold it into and no recovery indicated; a critical label is not something to dismiss without evidence. Nothing in the alert pattern points to a specific fault class yet.
+investigation: 2 round(s), 4 dispatch(es), 16 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Restoring the pre-16:07:35 memory limit (the value in effect before platform-automation set memory=200m) and recreating the container should end the crash loop. Observable in Loki on {service="frauddetection-service"}: the three-line JVM/OTel startup sequence (JAVA_TOOL_OPTIONS pickup, VM class-sharing warning, javaagent banner) should be emitted once and then stop repeating — no further boot sequence at the ~62s cadence seen at 16:09:38/16:10:40/16:11:42/16:12:44/16:13:47/16:14:49. Within roughly two minutes of the single surviving boot, 'Consumed record with orderId: ... updated total count to: N' lines should reappear with a monotonically advancing counter, as they did through 15:47. Note that error-ratio metrics cannot be used to confirm this: calls_total for this service_name is empty in both incident and baseline windows [tr_4bb5f810af18], so confirmation must come from logs (and, if retrievable, container restart count / termination reason).
+  within      : 300s
+  risk        : The lowering was issued deliberately and repeatedly by platform-automation [tr_bc14cbd72a16]; if it was throttling this service in response to host memory pressure, raising the ceiling back moves the pressure onto whatever shares the host, and the failure reappears elsewhere as a harder-to-attribute problem. The recreate itself is disruptive independent of the diagnosis: it kills the current process mid-boot, discards in-process state, and forces a Kafka consumer-group rejoin. If the true cause is upstream of memory, this consumes a recreate, resets the backoff timer, and destroys the only remaining forensic state (current container's exit code and restart count) before anyone has read it — so capture the container's termination reason and restart count before executing, if that is possible at all. Finally, reverting fights the automation: if the automation re-applies the limit, the service flaps between two configurations rather than settling.
+  blast radius: One service, frauddetectionservice, which is the only service this incident reached and the alerted seed. It is a Kafka consumer, so during the recreate its consumer group rebalances and order records queue rather than being dropped; the backlog accumulated since ~16:07 (no consumption for the whole loop) will drain on recovery, which may show as a burst of counter advancement rather than a smooth resume. No dependency address is being changed, so no other service sees traffic move. Anyone watching frauddetectionservice error-ratio dashboards will see no change at all, because that series is empty regardless of service health [tr_4bb5f810af18].
+  if wrong    : Falsified if, after the recreate, the JVM/OTel boot banner continues to repeat at a ~60s cadence and no Kafka consumption lines resume. That would mean the process is dying for a reason other than the memory ceiling — the loop's true onset lies in the truncated portion of the log window and may predate 16:07:35 [tr_57d484e69031], and no OOMKilled/termination-reason or working-set data was ever retrieved [tr_ba7be5e73d39, tr_4bb5f810af18], so the kill mechanism is inferred, not observed. Also falsified in a weaker way if the loop stops but platform-automation re-issues the same lowering within ~10 minutes and the loop resumes: that would show the fix is correct but not durable, and the automation itself must be paused. A second failure mode nobody would see in logs: if the previous limit is itself too small, the service may boot and then die more slowly — watch for consumption lines that start and then cease rather than for the banner alone.
+  rests on    : tr_bc14cbd72a16, tr_57d484e69031
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 18066 pushed / 2880 pulled (pull rate 0.1375), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_bc14cbd72a16, tr_57d484e69031, tr_4bb5f810af18, tr_ba7be5e73d39
+  root cause  : At 16:07:35 platform-automation lowered the memory limit on frauddetection-service to 200m [tr_bc14cbd72a16]. Within seconds the service entered a restart loop still running at the 16:13:30 alert: the full JVM/OTel boot sequence repeats from ~16:07:48, first with shortening backoff then at a near-exact ~62s cadence, with no application error or stack trace and no Kafka consumption after 16:07 [tr_57d484e69031]. A JVM dying silently after the agent banner, right after its memory ceiling was cut, is the signature of external termination for exceeding that ceiling. The three earlier identical lowerings were each reverted within 8-12 minutes and caused no sustained outage; this one has no revert and is the state in effect at onset [tr_bc14cbd72a16]. The mechanism is the process being unable to run inside its memory allocation and being killed for it; the automated edit is the trigger, not the mechanism.
+  OPEN        : No OOMKilled/termination-reason, restart-count or memory working-set data was retrieved, so the kill mechanism is inferred rather than observed [tr_ba7be5e73d39, tr_4bb5f810af18].
+  OPEN        : The loop's true onset lies in the truncated portion of the log window, so it is not proven the loop began after the 16:07:35 change rather than just before it [tr_57d484e69031].
+  OPEN        : Why the three earlier lowerings to the same value produced no comparable outage, and why the usual restore never fired this time [tr_bc14cbd72a16].
+
+flags: none
+
+retrieval: exclude_origin='scenario:frauddetection-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T160731Z-frauddetection-memory-squeeze/8d481ee9-5033-43f1-b600-295d6e059de1-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T160731Z-frauddetection-memory-squeeze/8d481ee9-5033-43f1-b600-295d6e059de1-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7632.47it/s]

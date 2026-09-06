@@ -1,0 +1,45 @@
+incident e30ee2fd-c660-478a-9d71-00a8336fa7fa  state triaging  anchor 06:54:30
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 0c8e18bd-ce02-4254-b5f9-f7cf9b5539e7
+triage judged: investigate (medium confidence, suspects unknown)
+  A single critical-severity alert on frauddetectionservice with no open incidents to attribute it to and no recovery signal; critical severity is not dismissible as noise. Nothing in the alert pattern points to a specific fault class yet.
+investigation: 2 round(s), 4 dispatch(es), 16 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Restoring the configuration in effect before 06:48:34 (memory limit back to unset, as the two earlier reverts that day did) and recreating the container should end the crash loop. Observable as: in Loki under {service="frauddetection-service"}, exactly one JVM/OpenTelemetry-agent startup sequence (JAVA_TOOL_OPTIONS pickup, class-sharing warning, javaagent banner) after the recreate and no further repeats — the ~62s cadence seen at 06:50:37/06:51:39/06:52:42/06:53:44/06:54:46/06:55:48 stops — followed within ~60-90s by the resumption of business log lines of the form "Consumed record with orderId: ... updated total count to: N" with a monotonically increasing count, which have been absent since ~06:25:25.
+  within      : 300s
+  risk        : Reverting removes the memory ceiling rather than raising it to a workable value. If the true cause is a memory leak or a genuine footprint growth in the service, the unbounded container will grow until it pressures the host, converting a single-service crash loop into host-level memory pressure that can evict or slow co-located containers — a worse failure than the one being fixed. If the diagnosis is wrong in the other direction (process dies for a non-memory reason), the revert buys nothing and costs one more forced restart of an already-unhealthy service, plus a Kafka consumer-group rebalance and loss of in-process cache. The revert also re-opens whatever concern drove platform-automation to impose the 200m limit in the first place, which is unexplained.
+  blast radius: One service, frauddetectionservice, for the duration of the container recreate. No callers were dispatched in this investigation, so downstream impact is unmeasured: the fraud-check path's consumers, and whether that path fails open or closed while the service is down, are unknown — the service is already restarting every ~62s, so the incremental unavailability is small, but this should not be read as 'nobody notices'. Additionally the host shares memory with co-located containers, so removing the limit is visible beyond this service if the footprint grows.
+  if wrong    : Falsified if, five minutes after the recreate, the startup banner triple is still repeating on roughly a 62s interval and no "Consumed record" line has appeared — that would mean the process dies before steady state for a reason other than the 200m cgroup limit (the OOMKill mechanism was never directly observed: no working-set, terminated-reason, or restart-count series was queried [tr_785453d21099]). Also falsified in a second way: if the loop stops and then resumes later, check change-log for a sixth resource_limits entry from platform-automation — the automation applied this limit three times and reverted twice, so a manual revert may simply be overwritten and the fix will not hold. Note one blind spot: the primary success signal here is logs only. The span/call telemetry for this service returned zero samples for twelve continuous hours, so error-ratio and request-rate cannot be used to confirm recovery; if the log stream is also unavailable after the recreate, this proposal is unverifiable and should be treated as unconfirmed rather than successful.
+  rests on    : tr_998ab37c8a91, tr_8b2593c1ccb0
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 18662 pushed / 2778 pulled (pull rate 0.1296), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_998ab37c8a91, tr_8b2593c1ccb0, tr_95266ef8ea3d, tr_785453d21099
+  root cause  : At 06:48:34, roughly five minutes before the alert, platform-automation lowered the container memory limit on frauddetection-service to 200m and — unlike the two earlier apply/revert cycles that day — did not revert it [tr_998ab37c8a91]. From ~06:48:47 onward the service's logs show the JVM/OpenTelemetry-agent startup banner repeating over and over, settling into a near-constant ~62s kill-and-restart cadence, with the process dying between agent init and the first business (Kafka consume) log line and no exception, stack trace, or dependency error anywhere [tr_8b2593c1ccb0]. That is the signature of a JVM whose heap plus native footprint cannot fit inside the newly imposed 200m cgroup limit: the container is terminated for exceeding its memory allowance before it ever reaches steady state, the supervisor restarts it, and the cycle repeats. The failing mechanism is memory exhaustion against the enforced limit; the automation edit is how it started, not what is happening.
+  OPEN        : No container memory working-set, OOMKilled/terminated-reason, or restart-count series was ever queried, so the OOMKill mechanism is inferred from restart cadence and change timing rather than directly observed [tr_785453d21099].
+  OPEN        : The service's span/call telemetry returned zero samples for a continuous twelve hours under the queried service_name label, so it is unknown whether this is a label mismatch or a genuine scrape failure, and unknown whether the service was already impaired before 06:48.
+  OPEN        : Log onset is bounded only from above: restart activity is already present at 06:48:47, the oldest line in the newest-lines block, so the true start could be earlier and closer to or slightly before the 06:48:34 limit change [tr_8b2593c1ccb0].
+  OPEN        : Why platform-automation applied this limit three times and reverted it twice is unexplained; if the automation re-applies, a manual revert will not hold.
+  OPEN        : No callers of frauddetectionservice were dispatched, so downstream user impact and whether the fraud path fails open or closed is unmeasured.
+
+flags: none
+
+retrieval: exclude_origin='scenario:frauddetection-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T064830Z-frauddetection-memory-squeeze/e30ee2fd-c660-478a-9d71-00a8336fa7fa-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T064830Z-frauddetection-memory-squeeze/e30ee2fd-c660-478a-9d71-00a8336fa7fa-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8007.51it/s]

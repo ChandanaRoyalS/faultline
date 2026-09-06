@@ -1,0 +1,43 @@
+incident b474df29-e13f-4805-bbc6-be44c1139715  state triaging  anchor 17:52:15
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 67c05eaa-da4f-4fb6-9f0e-f88ab7339ae2
+triage judged: investigate (low confidence, suspects unknown)
+  A single critical alert on fraud detection with no open incidents and no dismissible pattern - not a lone latency warning or load generator. Nothing in the alert set suggests a specific fault class yet.
+investigation: 2 round(s), 4 dispatch(es), 16 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Restoring the configuration in force before 2026-09-06T17:46:31 (memory limit unset, as it was after each of the four prior restores) and recreating the container should end the restart loop. Observable in Loki on {service="frauddetection-service"}: the three-line JVM startup sequence (JAVA_TOOL_OPTIONS / CDS warning / OpenTelemetry javaagent version) should appear exactly once after the recreate and then stop recurring on the ~62s cadence seen at 17:47:41-17:53:46; and 'Consumed record with orderId: ... updated total count to: N' lines should reappear with a monotonically advancing counter resuming from the last value near 597, within about 90s of the recreate. Container restart counter, if queried, should stop incrementing.
+  within      : 300s
+  risk        : If the 200m ceiling was applied deliberately to contain a genuine memory leak or runaway allocation in frauddetectionservice, removing it lets the JVM grow unbounded again and shifts the failure from a contained crash-loop to host-level memory pressure, which is worse and hits neighbours rather than one service. If the automation's fifth lowering was a correct response to something we cannot see, this reverts that response. The recreate is also disruptive on its own: in-process state and cache are discarded and the Kafka consumer reconnects, so a brief re-read or gap at the consumer offset is possible. If the diagnosis is wrong the loop simply continues and we have spent one recreate and some minutes.
+  blast radius: One service, frauddetectionservice, plus its callers during the container recreate — though it has been consuming no order records since 17:46, so callers are already seeing total failure and the recreate adds little. On success, the resumed consumption drains an accumulated order backlog, which is a load step for whatever frauddetectionservice reads from and writes to. The brief names no inbound edges and states blast radius beyond frauddetectionservice was not measured [tr_f1338640f50d], so downstream effect is asserted, not observed; approver should confirm the dependency graph before acting.
+  if wrong    : Falsified if, more than two cadence periods (~150s) after the recreate, the startup triple is still repeating at ~62s intervals and no record-consumption lines have appeared — that would mean the kill is not driven by the 200m ceiling (the mechanism was inferred from timing and log shape only; last-terminated-reason, working-set vs. limit, and restart count were never retrieved [tr_49b52a82cc0e]). Also falsified in a different way if the loop stops but change-log shows platform-automation re-applying the 200m limit within minutes and the loop returns: then the revert is correct but not durable, and the automation itself — outside what this system may touch — is the thing to fix. Note the span-derived error-ratio series is empty for this service in both incident and baseline windows, so recovery cannot be confirmed from that metric; confirmation must come from logs and container restart counters.
+  rests on    : tr_00af10dbdab5, tr_f1338640f50d
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 18592 pushed / 2965 pulled (pull rate 0.1375), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_00af10dbdab5, tr_f1338640f50d, tr_49b52a82cc0e
+  root cause  : At 17:46:31 platform-automation lowered the memory limit on frauddetection-service to 200m and, unlike the four prior lower/restore cycles in the preceding ~16 hours, never restored it [tr_00af10dbdab5]. Thirteen seconds later the JVM entered a restart loop — rapid cycles at 17:46:44/49/58 settling into a near-exact ~62s cadence through 17:53:46, with no exception, stack trace or shutdown message, and no record-consumption lines after the loop began, though the service had been consuming orders normally through 17:23:29 [tr_f1338640f50d]. A JVM that reaches its agent banner and then dies silently on a fixed external cadence immediately after its memory ceiling is cut to 200m is being killed for exceeding that ceiling. The 17:52:15 alert falls mid-loop, not at onset [tr_f1338640f50d].
+  OPEN        : No container/kubelet evidence was collected — last-terminated-reason, memory working set against the 200m ceiling, and restart counter are all unretrieved [tr_49b52a82cc0e]; OOMKill is inferred from timing and log shape, not observed.
+  OPEN        : Why the automation applied the limit a fifth time and omitted its usual restore is unknown, which determines whether this self-heals.
+  OPEN        : Blast radius beyond frauddetectionservice was not measured; the service has consumed no order records since 17:46 [tr_f1338640f50d].
+
+flags: none
+
+retrieval: exclude_origin='scenario:frauddetection-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T174627Z-frauddetection-memory-squeeze/b474df29-e13f-4805-bbc6-be44c1139715-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T174627Z-frauddetection-memory-squeeze/b474df29-e13f-4805-bbc6-be44c1139715-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9458.21it/s]

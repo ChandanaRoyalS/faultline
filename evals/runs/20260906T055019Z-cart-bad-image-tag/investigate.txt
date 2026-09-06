@@ -1,0 +1,38 @@
+incident 2cb5af55-e8fd-48c3-a47c-2f54512e833e  state triaging  anchor 05:55:00
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: a3b8a6cf-0048-48db-9171-f8cbb0873dbe
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service alerting starting at checkout/frontend and fanning out to nearly every downstream within 90 seconds; no open incident covers it. Fault class is unclear from alerts alone — checkout-centric shared dependency or deploy are both plausible.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a cartservice query returns a deploy, image change, or config push inside the incident window — then rollback_image or revert_config becomes proposable with a real precondition. It is also wrong if cartservice logs show OOM kills, restart counts climbing, or a crash-loop banner, which would make restart_service the indicated class. Conversely, if cartservice logs show clean startup, a single stable process, and connection-refused or auth errors against its cache backend, then no action on this allowlist addresses the mechanism at all and the abstention stands permanently rather than provisionally.
+  rests on    : tr_92d8f3f4c6cc, tr_487c74c4c885, tr_8ffe1069f495
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 27197 pushed / 11063 pulled (pull rate 0.2892), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : medium
+  evidence    : tr_92d8f3f4c6cc, tr_487c74c4c885, tr_8ffe1069f495
+  root cause  : Every failing checkout trace aborts at one leaf call: the CartService GetCart RPC issued by checkoutservice inside prepareOrderItemsAndShippingQuoteFromCart. That span carries ERROR in all ~39 failing traces and returns in 2.0-4.7ms, and checkoutservice/frontend spans inherit the ERROR unchanged [tr_92d8f3f4c6cc]. checkoutservice logs corroborate: placement lines continue steadily through 05:56:57 but payment, email and message-write completion lines vanish after ~05:53, with no error severity anywhere [tr_487c74c4c885]. So cartservice is returning fast deterministic errors to checkoutservice, and the downstream alerts on shipping/currency/email/accounting follow from a checkout flow that never reaches them. Why cartservice is erroring is not established — no dispatch queried cartservice's logs, metrics, change history or its cache backend — so the mechanism inside cartservice is undetermined.
+  OPEN        : cartservice was never queried directly: no logs, error metrics, change history or restart/OOM record for it.
+  OPEN        : Is cartservice's Redis/cache backend healthy? A failed cache dependency would produce exactly these fast GetCart errors.
+  OPEN        : True onset time is unpinned: the checkoutservice baseline window returned no samples [tr_8ffe1069f495] and 05:25-05:53 of its logs is truncated [tr_487c74c4c885].
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T055019Z-cart-bad-image-tag/2cb5af55-e8fd-48c3-a47c-2f54512e833e-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T055019Z-cart-bad-image-tag/2cb5af55-e8fd-48c3-a47c-2f54512e833e-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7196.86it/s]

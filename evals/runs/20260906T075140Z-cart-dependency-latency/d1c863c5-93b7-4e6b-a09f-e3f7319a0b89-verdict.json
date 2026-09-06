@@ -1,0 +1,168 @@
+{
+  "incident_id": "d1c863c5-93b7-4e6b-a09f-e3f7319a0b89",
+  "trajectory_id": "697049ee-abc1-469b-9401-58516702d327",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-dependency-latency",
+  "verdict": {
+    "root_cause": "A traffic-shaping container was attached to cart-service's network namespace at 07:51:49, ~3 minutes before onset, injecting a fixed 300ms/0-jitter delay on eth0 with no matching removal recorded, unlike every earlier cycle [tr_eafb0e1462b1]. Every cart Redis round trip therefore pays a constant ~300ms toll: GetCart ~301-307ms is essentially one HGET, AddItem ~601-617ms is HGET+HMSET at ~300ms each, reads and writes penalized identically with no fast outliers [tr_fee4e8770864]. Callers inherit the wait: checkout PlaceOrder runs ~2.44-2.48s dominated by two cart calls while its other downstreams stay sub-25ms [tr_fee4e8770864], and its logs show orders still completing but ~50x slower, with no errors and no peer named [tr_0c326ffdbbb4]. cartservice itself is healthy and continuously serving [tr_78352b904ff8]. The hotfix image was reverted ~13m before onset and REDIS_ADDR ~1.3h before, so neither was in effect [tr_eafb0e1462b1]. The mechanism is waiting on an artificially delayed network path, not a wrong value in the service's own config nor a wrong artifact.",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_eafb0e1462b1",
+      "tr_fee4e8770864",
+      "tr_0c326ffdbbb4"
+    ],
+    "reasoning": "The trace shape is a flat, jitter-free ~300ms added per Redis operation, with cartservice server spans equal to the sum of their Redis children (near-zero self time) and HGET and HMSET equally affected \u2014 a step-injected delay, not saturation or a degrading cache [tr_fee4e8770864]. The only change active and unreverted at onset is a shaper on cart-service's own network namespace whose configured 300ms matches the observed per-operation penalty exactly [tr_eafb0e1462b1]; competing image and REDIS_ADDR changes were reverted before onset, excluding bad_deploy and bad_config on timing. checkout and frontend are victims: checkout completes the happy path with all non-cart dependencies sub-25ms [tr_fee4e8770864] and logs pure slowdown without errors [tr_0c326ffdbbb4], while its error ratio is a service-level aggregate that cannot attribute blame to a peer [tr_01482d1a5f6a]. cartservice's empty error-ratio series is an instrumentation gap in both windows, not a signal [tr_780df684e072]. The fix is removing the shaping attachment, not rolling back an image or restarting a healthy process.",
+    "open_questions": [
+      "checkoutservice's error-ratio change point is 07:33:15, ~18 minutes before the 07:51:49 attachment [tr_01482d1a5f6a, tr_eafb0e1462b1] \u2014 errors starting before the blamed change are unexplained.",
+      "No failing span or error log was ever tied to a named peer; all sampled PlaceOrder traces succeeded [tr_fee4e8770864] and retained checkout lines are all info severity [tr_0c326ffdbbb4], so the ~17% error ratio's mechanism is inferred, not observed.",
+      "Both log results are truncated to oldest 8 / newest 32 lines, and cartservice request rate, latency, restarts and replica counts were never measured [tr_78352b904ff8, tr_0c326ffdbbb4, tr_780df684e072], so mid-window failures and concurrent saturation cannot be positively excluded."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "An earlier or concurrent unremoved shaper, or a separate intermittent fault, drove checkoutservice's errors from 07:33 and the 07:51 attachment only deepened an existing degradation.",
+        "service": "cartservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "config_revert",
+        "why_not": "Same mechanism and same fix; it only shifts the start time. The change record shows earlier attachments each had a matching removal, so no second shaper is evidenced.",
+        "note": null
+      },
+      {
+        "root_cause": "The cart Redis backend itself became slow, and the shaper's timing near onset is coincidental within a repeating automation cycle.",
+        "service": "cartservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "A genuinely struggling cache produces variable latency with fast outliers; the observed penalty is a tight constant matching the shaper's configured 300ms exactly, and reads and writes are hit identically [tr_fee4e8770864].",
+        "note": null
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "redis-cart-dependency-latency / Resolution: The delay was removed from the Redis container's interface and latency returned to baseline as the\nalert windows drained. **Class of fix: `restart`** - the intervention was on the container carrying\nthe fault, not a revert of any application configuration. Nothing about cartservi",
+    "redis-cart-dependency-latency / Root cause: Redis, the cart service's datastore, had a 300ms network delay applied to its interface, so every\nresponse it sent back arrived late. Cart was not broken and was not doing anything differently - it\nwas blocking on a datastore that had become slow, and everything that calls cart i",
+    "cart-redis-misconfig / Resolution: `REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and\nthe no-traffic alerts cleared \u2014 those six services had never been broken, only starved.\nEverything was clear at **T+10m32s**, 3m01s after the fix.\n\nClass of fix: **config_revert**. Nothing had"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25028,
+    "pulled_tokens": 8745,
+    "pull_rate": 0.2589,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 472,
+        "content_tokens": 474,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1776,
+        "content_tokens": 1780,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7561,
+        "content_tokens": 7537,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6952,
+        "content_tokens": 6954,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8267,
+        "content_tokens": 8245,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_eafb0e1462b1",
+      "tr_fee4e8770864",
+      "tr_0c326ffdbbb4"
+    ],
+    "expected_effect": "Removing the 07:51:49 traffic-shaping attachment (eth0 delay=300ms) and recreating cartservice should drop cartservice HGET/HMSET child spans from ~300ms to single-digit ms, GetCart from ~301-307ms and AddItem from ~601-617ms to low ms, checkout PlaceOrder from ~2.44-2.48s toward sub-100ms, and checkout-service log step gaps from ~1.2s back to the ~20ms seen at 07:25. I do not predict the checkout error ratio returns to zero.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if HGET spans remain ~300ms after 5 minutes \u2014 the delay then lives outside cartservice's own namespace config (consistent with the 300-900ms client/server span gap in tr_fee4e8770864). Also unaddressed: checkoutservice errors began 07:33:15, ~18 min before the attachment, with no peer ever named; if that ~17% error ratio persists, a second cause is still live.",
+    "risk": "The recreate resets in-flight connections and discards cart cache. Worse, change history holds repeated apply/revert cycles for three knobs; if 'previous configuration' resolves wrongly it could re-apply the REDIS_ADDR=6380 override, breaking cart persistence outright \u2014 a hard failure replacing a slow one.",
+    "blast_radius": "cartservice callers named in the graph: frontend and checkoutservice see connection resets during the recreate; frontend browse/add-to-cart and checkout PlaceOrder briefly fail, and loadgenerator's error counts rise for that interval."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "low",
+    "reasoning": "Four services alerting within 15 seconds along the cart/checkout/frontend path is not a single quiet latency warning, and no open incident covers it. The fan-out from cartservice to its callers suggests a shared downstream dependency, but that is only a prior for ordering dispatches."
+  }
+}
