@@ -1225,6 +1225,50 @@ decomposition alone. It is separable at no extra design cost: the pipeline alrea
 `--no-corpus`, so a retrieval-off pipeline run against B1 isolates the fan-out on its own. **No B1
 run has been scored yet** — the runs need credits.
 
+### Dev sweep 10 — and the first measured disagreement at a fixed stamp
+
+Full accounting in [`SWEEP-2026-09-06-sweep10.md`](../evals/runs/SWEEP-2026-09-06-sweep10.md); six
+of seven pre-registered predictions held, \$3.6366 all in. **The result that matters is not in the
+accuracy table.**
+
+**`cart-bad-image-tag` was scored correct on fault class at `b6837dd449ca`, and four hours later at
+the same stamp came back wrong** — same capability, same world generation `f5bd108f4f70` — with
+`bad_deploy` absent from all three of its ranked candidates. Every figure this project publishes is
+R=1; `repeat_count: 1` appears on every run ever recorded, and the `weekly` and `published` tiers
+have never run. **So run-to-run variance at a fixed stamp had never been measured, and the first
+measurement arrived by accident at n=2.**
+
+It invalidates nothing already recorded and it changes what a single run means: **not reproducible
+to ±1 scenario on fault class**, which is a statement about these five, about dev sweep 9's four,
+and about every per-scenario comparison between them. **R=3 on these five, priced at ~\$9, is now
+the highest-value unspent money in this project** and was not before today.
+
+**The headline that survives it:** culprit service **5 of 5**, the first clean sweep on that axis,
+with `frontend` the triage entry point on three and blamed on none. Fault class 3 of 5 at top-1,
+**4 of 5 within top-3**. B0.2 1 of 5 at \$0.0000, ranking nothing and naming no service.
+
+**Top-3 became publishable and one rule had to be retired to say so.** Dev sweep 9 registered that
+top-3 must not be published at that stamp because three of four verdicts carried no alternative.
+Four of five carry three candidates here, and `cart-redis-misconfig` scored the **first
+`gained_by_ranking: true` in the record** — top-1 `unknown`, rank 3 `bad_config`, which was the
+truth. The condition attached: B0.2's depth is 1 on every run, so a top-3 column across arms
+compares a ranking arm with one that cannot rank, and depth travels with the rate or the figure is
+not published.
+
+**And an unrenderable measurement distorted a pre-registration**, which is a cost of that defect
+class nobody had priced. Prediction 6 registered *"`cart-dependency-latency` carries depth ≥2, the
+rest depth 1"* and did not name an axis. On service it was exactly right; on class it was exactly
+backwards — 1 against 3. It named no axis because **`ranked_class` was not printable when it was
+written**: scored since T4.2, in every manifest since, rendered nowhere. Fixed with
+`ScoredRun.report` iterating both axes. **The same defect the `service` line was added to fix, one
+field over, in the same commit that fixed it — fixing an instance is not fixing the class.**
+
+The same fix corrected a false sentence. Against a verdict whose two alternatives both named
+`cartservice`, the service axis collapsed to depth 1 and the report printed *"the verdict offered
+no alternative"* about a verdict that had offered two. **The number was right and the sentence was
+false, which is worse than either alone.** Whether a verdict ranked is a property of the verdict,
+not of one axis.
+
 ## Phase 5 — audited 2026-09-03, and T5.1's read half built
 
 | task | deliverable | state |
