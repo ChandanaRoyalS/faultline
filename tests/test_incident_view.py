@@ -105,12 +105,47 @@ def test_a_change_history_citation_gets_no_link_rather_than_a_wrong_one() -> Non
     assert citation.deep_link is None, "but there is nowhere to send a reader"
 
 
-def test_the_link_is_relative_so_it_works_wherever_grafana_is_served() -> None:
-    """The platform does not know its own public URL, and guessing one is how a demo link 404s on
-    a stranger's machine — which is exactly what T5.4's clean-clone rehearsal exists to catch."""
+def test_the_link_carries_grafanas_host_and_not_the_page_s() -> None:
+    """**The assertion this replaces was the defect.**
+
+    It read `startswith("/explore?")` under the heading *"the link is relative so it works wherever
+    Grafana is served"*, and a relative path does not resolve against wherever Grafana is served -
+    it resolves against whatever served the page. That is `faultline-ingest`, which has two static
+    routes and no `/explore`. Every citation on the incident screen 404'd, on the development
+    machine and everywhere else, while this test passed.
+
+    A link is only a link if it names a host that answers. Asserting the *shape* of a URL is what
+    let a broken one through, so this asserts the base as well.
+    """
     call = Call("promql_query", "tr_1", query="up")
 
-    assert view.citations(["tr_1"], [call])[0].deep_link.startswith("/explore?")
+    link = view.citations(["tr_1"], [call])[0].deep_link
+
+    assert link is not None
+    assert link.startswith("http://localhost:3000/explore?"), (
+        "the configured Grafana, not the host serving the page"
+    )
+
+
+def test_the_grafana_base_is_configuration_not_a_constant() -> None:
+    """A deployment serves Grafana somewhere else, and T5.5 puts one behind a single hostname.
+
+    `deep_link` takes the base explicitly here rather than through the environment, because the
+    ambient default is what the previous test asserts and a second test reading the same ambient
+    value would prove nothing about whether the value is used.
+    """
+    link = view.deep_link("promql_query", {"query": "up"}, grafana_url="https://faultline.example")
+
+    assert link is not None
+    assert link.startswith("https://faultline.example/explore?")
+
+
+def test_a_trailing_slash_on_the_configured_base_does_not_double() -> None:
+    """`https://host//explore` is a different path to Grafana, and an operator writes the slash."""
+    link = view.deep_link("promql_query", {"query": "up"}, grafana_url="https://faultline.example/")
+
+    assert link is not None
+    assert "//explore" not in link.removeprefix("https://")
 
 
 def test_a_call_with_no_query_yields_no_link() -> None:

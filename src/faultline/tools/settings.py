@@ -25,6 +25,29 @@ class ToolSettings(BaseSettings):
     query service serves the SPA for paths it does not recognise - so the working prefix is
     `/jaeger/ui/api/...` (measured, docs/evidence/t2.4-dependency-graph/)."""
 
+    grafana_url: str = "http://localhost:3000"
+    """**Where a citation's deep link sends a reader** - the only setting in this class no tool
+    reads. `faultline.api.view` does.
+
+    It sits beside the others because it is the same kind of fact under the same rule: an endpoint
+    the deployment knows and an agent cannot name. `jaeger_url` is already a *UI* base rather than
+    an API root, so this is not a new species of value here.
+
+    **It exists because the link did not work.** `view.deep_link` built `/explore?left=...` as a
+    bare relative path, reasoning that *"the platform does not know its own public URL"* - true,
+    and about the wrong URL. A deep link needs **Grafana's** address, which the platform is told,
+    exactly as it is told Prometheus's and Loki's. Relative, the link resolved against whatever
+    host served the incident page - `faultline-ingest` on :8000, which serves no `/explore` route.
+    Every citation on the page 404'd, on the development machine and everywhere else. The tests
+    asserted the string began with `/explore?`, never that it reached anything.
+
+    T5.1's deliverable is *"Incident view with evidence cards + citation deep-links"*, and the
+    clickable citation is the demo's third beat in the proposal's own script. Found auditing
+    Phase 5 against the specification's wording, after an earlier pass had marked T5.1 complete on
+    the strength of the function existing.
+
+    The default is the development Grafana, published on 3000 by `compose/telemetry.yml`."""
+
     postgres_dsn: str = "postgresql://faultline:faultline-dev@localhost:5432/faultline"
 
     max_log_lines: int = 500
