@@ -44,7 +44,7 @@ def compose() -> dict:
 # --- nothing is published that should not be ----------------------------------------------------
 
 
-@pytest.mark.parametrize("service", ["postgres", "faultline"])
+@pytest.mark.parametrize("service", ["postgres", "faultline", "redis", "orchestrator"])
 def test_only_caddy_publishes_a_port(compose: dict, service: str) -> None:
     """The difference between this file and `docker-compose.yml`, and the reason it is a separate
     file rather than another profile.
@@ -263,7 +263,11 @@ def test_the_example_holds_no_values() -> None:
         for line in ENV_EXAMPLE.read_text().splitlines()
         if "=" in line
         and not line.lstrip().startswith("#")
-        and line.split("=", 1)[1].strip()
+        # **`FOO=''` carries no value and the quotes are the instruction.** A bcrypt hash is mostly
+        # dollar signs and Compose's dotenv parser expands `$VAR` in an unquoted value, so the
+        # required form is part of what this file teaches - showing empty quotes is how it teaches
+        # it without carrying a credential.
+        and line.split("=", 1)[1].strip().strip("'\"")
         # The username is not a secret and a working default saves a step.
         and not line.startswith("FAULTLINE_API_USER=")
     ]
@@ -278,18 +282,254 @@ def test_the_secrets_are_ignored() -> None:
     assert "deploy/snapshot.sql.gz" in ignored
 
 
+# --- the deployment runs what CI built, and the whole MVP -----------------------------------------
+#
+# Every guard below fails against the version of these files that preceded it. That is the point:
+# a guard written to pass against the state it is meant to prevent asserts nothing, and four of
+# this file's guards were wrong on first writing for exactly that reason (T5.5, T5.4b).
+
+
+@pytest.mark.parametrize("service", ["faultline", "orchestrator"])
+def test_the_deployment_pulls_rather_than_builds(compose: dict, service: str) -> None:
+    """T5.5: *"the same images CI builds"*, *"images pulled from the registry CI publishes to"*.
+
+    `build:` compiles a fresh image on the VM out of whatever the working tree holds - a different
+    artifact from the one CI tested, and one the registry cannot identify after the fact.
+    """
+    assert "build" not in compose["services"][service], (
+        f"{service} builds on the VM. T5.5 deploys the image CI published."
+    )
+    assert "image" in compose["services"][service]
+
+
+def test_the_image_is_named_by_commit_and_never_by_a_moving_tag(compose: dict) -> None:
+    """`:latest` moves under a running VM, so "what is deployed?" stops having an answer and a
+    rollback becomes a question about what the tag pointed at on the day."""
+    for service in ("faultline", "orchestrator"):
+        image = compose["services"][service]["image"]
+        assert image.startswith("${FAULTLINE_IMAGE"), f"{service} pins an image inline"
+        assert ":?" in image, f"{service} lets FAULTLINE_IMAGE default; it must be named"
+    assert "never :latest" in COMPOSE.read_text()
+
+
+def test_the_deployment_investigates_rather_than_only_remembering(compose: dict) -> None:
+    """Phase 5: *"The MVP is a complete story: world, investigation, grounding, evaluation."*
+
+    A deployed instance with a world and no orchestrator alerts on a fault and investigates
+    nothing. An earlier version of this file had neither, and served a snapshot.
+    """
+    orchestrator = compose["services"]["orchestrator"]
+
+    assert orchestrator["command"] == ["faultline-orchestrate"]
+    assert "redis" in compose["services"], "the event bus the orchestrator consumes"
+    assert "ANTHROPIC_API_KEY" in orchestrator["environment"]
+
+
+def test_the_receiver_is_not_reachable_from_the_internet() -> None:
+    """**The reason this exists changed when the orchestrator arrived.**
+
+    `POST /api/v1/alerts` takes no credential and cannot - Alertmanager sends none, so a password
+    there would stop alerts rather than attackers (THREAT-MODEL thesis 3). Harmless while the
+    deployment investigated nothing; an unauthenticated endpoint that bills the owner once it does.
+    """
+    caddyfile = CADDYFILE.read_text()
+
+    assert "handle /api/v1/alerts*" in caddyfile
+    assert re.search(r"handle /api/v1/alerts\*\s*\{[^}]*respond[^}]*404", caddyfile), (
+        "the alerts path must be answered by Caddy, not proxied"
+    )
+
+
+def test_the_health_endpoint_stays_open_for_the_uptime_check() -> None:
+    """T5.5 names *"an uptime check"*. A monitor holding a credential has "the credential expired"
+    among its failure modes, and `/healthz` returns a status and nothing about the incidents."""
+    caddyfile = CADDYFILE.read_text()
+    health = caddyfile.index("handle /healthz")
+
+    assert "basic_auth" not in caddyfile[health : caddyfile.index("handle", health + 1)]
+
+
+def test_the_worlds_own_uis_are_behind_the_credential() -> None:
+    """Grafana and Jaeger ship with no authentication in the demo, and the deep link T5.1 builds
+    now points a reader at Grafana through this hostname."""
+    caddyfile = CADDYFILE.read_text()
+
+    assert "@world path /grafana* /jaeger* /loadgen*" in caddyfile
+    assert re.search(r"handle @world\s*\{[^}]*basic_auth", caddyfile)
+
+
+def test_the_citation_link_sends_a_reader_somewhere_public(compose: dict) -> None:
+    """Every other endpoint the orchestrator is given is where a *tool* reaches. This one is where
+    a *human* is sent, so an internal hostname would be a dead link with extra steps."""
+    grafana = compose["services"]["orchestrator"]["environment"]["FAULTLINE_TOOLS_GRAFANA_URL"]
+
+    assert grafana.startswith("https://${SITE_ADDRESS")
+    assert grafana.endswith("/grafana"), "the prefix the demo's frontend-proxy already serves"
+
+
+# --- the world is on the same network, and posts to the container ---------------------------------
+
+WORLD_OVERLAY = DEPLOY / "compose.world.yml"
+DEPLOY_ALERTMANAGER = DEPLOY / "alertmanager.yml"
+
+
+@pytest.fixture(scope="module")
+def world() -> dict:
+    return yaml.safe_load(WORLD_OVERLAY.read_text())
+
+
+@pytest.mark.parametrize("service", ["alertmanager", "prometheus", "loki", "frontend-proxy"])
+def test_every_service_the_platform_talks_to_shares_its_network(world: dict, service: str) -> None:
+    """Two compose projects, one network. The orchestrator queries three of these and Caddy
+    forwards the demo's UIs through the fourth; a service left off the network is a tool that
+    times out at the moment it is asked a question."""
+    assert "faultline" in world["services"][service]["networks"]
+
+
+def test_the_shared_network_is_external_so_neither_project_owns_it(world: dict) -> None:
+    """`docker compose down` on the platform would otherwise tear out a network the world is still
+    attached to."""
+    for spec in (
+        world["networks"]["faultline"],
+        yaml.safe_load(COMPOSE.read_text())["networks"]["faultline"],
+    ):
+        assert spec["external"] is True
+        assert spec["name"] == "faultline-deploy-net"
+
+
+def test_alertmanager_posts_to_the_container_not_a_developers_host(world: dict) -> None:
+    """`host.docker.internal` is right on a development machine, where the receiver runs on the
+    host, and resolves to nothing that listens on a Linux VM."""
+    config = yaml.safe_load(DEPLOY_ALERTMANAGER.read_text())
+    url = config["receivers"][0]["webhook_configs"][0]["url"]
+
+    assert url == "http://faultline:8000/api/v1/alerts"
+    # **Against the parsed config, not the file text.** The first version of this line grepped the
+    # raw file and failed on the comment that explains why `host.docker.internal` is wrong here -
+    # a guard that forbids a document from naming the thing it is documenting. Fifth time a guard
+    # in this repository has been wrong on first writing, and the fifth caught only by running it.
+    assert all(
+        "host.docker.internal" not in hook["url"]
+        for receiver in config["receivers"]
+        for hook in receiver["webhook_configs"]
+    )
+    assert world["services"]["alertmanager"]["command"] == [
+        "--config.file=/etc/alertmanager/alertmanager.deploy.yml",
+        "--web.listen-address=:9093",
+    ], "an overlay replaces command, which is how the second config is selected"
+
+
+def test_the_deployment_alertmanager_batches_exactly_as_development_does() -> None:
+    """A deployment that grouped alerts differently would produce incidents of a different shape,
+    and every figure in docs/RESULTS.md was measured under these numbers."""
+    dev = yaml.safe_load((REPO_ROOT / "compose/prometheus/alertmanager.yml").read_text())
+    deployed = yaml.safe_load(DEPLOY_ALERTMANAGER.read_text())
+
+    assert {k: v for k, v in dev["route"].items() if k != "receiver"} == {
+        k: v for k, v in deployed["route"].items() if k != "receiver"
+    }
+
+
+# --- the uptime check exists and watches more than liveness ---------------------------------------
+
+UPTIME = REPO_ROOT / ".github/workflows/uptime.yml"
+
+
+def test_the_uptime_check_is_a_committed_artifact_rather_than_an_account() -> None:
+    """T5.5 names *"an uptime check"* as a deliverable. A setting in a vendor's dashboard cannot be
+    reviewed, cannot be diffed, and cannot be shown to a reader of this repository."""
+    assert UPTIME.is_file()
+    workflow = yaml.safe_load(UPTIME.read_text())
+
+    # `on:` parses as the boolean True in YAML 1.1, which pyyaml implements.
+    assert "schedule" in workflow[True]
+
+
+def test_the_uptime_check_would_notice_more_than_the_process_being_alive() -> None:
+    """`/healthz` is deliberately shallow: a deployment started without `--postgres-dsn` answers it
+    perfectly and 404s the incident screen. That failure is exactly the one T5.5's guards were
+    written for, and a check that reported it as health would be worse than none.
+
+    The alerts assertion is the other half - not an outage check at all, but the one that notices
+    if a Caddyfile edit ever puts the receiver back on the internet, where anything reaching it can
+    open incidents that bill the deployment's key.
+    """
+    steps = yaml.safe_load(UPTIME.read_text())["jobs"]["healthz"]["steps"]
+    script = "\n".join(step.get("run", "") for step in steps)
+
+    assert "/healthz" in script
+    assert "/api/v1/incidents" in script, "liveness alone would miss an unmounted read surface"
+    assert "/api/v1/alerts" in script, "nothing else would notice the receiver going public"
+
+
+def test_an_unconfigured_uptime_check_skips_rather_than_failing_forever() -> None:
+    """This file is committed before the VM exists. A permanently red check is worse than no check:
+    people learn to ignore it, and then they ignore the next one too."""
+    steps = yaml.safe_load(UPTIME.read_text())["jobs"]["healthz"]["steps"]
+
+    assert all("configured == 'true'" in str(step.get("if", "")) for step in steps[1:])
+
+
+def test_the_documented_world_command_applies_the_deploy_overlay_and_not_the_arm64_one() -> None:
+    """`compose/world-arm64.override.yml` exists because the development machine is an Apple
+    Silicon Mac running part of the demo under Rosetta. The VM is x86-64, so applying it there asks
+    a linux/amd64 host to translate amd64 images with a layer it does not have.
+
+    Asserted against the README's own fenced command, because the command an operator copies is the
+    one that runs - a rule this file already learned when a guard read prose instead of a code
+    block (T5.4b).
+    """
+    readme = (DEPLOY / "README.md").read_text()
+    blocks = re.findall(r"```bash\n(.*?)```", readme, re.S)
+    world = [b for b in blocks if "compose.world.yml" in b]
+
+    assert world, "deploy/README.md documents no command that brings the world up"
+    for block in world:
+        assert "../compose/telemetry.yml" in block
+        assert "world-arm64" not in block
+
+
 # --- the rehearsal changes only what it claims to ------------------------------------------------
 
 
-def test_the_rehearsal_only_moves_the_port_and_stops_caddy() -> None:
+def test_the_rehearsal_only_moves_the_port_and_stops_what_it_cannot_run() -> None:
     """The rehearsal exists so the deployment gets run before a VM exists. It is worth nothing if
-    it rehearses a different deployment - so it may change the two things its own header names and
-    no others."""
+    it rehearses a *different* deployment - so it may change the three things its own header names
+    and no others.
+
+    It was two things until the deployment gained an orchestrator.
+    """
     override = yaml.safe_load((DEPLOY / "compose.rehearsal.yml").read_text())
 
-    assert set(override["services"]) == {"caddy", "faultline"}
+    assert set(override["services"]) == {"caddy", "orchestrator", "faultline"}
     assert override["services"]["caddy"] == {"deploy": {"replicas": 0}}
+    assert override["services"]["orchestrator"] == {"deploy": {"replicas": 0}}
     assert override["services"]["faultline"] == {"ports": ["8001:8000"]}
+
+
+def test_a_rehearsal_cannot_spend_money() -> None:
+    """**The rehearsal's whole promise is that running it costs nothing**, and the deployment just
+    gained a container that makes model calls. A rehearsal that quietly started an agent loop would
+    break that promise silently, which is the worst way to break it.
+
+    Asserted separately from the guard above rather than folded into it: that one is about the
+    rehearsal staying faithful to the deployment, and this one is about what an operator is
+    promised. They would be edited for different reasons.
+    """
+    override = yaml.safe_load((DEPLOY / "compose.rehearsal.yml").read_text())
+    deployment = yaml.safe_load(COMPOSE.read_text())
+
+    spenders = [
+        name
+        for name, service in deployment["services"].items()
+        if "ANTHROPIC_API_KEY" in (service.get("environment") or {})
+    ]
+
+    assert spenders, "no service holds the key; this guard is watching the wrong thing"
+    for name in spenders:
+        assert override["services"].get(name, {}).get("deploy", {}).get("replicas") == 0, (
+            f"{name} holds the model key and the rehearsal starts it"
+        )
 
 
 def test_the_rehearsal_does_not_collide_with_make_ui() -> None:

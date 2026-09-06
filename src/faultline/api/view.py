@@ -54,13 +54,34 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field
 from datetime import datetime
+from functools import lru_cache
 from typing import Any
 from urllib.parse import quote
 
+from faultline.tools.settings import ToolSettings
+
 GRAFANA_EXPLORE = "/explore"
-"""Grafana's explore path. Relative, so the deep link works against whatever host serves Grafana
-in the reader's environment - the platform does not know its own public URL and guessing one is
-how a demo link 404s on a stranger's machine (T5.4's whole point)."""
+"""Grafana's explore path, appended to `ToolSettings.grafana_url`.
+
+**This was a bare relative path and every citation link 404'd.** The reasoning recorded here was
+*"relative, so the deep link works against whatever host serves Grafana in the reader's
+environment - the platform does not know its own public URL"*. The first half does not follow from
+the second: the host serving the incident page is `faultline-ingest`, which has exactly two static
+routes and no `/explore`, so a relative link resolved to the one host guaranteed not to answer it.
+
+The platform does not know its own public URL and still does not. It is *told* Grafana's, beside
+Prometheus's and Loki's, which is what a deep link actually needs."""
+
+
+@lru_cache(maxsize=1)
+def _grafana_base() -> str:
+    """Read once, not per citation.
+
+    `ToolSettings` parses the environment and `.env` on construction and a verdict cites several
+    times per page. Tests that change the setting call `_grafana_base.cache_clear()`.
+    """
+    return ToolSettings().grafana_url.rstrip("/")
+
 
 DATASOURCE_BY_TOOL = {
     "promql_query": "prometheus",
@@ -98,12 +119,16 @@ class Citation:
         }
 
 
-def deep_link(tool: str, request: dict[str, Any]) -> str | None:
+def deep_link(tool: str, request: dict[str, Any], grafana_url: str | None = None) -> str | None:
     """A Grafana explore URL for one stored tool call, or `None` when there is nothing to link to.
 
     Built from `request` as it was recorded. A query re-derived from the service and window would
     be a *plausible* query rather than the one that ran, and a link landing a reader in data the
     agent never saw manufactures corroboration - the opposite of what a citation is for.
+
+    `grafana_url` overrides the configured base; `None` reads `ToolSettings.grafana_url`. The
+    parameter exists so a test can state the base it expects instead of inheriting the ambient
+    environment - which is how this function's own defect survived a test suite.
     """
     datasource = DATASOURCE_BY_TOOL.get(tool)
     query = str(request.get("query") or request.get("selector") or "").strip()
@@ -113,7 +138,8 @@ def deep_link(tool: str, request: dict[str, Any]) -> str | None:
     left: dict[str, Any] = {"datasource": datasource, "queries": [{"expr": query}]}
     if len(window) == 2:
         left["range"] = {"from": window[0], "to": window[1]}
-    return f"{GRAFANA_EXPLORE}?left={quote(json.dumps(left, separators=(',', ':')))}"
+    base = _grafana_base() if grafana_url is None else grafana_url.rstrip("/")
+    return f"{base}{GRAFANA_EXPLORE}?left={quote(json.dumps(left, separators=(',', ':')))}"
 
 
 def citations(cited: list[str], calls: list[Any]) -> list[Citation]:

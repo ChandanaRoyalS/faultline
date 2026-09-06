@@ -1,11 +1,16 @@
-# T5.5 — the trimmed deployment.
+# T5.5 — the deployment's platform half.
 #
-# Three containers: Postgres, the platform, and Caddy for TLS. **No world.** The OpenTelemetry
-# demo is ~20 containers and 16 GB, it exists to be broken on purpose, and a stable URL is the one
-# thing it cannot be. What this serves is the record of investigations that already happened —
-# real verdicts, real citations, real deep-links — restored from a snapshot.
+# T5.5's deliverable is *"Live instance at a stable URL + documented deploy procedure"*, and its
+# task text is *"the same images CI builds, running continuously on a single small VM — demo
+# environment plus platform, TLS in front, basic auth on the UI."*
 #
-#   deploy/README.md          the procedure, the cost, and what this deliberately does not include
+# **This file is the platform. `compose.world.yml` is the demo environment**, and the deployment is
+# both — the spec's size note offers a choice of *sizes* (the full stack, or platform plus a
+# trimmed demo profile), not a choice of whether a demo environment is present at all. An earlier
+# version of this file served a Postgres snapshot with no world, which is neither of the two.
+#
+#   deploy/README.md          the procedure, the rollback, the cost, and what runs where
+#   deploy/compose.world.yml  the world, on the network this file names
 #   docker-compose.yml        the development profiles; this file is not that one
 #
 # Not `docker-compose.yml` with another profile, deliberately. That file publishes 5432, 6379 and
@@ -29,6 +34,20 @@
 # The project name is what separates the two, so it is the first line of the file.
 name: faultline-deploy
 
+# **One network, named here and joined by the world.** The platform and the demo environment are
+# two compose projects - the world is a pinned clone of somebody else's repository (ADR-0026),
+# never vendored into this one, so it cannot become a service in this file. They still have to
+# reach each other: the orchestrator queries Prometheus, Loki and Jaeger, and the world's
+# Alertmanager posts to the receiver.
+#
+# `external: true` rather than a shared default, because otherwise the creating project owns the
+# network's lifetime - `docker compose down` on the platform would tear out from under the world a
+# network the world is still attached to. The operator creates it once; README §3.2 says so.
+networks:
+  faultline:
+    external: true
+    name: faultline-deploy-net
+
 services:
   postgres:
     # Same image as development. `pgvector/pgvector:pg16` rather than plain postgres because
@@ -44,26 +63,59 @@ services:
     # between this file and the development one. The snapshot goes in through `docker compose exec`.
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - faultline
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U faultline"]
       interval: 5s
       timeout: 3s
       retries: 10
 
+  redis:
+    # The event bus (T2.2). The receiver writes an alert to a stream and the orchestrator consumes
+    # it; without this the deployment can serve the record of past investigations and cannot
+    # produce a new one - which is the state the previous version of this file was stuck in.
+    #
+    # No password. It is on the compose network only, published nowhere, and holds alert envelopes
+    # in flight rather than anything durable: the incident is in Postgres before the consumer acks
+    # (T2.3). A password here would be a secret to manage, protecting data that is already
+    # somewhere else by the time it matters.
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - faultline
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   faultline:
-    build:
-      context: ..
-      dockerfile: Dockerfile
+    # **The image CI published, named by its commit - never built here.**
+    #
+    # T5.5 says *"the same images CI builds"* and *"images pulled from the registry CI publishes
+    # to"*. This file used `build: context: ..`, which compiles a fresh image on the VM out of
+    # whatever the working tree happens to hold. That is a different artifact from the one CI
+    # tested, it requires the source on the VM at all, and it makes "what is running?" a question
+    # the registry cannot answer.
+    #
+    # `.github/workflows/ci.yml` pushes `ghcr.io/chandanaroyals/faultline:<sha>` and `:latest` on
+    # every commit that lands on main. The variable is mandatory and has no default **so that a
+    # deployment names a commit**: `:latest` moves under a running VM, and a rollback to "whatever
+    # latest was on Tuesday" is archaeology. Rollback is this variable and `up -d` - README §3.6.
+    image: ${FAULTLINE_IMAGE:?set FAULTLINE_IMAGE in deploy/.env - a sha tag, never :latest}
     restart: unless-stopped
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       # The read surface mounts only when this is passed, and refuses to start without a
       # password — see `faultline.api.auth`. Both come from deploy/.env.
       FAULTLINE_API_USER: ${FAULTLINE_API_USER:-faultline}
       FAULTLINE_API_PASSWORD: ${FAULTLINE_API_PASSWORD:?set FAULTLINE_API_PASSWORD in deploy/.env}
-      FAULTLINE_INGEST_REDIS_URL: ""
+      FAULTLINE_INGEST_REDIS_URL: redis://redis:6379/0
       # **The database password reaches libpq here, not through the DSN below.** Two reasons,
       # and the first was found by running it:
       #
@@ -104,6 +156,54 @@ services:
     # the clear is a password published.
     expose:
       - "8000"
+    networks:
+      - faultline
+
+  orchestrator:
+    # **The half that makes this a deployment of the MVP rather than a museum of one.**
+    #
+    # Phase 5 opens by saying the MVP is *"a complete story: world, investigation, grounding,
+    # evaluation"*. A deployed instance with a world and no orchestrator alerts on a fault and
+    # investigates nothing: the demo's second beat ends exactly where it should begin.
+    #
+    # Same image, different command. `faultline-orchestrate` consumes the alert stream, opens
+    # incidents and runs the investigation, so this is the one container on the VM that makes model
+    # calls and the only one that holds the key.
+    image: ${FAULTLINE_IMAGE:?set FAULTLINE_IMAGE in deploy/.env - a sha tag, never :latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      FAULTLINE_ORCH_REDIS_URL: redis://redis:6379/0
+      FAULTLINE_ORCH_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      # **Telemetry endpoints are configuration and never come from an agent** - ADR-0004's runtime
+      # contract, and THREAT-MODEL thesis 2: an agent that could name a host could point a tool
+      # anywhere. These are the world's service names on the shared network, which is what the
+      # network is for.
+      FAULTLINE_TOOLS_PROMETHEUS_URL: http://prometheus:9090
+      FAULTLINE_TOOLS_LOKI_URL: http://loki:3100
+      FAULTLINE_TOOLS_JAEGER_URL: http://frontend-proxy:8080/jaeger/ui
+      FAULTLINE_TOOLS_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
+      # **Public, not internal, and that is the whole point of it.** Every other endpoint here is
+      # where a *tool* reaches. This one is where a *reader* is sent when they click a citation, so
+      # an internal hostname would be a dead link with extra steps. `/grafana` because the demo's
+      # own frontend-proxy already serves Grafana there and Caddy forwards that prefix to it.
+      FAULTLINE_TOOLS_GRAFANA_URL: https://${SITE_ADDRESS:?set SITE_ADDRESS in deploy/.env}/grafana
+      # T5.2's links into T5.1's screen, for the same reason: a Slack message has no origin, so
+      # this is configuration or the message carries a marked absence instead of a link.
+      FAULTLINE_NOTIFY_PUBLIC_BASE_URL: https://${SITE_ADDRESS:?set SITE_ADDRESS in deploy/.env}
+      # Empty is a supported state - `from_settings` returns a notifier that sends nothing and says
+      # so once. A deployment without Slack still investigates.
+      FAULTLINE_NOTIFY_SLACK_WEBHOOK_URL: ${FAULTLINE_NOTIFY_SLACK_WEBHOOK_URL:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in deploy/.env}
+    command:
+      - faultline-orchestrate
+    networks:
+      - faultline
 
   caddy:
     # Automatic TLS from Let's Encrypt on first request, which is the cheapest correct answer to
@@ -114,6 +214,12 @@ services:
       - faultline
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in deploy/.env}
+      FAULTLINE_API_USER: ${FAULTLINE_API_USER:-faultline}
+      # **A bcrypt hash, not the password.** Caddy's `basic_auth` takes a hash; `caddy
+      # hash-password` produces one and README §3.1 says so. The world's UIs have no auth of their
+      # own, so Caddy is the only thing standing in front of Grafana and Jaeger - and the plaintext
+      # credential never needs to enter this container to do it.
+      FAULTLINE_API_PASSWORD_HASH: ${FAULTLINE_API_PASSWORD_HASH:?set FAULTLINE_API_PASSWORD_HASH in deploy/.env - run `caddy hash-password`}
     ports:
       - "80:80"
       - "443:443"
@@ -121,6 +227,8 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data
       - caddyconfig:/config
+    networks:
+      - faultline
 
 volumes:
   pgdata:
