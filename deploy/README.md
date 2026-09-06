@@ -52,16 +52,29 @@ daemon was available where they were authored. That is the exact shape of defect
 now found fifteen times — built, green, never run — and the response is to make running it free
 rather than to assert it is fine.
 
-`compose.rehearsal.yml` moves the platform to :8001 and stops Caddy, so a rehearsal collides with
-neither `make ui` nor a development platform. On any machine with Docker, from a clone:
+`compose.rehearsal.yml` moves the platform to :8001, stops Caddy, and stops the orchestrator — so a
+rehearsal collides with neither `make ui` nor a development platform, and **cannot spend money**.
+On any machine with Docker, from a clone:
 
 ```bash
 cd faultline/deploy
 cp env.example .env
-$EDITOR .env                  # SITE_ADDRESS can be anything here; the rest must be set
+$EDITOR .env
 docker compose -f compose.yml -f compose.rehearsal.yml up -d
 docker compose -f compose.yml -f compose.rehearsal.yml exec faultline faultline-migrate
 ```
+
+Filling in `.env` for a rehearsal: `SITE_ADDRESS` can be anything, since Caddy is not running.
+`FAULTLINE_IMAGE` must be a real sha from the registry — that is half of what a rehearsal is for.
+`ANTHROPIC_API_KEY` needs any non-empty placeholder: compose interpolates `${VAR:?...}` while
+*reading* the file, before it decides how many replicas to start, so a mandatory variable is
+mandatory even for a container scaled to zero. **Do not put your real key in it.** The one
+container that would read it is not running, and a rehearsal that required a live credential is a
+rehearsal people skip.
+
+On an Apple Silicon Mac the pull is a `linux/amd64` image — CI builds on `ubuntu-latest` — so it
+runs under emulation and is noticeably slow. That is a rehearsal annoyance only; the VM is x86-64
+and runs it natively.
 
 Then:
 

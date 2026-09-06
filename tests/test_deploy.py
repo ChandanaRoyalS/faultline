@@ -488,15 +488,44 @@ def test_the_documented_world_command_applies_the_deploy_overlay_and_not_the_arm
 # --- the rehearsal changes only what it claims to ------------------------------------------------
 
 
-def test_the_rehearsal_only_moves_the_port_and_stops_caddy() -> None:
+def test_the_rehearsal_only_moves_the_port_and_stops_what_it_cannot_run() -> None:
     """The rehearsal exists so the deployment gets run before a VM exists. It is worth nothing if
-    it rehearses a different deployment - so it may change the two things its own header names and
-    no others."""
+    it rehearses a *different* deployment - so it may change the three things its own header names
+    and no others.
+
+    It was two things until the deployment gained an orchestrator.
+    """
     override = yaml.safe_load((DEPLOY / "compose.rehearsal.yml").read_text())
 
-    assert set(override["services"]) == {"caddy", "faultline"}
+    assert set(override["services"]) == {"caddy", "orchestrator", "faultline"}
     assert override["services"]["caddy"] == {"deploy": {"replicas": 0}}
+    assert override["services"]["orchestrator"] == {"deploy": {"replicas": 0}}
     assert override["services"]["faultline"] == {"ports": ["8001:8000"]}
+
+
+def test_a_rehearsal_cannot_spend_money() -> None:
+    """**The rehearsal's whole promise is that running it costs nothing**, and the deployment just
+    gained a container that makes model calls. A rehearsal that quietly started an agent loop would
+    break that promise silently, which is the worst way to break it.
+
+    Asserted separately from the guard above rather than folded into it: that one is about the
+    rehearsal staying faithful to the deployment, and this one is about what an operator is
+    promised. They would be edited for different reasons.
+    """
+    override = yaml.safe_load((DEPLOY / "compose.rehearsal.yml").read_text())
+    deployment = yaml.safe_load(COMPOSE.read_text())
+
+    spenders = [
+        name
+        for name, service in deployment["services"].items()
+        if "ANTHROPIC_API_KEY" in (service.get("environment") or {})
+    ]
+
+    assert spenders, "no service holds the key; this guard is watching the wrong thing"
+    for name in spenders:
+        assert override["services"].get(name, {}).get("deploy", {}).get("replicas") == 0, (
+            f"{name} holds the model key and the rehearsal starts it"
+        )
 
 
 def test_the_rehearsal_does_not_collide_with_make_ui() -> None:

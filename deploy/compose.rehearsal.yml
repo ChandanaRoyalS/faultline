@@ -1,29 +1,47 @@
 # Rehearse the deployment on a laptop, before a VM exists (T5.5).
 #
-#   docker compose -f compose.yml -f compose.rehearsal.yml up -d --build
+#   docker compose -f compose.yml -f compose.rehearsal.yml up -d
 #
 # **Why this file exists.** Everything in `compose.yml` was written, reviewed and committed without
 # once being started: no Docker daemon was available where it was authored. That is the exact shape
-# of defect this project has now found nine times - built, green, never run - and the honest
+# of defect this project has now found fifteen times - built, green, never run - and the honest
 # response is to make running it cost nothing rather than to assert it is fine.
 #
-# It changes two things and **nothing else**:
+# It changes three things and **nothing else**:
 #
 #   1. Caddy is scaled to zero. TLS needs a real hostname and a DNS record; neither exists here,
 #      and Let's Encrypt rate-limits failed challenges.
 #   2. The platform publishes 8001 on the host, so a browser can reach it without Caddy.
+#   3. The orchestrator is scaled to zero. There is no world on a laptop, so it would consume an
+#      empty stream forever - and, more to the point, a rehearsal should not be able to spend
+#      money. See the note on the key below.
 #
-# So a rehearsal exercises the image, the CMD, the DSN, the credential refusal, the migration and
-# the read surface - everything except the certificate. What it cannot rehearse is §3.4's TLS check
-# and the A record, and those stay first-run risks on the VM.
+# So a rehearsal exercises the image pull, the CMD, the DSN, the credential refusal, the migration
+# and the read surface. **What it cannot rehearse:** the certificate, the A record, the firewall,
+# the world, and therefore an actual investigation. Those stay first-run risks on the VM and §3.6
+# of the README is where they are checked.
 #
 # **8001, not 8000.** `make ui` and the development receiver both use 8000, and a rehearsal that
 # collided with them would look like a deployment failure. Open http://localhost:8001/healthz.
+#
+# **The rehearsal still needs every variable set, including ANTHROPIC_API_KEY**, because compose
+# interpolates `${VAR:?...}` while reading the file - before it decides how many replicas of
+# anything to start. Put any non-empty placeholder there for a rehearsal: the one container that
+# would read it is scaled to zero, and a rehearsal that required a live credential would be a
+# rehearsal people skip. `deploy/.env` is gitignored either way.
 
 services:
   caddy:
     # `deploy: replicas: 0` rather than a profile, so the service stays defined and one file can
     # be read against the other without wondering what was removed.
+    deploy:
+      replicas: 0
+
+  orchestrator:
+    # Same reasoning, plus one this file did not have to make before: the deployment gained a
+    # container that makes model calls, and the rehearsal's whole promise is that running it costs
+    # nothing. A rehearsal that quietly started an agent loop would break that promise silently,
+    # which is the worst way to break it.
     deploy:
       replicas: 0
 
