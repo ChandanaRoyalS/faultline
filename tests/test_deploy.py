@@ -263,7 +263,11 @@ def test_the_example_holds_no_values() -> None:
         for line in ENV_EXAMPLE.read_text().splitlines()
         if "=" in line
         and not line.lstrip().startswith("#")
-        and line.split("=", 1)[1].strip()
+        # **`FOO=''` carries no value and the quotes are the instruction.** A bcrypt hash is mostly
+        # dollar signs and Compose's dotenv parser expands `$VAR` in an unquoted value, so the
+        # required form is part of what this file teaches - showing empty quotes is how it teaches
+        # it without carrying a credential.
+        and line.split("=", 1)[1].strip().strip("'\"")
         # The username is not a secret and a working default saves a step.
         and not line.startswith("FAULTLINE_API_USER=")
     ]

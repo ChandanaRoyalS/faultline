@@ -144,6 +144,15 @@ things check it and they need different forms: Faultline checks the plaintext it
 `faultline.api.auth`, and Caddy guards Grafana and Jaeger, which ship with no authentication of
 their own.
 
+**Paste that hash inside single quotes.** A bcrypt hash is mostly dollar signs, and Compose's
+dotenv parser expands `$VAR` in an unquoted value — so `$2a$14$xyz…` arrives at Caddy with pieces
+missing, and every request to `/grafana` returns 401 with a correct password. The failure is
+indistinguishable from a typo, so check rather than assume:
+
+```bash
+docker compose config | grep FAULTLINE_API_PASSWORD_HASH
+```
+
 `FAULTLINE_IMAGE` names a commit:
 `ghcr.io/chandanaroyals/faultline:<40-character sha>`. **Never `:latest`** — a moving tag means the
 VM changes what it runs on the next `up -d`, and §3.7's rollback stops having anything to point at.
