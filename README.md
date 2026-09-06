@@ -19,7 +19,8 @@ agent works; it is that you can find out whether it does, and so can we.
 
 - **Docker**, running, with room for ~20 containers. `make world-up` clones the pinned
   OpenTelemetry demo into `world/` and starts it.
-- **[uv](https://docs.astral.sh/uv/)** and **Python 3.12**. `uv sync` installs everything else.
+- **[uv](https://docs.astral.sh/uv/)** and **Python 3.12**. `make install` gets the extras the
+  demo and scored runs need; a bare `uv sync` is enough for `make check` and leaves them out.
 - **git**, for the world clone.
 - **An Anthropic API key** — only for the demo and for scored runs. `make check` is offline.
 
@@ -36,10 +37,49 @@ One command runs the whole system against the live world and narrates it for a f
 viewer — baseline gate, injection, correlation, the planner's dispatches, the specialists'
 queries, the verdict, the narrative, the revert, and the confirmed recovery.
 
+**Three terminals, because two of these are servers.** From a clean clone, in order:
+
 ```bash
-make world-up    # the pinned OpenTelemetry demo; give it ~5 minutes to settle
-make demo        # ~15 minutes, real model calls
+make install                     # deps + the agents and embeddings extras
+make up                          # Postgres and Redis, waited on until healthy
+uv run faultline-migrate         # the schema, on a database that has none yet
+uv run faultline-seed            # the retrieval corpus — see below, this one is not optional
+make world-up                    # the pinned OpenTelemetry demo; ~5 minutes to settle
 ```
+
+**`faultline-seed` is not a nicety and skipping it does not merely weaken the run — it
+invalidates it.** Every scored run asks retrieval to exclude the scenario's own recorded
+narrative (ADR-0008 axis 2, the leave-one-out filter). Against an **empty** corpus that exclusion
+removes nothing, so it has asserted nothing, and the harness marks the run `INVALID`: scored,
+kept, and its numbers unusable. T5.4's rehearsal hit this with a **correct** verdict —
+`bad_config` against a truth of `bad_config` — and the run still cannot be counted, because a
+right answer nobody can prove was uncontaminated is not evidence.
+
+Then leave these two running, each in its own terminal. **Nothing works without them** — the
+world's Alertmanager posts to the first, and the second is what turns those alerts into an
+incident for the agents to investigate:
+
+```bash
+uv run faultline-ingest          # terminal 2 — receives Alertmanager's webhooks on :8000
+uv run faultline-orchestrate     # terminal 3 — correlates alert episodes into incidents
+```
+
+```bash
+make demo                        # terminal 1 — ~15 minutes, real model calls
+```
+
+**If you skip one, you are told which.** T5.4's first clean-clone rehearsal ran `make demo` with
+no orchestrator attached and got
+
+```
+REFUSED: the alert pipeline is not assembled: no consumer is attached to the
+orchestrator's group - start it with `uv run faultline-orchestrate`. This is NOT
+the world failing to alert...
+```
+
+— nothing injected, nothing spent, and the distinction from a genuine `no-alert` spelled out.
+**This block used to show two of these seven commands**, so the refusal was doing the
+documentation's job; it is written down here now as well.
 
 **Watch it happen.** `make world-up` also provisions the shop-health dashboard —
 [the world at a glance](http://localhost:3000/grafana/d/faultline-shop-health). Every panel
@@ -82,9 +122,22 @@ recorded under *What remains* in
 register moved to [`docs/QUEUE.md`](docs/QUEUE.md) at T7.45 and this question is not in it —
 corrected T7.59.)*
 
-Counting it, the record at this configuration is **6 correct out of 7**. It is left as it fell
+Counting it, the record at this configuration is **6 correct out of 8**. It is left as it fell
 rather than re-run until it looked better: a demo that is re-rolled until it impresses is an
 advertisement.
+
+**The eighth is T5.4's clean-clone rehearsal, and it is worth more than the number it cost.** From
+a cold clone with every image pulled fresh, the demo answered `dependency_latency` against a truth
+of `bad_config` at **low** confidence — because the trace query, the one that would have named the
+failing dependency, returned `HTTP Error 500` from Jaeger. The agent said so, reported what it
+could not know, and did not guess.
+
+**On this scenario, at this stamp, on one evening, three runs gave three answers:** dev sweep 10
+abstained with `unknown`, one demo answered `bad_config` correctly, and this one answered
+`dependency_latency` wrongly. The third has a cause that is not the model at all — the world's own
+tracing backend failed. **Run-to-run variance here includes the environment's flakiness, not only
+sampling**, which is a larger and more honest thing to have measured than either alone, and it is
+the strongest argument in this repository for the repeat protocol that has never been run.
 
 **Would rather read than run?** A full transcript of a real run, with the narrative the scribe
 wrote, is in [`docs/demo/`](docs/demo/) — [`transcript.txt`](docs/demo/transcript.txt) and the
@@ -422,9 +475,21 @@ line an agent quoted and every query it ran. To put it on a URL, see
 ## Development
 
 ```bash
-uv sync          # install everything
+make install     # deps + the agents and embeddings extras
 make check       # lint + types + tests — what CI runs
 ```
+
+**`uv sync` alone is not enough to run anything that calls a model**, and it used to say
+"install everything" here. Two optional extras are lazily imported and left out by default,
+because `make check` never calls a model and one of them pulls torch:
+
+| extra | needed by | without it |
+|---|---|---|
+| `agents` | `make demo`, every scored run | a refusal naming the fix |
+| `embeddings` | retrieval, `faultline-seed` | a bare `ImportError` |
+
+`make install` takes both. The clean-clone rehearsal found this the honest way: `make check`
+passed and `make demo` could not start (T5.4b).
 
 ### Breaking the world on purpose
 

@@ -18,7 +18,7 @@ authoritative; verify wording against it before relying on it.
 | G2 | one alert → one agent → one persisted, rendered finding | **Declared 2026-09-01** — qualified |
 | G3 | end-to-end investigation passes on 3 scenario classes | **Declared 2026-09-02** — qualified |
 | G4 | one command runs and scores all 10 scenarios into a report | Not declared — blocked |
-| G5 | full demo runs from clean clone; MVP tagged | Not declared — unverified |
+| G5 | full demo runs from clean clone; MVP tagged | **Half demonstrated** — see below. Not declared |
 | G6 | approval-gated remediation works; injection + storm tests pass | Not declared |
 | G7 | repo + video + benchmark and ablation reports are application-ready | Not declared |
 
@@ -236,9 +236,30 @@ it moves `compose_digest` and re-founds the world, which is the most expensive a
 to this project; `docs/PLAN.md`'s T4.5 section prices the four routes and takes none of them.
 **T4.5's check is built, correct, and blocked on the runner for a stated reason.**
 
-**G5.** Its condition requires the full demo from a clean clone. T7.48 rebuilt the world
-but reused local images and said so; no cold clone-and-pull has ever been run, and the demo
-has never been executed from one. **2026-09-01 — the first measured evidence
+**G5 — the demo half is now demonstrated; the gate is still not declared.**
+
+**2026-09-06, T5.4b.** A fresh clone of `main`, with **every world image removed first** so all ~20
+were pulled cold rather than reused — the caveat T7.48 could not clear. `uv sync` resolved from the
+committed lock, `make check` passed before any service started, the world came up, and after the
+corpus was seeded `make demo` **completed with exit 0**: a countable run, from a clean clone, on
+images this machine did not already hold. It answered `dependency_latency` against a truth of
+`bad_config` at low confidence, because Jaeger returned HTTP 500 on the decisive trace query.
+**A wrong verdict does not fail this gate** — the gate's condition is that the demo *runs* from a
+clean clone, and accuracy is `docs/RESULTS.md`'s business.
+
+**Why the gate is still not declared.** Its condition has two halves and this is one:
+`docs/PLAN.md`'s Phase 5 entry lists T5.5's live deployment as outstanding, and there is no tag.
+**A half-met condition is not met.**
+
+**What the rehearsal cost and what it found.** Four documented paths were broken for a first-time
+user and working for the author — `make up` returning before Postgres accepted connections, a bare
+`uv sync` leaving out the extras the demo needs, README's demo block showing two of eight steps,
+and the corpus seeding whose absence marks a run `INVALID`. **None was a code defect**, and 1,274
+passing tests could not have caught one of them. This is what the gate is for, stated better than
+the gate states it.
+
+**The superseded note, kept.** T7.48 rebuilt the world but reused local images and said so; no cold
+clone-and-pull had ever been run, and the demo had never been executed from one. **2026-09-01 — the first measured evidence
 of what that costs.** T2.3's integration tests built a Postgres schema from nothing, which
 had never happened before, and `create_schema()` raised `UndefinedTable`. A clean-clone run
 of the demo would have hit it immediately. It was fixed the same hour; the point that

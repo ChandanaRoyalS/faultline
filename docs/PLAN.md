@@ -1305,6 +1305,151 @@ re-grading 79 manifests, a `CMD` that printed a version string, a deployment tha
 developer's database, a scoring axis printed nowhere. Each invisible to the suite and obvious within
 seconds of first use.
 
+### T5.4b — the first clean-clone rehearsal, and the defect only it could reach
+
+**The rehearsal Gate 5 has been asking for since G5 was written.** A fresh clone, and — the part
+T7.48 could not claim — **every world image removed first**, so all ~20 were pulled cold rather
+than reused. `docs/GATES.md` §G5 recorded exactly why the earlier rebuild did not count.
+
+**What passed.** `uv sync` resolved from the committed lock; `make check` passed **before any
+service started**, which is the step that once hid a schema defect for months; `make world-up`
+cloned the pinned demo, built the stub, pulled every image and brought the world up; dashboards
+provisioned at version 1. After `world/` existed, `make check` reported **1268 passed, 5 skipped —
+identical to the working copy**, so the clone is equivalent rather than merely green.
+
+**What failed, and it is the documented path.** `make up` reported Postgres `Started`; the very
+next command, `faultline-migrate`, died with `server closed the connection unexpectedly`.
+
+**`up -d` returns when the container has started, not when Postgres accepts connections.** With an
+existing `pgdata` volume the server is ready in milliseconds and the gap is invisible. On a **new**
+volume Postgres runs initdb first: the port is bound and nothing is listening. README and
+`docs/RELEASE.md` §3.2 both document `make up` immediately followed by a migration, so **the
+documented sequence was broken for every first-time user and worked for the person who wrote it.**
+That is the shape of defect Gate 5 exists to catch, and it took a clean clone to reach it.
+
+The healthcheck has been in `docker-compose.yml` since T0.3; only the flag consulting it was
+missing. `up` and `eval-up` now pass `--wait`.
+
+**And `faultline-migrate` said nothing on success**, because alembic's INFO lines go through
+`logging` and `alembic.ini` does not route them to stdout. Silent success and silent failure had to
+be told apart by making a request afterwards and reasoning backwards from a status code — twice in
+one evening, once here and once in T5.5's rehearsal. It now prints the revision it reached.
+
+**The guard for the `--wait` fix was wrong on its first writing — the third time in one evening.**
+`makefile_recipe` did not stop at the end of a recipe, so it swept up every later tab-indented line
+in the file; asking for `up` returned `eval-up`'s recipe too, and the test **passed with `--wait`
+deleted from the target it was written to check.** Each of the three was caught the same way: by
+running it against the broken state before keeping it. **A guard not seen failing is a guard not
+yet written**, and that is now three instances rather than an opinion.
+
+**Second documented-path break, same rehearsal: `make check` green, `make demo` unable to start.**
+`agents` (the model client) and `embeddings` (the local encoder) are optional extras, lazily
+imported, and deliberately so — `make check` never calls a model and `embeddings` pulls torch. The
+consequence nobody had traced: **a bare `uv sync` produces a tree that passes every check and
+cannot run the headline deliverable.** README said `uv sync` *"installs everything"* in two places
+and `docs/RELEASE.md` §3 — written the same morning — put `uv sync` in the checklist and `make
+demo` four lines later.
+
+The two extras fail differently, which is why both are now named: `agents` **refuses with a message
+that gives the fix**, and `embeddings` raises a bare `ImportError` from inside retrieval. `make
+install` takes both; README carries the table; the checklist says *not a bare `uv sync`* and says
+why.
+
+**Third, and the largest: README's headline command could not work from a clean clone as
+documented.** The Demo block showed `make world-up` and `make demo` — **two of the seven steps a
+first run takes**. Missing: `make install`, `make up`, the migration, and the two long-running
+servers without which no incident can ever open. `make demo` was run twice in the rehearsal and
+refused twice:
+
+    REFUSED: the alert pipeline is not assembled: no consumer is attached to the
+    orchestrator's group - start it with `uv run faultline-orchestrate`. This is
+    NOT the world failing to alert - the fault would fire and no incident would
+    open, which records as `no-alert` and reads as a fact about the scenario.
+
+**The refusal is the system working.** It named the cause, distinguished itself from a genuine
+`no-alert`, gave the command, injected nothing and spent nothing — and it is recorded as a
+`REFUSED.md` rather than a discard, because nothing was attempted. But **a refusal doing the
+documentation's job is documentation that is missing**, and a stranger who hits it has already
+brought up twenty containers. README now carries all seven steps, in three terminals, with the
+refusal quoted so it reads as expected rather than broken.
+
+**Fourth, found by the repair for the third: the demo ran, answered correctly, and was marked
+`INVALID`.** From the clean clone, with the world cold-pulled and both servers up, `make demo`
+completed — `bad_config` against a truth of `bad_config`, high confidence, \$0.7522, exit code 0
+from the investigation — and `faultline-eval` returned **6**.
+
+`INVALID.md` said why: *"the leave-one-out filter was asked for and removed nothing… a retrieval
+that excluded an origin the corpus does not hold has asserted nothing."* **The clone never ran
+`faultline-seed`.** Every scored run asks retrieval to exclude the scenario's own recorded
+narrative (ADR-0008 axis 2); against an empty corpus that exclusion removes nothing, so the
+contamination guarantee is unmade, so the run cannot be counted however good its verdict.
+
+**That is the single best demonstration of what this project is for: the benchmark refused to
+count a correct answer, because it could not prove the answer was uncontaminated.** The verdict was
+right, the run is unusable, and both facts are on disk.
+
+It is also **a gap in the fix written an hour earlier**. README's Demo block had just been
+corrected from two steps to seven, and the real sequence is **eight** — `faultline-seed` sits
+between the migration and the world. A repair that leaves out a step is the same defect one
+iteration later, and the guard now names all five commands.
+
+**And the guard for that guard was wrong too — the fourth of the evening.** It searched the whole
+Demo section and passed with the `faultline-seed` line deleted, because the paragraph explaining
+why it matters still contained the word. **Prose about a command is not an instruction to run it.**
+Now scoped to the fenced blocks, which is what a reader copies.
+
+**And then it ran.** Seeded, from the cold clone, both servers up: `make demo` completed with exit
+0 — **a countable run from a clean clone, which is Gate 5's demo half demonstrated for the first
+time in this project.** It cost \$0.6865 and it got the answer **wrong**: `dependency_latency`
+against a truth of `bad_config`, at **low** confidence.
+
+**The cause is in the record and it is not the model.** The trace query — the one that attributes
+per-callee spans and would have named the failing dependency — returned
+`HTTP Error 500: Internal Server Error` from Jaeger. The agent reported low confidence, listed
+which callee it could not identify and why, and declined to guess. On evidence that failed to
+arrive, that is the designed behaviour rather than a breakdown.
+
+### The variance finding, sharpened: three runs, three answers, and one of them the world's fault
+
+`cart-redis-misconfig` at `b6837dd449ca`, in one evening:
+
+| run | fault class | why it matters |
+|---|---|---|
+| dev sweep 10, pipeline arm | **abstained** (`unknown`) | rank 3 held `bad_config`, the truth |
+| demo, unseeded | **correct** (`bad_config`) | marked `INVALID` — corpus unseeded |
+| demo, seeded | **wrong** (`dependency_latency`) | Jaeger 500'd on the decisive query |
+
+This morning's variance finding was `cart-bad-image-tag` at n=2, one right and one wrong. **This is
+n=3 on a second scenario with three distinct outcomes**, and the third failure has a named
+non-model cause.
+
+**So run-to-run variance at a fixed stamp includes the world's own flakiness, not only sampling
+from the model.** That is a larger claim than the one made this morning and a more useful one: a
+reader asking *"how reproducible is this number"* needs total variance, and total variance is what
+R=3 measures. **Nothing in this repository separates model variance from environment variance, and
+nothing here claims to** — but the evening establishes that both are present and that neither has
+ever been quantified.
+
+**Four documented paths, all broken for first-time users, all working for the author, all found in
+one rehearsal, none of them a code defect.** That is the argument for Gate 5 stated better than
+the gate states it — and it is worth naming what the rehearsal did *not* find: **no bug in the
+pipeline, the harness, the scoring or the platform.** Every failure was in the instructions, and
+1,274 passing tests could not have caught one of them, because none is reachable from a machine
+that has run this project before.
+
+**Four guards were written wrong tonight and all four were caught the same way** — by running them
+against the broken state before keeping them. `makefile_recipe` swept up the next recipe;
+`test_the_deployment_has_its_own_compose_project` compared against the checkout directory and would
+only have failed in a clone named `faultline`; `test_every_console_script_is_reachable` accepted a
+link to `docs/PLAN.md`; and the demo-prerequisites guard read prose instead of commands. **A guard
+not seen failing is a guard not yet written**, and that is now four instances rather than an
+opinion.
+
+**Three refusals fired tonight and all three were right**: kafka's projected memory, the
+orchestrator's settle window, and `pipeline-down`. Each cost \$0.00 and each named its own remedy.
+The guards this project spent Phase 4 building are the reason a rehearsal with three broken
+documented paths still cost nothing.
+
 ### T5.4 — the front door named one command of sixteen
 
 **T7.46's sharpest finding, measured.** It reported that README documents the demo and the injector

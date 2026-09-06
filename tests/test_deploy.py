@@ -304,3 +304,127 @@ def test_the_rehearsal_does_not_collide_with_make_ui() -> None:
 def test_no_snapshot_was_committed() -> None:
     """It carries the monitored world's telemetry - every log line an agent quoted."""
     assert not list(DEPLOY.glob("snapshot.sql*"))
+
+
+# --- the clean-clone race (T5.4) ------------------------------------------------------------------
+
+
+def makefile_recipe(target: str) -> str:
+    """The tab-indented lines of ONE Makefile recipe, stopping where that recipe stops.
+
+    **The first version did not stop.** It filtered every later tab-indented line in the whole
+    file, so asking for `up` returned `eval-up`'s recipe too - and the guard below passed with
+    `--wait` deleted from the target it was written to check, because the flag was still present
+    further down. Third time in one evening that a guard passed for a reason that had nothing to
+    do with what it asserted, and the reason each was caught is that it was run against the broken
+    state before being kept.
+    """
+    lines = (REPO_ROOT / "Makefile").read_text().splitlines()
+    start = lines.index(f"{target}:") + 1
+    recipe = []
+    for line in lines[start:]:
+        if not line.startswith("\t"):
+            break
+        recipe.append(line)
+    return "\n".join(recipe)
+
+
+@pytest.mark.parametrize("target", ["up", "eval-up"])
+def test_bringing_the_platform_up_waits_for_it_to_be_healthy(target: str) -> None:
+    """**The defect T5.4's first clean-clone rehearsal found.**
+
+    `docker compose up -d` returns when the container has *started*, not when Postgres accepts
+    connections. On a machine with an existing `pgdata` volume that gap is invisible - the server
+    is ready in milliseconds. On a **new** volume Postgres runs initdb first, so the port is bound
+    while the server is not listening, and the next command in every documented sequence dies with
+    `server closed the connection unexpectedly`.
+
+    README and `docs/RELEASE.md` both document `make up` followed immediately by
+    `faultline-migrate`. That sequence worked for the person who wrote it and failed for every
+    first-time user, which is the exact shape of defect Gate 5 exists to catch and the reason it
+    took a clean clone to find.
+
+    The healthcheck has been in `docker-compose.yml` since T0.3. Only the flag consulting it was
+    missing.
+    """
+    assert "--wait" in makefile_recipe(target), (
+        f"`make {target}` does not wait for the healthcheck, so a first run on empty volumes "
+        "returns before Postgres is accepting connections"
+    )
+
+
+def test_the_migration_reports_the_revision_it_reached() -> None:
+    """A successful `faultline-migrate` printed nothing: alembic's INFO lines go through
+    `logging`, which `alembic.ini` does not route to stdout. Silent success and silent failure had
+    to be told apart by making a request afterwards and reasoning back from the status code -
+    twice in one evening. A command that changes a schema should name what it changed it to."""
+    source = (REPO_ROOT / "src" / "faultline" / "migrate.py").read_text()
+
+    assert "print(" in source, "faultline-migrate reports nothing on success"
+    assert "get_current_head()" in source
+
+
+def test_the_install_target_takes_the_extras_the_demo_needs() -> None:
+    """**A tree that passes every check and cannot run the demo.**
+
+    `agents` (the model client) and `embeddings` (the local encoder) are optional and lazily
+    imported, deliberately: `make check` never calls a model and `embeddings` pulls torch. The
+    consequence is that a bare `uv sync` produces a working test suite and a broken demo, and
+    README said `uv sync` "installs everything" until the first clean-clone rehearsal ran it.
+
+    The two fail differently, which is why both are named here: `agents` refuses with a message
+    that gives the fix, and `embeddings` raises a bare `ImportError` from inside the retrieval
+    path.
+    """
+    recipe = makefile_recipe("install")
+
+    assert "--extra agents" in recipe
+    assert "--extra embeddings" in recipe
+
+
+def test_no_document_claims_a_bare_sync_installs_everything() -> None:
+    """The claim was in two places in README and in the release checklist, and it was false in
+    all three. This fails if it comes back."""
+    for name in ("README.md", "docs/RELEASE.md"):
+        body = (REPO_ROOT / name).read_text()
+        for line in body.splitlines():
+            if "uv sync" not in line or line.lstrip().startswith(("|", ">")):
+                continue
+            claim = line.lower()
+            assert not ("install" in claim and "everything" in claim), (
+                f"{name} claims a bare `uv sync` installs everything: {line.strip()!r}"
+            )
+
+
+def test_the_readme_names_the_two_servers_the_demo_needs() -> None:
+    """**The headline command could not work from a clean clone as documented.**
+
+    README's demo block showed `make world-up` and `make demo` — two of the seven steps a first
+    run takes. Missing: `make install`, `make up`, the migration, and the two long-running
+    processes without which no incident can ever open. T5.4's rehearsal ran it twice and was
+    refused twice with `pipeline-down`.
+
+    The refusal is good and names its own fix, which is why nothing was spent. But a refusal
+    doing the documentation's job is still documentation that is missing.
+    """
+    section = (REPO_ROOT / "README.md").read_text().split("## Demo", 1)[1].split("\n## ", 1)[0]
+
+    # **The fenced command blocks, not the prose around them.** The first version searched the
+    # whole section and passed with the `faultline-seed` line deleted, because the paragraph
+    # explaining *why* it matters still contained the word. Prose about a command is not an
+    # instruction to run it, and this guard exists for the reader who copies the block.
+    demo = "\n".join(block for index, block in enumerate(section.split("```")) if index % 2 == 1)
+
+    # **`faultline-seed` was missing from the first version of this list**, and the rehearsal that
+    # added the other four then lost a *correct* demo verdict to an empty corpus: the leave-one-out
+    # filter excluded nothing, asserted nothing, and the run was marked INVALID. A repair that
+    # leaves out a step is the same defect one iteration later.
+    needed = (
+        "faultline-ingest",
+        "faultline-orchestrate",
+        "faultline-migrate",
+        "faultline-seed",
+        "make up",
+    )
+    for command in needed:
+        assert command in demo, f"README's Demo section never mentions `{command}`"

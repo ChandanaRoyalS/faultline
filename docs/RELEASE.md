@@ -53,13 +53,26 @@ git clone https://github.com/ChandanaRoyalS/faultline.git faultline-release-chec
 cd faultline-release-check
 ```
 
-- [ ] `uv sync` succeeds from the committed lock file.
+- [ ] `make install` succeeds from the committed lock file. **Not a bare `uv sync`** — that
+      resolves the lock but leaves out the `agents` and `embeddings` extras, so `make check`
+      passes and `make demo` cannot start. This checklist said `uv sync` until the first
+      rehearsal ran it.
 - [ ] `make check` passes **before any service is started** — this is what caught a schema defect
       that had been invisible for months, because no database had ever been built from nothing.
 - [ ] `make world-up` brings the world up **pulling images rather than reusing local ones**.
       Note the wall-clock; a stranger pays it too.
 - [ ] Wait the documented ~5 minutes. The baseline gate refuses containers younger than 300s, and
       a stranger following README exactly hits that refusal first.
+- [ ] `make up`, then `uv run faultline-migrate` — **in that order and not before**: `up` now
+      waits for the healthcheck, because on a new volume Postgres runs initdb and the migration
+      that used to follow immediately died on `server closed the connection unexpectedly`.
+- [ ] **`uv run faultline-seed`.** Skipping it does not weaken a run, it **invalidates** it: the
+      leave-one-out filter excludes nothing from an empty corpus, asserts nothing, and the run is
+      marked `INVALID` however good its verdict. The first rehearsal lost a correct `bad_config`
+      this way.
+- [ ] **`uv run faultline-ingest` and `uv run faultline-orchestrate`, each left running in its own
+      terminal.** Without the second, `make demo` refuses with `pipeline-down` — correctly, and
+      having injected nothing. The rehearsal that added this line hit it twice.
 - [ ] `make demo` completes end to end. Costs about $0.60 and needs `~/.faultline-anthropic-key`.
 - [ ] `make eval SCENARIO=<id> INTENT=--single-run` produces a scored run directory.
 - [ ] `FAULTLINE_API_PASSWORD=... make ui`, then open `/ui/incidents/<id>` from that run.
