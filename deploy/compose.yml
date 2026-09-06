@@ -156,6 +156,32 @@ services:
     # the clear is a password published.
     expose:
       - "8000"
+    # **Without this, `--wait` does not wait.** Compose treats a service with no healthcheck as
+    # ready the moment its process starts, and `faultline-ingest` needs a second or two to bind the
+    # port - longer under emulation. The rollback rehearsal (README §3.7) ran `up -d --wait` and
+    # then `curl /healthz`, and the curl got *connection reset by peer*, twice, while `ps` read
+    # `Up Less than a second`.
+    #
+    # That is T5.4b's defect one service over: `make up` returned before Postgres accepted
+    # connections because `--wait` was missing; here `--wait` was present and had nothing to wait
+    # on. Postgres's healthcheck below has been in this file from the start. This one was not,
+    # because nothing had ever asked the question - and a rollback is exactly the moment an
+    # operator needs "it is back" to mean serving rather than started.
+    #
+    # `python`, not curl: the image is `python:3.12-slim` with the venv on PATH, and adding curl
+    # to the image for a check the interpreter can do would be a dependency for a one-liner.
+    # `start_period` is generous because an arm64 laptop runs this image under emulation and a
+    # rehearsal that flapped on its own healthcheck would teach operators to distrust it.
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz', timeout=3)"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
     networks:
       - faultline
 
@@ -210,8 +236,13 @@ services:
     # "a stable URL" and the reason this container exists at all rather than a bare port.
     image: caddy:2-alpine
     restart: unless-stopped
+    # `service_healthy`, now that faultline has a healthcheck to be healthy against. The short form
+    # meant "after faultline's process starts", so Caddy's first upstream requests during a deploy
+    # or rollback landed on a port nobody was listening on and became 502s - a visitor's view of
+    # the same race the rollback rehearsal saw as a connection reset.
     depends_on:
-      - faultline
+      faultline:
+        condition: service_healthy
     environment:
       SITE_ADDRESS: ${SITE_ADDRESS:?set SITE_ADDRESS in deploy/.env}
       FAULTLINE_API_USER: ${FAULTLINE_API_USER:-faultline}
