@@ -151,7 +151,8 @@ And the platform itself, if you want to run it rather than measure it:
 | `faultline-demo` | the narrated end-to-end run `make demo` calls |
 
 Every one takes `--help`. To put the screen on a URL, see [`deploy/`](deploy/README.md); to cut a
-release, [`docs/RELEASE.md`](docs/RELEASE.md).
+release, [`docs/RELEASE.md`](docs/RELEASE.md). What this project claims and refuses to claim, in the
+words an application needs: [`docs/MVP-CUT.md`](docs/MVP-CUT.md).
 
 ## Bundles
 
@@ -183,18 +184,56 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 
 ## Results
 
-> **The current benchmark — dev sweep 7, on the bounded world that exists now.** Under stamp
-> `prompts:1b0e7cbb4c47` against `compose_digest f5bd108f…` / `observability_digest 857d95b4…`:
-> **8 of 8 scenarios scored with no discards, coverage 8/8, fault class 7/8, class of fix 7/8**
-> ([`SWEEP-2026-08-30-refound-again.md`](evals/runs/SWEEP-2026-08-30-refound-again.md)). The
-> cleanest sweep the project has run, and the first measurement of any kind on this world.
+> **The current benchmark — dev sweep 10, at the stamp this repository ships.** Under
+> `prompts:b6837dd449ca`, capability `cap:c4d52d00`, world generation `f5bd108f4f70`: five dev
+> scenarios, R=1, both arms, **\$3.6366 all in**
+> ([`SWEEP-2026-09-06-sweep10.md`](evals/runs/SWEEP-2026-09-06-sweep10.md), pre-registered before
+> the run).
 >
-> **One verdict was wrong.** `shipping-quote-misconfig` returned `bad_deploy` against a truth of
-> `bad_config`, at **low** confidence, with **zero dispatches at the failing service** — the
-> collapse T4.12 named. The agent wrote in its own open questions that a bad config value "would
-> look identical from the caller". Two explanations are available, a changed capture and a known
-> planner instability, and **n = 1 per side separates neither**; the sweep says so rather than
-> picking one.
+> | axis | pipeline | B0.2 |
+> |---|---|---|
+> | **culprit service** | **5 / 5** | not scored — B0 names no service |
+> | fault class, top-1 | 3 / 5 | 1 / 5 |
+> | fault class, top-3 | 4 / 5 *(depth 3 on four of five)* | 4 / 5 **by construction** — depth 1 on every run |
+> | class of fix | 3 / 5 | 1 / 5 |
+> | cost | \$3.5979 | **\$0.0000** |
+>
+> **Culprit service is the figure this project would defend, and it is the newest.** Until T4.2 the
+> benchmark scored the mechanism and the fix and never *which service broke* — on a benchmark whose
+> subject is finding out which service broke. `frontend` was the triage entry point on three of
+> these five and was blamed on none of them; B0.2, which has no service axis at all, takes that trap
+> by construction.
+>
+> **The top-3 column is only readable with its depth, which is why depth is in the table.** Four of
+> five pipeline verdicts ranked three candidates; **B0.2 ranked one on every run**, so its top-3
+> equals its top-1 and the two columns are not measuring the same thing.
+>
+> ### The most important thing on this page is not in that table
+>
+> **`cart-bad-image-tag` was scored correct on fault class at this exact stamp, and four hours later
+> came back wrong** — same prompt digest, same capability, same world generation, with `bad_deploy`
+> absent from all three of its ranked candidates.
+>
+> **Every figure this project publishes is R=1.** `repeat_count: 1` appears on every run ever
+> recorded; the variance protocol's `weekly` (R=3) and `published` (R=5) tiers have never run. So
+> run-to-run variance at a fixed stamp had never been measured here, and the first measurement
+> arrived by accident, at n=2.
+>
+> It invalidates nothing above. It establishes that **a single run at this stamp is not reproducible
+> to ±1 scenario on fault class** — which is a statement about all five figures above, about dev
+> sweep 9's four, and about every per-scenario comparison a reader might draw between them. The
+> repeat that would settle it costs about \$9 and has not been run.
+>
+> **Do not read these against dev sweep 7's `8 of 8 / 7 of 8`.** That sweep ran a different and
+> larger scenario set, at `1b0e7cbb4c47`, three stamps back, before the service axis existed. The
+> catalog, the contract and the scored axes have all moved since; the two are not a
+> before-and-after and treating them as one compares scenario sets rather than pipelines.
+> [`SWEEP-2026-08-30-refound-again.md`](evals/runs/SWEEP-2026-08-30-refound-again.md) stands
+> unedited.
+>
+> **On this world: 35 scored runs across 6 scenarios, 11 of them at the current stamp.** Every
+> earlier figure in this README describes a superseded world, a superseded stamp, or both, and says
+> which.
 >
 > **On `n`: it is the number of slots filled, not the number allocated.** The catalog runs against
 > **13 valid scenarios** (10 dev / 3 holdout) of 20 allocated slots. One dev slot, `bad_deploy-5`, is
