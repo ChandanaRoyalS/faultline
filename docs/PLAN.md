@@ -1338,9 +1338,26 @@ had ever asked the same question of the service beside it. Fixed with a healthch
 interpreter runs, and Caddy's `depends_on` raised to `service_healthy` so a visitor during a deploy
 sees a pause rather than a 502.
 
-**Sixteen.** That is the count of things in this repository built, green, merged and found broken
-only by being run — five of them in this task, in one evening, in files written hours earlier.
-The rehearsal section exists because of the first eleven, and it earned its place on the twelfth.
+**Then a sixth, found by reading rather than running, and it was the author's own.** The merged
+README §3.4 said to bring the world up on the VM *without* `compose/world-arm64.override.yml`, a
+guard enforced it, and `compose.world.yml` repeated the reasoning: an Apple Silicon accommodation
+that an x86 host does not need. **The file's name says arm64 and almost none of its content is
+about the platform.** Kafka's heap cap and `MALLOC_ARENA_MAX` fix a glibc arena problem on any Linux
+(T7.27). redis-cart's `allkeys-lru` is not about the CPU (T7.19). A dozen memory limits were raised
+because containers idled above the baseline gate's 90% guard. `featureflagservice` is the stub every
+recorded scenario ran against (ADR-0005, ADR-0006). And it is **one of the three files
+`compose_digest` hashes** — a world brought up without it is not generation `f5bd108f4f70`, wearing
+the same image tag, which is precisely the defect the digest exists to make visible. Caught while
+reading the file to write the VM runbook; the guard now asserts the documented command layers every
+file `InjectorSettings.compose_files` names, in Makefile order, with the deploy overlay fourth and
+outside the hash. The file is misnamed and stays misnamed: renaming a digest input is a world
+generation change (ADR-0030) and belongs to a re-record, not a documentation fix.
+
+**Sixteen, then seventeen.** That is the count of things in this repository built, green, merged
+and found broken only by being run or read against the specification — six of them in this task, in
+one evening, in files written hours earlier, one of them by the same hand that had written the
+guard asserting the opposite. The rehearsal section exists because of the first eleven, and it
+earned its place on the twelfth.
 
 **What remains is everything that needs a machine that is not this one:** the CX43, the A record,
 `ufw`, the certificate, the world under load, and a stranger's browser clicking a citation.

@@ -501,23 +501,36 @@ def test_an_unconfigured_uptime_check_skips_rather_than_failing_forever() -> Non
     assert all("configured == 'true'" in str(step.get("if", "")) for step in steps[1:])
 
 
-def test_the_documented_world_command_applies_the_deploy_overlay_and_not_the_arm64_one() -> None:
-    """`compose/world-arm64.override.yml` exists because the development machine is an Apple
-    Silicon Mac running part of the demo under Rosetta. The VM is x86-64, so applying it there asks
-    a linux/amd64 host to translate amd64 images with a layer it does not have.
+def test_the_documented_world_command_layers_every_file_the_generation_is_hashed_from() -> None:
+    """**This guard asserted the opposite for one merge, and the file's name is why.**
 
-    Asserted against the README's own fenced command, because the command an operator copies is the
-    one that runs - a rule this file already learned when a guard read prose instead of a code
-    block (T5.4b).
+    `world-arm64.override.yml` reads as an Apple Silicon accommodation. It is the world's
+    operational configuration - kafka's glibc arena fix (T7.27), redis-cart's eviction policy
+    (T7.19), a dozen limits raised because containers idled above the baseline gate's 90% guard,
+    and the feature-flag stub every recorded scenario ran against (ADR-0005) - and it is one of the
+    three files `evalharness.provenance.compose_digest` hashes. A world brought up without it is a
+    different generation from `f5bd108f4f70`, wearing the same image tag.
+
+    So the documented command must layer all three digest inputs, in the order the Makefile does,
+    with the deploy overlay fourth and outside the hash. Asserted against the README's fenced
+    command because the command an operator copies is the one that runs (T5.4b).
     """
+    from injector.settings import InjectorSettings
+
     readme = (DEPLOY / "README.md").read_text()
     blocks = re.findall(r"```bash\n(.*?)```", readme, re.S)
     world = [b for b in blocks if "compose.world.yml" in b]
 
     assert world, "deploy/README.md documents no command that brings the world up"
+    hashed = [Path(name).name for name in InjectorSettings().compose_files]
     for block in world:
-        assert "../compose/telemetry.yml" in block
-        assert "world-arm64" not in block
+        positions = [block.find(name) for name in hashed]
+        assert all(p >= 0 for p in positions), (
+            f"the world command omits a file the generation is hashed from: "
+            f"{[n for n, p in zip(hashed, positions, strict=True) if p < 0]}"
+        )
+        assert positions == sorted(positions), "the digest inputs must be layered in Makefile order"
+        assert block.find("compose.world.yml") > max(positions), "the deploy overlay layers last"
 
 
 # --- the rehearsal changes only what it claims to ------------------------------------------------

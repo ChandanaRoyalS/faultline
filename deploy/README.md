@@ -221,22 +221,34 @@ rehearsal lost a correct `bad_config` exactly this way.
 
 ### 3.4 The world
 
+Two commands. The first is the repository's own target and does everything a development machine
+does — clones the demo at `v1.2.1` (ADR-0026), builds the feature-flag stub, layers the override and
+the telemetry stack, and pushes the shop-health dashboard into Grafana. The second re-applies the
+same three files with the deploy overlay as a fourth, which is idempotent: it recreates Alertmanager
+with the deploy config and attaches four services to the platform's network, and touches nothing
+else.
+
 ```bash
-cd ../world
+cd ~/faultline
+make world-up
+cd world
 docker compose \
   -f docker-compose.yml \
+  -f ../compose/world-arm64.override.yml \
   -f ../compose/telemetry.yml \
   -f ../deploy/compose.world.yml \
   up -d --no-build
 ```
 
-Clone it first with `make world-up` from the repository root if `world/` does not exist — that
-target pins the demo at `v1.2.1` (ADR-0026) — then bring it down and back up with the command
-above, which adds the deploy overlay.
-
-**No `../compose/world-arm64.override.yml`.** That overlay exists because the development machine
-is an Apple Silicon Mac running part of the demo under Rosetta. The VM is x86-64 and pulls native
-images.
+**`world-arm64.override.yml` stays, and the first version of this section said to drop it.** Its
+name is misleading. Kafka's heap cap and `MALLOC_ARENA_MAX` fix a glibc arena problem on any Linux
+(T7.27); redis-cart's eviction policy is not about the CPU (T7.19); a dozen memory limits were
+raised because containers sat at 95%+ idle and tripped the baseline gate; and `featureflagservice`
+is the stub every recorded scenario ran against (ADR-0005, ADR-0006). **It is also one of the three
+files the world generation is hashed from.** Without it, the VM runs a world that is not
+`f5bd108f4f70`, wearing the same image tag — the exact defect `compose_digest` exists to make
+visible. The deploy overlay is a fourth layer outside that hash, so applying it changes nothing a
+manifest would record.
 
 Expect ~5 minutes before the world is worth looking at, and remember the baseline gate refuses
 containers younger than 300s.
