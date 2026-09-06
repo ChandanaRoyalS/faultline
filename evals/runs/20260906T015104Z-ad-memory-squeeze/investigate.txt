@@ -1,0 +1,43 @@
+incident 070f087b-b280-4cec-b992-e775ad9e89cb  state triaging  anchor 01:54:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: a97ad822-d15c-4f25-8d1f-edaa097abb8e
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with frontend and loadgenerator alerting together points at a real user-facing failure, not a lone synthetic-probe artifact. No open incidents to attribute it to, and the alerts alone don't distinguish a frontend deploy from a failing downstream dependency.
+investigation: 2 round(s), 9 dispatch(es), 26 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : adservice
+  expect      : Restoring adservice's previous configuration (no explicit memory cap; prior state recorded as memory=256m -> None in change history) and recreating the container should let the ad-service process hold its full working set and keep its gRPC listener up. Observable as: (1) adservice server-side spans reappearing under frontend's AdService/GetAds edge in Jaeger, and the ~3.09s errored frontend-side TCP connect spans ceasing; (2) frontend Loki lines matching 'Error: 14 UNAVAILABLE: No connection established' stopping - currently recurring every few seconds-to-minutes through 01:56:21; (3) frontend's service-level error ratio falling from the incident mean of ~0.039 back to at or below the ~0.027 baseline, with no further threshold crossings.
+  within      : 600s
+  risk        : Two real risks. First, removing the memory cap restores unbounded memory growth for adservice: if the true fault is a leak or a genuine working-set blowup, adservice will grow until it pressures the host, which can degrade or OOM co-located containers rather than just itself - trading a contained failure for an uncontained one. Second, revert_config recreates the container, so any in-flight GetAds calls are dropped and frontend sees connection resets for the duration of the recreate; if the diagnosis is wrong this is a gratuitous outage on the one edge that is already failing. Third, the revert may race the platform-automation loop that has applied and withdrawn this cap three times, producing config flapping and repeated recreates.
+  blast radius: adservice's container is replaced. frontend is the caller named on this edge in the trace evidence and will see connection resets during the recreate; loadgenerator, as the parent in the same traces, will see those requests error with the same ~3.09s signature it already shows. No other service calls adservice in the observed traces, so cartservice, checkoutservice, productcatalogservice and recommendationservice should be unaffected - but the host-memory risk above, if realised, would reach whatever else shares the host.
+  if wrong    : Falsified if, 10 minutes after the revert and container recreate, frontend still emits status-14 'No connection established' lines and traces still show errored TCP connect spans on the AdService edge with no adservice server span. That would mean the memory cap was not the mechanism - which the evidence already leaves open: identical UNAVAILABLE errors appear at ~00:54:32, an hour before the 01:51 cap, and baseline error peaks (max ~0.34) match the incident window, so onset is not established and the ad edge may have been failing before the cap existed. Also falsified in a weaker way if errors stop and then resume within the hour: that would indicate the platform-automation loop re-applied the cap (it has applied and withdrawn it three times already), and the fix is to stop the loop, which is outside what this system may do. Note the OOM mechanism itself is inferred, not observed - no adservice OOMKilled events, restart counts, or memory metrics were collected, so a clean confirmation of 'memory was the cause' is not available from this system's telemetry; only the downstream connect failures are observable.
+  rests on    : tr_0815a617ef14, tr_abbfdc44f8c6, tr_00e747d11cb9
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 33137 pushed / 6395 pulled (pull rate 0.1618), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_abbfdc44f8c6, tr_00e747d11cb9, tr_0815a617ef14
+  root cause  : Frontend's errors are a downstream symptom of adservice being unreachable. Traces show the only failing outbound edge from frontend is AdService/GetAds, erroring at a tight ~3.09s in a frontend-side TCP connect span with no adservice server span, and the failure propagates up to the loadgenerator parent [tr_abbfdc44f8c6]. Frontend logs confirm gRPC status 14 UNAVAILABLE raised from the client on connection establishment, not deadline-exceeded or inbound logic [tr_00e747d11cb9]. The only change on adservice is platform-automation lowering its memory cap to 256m (from no explicit cap) ~3 minutes before onset [tr_0815a617ef14]. The consistent mechanism is adservice being OOM-killed under a cap below its working set, so its listener is intermittently absent and frontend's connects fail — the failure is running out of memory, with the limit edit as the trigger.
+  OPEN        : No adservice-side telemetry was collected: no OOMKilled events, restart counts, memory metrics or logs. The OOM mechanism is inferred, not observed.
+  OPEN        : Identical UNAVAILABLE errors appear at ~00:54:32, an hour before the 01:51 cap, and baseline error peaks match the incident window [tr_00e747d11cb9, tr_4c6a08670d5f] — onset time is not established and the ad edge may have been failing earlier.
+  OPEN        : Why platform-automation repeatedly applies and withdraws this cap is unknown; a manual revert may be re-applied by the loop.
+
+flags: none
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T015104Z-ad-memory-squeeze/070f087b-b280-4cec-b992-e775ad9e89cb-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T015104Z-ad-memory-squeeze/070f087b-b280-4cec-b992-e775ad9e89cb-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10311.56it/s]

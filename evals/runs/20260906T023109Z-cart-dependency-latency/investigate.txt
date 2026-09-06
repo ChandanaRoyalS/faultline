@@ -1,0 +1,43 @@
+incident 4926bfb9-c5fb-4436-9dde-55973465df66  state triaging  anchor 02:34:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 29d3850f-e803-474b-8b57-410df6b68e7e
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Multiple services across the checkout path alerted within seconds of each other and propagated to the frontend and load generator, which is not a world that is working. Cartservice and checkoutservice alerting together first suggests a shared downstream dependency, but that is only a prior.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Reverting cartservice's configuration and recreating the container should detach the traffic-shaping attachment (eth0 delay=300ms) and remove the fixed egress delay. Measured in Jaeger, the only quantitative source that works here since Prometheus returns no samples for cartservice: Redis HGET/HMSET child spans fall from the tight ~300ms cluster to single-digit ms; cartservice server handlers fall from ~301-308ms (GetCart/EmptyCart) and ~603-614ms (AddItem) to tens of ms; the client-minus-server gap disappears (frontend GetCart client ~603-616ms, checkout EmptyCart client ~1205-1221ms both collapse toward server span). Corroborating: checkoutservice PlaceOrder->payment->email stage gaps return from ~1s to tens of ms, with orders still succeeding and no error lines.
+  within      : 300s
+  risk        : The change history is untrusted and shows five image update/revert pairs plus a REDIS_ADDR set/revert; 'previous configuration' may restore a stale REDIS_ADDR (redis-cart:6380) or hotfix image rather than the baseline in effect at onset, turning a latency incident into a cart outage. The recreate also discards in-process cache and drops in-flight gRPC calls. If the 300ms actually originates at redis-cart, this changes nothing and costs a restart.
+  blast radius: cartservice alone is modified, but its inbound callers see connection resets during the recreate: frontend (cart page and AddItem paths) and checkoutservice (PlaceOrder, which calls GetCart and EmptyCart), and through checkoutservice the order flow visible to loadgenerator. redis-cart sees cart traffic pause then resume at full rate.
+  if wrong    : Falsified if fresh traces 3-5 min after the recreate still show ~300ms Redis spans and the same 300ms multiples - meaning the delay is not in the reverted config (shaper attached out-of-band and surviving recreate, or redis-cart itself slow; redis-cart was never queried directly). Also sample traces immediately before acting: it is unconfirmed the shaper is still attached, and platform-automation removed it on its own once before, so a spontaneous recovery could be misread as a fix. If cart calls start erroring after the revert, the restored config is not the pre-shaper state.
+  rests on    : tr_c7c9b3c55cd2, tr_2e2f3e84e02a, tr_e3a2c741032c
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 24971 pushed / 8047 pulled (pull rate 0.2437), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_c7c9b3c55cd2, tr_2e2f3e84e02a, tr_e3a2c741032c, tr_cd4598047f5c
+  root cause  : A platform-automation traffic-shaping container was attached to cart-service's network namespace ~3 minutes before onset, imposing a fixed 300ms egress delay with zero jitter on eth0, still in effect at onset [tr_c7c9b3c55cd2]. Every packet leaving cartservice — Redis commands to redis-cart and gRPC responses to callers — pays that fixed cost. Traces match exactly: each Redis HGET/HMSET takes ~300ms, AddItem (two commands) ~603-614ms, and callers see an extra ~300ms per call beyond the server span, tightly clustered in multiples of 300ms rather than spread as a tail [tr_2e2f3e84e02a]. Nothing errors — cartservice serves cart operations continuously with no error lines [tr_cd4598047f5c] and checkoutservice completes orders end to end, only slower [tr_e3a2c741032c]. The failure is injected wait time on cartservice's network path, propagating to checkout and the frontend edge.
+  OPEN        : No latency or request-rate metric was ever queried; the only query run was an error-ratio template returning no samples in either window, so the ~300ms step and its onset boundary were never confirmed against a time series [tr_c247e766f80d, tr_0a0db308b3f9].
+  OPEN        : Why the checkout→cartservice gap is ~3×300ms while the frontend gap is ~1×300ms is unsettled — connection-pool serialization is a hypothesis, not a finding [tr_2e2f3e84e02a]; and it is unconfirmed whether the shaper is still attached now.
+  OPEN        : Both log dispatches returned only the oldest 8 and newest 32 lines, leaving the onset interval itself unobserved [tr_cd4598047f5c, tr_e3a2c741032c]; redis-cart was never dispatched on directly, and 10 of 12 blast-radius services were not investigated.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T023109Z-cart-dependency-latency/4926bfb9-c5fb-4436-9dde-55973465df66-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T023109Z-cart-dependency-latency/4926bfb9-c5fb-4436-9dde-55973465df66-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10121.91it/s]

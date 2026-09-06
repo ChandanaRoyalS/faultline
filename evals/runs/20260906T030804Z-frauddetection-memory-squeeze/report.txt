@@ -1,0 +1,38 @@
+run 20260906T030804Z-frauddetection-memory-squeeze   scenario frauddetection-memory-squeeze
+trajectory b2d61bf7-b232-4f7e-b187-bc42382d029f   runtime faultline/0.0.1+prompts:b6837dd449ca
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (1/1 alerted services predicted)
+  precision 1.00  (1/1 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): none
+  unmeasured edges crossed: 0 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class resource_exhaustion vs resource_exhaustion - correct
+  fix class   config_revert vs config_revert - correct
+  service     frauddetectionservice vs frauddetectionservice - correct
+  ranked      top1 hit, top3 hit, depth 1  (top-3 = top-1 by construction: the verdict offered no alternative)
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 40977 / out 12090 tokens   $0.5071
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {'changes': 8}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        198.9s (OVER G4's 3-minute per-run comparison) tools 0.1s  models 0.0s  steps 16
+  tool calls     4 total, 4 valid, 0 errored, 1 redundant  validity 1.00  redundancy 0.25
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 2 empty, 1 truncated
+  context budget 5 briefing(s), 3 over budget (0.60), 2 section(s) dropped, largest 5913 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false
