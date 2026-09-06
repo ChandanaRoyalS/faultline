@@ -1,0 +1,30 @@
+# T5.5 — Alertmanager's routing on the deployment, and the only line that differs from
+# `compose/prometheus/alertmanager.yml` is the webhook's host.
+#
+# Development runs the receiver on the host, so that file posts to `host.docker.internal:8000`.
+# Here the receiver is a container named `faultline` on `faultline-deploy-net`, and
+# `host.docker.internal` on a Linux VM resolves to nothing that listens.
+#
+# **Two files rather than one parameterised file** because Alertmanager does not expand environment
+# variables in its configuration. `deploy/compose.world.yml` mounts this one at a second path and
+# replaces `--config.file`; the development config stays mounted and unread.
+#
+# The grouping and timing are copied deliberately, not tuned. A deployment that batched alerts
+# differently from the development machine would produce incidents of a different shape, and every
+# figure in `docs/RESULTS.md` was measured under these numbers.
+route:
+  receiver: faultline
+  group_by: ["alertname", "service_name"]
+  group_wait: 10s
+  group_interval: 30s
+  repeat_interval: 1h
+
+receivers:
+  - name: faultline
+    webhook_configs:
+      # Container to container on the compose network - never through Caddy, which returns 404 on
+      # this path. That is not a workaround: the receiver takes no credential (Alertmanager sends
+      # none, THREAT-MODEL thesis 3), so the only safe place for it is off the internet, and the
+      # only thing that needs to reach it is already inside.
+      - url: "http://faultline:8000/api/v1/alerts"
+        send_resolved: true

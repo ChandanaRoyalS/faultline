@@ -1,0 +1,145 @@
+# T5.5's uptime check.
+#
+# The task names *"an uptime check"* among the deployment's deliverables, beside the deploy-and-
+# rollback procedure. This is it.
+#
+# **Why here rather than in a monitoring vendor's account.** Three reasons, in order of how much
+# they matter to this repository:
+#
+#   1. It is a committed, reviewable artifact. A reader can see that "there is an uptime check" is
+#      true without being handed a login to somebody's dashboard - which is the same standard
+#      every other claim in this repository is held to.
+#   2. It runs on GitHub's infrastructure, genuinely off the box. A checker running on the VM
+#      cannot detect the VM being down, which is the one thing it exists to detect.
+#   3. It costs nothing and needs no account that could lapse.
+#
+# **What it does not do: page anyone.** A failed scheduled workflow emails the repository owner.
+# That is the correct amount of alerting for a portfolio deployment and would be badly wrong for
+# anything carrying traffic - `docs/GATES.md` G6 is where reliability becomes a deliverable.
+#
+# **Two GitHub behaviours worth knowing before trusting this.** Scheduled workflows are best-effort
+# and run late under load - a 15-minute cron is a 15-to-40-minute cron in practice, which is fine
+# for "is the URL up" and would not be fine for an SLO. And GitHub disables scheduled workflows in
+# a repository with no commits for 60 days, so a quiet month is indistinguishable from a healthy
+# one unless the run history is checked.
+name: uptime
+
+on:
+  schedule:
+    # Every 15 minutes. Not every 5: the finer schedule buys nothing here - Caddy's certificate
+    # renewal and a container restart are both slower than either interval - and it triples the
+    # run history a human has to read to find the one that failed.
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+# A late run and a fresh one checking the same URL tell you the same thing, and the fresh one is
+# more useful. Cancelling the older is not a lost signal.
+concurrency:
+  group: uptime
+  cancel-in-progress: true
+
+jobs:
+  healthz:
+    runs-on: ubuntu-latest
+    steps:
+      # **Unset means skip, not fail.** This file is committed before the VM exists, and a
+      # permanently red check is a check people learn to ignore - which is worse than no check,
+      # because it also teaches them to ignore the next one.
+      #
+      # A repository *variable*, not a secret: the hostname is in `docs/RESULTS.md` and the README
+      # the moment the deployment is real, and marking a public fact secret only makes the logs
+      # harder to read.
+      - name: Whether a deployment has been configured
+        id: site
+        run: |
+          if [ -z "${{ vars.FAULTLINE_SITE_ADDRESS }}" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "FAULTLINE_SITE_ADDRESS is not set, so no deployment is being watched."
+            echo "Set it with: gh variable set FAULTLINE_SITE_ADDRESS --body 'faultline.example.com'"
+            echo "deploy/README.md section 3.8 has the rest."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Three attempts, twenty seconds apart, before calling it down.
+      #
+      # **Not to be lenient - to be believed.** A single curl failing is as likely to be a runner's
+      # transient DNS as a dead site, and a check that cries wolf on network weather is one whose
+      # failures nobody reads. Three consecutive failures spanning ~40s is a signal.
+      #
+      # `--max-time 10` because a hung TLS handshake is a failure too: a site that takes ninety
+      # seconds to answer is down for every purpose a person has.
+      - name: The health endpoint answers
+        if: steps.site.outputs.configured == 'true'
+        env:
+          SITE: ${{ vars.FAULTLINE_SITE_ADDRESS }}
+        run: |
+          set -u
+          url="https://${SITE}/healthz"
+          for attempt in 1 2 3; do
+            body="$(curl -sS --max-time 10 --fail-with-body "$url" 2>&1)" && rc=0 || rc=$?
+            if [ "$rc" -eq 0 ] && printf '%s' "$body" | grep -q '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+              echo "attempt ${attempt}: ok — ${body}"
+              exit 0
+            fi
+            echo "attempt ${attempt}: curl exit ${rc}, body: ${body}"
+            [ "$attempt" -lt 3 ] && sleep 20
+          done
+          echo
+          echo "::error::${url} did not answer {\"status\":\"ok\"} in three attempts over ~40s."
+          echo "Check, in this order:"
+          echo "  1. the VM is running at all"
+          echo "  2. docker compose ps in faultline/deploy — postgres healthy, faultline up"
+          echo "  3. Caddy's log for a certificate renewal failure"
+          echo "  4. deploy/README.md section 3.7 if a recent deploy is the suspect"
+          exit 1
+
+      # **Answering is not the same as serving.** `/healthz` is deliberately open and deliberately
+      # shallow - it says the process is alive, not that the read surface mounted or that the
+      # database is reachable. A deployment started without `--postgres-dsn` answers `/healthz`
+      # perfectly and 404s the incident screen, which is a failure this check would otherwise
+      # report as health.
+      #
+      # 401 is the pass. Not 200: this runner holds no credential and should not. Not 404: that is
+      # the read surface missing. Not 502: that is the platform gone while Caddy stands.
+      - name: The incident API is mounted and behind its credential
+        if: steps.site.outputs.configured == 'true'
+        env:
+          SITE: ${{ vars.FAULTLINE_SITE_ADDRESS }}
+        run: |
+          set -u
+          code="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' \
+            "https://${SITE}/api/v1/incidents" || echo 000)"
+          echo "GET /api/v1/incidents -> ${code}"
+          case "$code" in
+            401) echo "mounted, and refusing anonymous reads." ;;
+            404) echo "::error::the read surface is not mounted — faultline started without --postgres-dsn"; exit 1 ;;
+            200) echo "::error::the incident API answered without a credential. deploy/README.md section 3.6."; exit 1 ;;
+            *)   echo "::error::unexpected ${code} from the incident API"; exit 1 ;;
+          esac
+
+      # The one that would have caught the abuse vector rather than the outage.
+      #
+      # `POST /api/v1/alerts` must not be reachable from the internet: an alert opens an incident,
+      # an incident runs an investigation, and an investigation bills the deployment's model key.
+      # Caddy answers it with a 404 and the world's own Alertmanager reaches the receiver on the
+      # compose network instead. A Caddyfile edit that dropped that block would be invisible until
+      # the bill arrived.
+      - name: The alert receiver is not on the internet
+        if: steps.site.outputs.configured == 'true'
+        env:
+          SITE: ${{ vars.FAULTLINE_SITE_ADDRESS }}
+        run: |
+          set -u
+          code="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' \
+            -X POST -H 'content-type: application/json' -d '{}' \
+            "https://${SITE}/api/v1/alerts" || echo 000)"
+          echo "POST /api/v1/alerts -> ${code}"
+          if [ "$code" = "404" ]; then
+            echo "blocked at the edge, as deploy/Caddyfile intends."
+          else
+            echo "::error::the alert receiver answered ${code} from the public internet."
+            echo "Anything reaching this path can open incidents that spend the deployment's key."
+            echo "deploy/Caddyfile's handle /api/v1/alerts* block is what stops it."
+            exit 1
+          fi

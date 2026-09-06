@@ -1,16 +1,69 @@
-# TLS terminates here and the platform never sees a plain-HTTP request.
+# TLS terminates here and nothing behind it ever sees a plain-HTTP request.
 #
 # Basic auth sends the password base64-encoded, which is transport encoding and not encryption.
 # Over plain HTTP that is a published password, so the credential `faultline.api.auth` checks is
 # only worth having behind this. Caddy obtains and renews a certificate from Let's Encrypt
 # automatically on the first request to SITE_ADDRESS, and redirects :80 to :443 by default.
+#
+# **This file grew routes when the deployment grew a world.** Three things now sit behind one
+# hostname: Faultline's screen and API, the demo's own UIs (Grafana and Jaeger, through the
+# OpenTelemetry demo's frontend-proxy), and the health endpoint an uptime check polls. `handle`
+# blocks rather than bare `reverse_proxy`, because they are mutually exclusive and the first match
+# should win rather than the most specific one.
 
 {$SITE_ADDRESS} {
-	# The alert receiver would also be reachable through here if anything posted to it. Nothing
-	# does in this deployment: the world is not running, so no Alertmanager exists to send one.
-	# The route is left rather than blocked so that a deployment that later grows a world does
-	# not need a different Caddyfile.
-	reverse_proxy faultline:8000
+	# --- the uptime check's target, deliberately first and deliberately open -------------------
+	#
+	# T5.5 names "an uptime check" as a deliverable. A monitor that has to hold a credential is a
+	# monitor whose failure mode includes "the credential expired", and this endpoint returns
+	# `{"status":"ok"}` and nothing about the incidents behind it. README §4 documents the trade.
+	handle /healthz {
+		reverse_proxy faultline:8000
+	}
+
+	# --- the receiver is not on the internet ---------------------------------------------------
+	#
+	# **This changed when the orchestrator arrived, and it had to.** `POST /api/v1/alerts` is
+	# unauthenticated by design - Alertmanager sends no credential of any kind, so a password there
+	# would stop alerts rather than attackers (THREAT-MODEL thesis 3). That was harmless while the
+	# deployment served a snapshot and investigated nothing.
+	#
+	# It is not harmless now. An alert that reaches the receiver opens an incident, and an incident
+	# runs an investigation, and an investigation spends money on model calls. Left open, this path
+	# is an unauthenticated endpoint on the public internet that bills the owner.
+	#
+	# The world's Alertmanager runs on the same compose network and posts to `faultline:8000`
+	# directly, never through Caddy, so blocking it here costs the deployment nothing at all.
+	handle /api/v1/alerts* {
+		respond "the alert receiver is reachable from this deployment's own Alertmanager, not from the internet" 404
+	}
+
+	# --- the world's own UIs, which have no authentication of their own ------------------------
+	#
+	# The OpenTelemetry demo's frontend-proxy already serves Grafana under /grafana and Jaeger
+	# under /jaeger/ui, so these forward the prefix rather than reconfiguring Grafana's root URL.
+	# `FAULTLINE_TOOLS_GRAFANA_URL` points citation deep links at https://<site>/grafana for
+	# exactly this reason.
+	#
+	# Basic auth here and not on Faultline's own routes: Faultline authenticates itself in
+	# `faultline.api.auth`, and two checks against two sources of truth - a hash here, a plaintext
+	# there - drift. The demo's UIs check nothing, so this is the only thing in front of them.
+	@world path /grafana* /jaeger* /loadgen*
+	handle @world {
+		basic_auth {
+			{$FAULTLINE_API_USER} {$FAULTLINE_API_PASSWORD_HASH}
+		}
+		reverse_proxy frontend-proxy:8080
+	}
+
+	# --- everything else is Faultline ----------------------------------------------------------
+	#
+	# The incident screen, the read API, and its own basic auth. No credential is checked here:
+	# `faultline.api.auth.guard()` runs before `psycopg.connect()`, so an unauthenticated request
+	# never reaches the database.
+	handle {
+		reverse_proxy faultline:8000
+	}
 
 	# Not `log { output discard }`. A deployment nobody can see the traffic of is one where the
 	# first sign of a credential being brute-forced is the bill.

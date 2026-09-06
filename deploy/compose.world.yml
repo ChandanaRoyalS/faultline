@@ -1,0 +1,71 @@
+# T5.5 — the demo environment half, as an overlay on the world's own compose files.
+#
+# T5.5 says the deployment is *"demo environment plus platform"*. The world is a pinned clone of
+# somebody else's repository (ADR-0026) and is never vendored into this one, so it cannot become a
+# service in `deploy/compose.yml`. It comes up from its own compose file under our overlays,
+# exactly as `make world-up` does on a development machine - with this third file added:
+#
+#   cd world && docker compose \
+#     -f docker-compose.yml \
+#     -f ../compose/telemetry.yml \
+#     -f ../deploy/compose.world.yml \
+#     up -d --no-build
+#
+# README §3.3 is the authority; this comment is here so the file explains itself when found alone.
+#
+# **No `../compose/world-arm64.override.yml`.** That overlay exists because the development machine
+# is an Apple Silicon Mac running several of the demo's images under Rosetta. A Hetzner CX43 is
+# x86-64 and pulls the native images, so applying it there would be asking a linux/amd64 host to
+# run amd64 images through a translation layer it does not have.
+#
+# What this overlay does, and all it does:
+#
+#   1. puts the four services the platform talks to on the platform's network
+#   2. points Alertmanager at the receiver's container rather than at a developer's host
+#
+# It publishes nothing and unpublishes nothing. **The world's own compose files publish a dozen
+# host ports** - 8080, 3000, 3100, 9090, 9093 and more - and a compose overlay cannot remove a
+# published port, only add one. On a public VM every one of those is reachable on the IP,
+# bypassing Caddy and the only credential in front of Grafana. **The host firewall is what closes
+# them, it is not optional, and README §3.2 runs it before anything is brought up.**
+
+networks:
+  faultline:
+    external: true
+    name: faultline-deploy-net
+
+services:
+  # Where alerts go. The world fires them; the platform is what listens.
+  alertmanager:
+    networks:
+      - faultline
+    # **A second config file rather than an edit to the first.** `compose/prometheus/alertmanager.yml`
+    # posts to `host.docker.internal:8000`, which is right on a development machine - the receiver
+    # runs on the host there, not in a container - and resolves to nothing useful on the VM, where
+    # the receiver is a container named `faultline` on this network.
+    #
+    # Alertmanager does not expand environment variables in its configuration, so one file cannot
+    # serve both. Mounted at a different path and selected by `command`, which an overlay replaces
+    # rather than merges - so the development config stays mounted, unused, and unchanged.
+    volumes:
+      - ../deploy/alertmanager.yml:/etc/alertmanager/alertmanager.deploy.yml:ro
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.deploy.yml
+      - --web.listen-address=:9093
+
+  # Queried by the metrics specialist as `http://prometheus:9090`.
+  prometheus:
+    networks:
+      - faultline
+
+  # Queried by the logs specialist as `http://loki:3100`.
+  loki:
+    networks:
+      - faultline
+
+  # Two jobs. The traces specialist reaches Jaeger through it at
+  # `http://frontend-proxy:8080/jaeger/ui`, and Caddy forwards `/grafana*` and `/jaeger*` to it so
+  # a citation deep link lands a reader in the real data behind one hostname and one credential.
+  frontend-proxy:
+    networks:
+      - faultline
