@@ -622,6 +622,88 @@ def test_a_ranked_verdict_prints_its_order_and_whether_ranking_earned_anything()
     assert "ranked: cartservice > redis-cart" in report
 
 
+# --- the class axis, printed (dev sweep 10) ------------------------------------
+#
+# `ranked_class` was scored from the day T4.2 landed and written to every manifest since, and
+# `report()` printed only `ranked_service`. The same defect the service line above was added to
+# fix, one field over, in the same commit that fixed it.
+
+
+def test_the_ranked_class_axis_is_printed() -> None:
+    """**The run that found it.** `cart-redis-misconfig` at `b6837dd449ca` abstained at top-1
+    with `unknown`, ranked `resource_exhaustion` second and `bad_config` third - and `bad_config`
+    was the truth. First `gained_by_ranking: true` in the record, and the terminal reported an
+    abstention and said nothing about the correct answer sitting at rank 3.
+    """
+    report = ScoredRun(
+        "r",
+        "s",
+        "t",
+        ranked_class=RankedScore(
+            truth="bad_config", ranked=("unknown", "resource_exhaustion", "bad_config")
+        ),
+        categories=Categories(),
+    ).report()
+
+    assert "ranked class" in report
+    assert "top1 miss, top3 hit, depth 3" in report
+    assert "gained by ranking: yes" in report
+    assert "ranked: unknown > resource_exhaustion > bad_config" in report
+
+
+def test_both_ranked_axes_print_when_both_are_scored() -> None:
+    report = ScoredRun(
+        "r",
+        "s",
+        "t",
+        ranked_class=RankedScore(
+            truth="bad_config", ranked=("unknown", "resource_exhaustion", "bad_config")
+        ),
+        ranked_service=RankedScore(truth="cartservice", ranked=("cartservice",)),
+        categories=Categories(),
+    ).report()
+
+    assert "ranked class" in report
+    assert "ranked service" in report
+
+
+def test_an_axis_that_collapsed_does_not_claim_the_verdict_offered_no_alternative() -> None:
+    """**The number was right and the sentence was false.**
+
+    Two alternatives both naming `cartservice` collapse to depth 1 on the service axis while the
+    verdict plainly offered two. The old note printed "the verdict offered no alternative" against
+    a verdict that had offered exactly that.
+    """
+    report = ScoredRun(
+        "r",
+        "s",
+        "t",
+        ranked_class=RankedScore(
+            truth="bad_config", ranked=("unknown", "resource_exhaustion", "bad_config")
+        ),
+        ranked_service=RankedScore(truth="cartservice", ranked=("cartservice",)),
+        categories=Categories(),
+    ).report()
+
+    assert "the verdict offered no alternative" not in report
+    assert "the verdict ranked 3, all naming one service" in report
+
+
+def test_a_verdict_with_no_alternatives_at_all_still_says_by_construction() -> None:
+    """The claim stays available for the case it is true of - which was three of dev sweep 9's
+    four scored runs, and is the reason the note exists."""
+    report = ScoredRun(
+        "r",
+        "s",
+        "t",
+        ranked_class=RankedScore(truth="bad_config", ranked=("bad_config",)),
+        ranked_service=RankedScore(truth="cartservice", ranked=("cartservice",)),
+        categories=Categories(),
+    ).report()
+
+    assert "top-3 = top-1 by construction: the verdict offered no alternative" in report
+
+
 # --- keys nobody asked for (Q25b) ----------------------------------------------
 
 

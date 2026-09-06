@@ -308,7 +308,14 @@ class RankedScore:
 
     @property
     def depth(self) -> int:
-        """How many candidates were offered. **One means the arm did not rank.**"""
+        """How many **distinct values** this axis ranked.
+
+        **One does not mean the arm did not rank.** Two alternatives that both name `cartservice`
+        collapse to one distinct service while ranking two distinct fault classes, which is
+        exactly what `cart-redis-misconfig` did at `b6837dd449ca`. Depth is a property of this
+        axis; whether the verdict ranked is a property of the verdict, and only the caller holding
+        both axes can tell the difference.
+        """
         return len(self.ranked)
 
     def _hit(self, at: int) -> bool:
@@ -600,21 +607,46 @@ class ScoredRun:
                 lines.append(
                     f"    disputed boundary, {score.dispute.resolved_by}: {score.dispute.why}"
                 )
-        if self.ranked_service is not None:
-            ranked = self.ranked_service
+        # **Both ranked axes print, or the one that moves is the one nobody sees.**
+        #
+        # This loop printed `ranked_service` alone until dev sweep 10, and `ranked_class` - scored
+        # since T4.2, written to every manifest since - was never rendered. On
+        # `cart-redis-misconfig` at `b6837dd449ca` that hid the first `gained_by_ranking: true` in
+        # this project's history: the verdict abstained at top-1 with `unknown`, ranked
+        # `resource_exhaustion` second and `bad_config` third, and `bad_config` was the truth. The
+        # terminal reported an abstention and said nothing about the correct answer sitting at
+        # rank 3.
+        #
+        # It is the same defect the `service` line above was added to fix, one field over, in the
+        # same commit that fixed it. A measurement taken and not shown is a check nothing invokes,
+        # one step later - and fixing an instance is not fixing the class.
+        ranked_axes = (
+            ("ranked class", self.ranked_class),
+            ("ranked service", self.ranked_service),
+        )
+        # **Whether the verdict ranked at all is a property of the verdict, not of one axis.**
+        # Two alternatives that both name `cartservice` collapse to depth 1 on the service axis
+        # while the verdict plainly offered alternatives - so the old note, "the verdict offered
+        # no alternative", was printed against a verdict that had offered two. The number was
+        # right and the sentence was false, which is worse than either alone.
+        offered = max((axis.depth for _, axis in ranked_axes if axis is not None), default=1)
+        for label, ranked in ranked_axes:
+            if ranked is None:
+                continue
             # **`depth` travels with the rate, always.** A verdict carrying no alternatives scores
             # top-3 exactly equal to top-1, which reads as a tie with a ranking arm and is not
             # one. Dev sweep 9 measured depth 1 on three of four scored runs, so its top-3 column
             # would have been top-1 wearing a hat - and printing the rates without the depth is
             # how that gets published.
+            if ranked.depth > 1:
+                note = f"  gained by ranking: {'yes' if ranked.gained_by_ranking else 'no'}"
+            elif offered > 1:
+                note = f"  (the verdict ranked {offered}, all naming one {label.split()[-1]})"
+            else:
+                note = "  (top-3 = top-1 by construction: the verdict offered no alternative)"
             lines.append(
-                f"  {'ranked':11} top1 {'hit' if ranked.top_1 else 'miss'}, "
-                f"top3 {'hit' if ranked.top_3 else 'miss'}, depth {ranked.depth}"
-                + (
-                    "  (top-3 = top-1 by construction: the verdict offered no alternative)"
-                    if ranked.depth == 1
-                    else f"  gained by ranking: {'yes' if ranked.gained_by_ranking else 'no'}"
-                )
+                f"  {label:11} top1 {'hit' if ranked.top_1 else 'miss'}, "
+                f"top3 {'hit' if ranked.top_3 else 'miss'}, depth {ranked.depth}" + note
             )
             if ranked.depth > 1:
                 lines.append(f"    ranked: {' > '.join(ranked.ranked)}")
