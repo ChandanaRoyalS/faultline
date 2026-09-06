@@ -1,0 +1,161 @@
+{
+  "incident_id": "070f087b-b280-4cec-b992-e775ad9e89cb",
+  "trajectory_id": "a97ad822-d15c-4f25-8d1f-edaa097abb8e",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "Frontend's errors are a downstream symptom of adservice being unreachable. Traces show the only failing outbound edge from frontend is AdService/GetAds, erroring at a tight ~3.09s in a frontend-side TCP connect span with no adservice server span, and the failure propagates up to the loadgenerator parent [tr_abbfdc44f8c6]. Frontend logs confirm gRPC status 14 UNAVAILABLE raised from the client on connection establishment, not deadline-exceeded or inbound logic [tr_00e747d11cb9]. The only change on adservice is platform-automation lowering its memory cap to 256m (from no explicit cap) ~3 minutes before onset [tr_0815a617ef14]. The consistent mechanism is adservice being OOM-killed under a cap below its working set, so its listener is intermittently absent and frontend's connects fail \u2014 the failure is running out of memory, with the limit edit as the trigger.",
+    "service": "adservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_abbfdc44f8c6",
+      "tr_00e747d11cb9",
+      "tr_0815a617ef14"
+    ],
+    "reasoning": "Traces isolate the ad edge as the sole failing dependency and rule out productcatalog, cart/Redis, checkout, recommendation, frontend itself, and any cluster-wide network fault [tr_abbfdc44f8c6]; productcatalogservice is flat-zero errors with live traffic [tr_3c4f093b081e]. Frontend's modest ~1.41x rise to ~3.9% errors matches only ad-bearing requests failing [tr_4c6a08670d5f]. Frontend, checkoutservice and recommendationservice have no recorded changes, and cartservice's churn all reverted before onset, leaving the adservice memory cap as the only change aligned with the failing component [tr_0815a617ef14, tr_130ed30def5f]. A container killed for exceeding a new memory limit stops listening, which is exactly the failed-TCP-connect-with-no-server-span signature.",
+    "open_questions": [
+      "No adservice-side telemetry was collected: no OOMKilled events, restart counts, memory metrics or logs. The OOM mechanism is inferred, not observed.",
+      "Identical UNAVAILABLE errors appear at ~00:54:32, an hour before the 01:51 cap, and baseline error peaks match the incident window [tr_00e747d11cb9, tr_4c6a08670d5f] \u2014 onset time is not established and the ad edge may have been failing earlier.",
+      "Why platform-automation repeatedly applies and withdraws this cap is unknown; a manual revert may be re-applied by the loop."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "adservice is down or crash-looping for a reason unrelated to the memory cap, which is coincidental automation churn.",
+        "service": "adservice",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "The cap lands three minutes before onset and is the only adservice change, but pre-01:51 UNAVAILABLE errors keep this plausible; no adservice-side evidence was gathered to separate them."
+      },
+      {
+        "root_cause": "The adservice memory limit is simply a wrong value for the workload, making the misconfiguration itself the failure.",
+        "service": "adservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "A limit lowered until a process is killed for exceeding it is exhaustion in mechanism; the edit is how it started, not what is breaking requests. Remediation is identical either way."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 33137,
+    "pulled_tokens": 6395,
+    "pull_rate": 0.1618,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 425,
+        "content_tokens": 427,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1679,
+        "content_tokens": 1682,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 10526,
+        "content_tokens": 10503,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 9583,
+        "content_tokens": 9584,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10924,
+        "content_tokens": 10902,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "adservice",
+    "rests_on": [
+      "tr_0815a617ef14",
+      "tr_abbfdc44f8c6",
+      "tr_00e747d11cb9"
+    ],
+    "expected_effect": "Restoring adservice's previous configuration (no explicit memory cap; prior state recorded as memory=256m -> None in change history) and recreating the container should let the ad-service process hold its full working set and keep its gRPC listener up. Observable as: (1) adservice server-side spans reappearing under frontend's AdService/GetAds edge in Jaeger, and the ~3.09s errored frontend-side TCP connect spans ceasing; (2) frontend Loki lines matching 'Error: 14 UNAVAILABLE: No connection established' stopping - currently recurring every few seconds-to-minutes through 01:56:21; (3) frontend's service-level error ratio falling from the incident mean of ~0.039 back to at or below the ~0.027 baseline, with no further threshold crossings.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if, 10 minutes after the revert and container recreate, frontend still emits status-14 'No connection established' lines and traces still show errored TCP connect spans on the AdService edge with no adservice server span. That would mean the memory cap was not the mechanism - which the evidence already leaves open: identical UNAVAILABLE errors appear at ~00:54:32, an hour before the 01:51 cap, and baseline error peaks (max ~0.34) match the incident window, so onset is not established and the ad edge may have been failing before the cap existed. Also falsified in a weaker way if errors stop and then resume within the hour: that would indicate the platform-automation loop re-applied the cap (it has applied and withdrawn it three times already), and the fix is to stop the loop, which is outside what this system may do. Note the OOM mechanism itself is inferred, not observed - no adservice OOMKilled events, restart counts, or memory metrics were collected, so a clean confirmation of 'memory was the cause' is not available from this system's telemetry; only the downstream connect failures are observable.",
+    "risk": "Two real risks. First, removing the memory cap restores unbounded memory growth for adservice: if the true fault is a leak or a genuine working-set blowup, adservice will grow until it pressures the host, which can degrade or OOM co-located containers rather than just itself - trading a contained failure for an uncontained one. Second, revert_config recreates the container, so any in-flight GetAds calls are dropped and frontend sees connection resets for the duration of the recreate; if the diagnosis is wrong this is a gratuitous outage on the one edge that is already failing. Third, the revert may race the platform-automation loop that has applied and withdrawn this cap three times, producing config flapping and repeated recreates.",
+    "blast_radius": "adservice's container is replaced. frontend is the caller named on this edge in the trace evidence and will see connection resets during the recreate; loadgenerator, as the parent in the same traces, will see those requests error with the same ~3.09s signature it already shows. No other service calls adservice in the observed traces, so cartservice, checkoutservice, productcatalogservice and recommendationservice should be unaffected - but the host-memory risk above, if realised, would reach whatever else shares the host."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity with frontend and loadgenerator alerting together points at a real user-facing failure, not a lone synthetic-probe artifact. No open incidents to attribute it to, and the alerts alone don't distinguish a frontend deploy from a failing downstream dependency."
+  }
+}

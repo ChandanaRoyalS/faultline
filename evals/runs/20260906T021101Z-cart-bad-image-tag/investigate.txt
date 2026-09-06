@@ -1,0 +1,38 @@
+incident 7ca33229-1d0b-4c4e-8d5e-91d86b47b910  state triaging  anchor 02:14:30
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 0446e65b-9c00-4e5f-b6c1-8cc5c107b09b
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service alerting across frontend and checkout within seconds is a user-facing failure that cannot be dismissed, and no open incident could account for it. The shared downstream dependencies of both seeds are plausible but nothing in the alerts yet distinguishes a deploy, config, or dependency fault.
+investigation: 2 round(s), 9 dispatch(es), 26 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if cartservice is in a wedged process state that a container recreate would clear — in that case impact continues for as long as the extra diagnostics take. That cost is bounded and visible: the same error-ratio series and PlaceOrder traces already being watched would simply keep showing the failure. Conversely, the abstention is vindicated if the missing cartservice evidence shows a non-resource cause (a bad endpoint address, a code-level rejection, a dependency of cartservice such as its cache backend failing), since restart_service would not touch any of those.
+  rests on    : tr_6b9848cec352, tr_3c5dd3f3ddbc, tr_ba4ec2f0c565, tr_ba219bb69d46
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 31012 pushed / 7306 pulled (pull rate 0.1907), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : restart
+  confidence  : low
+  evidence    : tr_6b9848cec352, tr_ba4ec2f0c565, tr_3c5dd3f3ddbc
+  root cause  : Every sampled PlaceOrder trace terminates at checkoutservice's CartService/GetCart span with ERROR status, which propagates up through checkoutservice PlaceOrder to the frontend HTTP POST [tr_6b9848cec352]. The spans complete in 2-5ms with no accumulated latency, so cartservice is returning an immediate error rather than hanging. checkoutservice itself is healthy on everything measured: it keeps accepting orders, logs no errors, and never crashes [tr_ba4ec2f0c565], and has no self-time in its spans [tr_6b9848cec352]. Its errors are new versus a two-hour baseline but bursty and partial, with three separate threshold crossings at 00:51, 01:20 and 02:12 rather than a single cutover [tr_3c5dd3f3ddbc]. Frontend is only the caller [tr_9d797b72def0]. I blame cartservice: it is rejecting GetCart calls fast and intermittently, a shape that fits a capacity limit (connection pool, threads, or cache memory) being hit under load and released, with no change record anywhere to support an artifact or value error [tr_ba219bb69d46, tr_c56aad5816a2, tr_f5c8228adb65]. cartservice was never dispatched, so the exhausted resource is inferred rather than observed.
+  OPEN        : cartservice was never dispatched — no logs, metrics, change history or saturation signal for the service actually being blamed.
+  OPEN        : No change query covered the hours before 02:14:30; all four windows start at onset and run forward, so a pre-onset deploy or config edit remains unobserved.
+  OPEN        : The gRPC status code and error message returned by GetCart is unknown, which would distinguish resource exhaustion from a connection refusal to a wrong endpoint.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T021101Z-cart-bad-image-tag/7ca33229-1d0b-4c4e-8d5e-91d86b47b910-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T021101Z-cart-bad-image-tag/7ca33229-1d0b-4c4e-8d5e-91d86b47b910-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9536.09it/s]
