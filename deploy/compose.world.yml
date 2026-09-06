@@ -7,16 +7,26 @@
 #
 #   cd world && docker compose \
 #     -f docker-compose.yml \
+#     -f ../compose/world-arm64.override.yml \
 #     -f ../compose/telemetry.yml \
 #     -f ../deploy/compose.world.yml \
 #     up -d --no-build
 #
-# README §3.3 is the authority; this comment is here so the file explains itself when found alone.
+# README §3.4 is the authority; this comment is here so the file explains itself when found alone.
 #
-# **No `../compose/world-arm64.override.yml`.** That overlay exists because the development machine
-# is an Apple Silicon Mac running several of the demo's images under Rosetta. A Hetzner CX43 is
-# x86-64 and pulls the native images, so applying it there would be asking a linux/amd64 host to
-# run amd64 images through a translation layer it does not have.
+# **`world-arm64.override.yml` is applied on the VM, and the first version of this file said the
+# opposite.** The name misled its author. That overlay is not an Apple Silicon accommodation - it is
+# the world's operational configuration, and almost none of it is about the platform: kafka's heap
+# cap and `MALLOC_ARENA_MAX` fix a glibc arena problem that exists on any Linux (T7.27); redis-cart's
+# eviction policy is platform-independent (T7.19); a dozen memory limits were raised because
+# containers sat at 95%+ *idle* and tripped the baseline gate's 90% guard; and `featureflagservice`
+# is replaced with the stub every recorded scenario ran against (ADR-0005, ADR-0006).
+#
+# It is also one of the three files `evalharness.provenance.compose_digest` hashes. **A world
+# brought up without it is world generation something-other-than-`f5bd108f4f70`** - a different
+# world from the one every figure in docs/RESULTS.md was measured on, wearing the same demo image
+# tag. This file is a fourth layer on top of those three and is not in the digest, so applying it
+# leaves the generation intact.
 #
 # What this overlay does, and all it does:
 #
