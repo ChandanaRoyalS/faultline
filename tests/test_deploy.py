@@ -430,6 +430,37 @@ def test_the_deployment_alertmanager_batches_exactly_as_development_does() -> No
     }
 
 
+# --- --wait has something to wait on --------------------------------------------------------------
+
+
+def test_every_service_caddy_forwards_to_declares_when_it_is_ready(compose: dict) -> None:
+    """**Found by the rollback rehearsal, not by reading.** `up -d --wait` returned, `ps` read
+    `Up Less than a second`, and `curl /healthz` got *connection reset by peer* twice. Compose
+    treats a service with no healthcheck as ready when its process starts, so `--wait` had nothing
+    to wait on and the README's rollback procedure - `up --wait`, then curl - was racing itself.
+
+    T5.4b's defect, one service over: there `--wait` was missing; here it was present and idle.
+    """
+    faultline = compose["services"]["faultline"]
+
+    assert "healthcheck" in faultline, "--wait does not wait for a service with no healthcheck"
+    assert "/healthz" in " ".join(faultline["healthcheck"]["test"])
+    assert faultline["healthcheck"].get("start_period"), (
+        "an arm64 laptop runs this image under emulation; a check that flaps on its own startup "
+        "teaches operators to distrust it"
+    )
+
+
+def test_caddy_waits_for_a_serving_upstream_not_a_started_one(compose: dict) -> None:
+    """The short-form `depends_on: [faultline]` means "after its process starts". During a deploy
+    or a rollback that is a window in which Caddy's upstream is a port nobody listens on, and every
+    visitor in it sees a 502 - the same race the rehearsal saw as a reset, from the other side."""
+    depends = compose["services"]["caddy"]["depends_on"]
+
+    assert isinstance(depends, dict), "short-form depends_on cannot express a health condition"
+    assert depends["faultline"] == {"condition": "service_healthy"}
+
+
 # --- the uptime check exists and watches more than liveness ---------------------------------------
 
 UPTIME = REPO_ROOT / ".github/workflows/uptime.yml"

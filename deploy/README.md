@@ -299,6 +299,13 @@ curl -sS https://$SITE_ADDRESS/healthz
 Seconds, and no rebuild, because the previous image is still in the registry and probably still in
 the VM's local cache.
 
+**`--wait` means serving, not started — since the rollback rehearsal.** The first time this
+procedure was run, `up -d --wait` returned and the very next `curl` got *connection reset by peer*:
+`faultline` had no healthcheck, so compose considered it ready the moment its process existed. It
+has one now, so `--wait` blocks until `/healthz` answers from inside the container, and Caddy does
+not send a visitor to it until then either. If `--wait` ever returns and the curl still fails, the
+healthcheck is what to look at first.
+
 **The schema does not roll back with it, and that is the constraint to plan around.** Alembic
 migrations here are forward-only; `faultline-migrate` has no `downgrade` path exercised by any
 test. So a rollback across a migration boundary means the old code meets a newer schema. Additive

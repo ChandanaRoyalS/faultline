@@ -1269,14 +1269,81 @@ no alternative"* about a verdict that had offered two. **The number was right an
 false, which is worse than either alone.** Whether a verdict ranked is a property of the verdict,
 not of one axis.
 
-## Phase 5 — audited 2026-09-03, and T5.1's read half built
+## Phase 5 — audited 2026-09-03, re-audited 2026-09-06 against the specification's wording
+
+The second audit read each task's deliverable column in `docs/spec/execution-plan-rev9.pdf` §8
+against the tree, and found that the first had graded two tasks on the presence of a function
+rather than on whether it did what the column said. Both are corrected below.
 
 | task | deliverable | state |
 |---|---|---|
-| **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **built and served** — view, routes, page, **and since T5.1b an application that mounts them** |
-| **T5.2** Slack notifier | lifecycle notifications | **built** — both events, linked into T5.1's screen |
+| **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **built, served, and since #222 the deep-links reach Grafana.** They did not before: `/explore?…` was a bare relative path resolving against the host serving the page, which serves no `/explore`. Every citation 404'd and a test asserted the string's shape. Marked complete on 2026-09-03 on the strength of `deep_link()` existing |
+| **T5.2** Slack notifier | lifecycle notifications | **built and wired** — `faultline-orchestrate` constructs a real notifier from settings, the core fires `incident_opened`, `agents/cli` fires `report_ready`, and an unset base URL yields a marked absence rather than a broken link. Re-verified end to end on 2026-09-06 rather than by presence |
 | **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **4 of 5** — ARCHITECTURE, THREAT-MODEL, README's Results block rewritten at `b6837dd449ca`, `docs/MVP-CUT.md` written. **No demo video** — needs a live world and one filmed run |
-| **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **checklist written, rehearsal not run.** `docs/RELEASE.md`; README now names all 16 console scripts, guarded |
+| **T5.4** MVP release | tag v0.1, clean-clone rehearsal *on a fresh machine* | **rehearsed on a second clone of the development Mac (T5.4b), not tagged.** The spec says *"a fresh machine"* and `docs/RELEASE.md` §3 carries the caveat. The CX43 rented for T5.5 is that machine; the tag waits on it |
+| **T5.5** deploy | live instance at a stable URL + documented deploy procedure | **procedure written, rehearsed locally twice, no instance.** Four deviations from the task text found and closed on 2026-09-06 (T5.5b below). VM, DNS and the live URL remain |
+
+### T5.5b — the deployment was neither of the spec's two options, and the rehearsal found a third thing
+
+**The task text, read against the tree.** T5.5 says *"the same images CI builds, running continuously
+on a single small VM — demo environment plus platform, TLS in front, basic auth on the UI"*, and its
+how-column adds *"images pulled from the registry CI publishes to; secrets via env; an uptime
+check; a documented deploy-and-rollback procedure rehearsed once."* Its size note offers two shapes:
+the full stack at ~4 vCPU / 16 GB, or *"platform plus a trimmed demo profile."* What `deploy/`
+held on 2026-09-06 was a third shape the spec does not offer — platform plus a Postgres snapshot,
+no world — and it deviated from the text in four places:
+
+| the text says | the tree did | closed by |
+|---|---|---|
+| images pulled from the registry CI publishes to | `build: context: ..` on the VM — a different artifact from the one CI tested | `FAULTLINE_IMAGE`, mandatory, a commit sha, never `:latest` |
+| demo environment plus platform | no world at all | `compose.world.yml` puts the world's four platform-facing services on a shared external network; `deploy/alertmanager.yml` posts to the receiver's container rather than a developer's host |
+| the MVP — *"world, investigation, grounding, evaluation"* | no orchestrator, no event bus; the instance could remember investigations and not produce one | Redis and an `orchestrator` service — the one container holding the key |
+| an uptime check; a deploy-**and-rollback** procedure | neither existed; the word rollback appeared nowhere in `deploy/` | `.github/workflows/uptime.yml`, in the repository so it can be reviewed and off the box so it can see the box die; README §3.7, including the forward-only-migration constraint that makes a pre-deploy snapshot mandatory before a destructive one |
+
+**Two consequences that were not deviations but had to follow.** `POST /api/v1/alerts` is now
+answered 404 at the edge: unauthenticated was harmless while nothing investigated, and is an endpoint
+that bills the owner once something does; the world's own Alertmanager reaches the receiver on the
+compose network where it always could. And the host firewall became a numbered step rather than
+hygiene, because a compose overlay can add a published port and cannot remove one — the demo's
+dozen host publishes stay open on a public VM with Caddy in front of nothing.
+
+**The cost table was wrong in three ways at once.** It quoted **\$6.49 for a CX23** — the *old CX33*
+price, on the wrong row, in the wrong currency, from before Hetzner's 15 June 2026 adjustment.
+CX23 is €5.49; the full stack this now targets is a **CX43 at €15.99/month**.
+
+**Rehearsed twice on 2026-09-06, on the development Mac, and both found something.**
+
+The first ran the *previous* `compose.yml` — #222 had not merged when the sequence was run — and
+passed: `/healthz`, 401, empty list. It is the first time `deploy/README.md` §1a has been executed
+since T5.5 was written, and it was silent where `faultline-migrate` should have printed
+`schema at 0004`. Cause: `up -d` without `--build` reused a **locally built image from days
+earlier**, predating #219's print. The deployment was running a stale artifact of the working tree
+and nothing said so — which is deviation one, demonstrated rather than argued.
+
+The second ran the merged files against `ghcr.io/chandanaroyals/faultline:5b81bdd…`, pulled rather
+than built, and passed on the first start: three containers, the bcrypt hash intact through
+Compose's dotenv parser, `schema at 0004` printed. **Four defects were found and fixed before it
+ran**, each by reading the new files against their own rehearsal section: the rehearsal would have
+started the orchestrator (the one container that spends money); the external network needed
+creating and §1a did not say so; an unquoted bcrypt hash loses its `$` signs to dotenv expansion and
+fails as a wrong password; and `ANTHROPIC_API_KEY` needs a placeholder because compose interpolates
+mandatory variables before it counts replicas.
+
+**Then the rollback was rehearsed, and it found the fifth.** `up -d --wait` to the previous sha
+returned, `ps` read `Up Less than a second`, and `curl /healthz` got *connection reset by peer*
+twice. `--wait` had nothing to wait on: `faultline` had **no healthcheck**, so compose called it
+ready when its process started. T5.4b's defect one service over — there `--wait` was missing, here
+it was present and idle. Postgres's healthcheck had been in the file from the first commit; nothing
+had ever asked the same question of the service beside it. Fixed with a healthcheck the image's own
+interpreter runs, and Caddy's `depends_on` raised to `service_healthy` so a visitor during a deploy
+sees a pause rather than a 502.
+
+**Sixteen.** That is the count of things in this repository built, green, merged and found broken
+only by being run — five of them in this task, in one evening, in files written hours earlier.
+The rehearsal section exists because of the first eleven, and it earned its place on the twelfth.
+
+**What remains is everything that needs a machine that is not this one:** the CX43, the A record,
+`ufw`, the certificate, the world under load, and a stranger's browser clicking a citation.
 
 ### T5.3 — the Results block, and the bullets that had to wait for a number
 
