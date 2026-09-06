@@ -20,6 +20,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
+from alembic.script import ScriptDirectory
 
 INI_NAME = "alembic.ini"
 
@@ -45,19 +46,33 @@ def _config(dsn: str | None) -> Config:
     return cfg
 
 
-def upgrade_head(dsn: str | None = None) -> None:
-    """Bring `dsn` (or the configured database) to the newest revision."""
-    command.upgrade(_config(dsn), "head")
+def upgrade_head(dsn: str | None = None) -> str | None:
+    """Bring `dsn` (or the configured database) to the newest revision, and **say so.**
+
+    Returns the head revision; `main` prints it. Alembic's own INFO lines go through `logging`,
+    which `alembic.ini` does not route to stdout here - so a successful migration printed
+    **nothing at all**, and the operator's only evidence was the absence of a traceback.
+
+    That ambiguity cost real time twice in one evening: once in T5.5's deployment rehearsal and
+    once in T5.4's clean-clone rehearsal, where a silent success and a silent failure had to be
+    told apart by making a request afterwards and reasoning backwards from the status code. A
+    command that changes a schema should name what it changed it to.
+    """
+    cfg = _config(dsn)
+    command.upgrade(cfg, "head")
+    return ScriptDirectory.from_config(cfg).get_current_head()
 
 
-def stamp_head(dsn: str | None = None) -> None:
+def stamp_head(dsn: str | None = None) -> str | None:
     """Record a database as current without running anything.
 
     For a database created by the pre-migration `create_schema()` path: its tables already
     match revision 0001, and running 0001 against it would be harmless but dishonest - the
     version table should say what actually happened.
     """
-    command.stamp(_config(dsn), "head")
+    cfg = _config(dsn)
+    command.stamp(cfg, "head")
+    return ScriptDirectory.from_config(cfg).get_current_head()
 
 
 def main() -> None:
@@ -69,4 +84,5 @@ def main() -> None:
         help="mark an existing schema as current instead of applying anything",
     )
     args = parser.parse_args()
-    (stamp_head if args.stamp else upgrade_head)(args.dsn)
+    head = (stamp_head if args.stamp else upgrade_head)(args.dsn)
+    print(f"schema {'stamped at' if args.stamp else 'at'} {head or 'unknown'}")

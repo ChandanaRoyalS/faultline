@@ -24,8 +24,27 @@ test:
 check: lint type test
 	@echo "all checks passed"
 
+# `--wait`, and it is not cosmetic: it is the difference between working on a machine that
+# has run this before and working on a stranger's.
+#
+# Without it, `up -d` returns when the container has *started*, not when Postgres is
+# accepting connections. On a machine with an existing `pgdata` volume that gap is
+# invisible - the server is ready in milliseconds. On a **new** volume, Postgres runs
+# initdb first: the port is bound and the server is not listening, so the very next
+# command in every documented sequence dies with
+#
+#     server closed the connection unexpectedly
+#
+# Found by T5.4's first clean-clone rehearsal, in a fresh clone with empty volumes - the
+# one path this defect is reachable from, and the reason docs/GATES.md G5 asks for it.
+# README and docs/RELEASE.md both document `make up` followed immediately by
+# `faultline-migrate`, so the documented path was broken for every first-time user and
+# worked for the person who wrote it.
+#
+# The healthcheck this consults has been in docker-compose.yml since T0.3. Nothing needed
+# building; the flag that reads it was missing.
 up:
-	docker compose --profile platform up -d
+	docker compose --profile platform up -d --wait
 
 down:
 	docker compose --profile platform down
@@ -41,7 +60,7 @@ down:
 # the host rather than in a container, which is why the eval profile adds no service of
 # its own and sits on the same two as `platform`.
 eval-up:
-	docker compose --profile eval up -d
+	docker compose --profile eval up -d --wait
 	$(MAKE) world-up
 
 eval-down:

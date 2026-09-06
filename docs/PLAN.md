@@ -1305,6 +1305,43 @@ re-grading 79 manifests, a `CMD` that printed a version string, a deployment tha
 developer's database, a scoring axis printed nowhere. Each invisible to the suite and obvious within
 seconds of first use.
 
+### T5.4b — the first clean-clone rehearsal, and the defect only it could reach
+
+**The rehearsal Gate 5 has been asking for since G5 was written.** A fresh clone, and — the part
+T7.48 could not claim — **every world image removed first**, so all ~20 were pulled cold rather
+than reused. `docs/GATES.md` §G5 recorded exactly why the earlier rebuild did not count.
+
+**What passed.** `uv sync` resolved from the committed lock; `make check` passed **before any
+service started**, which is the step that once hid a schema defect for months; `make world-up`
+cloned the pinned demo, built the stub, pulled every image and brought the world up; dashboards
+provisioned at version 1. After `world/` existed, `make check` reported **1268 passed, 5 skipped —
+identical to the working copy**, so the clone is equivalent rather than merely green.
+
+**What failed, and it is the documented path.** `make up` reported Postgres `Started`; the very
+next command, `faultline-migrate`, died with `server closed the connection unexpectedly`.
+
+**`up -d` returns when the container has started, not when Postgres accepts connections.** With an
+existing `pgdata` volume the server is ready in milliseconds and the gap is invisible. On a **new**
+volume Postgres runs initdb first: the port is bound and nothing is listening. README and
+`docs/RELEASE.md` §3.2 both document `make up` immediately followed by a migration, so **the
+documented sequence was broken for every first-time user and worked for the person who wrote it.**
+That is the shape of defect Gate 5 exists to catch, and it took a clean clone to reach it.
+
+The healthcheck has been in `docker-compose.yml` since T0.3; only the flag consulting it was
+missing. `up` and `eval-up` now pass `--wait`.
+
+**And `faultline-migrate` said nothing on success**, because alembic's INFO lines go through
+`logging` and `alembic.ini` does not route them to stdout. Silent success and silent failure had to
+be told apart by making a request afterwards and reasoning backwards from a status code — twice in
+one evening, once here and once in T5.5's rehearsal. It now prints the revision it reached.
+
+**The guard for the `--wait` fix was wrong on its first writing — the third time in one evening.**
+`makefile_recipe` did not stop at the end of a recipe, so it swept up every later tab-indented line
+in the file; asking for `up` returned `eval-up`'s recipe too, and the test **passed with `--wait`
+deleted from the target it was written to check.** Each of the three was caught the same way: by
+running it against the broken state before keeping it. **A guard not seen failing is a guard not
+yet written**, and that is now three instances rather than an opinion.
+
 ### T5.4 — the front door named one command of sixteen
 
 **T7.46's sharpest finding, measured.** It reported that README documents the demo and the injector

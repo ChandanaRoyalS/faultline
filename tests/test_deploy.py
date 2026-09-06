@@ -304,3 +304,61 @@ def test_the_rehearsal_does_not_collide_with_make_ui() -> None:
 def test_no_snapshot_was_committed() -> None:
     """It carries the monitored world's telemetry - every log line an agent quoted."""
     assert not list(DEPLOY.glob("snapshot.sql*"))
+
+
+# --- the clean-clone race (T5.4) ------------------------------------------------------------------
+
+
+def makefile_recipe(target: str) -> str:
+    """The tab-indented lines of ONE Makefile recipe, stopping where that recipe stops.
+
+    **The first version did not stop.** It filtered every later tab-indented line in the whole
+    file, so asking for `up` returned `eval-up`'s recipe too - and the guard below passed with
+    `--wait` deleted from the target it was written to check, because the flag was still present
+    further down. Third time in one evening that a guard passed for a reason that had nothing to
+    do with what it asserted, and the reason each was caught is that it was run against the broken
+    state before being kept.
+    """
+    lines = (REPO_ROOT / "Makefile").read_text().splitlines()
+    start = lines.index(f"{target}:") + 1
+    recipe = []
+    for line in lines[start:]:
+        if not line.startswith("\t"):
+            break
+        recipe.append(line)
+    return "\n".join(recipe)
+
+
+@pytest.mark.parametrize("target", ["up", "eval-up"])
+def test_bringing_the_platform_up_waits_for_it_to_be_healthy(target: str) -> None:
+    """**The defect T5.4's first clean-clone rehearsal found.**
+
+    `docker compose up -d` returns when the container has *started*, not when Postgres accepts
+    connections. On a machine with an existing `pgdata` volume that gap is invisible - the server
+    is ready in milliseconds. On a **new** volume Postgres runs initdb first, so the port is bound
+    while the server is not listening, and the next command in every documented sequence dies with
+    `server closed the connection unexpectedly`.
+
+    README and `docs/RELEASE.md` both document `make up` followed immediately by
+    `faultline-migrate`. That sequence worked for the person who wrote it and failed for every
+    first-time user, which is the exact shape of defect Gate 5 exists to catch and the reason it
+    took a clean clone to find.
+
+    The healthcheck has been in `docker-compose.yml` since T0.3. Only the flag consulting it was
+    missing.
+    """
+    assert "--wait" in makefile_recipe(target), (
+        f"`make {target}` does not wait for the healthcheck, so a first run on empty volumes "
+        "returns before Postgres is accepting connections"
+    )
+
+
+def test_the_migration_reports_the_revision_it_reached() -> None:
+    """A successful `faultline-migrate` printed nothing: alembic's INFO lines go through
+    `logging`, which `alembic.ini` does not route to stdout. Silent success and silent failure had
+    to be told apart by making a request afterwards and reasoning back from the status code -
+    twice in one evening. A command that changes a schema should name what it changed it to."""
+    source = (REPO_ROOT / "src" / "faultline" / "migrate.py").read_text()
+
+    assert "print(" in source, "faultline-migrate reports nothing on success"
+    assert "get_current_head()" in source
