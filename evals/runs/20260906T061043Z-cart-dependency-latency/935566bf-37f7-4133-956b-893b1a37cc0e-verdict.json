@@ -1,0 +1,168 @@
+{
+  "incident_id": "935566bf-37f7-4133-956b-893b1a37cc0e",
+  "trajectory_id": "a7472d4a-8229-4f9f-9b47-e094729f645b",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-dependency-latency",
+  "verdict": {
+    "root_cause": "A platform-automation traffic-shaping container was attached to cartservice's network namespace at 06:10:51, about three minutes before onset, applying a fixed 300ms egress delay with zero jitter, and it was still in place at onset [tr_87d8cba14dd3]. Traces show exactly that shape: every cartservice Redis egress span (HGET and HMSET) sits at a uniform ~300-305ms floor with negligible cartservice self time, so GetCart costs ~302ms and AddItem ~602-611ms as the penalty scales with Redis round trips [tr_8674b22837af]. The wait is inherited upward into frontend (~605-918ms cart spans, ~1510ms HTTP POSTs) while all non-cart dependencies stay at baseline [tr_8674b22837af]. cartservice itself is healthy - clean startup, successful Redis connect, continuous served cart operations [tr_1a7afb458acd] - and checkoutservice completes orders with no error lines [tr_1283b292d744]. The mechanism is waiting on an artificially slowed egress path, not a crash, bad artifact, or resource exhaustion.",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_87d8cba14dd3",
+      "tr_8674b22837af",
+      "tr_1a7afb458acd",
+      "tr_1283b292d744",
+      "tr_5d2555a4698f"
+    ],
+    "reasoning": "The change record and the traces agree independently on both magnitude and shape: a declared 300ms/0-jitter injection [tr_87d8cba14dd3] and an observed uniform ~300-305ms additive floor confined to cartservice's Redis hop [tr_8674b22837af]. Zero dispersion excludes queueing or load saturation; unaffected sibling dependencies in the same traces exclude a node-wide or mesh-wide fault [tr_8674b22837af]. Frontend and checkoutservice alerted as callers - their span durations decompose into cartservice children, and both otherwise serve normally [tr_8674b22837af, tr_1a7afb458acd, tr_1283b292d744]. The rival change candidates are dead: the hotfix image was reverted ~13 min before onset and the REDIS_ADDR:6380 edit ~3.3h before [tr_87d8cba14dd3]. This is dependency_latency rather than bad_config because the injected value is not a wrong address or limit - it inserts delay into a call path, and the waiting is the failure. The fix is removing the shaping container, a config_revert, not an artifact rollback.",
+    "open_questions": [
+      "Frontend's only error-ratio change point is at 05:53 [tr_5d2555a4698f], ~18 minutes before the 06:10:51 attach [tr_87d8cba14dd3]; the injection cannot explain error elevation that predates it, and this gap was never resolved.",
+      "cartservice has no metric series at all - error ratio empty across incident and baseline for 4+ hours [tr_268b615acad8, tr_0108add572a4] - so rate, latency, restarts and readiness remain unmeasured, and the trace sample carries no timestamps to pin onset [tr_8674b22837af].",
+      "Checkout's ~900ms unaccounted time above cartservice children [tr_8674b22837af], and whether the sidecar is still attached now (no removal record, yet flows looked clean by 06:15:32 [tr_1283b292d744, tr_1a7afb458acd])."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A separate unidentified fault starting ~05:53 drives frontend's error step, with the cart latency injection a concurrent but distinct condition.",
+        "service": "frontend",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "The frontend metric has no downstream-target dimension and no latency series, so it attributes nothing [tr_5d2555a4698f], while traces positively locate the inflation below cartservice [tr_8674b22837af]. It survives only on the unresolved 05:53 timing conflict."
+      },
+      {
+        "root_cause": "Redis (redis-cart) itself became slow, and cartservice is faithfully reporting a genuinely degraded backend.",
+        "service": "redis-cart",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "A real backend slowdown would show dispersion; the observed latency is a near-constant zero-variance floor matching the declared 300ms shaping parameter exactly, and the shaping is applied on cartservice's own eth0 rather than at Redis [tr_87d8cba14dd3, tr_8674b22837af]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "redis-cart-dependency-latency / Resolution: The delay was removed from the Redis container's interface and latency returned to baseline as the\nalert windows drained. **Class of fix: `restart`** - the intervention was on the container carrying\nthe fault, not a revert of any application configuration. Nothing about cartservi",
+    "redis-cart-dependency-latency / Root cause: Redis, the cart service's datastore, had a 300ms network delay applied to its interface, so every\nresponse it sent back arrived late. Cart was not broken and was not doing anything differently - it\nwas blocking on a datastore that had become slow, and everything that calls cart i",
+    "cart-redis-misconfig / Resolution: `REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and\nthe no-traffic alerts cleared \u2014 those six services had never been broken, only starved.\nEverything was clear at **T+10m32s**, 3m01s after the fix.\n\nClass of fix: **config_revert**. Nothing had"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 31232,
+    "pulled_tokens": 8615,
+    "pull_rate": 0.2162,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 472,
+        "content_tokens": 474,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1838,
+        "content_tokens": 1841,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9697,
+        "content_tokens": 9673,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8892,
+        "content_tokens": 8893,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10333,
+        "content_tokens": 10310,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_87d8cba14dd3",
+      "tr_8674b22837af",
+      "tr_1a7afb458acd"
+    ],
+    "expected_effect": "Recreating cartservice with its pre-injection configuration should drop the traffic-shaping attachment on its network namespace. Observable in Jaeger: Redis egress spans (HGET/HMSET) falling off the uniform ~300-305ms floor to low single-digit ms, GetCart from ~302ms and AddItem from ~602-611ms to near-baseline, and frontend HTTP POST spans from ~1510-1528ms back toward baseline. cartservice has no metric series at all, so traces and checkoutservice log stage gaps are the only usable confirmation.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Redis egress spans still sit at a ~300ms floor after the recreate - meaning the shaping lives outside cartservice's own config (host qdisc, platform-automation re-attaching on its repeating schedule) and this action does not reach it. Also falsifying: frontend's error ratio stays elevated, which it likely will, since its only change point is 05:53, ~18 minutes before the 06:10:51 attach - that elevation has a separate, unexplained cause this proposal does not address.",
+    "risk": "If the delay is not sourced from cartservice's recorded configuration, this recreates a healthy container for nothing: cart in-memory state is discarded, in-flight cart and checkout calls fail during the restart, and we have burned a change without touching the mechanism. Worse, the change history shows five image flips and two REDIS_ADDR edits in this window; reverting to an ill-chosen prior config could restore the wrong Redis address (port 6380) and break cart persistence outright.",
+    "blast_radius": "cartservice's callers see connection resets for the duration of the recreate: frontend (GetCart/AddItem) and checkoutservice (GetCart/EmptyCart), and through them loadgenerator traffic. checkoutservice order flows may fail mid-placement during the window."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "medium",
+    "reasoning": "Multiple services alerted near-simultaneously across the cart/checkout/frontend path, which is more than a single isolated warning and cannot be dismissed. Cart appearing first with fan-out through checkout suggests a shared downstream dependency slowdown."
+  }
+}

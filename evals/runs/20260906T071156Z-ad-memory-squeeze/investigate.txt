@@ -1,0 +1,38 @@
+incident 0d2a8a87-ad65-410c-b2d7-9dd15513627d  state triaging  anchor 07:15:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 58fd1aff-a6de-4884-b667-bc40431ed377
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alert on frontend followed by the load generator indicates user-facing impact rather than an isolated warning, and no open incident covers it. The cause could be any of the five downstream dependencies, so evidence is needed.
+investigation: 2 round(s), 12 dispatch(es), 32 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if adservice is in fact down and its outage is causing user-visible harm that the current evidence cannot see. That would show up as a rising frontend error ratio on ad-serving routes specifically (the current query aggregates only by service_name and carries no route or dependency labels [tr_1a7ce49839c6]), or as adservice logs showing repeated process exits. Note also that the effect a restart would be judged by is not currently observable: adservice emits nothing on this board, so there is no metric or log line whose change would confirm the fix worked. An unobservable effect is not a prediction, which is itself a reason not to act yet.
+  rests on    : tr_7e77922a8924, tr_747c25dd511f, tr_1a7ce49839c6, tr_0449bb177f2b
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 44866 pushed / 10313 pulled (pull rate 0.1869), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_747c25dd511f, tr_7e77922a8924, tr_1a7ce49839c6
+  root cause  : Frontend is not the failing service; it is the caller reporting a downstream that never accepts a connection. Its logs show uniform gRPC status 14 UNAVAILABLE with a no-connection detail and stack frames entirely inside the grpc-js client, spanning the whole window from ~06:29 onward [tr_747c25dd511f]. Every frontend edge that was actually observed is healthy — productcatalogservice, cartservice with sub-millisecond redis children, recommendationservice and the full checkoutservice fan-out all have matching callee spans and no timeout-scale durations [tr_7e77922a8924]. The one frontend dependency that never appears in the sampled traces is adservice [tr_7e77922a8924], which is also the unmeasured edge triage flagged and the only frontend dependency no specialist was dispatched to; a target refusing connections produces exactly that absence, since no server span is ever created. Impact is fail-soft: frontend aggregate error ratio fell below baseline [tr_1a7ce49839c6] and checkout completed orders end to end with gapless topic offsets [tr_0449bb177f2b]. What is wrong inside adservice — crashed process, wrong listen port, bad artifact — is not established by anything on this board, so the mechanism stays unknown.
+  OPEN        : No dispatch touched adservice — its logs, restart history, and pod state are entirely unobserved, so the attribution rests on an absence in a truncated 200-span trace sample rather than a positive observation.
+  OPEN        : Frontend's error lines name no target host, port or RPC method [tr_747c25dd511f], so the failing peer is inferred, not identified.
+  OPEN        : Frontend logs and cart/checkout logs are truncated around 07:15:30, and the 07:15 alert onset is unexplained given the error condition already existed at 06:29 — what changed at 07:15 is unsettled.
+
+flags: none
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T071156Z-ad-memory-squeeze/0d2a8a87-ad65-410c-b2d7-9dd15513627d-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T071156Z-ad-memory-squeeze/0d2a8a87-ad65-410c-b2d7-9dd15513627d-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8809.59it/s]

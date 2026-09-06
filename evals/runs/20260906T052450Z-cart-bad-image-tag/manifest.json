@@ -1,0 +1,95 @@
+{
+  "run_id": "20260906T052450Z-cart-bad-image-tag",
+  "scenario_id": "cart-bad-image-tag",
+  "split": "dev",
+  "scenario_fingerprint": "d4b9a16337b55bfe9feb260c5e6c3173f6cf8b23fec2724198a472bd26481ada",
+  "started_at": "2026-09-06T05:24:50.636511+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "357bc252fbae3818f9fd7629b98818ad15004e07",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    }
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 14180,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-06T05:24:50.666629+00:00",
+    "reason": "faultline-eval cart-bad-image-tag",
+    "token": "14180-1788672290.666562"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": false,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 917595,
+    "pipeline_down": [
+      "the orchestrator's consumer last spoke to Redis 917595ms ago, over the 30000ms ceiling - it is attached but not polling. Restart it with `uv run faultline-orchestrate`"
+    ],
+    "silent_services": [],
+    "unexpected_silent": [],
+    "services_reporting": 14,
+    "youngest_container": [
+      "frontend-proxy",
+      1008
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 29.84,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 4.865,
+      "runs_remaining": 14,
+      "uptime_seconds": 1019,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 734.6,
+      "projected_percent": 65.71,
+      "threshold_percent": 54.13,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [
+      "the alert pipeline is not assembled: the orchestrator's consumer last spoke to Redis 917595ms ago, over the 30000ms ceiling - it is attached but not polling. Restart it with `uv run faultline-orchestrate`. This is NOT the world failing to alert - the fault would fire and no incident would open, which records as `no-alert` and reads as a fact about the scenario (T7.24)."
+    ]
+  },
+  "refused": {
+    "reason": "pipeline-down",
+    "at": "2026-09-06T05:24:56.307612+00:00"
+  }
+}

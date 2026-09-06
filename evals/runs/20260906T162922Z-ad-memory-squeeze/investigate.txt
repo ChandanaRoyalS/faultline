@@ -1,0 +1,43 @@
+incident 581412a9-7462-48aa-85f4-8381a5bceca6  state triaging  anchor 16:32:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: a806f7d7-941b-477e-9de0-811057950d26
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with frontend alerting alongside the load generator points to real user-facing impact, not a lone synthetic signal. No open incidents to attribute it to, and the alerts alone don't distinguish a bad deploy from a slow downstream dependency.
+investigation: 2 round(s), 9 dispatch(es), 26 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : adservice
+  expect      : Removing the 256m memory limit applied at 16:29:26 and never reverted should let the JVM finish init. In Loki {service="ad-service"}: the startup banner stops repeating (backoff ladder ends) and 'received ad request' lines resume within ~90s. Frontend's 'Error: 14 UNAVAILABLE: No connection established' lines cease and its error ratio settles near 0; AdService/GetAds traces show an adservice server span instead of a ~3.06s frontend tcp.connect.
+  within      : 300s
+  risk        : Removes a memory guardrail: if adservice actually leaks, it now grows unbounded and can pressure co-located containers instead of crash-looping. Recreate discards in-process cache and resets backoff. If the real cause is a JVM/agent or image fault, this spends the config-revert lever and leaves the loop running. Automation owns all nine changes here and may overwrite the revert, causing flapping.
+  blast radius: adservice recreated; frontend (its only inbound caller) sees resets during recreate — no worse than the current total absence of a listener. loadgenerator sees ad-branch requests change; other frontend routes are unaffected.
+  if wrong    : Falsified if after 5 minutes the banner still repeats with no request lines — the kill cause would not be the memory cap, since no OOMKilled event, exit 137, or OutOfMemoryError was observed and that negative rests on a truncated log [tr_d369b4d0ec9f]. Partially falsified if adservice recovers but frontend still logs code 14, since those errors predate 16:29 and name no target. Also falsified if platform-automation re-applies the 256m limit and the loop returns.
+  rests on    : tr_f8569b1421de, tr_d369b4d0ec9f, tr_51a83bb19688
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 33095 pushed / 9250 pulled (pull rate 0.2184), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_f8569b1421de, tr_d369b4d0ec9f, tr_51a83bb19688, tr_764cb8a15010, tr_9fa1c42d9f11, tr_1e5a2f5c8626
+  root cause  : At 16:29:26 platform-automation lowered adservice's container memory limit to 256m and, unlike the four earlier apply/revert cycles in the same window, never reverted it [tr_f8569b1421de]. Within ~20 seconds adservice stops serving requests and begins repeating a JVM/OTel startup banner seven times with geometrically lengthening gaps - a container killed during JVM initialization and restarted under supervisor backoff, never reaching a gRPC listening state [tr_d369b4d0ec9f]. With no ad backend endpoint bound, frontend fails at connection setup: gRPC code 14 UNAVAILABLE with 'no connection established' [tr_764cb8a15010], and the only error-bearing traces bottom out in a frontend-side tcp.connect (~3.06s) under AdService/GetAds with no adservice server span at all [tr_51a83bb19688]. All other frontend routes are healthy, which is why damage is partial and bursty [tr_9fa1c42d9f11].
+  OPEN        : No direct kill evidence: no OOMKilled event, exit code 137, or JVM OutOfMemoryError was observed, and that negative sits on a truncated log result [tr_d369b4d0ec9f]. Memory saturation and restart-count metrics for adservice were never queried [tr_1b0cbf96a106].
+  OPEN        : Frontend gRPC errors appear from ~15:48 [tr_764cb8a15010], before the 16:29 adservice transition; whether those are the same fault, another callee, or noise is unresolved since the log lines name no target.
+  OPEN        : Frontend's error ratio dips to zero and peaks near 37% [tr_9fa1c42d9f11] rather than failing the ad branch consistently; the source of that intermittency, the unmeasured edge triage flagged, and loadgenerator's earlier alert were never investigated.
+
+flags: none
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T162922Z-ad-memory-squeeze/581412a9-7462-48aa-85f4-8381a5bceca6-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T162922Z-ad-memory-squeeze/581412a9-7462-48aa-85f4-8381a5bceca6-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9691.39it/s]

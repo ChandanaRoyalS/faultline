@@ -1,0 +1,4 @@
+injected cart-redis-misconfig (bad_config) on cartservice
+  - compose: cartservice recreated with REDIS_ADDR=redis-cart:6380
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/cart-redis-misconfig.yml
+revert with: faultline-inject stop cart-redis-misconfig

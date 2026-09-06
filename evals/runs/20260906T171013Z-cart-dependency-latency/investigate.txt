@@ -1,0 +1,42 @@
+incident 83a28798-07ca-4c8a-88d9-a8470c336ca6  state triaging  anchor 17:13:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 41cda22f-d02e-4fb6-9614-d5e0690bb95c
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Multiple services alerted in a tight window starting at cartservice and spreading to checkoutservice and frontend, which is a propagating failure rather than an isolated warning. No open incidents to fold this into, so it warrants investigation with cartservice as the likely origin.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Re-sample cartservice traces 15 minutes on. If cache spans are still ~300ms, the injection persists and needs an out-of-band detach plus escalation to platform-automation. If they are already normal, it self-resolved as prior cycles did.
+  rests on    : tr_5564d0eaadf6, tr_f6d9b79cbefc
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22022 pushed / 7107 pulled (pull rate 0.244), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_5564d0eaadf6, tr_f6d9b79cbefc, tr_98aaf0f638b5, tr_a61b629c1cb5, tr_52f590ff8f9f
+  root cause  : A traffic-shaping (netem) container was attached to cartservice's network namespace by platform-automation at 17:10:22, imposing a fixed 300ms delay with zero jitter on eth0 [tr_5564d0eaadf6]. Every cartservice cache round trip (HGET, HMSET) consequently costs ~300-305ms with no tail, cartservice's own handler adds only ~1-2ms on top, and end-to-end request time scales with the number of cart calls a request makes: ~605ms for a cart page view, ~1.5s for add-to-cart, ~2.47s for PlaceOrder where checkoutservice's span is almost entirely its two cart calls [tr_f6d9b79cbefc]. cartservice itself is healthy — serving continuously, no errors, no restarts, no connection failures in its logs [tr_98aaf0f638b5]. The failure mechanism is waiting on an artificially slowed cache path, and the alerts at frontend, checkoutservice and loadgenerator are downstream propagation of that wait. Unlike the prior identical injection cycles in the same window, which were removed after ~10 minutes, this one was still in place at onset [tr_5564d0eaadf6].
+  OPEN        : The caller-side excess is unexplained. frontend client spans run ~604-613ms against ~302ms cartservice server spans, and checkoutservice client spans run ~1206-1216ms against ~301-303ms server spans [tr_f6d9b79cbefc]. That excess is itself a multiple of 300ms, which suggests gRPC retries or per-attempt connection cost, but only one server span is recorded per call and nothing in the dispatches confirms retry behaviour or client-side timeout settings at frontend or checkoutservice.
+  OPEN        : Whether the injection has since been removed is unknown. The prior cycles lasted ~10 minutes and this one was ~3 minutes old at onset [tr_5564d0eaadf6]; no dispatch checked the current state of the cartservice network namespace, so the incident may already be self-resolving.
+  OPEN        : cartservice's actual error behaviour was never measured. The error-ratio series is absent in both windows and four of five requested metric signals were never queried [tr_a61b629c1cb5][tr_52f590ff8f9f], so whether the latency escalated into timeouts or dropped requests at any caller is unestablished.
+  OPEN        : The log query returned only the oldest 8 and newest 32 lines; the interval containing 17:13:30 itself was not retrieved [tr_98aaf0f638b5], so no cartservice log evidence covers the onset minute.
+  OPEN        : No dispatch examined redis-cart directly, so an independent contemporaneous cache-side degradation stacked on top of the injected 300ms cannot be excluded, only rendered unnecessary as an explanation.
+  OPEN        : Triage reports 4 unmeasured edges crossed; which service pairs those are, and whether any carries additional latency, was not resolved by any dispatch.
+  OPEN        : Why this injection cycle produced an incident when at least seven earlier identical cycles in the same 24h window apparently did not [tr_5564d0eaadf6] — duration, concurrent load, or alert threshold — is unsettled.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T171013Z-cart-dependency-latency/83a28798-07ca-4c8a-88d9-a8470c336ca6-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T171013Z-cart-dependency-latency/83a28798-07ca-4c8a-88d9-a8470c336ca6-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9442.50it/s]

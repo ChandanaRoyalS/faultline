@@ -1,0 +1,43 @@
+incident c3271262-8efb-4666-927c-8e01ee9cb95a  state triaging  anchor 07:35:00
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: bd761fe1-5c36-46cc-ae88-1a20da7cf205
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend and checkoutservice within seconds of each other, with loadgenerator affected too, indicate a real user-facing failure rather than a quiet warning. No open incidents to attribute it to, and the alert pattern alone doesn't distinguish a bad deploy from a downstream dependency issue.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : cartservice
+  expect      : Redeploying cartservice at its pre-07:32:08 image tag should bring a serving container back under the cart-service name. Observable as: the Loki stream {service="cart-service"}, silent since the 07:32:07 shutdown notice, resuming with a startup banner and AddItemAsync/GetCartAsync lines; and frontend's log stream ceasing to emit 'Error: 14 UNAVAILABLE: No connection established' and the cartservice DNS-resolution failure at 127.0.0.11:53. Confirmation must come from logs: cartservice's Prometheus error-ratio series has no samples, and frontend's aggregate error ratio never rose above baseline.
+  within      : 300s
+  risk        : If the cause is DNS/service-discovery rather than the image, recreating the container re-registers the cart-service network alias and may extend the outage rather than end it. The recreate discards in-process cache state. The prior tag is inferred from the apply/revert pattern, not read directly; if it is itself an injected fault image, rollback restores a different broken state. No container status or image-pull result was ever collected, so this is a bet on the change, not a confirmed repair.
+  blast radius: cartservice directly; frontend sees resets on the checkout cart-fetch edge already failing, and checkoutservice's order path through it. Both are currently within baseline error ratios, so a botched recreate would make their signals worse, not better.
+  if wrong    : Falsified if cart-service logs stay silent after five minutes (prior tag also fails to start, so the fault is platform or registry, not the hotfix image); or if cartservice logs return but frontend still reports the cartservice name unresolvable (service discovery, not the image). Also unexplained: frontend code-14 errors already at ~07:12, before the swap; if that band continues unchanged, the real mechanism is still unidentified. If the hotfix tag is re-applied minutes later, an automated harness is driving this and the action cannot hold.
+  rests on    : tr_cdb7d79ee86d, tr_1c560b1a85f8, tr_73550957ecc8
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 30954 pushed / 6846 pulled (pull rate 0.1811), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_cdb7d79ee86d, tr_1c560b1a85f8, tr_73550957ecc8, tr_a4cbbcb77d0e, tr_d5c4828b2878, tr_682848952546, tr_f5f9b7ddcc35, tr_f861cf7c2aeb
+  root cause  : cartservice logged an orderly shutdown at 07:32:07 and emitted nothing afterwards [tr_1c560b1a85f8], one second before the change log records an image-reference update on cartservice to the hotfix tag — the change closest to onset and part of a repeated apply/revert pattern [tr_cdb7d79ee86d]. The replacement never returned to service: frontend's checkout cart-fetch fails at dial time because the cartservice name cannot be resolved, yielding gRPC UNAVAILABLE through 07:37 [tr_73550957ecc8]. frontend and checkoutservice are reporters, not origins — neither shows an in-window error surge or its own error logs [tr_a4cbbcb77d0e, tr_d5c4828b2878, tr_682848952546], and no change is recorded against checkoutservice [tr_f5f9b7ddcc35]. The other cartservice fault vectors (REDIS_ADDR override, egress-delay sidecar) were reverted 56m and ~1.2h before onset [tr_cdb7d79ee86d].
+  OPEN        : Frontend code-14 errors already appear at ~07:12, before the shutdown and image swap, with no backend named [tr_73550957ecc8] — same fault with earlier onset, or unrelated spiky behaviour?
+  OPEN        : No container/pod status, restart count, or image-pull result was collected for the hotfix tag, so whether it failed to pull, failed to start, or failed health checks is unknown.
+  OPEN        : No direct DNS or service-discovery check was run, and eight services in the blast radius plus four unmeasured edges were never dispatched against.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T073202Z-cart-bad-image-tag/c3271262-8efb-4666-927c-8e01ee9cb95a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T073202Z-cart-bad-image-tag/c3271262-8efb-4666-927c-8e01ee9cb95a-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9078.77it/s]

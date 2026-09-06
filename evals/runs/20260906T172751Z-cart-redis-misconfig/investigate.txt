@@ -1,0 +1,38 @@
+incident 7ff636fd-6543-453d-81b1-53aea2fc9360  state triaging  anchor 17:30:30
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 62952d7d-3e65-4dde-862b-420ccf7ae61d
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on checkout and frontend simultaneously with the load generator indicates a user-facing failure path, not a quiet system. No open incidents to attribute it to, and the shared checkout dependencies leave the cause open.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if cartservice evidence turns up that meets an action's stated precondition — e.g. a recorded cartservice image or config change inside the window (making rollback_image or revert_config legal), or restart-count/OOM-kill evidence pointing at process state (making restart_service legal). It is also wrong if the failure escalates from episodic to sustained (error ratio pinned near its max with no returns to zero), where the cost of waiting exceeds the cost of a blind restart. Note that even the effect of a restart would be hard to read here: the metric already returns to zero on its own between bursts [tr_931bfde32466], so a post-restart zero could not be distinguished from the normal trough — an unfalsifiable success signal, and a further reason not to act yet.
+  rests on    : tr_16a3c2fc03fd, tr_931bfde32466, tr_f3d2531e02ff
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 23821 pushed / 8102 pulled (pull rate 0.2538), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : medium
+  evidence    : tr_16a3c2fc03fd, tr_931bfde32466, tr_0833eca9efea
+  root cause  : The requests that actually error originate one hop downstream of checkoutservice, in the cart dependency. Every sampled PlaceOrder trace terminates at a CartService GetCart call inside prepareOrderItemsAndShippingQuoteFromCart, with the cart span the deepest ERROR and the checkoutservice handler, frontend gRPC client span and frontend HTTP span all inheriting it, while the intermediate prepare-items span carries no error of its own [tr_16a3c2fc03fd]. Failures return in about a millisecond, so nothing is waiting on a slow call [tr_16a3c2fc03fd], and checkoutservice's error ratio moved from a flat zero baseline to bursts peaking near 67% with repeated returns to zero [tr_931bfde32466]. The emailservice Ruby NoMethodError in the confirmation template [tr_dcd77519db4a] is a real but separate, non-fatal defect: checkoutservice logs it at warning severity and the order pipeline continues past it to a successful payment and message write [tr_0833eca9efea], and no email span appears in any erroring trace because the flow aborts at cart before confirmation is reached [tr_16a3c2fc03fd]. No dispatch touched cartservice at all, so I can name the failing service but not the failing mechanism.
+  OPEN        : No cartservice logs, metrics, resource data or change history were collected — the actual mechanism (crash, OOM, backing-store refusal, bad rollout) is unestablished.
+  OPEN        : Metrics show episodic bursts returning to zero [tr_931bfde32466] while traces show uniform total failure [tr_16a3c2fc03fd]; the sampling windows differ and this conflict was never reconciled.
+  OPEN        : Whether the emailservice template defect and the cart failures share an upstream trigger, or are coincident and independent, is unresolved; both change queries also omit the hours before onset [tr_216b57dc45ee].
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T172751Z-cart-redis-misconfig/7ff636fd-6543-453d-81b1-53aea2fc9360-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T172751Z-cart-redis-misconfig/7ff636fd-6543-453d-81b1-53aea2fc9360-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8734.07it/s]

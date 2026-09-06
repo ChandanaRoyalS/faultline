@@ -1,0 +1,39 @@
+incident 825fb4eb-9b13-41e3-9197-efd1479e2771  state triaging  anchor 16:53:30
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: bdb52260-00d5-4ca3-b9f9-a64c0aeb7639
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service alerting across frontend and checkout within seconds is a user-facing failure that cannot be dismissed, and no open incident covers it. Nothing in the alert pattern alone points to a specific cause yet.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a cartservice change-history query returns a deploy, image or config change timestamped near 16:50:27 - that would immediately satisfy rollback_image or revert_config preconditions and make a targeted rollback the right call. It is also wrong if cartservice logs show a crash-loop, OOM kill, or an exhausted connection pool with no corresponding change, which would satisfy restart_service's process-state precondition. Either finding should reopen this proposal within minutes.
+  rests on    : tr_e4449e6da4cb, tr_f4566f41f1e2, tr_d867b5724ef5, tr_7c7d517abe6a, tr_8a61670d0896
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 27004 pushed / 11386 pulled (pull rate 0.2966), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : medium
+  evidence    : tr_e4449e6da4cb, tr_f4566f41f1e2, tr_d867b5724ef5, tr_fc40f6ef145b, tr_b1b7eb3da963
+  root cause  : Checkout orders stop completing because the CartService/GetCart call inside checkoutservice's PlaceOrder flow began returning errors immediately at roughly 16:50:27-16:51:19. Failing traces terminate at PlaceOrder -> prepareOrderItemsAndShippingQuoteFromCart -> CartService/GetCart, with that child span marked ERROR, short-duration, and no payment/currency/shipping/email/EmptyCart children ever created; the error propagates intact to the frontend [tr_e4449e6da4cb]. Checkout logs show order-start lines continuing at normal cadence through 16:55 while payment, email and message-write lines cease after the last successful order at ~16:50:27 [tr_f4566f41f1e2], and paymentservice's log stream stops cleanly at 16:50:27.716 with no in-flight request, meaning it stopped being called rather than stopped working [tr_d867b5724ef5]. The failing component is cartservice, failing fast rather than slowly. No dispatch ever examined cartservice, so the mechanism inside it (backing store connectivity, resource exhaustion, or a config/flag value) is unmeasured and the fault class is not established.
+  OPEN        : No dispatch touched cartservice: its logs, resource metrics, change history and backing-store health are entirely unmeasured, so the failure mechanism is unknown.
+  OPEN        : Whether a change was recorded on cartservice or its datastore near 16:50 - the change queries covered only checkoutservice and paymentservice [tr_7c7d517abe6a, tr_8a61670d0896].
+  OPEN        : Why the aggregate error ratios fell during the incident while orders were aborting - possibly a drop in total call volume that was never measured [tr_fc40f6ef145b].
+  OPEN        : The exact error status/message returned by GetCart, which would separate a connection failure from a rejected request.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T165033Z-cart-bad-image-tag/825fb4eb-9b13-41e3-9197-efd1479e2771-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260906T165033Z-cart-bad-image-tag/825fb4eb-9b13-41e3-9197-efd1479e2771-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9090.04it/s]
