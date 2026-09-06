@@ -1275,8 +1275,35 @@ not of one axis.
 |---|---|---|
 | **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **built and served** — view, routes, page, **and since T5.1b an application that mounts them** |
 | **T5.2** Slack notifier | lifecycle notifications | **built** — both events, linked into T5.1's screen |
-| **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **2 of 5** — ARCHITECTURE and THREAT-MODEL written; README **stale**, its Results block still headlines dev sweep 7 at `1b0e7cbb4c47` while HEAD is `b6837dd449ca`; **no demo video** (needs a live world), **no MVP-cut bullets** |
+| **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **4 of 5** — ARCHITECTURE, THREAT-MODEL, README's Results block rewritten at `b6837dd449ca`, `docs/MVP-CUT.md` written. **No demo video** — needs a live world and one filmed run |
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal | **checklist written, rehearsal not run.** `docs/RELEASE.md`; README now names all 16 console scripts, guarded |
+
+### T5.3 — the Results block, and the bullets that had to wait for a number
+
+**README's front page had been three stamps and two sweeps stale.** Its Results banner headlined
+dev sweep 7 at `1b0e7cbb4c47` — 8 of 8, 7 of 8 — while HEAD was `b6837dd449ca`, the catalog had
+changed, and T4.2 had added an axis that sweep could not have scored. **A reader's first impression
+of this benchmark was a pipeline that no longer existed.** Now dev sweep 10, with the service axis
+first, top-3 carrying its depth, and B0.2 beside it at \$0.0000.
+
+**The banner leads with the variance finding rather than the accuracy table**, because a page whose
+strongest claim is *"we report honestly about systems that are easy to report dishonestly about"*
+cannot bury the measurement that qualifies its own figures. It also says plainly that the new
+numbers must not be read against sweep 7's: different scenario set, different stamp, different
+scored axes, and treating them as a before-and-after compares catalogs rather than pipelines.
+
+**`docs/MVP-CUT.md` is the fifth deliverable, and half of it is the refusals.** Five bullets, a
+two-line version, and a section on what a bullet here may not say: no MTTR claim (T4.7's manual
+reference is 0 of 4 attempts and its ceiling is a responder who authored every scenario), no
+accuracy figure without its denominator, no *"passes its gates"* while `docs/GATES.md` declares G0
+alone, and not *"benchmarked against 17 scenarios"* when the current world holds 35 scored runs
+across **6**. The number a reader checks is the last one.
+
+The line it ends on is the one worth carrying: **nine defects found by running something built,
+reviewed, merged and green** — a view no process served, a notifier linking to a 404, a judge
+re-grading 79 manifests, a `CMD` that printed a version string, a deployment that joined the
+developer's database, a scoring axis printed nowhere. Each invisible to the suite and obvious within
+seconds of first use.
 
 ### T5.4 — the front door named one command of sixteen
 
