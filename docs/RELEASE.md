@@ -66,6 +66,10 @@ cd faultline-release-check
 - [ ] `make up`, then `uv run faultline-migrate` — **in that order and not before**: `up` now
       waits for the healthcheck, because on a new volume Postgres runs initdb and the migration
       that used to follow immediately died on `server closed the connection unexpectedly`.
+- [ ] **`uv run faultline-seed`.** Skipping it does not weaken a run, it **invalidates** it: the
+      leave-one-out filter excludes nothing from an empty corpus, asserts nothing, and the run is
+      marked `INVALID` however good its verdict. The first rehearsal lost a correct `bad_config`
+      this way.
 - [ ] **`uv run faultline-ingest` and `uv run faultline-orchestrate`, each left running in its own
       terminal.** Without the second, `make demo` refuses with `pipeline-down` — correctly, and
       having injected nothing. The rehearsal that added this line hit it twice.

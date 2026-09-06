@@ -43,8 +43,17 @@ queries, the verdict, the narrative, the revert, and the confirmed recovery.
 make install                     # deps + the agents and embeddings extras
 make up                          # Postgres and Redis, waited on until healthy
 uv run faultline-migrate         # the schema, on a database that has none yet
+uv run faultline-seed            # the retrieval corpus — see below, this one is not optional
 make world-up                    # the pinned OpenTelemetry demo; ~5 minutes to settle
 ```
+
+**`faultline-seed` is not a nicety and skipping it does not merely weaken the run — it
+invalidates it.** Every scored run asks retrieval to exclude the scenario's own recorded
+narrative (ADR-0008 axis 2, the leave-one-out filter). Against an **empty** corpus that exclusion
+removes nothing, so it has asserted nothing, and the harness marks the run `INVALID`: scored,
+kept, and its numbers unusable. T5.4's rehearsal hit this with a **correct** verdict —
+`bad_config` against a truth of `bad_config` — and the run still cannot be counted, because a
+right answer nobody can prove was uncontaminated is not evidence.
 
 Then leave these two running, each in its own terminal. **Nothing works without them** — the
 world's Alertmanager posts to the first, and the second is what turns those alerts into an

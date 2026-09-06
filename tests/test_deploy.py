@@ -407,7 +407,24 @@ def test_the_readme_names_the_two_servers_the_demo_needs() -> None:
     The refusal is good and names its own fix, which is why nothing was spent. But a refusal
     doing the documentation's job is still documentation that is missing.
     """
-    demo = (REPO_ROOT / "README.md").read_text().split("## Demo", 1)[1].split("\n## ", 1)[0]
+    section = (REPO_ROOT / "README.md").read_text().split("## Demo", 1)[1].split("\n## ", 1)[0]
 
-    for command in ("faultline-ingest", "faultline-orchestrate", "faultline-migrate", "make up"):
+    # **The fenced command blocks, not the prose around them.** The first version searched the
+    # whole section and passed with the `faultline-seed` line deleted, because the paragraph
+    # explaining *why* it matters still contained the word. Prose about a command is not an
+    # instruction to run it, and this guard exists for the reader who copies the block.
+    demo = "\n".join(block for index, block in enumerate(section.split("```")) if index % 2 == 1)
+
+    # **`faultline-seed` was missing from the first version of this list**, and the rehearsal that
+    # added the other four then lost a *correct* demo verdict to an empty corpus: the leave-one-out
+    # filter excluded nothing, asserted nothing, and the run was marked INVALID. A repair that
+    # leaves out a step is the same defect one iteration later.
+    needed = (
+        "faultline-ingest",
+        "faultline-orchestrate",
+        "faultline-migrate",
+        "faultline-seed",
+        "make up",
+    )
+    for command in needed:
         assert command in demo, f"README's Demo section never mentions `{command}`"

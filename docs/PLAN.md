@@ -1373,10 +1373,45 @@ documentation's job is documentation that is missing**, and a stranger who hits 
 brought up twenty containers. README now carries all seven steps, in three terminals, with the
 refusal quoted so it reads as expected rather than broken.
 
-**Three documented paths, all broken for first-time users, all working for the author, all found
-in one rehearsal, none of them a code defect.** That is the argument for Gate 5 stated better than
-the gate states it — and it is worth naming what the rehearsal did *not* find: no bug in the
-pipeline, the harness, the scoring or the platform. Every failure was in the instructions.
+**Fourth, found by the repair for the third: the demo ran, answered correctly, and was marked
+`INVALID`.** From the clean clone, with the world cold-pulled and both servers up, `make demo`
+completed — `bad_config` against a truth of `bad_config`, high confidence, \$0.7522, exit code 0
+from the investigation — and `faultline-eval` returned **6**.
+
+`INVALID.md` said why: *"the leave-one-out filter was asked for and removed nothing… a retrieval
+that excluded an origin the corpus does not hold has asserted nothing."* **The clone never ran
+`faultline-seed`.** Every scored run asks retrieval to exclude the scenario's own recorded
+narrative (ADR-0008 axis 2); against an empty corpus that exclusion removes nothing, so the
+contamination guarantee is unmade, so the run cannot be counted however good its verdict.
+
+**That is the single best demonstration of what this project is for: the benchmark refused to
+count a correct answer, because it could not prove the answer was uncontaminated.** The verdict was
+right, the run is unusable, and both facts are on disk.
+
+It is also **a gap in the fix written an hour earlier**. README's Demo block had just been
+corrected from two steps to seven, and the real sequence is **eight** — `faultline-seed` sits
+between the migration and the world. A repair that leaves out a step is the same defect one
+iteration later, and the guard now names all five commands.
+
+**And the guard for that guard was wrong too — the fourth of the evening.** It searched the whole
+Demo section and passed with the `faultline-seed` line deleted, because the paragraph explaining
+why it matters still contained the word. **Prose about a command is not an instruction to run it.**
+Now scoped to the fenced blocks, which is what a reader copies.
+
+**Four documented paths, all broken for first-time users, all working for the author, all found in
+one rehearsal, none of them a code defect.** That is the argument for Gate 5 stated better than
+the gate states it — and it is worth naming what the rehearsal did *not* find: **no bug in the
+pipeline, the harness, the scoring or the platform.** Every failure was in the instructions, and
+1,274 passing tests could not have caught one of them, because none is reachable from a machine
+that has run this project before.
+
+**Four guards were written wrong tonight and all four were caught the same way** — by running them
+against the broken state before keeping them. `makefile_recipe` swept up the next recipe;
+`test_the_deployment_has_its_own_compose_project` compared against the checkout directory and would
+only have failed in a clone named `faultline`; `test_every_console_script_is_reachable` accepted a
+link to `docs/PLAN.md`; and the demo-prerequisites guard read prose instead of commands. **A guard
+not seen failing is a guard not yet written**, and that is now four instances rather than an
+opinion.
 
 **Three refusals fired tonight and all three were right**: kafka's projected memory, the
 orchestrator's settle window, and `pipeline-down`. Each cost \$0.00 and each named its own remedy.
