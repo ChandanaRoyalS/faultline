@@ -53,7 +53,10 @@ git clone https://github.com/ChandanaRoyalS/faultline.git faultline-release-chec
 cd faultline-release-check
 ```
 
-- [ ] `uv sync` succeeds from the committed lock file.
+- [ ] `make install` succeeds from the committed lock file. **Not a bare `uv sync`** — that
+      resolves the lock but leaves out the `agents` and `embeddings` extras, so `make check`
+      passes and `make demo` cannot start. This checklist said `uv sync` until the first
+      rehearsal ran it.
 - [ ] `make check` passes **before any service is started** — this is what caught a schema defect
       that had been invisible for months, because no database had ever been built from nothing.
 - [ ] `make world-up` brings the world up **pulling images rather than reusing local ones**.

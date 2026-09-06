@@ -4,8 +4,17 @@
 help:
 	@grep -E '^[a-z][a-z0-9-]*:' Makefile | sed 's/:.*//' | tr '\n' ' '; echo
 
+# **Both extras, and that is the point of this target.**
+#
+# A bare `uv sync` resolves the lock and stops there. `agents` (the model client) and
+# `embeddings` (the local encoder) are optional and lazily imported, because `make check`
+# never calls a model and `embeddings` pulls torch - so a plain sync gives a tree that
+# passes every check and cannot run the demo or a scored run.
+#
+# The clean-clone rehearsal found exactly that: `make check` green, `make demo` refusing
+# on a missing model client, and README claiming `uv sync` "installs everything" (T5.4b).
 install:
-	uv sync
+	uv sync --extra agents --extra embeddings
 
 lint:
 	uv run ruff check src tests

@@ -19,7 +19,8 @@ agent works; it is that you can find out whether it does, and so can we.
 
 - **Docker**, running, with room for ~20 containers. `make world-up` clones the pinned
   OpenTelemetry demo into `world/` and starts it.
-- **[uv](https://docs.astral.sh/uv/)** and **Python 3.12**. `uv sync` installs everything else.
+- **[uv](https://docs.astral.sh/uv/)** and **Python 3.12**. `make install` gets the extras the
+  demo and scored runs need; a bare `uv sync` is enough for `make check` and leaves them out.
 - **git**, for the world clone.
 - **An Anthropic API key** — only for the demo and for scored runs. `make check` is offline.
 
@@ -422,9 +423,21 @@ line an agent quoted and every query it ran. To put it on a URL, see
 ## Development
 
 ```bash
-uv sync          # install everything
+make install     # deps + the agents and embeddings extras
 make check       # lint + types + tests — what CI runs
 ```
+
+**`uv sync` alone is not enough to run anything that calls a model**, and it used to say
+"install everything" here. Two optional extras are lazily imported and left out by default,
+because `make check` never calls a model and one of them pulls torch:
+
+| extra | needed by | without it |
+|---|---|---|
+| `agents` | `make demo`, every scored run | a refusal naming the fix |
+| `embeddings` | retrieval, `faultline-seed` | a bare `ImportError` |
+
+`make install` takes both. The clean-clone rehearsal found this the honest way: `make check`
+passed and `make demo` could not start (T5.4b).
 
 ### Breaking the world on purpose
 

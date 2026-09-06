@@ -1342,6 +1342,22 @@ deleted from the target it was written to check.** Each of the three was caught 
 running it against the broken state before keeping it. **A guard not seen failing is a guard not
 yet written**, and that is now three instances rather than an opinion.
 
+**Second documented-path break, same rehearsal: `make check` green, `make demo` unable to start.**
+`agents` (the model client) and `embeddings` (the local encoder) are optional extras, lazily
+imported, and deliberately so — `make check` never calls a model and `embeddings` pulls torch. The
+consequence nobody had traced: **a bare `uv sync` produces a tree that passes every check and
+cannot run the headline deliverable.** README said `uv sync` *"installs everything"* in two places
+and `docs/RELEASE.md` §3 — written the same morning — put `uv sync` in the checklist and `make
+demo` four lines later.
+
+The two extras fail differently, which is why both are now named: `agents` **refuses with a message
+that gives the fix**, and `embeddings` raises a bare `ImportError` from inside retrieval. `make
+install` takes both; README carries the table; the checklist says *not a bare `uv sync`* and says
+why.
+
+**Two documented paths, both broken for first-time users, both working for the author, both found
+in one rehearsal.** That is the argument for Gate 5 stated better than the gate states it.
+
 ### T5.4 — the front door named one command of sixteen
 
 **T7.46's sharpest finding, measured.** It reported that README documents the demo and the injector

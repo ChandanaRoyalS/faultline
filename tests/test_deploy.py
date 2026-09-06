@@ -362,3 +362,35 @@ def test_the_migration_reports_the_revision_it_reached() -> None:
 
     assert "print(" in source, "faultline-migrate reports nothing on success"
     assert "get_current_head()" in source
+
+
+def test_the_install_target_takes_the_extras_the_demo_needs() -> None:
+    """**A tree that passes every check and cannot run the demo.**
+
+    `agents` (the model client) and `embeddings` (the local encoder) are optional and lazily
+    imported, deliberately: `make check` never calls a model and `embeddings` pulls torch. The
+    consequence is that a bare `uv sync` produces a working test suite and a broken demo, and
+    README said `uv sync` "installs everything" until the first clean-clone rehearsal ran it.
+
+    The two fail differently, which is why both are named here: `agents` refuses with a message
+    that gives the fix, and `embeddings` raises a bare `ImportError` from inside the retrieval
+    path.
+    """
+    recipe = makefile_recipe("install")
+
+    assert "--extra agents" in recipe
+    assert "--extra embeddings" in recipe
+
+
+def test_no_document_claims_a_bare_sync_installs_everything() -> None:
+    """The claim was in two places in README and in the release checklist, and it was false in
+    all three. This fails if it comes back."""
+    for name in ("README.md", "docs/RELEASE.md"):
+        body = (REPO_ROOT / name).read_text()
+        for line in body.splitlines():
+            if "uv sync" not in line or line.lstrip().startswith(("|", ">")):
+                continue
+            claim = line.lower()
+            assert not ("install" in claim and "everything" in claim), (
+                f"{name} claims a bare `uv sync` installs everything: {line.strip()!r}"
+            )
