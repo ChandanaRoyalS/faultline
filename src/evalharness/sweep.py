@@ -53,8 +53,8 @@ price can be cleared; one without is indistinguishable from a blocker with no so
 operator about to spend an hour of world time and real money should see the number first.
 """
 
-DISCARD_RATE = 0.18
-"""**22 discarded against 121 runs that started** - 99 scored plus those 22. A sweep is budgeted
+DISCARD_RATE = 0.15
+"""**22 discarded against 148 runs that started** - 126 scored plus those 22. A sweep is budgeted
 against the runs it will start, and a run that never started costs nothing to budget for.
 
 **This read 0.33 for a day, and the 33% was half gate refusals.** 44 of 132 runs carried a
@@ -67,7 +67,15 @@ refusals into the denominator of a rate about runs that happen, so every bad aft
 would have made the pipeline look healthier. The denominator is now the runs that started, and
 `tests/test_evaldb.py` asserts this constant against the committed record so the two cannot drift.
 
-Both corrections are *readings* of the record. No manifest has been rewritten."""
+**Then it read 0.18, and the record moved under it.** This third movement is not a correction: the
+arithmetic was right both times. R=3 on the five (`evals/runs/SWEEP-2026-09-06-r3.md`) added fifteen
+runs that all scored - no discard, no `INVALID`, no errored tool call - and fifteen clean runs in a
+denominator of 133 pull the rate from 0.165 to 0.149. The constant had drifted out of the test's
++/-0.02 band by the time `make check` next ran, which is the test doing the job it was written for.
+
+The first two changes are *readings* of the record; this one is the record itself. **No manifest has
+been rewritten in any of the three.** Expect this number to keep moving, and to keep being caught
+here rather than in a budget line an operator has already acted on."""
 
 GATE_REFUSED = 3
 PAUSED = 5
