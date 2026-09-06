@@ -37,10 +37,40 @@ One command runs the whole system against the live world and narrates it for a f
 viewer — baseline gate, injection, correlation, the planner's dispatches, the specialists'
 queries, the verdict, the narrative, the revert, and the confirmed recovery.
 
+**Three terminals, because two of these are servers.** From a clean clone, in order:
+
 ```bash
-make world-up    # the pinned OpenTelemetry demo; give it ~5 minutes to settle
-make demo        # ~15 minutes, real model calls
+make install                     # deps + the agents and embeddings extras
+make up                          # Postgres and Redis, waited on until healthy
+uv run faultline-migrate         # the schema, on a database that has none yet
+make world-up                    # the pinned OpenTelemetry demo; ~5 minutes to settle
 ```
+
+Then leave these two running, each in its own terminal. **Nothing works without them** — the
+world's Alertmanager posts to the first, and the second is what turns those alerts into an
+incident for the agents to investigate:
+
+```bash
+uv run faultline-ingest          # terminal 2 — receives Alertmanager's webhooks on :8000
+uv run faultline-orchestrate     # terminal 3 — correlates alert episodes into incidents
+```
+
+```bash
+make demo                        # terminal 1 — ~15 minutes, real model calls
+```
+
+**If you skip one, you are told which.** T5.4's first clean-clone rehearsal ran `make demo` with
+no orchestrator attached and got
+
+```
+REFUSED: the alert pipeline is not assembled: no consumer is attached to the
+orchestrator's group - start it with `uv run faultline-orchestrate`. This is NOT
+the world failing to alert...
+```
+
+— nothing injected, nothing spent, and the distinction from a genuine `no-alert` spelled out.
+**This block used to show two of these seven commands**, so the refusal was doing the
+documentation's job; it is written down here now as well.
 
 **Watch it happen.** `make world-up` also provisions the shop-health dashboard —
 [the world at a glance](http://localhost:3000/grafana/d/faultline-shop-health). Every panel

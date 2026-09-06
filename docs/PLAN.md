@@ -1355,8 +1355,33 @@ that gives the fix**, and `embeddings` raises a bare `ImportError` from inside r
 install` takes both; README carries the table; the checklist says *not a bare `uv sync`* and says
 why.
 
-**Two documented paths, both broken for first-time users, both working for the author, both found
-in one rehearsal.** That is the argument for Gate 5 stated better than the gate states it.
+**Third, and the largest: README's headline command could not work from a clean clone as
+documented.** The Demo block showed `make world-up` and `make demo` — **two of the seven steps a
+first run takes**. Missing: `make install`, `make up`, the migration, and the two long-running
+servers without which no incident can ever open. `make demo` was run twice in the rehearsal and
+refused twice:
+
+    REFUSED: the alert pipeline is not assembled: no consumer is attached to the
+    orchestrator's group - start it with `uv run faultline-orchestrate`. This is
+    NOT the world failing to alert - the fault would fire and no incident would
+    open, which records as `no-alert` and reads as a fact about the scenario.
+
+**The refusal is the system working.** It named the cause, distinguished itself from a genuine
+`no-alert`, gave the command, injected nothing and spent nothing — and it is recorded as a
+`REFUSED.md` rather than a discard, because nothing was attempted. But **a refusal doing the
+documentation's job is documentation that is missing**, and a stranger who hits it has already
+brought up twenty containers. README now carries all seven steps, in three terminals, with the
+refusal quoted so it reads as expected rather than broken.
+
+**Three documented paths, all broken for first-time users, all working for the author, all found
+in one rehearsal, none of them a code defect.** That is the argument for Gate 5 stated better than
+the gate states it — and it is worth naming what the rehearsal did *not* find: no bug in the
+pipeline, the harness, the scoring or the platform. Every failure was in the instructions.
+
+**Three refusals fired tonight and all three were right**: kafka's projected memory, the
+orchestrator's settle window, and `pipeline-down`. Each cost \$0.00 and each named its own remedy.
+The guards this project spent Phase 4 building are the reason a rehearsal with three broken
+documented paths still cost nothing.
 
 ### T5.4 — the front door named one command of sixteen
 

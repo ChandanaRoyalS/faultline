@@ -63,6 +63,12 @@ cd faultline-release-check
       Note the wall-clock; a stranger pays it too.
 - [ ] Wait the documented ~5 minutes. The baseline gate refuses containers younger than 300s, and
       a stranger following README exactly hits that refusal first.
+- [ ] `make up`, then `uv run faultline-migrate` — **in that order and not before**: `up` now
+      waits for the healthcheck, because on a new volume Postgres runs initdb and the migration
+      that used to follow immediately died on `server closed the connection unexpectedly`.
+- [ ] **`uv run faultline-ingest` and `uv run faultline-orchestrate`, each left running in its own
+      terminal.** Without the second, `make demo` refuses with `pipeline-down` — correctly, and
+      having injected nothing. The rehearsal that added this line hit it twice.
 - [ ] `make demo` completes end to end. Costs about $0.60 and needs `~/.faultline-anthropic-key`.
 - [ ] `make eval SCENARIO=<id> INTENT=--single-run` produces a scored run directory.
 - [ ] `FAULTLINE_API_PASSWORD=... make ui`, then open `/ui/incidents/<id>` from that run.

@@ -394,3 +394,20 @@ def test_no_document_claims_a_bare_sync_installs_everything() -> None:
             assert not ("install" in claim and "everything" in claim), (
                 f"{name} claims a bare `uv sync` installs everything: {line.strip()!r}"
             )
+
+
+def test_the_readme_names_the_two_servers_the_demo_needs() -> None:
+    """**The headline command could not work from a clean clone as documented.**
+
+    README's demo block showed `make world-up` and `make demo` — two of the seven steps a first
+    run takes. Missing: `make install`, `make up`, the migration, and the two long-running
+    processes without which no incident can ever open. T5.4's rehearsal ran it twice and was
+    refused twice with `pipeline-down`.
+
+    The refusal is good and names its own fix, which is why nothing was spent. But a refusal
+    doing the documentation's job is still documentation that is missing.
+    """
+    demo = (REPO_ROOT / "README.md").read_text().split("## Demo", 1)[1].split("\n## ", 1)[0]
+
+    for command in ("faultline-ingest", "faultline-orchestrate", "faultline-migrate", "make up"):
+        assert command in demo, f"README's Demo section never mentions `{command}`"
