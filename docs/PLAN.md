@@ -1398,6 +1398,38 @@ Demo section and passed with the `faultline-seed` line deleted, because the para
 why it matters still contained the word. **Prose about a command is not an instruction to run it.**
 Now scoped to the fenced blocks, which is what a reader copies.
 
+**And then it ran.** Seeded, from the cold clone, both servers up: `make demo` completed with exit
+0 — **a countable run from a clean clone, which is Gate 5's demo half demonstrated for the first
+time in this project.** It cost \$0.6865 and it got the answer **wrong**: `dependency_latency`
+against a truth of `bad_config`, at **low** confidence.
+
+**The cause is in the record and it is not the model.** The trace query — the one that attributes
+per-callee spans and would have named the failing dependency — returned
+`HTTP Error 500: Internal Server Error` from Jaeger. The agent reported low confidence, listed
+which callee it could not identify and why, and declined to guess. On evidence that failed to
+arrive, that is the designed behaviour rather than a breakdown.
+
+### The variance finding, sharpened: three runs, three answers, and one of them the world's fault
+
+`cart-redis-misconfig` at `b6837dd449ca`, in one evening:
+
+| run | fault class | why it matters |
+|---|---|---|
+| dev sweep 10, pipeline arm | **abstained** (`unknown`) | rank 3 held `bad_config`, the truth |
+| demo, unseeded | **correct** (`bad_config`) | marked `INVALID` — corpus unseeded |
+| demo, seeded | **wrong** (`dependency_latency`) | Jaeger 500'd on the decisive query |
+
+This morning's variance finding was `cart-bad-image-tag` at n=2, one right and one wrong. **This is
+n=3 on a second scenario with three distinct outcomes**, and the third failure has a named
+non-model cause.
+
+**So run-to-run variance at a fixed stamp includes the world's own flakiness, not only sampling
+from the model.** That is a larger claim than the one made this morning and a more useful one: a
+reader asking *"how reproducible is this number"* needs total variance, and total variance is what
+R=3 measures. **Nothing in this repository separates model variance from environment variance, and
+nothing here claims to** — but the evening establishes that both are present and that neither has
+ever been quantified.
+
 **Four documented paths, all broken for first-time users, all working for the author, all found in
 one rehearsal, none of them a code defect.** That is the argument for Gate 5 stated better than
 the gate states it — and it is worth naming what the rehearsal did *not* find: **no bug in the

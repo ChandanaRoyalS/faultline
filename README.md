@@ -122,9 +122,22 @@ recorded under *What remains* in
 register moved to [`docs/QUEUE.md`](docs/QUEUE.md) at T7.45 and this question is not in it —
 corrected T7.59.)*
 
-Counting it, the record at this configuration is **6 correct out of 7**. It is left as it fell
+Counting it, the record at this configuration is **6 correct out of 8**. It is left as it fell
 rather than re-run until it looked better: a demo that is re-rolled until it impresses is an
 advertisement.
+
+**The eighth is T5.4's clean-clone rehearsal, and it is worth more than the number it cost.** From
+a cold clone with every image pulled fresh, the demo answered `dependency_latency` against a truth
+of `bad_config` at **low** confidence — because the trace query, the one that would have named the
+failing dependency, returned `HTTP Error 500` from Jaeger. The agent said so, reported what it
+could not know, and did not guess.
+
+**On this scenario, at this stamp, on one evening, three runs gave three answers:** dev sweep 10
+abstained with `unknown`, one demo answered `bad_config` correctly, and this one answered
+`dependency_latency` wrongly. The third has a cause that is not the model at all — the world's own
+tracing backend failed. **Run-to-run variance here includes the environment's flakiness, not only
+sampling**, which is a larger and more honest thing to have measured than either alone, and it is
+the strongest argument in this repository for the repeat protocol that has never been run.
 
 **Would rather read than run?** A full transcript of a real run, with the narrative the scribe
 wrote, is in [`docs/demo/`](docs/demo/) — [`transcript.txt`](docs/demo/transcript.txt) and the
