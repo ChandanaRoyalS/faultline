@@ -1283,6 +1283,49 @@ rather than on whether it did what the column said. Both are corrected below.
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal *on a fresh machine* | **rehearsal on a fresh machine in progress (T5.4c), not tagged.** The spec says *"a fresh machine"*; a rented x86 VM is that machine. Its first `make demo` found that the world-to-receiver alert path had never worked on Linux (defect eighteen, closed below); the demo, the scored run and the UI check remain, then the tag |
 | **T5.5** deploy | live instance at a stable URL + documented deploy procedure | **procedure written, rehearsed locally twice, no instance.** Four deviations from the task text found and closed on 2026-09-06 (T5.5b below). VM, DNS and the live URL remain |
 
+### T5.5c — the deployment, run for the first time *(in progress)*
+
+**Same VM as T5.4c, after the rehearsal's dev-mode platform was snapshotted and stopped.** The
+rehearsal's four incidents — three demos and the scored x86 run — were dumped with `make
+deploy-snapshot` (296 K) so the public URL opens on real investigations rather than an empty list
+(§3.5). `deploy/.env` was written without a secret reaching a screen: both passwords generated into
+shell variables, the bcrypt hash produced by `caddy hash-password` and placed in single quotes, the
+key copied file-to-file, the variables unset, and the only things printed were the site, the image
+sha and two counts. `FAULTLINE_IMAGE` is `ghcr.io/chandanaroyals/faultline:25ad0a08…`, CI's image
+for `main`, checked present in the registry before `.env` named it.
+
+**§3.3 came up clean on the first `up -d --wait`**: five containers, Postgres and Redis healthy,
+`faultline` healthy through the healthcheck #223 added, `schema at 0004` from inside the container.
+Then two defects in the next two commands, both in files written by the same hand two days earlier,
+both of a class this project had already named.
+
+**Twenty-three: the seed could not find the database, for the reason the migration could not a day
+earlier.** `docker compose exec faultline faultline-seed` refused on `127.0.0.1:5432`. #222 had fixed
+`faultline-migrate` failing identically by setting `FAULTLINE_ORCH_POSTGRES_DSN` in the container,
+and the comment beside it said the variable was set there *"so that anything else run inside this
+container … reaches the same database without each caller remembering."* The seed reads
+`ContextSettings.postgres_dsn` — prefix `FAULTLINE_CONTEXT_` — one settings class over. Worse than
+the seed: the orchestrator container carried `ORCH` and `TOOLS` and not `CONTEXT`, so **every
+deployed investigation's retrieval would have looked for its corpus on the container's own
+loopback.** Fixed in both containers; the guard now walks every `BaseSettings` under `faultline`
+that declares a `postgres_dsn` and asserts each prefix is pointed at the served database, so the
+list comes from the code and not from memory. Fixing an instance is not fixing the class — the T5.3
+audit's sentence, re-earned.
+
+**Twenty-four: the world overlay named a service the world does not have.** The §3.4 four-file `up`
+refused the whole project: *"service `frontend-proxy` has neither an image nor a build context."*
+The demo names the **service** `frontendproxy` and the **container** `frontend-proxy`; URLs use the
+container name because Docker's DNS resolves it, and an overlay must use the service key because
+that is what compose merges on. `compose.world.yml` used the container name, and the test that
+guarded it checked the overlay's keys against a copy of the overlay's keys. Two rehearsals on the
+Mac could not reach this because neither brought the world up under the deploy overlay — the
+rehearsal section is explicit that it does not. `injector.world.SERVICE_CONTAINERS`, the naming map
+the injector has kept for exactly this confusion since T1.1, is the authority now, and every key in
+the overlay must be in it.
+
+**Twenty-four**, and the two tonight were both the author's, both in the deployment files, both
+found only by running the documented command on the machine it was written for.
+
 ### T5.4c — the fresh-machine rehearsal, and the alert path that had never worked on Linux *(in progress)*
 
 **The machine.** An IONOS VPS XL+ — 8 vCPU, 16 GB, 480 GB, x86-64, Ubuntu 24.04 — at
@@ -1409,6 +1452,15 @@ it is a defect rather than a Mac run. The four run directories this rehearsal ha
 **Four findings in one rehearsal that the suite could not reach**, three of them the same shape as
 the eleven before them: a thing built, green and merged, whose tests exercised the component and
 not the seam. Twenty-two.
+
+**The scored run the checklist asks for, on a scenario that exists on x86.** `make eval
+SCENARIO=cart-redis-misconfig INTENT=--single-run`, run `20260907T060308Z`: the gate printed
+`NEW COMPARABILITY GENERATION: f5bd108f4f70 -> f5bd108f4f70@Linux/x86_64` — the fix from twenty
+minutes earlier, on the first run that needed it — and the run scored: abstained on class, service
+correct, fix class wrong, \$0.6394, its manifest carrying `host_platform: Linux/x86_64` and
+`new_generation: true`. The trace backend answered 503 again mid-run, so nineteen recurs roughly
+hourly on this box rather than once. Every item in `docs/RELEASE.md` §3 has now been executed on a
+machine that is not the development one.
 
 **Still to run on this machine:** one scored run on a scenario that exists on x86, to meet the
 checklist item the memory squeeze could not; the deployment itself (`deploy/README.md` §3) and the
