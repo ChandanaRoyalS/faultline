@@ -1406,6 +1406,25 @@ behind Q26.
 `1b0e7cbb4c47`; none since. That is a first observation at this stamp, not a re-run, and it is dev
 sweep 11 (`PREREGISTRATION-2026-09-07-sweep11.md`): about \$3.50 in model calls, both arms.
 
+### Forward deploy, 2026-09-07 — and the rollback argument nobody had written down
+
+`FAULTLINE_IMAGE` moved `b310bd9f…` → `28fcaf7f…` on the VM at about 23:00 UTC: T5.6's screen
+changes, T5.7's reporting and sweep 11's table are on the public URL. `up -d --wait` came back
+healthy on all five containers; `/` and `/ui/incidents` answer 401 to an anonymous reader,
+`/healthz` is open. The VM's untracked copies of the morning's rehearsal runs blocked the pull and
+were moved aside rather than deleted, then shown byte-identical to the committed copies, five of five.
+
+**Found by doing it: §3.7 rolls back to "the previous sha" and nothing recorded one.** The value
+lived in a gitignored `.env` that every forward deploy overwrites, and in an image cache. `deploy/README.md`
+§3.9 is now the deployment log — six images, from the first snapshot-only deploy to today's — and the
+rule that a forward deploy adds its row in the same PR. Two forward-deploy defects in one day are
+the pattern T5.5c already named: the procedure was correct for the person who wrote it and
+incomplete for the person who runs it next.
+
+**Pending, recorded, not done tonight:** the VM reports `*** System restart required ***`. A
+reboot restarts the world, so it is a deployment event to do deliberately — `make world-up` after,
+and the uptime workflow's next run read — not a maintenance chore.
+
 ### Dev sweep 11 — the ten dev rows finished, and the miss that was described in advance *(2026-09-07)*
 
 Full accounting in [`SWEEP-2026-09-07-sweep11.md`](../evals/runs/SWEEP-2026-09-07-sweep11.md),
