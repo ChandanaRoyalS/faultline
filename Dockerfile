@@ -3,7 +3,13 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 WORKDIR /app
 # Dependency layer first, so code changes don't invalidate the dependency cache.
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev --no-install-project
+# **Both extras, and that is the point** - the same sentence `make install` carries. A bare
+# `uv sync` gives a tree that passes every check and cannot run the demo or a scored run (T5.4b),
+# and it gave an image whose orchestrator could not open a model client and whose seeder could not
+# import its embedder: the deployment could remember investigations and not produce one, which is
+# T5.5b's deviation three, reintroduced by the build (T5.5c, defect twenty-six). `archive` is
+# deliberately left out: nothing in the deployment writes to an object store.
+RUN uv sync --frozen --no-dev --no-install-project --extra agents --extra embeddings
 # Project layer: hatchling reads readme/license from pyproject, so both must be present.
 COPY README.md LICENSE ./
 COPY src ./src
@@ -19,7 +25,7 @@ COPY knowledge ./knowledge
 # documented `docker compose exec faultline faultline-seed` walked `/app/evals/scenarios/artifacts/dev`
 # and found the directory absent - the third run-time path the image had left out (T5.5c).
 COPY evals/scenarios/artifacts/dev ./evals/scenarios/artifacts/dev
-RUN uv sync --frozen --no-dev
+RUN uv sync --frozen --no-dev --extra agents --extra embeddings
 
 FROM python:3.12-slim
 RUN useradd --create-home appuser

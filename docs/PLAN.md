@@ -1337,8 +1337,23 @@ Meanwhile the platform was not left without a corpus: the §3.5 snapshot of the 
 database restored with zero errors and carried its seeded corpus and three incidents — the two
 demos that produced one and the scored run — so the public URL opens on real investigations.
 
-**Twenty-five**, and the three tonight were all the author's, all in the deployment files, all
-found only by running the documented command on the machine it was written for.
+**Twenty-six: the image cannot investigate.** On the image that shipped the corpus, the seed
+connected, found its directory, and died on `ModuleNotFoundError: sentence_transformers`. The
+Dockerfile ran `uv sync --frozen --no-dev` — a bare sync, the exact command README has warned
+against since T5.4b (*"`uv sync` alone is not enough to run anything that calls a model"*), and the
+warning had been written for a developer's tree and never read against the build. No `embeddings`
+extra means no seeder and no retrieval; no `agents` extra means **the orchestrator container has no
+model client** — a live deployment that could open incidents and never investigate one, which is
+T5.5b's deviation three, closed in the compose file and reintroduced by the image. Both extras are
+now installed in the image, and because PyPI's Linux torch drags ~3 GB of CUDA libraries a GPU-less
+VM never loads, `[tool.uv.sources]` sends torch to the CPU index on Linux alone — macOS, where
+every figure was produced, resolves exactly as before. The lock is the proof: regenerated, it carries
+no `nvidia-*` package, and a guard says so.
+
+**Twenty-six**, and the four tonight were all the author's, all in the deployment files, all found
+only by running the documented command on the machine it was written for. §3.7's mechanism was
+exercised forward for the first time between them: one line in `.env`, `up -d --wait`, both
+containers on the new sha in seventeen seconds with the record intact.
 
 ### T5.4c — the fresh-machine rehearsal, and the alert path that had never worked on Linux *(in progress)*
 

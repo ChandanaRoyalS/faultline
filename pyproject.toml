@@ -42,7 +42,11 @@ faultline-seed = "faultline.context.cli:run"
 # The local embedding model (ADR-0018). Optional because it pulls torch, and `make check`
 # runs in under three seconds without it - nothing in the seeding or retrieval path imports
 # it until something asks for a vector.
-embeddings = ["sentence-transformers>=3.0"]
+# `torch` is named here directly, not because anything imports it, but because `[tool.uv.sources]`
+# below binds only to direct dependencies - as a transitive requirement of sentence-transformers it
+# would stay on PyPI's CUDA wheel on Linux and the stanza would be decoration. `uv lock` said
+# "Resolved 121 packages in 1ms" and changed nothing until this line existed (T5.5c).
+embeddings = ["sentence-transformers>=3.0", "torch>=2.0"]
 # The agent runtime's model client (ADR-0020). Optional and lazily imported for the same
 # reason: `make check` never calls a model, and the fake is the only one tests touch.
 agents = ["anthropic>=1.0"]
@@ -107,3 +111,18 @@ addopts = "-q -m 'not integration'"
 markers = [
     "integration: needs Docker - real Postgres, Redis and MinIO via testcontainers (T2.3)",
 ]
+
+# **Torch from the CPU index on Linux, and only on Linux.** The image CI publishes installs the
+# `embeddings` extra (T5.5c, defect twenty-six), and PyPI's linux wheel of torch drags in ~3 GB of
+# CUDA libraries that a VM with no GPU never loads. On macOS the PyPI wheel is already CPU/MPS and
+# is what every published figure was produced with, so the marker leaves the development platform
+# untouched: the lock forks for Linux and nothing else moves. `tests/test_packaging.py` asserts the
+# lock carries no `nvidia-*` package, which is the observable form of this stanza having been
+# applied - a lock regenerated without it would pass every other check and build a 4 GB image.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
