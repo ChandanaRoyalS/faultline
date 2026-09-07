@@ -1,0 +1,38 @@
+incident 63831855-d856-443d-b783-afb74b8f4b5c  state triaging  anchor 15:15:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 2b7853e8-80a5-4bc0-af52-85d78f630dc5
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Critical multi-service alerting with frontend and productcatalogservice both seeded within seconds, so this is not a single-service warning or a load-generator artifact. Productcatalogservice is the plausible shared dependency behind the frontend symptom, but the fault class is a prior only.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a change-history query run backward from onset (the two existing queries both ran forward from 15:15:45 and returned empty, so the lead-up is unexamined) turns up a productcatalogservice config or flag change with a recorded prior value - that would satisfy revert_config's preconditions and make waiting the costly choice. It is also wrong if a re-query of Loki with the correct label (the hyphenated selector {service="product-catalog-service"} matched nothing, so the logs are unread, not absent) shows an explicit flag-driven failure line. Conversely, if productcatalogservice restart or saturation metrics - never queried - show restarts or memory pressure, the mechanism is process state rather than config and a different action applies. Note also that the verdict's own mechanism is unverified: the flag's identity and value were never read, so bad_config is inferred from error shape alone, and if the flag lives on featureflagservice the right target is not even in the legal blast radius.
+  rests on    : tr_35bcf24df2ba, tr_b051a008742f, tr_6fcbf7221788
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 27566 pushed / 4397 pulled (pull rate 0.1376), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_b051a008742f, tr_bd00cef9bc1d, tr_41bc4b25d0eb, tr_6fcbf7221788, tr_35bcf24df2ba
+  root cause  : Requests fail inside productcatalogservice's own GetProduct handler. Traces show the error status terminating at the productcatalogservice server-side span for hipstershop.ProductCatalogService/GetProduct and mirroring upward through frontend's client span, frontend's HTTP handler and the loadgenerator parent — the signature of a downstream-originating error [tr_b051a008742f]. The failure is partial (~7-10% of calls, with sibling calls on the same edge succeeding) and carries no latency component: errored spans are single-digit milliseconds, indistinguishable from successful ones [tr_b051a008742f][tr_bd00cef9bc1d]. Every errored GetProduct span contains a successful child call to FeatureFlagService/GetFlag, placing the fault immediately after the flag lookup inside productcatalogservice's own handling [tr_b051a008742f]. The most economical mechanism for a stochastic, fixed-fraction, zero-latency error injected right after a flag read is that a product-catalog failure flag is switched on: the configured value is itself wrong and each request reading it as enabled is deliberately failed. Frontend's aggregate error ratio steps up abruptly at 15:15:30 with no preceding ramp [tr_41bc4b25d0eb], fitting a switch being flipped rather than anything degrading.
+  OPEN        : The flag's identity and value were never read; the bad_config attribution is inferred from error shape, not observed.
+  OPEN        : productcatalogservice logs were never retrieved — the Loki selector used a hyphenated name and matched nothing [tr_6fcbf7221788]; a correct-label re-query could confirm or destroy this.
+  OPEN        : Both change queries ran forward from onset at radius 0 [tr_35bcf24df2ba], so pre-onset changes and any change on featureflagservice or other neighbors remain unexamined; latency, restarts and saturation for productcatalogservice were also never queried [tr_bd00cef9bc1d].
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T151220Z-product-catalog-flag-failure/63831855-d856-443d-b783-afb74b8f4b5c-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T151220Z-product-catalog-flag-failure/63831855-d856-443d-b783-afb74b8f4b5c-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8900.15it/s]

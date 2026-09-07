@@ -1,0 +1,38 @@
+incident 50614972-2e09-40d8-ad86-f71b9dec16b8  state triaging  anchor 15:52:45
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: bf767588-5539-48f2-aa53-f43974fa4861
+triage judged: investigate (medium confidence, suspects unknown)
+  Checkout alerted first and its downstream consumers (accounting, email, fraud, quote, shipping) followed three minutes later, which is a real fan-out from a critical seed and cannot be dismissed. No open incident covers it; cause could be checkout itself or one of its unmeasured dependencies, so the fault class stays open.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Abstaining because verdict confidence is low, fault class is unknown, and the mechanism sits inside a quote path (shippingservice -> quoteservice) that no dispatch ever measured. rollback_image and revert_config both require a recorded prior image/config plus evidence naming a change inside the window; for shippingservice and quoteservice no change history was ever queried, and for the services that were queried the records are either empty (tr_b21e00b2bb19, tr_390dc8d14b13) or fully reverted 5.2h before onset (tr_137e671e94a6). restart_service requires evidence pointing at process state, and tr_183c91d23abf and tr_46e400ac4855 point the opposite way: a live process cleanly propagating a fast deterministic downstream rejection. scale_service is unavailable per ADR-0029. This abstention is falsified if a dispatch finds a change record for shippingservice or quoteservice near 15:52:45 - a deploy, image tag, or config/flag flip - which would satisfy rollback_image or revert_config preconditions on a named target. It is also falsified if shippingservice logs show crash-looping, restarts, or corrupted in-process state, which would meet restart_service's precondition. It remains correct if GetQuote errors are shown to originate in quoteservice's computation with no change on either service, since no permitted action addresses that mechanism.
+  rests on    : tr_46e400ac4855, tr_183c91d23abf, tr_b21e00b2bb19, tr_390dc8d14b13, tr_137e671e94a6
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 27503 pushed / 8823 pulled (pull rate 0.2429), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_46e400ac4855, tr_183c91d23abf, tr_6e29843de3c9, tr_137e671e94a6, tr_b21e00b2bb19
+  root cause  : PlaceOrder aborts inside checkoutservice's shipping-quote step: every ShippingService/GetQuote child span returns an error status in ~0.3-2.5ms, and no payment, ShipOrder or email span is ever created. The error propagates up through checkoutservice, frontend PlaceOrder and the frontend HTTP POST with end-to-end latency still under 16ms, so this is a fast, deterministic rejection from shippingservice - not a stall, timeout, or a checkoutservice-side fault. checkoutservice logs show entry lines continuing but no completion sequence after 15:53, matching orders that die before payment. The downstream silence on accountingservice, emailservice and frauddetectionservice follows because those steps are never reached; shippingservice and quoteservice alerting at 15:56 places the failing mechanism on the shipping quote path (shippingservice's own quote computation, which calls quoteservice). No change record was found for checkoutservice or productcatalogservice, and cartservice changes were all reverted 5+ hours before onset, so the failure is not attributable to any observed change on those services. Neither shippingservice nor quoteservice was itself dispatched, so the mechanism inside the quote path is inferred from the trace shape, not directly measured.
+  OPEN        : What does shippingservice return on GetQuote, and does the error originate in shippingservice or in its call to quoteservice? No dispatch covered either service.
+  OPEN        : Was there any change (deploy, config, flag) on shippingservice or quoteservice near 15:52:45? Their change history was never queried.
+  OPEN        : Actual onset time is unpinned: checkoutservice log truncation removes 14:53-15:53, and both change queries began at the onset timestamp rather than before it.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T154955Z-shipping-wrong-image/50614972-2e09-40d8-ad86-f71b9dec16b8-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T154955Z-shipping-wrong-image/50614972-2e09-40d8-ad86-f71b9dec16b8-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8959.03it/s]

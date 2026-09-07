@@ -1,0 +1,163 @@
+{
+  "incident_id": "63831855-d856-443d-b783-afb74b8f4b5c",
+  "trajectory_id": "2b7853e8-80a5-4bc0-af52-85d78f630dc5",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "Requests fail inside productcatalogservice's own GetProduct handler. Traces show the error status terminating at the productcatalogservice server-side span for hipstershop.ProductCatalogService/GetProduct and mirroring upward through frontend's client span, frontend's HTTP handler and the loadgenerator parent \u2014 the signature of a downstream-originating error [tr_b051a008742f]. The failure is partial (~7-10% of calls, with sibling calls on the same edge succeeding) and carries no latency component: errored spans are single-digit milliseconds, indistinguishable from successful ones [tr_b051a008742f][tr_bd00cef9bc1d]. Every errored GetProduct span contains a successful child call to FeatureFlagService/GetFlag, placing the fault immediately after the flag lookup inside productcatalogservice's own handling [tr_b051a008742f]. The most economical mechanism for a stochastic, fixed-fraction, zero-latency error injected right after a flag read is that a product-catalog failure flag is switched on: the configured value is itself wrong and each request reading it as enabled is deliberately failed. Frontend's aggregate error ratio steps up abruptly at 15:15:30 with no preceding ramp [tr_41bc4b25d0eb], fitting a switch being flipped rather than anything degrading.",
+    "service": "productcatalogservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_b051a008742f",
+      "tr_bd00cef9bc1d",
+      "tr_41bc4b25d0eb",
+      "tr_6fcbf7221788",
+      "tr_35bcf24df2ba"
+    ],
+    "reasoning": "Blame sits on productcatalogservice, not frontend, because the deepest errored span is productcatalogservice's own and all other frontend dependency edges \u2014 cartservice, adservice, currencyservice, checkoutservice, recommendationservice and the Redis layer \u2014 carry spans in the same window with no error status [tr_b051a008742f]. The frontend and loadgenerator alerts at 15:15:45 are the caller noticing. Not dependency_latency: span durations on the failing edge are flat and errored spans are no slower than successful ones [tr_b051a008742f]. Not resource_exhaustion: a fixed-fraction error rate with flat latency and a single abrupt step change rather than a ramp is not the shape of running out of something [tr_41bc4b25d0eb]. Not bad_deploy: an artifact fault would have to fail exactly ~7% of calls at normal speed, and the successful GetFlag child present in every errored span points instead at a value read per-request. The mechanism is the wrong value itself, so the fix is to revert it.",
+    "open_questions": [
+      "The flag's identity and value were never read; the bad_config attribution is inferred from error shape, not observed.",
+      "productcatalogservice logs were never retrieved \u2014 the Loki selector used a hyphenated name and matched nothing [tr_6fcbf7221788]; a correct-label re-query could confirm or destroy this.",
+      "Both change queries ran forward from onset at radius 0 [tr_35bcf24df2ba], so pre-onset changes and any change on featureflagservice or other neighbors remain unexamined; latency, restarts and saturation for productcatalogservice were also never queried [tr_bd00cef9bc1d]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A pre-onset deployment of productcatalogservice shipped an artifact that errors on a fraction of GetProduct requests.",
+        "service": "productcatalogservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Unexamined rather than supported \u2014 the change window never covered the lead-up \u2014 and it explains the per-request flag lookup in every errored span less naturally than a flag-driven injection."
+      },
+      {
+        "root_cause": "An unmeasured dependency or datastore behind productcatalogservice returns errors on a fraction of lookups.",
+        "service": "productcatalogservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "The only child span visible in errored traces is GetFlag and it succeeds [tr_b051a008742f]; no failing sub-call was observed, though triage notes one unmeasured edge."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **3m30s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 3\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence two and a\n  half minutes la",
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. From the first restart after the change, the runtime could not complete a startup\ninside the new limit: it"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 27566,
+    "pulled_tokens": 4397,
+    "pull_rate": 0.1376,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 415,
+        "content_tokens": 417,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1570,
+        "content_tokens": 1573,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8492,
+        "content_tokens": 8467,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7996,
+        "content_tokens": 7998,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9093,
+        "content_tokens": 9070,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_35bcf24df2ba",
+      "tr_b051a008742f",
+      "tr_6fcbf7221788"
+    ],
+    "expected_effect": "No action is proposed, so no effect should be observed. The signal that would justify a later action is a named flag/config change on productcatalogservice inside the incident window, plus a productcatalogservice log line under a correct Loki label showing the deliberate-failure path after the GetFlag read; with those in hand, revert_config on productcatalogservice would be expected to drive its error ratio from ~7% (n=20, max ~9.9%) to 0 and frontend's aggregate error ratio back below its ~1.3% baseline within two 2m scrape windows.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "This abstention is wrong if a change-history query run backward from onset (the two existing queries both ran forward from 15:15:45 and returned empty, so the lead-up is unexamined) turns up a productcatalogservice config or flag change with a recorded prior value - that would satisfy revert_config's preconditions and make waiting the costly choice. It is also wrong if a re-query of Loki with the correct label (the hyphenated selector {service=\"product-catalog-service\"} matched nothing, so the logs are unread, not absent) shows an explicit flag-driven failure line. Conversely, if productcatalogservice restart or saturation metrics - never queried - show restarts or memory pressure, the mechanism is process state rather than config and a different action applies. Note also that the verdict's own mechanism is unverified: the flag's identity and value were never read, so bad_config is inferred from error shape alone, and if the flag lives on featureflagservice the right target is not even in the legal blast radius.",
+    "risk": "The risk of abstaining is duration: ~7-10% of GetProduct calls keep failing, and every caller of productcatalogservice keeps propagating those errors to loadgenerator-visible HTTP failures for as long as nobody acts. The risk of the alternative - proposing revert_config anyway - is worse and is why I am not: change history for productcatalogservice is empty across the whole queried span, so there is no recorded prior configuration to restore. revert_config would either fail outright or recreate the container with the same values, buying an unnecessary connection reset for all three inbound callers and discarding in-process cache while leaving the flag exactly as it was. Restarting on a config-shaped fault has the same cost and is not reversible.",
+    "blast_radius": "Nothing changes, so nobody sees anything new. The parties still seeing the fault are productcatalogservice's inbound callers named in the brief - frontend (and through it loadgenerator's HTTP GETs), checkoutservice, and recommendationservice - at the existing ~7% rate on the GetProduct path. adservice and cartservice edges are clean and unaffected. Had an action been taken, those same three callers would additionally have seen a connection reset during container recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service alerting with frontend and productcatalogservice both seeded within seconds, so this is not a single-service warning or a load-generator artifact. Productcatalogservice is the plausible shared dependency behind the frontend symptom, but the fault class is a prior only."
+  }
+}

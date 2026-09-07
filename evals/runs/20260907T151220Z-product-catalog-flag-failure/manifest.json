@@ -1,14 +1,14 @@
 {
-  "run_id": "20260907T133340Z-payment-telemetry-blackout",
-  "scenario_id": "payment-telemetry-blackout",
+  "run_id": "20260907T151220Z-product-catalog-flag-failure",
+  "scenario_id": "product-catalog-flag-failure",
   "split": "dev",
-  "scenario_fingerprint": "b8a2668299f1d3b1e5ee9b928e292f5994a1ac3c4292989ae70bb5ccb3f2b8b9",
-  "started_at": "2026-09-07T13:33:40.542063+00:00",
+  "scenario_fingerprint": "78c464d798db218705fbd6f124c501902cbda526703cfc5355dc003ed2a0d645",
+  "started_at": "2026-09-07T15:12:20.030645+00:00",
   "demo": false,
   "recorder": {
     "tool": "evalharness.run",
-    "git_sha": "d7ecff4b8de95f16a3a791fa4cedde422720f395",
-    "git_dirty": false
+    "git_sha": "e47f17ecbaa6285dbba926aea647df2ef1e86515",
+    "git_dirty": true
   },
   "models": {
     "changes": "claude-opus-5",
@@ -37,11 +37,11 @@
   },
   "world_lock": {
     "acquired": true,
-    "pid": 23171,
+    "pid": 26109,
     "host": "chandanas-MacBook-Air.local",
-    "since": "2026-09-07T13:33:40.589564+00:00",
-    "reason": "faultline-eval payment-telemetry-blackout",
-    "token": "23171-1788788020.589506"
+    "since": "2026-09-07T15:12:20.061113+00:00",
+    "reason": "faultline-eval product-catalog-flag-failure",
+    "token": "26109-1788793940.061053"
   },
   "preflight": {
     "checked": true,
@@ -56,7 +56,7 @@
     "p95_over_ceiling_ms": {},
     "p95_excursions": {},
     "ingest_accepting": true,
-    "consumer_idle_ms": 3512,
+    "consumer_idle_ms": 436,
     "pipeline_down": [],
     "silent_services": [
       "frontend-proxy"
@@ -64,38 +64,38 @@
     "unexpected_silent": [],
     "services_reporting": 15,
     "youngest_container": [
-      "cart-service",
-      10427
+      "checkout-service",
+      309
     ],
     "active_injections": "no active injections",
     "open_incidents": [],
     "settling_incidents": [],
     "headroom": {
       "container": "kafka",
-      "percent_now": 76.49,
+      "percent_now": 25.72,
       "limit_mb": 2048.0,
-      "expected_run_hours": 1.7375,
-      "runs_remaining": 5,
-      "uptime_seconds": 14996,
+      "expected_run_hours": 1.0425,
+      "runs_remaining": 3,
+      "uptime_seconds": 321,
       "growth_mb_per_hour": 151.0,
-      "growth_mb": 262.4,
-      "projected_percent": 89.3,
-      "threshold_percent": 77.19,
+      "growth_mb": 157.4,
+      "projected_percent": 33.41,
+      "threshold_percent": 82.31,
       "guard_percent": 90.0,
       "fits": true
     },
     "refusals": []
   },
   "world_continuity": {
-    "kafka_uptime_seconds": 14996,
-    "kafka_uptime_seconds_previous_run": 14735,
-    "previous_run_id": "20260907T132919Z-shipping-wrong-image",
+    "kafka_uptime_seconds": 321,
+    "kafka_uptime_seconds_previous_run": 257,
+    "previous_run_id": "20260907T151113Z-product-catalog-flag-failure",
     "kafka_restarted_since_previous_run": false,
     "cause": "continuous - same kafka instance as the previous run",
     "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
   },
   "freeze": {
-    "frozen_for": "dev 20260907T133340Z-payment-telemetry-blackout",
+    "frozen_for": "dev 20260907T151220Z-product-catalog-flag-failure",
     "runtime_version": "faultline/0.0.1+prompts:b6837dd449ca",
     "prompts": {
       "constants": [
@@ -167,8 +167,8 @@
       "usd_per_mtok_out": 25.0
     },
     "tool_layer": {
-      "git_sha": "d7ecff4b8de95f16a3a791fa4cedde422720f395",
-      "git_dirty": false
+      "git_sha": "e47f17ecbaa6285dbba926aea647df2ef1e86515",
+      "git_dirty": true
     },
     "judge": {
       "model": null,
@@ -192,13 +192,13 @@
   "comparability": {
     "generation": "f5bd108f4f70",
     "provenance": "observed",
-    "previous_run": "20260907T132919Z-shipping-wrong-image",
+    "previous_run": "20260907T151113Z-product-catalog-flag-failure",
     "previous_generation": "f5bd108f4f70",
     "previous_provenance": "reconstructed",
     "new_generation": false
   },
-  "injected_at": "2026-09-07T13:33:44.959227+00:00",
-  "incident_id": "d6549498-3f86-41b2-a4d7-48f273164da0",
+  "injected_at": "2026-09-07T15:12:24.224295+00:00",
+  "incident_id": "63831855-d856-443d-b783-afb74b8f4b5c",
   "investigate_exit_code": 0,
   "investigate_attempts": [
     {
@@ -208,14 +208,14 @@
       "transient_signal": null
     }
   ],
-  "reverted_at": "2026-09-07T13:44:45.510517+00:00",
+  "reverted_at": "2026-09-07T15:21:30.385350+00:00",
   "recovery": {
     "passed": true,
     "firing_alerts": [],
     "p95_over_ceiling_ms": {},
     "p95_excursions": {},
     "ingest_accepting": true,
-    "consumer_idle_ms": 2293,
+    "consumer_idle_ms": 3551,
     "pipeline_down": [],
     "silent_services": [
       "frontend-proxy"
@@ -223,7 +223,7 @@
     "unexpected_silent": [],
     "services_reporting": 15,
     "youngest_container": [
-      "payment-service",
+      "feature-flag-service",
       324
     ],
     "active_injections": "no active injections",
@@ -231,14 +231,14 @@
     "settling_incidents": [],
     "headroom": {
       "container": "kafka",
-      "percent_now": 82.53,
+      "percent_now": 28.27,
       "limit_mb": 2048.0,
       "expected_run_hours": 0.8083,
       "runs_remaining": null,
-      "uptime_seconds": 15984,
+      "uptime_seconds": 1195,
       "growth_mb_per_hour": 151.0,
       "growth_mb": 122.1,
-      "projected_percent": 88.49,
+      "projected_percent": 34.23,
       "threshold_percent": 84.04,
       "guard_percent": 90.0,
       "fits": true
@@ -247,9 +247,9 @@
   },
   "unexpected_fields": {},
   "score": {
-    "run_id": "20260907T133340Z-payment-telemetry-blackout",
-    "scenario_id": "payment-telemetry-blackout",
-    "trajectory_id": "7efa99cf-57f2-40a6-b6c3-38046218e851",
+    "run_id": "20260907T151220Z-product-catalog-flag-failure",
+    "scenario_id": "product-catalog-flag-failure",
+    "trajectory_id": "2b7853e8-80a5-4bc0-af52-85d78f630dc5",
     "runtime_version": "faultline/0.0.1+prompts:b6837dd449ca",
     "budget": {
       "max_tool_calls_per_specialist": 4,
@@ -266,29 +266,31 @@
     },
     "reached_a_class": true,
     "reachability": {
-      "answers_idle_or_absent": [
-        "logs"
-      ],
+      "answers_idle_or_absent": [],
       "derived_from": "the bundle's own captures (T7.5)",
-      "none_can_answer": false,
+      "none_can_answer": true,
       "runtime_series": 0,
-      "target_log_lines": 328
+      "target_log_lines": 2
     },
     "triage": {
       "recall": 1.0,
-      "precision": 0.3333333333333333,
+      "precision": 0.5714285714285714,
       "matched": [
-        "paymentservice"
+        "checkoutservice",
+        "frontend",
+        "loadgenerator",
+        "productcatalogservice"
       ],
       "missed_alerted_not_predicted": [],
       "predicted_not_alerted": [
-        "checkoutservice",
-        "frontend"
+        "adservice",
+        "cartservice",
+        "recommendationservice"
       ],
       "excluded_began_after_revert": [],
-      "unmeasured_edges_crossed": 2,
-      "n_alerted": 1,
-      "n_predicted": 3
+      "unmeasured_edges_crossed": 1,
+      "n_alerted": 4,
+      "n_predicted": 7
     },
     "fault_class": {
       "truth": "bad_config",
@@ -309,9 +311,9 @@
       "dispute": null
     },
     "service": {
-      "truth": "paymentservice",
-      "returned": "paymentservice",
-      "correct": true,
+      "truth": "featureflagservice",
+      "returned": "productcatalogservice",
+      "correct": false,
       "correct_by_alternative": false,
       "also_correct": [],
       "abstained": false,
@@ -321,8 +323,8 @@
       "truth": "bad_config",
       "ranked": [
         "bad_config",
-        "unknown",
-        "resource_exhaustion"
+        "bad_deploy",
+        "unknown"
       ],
       "depth": 3,
       "top_1": true,
@@ -330,13 +332,13 @@
       "gained_by_ranking": false
     },
     "ranked_service": {
-      "truth": "paymentservice",
+      "truth": "featureflagservice",
       "ranked": [
-        "paymentservice"
+        "productcatalogservice"
       ],
       "depth": 1,
-      "top_1": true,
-      "top_3": true,
+      "top_1": false,
+      "top_3": false,
       "gained_by_ranking": false
     },
     "categories": {
@@ -351,9 +353,9 @@
       "narrative_refused": false,
       "narrative_refused_reason": null
     },
-    "tokens_in": 55804,
-    "tokens_out": 14344,
-    "cost_usd": 0.6376,
+    "tokens_in": 64756,
+    "tokens_out": 14641,
+    "cost_usd": 0.6898,
     "models": {
       "changes": "claude-opus-5",
       "logs": "claude-opus-5",
@@ -364,13 +366,13 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-09-07T13:50:13.291386+00:00",
+  "finished_at": "2026-09-07T15:26:57.929480+00:00",
   "leave_one_out": {
     "retrievals": 2,
     "excluding": 2,
     "filtered": {
       "1": 5,
-      "14": 5
+      "18": 5
     },
     "silent": [],
     "unassessable": [],
@@ -378,19 +380,19 @@
   },
   "metrics": {
     "latency": {
-      "investigation_ms": 182741,
-      "investigation_seconds": 182.7,
-      "tool_ms": 493,
+      "investigation_ms": 223258,
+      "investigation_seconds": 223.3,
+      "tool_ms": 1923,
       "model_ms": 0,
-      "steps": 18,
+      "steps": 22,
       "within_gate4_threshold": false
     },
     "tool_calls": {
-      "total": 5,
-      "valid": 5,
+      "total": 7,
+      "valid": 7,
       "errored": 0,
-      "empty": 1,
-      "truncated": 2,
+      "empty": 4,
+      "truncated": 1,
       "redundant": 0,
       "validity_rate": 1.0,
       "redundancy_rate": 0.0
@@ -400,7 +402,7 @@
       "over_budget": 3,
       "overflow_rate": 0.6,
       "dropped_sections": 2,
-      "largest_estimated_tokens": 6570,
+      "largest_estimated_tokens": 9093,
       "budget": 4000
     },
     "citations": {
@@ -410,8 +412,8 @@
     }
   },
   "judge": {
-    "scenario_id": "payment-telemetry-blackout",
-    "run_id": "20260907T133340Z-payment-telemetry-blackout",
+    "scenario_id": "product-catalog-flag-failure",
+    "run_id": "20260907T151220Z-product-catalog-flag-failure",
     "agent_model": "claude-opus-5",
     "judge_model": "claude-haiku-4-5",
     "shared_lineage": true,
@@ -419,47 +421,47 @@
     "scored": true,
     "not_scored_because": null,
     "root_cause_agreement": "same_mechanism",
-    "agreement_reason": "Both narratives identify the same root cause: the OTLP trace exporter endpoint was misconfigured to point at a dead loopback address (127.0.0.1:4317), breaking the telemetry pipeline while the payment service itself continued functioning normally.",
+    "agreement_reason": "Both narratives identify a feature flag at the flag service configured to fail requests as the root cause, with productcatalogservice correctly executing the misconfiguration.",
     "dead_ends_closed": [
-      "crash or restart of payment service",
-      "cascade of alerts on downstream services",
-      "payment errors being returned to callers",
-      "checkout service experiencing errors or latency",
-      "resource pressure (memory, CPU)"
+      "productcatalogservice code/image/environment unchanged",
+      "database and cache healthy",
+      "other consumers of dependencies unaffected",
+      "not a resource pressure or network problem",
+      "not a timing/latency issue",
+      "other services (cartservice, adservice, currencyservice, etc.) unaffected"
     ],
     "dead_ends_missed": [
-      "what actually fired the alert (metric source unknown)",
-      "whether spans stopped arriving after the change",
-      "container replacement timing and cause",
-      "baseline metric emptiness predating the change by hours"
+      "featureflagservice changes before onset",
+      "productcatalogservice logs (label mismatch acknowledged but not retried)",
+      "productcatalogservice latency/restart counts/CPU-memory saturation"
     ],
     "traps": [
       {
-        "trap": "a critical payment alert means charges are failing",
+        "trap": "frontend is the culprit because it alerts loudly and appears in user-visible errors",
         "outcome": "avoided"
       },
       {
-        "trap": "empty error-ratio series means the service is clean",
+        "trap": "the failing service (productcatalogservice) is the misconfigured component",
         "outcome": "avoided"
       },
       {
-        "trap": "the change explains the baseline metric gap",
-        "outcome": "not_engaged"
+        "trap": "the errors represent total failure or resource exhaustion degrading all traffic",
+        "outcome": "avoided"
       }
     ],
-    "notes": "The agent narrative is notably more thorough and candid about uncertainties than the recorded narrative, explicitly closing fewer hypotheses but being more transparent about open questions and measurement gaps. Both reach the same conclusion but the agent work is more forensically complete.",
-    "tokens_in": 8243,
-    "tokens_out": 372
+    "notes": "Agent correctly inferred the flag-based failure mechanism from error shape (abrupt step, stochastic fixed fraction, partial by product) and traces showing the error originates after a successful flag read, despite never directly observing the flag value\u2014matching the recorded narrative's own path to the cause.",
+    "tokens_in": 5908,
+    "tokens_out": 409
   },
   "first_correct": {
     "measured": true,
     "reached": true,
-    "index": 21,
-    "depth": 22,
-    "elapsed_ms": 98200,
+    "index": 33,
+    "depth": 34,
+    "elapsed_ms": 119406,
     "role": "synthesizer",
     "kind": "verdict",
-    "reason": "Entry 21 commits to the mechanism: a misconfigured OTLP traces exporter endpoint (pointing to a dead loopback address) caused paymentservice's spans to stop being exported, which broke the traffic metric built from those spans, while payment processing itself continued normally\u2014matching exactly what the narrative states.",
+    "reason": "Entry 33 synthesizes that a product-catalog failure flag is switched on at the flag service, causing productcatalogservice to deliberately fail requests for specific products\u2014exactly matching the recorded narrative's mechanism that a feature flag was enabled instructing product catalog to fail requests for one product.",
     "judge_model": "claude-haiku-4-5",
     "agent_model": "claude-opus-5",
     "shared_lineage": true,
