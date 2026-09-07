@@ -29,7 +29,10 @@ roughly twenty of the demo's images are amd64-only and run under Rosetta emulati
 ([ADR-0005](docs/adr/0005-arm64-emulation-and-feature-flag-service.md)). That is not incidental to
 the numbers: emulation changes container memory behaviour measurably
 ([T7.30](docs/PLAN.md)). **A run on x86 hardware is a different world and its figures are not
-comparable to these.**
+comparable to these.** Measured, not asserted, on 2026-09-07: on a native x86 VM `frauddetection-service`
+rests at 155 MiB against the 326 MiB measured under emulation, so `frauddetection-memory-squeeze`'s
+200m limit never squeezes and the scenario does not alert at all; `ad-service` at 203 MiB clears its
+256m squeeze the same way (T5.4c, findings nineteen and twenty).
 
 ## Demo
 

@@ -84,13 +84,22 @@ def _grafana_base() -> str:
 
 
 DATASOURCE_BY_TOOL = {
-    "promql_query": "prometheus",
-    "metric_baseline": "prometheus",
+    "promql_query": "webstore-metrics",
+    "metric_baseline": "webstore-metrics",
     "logql_query": "loki",
-    "trace_query": "tempo",
+    "trace_query": "webstore-traces",
 }
-"""Which datasource a tool's query belongs to. `change_history` is absent deliberately: it reads
-the platform's own Postgres, has no datasource, and gets no link."""
+"""Which Grafana datasource a tool's query belongs to, **by the uid each is provisioned under**.
+
+The first version said `prometheus`, `loki` and `tempo`. Two of those were wrong for this world and
+nothing could tell: Grafana resolves `left.datasource` by uid, the demo provisions Prometheus as
+`webstore-metrics` and Jaeger as `webstore-traces` (`world/src/grafana/provisioning/datasources/`),
+and there is no Tempo here at all. Only `loki` was right, because this repository provisions it
+(`compose/grafana-loki-datasource.yml`). `tests/test_incident_view.py` now reads the uids from those
+files rather than trusting this table.
+
+`change_history` is absent deliberately: it reads the platform's own Postgres, has no datasource,
+and gets no link."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,16 +135,35 @@ def deep_link(tool: str, request: dict[str, Any], grafana_url: str | None = None
     be a *plausible* query rather than the one that ran, and a link landing a reader in data the
     agent never saw manufactures corroboration - the opposite of what a citation is for.
 
+    **Which is why, until T5.4c, no real incident had ever had a link.** This function read
+    `request["query"]` and `request["selector"]`, and the investigation recorded neither: it wrote
+    the service and the window onto the request and the tool kept the query to itself. Every test
+    passed, because every test built its own `request` with the key in it. The first citation
+    clicked on a machine other than the author's was plain text, and so was every other one. The
+    investigation now records what the tool reports it asked (`Investigation._asked`), and this
+    reads exactly that: PromQL under `query`, LogQL under `selector`, and for traces the canonical
+    service Jaeger was searched for under `traced_service`.
+
     `grafana_url` overrides the configured base; `None` reads `ToolSettings.grafana_url`. The
     parameter exists so a test can state the base it expects instead of inheriting the ambient
     environment - which is how this function's own defect survived a test suite.
     """
     datasource = DATASOURCE_BY_TOOL.get(tool)
-    query = str(request.get("query") or request.get("selector") or "").strip()
-    if not datasource or not query:
+    if not datasource:
         return None
+    if tool == "trace_query":
+        # Jaeger has no query language. What was asked was a search: this service, this window.
+        traced = str(request.get("traced_service") or "").strip()
+        if not traced:
+            return None
+        queries: list[dict[str, Any]] = [{"queryType": "search", "service": traced}]
+    else:
+        query = str(request.get("query") or request.get("selector") or "").strip()
+        if not query:
+            return None
+        queries = [{"expr": query}]
     window = request.get("window") or []
-    left: dict[str, Any] = {"datasource": datasource, "queries": [{"expr": query}]}
+    left: dict[str, Any] = {"datasource": datasource, "queries": queries}
     if len(window) == 2:
         left["range"] = {"from": window[0], "to": window[1]}
     base = _grafana_base() if grafana_url is None else grafana_url.rstrip("/")
@@ -167,7 +195,12 @@ def citations(cited: list[str], calls: list[Any]) -> list[Citation]:
                 resolved=True,
                 tool=str(getattr(call, "tool", "")),
                 service=str(request.get("service") or ""),
-                query=str(request.get("query") or request.get("selector") or ""),
+                query=str(
+                    request.get("query")
+                    or request.get("selector")
+                    or request.get("traced_service")
+                    or ""
+                ),
                 deep_link=deep_link(str(getattr(call, "tool", "")), request),
                 window=(str(window[0]), str(window[1])) if len(window) == 2 else None,
             )

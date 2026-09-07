@@ -48,6 +48,32 @@ from faultline.tools import envelope as envelope_renderer
 from faultline.tools.ranking import RadiusStanding, RankingContext
 
 
+def _asked(result: Any) -> dict[str, Any]:
+    """What the tool reports it actually asked its datasource, for the citation deep link (T5.1).
+
+    **Recorded here because nothing else records it.** `api.view.deep_link` builds a Grafana
+    Explore URL from `request["query"]` or `request["selector"]`, on the principle that a link must
+    carry the query that ran and never one re-derived from the service and window. Until T5.4c the
+    request carried only the service and the window - the tool composed the query and kept it - so
+    the principle held perfectly and no incident had ever had a single link. Found by clicking one
+    on a machine that was not the author's.
+
+    Taken off the typed result, not re-composed: `MetricResult.query` and `BaselineResult.query`
+    are the PromQL that was sent, `LogResult.selector` the LogQL, and `TraceResult.service` the
+    canonical name Jaeger was searched for. A result that carries none of these - `change_history`
+    reads Postgres and has no datasource - adds nothing, and the view links nothing.
+    """
+    asked: dict[str, Any] = {}
+    if query := str(getattr(result, "query", "") or "").strip():
+        asked["query"] = query
+    if selector := str(getattr(result, "selector", "") or "").strip():
+        asked["selector"] = selector
+    traced = str(getattr(result, "service", "") or "").strip()
+    if getattr(result, "tool", "") == "trace_query" and traced:
+        asked["traced_service"] = traced
+    return asked
+
+
 class InvestigationFailedError(RuntimeError):
     """A run that raised, carrying what it had got to. **The distinction the runner needs.**
 
@@ -822,7 +848,7 @@ class Investigation:
                     tool=tool_result.tool,
                     # Per-query window logging on the record itself: which rule produced the
                     # window and whether the ceiling clipped it, beside the window (T3.2b).
-                    request={"service": service, **scoped.as_request()},
+                    request={"service": service, **scoped.as_request(), **_asked(tool_result)},
                     result_id=tool_result.id,
                     envelope=rendered,
                 ),

@@ -1277,7 +1277,7 @@ rather than on whether it did what the column said. Both are corrected below.
 
 | task | deliverable | state |
 |---|---|---|
-| **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **built, served, and since #222 the deep-links reach Grafana.** They did not before: `/explore?…` was a bare relative path resolving against the host serving the page, which serves no `/explore`. Every citation 404'd and a test asserted the string's shape. Marked complete on 2026-09-03 on the strength of `deep_link()` existing |
+| **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **built, served; the deep-links exist on real incidents only since T5.4c.** Marked complete on 2026-09-03 on the strength of `deep_link()` existing. #222 fixed a relative `/explore?…` that 404'd and this table then said the links *"reach Grafana"* — they did not, because no real trajectory carried the query the link is built from, so every citation on every incident rendered as plain text (defect twenty-one, below). Verified by clicking on the VM after the fix, not before |
 | **T5.2** Slack notifier | lifecycle notifications | **built and wired** — `faultline-orchestrate` constructs a real notifier from settings, the core fires `incident_opened`, `agents/cli` fires `report_ready`, and an unset base URL yields a marked absence rather than a broken link. Re-verified end to end on 2026-09-06 rather than by presence |
 | **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **4 of 5** — ARCHITECTURE, THREAT-MODEL, README's Results block rewritten at `b6837dd449ca`, `docs/MVP-CUT.md` written. **No demo video** — needs a live world and one filmed run |
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal *on a fresh machine* | **rehearsal on a fresh machine in progress (T5.4c), not tagged.** The spec says *"a fresh machine"*; a rented x86 VM is that machine. Its first `make demo` found that the world-to-receiver alert path had never worked on Linux (defect eighteen, closed below); the demo, the scored run and the UI check remain, then the tag |
@@ -1338,9 +1338,57 @@ section and TROUBLESHOOTING. `tests/test_linux_host_gateway.py` holds the file t
 proves both branches of the Makefile conditional with a fake `uname`, so the reference platform's
 command is byte-for-byte unchanged.
 
-**Still to run on this machine:** `make demo` to completion, `make eval … --single-run`, `make
-ui` through an SSH tunnel, the deployment itself (`deploy/README.md` §3), a citation clicked from a
-browser that is not the author's, and the findings above finished. Then the tag.
+**With the alert path open, `make demo` ran to completion** — run `20260907T035522Z`, \$0.6314,
+fault reverted, recovery confirmed at 15 services. Abstention: `unknown` against `bad_config`, with
+the failing service named correctly (cart, port 7070, connection refused) and the mechanism
+declined because no cart dispatch was run and the trace backend answered 503. The first half of
+G5's condition — *the demo from a clean clone* — demonstrated on a fresh machine.
+
+**Nineteen: Jaeger was OOM-killed mid-investigation.** The 503 was not Envoy. `dmesg` shows the
+kernel killing `all-in-one` at 04:00:13 inside its 275 MiB cgroup (`anon-rss:279600kB`),
+`restart: always` brought it back empty at the moment the trace window closed. All-in-one with an
+in-memory span store, which ADR-0017 already says *"cannot be relied on to answer"*; what is new is
+the rate — x86 runs the load generator without emulation, so spans arrive faster and the store
+fills in about seventy minutes where the Mac's never did. **Recorded, not fixed:** the limit is the
+demo's own and lives in a digest input, so raising it is a re-record decision, and the fourth
+compose layer is expressly not for anything that moves what a run can see.
+
+**Twenty: the memory-squeeze class does not exist on x86.** `make eval
+SCENARIO=frauddetection-memory-squeeze INTENT=--single-run` discarded `no-alert` after 180 scrapes
+(901s). Not the pipeline — the demo had just used it — and not only the sparse service's slow
+rule: the target's `RestartCount` was **0** and `dmesg` had no kill. The fault sets a 200m limit
+against a resting usage *measured at 326 MiB on the Mac, under emulation*; on native x86 the same
+JVM sits at **155 MiB** and fits. `ad-service` likewise: **203 MiB against a 256m squeeze**. README
+has said for weeks that *"a run on x86 hardware is a different world and its figures are not
+comparable"*; this is the first time that sentence was measured, and it says something stronger —
+at least two of the catalog's scenarios are no-ops on this platform. Both discards stay on disk.
+Consequence for Phase 6: published-tier sweeps run on the reference platform, and a pre-registration
+names the platform.
+
+**Twenty-one: no real incident had ever had a citation deep-link.** `make ui` through an SSH
+tunnel rendered the demo's incident in full — header, ranked verdict, seven evidence cards, a
+22-step timeline — and the card footers were not clickable. `GET /api/v1/incidents/<id>` showed
+`deep_link: null` on all 25 citations. `deep_link()` builds the URL from `request["query"]` or
+`request["selector"]`, on the principle that a link must carry the query that ran and never one
+re-derived from service and window; the investigation recorded the service and the window and
+nothing else, because the tool composed the query and kept it. The principle held perfectly, every
+view test passed — each had built its own request with the key in — and the T5.1 row above had
+twice called the links complete. Two more things only the click could show: the datasource table
+said `prometheus`, `loki`, `tempo`, and Grafana resolves by **uid** — this world's are
+`webstore-metrics`, `loki`, `webstore-traces`, and there is no Tempo. Fixed by recording what the
+typed result reports it asked (`Investigation._asked`: PromQL, LogQL, or the canonical service
+Jaeger searched), a datasource table read off the provisioning files by test, and an end-to-end
+test in `test_roles.py` that inspects the request *as the investigation writes it*. Existing rows
+are not backfilled — a stored request is a record — so the demo's incident stays unlinked and the
+next investigation is the one that gets clicked.
+
+**Three findings in one rehearsal that the suite could not reach**, and two of the three are the
+same shape as the eleven before them: a thing built, green and merged, whose tests exercised the
+component and not the seam. Twenty-one.
+
+**Still to run on this machine:** an investigation on the fixed code and its citation clicked from
+a browser that is not the author's; the deployment itself (`deploy/README.md` §3) and the second
+half of G5; the findings above finished. Then the tag.
 
 ### T5.5b — the deployment was neither of the spec's two options, and the rehearsal found a third thing
 

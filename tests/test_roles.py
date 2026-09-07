@@ -1405,6 +1405,36 @@ def test_the_change_analyst_alone_looks_back_a_day_and_every_window_ends_now() -
     assert not by_role["changes"]["clipped"] and not by_role["metrics"]["clipped"]
 
 
+def test_the_record_carries_the_query_the_tool_ran_and_not_only_the_window() -> None:
+    """**The citation deep link reads `request["query"]`, and nothing wrote it** (T5.4c).
+
+    `api.view.deep_link` was built on the principle that a link carries the query that ran and
+    never one re-derived from service and window, and its tests all handed it a request with the
+    query in. The investigation recorded the service and the window and nothing else. So the
+    principle held, the tests passed, and the first citation clicked on a machine other than the
+    author's - every one on that page - was plain text. This is the end-to-end test that was
+    missing: the request as the *investigation* writes it, not as a view test imagines it.
+    """
+    model = ScriptedModel({"planner": [changes_and_metrics_dispatches()]})
+    engine, store = investigation(model, Budget(max_dispatch_rounds=1))
+
+    result = engine.run("incident-window", triage_of("cartservice"), ANCHOR, now=ANCHOR)
+
+    trajectory = store.trajectories[result.trajectory.id]
+    calls = [step for step in trajectory.steps if step.kind is StepKind.TOOL_CALL]
+    by_role = {step.role: step.tool_call.request for step in calls if step.tool_call}
+
+    metrics = by_role["metrics"]
+    assert metrics["query"].startswith("sum by(service_name)"), metrics
+    assert 'service_name="cartservice"' in metrics["query"]
+    assert "selector" not in metrics and "traced_service" not in metrics
+
+    changes = by_role["changes"]
+    assert not ({"query", "selector", "traced_service"} & set(changes)), (
+        "change_history has no datasource and must record nothing a link could be built from"
+    )
+
+
 def test_the_window_is_told_to_the_specialist_never_asked_of_it() -> None:
     """*Never left to agent discretion.* The specialist's brief states the window the tool
     already read; no contract has a field through which a model could name one."""
