@@ -52,6 +52,10 @@ month-to-month decision: the contract ends on day 30 unless renewed, and moving 
 briefly quoted was a three-month introductory rate on a twelve-month contract (\$429 in total)**,
 caught at checkout; the same lesson as the row above, one vendor over.
 
+**Day 30 is 2026-10-07.** The IONOS contract renews monthly unless cancelled; the decision - keep,
+move to a CX43, or take the instance down - is due before then, and the rehearsal record in
+`docs/PLAN.md` T5.4c says which findings depend on the platform if it moves.
+
 ---
 
 ## 1a. Rehearse it first
@@ -319,6 +323,20 @@ cd ~/faultline && uv run faultline-inject stop --all        # the world does not
 
 `triaging` at four minutes is the defect; `planning`, `investigating` or a verdict is the pass.
 About \$0.70 of model spend, once.
+
+### 3.6a Changing the Caddyfile
+
+`Caddyfile` is bind-mounted **as a single file**, and `git pull` replaces a changed file with a new
+inode rather than editing it in place — so the container keeps seeing the old one, and `caddy reload`
+reloads exactly that. Found on 2026-09-07 when a fix reloaded cleanly and changed nothing. After any
+change to the Caddyfile:
+
+```bash
+docker compose up -d --force-recreate caddy
+docker compose exec caddy grep -c header_up /etc/caddy/Caddyfile     # confirm the container sees the new file
+```
+
+Two seconds of downtime; the certificate lives in a volume and survives.
 
 ### 3.7 Rolling back
 

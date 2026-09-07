@@ -1279,9 +1279,47 @@ rather than on whether it did what the column said. Both are corrected below.
 |---|---|---|
 | **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **built, served; the deep-links exist on real incidents only since T5.4c.** Marked complete on 2026-09-03 on the strength of `deep_link()` existing. #222 fixed a relative `/explore?…` that 404'd and this table then said the links *"reach Grafana"* — they did not, because no real trajectory carried the query the link is built from, so every citation on every incident rendered as plain text (defect twenty-one, below). Verified by clicking on the VM after the fix, not before |
 | **T5.2** Slack notifier | lifecycle notifications | **built and wired** — `faultline-orchestrate` constructs a real notifier from settings, the core fires `incident_opened`, `agents/cli` fires `report_ready`, and an unset base URL yields a marked absence rather than a broken link. Re-verified end to end on 2026-09-06 rather than by presence |
-| **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **4 of 5** — ARCHITECTURE, THREAT-MODEL, README's Results block rewritten at `b6837dd449ca`, `docs/MVP-CUT.md` written. **No demo video** — needs a live world and one filmed run |
-| **T5.4** MVP release | tag v0.1, clean-clone rehearsal *on a fresh machine* | **rehearsal complete on a fresh x86 VM (T5.4c) — every `docs/RELEASE.md` §3 item executed there; not yet tagged.** Three demos (abstain, hit, hit-and-clicked), one scored run in its own generation, two honest discards, findings eighteen to twenty-two. The tag is the last act of the phase and waits on T5.3's video so `v0.1` carries the whole docs pack |
+| **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **5 of 5.** ARCHITECTURE, THREAT-MODEL, README's Results block at `b6837dd449ca`, `docs/MVP-CUT.md`, and the four-minute video attached to `v0.1` — a correct `bad_config` on the reference platform, the incident screen, the live deployment, the table. Three takes; `docs/demo/README.md` records the two it replaced and why (T5.3c) |
+| **T5.4** MVP release | tag v0.1, clean-clone rehearsal *on a fresh machine* | **complete.** Rehearsal on a fresh x86 VM (T5.4c) — every `docs/RELEASE.md` §3 item executed there — and `v0.1` tagged on the commit that declares G5. Findings eighteen to twenty-two on the way |
 | **T5.5** deploy | live instance at a stable URL + documented deploy procedure | **live: `https://faultline.chandanasorakundla.com`** (T5.5c). TLS, 401/404/401 from outside, firewall verified from another machine, uptime check armed, three incidents restored, **and one opened and investigated by the deployment itself.** Nine defects found and closed by running the procedure on the machine it was written for (twenty-three to thirty-one); §3.7 exercised forward five times |
+
+### T5.3c — the video, three takes, and the trace backend's NaN
+
+**The specification's video is four minutes and has five beats** — *"inject, live investigation,
+cited report, remediation as proposal, 10-scenario eval table"* — so it is not a raw recording. One
+`make demo` on the reference platform, filmed from before the command was typed and with the
+thirteen-minute wait compressed 9.9×; the same incident on the incident screen with a citation clicked
+into Grafana; the live deployment's own incident on the public URL; the Results table. Four QuickTime
+recordings, one `ffmpeg` invocation, the cut script and title cards kept in `docs/demo/video/`.
+
+**Three takes on 2026-09-07, all kept in `evals/runs/` marked `demo`.** The first
+(`20260907T093422Z`) abstained with the right service named, and the recording had started three
+minutes late — no injection on film. The second (`20260907T095840Z`) was wrong, `dependency_latency`,
+with Jaeger answering HTTP 500 on the trace query that would have named the callee.
+
+**Thirty-two: Jaeger's search fails whole when one span carries a NaN.** Its log said why: `failed
+marshalling HTTP response to JSON: json: unsupported value: NaN`. A span somewhere in the world has a
+floating-point tag whose value is NaN; Go's encoder refuses it; the entire search returns 500 rather
+than the one span being dropped. This is one defect behind two Mac 500s — T5.4b's rehearsal run and
+tonight's — and is distinct from the VM's OOM (nineteen), which is a different failure with the same
+symptom for the agent. **Recorded and queued, not fixed:** dropping NaN attributes at the collector
+edits `compose/otelcol-extras.yml`, which is in the observability digest; teaching the trace tool to
+narrow and retry moves `TOOL_BEHAVIOUR_REVISION`. Either is a comparability decision, and Q26 holds
+it. What was done before the third take is what TROUBLESHOOTING documents for Kafka: `docker restart
+jaeger`, emptying the in-memory store of the poisoned span. The third take (`20260907T103142Z`)
+returned **`bad_config` at high confidence, \$0.7124**, and the planner never needed traces — it
+reasoned that a pre-RPC connect refusal creates no server-side span and went to cart's logs and change
+history instead.
+
+**The take was chosen by its outcome, and the record says so plainly** (`docs/demo/README.md`). Demo
+runs never enter a figure, the infrastructure was fixed and not the agent, and the stamp is unchanged;
+the reader still deserves the sentence that on this scenario the current world's record is about two
+in three.
+
+**Also on the Mac tonight, and worth one line each:** two gate refusals recorded rather than deleted
+(`20260907T094926Z`, `20260907T102934Z` — both the 300s settle window of a just-resolved incident,
+the second by four seconds), and a stray incident opened by the Jaeger restart itself and resolved
+unattended.
 
 ### T5.5c — the deployment, run for the first time *(live at https://faultline.chandanasorakundla.com)*
 
@@ -1458,7 +1496,7 @@ the last by the click §3.6 has asked for since it was written. §3.7's mechanis
 time. The fault was reverted by hand; the incident it opened stays in the deployment's record as
 what it was.
 
-### T5.4c — the fresh-machine rehearsal, and the alert path that had never worked on Linux *(rehearsal complete; tag pending T5.3's video)*
+### T5.4c — the fresh-machine rehearsal, and the alert path that had never worked on Linux *(complete; `v0.1` tagged)*
 
 **The machine.** An IONOS VPS XL+ — 8 vCPU, 16 GB, 480 GB, x86-64, Ubuntu 24.04 — at
 **\$44/month, month-to-month**, US region. Hetzner's CX43 (€15.99) was the plan's shape and is sold
