@@ -14,6 +14,11 @@ COPY src ./src
 COPY alembic.ini ./
 COPY migrations ./migrations
 COPY knowledge ./knowledge
+# The retrieval corpus's source, and **the dev split alone** (ADR-0008 axis 1: a holdout narrative
+# in the corpus is the answer key to a scenario nothing downstream would notice had leaked). The
+# documented `docker compose exec faultline faultline-seed` walked `/app/evals/scenarios/artifacts/dev`
+# and found the directory absent - the third run-time path the image had left out (T5.5c).
+COPY evals/scenarios/artifacts/dev ./evals/scenarios/artifacts/dev
 RUN uv sync --frozen --no-dev
 
 FROM python:3.12-slim
