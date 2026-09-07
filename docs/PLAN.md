@@ -1323,7 +1323,21 @@ rehearsal section is explicit that it does not. `injector.world.SERVICE_CONTAINE
 the injector has kept for exactly this confusion since T1.1, is the authority now, and every key in
 the overlay must be in it.
 
-**Twenty-four**, and the two tonight were both the author's, both in the deployment files, both
+**Twenty-five: the image has no corpus.** With the DSN fixed, `faultline-seed` connected and then
+walked `/app/evals/scenarios/artifacts/dev` and found nothing: the Dockerfile copied `src`,
+`migrations`, `alembic.ini` and `knowledge` — the three run-time paths `tests/test_packaging.py`
+had already caught — and not the fourth. The rule that file states, *"if the runtime finds a file by
+walking up, the image ships it,"* was right and its list was one entry short. The dev split now
+ships in the image, **the dev split alone**: ADR-0008 axis 1 says a holdout narrative in a retrieval
+corpus is an answer key, and a guard asserts no `COPY` line is broad enough to carry `holdout` in
+beside it. A new image means a new sha in `deploy/.env` and `up -d --wait` — §3.7's mechanism, run
+forward on its first night rather than backward.
+
+Meanwhile the platform was not left without a corpus: the §3.5 snapshot of the rehearsal's dev
+database restored with zero errors and carried its seeded corpus and three incidents — the two
+demos that produced one and the scored run — so the public URL opens on real investigations.
+
+**Twenty-five**, and the three tonight were all the author's, all in the deployment files, all
 found only by running the documented command on the machine it was written for.
 
 ### T5.4c — the fresh-machine rehearsal, and the alert path that had never worked on Linux *(in progress)*
