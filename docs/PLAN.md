@@ -1382,13 +1382,37 @@ test in `test_roles.py` that inspects the request *as the investigation writes i
 are not backfilled — a stored request is a record — so the demo's incident stays unlinked and the
 next investigation is the one that gets clicked.
 
-**Three findings in one rehearsal that the suite could not reach**, and two of the three are the
-same shape as the eleven before them: a thing built, green and merged, whose tests exercised the
-component and not the seam. Twenty-one.
+**Then the click, on the fixed code.** Both servers restarted on #226, a third `make demo` — run
+`20260907T052848Z`, **`bad_config` against `bad_config`, high confidence, \$0.8236**: the
+`REDIS_ADDR` flip found in change history, the crash loop in cart's own logs, the upstream error
+ratios read correctly as *below* baseline because orders hang rather than fail. Its 29 citations
+carried 18 links and 11 deliberate non-links (every `change_history`). `metric_baseline · frontend`,
+clicked in a Mac browser through the tunnel, opened Grafana Explore on the Prometheus datasource
+with the specialist's exact PromQL in the box, the range set to the incident window, and the
+error-ratio spike at 05:28 UTC — the minute of the injection. **The first citation in this
+project's history to land a reader in the data behind it.**
 
-**Still to run on this machine:** an investigation on the fixed code and its citation clicked from
-a browser that is not the author's; the deployment itself (`deploy/README.md` §3) and the second
-half of G5; the findings above finished. Then the tag.
+**Twenty-two: no run manifest recorded the platform, and the generation grouping could not tell
+the VM from the Mac.** Found while deciding whether an x86 *scored* run may be written into
+`evals/runs/`. The freeze's `world` block carried the compose digest, the observability digest, the
+stub source, the image digest and the capability version — and nothing about the hardware, so a VM
+run would have been generation `f5bd108f4f70` and seated at the Mac's table in every grouped
+output, which is the misreading README's platform note exists to forbid and finding twenty had
+just measured. `freeze.world_state` now records `host_platform`; `generations.generation_of` names
+a generation by digest **and** platform when the platform is not the reference one
+(`f5bd108f4f70@Linux/x86_64`), so Mac runs keep the name every table already prints and nothing
+historical moves. Absence means the reference platform, because every manifest without the field
+predates it and was made on the Mac — pinned by test against a stamp, so a newer manifest without
+it is a defect rather than a Mac run. The four run directories this rehearsal has written so far
+(two demos, two discards) lack the field and are on the VM alone; none can enter a table.
+
+**Four findings in one rehearsal that the suite could not reach**, three of them the same shape as
+the eleven before them: a thing built, green and merged, whose tests exercised the component and
+not the seam. Twenty-two.
+
+**Still to run on this machine:** one scored run on a scenario that exists on x86, to meet the
+checklist item the memory squeeze could not; the deployment itself (`deploy/README.md` §3) and the
+second half of G5; the findings above finished. Then the tag.
 
 ### T5.5b — the deployment was neither of the spec's two options, and the rehearsal found a third thing
 

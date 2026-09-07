@@ -121,3 +121,60 @@ def test_runs_group_by_world_not_by_order() -> None:
     )
     assert sorted(grouped) == ["4a7690c6fdda", "f5bd108f4f70"]
     assert len(grouped["4a7690c6fdda"]) == 2
+
+
+# --- the platform is part of the world (T5.4c) --------------------------------------------------
+
+
+def test_the_reference_platform_keeps_the_bare_digest_and_any_other_is_named() -> None:
+    """**Nothing already printed changes its name**: a Mac run is `f5bd108f4f70`, as every table
+    and README already say. A run anywhere else is that digest *and* where it ran, so the two can
+    never be rows of one table - which README has promised since Phase 3 and nothing enforced."""
+    from evalharness.generations import REFERENCE_PLATFORM, world_key
+
+    assert world_key("f5bd108f4f70", REFERENCE_PLATFORM) == "f5bd108f4f70"
+    assert world_key("f5bd108f4f70", None) == "f5bd108f4f70"
+    assert world_key("f5bd108f4f70", "Linux/x86_64") == "f5bd108f4f70@Linux/x86_64"
+
+
+def test_generation_of_reads_the_platform_off_the_freeze() -> None:
+    mac = {
+        "freeze": {"world": {"compose_digest": "f5bd108f4f70abcd", "host_platform": "Darwin/arm64"}}
+    }
+    vm = {
+        "freeze": {"world": {"compose_digest": "f5bd108f4f70abcd", "host_platform": "Linux/x86_64"}}
+    }
+    old = {"freeze": {"world": {"compose_digest": "f5bd108f4f70abcd"}}}
+
+    assert generation_of(mac).world == "f5bd108f4f70"
+    assert generation_of(vm).world == "f5bd108f4f70@Linux/x86_64"
+    assert generation_of(old).world == "f5bd108f4f70", "absent means the reference platform..."
+    assert generation_of(old).provenance == "observed", "...and the digest was still observed"
+    assert len(group_by_generation([mac, vm, old])) == 2
+
+
+def test_no_manifest_without_a_platform_postdates_the_field() -> None:
+    """**The premise that lets absence mean the Mac.** Every manifest written before the field
+    existed was made on the development Mac. A manifest newer than the field's arrival that lacks it
+    was written by a harness that should have recorded it, and reading it as a Mac run would be the
+    T7.54 misattribution again, one field over."""
+    import json
+
+    from evalharness.generations import HOST_PLATFORM_RECORDED_FROM
+
+    for run_dir in sorted(RUNS.iterdir()):
+        manifest_path = run_dir / "manifest.json"
+        if not manifest_path.exists():
+            continue
+        world = (json.loads(manifest_path.read_text()).get("freeze") or {}).get("world") or {}
+        if world.get("compose_digest") and "host_platform" not in world:
+            assert run_dir.name.split("-")[0] < HOST_PLATFORM_RECORDED_FROM, run_dir.name
+
+
+def test_the_freeze_records_the_platform_it_runs_on() -> None:
+    import platform
+
+    from evalharness import freeze
+
+    assert freeze.host_platform() == f"{platform.system()}/{platform.machine()}"
+    assert "host_platform" in freeze.world_state()
