@@ -446,8 +446,19 @@ def test_every_service_the_platform_talks_to_shares_its_network(world: dict, ser
     **This list said `frontend-proxy` and passed for two merges** - it was checking the overlay's
     keys against a copy of the overlay's keys, and both were the container name rather than the
     service name the demo actually defines. `injector.world.SERVICE_CONTAINERS` is the authority
-    now; see the guard beside the rehearsal tests (T5.5c)."""
-    assert "faultline" in world["services"][service]["networks"]
+    now; see the guard beside the rehearsal tests (T5.5c).
+
+    **And `default` must be there too.** The demo puts every service on its implicit default
+    network by naming none; an overlay that lists only `faultline` *replaces* that membership
+    rather than adding to it, and the first live deployment cut all four services off the world:
+    Prometheus with 0 of 2 targets up, Envoy answering a citation click with "no healthy upstream"
+    (defect twenty-eight). This assertion checked half the truth and passed."""
+    networks = world["services"][service]["networks"]
+    assert "faultline" in networks, f"{service} is not reachable from the platform"
+    assert "default" in networks, (
+        f"{service} has been taken off the world's own network - an explicit list replaces the "
+        "implicit default, it does not add to it"
+    )
 
 
 def test_the_shared_network_is_external_so_neither_project_owns_it(world: dict) -> None:

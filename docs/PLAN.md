@@ -1374,8 +1374,22 @@ visitor clicking a citation on the public URL would have been sent to their own 
 container whose `command` is `faultline-ingest`, which the guard now locates by that command rather
 than by name, and removed from the orchestrator so a value nothing reads cannot reassure anyone again.
 
-**Twenty-seven**, and the five tonight were all the author's, all in the deployment files, all found
-only by running the documented command on the machine it was written for. §3.7's mechanism was
+**Twenty-eight: the overlay cut the world off.** With the link pointing at the right host, the
+click reached Caddy, passed the credential, reached the demo's Envoy — and got *"no healthy
+upstream"*. Grafana answered `200` on its own port and `503` through the proxy. Envoy resolves
+`grafana` by DNS and could not, because the frontend-proxy was no longer on the world's network:
+the demo names no network per service, so every container sits on the implicit `default`, and an
+overlay that says `networks: [faultline]` **replaces** that membership rather than adding to it.
+Alertmanager, Prometheus, Loki and the frontend-proxy had been off the world for an hour —
+Prometheus at **0 of 2 targets up**, Promtail unable to reach Loki. The evidence had been on screen
+an hour earlier, in the `docker inspect` that listed one network per container, and was read as a
+pass. **No alert fired and nothing was spent** — a Prometheus with no data has nothing to alert on —
+which was luck rather than design, and the check for it (targets, Alertmanager, incident count,
+orchestrator log) ran before the fix. Every touched service now lists `default` and `faultline`, and
+the guard that had asserted the first half of the truth asserts both.
+
+**Twenty-eight**, and the six tonight were all the author's, all in the deployment files, all
+found only by running the documented command on the machine it was written for. §3.7's mechanism was
 exercised forward three times between them: one line in `.env`, `up -d --wait`, both containers on
 the new sha in under twenty seconds with the record intact each time.
 
