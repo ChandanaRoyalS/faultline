@@ -1283,6 +1283,7 @@ rather than on whether it did what the column said. Both are corrected below.
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal *on a fresh machine* | **complete.** Rehearsal on a fresh x86 VM (T5.4c) — every `docs/RELEASE.md` §3 item executed there — and `v0.1` tagged on the commit that declares G5. Findings eighteen to twenty-two on the way |
 | **T5.5** deploy | live instance at a stable URL + documented deploy procedure | **live: `https://faultline.chandanasorakundla.com`** (T5.5c). TLS, 401/404/401 from outside, firewall verified from another machine, uptime check armed, three incidents restored, **and one opened and investigated by the deployment itself.** Nine defects found and closed by running the procedure on the machine it was written for (twenty-three to thirty-one); §3.7 exercised forward five times |
 | **T5.6** gap audit *(not a spec task)* | one pass over every Phase 5 file against both the proposal and the plan; four lists | **done 2026-09-07.** Five gaps fixed (the proposal rendered and narrated, the incident list and root URL, the per-scenario table up top with its staleness guard, four stale documents, finding thirty-three); the already-correct, not-gaps and cannot-fix lists are in the entry below |
+| **T5.7** service-axis name space *(not a spec task)* | ADR-0017's marked decision, settled by its first consumer; the blindness recorded on every run | **done 2026-09-07.** `evalharness.visibility` reports target visibility beside the service axis and changes no score; ADR-0017 Addendum 3 decides infrastructure belongs in the catalog; Q27 (catalog, moves the capability) and Q28 (prompt ablation, moves the stamp) carry the executions |
 
 ### T5.3c — the video, three takes, and the trace backend's NaN
 
@@ -1403,6 +1404,46 @@ behind Q26.
 `shipping-quote-misconfig`, `shipping-wrong-image`. Every one has run on the current world at
 `1b0e7cbb4c47`; none since. That is a first observation at this stamp, not a re-run, and it is dev
 sweep 11 (`PREREGISTRATION-2026-09-07-sweep11.md`): about \$3.50 in model calls, both arms.
+
+### T5.7 — the service axis's name space, and the decision ADR-0017 left for its first consumer *(2026-09-07)*
+
+**Dev sweep 11 scored the culprit service 3 of 5, and the pre-registration had named both misses in
+advance.** Prediction 3 registered 4 or 5 and said what a miss on either of two particular targets
+would mean: *"a finding about the service axis's name space… A miss on the other three is the first
+plain miss on this axis."* The other three were correct. The two that missed were
+`product-catalog-flag-failure` (target `featureflagservice`, verdict `productcatalogservice`) and
+`redis-cart-dependency-latency` (target `redis-cart`, verdict `cartservice` with `redis-cart` ranked
+second — a top-3 hit). So the registered consequence fires and the plain-miss clause does not.
+
+**Neither target is a name this pipeline can say.** `featureflagservice` is in the catalog and
+outside the graph: ADR-0006's stub reproduces the flag service's contract and none of its
+instrumentation, so it is in no span-derived edge and no blast radius. `redis-cart` is not in the
+catalog at all — it is a datastore with no `service.name` — and that is not an oversight but
+**ADR-0017's marked decision**: *"whether infrastructure belongs in the catalog… `kafka` and
+`redis-cart`… Not decided here because nothing at T2.4 consumes it; the first consumer should
+decide."* The culprit-service axis is the first consumer. It has now decided, in Addendum 3.
+
+**What landed.** `evalharness.visibility` reads the committed catalog and records, on every scored
+run, whether the scenario's target was `in_graph`, `in_catalog_not_in_graph`, or
+`absent_from_catalog`; the run report prints it under a missed service and stays silent otherwise.
+**It changes no score, and the tests hold that boundary** — ADR-0027's bar for a second correct
+answer is measurement, and neither wrong service clears its fault. A miss on an unnameable target
+is still a miss; what the record now carries is *which kind* of miss it was, on every future run
+rather than in one sweep document.
+
+**What did not land, and why each is queued rather than done.** **Q27** adds `redis-cart` and
+`kafka` to the catalog as edgeless entries — the decision above, executed. It moves what the graph
+tool answers for a blast-radius query without changing its signature, which is
+`TOOL_BEHAVIOUR_REVISION`'s job, so landing it moves `cap:c4d52d00` and the twenty-one runs at
+`prompts:b6837dd449ca` stop describing HEAD. **Q28** tells the synthesizer that a known-absent
+service may be blamed; that is a prompt change, it moves the stamp, and **no task in the execution
+plan proposes it** — the plan's nearest neighbour is T6.1, whose deliverable is *"identifies the
+degrading hop in the request path"*. An unproposed change measured against its own result is an
+ablation, which is Phase 7's shape of work, with the floor registered in advance: it must move
+`product-catalog-flag-failure` and must not move the eight ordinary-target scenarios.
+
+**The honest reading of the axis at this stamp.** 24 of 26 answered, 2 misses, both structural and
+both now labelled. README's headline moves with the table rather than being restated by hand.
 
 ### T5.5c — the deployment, run for the first time *(live at https://faultline.chandanasorakundla.com)*
 

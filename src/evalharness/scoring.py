@@ -484,6 +484,15 @@ class ScoredRun:
     models: dict[str, str] = field(default_factory=dict)
     runtime_version: str = ""
     reachability: dict[str, Any] = field(default_factory=dict)
+
+    service_visibility: dict[str, Any] = field(default_factory=dict)
+    """Whether the culprit is a name this pipeline could have said (T5.7, `evalharness.visibility`).
+
+    **Reported beside the service axis, never subtracted from it.** Dev sweep 11 missed the
+    service on exactly the two targets the pipeline is structurally blind to - one uninstrumented,
+    one absent from the catalog - and a reader of the run should be able to tell that kind of miss
+    from a plain one without opening the catalog. The score is unchanged either way.
+    """
     """What the scenario's target could have answered, from its bundle (T7.5).
 
     **Reported, never acted on.** An abstention on a scenario whose target can answer nothing
@@ -522,6 +531,7 @@ class ScoredRun:
             "budget": self.budget,
             "reached_a_class": self.reached_a_class,
             "reachability": self.reachability,
+            "service_visibility": self.service_visibility,
             "triage": None if self.triage is None else self.triage.as_dict(),
             "fault_class": None if self.fault_class is None else self.fault_class.as_dict(),
             "fix_class": None if self.fix_class is None else self.fix_class.as_dict(),
@@ -607,6 +617,14 @@ class ScoredRun:
                 lines.append(
                     f"    disputed boundary, {score.dispute.resolved_by}: {score.dispute.why}"
                 )
+            # Only under the service axis, and only when there is something to say: a caveat
+            # printed on every run is a caveat nobody reads.
+            if name == "service" and not score.correct:
+                from evalharness.visibility import note as visibility_note
+
+                visibility = visibility_note(self.service_visibility)
+                if visibility:
+                    lines.append(visibility)
         # **Both ranked axes print, or the one that moves is the one nobody sees.**
         #
         # This loop printed `ranked_service` alone until dev sweep 10, and `ranked_class` - scored

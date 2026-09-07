@@ -40,6 +40,7 @@ from evalharness.scoring import (
     score_ranked,
     score_triage,
 )
+from evalharness.visibility import target_visibility
 from faultline.agents.contracts import unexpected_fields
 from injector.worldlock import WorldLock, WorldLockError
 
@@ -1310,6 +1311,9 @@ def main(argv: list[str] | None = None) -> int:
         # Carried from the bundle so the run's own report shows what its target could have
         # answered. Reported, never acted on - see ScoredRun.reachability.
         scored.reachability = dict(bundle.get("reachability") or {})
+        # Which kind of miss a service miss was (T5.7). Computed from the committed catalog, not
+        # from this run, and it changes no figure - see `evalharness.visibility`.
+        scored.service_visibility = target_visibility(culprit_service(args.scenario_id))
         run.manifest["score"] = scored.as_dict()
         run.manifest["finished_at"] = datetime.now(UTC).isoformat()
         emit(
