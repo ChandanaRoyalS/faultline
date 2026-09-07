@@ -513,8 +513,9 @@ absences, and which failure row each absence costs.
 re-reading p.5.
 
 `REJECTED` is **not** added here. Giving it transitions means designing the action plane,
-which has no task number (`docs/PLAN.md`, "Discovered omissions"). The test is written so
-that landing the action plane without giving row 8 a state fails.
+~~which has no task number (`docs/PLAN.md`, "Discovered omissions")~~ *— struck 2026-09-07: it is
+T6.2 / T6.3 in the execution plan, which was not in the tree when this was written.* The test is
+written so that landing the action plane without giving row 8 a state fails.
 
 One note on the shape of the tests: a first draft asserted that both members of `TERMINAL`
 had no successors, and failed. `RESOLVED` accepts a reopen by design (see `ALLOWED`), so

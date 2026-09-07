@@ -488,13 +488,14 @@ def test_the_state_that_still_needs_an_unbuilt_component_is_a_stub_that_says_so(
     """One of the two stubs is still a stub, and its message should name what is missing.
 
     `record_agent_outcome` stopped being one at T3.5 - the runner is the component it was
-    waiting for. The action plane still has no task number, so approval and execution outcomes
-    have nothing to arrive from.
+    waiting for. Approval and execution outcomes arrive from the action plane, which the
+    execution plan numbers T6.2 and T6.3 and which is not built; the message names both so a
+    reader of the exception knows which task to look for rather than being told nobody knows.
     """
     from faultline.orchestrator import machine
 
     incident = Incident(state=IncidentState.TRIAGING)
-    with pytest.raises(NotImplementedError, match="no task number"):
+    with pytest.raises(NotImplementedError, match=r"T6\.2.*T6\.3"):
         machine.record_approval_outcome(incident, object())
 
 

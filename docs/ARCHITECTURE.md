@@ -285,8 +285,10 @@ Listed because a document that omits this is a brochure.
 - **The action plane.** No executor, no approval service, no write credential anywhere. The
   proposer emits a proposal and the pipeline stops. ADR-0028 §3 argues that a single write tool
   would remove the runtime's safety property *by neighbourhood* rather than by name, and §4 leaves
-  execution success as a reported-not-measured axis. **The action plane has no task number in the
-  plan at all** — recorded in `docs/PLAN.md` under discovered omissions.
+  execution success as a reported-not-measured axis. **It is T6.2 (the executor, token, audit log,
+  kill switch) and T6.3 (approve / reject) in the execution plan** — until 2026-09-07 this line
+  said the plan did not number it, which was true of `docs/PLAN.md`'s reconstruction and false of
+  the plan itself; `docs/PLAN.md`'s Phase 6 table carries both now.
 - **Authentication on the alert receiver.** The read routes and pages have had basic auth since
   T5.5; the receiver has none, is blocked from the internet at the deployment's edge, and is open
   to anything on the compose network. See [thesis 3 and the addendum](THREAT-MODEL.md).
