@@ -167,7 +167,16 @@ world/.cloned:
 	git clone --depth 1 --branch $(OTEL_DEMO_VERSION) $(OTEL_DEMO_REPO) world
 	touch world/.cloned
 
-COMPOSE_WORLD := docker compose --progress plain -f docker-compose.yml -f ../compose/world-arm64.override.yml -f ../compose/telemetry.yml
+# The three files here are exactly InjectorSettings.compose_files, in the same order: they are
+# what compose_digest hashes, so together they *are* the world generation (ADR-0014, ADR-0030).
+COMPOSE_WORLD_FILES := -f docker-compose.yml -f ../compose/world-arm64.override.yml -f ../compose/telemetry.yml
+# A fourth, outside the digest, on Linux only: Docker Engine has no `host.docker.internal`, so
+# without it Alertmanager can never reach the receiver on the host. The file explains why it is
+# not a line in telemetry.yml. deploy/ layers its own fourth file the same way (README §3.4 there).
+ifeq ($(shell uname -s),Linux)
+COMPOSE_WORLD_FILES += -f ../compose/linux-host-gateway.override.yml
+endif
+COMPOSE_WORLD := docker compose --progress plain $(COMPOSE_WORLD_FILES)
 
 # Rebuild the stub only when its source changes. An unconditional build re-resolves the
 # pip layer and produces a new image id from identical code, which silently changes the

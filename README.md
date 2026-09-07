@@ -64,6 +64,17 @@ uv run faultline-ingest          # terminal 2 — receives Alertmanager's webhoo
 uv run faultline-orchestrate     # terminal 3 — correlates alert episodes into incidents
 ```
 
+**On Linux,** `make world-up` layers one extra compose file so that Alertmanager's
+`host.docker.internal` — a name Docker Desktop defines and Docker Engine does not — resolves to the
+host where `faultline-ingest` listens ([why it is not in
+`telemetry.yml`](compose/linux-host-gateway.override.yml)). If the host runs a default-deny
+firewall, open the receiver's port **to the docker bridge only** — never `ufw allow 8000` on a
+public machine — and verify with the check in [`docs/RELEASE.md`](docs/RELEASE.md) §3:
+
+```bash
+sudo ufw allow from "$(docker network inspect opentelemetry-demo -f '{{(index .IPAM.Config 0).Subnet}}')" to any port 8000 proto tcp
+```
+
 ```bash
 make demo                        # terminal 1 — ~15 minutes, real model calls
 ```

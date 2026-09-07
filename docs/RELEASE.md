@@ -61,6 +61,25 @@ cd faultline-release-check
       that had been invisible for months, because no database had ever been built from nothing.
 - [ ] `make world-up` brings the world up **pulling images rather than reusing local ones**.
       Note the wall-clock; a stranger pays it too.
+- [ ] **On a Linux host, prove the world can reach the receiver before starting anything that
+      spends money.** Alertmanager posts to `host.docker.internal:8000`; Docker Engine does not
+      define that name, so `make world-up` layers `compose/linux-host-gateway.override.yml` on
+      Linux to give it one. A default-deny firewall then still drops the packet at the bridge. Run
+      the check from inside the world's network, and read the result:
+
+      ```bash
+      sudo ufw allow from "$(docker network inspect opentelemetry-demo -f '{{(index .IPAM.Config 0).Subnet}}')" to any port 8000 proto tcp
+      docker run --rm --network opentelemetry-demo --add-host host.docker.internal:host-gateway \
+        curlimages/curl:8.10.1 -s -o /dev/null -w '%{http_code}\n' --max-time 5 \
+        http://host.docker.internal:8000/healthz
+      ```
+
+      `200` (with `faultline-ingest` running) is the only pass. `000` with exit 28 is the firewall;
+      `could not resolve host` is the shim missing. The first fresh-machine rehearsal (T5.4c) had
+      both, found them only after a `make demo` had waited its full thirty-minute correlate ceiling
+      for an alert that had been sent and dropped, and recorded a `no-alert` discard against a world
+      that had alerted correctly. The rule opens the port to the docker bridge, **not** to the
+      internet: `ufw allow 8000` would expose the unauthenticated receiver on the public IP.
 - [ ] Wait the documented ~5 minutes. The baseline gate refuses containers younger than 300s, and
       a stranger following README exactly hits that refusal first.
 - [ ] `make up`, then `uv run faultline-migrate` — **in that order and not before**: `up` now
