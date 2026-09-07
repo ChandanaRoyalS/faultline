@@ -1280,10 +1280,10 @@ rather than on whether it did what the column said. Both are corrected below.
 | **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **built, served; the deep-links exist on real incidents only since T5.4c.** Marked complete on 2026-09-03 on the strength of `deep_link()` existing. #222 fixed a relative `/explore?…` that 404'd and this table then said the links *"reach Grafana"* — they did not, because no real trajectory carried the query the link is built from, so every citation on every incident rendered as plain text (defect twenty-one, below). Verified by clicking on the VM after the fix, not before |
 | **T5.2** Slack notifier | lifecycle notifications | **built and wired** — `faultline-orchestrate` constructs a real notifier from settings, the core fires `incident_opened`, `agents/cli` fires `report_ready`, and an unset base URL yields a marked absence rather than a broken link. Re-verified end to end on 2026-09-06 rather than by presence |
 | **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **4 of 5** — ARCHITECTURE, THREAT-MODEL, README's Results block rewritten at `b6837dd449ca`, `docs/MVP-CUT.md` written. **No demo video** — needs a live world and one filmed run |
-| **T5.4** MVP release | tag v0.1, clean-clone rehearsal *on a fresh machine* | **rehearsal on a fresh machine in progress (T5.4c), not tagged.** The spec says *"a fresh machine"*; a rented x86 VM is that machine. Its first `make demo` found that the world-to-receiver alert path had never worked on Linux (defect eighteen, closed below); the demo, the scored run and the UI check remain, then the tag |
-| **T5.5** deploy | live instance at a stable URL + documented deploy procedure | **procedure written, rehearsed locally twice, no instance.** Four deviations from the task text found and closed on 2026-09-06 (T5.5b below). VM, DNS and the live URL remain |
+| **T5.4** MVP release | tag v0.1, clean-clone rehearsal *on a fresh machine* | **rehearsal complete on a fresh x86 VM (T5.4c) — every `docs/RELEASE.md` §3 item executed there; not yet tagged.** Three demos (abstain, hit, hit-and-clicked), one scored run in its own generation, two honest discards, findings eighteen to twenty-two. The tag is the last act of the phase and waits on T5.3's video so `v0.1` carries the whole docs pack |
+| **T5.5** deploy | live instance at a stable URL + documented deploy procedure | **live: `https://faultline.chandanasorakundla.com`** (T5.5c). TLS, 401/404/401 from outside, firewall verified from another machine, uptime check armed, three incidents restored, **and one opened and investigated by the deployment itself.** Nine defects found and closed by running the procedure on the machine it was written for (twenty-three to thirty-one); §3.7 exercised forward five times |
 
-### T5.5c — the deployment, run for the first time *(in progress)*
+### T5.5c — the deployment, run for the first time *(live at https://faultline.chandanasorakundla.com)*
 
 **Same VM as T5.4c, after the rehearsal's dev-mode platform was snapshotted and stopped.** The
 rehearsal's four incidents — three demos and the scored x86 run — were dumped with `make
@@ -1388,8 +1388,11 @@ which was luck rather than design, and the check for it (targets, Alertmanager, 
 orchestrator log) ran before the fix. Every touched service now lists `default` and `faultline`, and
 the guard that had asserted the first half of the truth asserts both.
 
-**Then the world reconnected and the restored incident's citation was clicked on the public URL
-— and the deployment was given a fault of its own.** `faultline-inject start cart-redis-misconfig`
+**Then the world reconnected — and the deployment was given a fault of its own.** (The first
+version of this paragraph said the restored incident's citation had been clicked on the public URL
+at this point. It had not been; the click came three findings later, and it failed. Corrected rather
+than rewritten, because a record that says a thing was checked before it was is the defect this
+project exists to describe.) `faultline-inject start cart-redis-misconfig`
 from the VM's checkout, against the world the deployment watches. Four minutes later: three alerts
 firing, **three `POST /api/v1/alerts` on the deployed receiver over the compose network** — the
 world-to-platform path proven live — and incident `0a61d825…` opened by the deployment itself at
@@ -1427,14 +1430,35 @@ longer hand-kept: a second test reads every `repo_root() / "…"` and walk-up `p
 resolver out of `src/faultline` and asserts a `COPY` line ships each path or a directory above it.
 The next resolver added to the product fails that test before it fails on a VM.
 
-**Thirty**, and the eight tonight were all the author's, all found only by running the
+**On the image with the graph, the deployment investigated on its own.** The fault was injected a
+third time; its alerts reopened `6fb0c8c2…` inside the settle window rather than opening a fourth
+incident (correctly — the correlation policy's whole point), the restarted runner picked it up, and
+`faultline-investigate` ran to a verdict inside the orchestrator container: **`bad_config`,
+`config_revert`, cartservice via the `REDIS_ADDR` flip, low confidence**, four open questions
+stated, `retrieval: exclude_origin=None` — production mode, the whole corpus. State `proposing`.
+No harness, no development machine, no tunnel: the world alerted, the receiver took it over the
+compose network, the orchestrator opened, admitted and investigated it, and the public page showed
+the result. **G5's second half, demonstrated.** The trace backend answered 503 again during it —
+nineteen's third recurrence tonight.
+
+**Thirty-one: Caddy checked the credential and then handed it to Grafana.** The first citation
+click on the public URL, on that incident, answered `{"message":"invalid username or password"}`
+— Grafana's own JSON, not Caddy's. Grafana treats an incoming `Authorization: Basic` header as a
+login attempt against its own users before falling back to anonymous access, so the header that
+satisfied Caddy's `basic_auth` reached the demo's anonymous-Admin Grafana and was refused. Fixed
+with `header_up -Authorization` on the world handler's `reverse_proxy` and nowhere else — the
+Faultline API authenticates with the same header and must keep receiving it; the guard asserts both
+halves. Caddyfile only; no image.
+
+**Thirty-one**, and the nine tonight were all the author's, all found only by running the
 documented command on the machine it was written for — one by watching a public page not change,
-one by the runner it prompted doing exactly what it was built to do and finding the next thing. §3.7's mechanism was exercised forward three times between them: one line in `.env`,
+one by the runner it prompted doing exactly what it was built to do and finding the next thing, and
+the last by the click §3.6 has asked for since it was written. §3.7's mechanism was exercised forward three times between them: one line in `.env`,
 `up -d --wait`, both containers on the new sha in under twenty seconds with the record intact each
 time. The fault was reverted by hand; the incident it opened stays in the deployment's record as
 what it was.
 
-### T5.4c — the fresh-machine rehearsal, and the alert path that had never worked on Linux *(in progress)*
+### T5.4c — the fresh-machine rehearsal, and the alert path that had never worked on Linux *(rehearsal complete; tag pending T5.3's video)*
 
 **The machine.** An IONOS VPS XL+ — 8 vCPU, 16 GB, 480 GB, x86-64, Ubuntu 24.04 — at
 **\$44/month, month-to-month**, US region. Hetzner's CX43 (€15.99) was the plan's shape and is sold
