@@ -142,6 +142,14 @@ services:
       # same database without each caller remembering. `test_the_migration_and_the_app_agree`
       # asserts the two DSNs name one database.
       FAULTLINE_ORCH_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
+      # **And the comment above was written one prefix short.** `faultline-seed` reads
+      # `ContextSettings.postgres_dsn`, prefix `FAULTLINE_CONTEXT_`, and the documented
+      # `docker compose exec faultline faultline-seed` failed on the VM with the same `Connection
+      # refused` to `127.0.0.1` that the migration had failed with a day earlier - fixed for one
+      # settings class, reproduced by the next (T5.5c). Three settings classes carry a
+      # `postgres_dsn`; `test_every_settings_class_with_a_dsn_is_pointed_at_the_one_database`
+      # now derives the list from the code rather than from anyone's memory.
+      FAULTLINE_CONTEXT_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
     command:
       - faultline-ingest
       - --host
@@ -214,6 +222,10 @@ services:
       FAULTLINE_TOOLS_LOKI_URL: http://loki:3100
       FAULTLINE_TOOLS_JAEGER_URL: http://frontend-proxy:8080/jaeger/ui
       FAULTLINE_TOOLS_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
+      # Retrieval (ADR-0008's leave-one-out corpus) reads through `ContextSettings`; without this
+      # an investigation in this container would look for its corpus on the container's own
+      # loopback and find nothing there. See the same line on `faultline` above (T5.5c).
+      FAULTLINE_CONTEXT_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
       # **Public, not internal, and that is the whole point of it.** Every other endpoint here is
       # where a *tool* reaches. This one is where a *reader* is sent when they click a citation, so
       # an internal hostname would be a dead link with extra steps. `/grafana` because the demo's

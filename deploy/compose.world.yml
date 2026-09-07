@@ -76,6 +76,14 @@ services:
   # Two jobs. The traces specialist reaches Jaeger through it at
   # `http://frontend-proxy:8080/jaeger/ui`, and Caddy forwards `/grafana*` and `/jaeger*` to it so
   # a citation deep link lands a reader in the real data behind one hostname and one credential.
-  frontend-proxy:
+  #
+  # **`frontendproxy`, not `frontend-proxy`.** The demo names the *service* `frontendproxy` and the
+  # *container* `frontend-proxy`; the URLs above use the container name because Docker's DNS
+  # resolves it, and an overlay must use the service key because that is what compose merges on.
+  # The first version of this file used the container name here, so compose saw a brand-new service
+  # with no image and refused the whole project - on the VM, at deploy time, after two rehearsals
+  # on a machine where the world was never brought up under this file (T5.5c). The guard in
+  # `tests/test_deploy.py` now checks every key here against `injector.world.SERVICE_CONTAINERS`.
+  frontendproxy:
     networks:
       - faultline

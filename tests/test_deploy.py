@@ -184,6 +184,47 @@ def test_the_migration_and_the_app_agree(compose: dict) -> None:
     )
 
 
+def test_every_settings_class_with_a_dsn_is_pointed_at_the_one_database(compose: dict) -> None:
+    """**Fixing an instance is not fixing the class** - the guard above fixed `FAULTLINE_ORCH_` and
+    the deployment then failed identically on `FAULTLINE_CONTEXT_`: `docker compose exec faultline
+    faultline-seed` refused on `127.0.0.1:5432` on the VM, a day after the migration had been fixed
+    for the same reason one settings class over (T5.5c). The orchestrator's retrieval reads through
+    the same class, so a deployed investigation would have searched its own loopback for a corpus.
+
+    So the list of prefixes is derived from the code, not typed here: every `BaseSettings` under
+    `faultline` that declares a `postgres_dsn` field must have its prefixed variable set, in both
+    containers that run the image, to the DSN the app itself serves from.
+    """
+    import importlib
+    import inspect
+    import pkgutil
+
+    from pydantic_settings import BaseSettings
+
+    import faultline
+
+    prefixes: set[str] = set()
+    for module in pkgutil.walk_packages(faultline.__path__, "faultline."):
+        if not module.name.endswith(".settings"):
+            continue
+        for _, cls in inspect.getmembers(importlib.import_module(module.name), inspect.isclass):
+            if issubclass(cls, BaseSettings) and "postgres_dsn" in cls.model_fields:
+                prefixes.add(str(cls.model_config.get("env_prefix", "")))
+    assert prefixes >= {"FAULTLINE_ORCH_", "FAULTLINE_CONTEXT_", "FAULTLINE_TOOLS_"}, prefixes
+
+    app = compose["services"]["faultline"]
+    served = app["command"][app["command"].index("--postgres-dsn") + 1]
+    for name in ("faultline", "orchestrator"):
+        env = compose["services"][name]["environment"]
+        for prefix in prefixes:
+            if name == "faultline" and prefix == "FAULTLINE_TOOLS_":
+                continue  # the read surface runs no tools; nothing in it reads this class
+            assert env.get(f"{prefix}POSTGRES_DSN") == served, (
+                f"{name}: {prefix}POSTGRES_DSN must name the served database, got "
+                f"{env.get(f'{prefix}POSTGRES_DSN')!r}"
+            )
+
+
 def test_the_credential_is_passed_and_has_no_default(compose: dict) -> None:
     """`assemble` raises before it connects if the password is unset, so a deployment that forgot
     it fails at boot rather than serving. This asserts compose does not paper over that with a
@@ -378,11 +419,16 @@ def world() -> dict:
     return yaml.safe_load(WORLD_OVERLAY.read_text())
 
 
-@pytest.mark.parametrize("service", ["alertmanager", "prometheus", "loki", "frontend-proxy"])
+@pytest.mark.parametrize("service", ["alertmanager", "prometheus", "loki", "frontendproxy"])
 def test_every_service_the_platform_talks_to_shares_its_network(world: dict, service: str) -> None:
     """Two compose projects, one network. The orchestrator queries three of these and Caddy
     forwards the demo's UIs through the fourth; a service left off the network is a tool that
-    times out at the moment it is asked a question."""
+    times out at the moment it is asked a question.
+
+    **This list said `frontend-proxy` and passed for two merges** - it was checking the overlay's
+    keys against a copy of the overlay's keys, and both were the container name rather than the
+    service name the demo actually defines. `injector.world.SERVICE_CONTAINERS` is the authority
+    now; see the guard beside the rehearsal tests (T5.5c)."""
     assert "faultline" in world["services"][service]["networks"]
 
 
@@ -531,6 +577,23 @@ def test_the_documented_world_command_layers_every_file_the_generation_is_hashed
         )
         assert positions == sorted(positions), "the digest inputs must be layered in Makefile order"
         assert block.find("compose.world.yml") > max(positions), "the deploy overlay layers last"
+
+
+def test_every_service_the_world_overlay_touches_exists_under_that_key() -> None:
+    """**The demo names its service `frontendproxy` and its container `frontend-proxy`.** The first
+    version of `compose.world.yml` used the container name as the service key, so compose saw a new
+    service with no image and refused the entire world project - on the VM, at deploy time (T5.5c).
+    Two rehearsals on the Mac never caught it because neither brought the world up under this file.
+
+    `injector.world.SERVICE_CONTAINERS` is the naming map the injector already keeps for exactly
+    this confusion, and it is drift-tested against the clone. An overlay key that is not in it is a
+    service the world does not have.
+    """
+    from injector.world import SERVICE_CONTAINERS
+
+    overlay = yaml.safe_load((DEPLOY / "compose.world.yml").read_text())
+    unknown = set(overlay["services"]) - set(SERVICE_CONTAINERS)
+    assert not unknown, f"compose.world.yml names services the world does not define: {unknown}"
 
 
 # --- the rehearsal changes only what it claims to ------------------------------------------------
