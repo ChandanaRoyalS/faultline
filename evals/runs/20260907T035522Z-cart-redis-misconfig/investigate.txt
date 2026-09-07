@@ -1,0 +1,43 @@
+incident 7190107a-f4e7-4c59-aef0-f39bf3922450  state triaging  anchor 03:57:45
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: fe4288e9-6d02-4e85-a27d-a7eec23afd3a
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend and checkoutservice within seconds of each other, plus loadgenerator, indicate a real user-facing failure with no open incident to attribute it to. Shared downstream dependencies make a common cause plausible but the alerts alone don't point to one.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : restart_service (restart)
+  target      : cartservice
+  expect      : Recreating cartservice should restore a listener on 7070. Frontend's Loki stream should stop emitting `14 UNAVAILABLE: No connection established` and the wrapped `13 INTERNAL` cart-lookup detail with connect-refused to :7070 within ~2 minutes, and frontend's error-ratio series should fall from its ~11.7% mean / ~30% peak bursty shape to a near-zero floor across four consecutive 2m samples. Confirmation must come from logs and metrics only: the trace backend is returning 503.
+  within      : 600s
+  risk        : The mechanism inside cartservice was never measured — no restart count, exit code, OOM record or change history for it. If the cause is an OOM loop or a bad image, the restart re-enters the same failure and destroys the exit state that would identify it; restart_service is irreversible. It also discards in-process cart state, so in-flight checkouts may lose carts — a new failure that hides behind a healthy-looking error ratio.
+  blast radius: cartservice alone for the duration of the recreate. Its inbound callers in this graph are frontend (direct) and checkoutservice (via the cart lookup on the checkout path); both see connection resets during the recreate, which will briefly raise the same error ratio we expect to fall. Users mid-checkout are the human-visible edge.
+  if wrong    : Falsified if connect-refused-to-7070 lines persist after cartservice is back up (fault is not the listener), or if they stop and return inside the window (cartservice is crash-looping or OOM-killed and the restart only resets the clock), or if the container will not start at all (points at an unqueried cartservice image/config change).
+  rests on    : tr_8ecdbe507b97, tr_51946a056a73
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 25189 pushed / 2972 pulled (pull rate 0.1055), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_8ecdbe507b97, tr_51946a056a73, tr_e88820eb7ba4
+  root cause  : Frontend is the reporter, not the fault. It started once and stayed up, has no recorded change, and all its errors come from outbound grpc-js client calls [tr_8ecdbe507b97, tr_2798b6260429]. The innermost detail names one peer: a checkout-path cart lookup failing with TCP connect refused to a resolved IP on port 7070, the cart service port [tr_8ecdbe507b97]. Connection refused with a resolved address means no listener was accepting — not slowness, DNS, TLS or authz, all excluded on the shape of the statuses. checkoutservice merely relays it: its error ratio did not escalate in-window and was worse in the preceding baseline [tr_e88820eb7ba4], with no change record [tr_e95b2ea2ec30]. currencyservice served normally throughout [tr_eb5d44e30a73]. Frontend's bursty ~12% mean / ~30% peak with clean intervals [tr_51946a056a73] fits a peer intermittently absent. What made cart stop listening was never measured: no cartservice dispatch was run and the trace backend returned 503 [tr_b25a7c830a93], so I name the failing service but not the mechanism inside it.
+  OPEN        : cartservice was never queried directly — restarts, OOM kills, image/config changes and listener state on 7070 are all unobserved.
+  OPEN        : No trace or latency data exists (backend 503), so the deepest erroring span and any lead/lag between cart, checkout and frontend is unestablished.
+  OPEN        : checkoutservice's high pre-incident baseline error ratio suggests degradation predating the declared window; onset time is unsettled.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /home/deploy/faultline-release-check/evals/runs/20260907T035522Z-cart-redis-misconfig/7190107a-f4e7-4c59-aef0-f39bf3922450-verdict.json
+wrote /home/deploy/faultline-release-check/evals/runs/20260907T035522Z-cart-redis-misconfig/7190107a-f4e7-4c59-aef0-f39bf3922450-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 2568.31it/s]

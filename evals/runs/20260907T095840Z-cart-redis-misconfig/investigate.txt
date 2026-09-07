@@ -1,0 +1,38 @@
+incident 3389d063-49ec-414b-8145-90f634e75a06  state triaging  anchor 10:01:15
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 80a49ed4-79db-41de-a1ba-cc9488445dde
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts hit checkoutservice and frontend simultaneously along with the load generator, which points at a real user-facing failure rather than a quiet system. No open incident could account for it, and the shared dependency set below checkout leaves the cause genuinely undetermined at this stage.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Abstention is wrong if the mechanism is not a downstream block but checkoutservice's own process state - e.g. an exhausted thread or connection pool that persists after the dependency recovered. That would show as PlaceOrder start lines continuing while every downstream service shows clean paired request/completion logs and low latency, plus checkoutservice saturation metrics at ceiling. No saturation, latency, or request-rate metrics were ever retrieved for checkoutservice [tr_53752b50bf7a], so this cannot presently be distinguished, and it is the single measurement that would convert this abstention into a restart_service proposal on checkoutservice.
+  rests on    : tr_53f809a653bf, tr_05317506f47b, tr_5eb8eadca013, tr_dcb1e41b5771, tr_94b832e4979c, tr_8a2678e21d7d
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 26157 pushed / 7820 pulled (pull rate 0.2302), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : none
+  confidence  : medium
+  evidence    : tr_53f809a653bf, tr_53752b50bf7a, tr_05317506f47b
+  root cause  : Checkout requests are hanging rather than erroring. From ~09:58 onward checkoutservice logs a PlaceOrder start line for every order at a steady rate but none of the follow-on payment, email, or broker-write lines that accompanied every order earlier, and logs no diagnostic when the sequence stops [tr_53f809a653bf] - the signature of a synchronous downstream call that blocks instead of returning. This matches the bursty partial error ratio at checkout's own boundary (~28% mean, peak 0.67, dipping to zero), consistent with deadline expiry on a subset of in-flight orders rather than a hard outage or a smooth resource ramp [tr_53752b50bf7a]. paymentservice is not the blocker: every retained inbound charge after 09:50 has a matching completion under the same trace_id within about a millisecond, no errors, no restart, and its silence after 09:58:35 starts exactly when checkout stops reaching the payment step [tr_05317506f47b]. No deploys, config edits, or flag flips are recorded for checkoutservice, paymentservice, or currencyservice [tr_dcb1e41b5771, tr_94b832e4979c, tr_8a2678e21d7d]. The mechanism is a dependency on checkout's PlaceOrder path, upstream of the charge call, that has become unresponsive and is consuming checkout's request threads. Which dependency was not established: the trace query that would have ordered the span cascade returned HTTP 500 and yielded no spans [tr_5eb8eadca013].
+  OPEN        : Which downstream call in PlaceOrder is blocking - currency, cart, product catalog, shipping, or something else? The trace query failed and no dispatch measured those edges.
+  OPEN        : Was there any change before 10:01 on paymentservice or currencyservice? Both change windows begin at alert time and cover only the aftermath.
+  OPEN        : Is checkout thread/connection-pool saturation a contributing amplifier? No saturation, latency, or request-rate metrics were retrieved for checkoutservice.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T095840Z-cart-redis-misconfig/3389d063-49ec-414b-8145-90f634e75a06-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T095840Z-cart-redis-misconfig/3389d063-49ec-414b-8145-90f634e75a06-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 12176.25it/s]

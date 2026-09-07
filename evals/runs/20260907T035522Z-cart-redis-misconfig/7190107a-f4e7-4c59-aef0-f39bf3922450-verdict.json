@@ -1,0 +1,163 @@
+{
+  "incident_id": "7190107a-f4e7-4c59-aef0-f39bf3922450",
+  "trajectory_id": "fe4288e9-6d02-4e85-a27d-a7eec23afd3a",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-redis-misconfig",
+  "verdict": {
+    "root_cause": "Frontend is the reporter, not the fault. It started once and stayed up, has no recorded change, and all its errors come from outbound grpc-js client calls [tr_8ecdbe507b97, tr_2798b6260429]. The innermost detail names one peer: a checkout-path cart lookup failing with TCP connect refused to a resolved IP on port 7070, the cart service port [tr_8ecdbe507b97]. Connection refused with a resolved address means no listener was accepting \u2014 not slowness, DNS, TLS or authz, all excluded on the shape of the statuses. checkoutservice merely relays it: its error ratio did not escalate in-window and was worse in the preceding baseline [tr_e88820eb7ba4], with no change record [tr_e95b2ea2ec30]. currencyservice served normally throughout [tr_eb5d44e30a73]. Frontend's bursty ~12% mean / ~30% peak with clean intervals [tr_51946a056a73] fits a peer intermittently absent. What made cart stop listening was never measured: no cartservice dispatch was run and the trace backend returned 503 [tr_b25a7c830a93], so I name the failing service but not the mechanism inside it.",
+    "service": "cartservice",
+    "fault_class": "unknown",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_8ecdbe507b97",
+      "tr_51946a056a73",
+      "tr_e88820eb7ba4"
+    ],
+    "reasoning": "Attribution rests on one positive artifact rather than on silence: the propagated dial error identifies a concrete peer and port (7070) refusing connections during a checkout cart fetch [tr_8ecdbe507b97], and that same result rules out timeout, DNS, TLS and frontend-local causes. Frontend and checkoutservice both have empty change logs and checkoutservice's errors moved down, not up [tr_e88820eb7ba4] \u2014 the pattern of a middle tier passing through a downstream refusal. The intermittency in frontend's error ratio [tr_51946a056a73] argues cart was cycling rather than hard down. I withhold a mechanism class because cartservice itself was never observed: no restart counts, resource series, or change history, and no spans [tr_b25a7c830a93].",
+    "open_questions": [
+      "cartservice was never queried directly \u2014 restarts, OOM kills, image/config changes and listener state on 7070 are all unobserved.",
+      "No trace or latency data exists (backend 503), so the deepest erroring span and any lead/lag between cart, checkout and frontend is unestablished.",
+      "checkoutservice's high pre-incident baseline error ratio suggests degradation predating the declared window; onset time is unsettled."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "cartservice pods are being killed for exceeding a memory limit, so the listener disappears intermittently and connections are refused.",
+        "service": "cartservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "Fits the intermittent refused-connection pattern, but no cartservice memory, restart or kill evidence was ever gathered; this is a mechanism story with no supporting dispatch."
+      },
+      {
+        "root_cause": "A cartservice deploy shipped an artifact that cannot stay up, leaving port 7070 unbound between restart attempts.",
+        "service": "cartservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Change history was only queried at seed radius for frontend and checkoutservice [tr_2798b6260429, tr_e95b2ea2ec30], so no cart change is either confirmed or excluded."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **3m30s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 3\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence two and a\n  half minutes la",
+    " / Confirm before scoping: - The alert's `service_name` label names where errors are *counted*, not necessarily where\n  they originate. A dependency returning errors shows up on its caller's ratio too.\n- Rank the affected services by ratio. The one with the highest ratio and the fewest inbound\n  edges in t",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25189,
+    "pulled_tokens": 2972,
+    "pull_rate": 0.1055,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 481,
+        "content_tokens": 483,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1322,
+        "content_tokens": 1325,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7802,
+        "content_tokens": 7778,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7223,
+        "content_tokens": 7225,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8361,
+        "content_tokens": 8364,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_8ecdbe507b97",
+      "tr_51946a056a73"
+    ],
+    "expected_effect": "Recreating cartservice should restore a listener on 7070. Frontend's Loki stream should stop emitting `14 UNAVAILABLE: No connection established` and the wrapped `13 INTERNAL` cart-lookup detail with connect-refused to :7070 within ~2 minutes, and frontend's error-ratio series should fall from its ~11.7% mean / ~30% peak bursty shape to a near-zero floor across four consecutive 2m samples. Confirmation must come from logs and metrics only: the trace backend is returning 503.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if connect-refused-to-7070 lines persist after cartservice is back up (fault is not the listener), or if they stop and return inside the window (cartservice is crash-looping or OOM-killed and the restart only resets the clock), or if the container will not start at all (points at an unqueried cartservice image/config change).",
+    "risk": "The mechanism inside cartservice was never measured \u2014 no restart count, exit code, OOM record or change history for it. If the cause is an OOM loop or a bad image, the restart re-enters the same failure and destroys the exit state that would identify it; restart_service is irreversible. It also discards in-process cart state, so in-flight checkouts may lose carts \u2014 a new failure that hides behind a healthy-looking error ratio.",
+    "blast_radius": "cartservice alone for the duration of the recreate. Its inbound callers in this graph are frontend (direct) and checkoutservice (via the cart lookup on the checkout path); both see connection resets during the recreate, which will briefly raise the same error ratio we expect to fall. Users mid-checkout are the human-visible edge."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and checkoutservice within seconds of each other, plus loadgenerator, indicate a real user-facing failure with no open incident to attribute it to. Shared downstream dependencies make a common cause plausible but the alerts alone don't point to one."
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "run_id": "20260907T102934Z-cart-redis-misconfig",
+  "scenario_id": "cart-redis-misconfig",
+  "split": "dev",
+  "scenario_fingerprint": "392fc77bf038447c5cb77c2ca5c18cdfad15869ab0d37087251abfc1b6de13b1",
+  "started_at": "2026-09-07T10:29:34.076854+00:00",
+  "demo": true,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "4c1c1e1295fc2139f3e39ce296606a6ed8b116bc",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    }
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 17467,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-07T10:29:34.133473+00:00",
+    "reason": "faultline-eval cart-redis-misconfig",
+    "token": "17467-1788776974.133411"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": false,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 719,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "jaeger",
+      363
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [
+      {
+        "incident_id": "4d6ab7c0-4215-4fd3-ac71-752b87a89412",
+        "resolved_at": "2026-09-07T10:24:40.644064+00:00",
+        "seconds_remaining": 2
+      }
+    ],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 40.63,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 3952,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 122.1,
+      "projected_percent": 46.59,
+      "threshold_percent": 84.04,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [
+      "incident 4d6ab7c0-4215-4fd3-ac71-752b87a89412 resolved at 2026-09-07T10:24:40.644064+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 2s."
+    ]
+  },
+  "refused": {
+    "reason": "baseline gate refused",
+    "at": "2026-09-07T10:29:40.548839+00:00"
+  }
+}

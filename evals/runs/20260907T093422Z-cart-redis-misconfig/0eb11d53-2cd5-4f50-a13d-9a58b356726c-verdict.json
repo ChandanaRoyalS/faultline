@@ -1,0 +1,164 @@
+{
+  "incident_id": "0eb11d53-2cd5-4f50-a13d-9a58b356726c",
+  "trajectory_id": "77d04334-fc2e-4a18-9c60-b2f4fe08ead1",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-redis-misconfig",
+  "verdict": {
+    "root_cause": "Frontend and checkoutservice both fail on calls to cartservice, and the failure is at connection establishment, not in any application response. Frontend's errors are gRPC status 14 UNAVAILABLE raised in the grpc-js client path [tr_b17e92b6f8f5], and traces name the callee: every failing frontend edge in the sample is to hipstershop.CartService (AddItem, GetCart), each ending in 0.1-0.4ms with no cartservice server span [tr_fc6b74855192]. The one failing checkout trace errors on its own CartService/GetCart child while its sibling internal span is clean [tr_fc6b74855192], which is why checkoutservice logs order starts without the completion entries seen earlier [tr_3f216f51ff7e]. Only cart-dependent routes fail; catalog, ads and recommendation routes complete [tr_fc6b74855192]. So cartservice is not accepting connections, intermittently [tr_1418ffb5305a][tr_699e1d0641b0]. No dispatch examined cartservice itself, so why it refuses connections is not established.",
+    "service": "cartservice",
+    "fault_class": "unknown",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_fc6b74855192",
+      "tr_b17e92b6f8f5",
+      "tr_3f216f51ff7e"
+    ],
+    "reasoning": "Direction of blame is well settled: frontend is alive with stack frames only in its outbound client path [tr_b17e92b6f8f5], and its errors are confined to CartService edges [tr_fc6b74855192]. Checkoutservice alerted 15s later, is alive and accepting orders [tr_3f216f51ff7e], and inherits the error from its cart call [tr_fc6b74855192]; its higher error ratio (~49% vs frontend ~22%) follows because its whole PlaceOrder path is cart-dependent [tr_699e1d0641b0][tr_1418ffb5305a]. Latency/timeout is contradicted by 0.1-0.4ms failures with status 14 at setup rather than DEADLINE_EXCEEDED [tr_fc6b74855192][tr_b17e92b6f8f5]. Empty change logs remove frontend, checkoutservice, featureflagservice and productcatalogservice as change-triggered causes [tr_272f8a4264ed][tr_bc81aaeb6fb5], but cartservice was never queried. Since the mechanism inside cartservice is unmeasured, I decline to name exhaustion, deploy or config: each yields this same connection-refused signature.",
+    "open_questions": [
+      "No dispatch touched cartservice: its logs, restart/resource metrics, pod state and change history are all uncollected, so the mechanism (crash loop, unstartable artifact, wrong listen address) is unresolved.",
+      "Whether cartservice's own backing store (redis-cart) is healthy, which could crash cartservice at startup and present as connection-refused.",
+      "Why failures are intermittent (error ratios dip to zero [tr_699e1d0641b0]); both metric baselines had no samples, so pre-incident state and onset ordering are unknown [tr_1418ffb5305a]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "cartservice pods are being killed and restarted for exceeding a memory limit, so callers hit a listener that is repeatedly absent.",
+        "service": "cartservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "Fits the intermittent connect-time failures, but no cartservice memory, OOM-kill or restart evidence was ever collected; it is inference from the caller side only."
+      },
+      {
+        "root_cause": "cartservice is running a wrong or unstartable artifact, so its gRPC port never opens for a subset of replicas.",
+        "service": "cartservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "No change history was queried for cartservice, and a fully unstartable artifact fits poorly with error ratios that dip to zero [tr_699e1d0641b0]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **3m18s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five",
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **3m30s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 3\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence two and a\n  half minutes la"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 32333,
+    "pulled_tokens": 7709,
+    "pull_rate": 0.1925,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 481,
+        "content_tokens": 483,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2302,
+        "content_tokens": 2305,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9967,
+        "content_tokens": 9943,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 9149,
+        "content_tokens": 9151,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10434,
+        "content_tokens": 10437,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_fc6b74855192",
+      "tr_b17e92b6f8f5",
+      "tr_3f216f51ff7e"
+    ],
+    "expected_effect": "Frontend's 'Error: 14 UNAVAILABLE: No connection established' lines cease in Loki [tr_b17e92b6f8f5]; new frontend/hipstershop.CartService AddItem and GetCart spans carry a matching cartservice server span with normal ms-scale duration instead of 0.1-0.4ms ERROR client-only spans [tr_fc6b74855192]; checkoutservice resumes logging the payment/email/offset completion entries that pair with each [PlaceOrder] start [tr_3f216f51ff7e]. Judge against in-window levels, since both metric baselines were empty.",
+    "confirm_within_seconds": 240,
+    "if_wrong": "UNAVAILABLE lines and server-span-less cart edges continue after the recreate, or they stop and then return within minutes (crash loop, unstartable artifact, wrong listen address, or unhealthy redis-cart). Either outcome means the mechanism is not transient process state and cartservice's own logs, restart counts and change history must be collected before acting again.",
+    "risk": "Discards cartservice's in-process cache, so carts held only in memory are lost and the first requests after recreate may be slower or fail. If the real fault is a bad image, bad config, or a broken redis-cart dependency, the restart fixes nothing, resets any crash-loop backoff, and destroys the process state that would have explained why it refuses connections.",
+    "blast_radius": "cartservice only, for the duration of the recreate; its inbound callers frontend and checkoutservice see connection resets during that time, which loadgenerator will register as failed cart and checkout routes. Catalog, ads and recommendation routes are unaffected."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and checkoutservice together with the load generator indicate user-facing checkout failure, not a dismissible warning. No open incidents to attribute it to, and the alerts alone don't point to a specific fault class."
+  }
+}
