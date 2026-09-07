@@ -77,6 +77,12 @@ def test_torch_comes_from_the_cpu_index_on_linux_and_the_lock_shows_it() -> None
     import tomllib
 
     pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+    # A source binds only to a direct dependency. With torch reached transitively through
+    # sentence-transformers, `uv lock` resolved in 1ms, changed nothing, and the stanza was inert.
+    assert any(
+        d.split(">")[0].split("=")[0].strip() == "torch"
+        for d in pyproject["project"]["optional-dependencies"]["embeddings"]
+    ), "torch must be a direct dependency of the embeddings extra or its source is ignored"
     sources = pyproject["tool"]["uv"]["sources"]["torch"]
     assert any(
         s.get("index") == "pytorch-cpu" and "linux" in s.get("marker", "") for s in sources
