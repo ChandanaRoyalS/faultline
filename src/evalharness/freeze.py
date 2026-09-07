@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import platform
 import subprocess
 from pathlib import Path
 from typing import Any
@@ -168,6 +169,17 @@ def world_state(reference_container: str = "cart-service") -> dict[str, Any]:
       `TOOL_BEHAVIOUR_REVISION`.
       `tool_layer.git_sha` does *not* cover this: a sha moves for unrelated commits and says nothing
       about whether what an agent could ask changed.
+    - `host_platform` - the operating system and CPU architecture the harness ran on, as
+      `platform.system()/platform.machine()` (T5.4c). **The same three compose files describe a
+      different world on different hardware**: on Apple Silicon about twenty of the demo's images
+      run under emulation, which inflates JVM footprints measurably (T7.30) - enough that both
+      memory-squeeze scenarios kill their target there and neither can on native x86, where the
+      same services rest at half the size (155 MiB against a 200m limit; 203 MiB against 256m).
+      README had said for weeks that an x86 run is a different world; until this field nothing in
+      a run manifest could tell one from the other, and `generations` would have seated them at one
+      table. Absent on every manifest written before 2026-09-07, all of which were made on the
+      development Mac; `generations.generation_of` treats absence as the reference platform for
+      that reason and says so.
 
     **`ffs_stub_image_id` is deliberately excluded.** ADR-0014 records it and refuses to compare it:
     a rebuild churns the id from unchanged source, so it would fire on nothing. Freezing a field
@@ -187,9 +199,17 @@ def world_state(reference_container: str = "cart-service") -> dict[str, Any]:
         "ffs_stub_source_digest": ffs_stub_source_digest(),
         "otel_demo_image_digest": image_content_digest(reference_container),
         "capability_version": capability_version(),
+        "host_platform": host_platform(),
     }
     state["unverifiable_fields"] = sorted(k for k, v in state.items() if v is None)
     return state
+
+
+def host_platform() -> str:
+    """`Darwin/arm64` on the development Mac, `Linux/x86_64` on the rehearsal VM. Read at run
+    time, never configured: a platform an operator could type in is a platform that can be typed
+    wrong."""
+    return f"{platform.system()}/{platform.machine()}"
 
 
 def judge_state() -> dict[str, Any]:

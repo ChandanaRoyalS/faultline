@@ -17,6 +17,22 @@ record even with the correct value in it - the same failure T7.22 had with reach
 freeze manifest was ever backfilled. This module is where the reconstruction lives instead:
 outside the run manifests, labelled, and derived rather than stored.
 
+## The platform is part of the world (T5.4c)
+
+The compose digest describes the files; it does not describe the hardware they run on, and the
+hardware changes what the same files do. On Apple Silicon roughly twenty demo images run under
+emulation and JVM footprints inflate measurably (T7.30); on native x86 the same services rest at
+half the size, and the first fresh-machine rehearsal found that **neither memory-squeeze scenario
+can alert there at all** - the target simply fits inside the squeezed limit. README had called an
+x86 run "a different world" since Phase 3. This module now agrees: a run's generation is its
+compose digest **and**, when the platform is not the reference one, the platform, so
+`f5bd108f4f70` (the Mac) and `f5bd108f4f70@Linux/x86_64` (the VM) are two tables, never one.
+
+Every manifest written before the field existed was made on the development Mac, so an absent
+`host_platform` is read as the reference platform. That is a reconstruction in the same sense as
+the windows below - right, and weaker than observed - and `tests/test_world_generations.py` pins
+that no manifest lacking the field is newer than the day the field arrived.
+
 ## What the windows are, and where they come from
 
 A world move is not instantaneous. It begins when the compose edit is applied and becomes
@@ -49,6 +65,22 @@ WORLD_ERAS = (
     (T7_28_FIRST_CAPTURE, WORLD_299),
 )
 """`(exclusive upper bound, world)`, oldest first. Anything later is the current world."""
+
+REFERENCE_PLATFORM = "Darwin/arm64"
+"""Every published figure was produced here (README, *Platform note*). A generation on this
+platform is named by its digest alone, so nothing already printed changes its name."""
+
+HOST_PLATFORM_RECORDED_FROM = "20260907T060000Z"
+"""No manifest before this stamp carries `freeze.world.host_platform`, and every one of them was
+made on the reference platform. A manifest at or after it without the field is a defect, not a
+Mac run - `tests/test_world_generations.py` says so."""
+
+
+def world_key(digest: str, host_platform: str | None) -> str:
+    """The name a generation goes by: the digest, plus the platform when it is not the reference."""
+    if host_platform and host_platform != REFERENCE_PLATFORM:
+        return f"{digest}@{host_platform}"
+    return digest
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,7 +117,9 @@ def generation_of(manifest: dict[str, Any]) -> Generation:
     world = (manifest.get("freeze") or {}).get("world") or {}
     digest = world.get("compose_digest")
     if digest:
-        return Generation(world=digest[:12], provenance="observed")
+        return Generation(
+            world=world_key(digest[:12], world.get("host_platform")), provenance="observed"
+        )
     run_id = str(manifest.get("run_id") or "")
     return Generation(world=world_from_stamp(run_id.split("-")[0]), provenance="reconstructed")
 

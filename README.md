@@ -32,7 +32,9 @@ the numbers: emulation changes container memory behaviour measurably
 comparable to these.** Measured, not asserted, on 2026-09-07: on a native x86 VM `frauddetection-service`
 rests at 155 MiB against the 326 MiB measured under emulation, so `frauddetection-memory-squeeze`'s
 200m limit never squeezes and the scenario does not alert at all; `ad-service` at 203 MiB clears its
-256m squeeze the same way (T5.4c, findings nineteen and twenty).
+256m squeeze the same way (T5.4c, findings nineteen and twenty). Since the same day the harness
+records the platform in every run's freeze and names a non-Mac generation by digest *and* platform
+(`f5bd108f4f70@Linux/x86_64`), so the two can never be printed as one table.
 
 ## Demo
 

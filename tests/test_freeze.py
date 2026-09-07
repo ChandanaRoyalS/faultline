@@ -60,6 +60,11 @@ def test_the_world_item_covers_the_whole_provenance_family_not_only_compose() ->
 
     `capability_version` is here and is *not* folded into the world: `capability.py` argues the two
     guards must stay separate so neither double-fires and teaches a reader to ignore both.
+
+    `host_platform` joined at T5.4c: the same three compose files are a different world on
+    different hardware, and the first fresh-machine rehearsal measured it - both memory-squeeze
+    scenarios kill their target under emulation and neither can on native x86. Something the harness
+    observes rather than constructs, which is exactly this item's criterion.
     """
     world = freeze.world_state()
     assert set(world) == {
@@ -68,8 +73,10 @@ def test_the_world_item_covers_the_whole_provenance_family_not_only_compose() ->
         "ffs_stub_source_digest",
         "otel_demo_image_digest",
         "capability_version",
+        "host_platform",
         "unverifiable_fields",
     }
+    assert "/" in world["host_platform"], "system/machine, e.g. Darwin/arm64"
     assert world["capability_version"].startswith("cap:")
     assert "ffs_stub_image_id" not in world, (
         "ADR-0014 refuses to compare it; freezing it would fire on nothing"
