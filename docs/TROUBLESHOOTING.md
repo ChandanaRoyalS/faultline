@@ -92,6 +92,25 @@ it did** — there is no file to delete. If it is alive and wrong, stop it, or r
 
 ---
 
+## `make demo` sits at "INJECTING THE FAULT — Done." and nothing follows
+
+**What you hit:** the fault is in, the world is alerting, and the demo waits — for up to the
+thirty-minute correlate ceiling — then records a `no-alert` discard and reverts. `docker logs
+alertmanager` says `lookup host.docker.internal on 127.0.0.11:53: no such host`, or the receiver's
+log shows nothing but its own `/healthz`.
+
+**Why:** you are on Linux. Alertmanager posts to `host.docker.internal:8000` and Docker Engine does
+not define that name — only Docker Desktop does. If the name resolves and the alert still never
+arrives, a default-deny host firewall is dropping it at the docker bridge.
+
+**Remedy:** `make world-up` on a Linux host layers `compose/linux-host-gateway.override.yml`, which
+gives the name its meaning; if the world was brought up before that file existed, run `make
+world-up` again — it recreates only Alertmanager. Then open the port **to the bridge subnet only**
+and verify, both exactly as [`docs/RELEASE.md`](RELEASE.md) §3 says. The discard already recorded is
+evidence and stays.
+
+---
+
 ## The recorder looks stuck
 
 **It is probably working.** `evalharness.rehearse` **waits** on a dirty baseline rather than

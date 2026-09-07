@@ -1280,8 +1280,67 @@ rather than on whether it did what the column said. Both are corrected below.
 | **T5.1** incident timeline UI | incident view, evidence cards, citation deep-links | **built, served, and since #222 the deep-links reach Grafana.** They did not before: `/explore?…` was a bare relative path resolving against the host serving the page, which serves no `/explore`. Every citation 404'd and a test asserted the string's shape. Marked complete on 2026-09-03 on the strength of `deep_link()` existing |
 | **T5.2** Slack notifier | lifecycle notifications | **built and wired** — `faultline-orchestrate` constructs a real notifier from settings, the core fires `incident_opened`, `agents/cli` fires `report_ready`, and an unset base URL yields a marked absence rather than a broken link. Re-verified end to end on 2026-09-06 rather than by presence |
 | **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **4 of 5** — ARCHITECTURE, THREAT-MODEL, README's Results block rewritten at `b6837dd449ca`, `docs/MVP-CUT.md` written. **No demo video** — needs a live world and one filmed run |
-| **T5.4** MVP release | tag v0.1, clean-clone rehearsal *on a fresh machine* | **rehearsed on a second clone of the development Mac (T5.4b), not tagged.** The spec says *"a fresh machine"* and `docs/RELEASE.md` §3 carries the caveat. The CX43 rented for T5.5 is that machine; the tag waits on it |
+| **T5.4** MVP release | tag v0.1, clean-clone rehearsal *on a fresh machine* | **rehearsal on a fresh machine in progress (T5.4c), not tagged.** The spec says *"a fresh machine"*; a rented x86 VM is that machine. Its first `make demo` found that the world-to-receiver alert path had never worked on Linux (defect eighteen, closed below); the demo, the scored run and the UI check remain, then the tag |
 | **T5.5** deploy | live instance at a stable URL + documented deploy procedure | **procedure written, rehearsed locally twice, no instance.** Four deviations from the task text found and closed on 2026-09-06 (T5.5b below). VM, DNS and the live URL remain |
+
+### T5.4c — the fresh-machine rehearsal, and the alert path that had never worked on Linux *(in progress)*
+
+**The machine.** An IONOS VPS XL+ — 8 vCPU, 16 GB, 480 GB, x86-64, Ubuntu 24.04 — at
+**\$44/month, month-to-month**, US region. Hetzner's CX43 (€15.99) was the plan's shape and is sold
+only in Germany and Finland; its US line starts at CPX41 (€69.49), and account verification stalled
+on a payment method that was not the buyer's own. IONOS was chosen for a card that worked and a
+contract that ends on day 30. **The \$11/month figure quoted for it earlier in the day was a
+three-month introductory rate on a twelve-month contract (\$429 total) and was wrong**; the cost
+table in `deploy/README.md` §1 is corrected to what is actually being paid. Hardened before anything
+was cloned: ufw default-deny with 22/80/443 open, an unprivileged `deploy` user, key-only SSH,
+Docker 29.8.0, Compose v5.5.1, uv 0.12.10.
+
+**What `docs/RELEASE.md` §3 produced, in order.** `make install` from the lock file: clean. `make
+check` before any service: **1296 passed, 9 skipped** against 5 skipped on the Mac — the four extra
+are Playwright's, which has no Chromium on the box, and the drift check that wants a live world.
+`make world-up`: **1m12s cold**, every image pulled. `make up`, migrate (`schema at 0004`), seed: as
+documented. Ingest and orchestrator in a tmux session. Grafana answered `/explore` and
+`/grafana/explore` both with 200, so #222's default deep-link base is right on a stranger's
+machine; the dashboard provisioner printed its URL as `/grafana/grafana/…`, cosmetic. The gate
+reported 14 services where the Mac reports 15 — noted, not yet explained.
+
+**Then `make demo` stopped at "INJECTING THE FAULT — Done." and stayed there.** The fault was in,
+Prometheus was firing, and nothing reached the receiver. `docker logs alertmanager`:
+`lookup host.docker.internal on 127.0.0.11:53: no such host`. **`host.docker.internal` is a Docker
+Desktop name. Docker Engine on Linux does not define it.** `compose/prometheus/alertmanager.yml`
+has posted to it since T1.3, every recorded run was made on a Mac where it resolves, and the
+documented development alert path had therefore **never once worked on Linux** — the platform the
+deployment, the CI runner and every reader without a Mac actually has. **Eighteen.**
+
+The demo was left to run out its thirty-minute correlate ceiling rather than killed, because the
+`no-alert` discard and the revert it records are the evidence of this finding, and evidence is not
+tidied. Run `20260907T031438Z-cart-redis-misconfig`, discarded, world reverted, \$0 spent on
+investigation.
+
+**There were two layers, and the first hid the second.** With the name resolved by hand —
+`docker run --network opentelemetry-demo --add-host host.docker.internal:host-gateway` — a curl to
+the receiver's `/healthz` returned `000` with exit 28: a timeout, not a refusal. The world's bridge is
+`172.18.0.0/16`, ufw's default is deny, and the packet died at the host. Had the name resolved on
+first try, the symptom would have been a silent thirty minutes with no log line to read at all.
+
+**Closed by a fourth compose file, not by a line in `telemetry.yml`.**
+`compose/linux-host-gateway.override.yml` gives Alertmanager `extra_hosts:
+host.docker.internal:host-gateway` — one service, one key — and the Makefile layers it fourth **on
+Linux only**, outside `InjectorSettings.compose_files`. `telemetry.yml` is a digest input; editing it
+moves every future run off `f5bd108f4f70`, and ADR-0030 already declined to spend a generation on
+a change that moves nothing a bundle records. This is the same test with the same answer: on the
+platform every published figure was measured on, the name already resolves and the file changes
+nothing; on Linux it turns *no alert is ever delivered* into the behaviour the Mac has always had.
+A digest that moved for it would move mechanically while nothing measurable did. The firewall
+rule — `ufw allow from <bridge subnet> to any port 8000 proto tcp`, the bridge and never the
+internet — and the check that distinguishes the two layers are in RELEASE.md §3, README's demo
+section and TROUBLESHOOTING. `tests/test_linux_host_gateway.py` holds the file to one key and
+proves both branches of the Makefile conditional with a fake `uname`, so the reference platform's
+command is byte-for-byte unchanged.
+
+**Still to run on this machine:** `make demo` to completion, `make eval … --single-run`, `make
+ui` through an SSH tunnel, the deployment itself (`deploy/README.md` §3), a citation clicked from a
+browser that is not the author's, and the findings above finished. Then the tag.
 
 ### T5.5b — the deployment was neither of the spec's two options, and the rehearsal found a third thing
 
@@ -1353,7 +1412,7 @@ file `InjectorSettings.compose_files` names, in Makefile order, with the deploy 
 outside the hash. The file is misnamed and stays misnamed: renaming a digest input is a world
 generation change (ADR-0030) and belongs to a re-record, not a documentation fix.
 
-**Sixteen, then seventeen.** That is the count of things in this repository built, green, merged
+**Sixteen, then seventeen** — eighteen by the next morning, see T5.4c. That is the count of things in this repository built, green, merged
 and found broken only by being run or read against the specification — six of them in this task, in
 one evening, in files written hours earlier, one of them by the same hand that had written the
 guard asserting the opposite. The rehearsal section exists because of the first eleven, and it

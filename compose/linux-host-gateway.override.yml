@@ -1,0 +1,39 @@
+# T5.4 - the alert path from the world to the receiver, on a Linux development host.
+#
+# `compose/prometheus/alertmanager.yml` posts every alert to `host.docker.internal:8000`, where
+# `faultline-ingest` listens on the host. **That name exists only on Docker Desktop.** Docker
+# Engine on Linux does not define it, so on any Linux machine following README the world fires,
+# Alertmanager logs `dial tcp: lookup host.docker.internal on 127.0.0.11:53: no such host`, the
+# receiver sees nothing, and `make demo` waits its full correlate ceiling before recording a
+# `no-alert` discard against a world that alerted correctly. The first fresh-machine rehearsal
+# (T5.4c) hit exactly that, thirty minutes at a time.
+#
+# The fix is the one Docker documents: `host-gateway` is a special value the engine resolves to
+# the host's address on the bridge, on every platform. This file gives the name that meaning.
+#
+# **Why a fourth file and not a line in `telemetry.yml`.** `telemetry.yml` is one of the three
+# files `evalharness.provenance.compose_digest` hashes; editing it moves the world generation off
+# `f5bd108f4f70` for every future run, and ADR-0030 already declined to do that for a change that
+# moves nothing a bundle records. This one records the same test: on the reference platform, where
+# every published figure was measured, `host.docker.internal` already resolves and this file changes
+# nothing - not `seconds_to_alert`, not a capture, not a verdict. On Linux it turns *no alert is ever
+# delivered* into the behaviour the reference platform has always had. A digest that moved for it
+# would move mechanically while nothing measurable did, which is the boundary ADR-0030 drew.
+#
+# So it is layered by the Makefile **outside** `InjectorSettings.compose_files`, on Linux only,
+# exactly as `deploy/compose.world.yml` is layered fourth on the VM: the three hashed files describe
+# the world; this one describes how a particular kind of host reaches it. The guard in
+# `tests/test_linux_host_gateway.py` holds it to that - one service, one key, nothing else.
+#
+# **The deployment does not use this file.** There the receiver is a container on the same network
+# and `deploy/alertmanager.yml` posts to it by name; no host is involved.
+#
+# **A firewall may still be in the way.** Resolving the name gets the packet to the host's bridge
+# address; a default-deny host firewall (ufw on a hardened VM) then drops it, and the symptom is a
+# timeout rather than a lookup failure. docs/RELEASE.md §3 has the rule and the check that tells
+# the two apart.
+
+services:
+  alertmanager:
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

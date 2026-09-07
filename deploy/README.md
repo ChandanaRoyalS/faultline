@@ -25,7 +25,8 @@ Sized for the spec's own figure: *"the full stack (demo world + telemetry + plat
 
 | | vCPU / RAM | monthly | notes |
 |---|---|---|---|
-| **Hetzner CX43** | 8 / 16 GB | **€15.99** | 160 GB disk, 20 TB traffic. **What this is sized for** |
+| **IONOS VPS XL+** | 8 / 16 GB | **\$44, month-to-month** | 480 GB disk, US. **What is actually running** (T5.4c) — see below |
+| **Hetzner CX43** | 8 / 16 GB | **€15.99** | 160 GB disk, 20 TB traffic. **What this is sized for**, sold only in Germany and Finland |
 | Hetzner CX33 | 4 / 8 GB | €8.49 | §5's platform-only shape, or a trimmed demo profile |
 | Hetzner CX23 | 2 / 4 GB | €5.49 | §5's snapshot-only shape. Will not hold the world |
 | DigitalOcean General Purpose | 4 / 16 GB | ~\$126 | same shape, eight times the price |
@@ -42,6 +43,14 @@ open-ended; §3.8 caps it.
 176%. This table's previous version quoted **\$6.49 for a CX23**, which was the *old CX33* price
 attached to the wrong row: stale in the currency, the plan and the figure at once. Re-check before
 committing.
+
+**What is running is not the row it was sized for.** Hetzner's CX line is not sold in the US and its
+account verification stalled on a payment method that was not the buyer's own, so on 2026-09-07 the
+instance went to IONOS at **\$44/month with no term**, 2.75× the CX43 for the same shape. That is a
+month-to-month decision: the contract ends on day 30 unless renewed, and moving to a CX43 is
+`deploy/README.md` §3 run again from §3.1 against a new IP. **The \$11/month IONOS figure that was
+briefly quoted was a three-month introductory rate on a twelve-month contract (\$429 in total)**,
+caught at checkout; the same lesson as the row above, one vendor over.
 
 ---
 
