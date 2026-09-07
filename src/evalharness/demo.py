@@ -229,10 +229,14 @@ def verdict_story(run_dir: Path, incident_id: str) -> None:
     artifact = run_dir / f"{incident_id}-verdict.json"
     if not artifact.is_file():
         return
-    verdict = json.loads(artifact.read_text()).get("verdict") or {}
+    bundle = json.loads(artifact.read_text())
+    verdict = bundle.get("verdict") or {}
     _beat("THE VERDICT")
     _say(f"  Fault class : {verdict.get('fault_class')}")
-    _say(f"  Class of fix: {verdict.get('class_of_fix')}")
+    # `remediation_class` - the field's name in the `Verdict` contract. The first version of this
+    # line read `class_of_fix`, a key that has never existed, and every demo narrated "Class of
+    # fix: None" over a verdict that named one. Caught by T5.6's audit reading the transcript.
+    _say(f"  Class of fix: {verdict.get('remediation_class')}")
     _say(f"  Confidence  : {verdict.get('confidence')}")
     _say()
     for line in _wrap(str(verdict.get("root_cause", "")), 68):
@@ -244,6 +248,48 @@ def verdict_story(run_dir: Path, incident_id: str) -> None:
         for question in open_questions[:3]:
             for line in _wrap(question, 66):
                 _say(f"    {line}")
+    proposal_story(bundle.get("proposal"))
+
+
+def proposal_story(proposal: dict[str, Any] | None) -> None:
+    """The remediation, as the proposer wrote it - and the sentence that says it was not run.
+
+    The specification's video beat is *"remediation as proposal"* and the MVP-cut bullet is
+    *"proposals with risk notes"*. The proposer has written one on every scored run since T3.9 and
+    the artifact carries it; the narration stopped at the verdict, so the watcher never heard the
+    risk note the project promised. Abstention (`remediation_class: none`) is narrated as what it
+    is, not skipped.
+    """
+    if not proposal:
+        return
+    _beat("THE PROPOSAL")
+    if not proposal.get("action_id"):
+        _say("  The proposer abstained: it named no action it would stand behind.")
+        _say("  An abstention here is a result - the approval plane would have")
+        _say("  nothing to approve, and that is recorded rather than filled in.")
+        return
+    _say(f"  Action      : {proposal.get('action_id')} on {proposal.get('target')}")
+    _say(f"  Class       : {proposal.get('remediation_class')}")
+    within = proposal.get("confirm_within_seconds")
+    if within:
+        _say(f"  Confirm in  : {within}s - after that, 'it did not work' is decidable")
+    for label, key in (
+        ("Expected", "expected_effect"),
+        ("Falsified if", "if_wrong"),
+        ("Risk", "risk"),
+        ("Blast radius", "blast_radius"),
+    ):
+        text = str(proposal.get(key) or "").strip()
+        if not text:
+            continue
+        _say()
+        _say(f"  {label}:")
+        for line in _wrap(text, 66)[:6]:
+            _say(f"    {line}")
+    _say()
+    _say("  Nothing above was executed. There is no executor: a proposal is a")
+    _say("  claim with a falsifier attached, and the approval plane that would")
+    _say("  act on one is Gate 6's work, not this run's.")
 
 
 def _wrap(text: str, width: int) -> list[str]:

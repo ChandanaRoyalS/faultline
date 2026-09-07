@@ -27,7 +27,7 @@ nobody can fetch is a view nobody has."* It was written about `view.py` and it w
 | half | routes | needs | credential |
 |---|---|---|---|
 | receiver (T2.1) | `POST /alerts`, `GET /healthz` | Redis | **none** - see `auth.py` |
-| read surface (T5.1) | `GET /incidents{,/{id}}`, `GET /ui/incidents/{id}` | Postgres | **basic** |
+| read surface (T5.1) | `GET /incidents{,/{id}}`, `/ui/incidents{,/{id}}`, `/` | Postgres | basic |
 
 **The read half is opt-in on a DSN.** Without `--postgres-dsn` the process is byte-for-byte the
 receiver T2.1 shipped: same routes, same dependency on Redis alone, same behaviour when Postgres is

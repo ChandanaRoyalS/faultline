@@ -120,6 +120,28 @@ def test_the_screen_the_slack_link_points_at_is_served(served: TestClient) -> No
     assert response.headers["content-type"].startswith("text/html")
 
 
+def test_the_hostname_is_a_place_to_start(served: TestClient) -> None:
+    """T5.5 asks for *"a URL to point at"*. Until T5.6's audit the deployment's root answered 404
+    and a reader had to be handed an incident id out of band. `/` sends a browser to the list, the
+    list is a page, and both sit behind the credential like everything else on this half."""
+    root = served.get("/", headers=header(), follow_redirects=False)
+    assert root.status_code == 307
+    assert root.headers["location"] == "/ui/incidents"
+
+    listing = served.get("/ui/incidents", headers=header())
+    assert listing.status_code == 200
+    assert listing.headers["content-type"].startswith("text/html")
+
+    assert served.get("/", follow_redirects=False).status_code == 401
+    assert served.get("/ui/incidents").status_code == 401
+
+
+def test_the_receiver_alone_has_no_root(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without a DSN there is no list to redirect to, and a receiver that redirected its root to a
+    404 would be advertising a surface it does not have."""
+    assert not serves(TestClient(assemble()), "/")
+
+
 def test_the_api_the_page_polls_is_served(served: TestClient) -> None:
     """`static/incident.html` fetches `/api/v1/incidents/{id}` every 3000ms. A page served by an
     app that does not serve that route is a spinner."""

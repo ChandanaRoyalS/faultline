@@ -1,0 +1,84 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Faultline — incidents</title>
+<!--
+  The list the screen is reached from (T5.5, audited under T5.6).
+
+  `GET /api/v1/incidents` has existed since T5.1 and nothing served a page for it: the deployment's
+  "URL to point at" was a hostname that answered 404 at its root, and a reader had to be handed an
+  incident id out of band to see anything. This page is the root's destination.
+
+  Same rule as incident.html: EVERY string that came out of the world - here that is the service
+  names, which are labels on telemetry - enters the DOM through textContent, never innerHTML. The
+  ids, states and severities are the platform's own enums and go the same way, because one path
+  into the DOM is easier to check than two.
+-->
+<style>
+  :root { color-scheme: light dark; --fg: #14161a; --bg: #fff;
+          --line: #d6d9de; --dim: #5b6270; --link: #0b57d0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg: #e6e8eb; --bg: #14161a; --line: #333840; --dim: #9aa2ae; --link: #a8c7fa; }
+  }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 14px/1.5 ui-sans-serif, system-ui, sans-serif; }
+  a { color: var(--link); }
+  main { max-width: 60rem; margin: 0 auto; padding: 1.5rem; }
+  h1 { font-size: 1.25rem; margin: 0 0 .25rem; }
+  .meta { color: var(--dim); font-size: .85rem; }
+  ol.list { list-style: none; padding: 0; margin: 1rem 0; }
+  ol.list li { display: grid; grid-template-columns: 11rem 7rem 5.5rem 1fr; gap: .75rem;
+               padding: .4rem 0; border-bottom: 1px solid var(--line); }
+  code { font-size: .85em; }
+</style>
+<main>
+  <h1>Faultline — incidents</h1>
+  <div class="meta" id="meta">loading…</div>
+  <ol class="list" id="list"></ol>
+  <div class="meta" id="foot"></div>
+</main>
+<script>
+  const POLL_MS = 10000;  // a list changes when an alert fires, which is minutes apart, not seconds.
+
+  // The ONLY way any string enters the DOM. See the comment at the top of this file.
+  const text = (tag, value, cls) => {
+    const el = document.createElement(tag);
+    el.textContent = value == null ? "" : String(value);
+    if (cls) el.className = cls;
+    return el;
+  };
+  const clear = (el) => { while (el.firstChild) el.removeChild(el.firstChild); return el; };
+
+  function render(body) {
+    const list = clear(document.getElementById("list"));
+    const meta = clear(document.getElementById("meta"));
+    const foot = clear(document.getElementById("foot"));
+    if (!body.incidents.length) {
+      meta.append(text("span", "no incidents yet - the world has not alerted since this database was created"));
+      return;
+    }
+    meta.append(text("span", `${body.incidents.length} incident(s), newest first`));
+    body.incidents.forEach(i => {
+      const li = document.createElement("li");
+      const a = text("a", (i.opened_at || "—").slice(0, 19).replace("T", " "));
+      // Built from the id with the URL encoder, never by string-pasting into markup.
+      a.href = `/ui/incidents/${encodeURIComponent(i.incident_id)}`;
+      li.append(a,
+                text("span", i.state, "meta"),
+                text("span", i.severity, "meta"),
+                text("span", i.services.join(", ")));
+      list.append(li);
+    });
+    if (body.truncated) {
+      foot.append(text("span", "older incidents exist and are not listed; the list is capped"));
+    }
+  }
+
+  async function poll() {
+    try {
+      const response = await fetch("/api/v1/incidents");
+      if (response.ok) render(await response.json());
+    } catch (_) { /* a failed poll is a missed frame, never a broken page */ }
+    setTimeout(poll, POLL_MS);
+  }
+  poll();
+</script>

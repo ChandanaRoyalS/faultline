@@ -45,6 +45,7 @@
   <h1 id="title">loading…</h1>
   <div class="meta" id="meta"></div>
   <h2>Report</h2><div id="report" class="meta">not yet investigated</div>
+  <h2>Proposed remediation</h2><div id="proposal" class="meta">none yet</div>
   <h2>Evidence</h2><div id="evidence" class="meta">none yet</div>
   <h2>Timeline</h2><ol class="timeline" id="timeline"></ol>
 </main>
@@ -95,6 +96,12 @@
       const cites = document.createElement("div");
       v.report.cites.forEach(c => cites.append(cite(c)));
       card.append(cites);
+      // What the verdict says it does NOT know. Assembled into the payload since T5.1 and
+      // rendered since T5.6's audit: a verdict shown without its open questions reads as more
+      // certain than the model was, which is the one misreading this screen must not invite.
+      (v.report.untrusted.open_questions || []).forEach(q => {
+        card.append(text("div", `open: ${q}`, "meta"));
+      });
       v.report.alternatives.forEach(a => {
         const alt = document.createElement("div");
         alt.className = "alt";
@@ -107,6 +114,37 @@
       report.append(card);
     } else {
       report.append(text("span", "not yet investigated"));
+    }
+
+    // The proposal (T3.9) - the remediation, as a falsifiable claim, never as an action. The
+    // execution line comes from the server and says the plane does not exist; this page does
+    // not decide that.
+    const proposal = clear(document.getElementById("proposal"));
+    if (v.proposal) {
+      const p = v.proposal;
+      const card = document.createElement("div");
+      card.className = "card verdict";
+      const head = p.action_id
+        ? `${p.action_id} on ${p.target} · ${p.remediation_class}`
+        : `no action proposed · ${p.remediation_class || "none"}`;
+      card.append(text("div", head, "role"));
+      if (p.untrusted.expected_effect) card.append(text("p", `expect: ${p.untrusted.expected_effect}`));
+      if (p.confirm_within_seconds) card.append(text("div", `within ${p.confirm_within_seconds}s`, "meta"));
+      if (p.untrusted.if_wrong) card.append(text("p", `falsified if: ${p.untrusted.if_wrong}`));
+      if (p.untrusted.risk) card.append(text("p", `risk: ${p.untrusted.risk}`));
+      if (p.untrusted.blast_radius) card.append(text("p", `blast radius: ${p.untrusted.blast_radius}`));
+      const flags = [];
+      if (!p.accepted) flags.push("not accepted by the validator");
+      if (p.violations.length) flags.push(`violations: ${p.violations.join("; ")}`);
+      if (p.escalated) flags.push("escalated");
+      if (flags.length) card.append(text("div", flags.join(" · "), "meta"));
+      card.append(text("div", p.execution, "meta"));
+      const cites = document.createElement("div");
+      p.cites.forEach(c => cites.append(cite(c)));
+      card.append(cites);
+      proposal.append(card);
+    } else {
+      proposal.append(text("span", v.report ? "the proposer produced nothing" : "none yet"));
     }
 
     const evidence = clear(document.getElementById("evidence"));

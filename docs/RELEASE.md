@@ -94,7 +94,7 @@ cd faultline-release-check
       having injected nothing. The rehearsal that added this line hit it twice.
 - [ ] `make demo` completes end to end. Costs about $0.60 and needs `~/.faultline-anthropic-key`.
 - [ ] `make eval SCENARIO=<id> INTENT=--single-run` produces a scored run directory.
-- [ ] `FAULTLINE_API_PASSWORD=... make ui`, then open `/ui/incidents/<id>` from that run.
+- [ ] `FAULTLINE_API_PASSWORD=... make ui`, then open `/` — the list — and from it the incident from that run; the proposal card is on the page.
 - [ ] The deployment rehearsal in [`deploy/README.md`](../deploy/README.md) §1a passes.
 - [ ] **Every command above appears in README.** Guarded by
       `tests/test_readme_covers_the_commands.py`, which exists because the front door once named

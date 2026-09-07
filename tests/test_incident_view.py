@@ -329,3 +329,115 @@ def test_an_incident_with_no_trajectory_still_renders() -> None:
     assert payload["report"] is None
     assert payload["timeline"] == [] and payload["evidence"] == []
     assert payload["incident_id"] == "inc-1"
+
+
+# --- the proposal is shown, as a claim, with the line that says it did not run -----------------
+
+
+class ProposalStep(Step):
+    """A `PROPOSAL` step as `Investigation._run_proposer` records it (payload keys `proposal`,
+    `accepted`, `violations`, `escalated`)."""
+
+    def __init__(self, seq: int, proposal: dict, **flags: Any) -> None:
+        super().__init__(seq, "proposer", {"proposal": proposal, **flags})
+        self.kind = "proposal"
+
+
+PROPOSAL = {
+    "remediation_class": "config_revert",
+    "action_id": "revert-image-tag",
+    "target": "cartservice",
+    "rests_on": ["tr_1", "tr_invented"],
+    "expected_effect": "<b>5xx rate</b> returns to baseline",
+    "confirm_within_seconds": 300,
+    "if_wrong": "errors persist past the window",
+    "risk": "a brief restart",
+    "blast_radius": "cartservice only",
+}
+
+
+def test_the_view_carries_the_proposal_and_says_it_was_not_executed() -> None:
+    """**The screen showed a fix class and called it the remediation (T5.6's audit).** The proposer
+    has produced action, target, effect, window, falsifier, risk and blast radius since T3.9 and
+    the trajectory stored all of it; nothing rendered it. MVP-CUT promises *"proposals with risk
+    notes"* and a risk note nobody can read is not delivered. The execution line is the server's
+    and says the plane does not exist (ADR-0028 §4): the page must not be able to imply otherwise.
+    """
+    call = Call("promql_query", "tr_1", service="cartservice", query="up", window=WINDOW)
+    steps = [
+        Step(1, "metrics", {"service": "cartservice"}, tool_call=call),
+        ProposalStep(2, PROPOSAL, accepted=True, violations=[], escalated=False),
+    ]
+
+    proposal = view.incident_view(Incident(), Trajectory(steps))["proposal"]
+
+    assert proposal["action_id"] == "revert-image-tag"
+    assert proposal["target"] == "cartservice"
+    assert proposal["remediation_class"] == "config_revert"
+    assert proposal["confirm_within_seconds"] == 300
+    assert proposal["accepted"] is True and proposal["escalated"] is False
+    assert proposal["execution"] == view.EXECUTION_NOTE
+    assert "not executed" in proposal["execution"]
+    assert [c["result_id"] for c in proposal["cites"]] == ["tr_1", "tr_invented"]
+    assert [c["resolved"] for c in proposal["cites"]] == [True, False]
+
+
+def test_the_proposers_prose_sits_under_untrusted_and_its_ids_do_not() -> None:
+    """`action_id` and `target` come from catalogs and the class is an enum - safe to put in a
+    heading. The four sentences are the model's words about attacker-influenced telemetry and go
+    where every other model sentence on this screen goes."""
+    steps = [ProposalStep(1, PROPOSAL, accepted=True, violations=[], escalated=False)]
+
+    proposal = view.incident_view(Incident(), Trajectory(steps))["proposal"]
+
+    for key in ("expected_effect", "if_wrong", "risk", "blast_radius"):
+        assert key not in proposal, key
+        assert proposal["untrusted"][key] == PROPOSAL[key], key
+
+
+def test_a_refused_proposal_is_shown_with_its_violations_not_hidden() -> None:
+    """A proposal the validator refused is still what the model proposed. Hiding it would make a
+    run that was stopped at the approval boundary look like a run that abstained."""
+    steps = [
+        ProposalStep(
+            1,
+            {**PROPOSAL, "target": "frontend"},
+            accepted=False,
+            violations=["target frontend is not in the allowlist for revert-image-tag"],
+            escalated=True,
+        )
+    ]
+
+    proposal = view.incident_view(Incident(), Trajectory(steps))["proposal"]
+
+    assert proposal["accepted"] is False and proposal["escalated"] is True
+    assert proposal["violations"] == [
+        "target frontend is not in the allowlist for revert-image-tag"
+    ]
+
+
+def test_no_proposal_step_means_none_not_an_empty_card() -> None:
+    """Before the proposer runs - and forever, for an investigation whose proposer produced nothing
+    twice - there is no proposal, and the page says so rather than rendering empty fields."""
+    steps = [Step(1, "synthesizer", {"verdict": {"evidence": [], "alternatives": []}})]
+
+    assert view.incident_view(Incident(), Trajectory(steps))["proposal"] is None
+    assert view.incident_view(Incident(), None)["proposal"] is None
+
+
+def test_the_timeline_names_the_proposal_by_its_catalog_ids_only() -> None:
+    """`action_id` and `target` are catalog entries; the summary may say them. Nothing else from the
+    proposal - all of it prose - may reach a summary."""
+    steps = [
+        ProposalStep(1, PROPOSAL, accepted=True),
+        ProposalStep(
+            2,
+            {**PROPOSAL, "remediation_class": "none", "action_id": "", "target": ""},
+            accepted=True,
+        ),
+    ]
+
+    summaries = [entry.summary for entry in view.timeline(steps)]
+
+    assert summaries == ["proposed revert-image-tag on cartservice", "proposed abstained"]
+    assert not any("<" in s for s in summaries)

@@ -47,6 +47,14 @@ of it at the current stamp.
 advertisement rather than a record, and the project's own rule is that no figure leaves the
 repository without its n. The honest n here is one run, and the honest record is 6 of 7.
 
+**One line of this transcript is a defect, and it is kept.** `Class of fix: None` under THE VERDICT
+is not what the verdict said — the artifact beside it (`…-verdict.json`) names `config_revert`
+under `remediation_class`, the field's name in the `Verdict` contract. The narration read a key (`class_of_fix`) that no verdict ever
+had, so every demo ever run printed `None` there, including the take in the video. Found by reading
+this transcript during T5.6's audit, recorded as finding thirty-three in `docs/PLAN.md`, fixed in
+`evalharness.demo` with the test that was missing; the transcript is a record of a run and is not
+edited to match the fix.
+
 A note on the file: `make demo` overwrites `transcript.txt` in place, so a local run replaces
 this record. The committed copy carries an editorial header marking where the run's own output
 begins; everything below that line is unedited.
@@ -59,7 +67,7 @@ coverage rather than folded into an accuracy figure.
 
 ## The video
 
-[`faultline-demo-v0.1.mp4`](https://github.com/ChandanaRoyalS/faultline/releases/download/v0.1/faultline-demo-v0.1.mp4) — 3 min 54 s, attached to the `v0.1` release rather than committed,
+[`faultline-demo-v0.1.mp4`](https://github.com/ChandanaRoyalS/faultline/releases/download/v0.1/faultline-demo-v0.1.mp4) — 4 min 25 s, attached to the `v0.1` release rather than committed,
 because a 20 MB binary in a repository whose pre-commit hook refuses large files is the wrong shape.
 The specification's beats (T5.3: *"inject, live investigation, cited report, remediation as
 proposal, 10-scenario eval table"*), in four parts, each opened by a title card:

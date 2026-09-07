@@ -241,6 +241,11 @@ def timeline(steps: list[Any]) -> list[TimelineEntry]:
             summary = f"{getattr(call, 'tool', 'tool')} on {payload.get('service', 'a service')}"
         elif payload.get("verdict"):
             summary = "verdict returned"
+        elif payload.get("proposal"):
+            body = payload.get("proposal") or {}
+            action = body.get("action_id") or "abstained"
+            target = body.get("target") or ""
+            summary = f"proposed {action}" + (f" on {target}" if target else "")
         elif payload.get("plan"):
             dispatches = (payload.get("plan") or {}).get("dispatches") or []
             summary = f"planned {len(dispatches)} dispatch(es)"
@@ -345,6 +350,7 @@ def incident_view(incident: Any, trajectory: Any | None) -> dict[str, Any]:
             },
         }
 
+    proposal = _proposal(steps, calls)
     return {
         "incident_id": getattr(incident, "id", ""),
         "state": getattr(getattr(incident, "state", None), "value", ""),
@@ -367,4 +373,60 @@ def incident_view(incident: Any, trajectory: Any | None) -> dict[str, Any]:
         "timeline": [entry.as_dict() for entry in timeline(steps)],
         "evidence": [card.as_dict() for card in evidence(steps, calls)],
         "report": report,
+        "proposal": proposal,
+    }
+
+
+EXECUTION_NOTE = "not executed - no executor exists; a proposal is a claim, never the change"
+"""What the screen says where an action plane would report execution status. ADR-0028 §4 leaves
+execution success as a reported-not-measured axis until T6.2 builds the plane; the MVP-cut bullets
+say *"remediation as proposals with risk notes"*, and a screen that showed the proposal without
+saying it was not run would be claiming the second half of a sentence the project only owns the
+first half of."""
+
+
+def _proposal(steps: list[Any], calls: list[Any]) -> dict[str, Any] | None:
+    """The remediation proposal, from the newest `PROPOSAL` step - or `None` before one exists.
+
+    **The screen showed a fix class and called it the remediation (T5.6's audit).** The proposer
+    had been producing a full proposal since T3.9 - action, target, expected effect, how long to
+    wait, what would falsify it, the risk, the blast radius - and the trajectory stored it, and
+    nothing rendered it. The specification's video beat is *"remediation as proposal"*; the MVP-cut
+    bullets promise *"proposals with risk notes"*. A risk note nobody can read is not a deliverable.
+
+    Structural fields (`action_id`, `target`, `remediation_class`, the seconds, the flags) are
+    drawn from catalogs or validated by contract. The four prose fields are the proposer's words
+    about attacker-influenced telemetry and sit under `untrusted`, like every other model sentence
+    on this screen.
+    """
+    step = next(
+        (
+            s
+            for s in reversed(steps)
+            if getattr(getattr(s, "kind", None), "value", str(getattr(s, "kind", ""))) == "proposal"
+        ),
+        None,
+    )
+    if step is None:
+        return None
+    payload = dict(getattr(step, "payload", {}) or {})
+    body = dict(payload.get("proposal") or {})
+    if not body:
+        return None
+    return {
+        "action_id": str(body.get("action_id") or ""),
+        "target": str(body.get("target") or ""),
+        "remediation_class": str(body.get("remediation_class") or ""),
+        "confirm_within_seconds": body.get("confirm_within_seconds"),
+        "accepted": bool(payload.get("accepted", False)),
+        "violations": [str(v) for v in payload.get("violations") or []],
+        "escalated": bool(payload.get("escalated", False)),
+        "execution": EXECUTION_NOTE,
+        "cites": [c.as_dict() for c in citations(list(body.get("rests_on") or []), calls)],
+        "untrusted": {
+            "expected_effect": str(body.get("expected_effect") or ""),
+            "if_wrong": str(body.get("if_wrong") or ""),
+            "risk": str(body.get("risk") or ""),
+            "blast_radius": str(body.get("blast_radius") or ""),
+        },
     }
