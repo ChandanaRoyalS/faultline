@@ -1350,10 +1350,34 @@ VM never loads, `[tool.uv.sources]` sends torch to the CPU index on Linux alone 
 every figure was produced, resolves exactly as before. The lock is the proof: regenerated, it carries
 no `nvidia-*` package, and a guard says so.
 
-**Twenty-six**, and the four tonight were all the author's, all in the deployment files, all found
+**On the third image the seed ran to the end** — 25 documents, 103 chunks, ten scenarios and
+sixteen runbooks, the two INVALID bundles skipped — and `python -c "import anthropic,
+sentence_transformers, torch"` inside the orchestrator container printed `1.0.0 2.14.0+cpu`: the
+container that holds the key can open a model client and embed a query. The lock now forks torch by
+platform — `2.13.0` on macOS as before, `2.14.0+cpu` on Linux — which the record notes because
+a version split between the reference platform and the deployment is exactly the kind of thing
+`host_platform` exists to make visible.
+
+**Then the public checks, from a machine that is not the VM.** `https://faultline.chandanasorakundla.com/healthz`
+answered `{"status":"ok"}` over a Let's Encrypt certificate; `/api/v1/incidents` 401, `/api/v1/alerts`
+404, `/grafana/` 401; a raw request to the IP on :3000 timed out (exit 28) — Docker did not punch
+through ufw. **The live instance at a stable URL exists.** Three incidents on its list, restored from
+the rehearsal.
+
+**Twenty-seven: the citation link was configured on the container that never renders it.** The
+§3.6 line that matters is *"click a citation"*, and reading the live API first — with the password
+fetched over SSH into the request so it never reached a screen — every link began
+`http://localhost:3000/explore`. `deep_link` reads `ToolSettings.grafana_url` in the **read-surface**
+process at page-render time; `compose.yml` set `FAULTLINE_TOOLS_GRAFANA_URL` on the **orchestrator**,
+beside every other `FAULTLINE_TOOLS_*` endpoint, and the guard asserted the orchestrator's value. A
+visitor clicking a citation on the public URL would have been sent to their own machine. Moved to the
+container whose `command` is `faultline-ingest`, which the guard now locates by that command rather
+than by name, and removed from the orchestrator so a value nothing reads cannot reassure anyone again.
+
+**Twenty-seven**, and the five tonight were all the author's, all in the deployment files, all found
 only by running the documented command on the machine it was written for. §3.7's mechanism was
-exercised forward for the first time between them: one line in `.env`, `up -d --wait`, both
-containers on the new sha in seventeen seconds with the record intact.
+exercised forward three times between them: one line in `.env`, `up -d --wait`, both containers on
+the new sha in under twenty seconds with the record intact each time.
 
 ### T5.4c — the fresh-machine rehearsal, and the alert path that had never worked on Linux *(in progress)*
 
