@@ -56,3 +56,44 @@ evidence in hand cannot distinguish among these"* — and the narrative closes w
 next steps, the first of which is the query it did not make. That is the behaviour this system
 is built for: it is designed to say `unknown` rather than guess, and abstentions are reported as
 coverage rather than folded into an accuracy figure.
+
+## The video
+
+[`faultline-demo-v0.1.mp4`](https://github.com/ChandanaRoyalS/faultline/releases/download/v0.1/faultline-demo-v0.1.mp4) — 3 min 54 s, attached to the `v0.1` release rather than committed,
+because a 20 MB binary in a repository whose pre-commit hook refuses large files is the wrong shape.
+The specification's beats (T5.3: *"inject, live investigation, cited report, remediation as
+proposal, 10-scenario eval table"*), in four parts, each opened by a title card:
+
+| part | what it shows | source |
+|---|---|---|
+| 1 | `make demo` on the development Mac, recorded from before the command was typed: the gate, the injection, then the 13-minute wait compressed 9.9×, then the recovery confirmation and the closing lines in real time | run `20260907T103142Z-cart-redis-misconfig` — **`bad_config` against `bad_config`, high confidence, \$0.7124** |
+| 2 | the same incident on the incident screen: report, ranked alternatives, evidence cards, and `metric_baseline · frontend` clicked into Grafana Explore with the specialist's own PromQL | the Mac's own `make ui` |
+| 3 | the live deployment — an incident it opened and investigated by itself, on the public URL | `https://faultline.chandanasorakundla.com/ui/incidents/6fb0c8c2…` (T5.5c) |
+| 4 | README's Results table, with every figure carrying its n | GitHub |
+
+**Three takes were recorded on 2026-09-07 and this is the third. The other two are in `evals/runs/`,
+marked `demo`, and are not deleted.**
+
+- `20260907T093422Z` **abstained** with the right service named; the screen recording had started
+  three minutes late and missed the injection, the specification's first beat.
+- `20260907T095840Z` was **wrong** — `dependency_latency` — with Jaeger answering HTTP 500 on the one
+  trace query that would have named the callee. Reading Jaeger's log gave the reason: `json:
+  unsupported value: NaN` — a span somewhere in the world carries a NaN-valued tag, Go's JSON encoder
+  refuses it, and the whole search fails instead of the one span. That is one defect behind two Mac
+  500s (T5.4b's rehearsal run and this one) and is recorded as **finding thirty-two** in
+  `docs/PLAN.md`; the fix is digest-locked (`docs/QUEUE.md` Q26).
+- `20260907T103142Z`, the take used, was recorded **after `docker restart jaeger`** — the same
+  operational step TROUBLESHOOTING documents for Kafka, emptying an in-memory store that held the
+  poisoned span. The planner did not need traces in the end; it reasoned that a pre-RPC connect
+  refusal creates no server-side span and went to cart's logs and change history instead.
+
+**What choosing the third take does and does not mean.** Demo runs are marked `demo` in their
+manifest and never enter a sweep aggregate, so nothing in `docs/RESULTS.md` moved. The infrastructure
+was fixed before the take, not the agent — no prompt, bound or tool changed, and the stamp is the
+same `b6837dd449ca` every published figure carries. But the take *was* selected by its outcome from
+three, and a reader should know that: on this scenario the current world's record is roughly two
+correct in three, and the video shows one of the two.
+
+**How it was cut.** Four QuickTime screen recordings (⌘⇧5), one `ffmpeg` invocation, no editor. The
+script and the title-card images are kept beside this file in `docs/demo/video/` so the cut is
+reproducible from the recordings; the recordings themselves are not committed.

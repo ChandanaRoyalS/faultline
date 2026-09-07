@@ -12,8 +12,14 @@ reversible faults, held-out scenarios are quarantined from every prompt and corp
 they are authored, and no figure leaves the repository without its n. The point is not that the
 agent works; it is that you can find out whether it does, and so can we.
 
-> **Status: pre-v0.1.** Built gate by gate against a published execution plan. Nothing is claimed
-> that a clean clone cannot demonstrate.
+> **Status: v0.1** — Gates 0–3 and 5 declared (`docs/GATES.md`). Built gate by gate against a
+> published execution plan. Nothing is claimed that a clean clone cannot demonstrate.
+
+**[▶ The four-minute demo](https://github.com/ChandanaRoyalS/faultline/releases/download/v0.1/faultline-demo-v0.1.mp4)** — one `make demo` on a laptop (inject, live investigation,
+verdict), the same incident on the incident screen with a citation clicked into Grafana, the live
+deployment showing an incident it opened and investigated by itself, and the eval table. The run it
+shows is `20260907T103142Z-cart-redis-misconfig`: `bad_config` against `bad_config`, \$0.71.
+[How it was made, and the two takes it replaced](docs/demo/README.md#the-video).
 
 ## Prerequisites
 

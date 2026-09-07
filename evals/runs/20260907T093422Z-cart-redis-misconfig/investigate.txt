@@ -1,0 +1,43 @@
+incident 0eb11d53-2cd5-4f50-a13d-9a58b356726c  state triaging  anchor 09:37:15
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 77d04334-fc2e-4a18-9c60-b2f4fe08ead1
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend and checkoutservice together with the load generator indicate user-facing checkout failure, not a dismissible warning. No open incidents to attribute it to, and the alerts alone don't point to a specific fault class.
+investigation: 2 round(s), 9 dispatch(es), 26 step(s)
+
+=== PROPOSAL ===
+  action      : restart_service (restart)
+  target      : cartservice
+  expect      : Frontend's 'Error: 14 UNAVAILABLE: No connection established' lines cease in Loki [tr_b17e92b6f8f5]; new frontend/hipstershop.CartService AddItem and GetCart spans carry a matching cartservice server span with normal ms-scale duration instead of 0.1-0.4ms ERROR client-only spans [tr_fc6b74855192]; checkoutservice resumes logging the payment/email/offset completion entries that pair with each [PlaceOrder] start [tr_3f216f51ff7e]. Judge against in-window levels, since both metric baselines were empty.
+  within      : 240s
+  risk        : Discards cartservice's in-process cache, so carts held only in memory are lost and the first requests after recreate may be slower or fail. If the real fault is a bad image, bad config, or a broken redis-cart dependency, the restart fixes nothing, resets any crash-loop backoff, and destroys the process state that would have explained why it refuses connections.
+  blast radius: cartservice only, for the duration of the recreate; its inbound callers frontend and checkoutservice see connection resets during that time, which loadgenerator will register as failed cart and checkout routes. Catalog, ads and recommendation routes are unaffected.
+  if wrong    : UNAVAILABLE lines and server-span-less cart edges continue after the recreate, or they stop and then return within minutes (crash loop, unstartable artifact, wrong listen address, or unhealthy redis-cart). Either outcome means the mechanism is not transient process state and cartservice's own logs, restart counts and change history must be collected before acting again.
+  rests on    : tr_fc6b74855192, tr_b17e92b6f8f5, tr_3f216f51ff7e
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 32333 pushed / 7709 pulled (pull rate 0.1925), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_fc6b74855192, tr_b17e92b6f8f5, tr_3f216f51ff7e
+  root cause  : Frontend and checkoutservice both fail on calls to cartservice, and the failure is at connection establishment, not in any application response. Frontend's errors are gRPC status 14 UNAVAILABLE raised in the grpc-js client path [tr_b17e92b6f8f5], and traces name the callee: every failing frontend edge in the sample is to hipstershop.CartService (AddItem, GetCart), each ending in 0.1-0.4ms with no cartservice server span [tr_fc6b74855192]. The one failing checkout trace errors on its own CartService/GetCart child while its sibling internal span is clean [tr_fc6b74855192], which is why checkoutservice logs order starts without the completion entries seen earlier [tr_3f216f51ff7e]. Only cart-dependent routes fail; catalog, ads and recommendation routes complete [tr_fc6b74855192]. So cartservice is not accepting connections, intermittently [tr_1418ffb5305a][tr_699e1d0641b0]. No dispatch examined cartservice itself, so why it refuses connections is not established.
+  OPEN        : No dispatch touched cartservice: its logs, restart/resource metrics, pod state and change history are all uncollected, so the mechanism (crash loop, unstartable artifact, wrong listen address) is unresolved.
+  OPEN        : Whether cartservice's own backing store (redis-cart) is healthy, which could crash cartservice at startup and present as connection-refused.
+  OPEN        : Why failures are intermittent (error ratios dip to zero [tr_699e1d0641b0]); both metric baselines had no samples, so pre-incident state and onset ordering are unknown [tr_1418ffb5305a].
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T093422Z-cart-redis-misconfig/0eb11d53-2cd5-4f50-a13d-9a58b356726c-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T093422Z-cart-redis-misconfig/0eb11d53-2cd5-4f50-a13d-9a58b356726c-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8991.66it/s]

@@ -1,0 +1,426 @@
+{
+  "run_id": "20260907T103142Z-cart-redis-misconfig",
+  "scenario_id": "cart-redis-misconfig",
+  "split": "dev",
+  "scenario_fingerprint": "392fc77bf038447c5cb77c2ca5c18cdfad15869ab0d37087251abfc1b6de13b1",
+  "started_at": "2026-09-07T10:31:42.781660+00:00",
+  "demo": true,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "4c1c1e1295fc2139f3e39ce296606a6ed8b116bc",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {
+      "changes": 8
+    }
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 17558,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-07T10:31:42.820558+00:00",
+    "reason": "faultline-eval cart-redis-misconfig",
+    "token": "17558-1788777102.820499"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 937,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "jaeger",
+      489
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 40.68,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 4078,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 122.1,
+      "projected_percent": 46.64,
+      "threshold_percent": 84.04,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "world_continuity": {
+    "kafka_uptime_seconds": 4078,
+    "kafka_uptime_seconds_previous_run": 3952,
+    "previous_run_id": "20260907T102934Z-cart-redis-misconfig",
+    "kafka_restarted_since_previous_run": false,
+    "cause": "continuous - same kafka instance as the previous run",
+    "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
+  },
+  "freeze": {
+    "frozen_for": "dev 20260907T103142Z-cart-redis-misconfig",
+    "runtime_version": "faultline/0.0.1+prompts:b6837dd449ca",
+    "prompts": {
+      "constants": [
+        "PLANNER_SYSTEM",
+        "PROPOSER_SYSTEM",
+        "SCRIBE_SYSTEM",
+        "SPECIALIST_SYSTEM",
+        "SYNTHESIZER_SYSTEM",
+        "TRIAGER_SYSTEM"
+      ],
+      "sha256": "f7ede43b3bcb96a1abfb0c072b9dc22e5bfa04e6071ab8ce895660434f4945c5",
+      "chars": 13136
+    },
+    "corpus": {
+      "rows": 103,
+      "sha256": "5e372dd5955d6f9fa1ecd25582b18cc9296122e255875004116c1bbf85338546",
+      "documents": [
+        "runbook:action-restart-service",
+        "runbook:action-revert-config",
+        "runbook:action-rollback-image",
+        "runbook:action-scale-unavailable",
+        "runbook:alert-high-error-rate",
+        "runbook:alert-high-latency",
+        "runbook:alert-no-traffic",
+        "runbook:class-bad-config",
+        "runbook:class-bad-deploy",
+        "runbook:class-dependency-latency",
+        "runbook:class-resource-exhaustion",
+        "runbook:world-saturation-is-invisible",
+        "runbook:world-tracing-artifact-edges",
+        "runbook:world-uninstrumented-services",
+        "runbook:world-warm-up-latency",
+        "scenario:ad-memory-squeeze",
+        "scenario:cart-bad-image-tag",
+        "scenario:cart-dependency-latency",
+        "scenario:cart-redis-misconfig",
+        "scenario:frauddetection-memory-squeeze",
+        "scenario:payment-telemetry-blackout",
+        "scenario:product-catalog-flag-failure",
+        "scenario:redis-cart-dependency-latency",
+        "scenario:shipping-quote-misconfig",
+        "scenario:shipping-wrong-image"
+      ],
+      "holdout_chunks": 0
+    },
+    "model_map": {
+      "models": {
+        "changes": "claude-opus-5",
+        "logs": "claude-opus-5",
+        "metrics": "claude-opus-5",
+        "planner": "claude-opus-5",
+        "proposer": "claude-opus-5",
+        "scribe": "claude-opus-5",
+        "synthesizer": "claude-opus-5",
+        "traces": "claude-opus-5",
+        "triage": "claude-opus-5"
+      },
+      "effort_default": "high",
+      "role_efforts": {}
+    },
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0
+    },
+    "tool_layer": {
+      "git_sha": "4c1c1e1295fc2139f3e39ce296606a6ed8b116bc",
+      "git_dirty": true
+    },
+    "judge": {
+      "model": null,
+      "prompt_sha256": "244108af996ad2a5138f6632a297941dd26643d806c73dfa9e24bc7d51392b54",
+      "allow_shared_lineage": false
+    },
+    "world": {
+      "compose_digest": "f5bd108f4f70f460836f090ecbff4259626cc9264b102a0851b6bb4a4ceda44b",
+      "observability_digest": "857d95b4d174ec43b1f64bbb84bdf3438bc7425c1360a0e6e7dd771c4e77cb60",
+      "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+      "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994",
+      "capability_version": "cap:c4d52d00",
+      "host_platform": "Darwin/arm64",
+      "unverifiable_fields": []
+    }
+  },
+  "baseline": null,
+  "repeat_count": 1,
+  "tier": "manual",
+  "seed_policy": "unseeded: non-deterministic model, live world",
+  "comparability": {
+    "generation": "f5bd108f4f70",
+    "provenance": "observed",
+    "previous_run": "20260907T102934Z-cart-redis-misconfig",
+    "previous_generation": "f5bd108f4f70",
+    "previous_provenance": "reconstructed",
+    "new_generation": false
+  },
+  "injected_at": "2026-09-07T10:31:46.733433+00:00",
+  "incident_id": "05f6d2dc-5e71-488c-b2ec-e428bf756c05",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-09-07T10:39:55.099175+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 2752,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      324
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 40.71,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 4893,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 122.1,
+      "projected_percent": 46.67,
+      "threshold_percent": 84.04,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "unexpected_fields": {},
+  "score": {
+    "run_id": "20260907T103142Z-cart-redis-misconfig",
+    "scenario_id": "cart-redis-misconfig",
+    "trajectory_id": "356c2cda-e05e-4a6e-9abd-39572ebbaa26",
+    "runtime_version": "faultline/0.0.1+prompts:b6837dd449ca",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0,
+      "per_specialist_tool_calls": {
+        "changes": 8
+      }
+    },
+    "reached_a_class": true,
+    "reachability": {
+      "answers_idle_or_absent": [
+        "runtime",
+        "logs"
+      ],
+      "derived_from": "the bundle's own captures (T7.5)",
+      "none_can_answer": false,
+      "runtime_series": 20,
+      "target_log_lines": 500
+    },
+    "triage": {
+      "recall": 0.8,
+      "precision": 0.6666666666666666,
+      "matched": [
+        "accountingservice",
+        "cartservice",
+        "checkoutservice",
+        "currencyservice",
+        "emailservice",
+        "frontend",
+        "loadgenerator",
+        "shippingservice"
+      ],
+      "missed_alerted_not_predicted": [
+        "frauddetectionservice",
+        "quoteservice"
+      ],
+      "predicted_not_alerted": [
+        "adservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 10,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "bad_config",
+      "returned": "bad_config",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "config_revert",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "service": {
+      "truth": "cartservice",
+      "returned": "cartservice",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "ranked_class": {
+      "truth": "bad_config",
+      "ranked": [
+        "bad_config",
+        "unknown",
+        "bad_deploy"
+      ],
+      "depth": 3,
+      "top_1": true,
+      "top_3": true,
+      "gained_by_ranking": false
+    },
+    "ranked_service": {
+      "truth": "cartservice",
+      "ranked": [
+        "cartservice",
+        "redis-cart"
+      ],
+      "depth": 2,
+      "top_1": true,
+      "top_3": true,
+      "gained_by_ranking": false
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 61761,
+    "tokens_out": 16144,
+    "cost_usd": 0.7124,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-09-07T10:45:21.930218+00:00",
+  "leave_one_out": {
+    "retrievals": 2,
+    "excluding": 2,
+    "filtered": {
+      "1": 5,
+      "18": 5
+    },
+    "silent": [],
+    "unassessable": [],
+    "enforced": true
+  },
+  "metrics": {
+    "latency": {
+      "investigation_ms": 232340,
+      "investigation_seconds": 232.3,
+      "tool_ms": 89,
+      "model_ms": 0,
+      "steps": 22,
+      "within_gate4_threshold": false
+    },
+    "tool_calls": {
+      "total": 7,
+      "valid": 7,
+      "errored": 0,
+      "empty": 2,
+      "truncated": 2,
+      "redundant": 0,
+      "validity_rate": 1.0,
+      "redundancy_rate": 0.0
+    },
+    "context": {
+      "briefings": 5,
+      "over_budget": 3,
+      "overflow_rate": 0.6,
+      "dropped_sections": 2,
+      "largest_estimated_tokens": 8879,
+      "budget": 4000
+    },
+    "citations": {
+      "violations": 0,
+      "regenerated": false,
+      "escalated": false
+    }
+  }
+}

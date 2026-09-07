@@ -18,7 +18,7 @@ authoritative; verify wording against it before relying on it.
 | G2 | one alert → one agent → one persisted, rendered finding | **Declared 2026-09-01** — qualified |
 | G3 | end-to-end investigation passes on 3 scenario classes | **Declared 2026-09-02** — qualified |
 | G4 | one command runs and scores all 10 scenarios into a report | Not declared — blocked |
-| G5 | full demo runs from clean clone; MVP tagged | **Both halves demonstrated 2026-09-07** — see below. Not declared until `v0.1` is tagged |
+| G5 | full demo runs from clean clone; MVP tagged | **Declared 2026-09-07** — qualified |
 | G6 | approval-gated remediation works; injection + storm tests pass | Not declared |
 | G7 | repo + video + benchmark and ablation reports are application-ready | Not declared |
 
@@ -189,6 +189,60 @@ undelivered and neither blocks this gate: T3.1's cheap-model routing tier, defer
 measured accuracy, and T3.4's repo-compare, declined as **Q19** because this world runs pulled
 images rather than checkouts.
 
+## G5 — declared 2026-09-07
+
+Full condition: *"full demo runs from clean clone; MVP tagged."* `docs/PLAN.md`'s Phase 5 reads the
+first clause as two halves — the demo from a clean clone **on a fresh machine**, and T5.5's live
+deployment — and both are demonstrated. The second clause is `v0.1`, tagged on the commit that carries
+this declaration (`docs/RELEASE.md` §4).
+
+**The fresh machine (T5.4c).** An x86 VM with nothing of this project on it — IONOS, Ubuntu 24.04,
+Docker Engine — cloned `main`, and every item in `docs/RELEASE.md` §3 was executed there: `make
+install` from the lock, `make check` before any service (1296 passed), `make world-up` pulling every
+image cold in 1m12s, `make up`/migrate/seed, both servers, **three `make demo` runs** (an abstention
+naming the right service, a correct `bad_config`, and a third whose citations were the first in this
+project to be clicked into Grafana from a browser that was not the author's), a scored run that the
+harness itself announced as a new comparability generation (`f5bd108f4f70@Linux/x86_64`), and `make
+ui` through a tunnel. Two `no-alert` discards were recorded and kept — one because the alert path had
+never worked on Linux (defect eighteen), one because the memory-squeeze scenarios cannot bite on
+native x86 (twenty).
+
+**The live deployment (T5.5c).** `https://faultline.chandanasorakundla.com`, from CI's image by sha,
+over a Let's Encrypt certificate, with `/api/v1/incidents` 401, `/api/v1/alerts` 404 and `/grafana/`
+401 from outside and the demo's dozen host ports verified blocked from another machine. Then the part
+that makes it a deployment rather than a display: a fault injected against the world it watches
+produced alerts that crossed the compose network into the deployed receiver, the orchestrator opened
+and admitted an incident, and — after defect twenty-nine gave the product the runner it had never
+had — **investigated it inside the container that holds the key**, to a `bad_config` /
+`config_revert` verdict at low confidence with its open questions stated, in production retrieval
+mode. The public page rendered it, and a citation on it was clicked into Grafana over the public URL
+(after thirty-one). The uptime check polls it from GitHub every fifteen minutes.
+
+**The video (T5.3).** Four minutes, attached to the release: a `make demo` on the reference platform
+that returned `bad_config` at high confidence, the incident screen, the live deployment, the table.
+`docs/demo/README.md` records the two takes it replaced and why.
+
+### Three things this declaration qualifies
+
+1. **Fourteen defects — eighteen through thirty-one — stood between the rehearsal's first command
+   and this line**, every one in a file that was green, merged and reviewed, every one found by
+   running the documented procedure on the machine it was written for, nine of them in the deployment
+   files alone. Two are recorded and not fixed because fixing them moves a world generation (nineteen,
+   twenty); a third, thirty-two, is queued for the same reason. The count is the finding.
+2. **The x86 VM is a different world and the record says so.** Its scored run sits in generation
+   `f5bd108f4f70@Linux/x86_64`, not the Mac's; two of the catalog's scenarios are no-ops there. The
+   gate's *"clean clone"* was demonstrated on a machine whose figures can never be compared with the
+   published ones, which is exactly why the platform is now part of the world key.
+3. **The video's take was chosen by its outcome from three.** The infrastructure was fixed before it,
+   not the agent, and demo runs never enter a figure — but a reader of the video should know the
+   record on that scenario is roughly two correct in three, and `docs/demo/README.md` says so.
+
+### What Gate 5 does not cover
+
+G4 is still not declared and its latency clause is still failing; G5 says nothing about it. The
+deployment investigates but does not remediate — the action plane has no task number, and remediation
+stays a proposal with a risk note, which is what the MVP cut promised.
+
 ## Known blockers on later gates
 
 Recorded here so they are not rediscovered.
@@ -236,7 +290,7 @@ it moves `compose_digest` and re-founds the world, which is the most expensive a
 to this project; `docs/PLAN.md`'s T4.5 section prices the four routes and takes none of them.
 **T4.5's check is built, correct, and blocked on the runner for a stated reason.**
 
-**G5 — both halves demonstrated on 2026-09-07; declared when `v0.1` is tagged.**
+**G5 — declared 2026-09-07; the notes below are the history of how it got there.**
 
 **The fresh machine (T5.4c).** An x86 VM with nothing of this project on it — IONOS, Ubuntu 24.04,
 Docker Engine — cloned `main`, and every item in `docs/RELEASE.md` §3 was executed there: `make

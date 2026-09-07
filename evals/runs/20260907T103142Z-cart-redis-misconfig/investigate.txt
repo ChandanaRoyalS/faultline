@@ -1,0 +1,43 @@
+incident 05f6d2dc-5e71-488c-b2ec-e428bf756c05  state triaging  anchor 10:34:15
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 356c2cda-e05e-4a6e-9abd-39572ebbaa26
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity spanning frontend and checkoutservice plus load generator within seconds is a user-facing failure that cannot be dismissed, and no open incident covers it. The alert pattern does not yet point to a specific cause among the shared downstream dependencies.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Restoring cartservice's prior environment (the pre-10:31:47 state, in which REDIS_ADDR was not set to redis-cart:6380) and recreating the container should let Redis initialization in Main succeed. Observable as: (1) the {service="cart-service"} log stream stops emitting the repeating 'Wasn't able to connect to redis' / System.ApplicationException at RedisCartStore.EnsureRedisConnected pair, and the ~15-40s restart-to-crash cycle stops, with the process instead reaching listener setup [tr_7216e1f696a5]; (2) frontend's {service="frontend"} stream stops producing '14 UNAVAILABLE: No connection established' and the code-13 INTERNAL line naming cart retrieval with a refused dial to 172.18.0.8:7070 [tr_3ac75e3b3e96]; (3) within a couple of 2m rate windows, frontend and checkoutservice service-level error ratios fall back toward 0 rather than oscillating to 0.33 and 0.67 peaks. Note that cartservice's own error-ratio series is not collected in this environment [tr_ff4e9f61c2f7], so confirmation must come from cart-service logs and the two callers' logs and ratios, not from cartservice metrics.
+  within      : 300s
+  risk        : The prior recorded state is REDIS_ADDR unset (None), so this makes cartservice fall back to a compiled/compose default rather than an explicitly verified address; if that default is also wrong, cartservice stays down and we have spent a recreate for nothing. If the real defect were redis-cart being unreachable regardless of port, this changes nothing while creating the false impression that the config was the fix. The revert restores the whole prior environment, not just this variable, so any other env value legitimately changed since then is silently rolled back. The recreate discards cartservice's in-process state (cache only here). Most importantly, platform-automation has applied and reverted this exact value at least five times [tr_8ffdd960ec9a]; unless that automation is paused, it can re-apply 6380 minutes later and reopen the incident - a revert without pausing the actor is a temporary fix, and re-onset should not be read as this proposal failing.
+  blast radius: One service, cartservice. Its named inbound callers frontend and checkoutservice see connection resets for the duration of the recreate; both are already failing on this edge, so the marginal harm is small but their error ratios may spike briefly before falling. redis-cart sees cart traffic move to the reverted address/port. Non-cart routes at frontend (ad, product catalog, recommendation, currency) and checkoutservice's non-cart dependencies are untouched, consistent with only cart-dependent routes failing today [tr_f16426d03d4c, tr_2f263c1116b8]. loadgenerator will register the change as a shift in checkout success rate.
+  if wrong    : Falsified if, after the recreate, cart-service logs still show a connection attempt to redis-cart:6380 (the revert never reached the running container - which is exactly the open question raised by the log claiming 6380 was reverted at ~10:07 while the crash loop ran from 10:04:35), or if the target becomes 6379 but the ApplicationException still fires (redis-cart is itself down or does not listen on 6379 - nobody measured this; 6379 is inference). Also falsified if cart-service starts cleanly but frontend keeps emitting code-14 refusals to 172.18.0.8:7070, which would mean a second fault on that edge. Any of these means stop, and measure redis-cart's actual listening port and health before acting again.
+  rests on    : tr_7216e1f696a5, tr_8ffdd960ec9a, tr_3ac75e3b3e96
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 26741 pushed / 4280 pulled (pull rate 0.138), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_7216e1f696a5, tr_3ac75e3b3e96, tr_8ffdd960ec9a
+  root cause  : cartservice is pointed at redis-cart:6380 instead of the Redis default port; nothing answers there, so the .NET process fails Redis initialization in Main, throws an unhandled ApplicationException and dies before binding its gRPC listener, crash-looping continuously [tr_7216e1f696a5]. With no serving cartservice instance, frontend's cart RPCs to 172.18.0.8:7070 are refused at TCP connect and surface as gRPC 14 UNAVAILABLE / 13 INTERNAL naming cart retrieval during checkout [tr_3ac75e3b3e96]; checkoutservice fails on the same path [tr_2f263c1116b8]. Only cart-dependent routes fail, which matches the partial, bursty error ratios at both callers [tr_f16426d03d4c, tr_2f263c1116b8]. platform-automation repeatedly applied and reverted exactly this REDIS_ADDR=redis-cart:6380 value, most recently ~2 minutes before onset [tr_8ffdd960ec9a]. The wrong port value is itself the failure mechanism.
+  OPEN        : The crash loop with target 6380 runs from ~10:04:35 [tr_7216e1f696a5], but the change log records that value reverted at ~10:07 and only re-applied at ~10:31:47 [tr_8ffdd960ec9a] — so either the log state is inaccurate or reverts never reached the running pods, which decides whether a config_revert will actually take effect.
+  OPEN        : No one checked what port redis-cart listens on or whether redis-cart is healthy; 6379 being correct is inference, not measurement.
+  OPEN        : Frontend shows the same code-14 signature by 09:34 [tr_3ac75e3b3e96], so true onset predates the alert and was never bounded; 9 of 12 blast-radius services and 4 unmeasured edges were never probed.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T103142Z-cart-redis-misconfig/05f6d2dc-5e71-488c-b2ec-e428bf756c05-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T103142Z-cart-redis-misconfig/05f6d2dc-5e71-488c-b2ec-e428bf756c05-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9175.96it/s]
