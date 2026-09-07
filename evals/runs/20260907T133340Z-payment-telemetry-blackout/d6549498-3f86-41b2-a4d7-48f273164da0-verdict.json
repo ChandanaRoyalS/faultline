@@ -1,0 +1,162 @@
+{
+  "incident_id": "d6549498-3f86-41b2-a4d7-48f273164da0",
+  "trajectory_id": "7efa99cf-57f2-40a6-b6c3-38046218e851",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "frontend",
+    "paymentservice"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origin": "scenario:payment-telemetry-blackout",
+  "verdict": {
+    "root_cause": "The only change in the causal window is an automated environment update on paymentservice five minutes before onset that set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT to http://127.0.0.1:4317 \u2014 a loopback address, where no OTLP collector listens from inside the payment container [tr_cd18537d2944]. The value itself is wrong: spans emitted by paymentservice are shipped to a dead local endpoint, so paymentservice's span-derived telemetry (calls_total, and the error-ratio series built on it) has nothing behind it [tr_f49056f54bc3], while the service's own request path keeps working \u2014 charges continue to complete on both sides of 13:39:45 with no error, warn, or exception output at all [tr_c7f597425245], and the paymentservice Charge spans that were captured are fast (~0.2ms) and correctly parented under checkoutservice [tr_d06d90259289]. checkoutservice, the caller, shows a flat-zero error ratio with a full complement of samples, so no payment failure was propagating to it [tr_62543eb6d8ea]. The failing mechanism is therefore a telemetry-visibility failure on paymentservice caused by a misconfigured exporter endpoint, not a failure of payment processing; the critical alert reflects the disappearance of paymentservice's observability signal rather than customer-visible payment errors.",
+    "service": "paymentservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_cd18537d2944",
+      "tr_f49056f54bc3",
+      "tr_c7f597425245",
+      "tr_d06d90259289",
+      "tr_62543eb6d8ea"
+    ],
+    "reasoning": "Three independent lines converge on 'payment works, payment cannot be seen'. Logs show uninterrupted successful charge/transaction pairs across the alert instant and no error-level lines anywhere in the returned window [tr_c7f597425245]; traces show structurally complete, sub-millisecond Charge spans properly linked to their checkoutservice parents [tr_d06d90259289]; and the caller's error ratio never leaves zero while still reporting traffic, which rules out payment failures surfacing upstream [tr_62543eb6d8ea]. Against that, paymentservice's span-metric series returns nothing at all [tr_f49056f54bc3], and the single recorded change is an exporter endpoint pointed at loopback minutes before onset [tr_cd18537d2944]. I classify this bad_config rather than bad_deploy because no image or release event exists in the window [tr_cd18537d2944], and rather than dependency_latency or resource_exhaustion because nothing observed is waiting or running out \u2014 the wrongness of the endpoint value is itself what breaks span delivery. The fix is to revert or repoint the endpoint to the real collector address, not to roll back an artifact.",
+    "open_questions": [
+      "What actually fired the 13:39:45 critical alert: the paymentservice error-ratio series it would most obviously derive from has no samples in either window [tr_f49056f54bc3], so the alerting signal came from some other source that was never identified.",
+      "The metric gap is not onset-correlated \u2014 the ~3h baseline is equally empty [tr_f49056f54bc3], which predates the 13:33 config change by hours. Either paymentservice never had a calls_total series under that name, or the exporter was already misdirected earlier; the loopback change alone does not explain the baseline emptiness.",
+      "Whether paymentservice spans stop arriving in Jaeger after ~13:34. The trace result was capped at 200 spans over five trace ids with no per-span timestamps, so the before/after question is explicitly unresolved [tr_d06d90259289].",
+      "The hostname/pid change between the oldest and newest payment log lines indicates a container replacement at an undetermined time [tr_c7f597425245]; its cause and timing (and whether it was the mechanism by which the new env var took effect) were never established.",
+      "No paymentservice saturation, latency, restart-count or request-rate data was collected at all [tr_f49056f54bc3], so resource pressure on the service is unmeasured rather than excluded.",
+      "Triage recorded two unmeasured edges and a third affected service that no dispatch examined; whatever symptom made this critical across three services is unaccounted for."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "No genuine service fault occurred; the incident is a monitoring artifact \u2014 a paymentservice alert rule evaluating against a series that has no data, escalated to critical because absence was read as failure.",
+        "service": "paymentservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "This explains the alert and the clean logs and traces equally well, but it leaves the loopback exporter endpoint landed five minutes before onset as pure coincidence [tr_cd18537d2944], and it cannot be tested without knowing which rule fired [tr_f49056f54bc3]. It also prescribes doing nothing about a config value that is wrong on its face."
+      },
+      {
+        "root_cause": "paymentservice hit a resource limit and its container was killed and replaced, briefly halting request handling around 13:39:45.",
+        "service": "paymentservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "The only support is the hostname/pid change and a ~9-second quiet gap in the logs [tr_c7f597425245], with no timestamp for the replacement and no memory, CPU, or restart metrics collected at all [tr_f49056f54bc3]. A kill-and-replace should leave error output or a failed-request trail; none appears, and the caller's error ratio stays flat at zero [tr_62543eb6d8ea]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    " / featureflagservice: ADR-0006 replaced it with a stub that reproduces its gRPC contract and none of its\ninstrumentation. Measured against Prometheus: `count by (service_name) (calls_total)` returns\n15 services and it is not among them.\n\n**The consequence is exact.** Two of the three alert rules canno",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    " / Confirming it: The change record shows the variable and both values. A configuration pointing at an address\nthat no longer answers usually produces connection errors in the service's own logs with the\naddress quoted verbatim - the fastest confirmation available, because the wrong value appears\n"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 19559,
+    "pulled_tokens": 9196,
+    "pull_rate": 0.3198,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 386,
+        "content_tokens": 388,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1395,
+        "content_tokens": 1398,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 5686,
+        "content_tokens": 5663,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5522,
+        "content_tokens": 5523,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 6570,
+        "content_tokens": 6548,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "paymentservice",
+    "rests_on": [
+      "tr_cd18537d2944",
+      "tr_f49056f54bc3",
+      "tr_c7f597425245"
+    ],
+    "expected_effect": "Restoring paymentservice's environment to its pre-13:33:46 state removes OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4317, so the SDK falls back to the collector address it used before the automation change. Observable as: (a) new paymentservice spans appearing in Jaeger with timestamps after the recreate, at the same ~0.2ms Charge shape already seen [tr_d06d90259289]; (b) the Prometheus series calls_total{service_name=\"paymentservice\"} returning a non-empty result for the first time in the queried period, which would make the error-ratio query in [tr_f49056f54bc3] evaluable rather than empty; (c) paymentservice logs continuing to show the same info-level charge/transaction-complete pairs with no new error lines after the container recreate [tr_c7f597425245]. Note that the primary claimed effect here is restoration of a telemetry signal, not restoration of a customer-facing behaviour \u2014 payment processing is already working and should be unchanged.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if, ten minutes after the revert, calls_total{service_name=\"paymentservice\"} still returns no samples and no post-revert-timestamped paymentservice spans appear in Jaeger. That is a live possibility rather than a remote one: the metric gap is not onset-correlated \u2014 the ~3h baseline before the config change is equally empty [tr_f49056f54bc3] \u2014 so the loopback endpoint cannot be the whole cause of the missing series, and the exporter may have been misdirected earlier or that series may never have existed under this name. Also falsified if the 13:39:45 critical alert is still firing after the revert, which would confirm the alert derives from a source never identified in this investigation [tr_f49056f54bc3] and that this change addresses a different problem than the one that paged. A third falsifier: if paymentservice error or exception lines appear after the recreate, the pre-change configuration was not in fact benign.",
+    "risk": "The container is recreated, so paymentservice drops in-flight Charge RPCs for the duration of the restart. Since the logs show a steady stream of completing charges through 13:41 [tr_c7f597425245], this will fail real transactions during the recreate window \u2014 a working payment path is being interrupted to fix an observability signal. If the diagnosis is wrong and the loopback endpoint was not the mechanism, that interruption buys nothing and the alert persists. There is also a second-order risk: reverting to 'unset' means the SDK uses its compiled default (typically localhost:4317 in some OTel SDKs), which could be the same dead address \u2014 in which case the revert is a no-op with a restart's cost attached. Whoever executes this should confirm what the pre-change effective endpoint resolved to before recreating. Finally, the container-replacement already visible in the logs (hostname/pid change, timing unknown) [tr_c7f597425245] means process state is not well understood; a second recreate adds another uncorrelated identity change to the log record.",
+    "blast_radius": "One service directly: paymentservice. checkoutservice calls Charge on it and will see connection resets or gRPC UNAVAILABLE during the recreate; its error ratio, currently flat zero with 128 samples [tr_62543eb6d8ea], should show a brief nonzero excursion and then return to zero \u2014 if it does not return to zero, the revert made things worse. frontend sits behind checkoutservice and will surface any failed checkouts to users as errors for the length of the recreate. If the reverted value causes spans to move to a real collector, that collector sees new inbound OTLP traffic from paymentservice; no other service's data path changes, since the reverted key is telemetry export only and touches no payment logic, routing, or credential [tr_cd18537d2944]."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A single critical alert on paymentservice, a payment-path service whose failure reaches checkout and frontend, is not something that can be dismissed without evidence. No open incidents to attribute it to, and the alert alone does not indicate a fault class."
+  }
+}
