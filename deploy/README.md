@@ -415,6 +415,29 @@ The workflow's own comments carry the rest.
 which is the correct amount of alerting for a portfolio deployment and would be wrong for anything
 carrying traffic.
 
+### 3.9 What is running, and what ran before it
+
+§3.7 rolls back by naming *"the previous sha"*, and until this section nothing wrote that sha down:
+it lived in the VM's `.env`, which is gitignored and overwritten by every forward deploy, and in the
+VM's image cache, which is not a record. Found by doing a forward deploy (2026-09-07) and realising
+that the thing §3.7 needs as its argument existed only as the first seven characters in somebody's
+memory. **Every forward deploy adds a row here, in the same PR that changes what CI builds.** The
+times are the image's CI build time (`docker images --format '{{.CreatedAt}}'`); deploy times were not
+recorded before this table existed and are not invented for it.
+
+| image sha (`FAULTLINE_IMAGE`) | built (UTC) | what it carried | status |
+|---|---|---|---|
+| `28fcaf7f3bd14eeceeffe8d0ce7c8063c14fca93` | 2026-09-07 22:57 | T5.6's audit: the proposal card and open questions on the incident screen, `GET /ui/incidents` and the `/` redirect, the demo's `remediation_class` fix; T5.7's visibility reporting; sweep 11's table | **running** |
+| `b310bd9f2b1adfb69cb3016a60371314421dca0e` | 2026-09-07 08:43 | the image the video's part 3 shows: the first incident the deployment opened and investigated itself (T5.5c) | previous — §3.7's argument |
+| `eb486066f99dadd30cad3ea9c1beed2d1a8abdef` | 2026-09-07 08:16 | T5.5c's forward deploys while findings twenty-three to thirty-one were being closed on the machine the procedure was written for | superseded |
+| `691caef6ebf1b8aa3a3d68d5f729dd20b0060620` | 2026-09-07 07:25 | ″ | superseded |
+| `4ff5e0f170e1a021afd335da51fc7b3607bdc852` | 2026-09-07 07:12 | ″ | superseded |
+| `25ad0a08f4295098bc682ad115d2c996977b7c5c` | 2026-09-07 06:01 | the first image ever deployed: the snapshot-only deployment, before the orchestrator ran investigations (T5.5b/c) | superseded |
+
+All six are still in the registry and in the VM's cache, so any row is a §3.7 target in seconds.
+The schema constraint in §3.7 still applies across rows: no migration between `25ad0a08` and
+`28fcaf7f` dropped or renamed anything, so today every row is a safe target.
+
 ---
 
 ## 4. What this deployment deliberately does not do
