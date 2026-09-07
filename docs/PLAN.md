@@ -1413,9 +1413,23 @@ because a development machine's harness launches the investigation itself and a 
 would pay twice; a guard reads every development surface for the flag. `deploy/README.md` §3.6 now
 ends with the check that would have found this: inject once, watch the state leave `triaging`.
 
-**Twenty-nine**, and the seven tonight were all the author's, all found only by running the
-documented command on the machine it was written for — the last by watching a public page not
-change. §3.7's mechanism was exercised forward three times between them: one line in `.env`,
+**On the image with the runner, the deployment picked up its own next incident** — `6fb0c8c2…`,
+opened 08:21:55 from a second injection — **90 seconds after it opened, ran `faultline-investigate`,
+and the investigation crashed before its first state transition. Twice, then stopped, as designed.**
+`FileNotFoundError: /app/docs/evidence/t2.4-dependency-graph/dependencies.json`.
+
+**Thirty: the image has no dependency graph.** `ServiceGraph.from_snapshot` reads the graph
+ADR-0017 committed rather than querying Jaeger for, at the start of every investigation, and the
+image carried no `docs/` at all. The fifth run-time path found missing, the third tonight, each by
+a container failing one step further along than the last. The hand-kept list in
+`tests/test_packaging.py` was five entries short by the time it was four entries long, so it is no
+longer hand-kept: a second test reads every `repo_root() / "…"` and walk-up `parent / "…"`
+resolver out of `src/faultline` and asserts a `COPY` line ships each path or a directory above it.
+The next resolver added to the product fails that test before it fails on a VM.
+
+**Thirty**, and the eight tonight were all the author's, all found only by running the
+documented command on the machine it was written for — one by watching a public page not change,
+one by the runner it prompted doing exactly what it was built to do and finding the next thing. §3.7's mechanism was exercised forward three times between them: one line in `.env`,
 `up -d --wait`, both containers on the new sha in under twenty seconds with the record intact each
 time. The fault was reverted by hand; the incident it opened stays in the deployment's record as
 what it was.
