@@ -25,6 +25,11 @@ COPY knowledge ./knowledge
 # documented `docker compose exec faultline faultline-seed` walked `/app/evals/scenarios/artifacts/dev`
 # and found the directory absent - the third run-time path the image had left out (T5.5c).
 COPY evals/scenarios/artifacts/dev ./evals/scenarios/artifacts/dev
+# The dependency graph ADR-0017 committed rather than querying Jaeger for - `ServiceGraph.from_snapshot`
+# reads it at the start of every investigation. The fifth run-time path found missing, by the first
+# live investigation on the first live deployment (T5.5c, defect thirty). `tests/test_packaging.py`
+# now derives this list from the resolvers in the code rather than from anyone's memory.
+COPY docs/evidence/t2.4-dependency-graph/dependencies.json ./docs/evidence/t2.4-dependency-graph/dependencies.json
 RUN uv sync --frozen --no-dev --extra agents --extra embeddings
 
 FROM python:3.12-slim

@@ -20,6 +20,9 @@ REPO_DATA = {
     # The third one found by a deployment rather than a test: `faultline-seed` inside the
     # container walked its default root and found no directory at all (T5.5c, defect twenty-five).
     "evals/scenarios/artifacts/dev": "faultline.context.cli.DEFAULT_DEV_ROOT",
+    # The fourth, found by the first live investigation: `ServiceGraph.from_snapshot` reads the
+    # committed dependency graph (ADR-0017) and the image had no docs/ at all (defect thirty).
+    "docs/evidence/t2.4-dependency-graph/dependencies.json": "faultline.context.graph.SNAPSHOT",
 }
 
 
@@ -96,3 +99,41 @@ def test_torch_comes_from_the_cpu_index_on_linux_and_the_lock_shows_it() -> None
         "uv.lock still resolves torch's CUDA dependencies: run `uv lock` after this change"
     )
     assert "download.pytorch.org/whl/cpu" in lock, "the lock never consulted the CPU index"
+
+
+def _repository_paths_the_runtime_resolves() -> set[str]:
+    """Every repository-relative path `src/faultline` builds from a walked-up root, read off the
+    code. Two shapes: `repo_root() / "a" / "b"` constants and `parent / "a" / NAME` inside a
+    walk-up loop. Only the literal prefix is taken - `parent / "knowledge" / CATALOG_NAME` yields
+    `knowledge` - because a COPY of the parent directory is what ships the file."""
+    found: set[str] = set()
+    # `(?<!\.)` keeps `Path(__file__).parent / "static"` out: that is package-relative and ships
+    # with `COPY src`. The walk-up loops bind a bare `parent`.
+    pattern = re.compile(r"(?:repo_root\(\)|(?<!\.)\bparent)((?:\s*/\s*\"[^\"]+\")+)")
+    for source in Path("src/faultline").rglob("*.py"):
+        for match in pattern.finditer(source.read_text()):
+            parts = re.findall(r"\"([^\"]+)\"", match.group(1))
+            if parts and parts != ["pyproject.toml"]:
+                found.add("/".join(parts))
+    return found
+
+
+def test_every_path_the_runtime_resolves_is_copied_or_under_something_copied() -> None:
+    """**Derived from the code, because a hand-kept list was five entries short by the time it
+    was four entries long.** Each of REPO_DATA's entries was found by a container failing, one at
+    a time, across two deployments. This reads the resolvers themselves; a new `repo_root() /
+    "something"` in `src/faultline` fails here before it fails on a VM."""
+    dockerfile = Path("Dockerfile").read_text()
+    copied = [
+        line.split()[1]
+        for line in dockerfile.splitlines()
+        if line.startswith("COPY ") and "--from" not in line
+    ]
+    resolved = _repository_paths_the_runtime_resolves()
+    assert resolved >= {"knowledge", "docs/evidence/t2.4-dependency-graph/dependencies.json"}, (
+        resolved
+    )
+    for path in sorted(resolved):
+        assert any(path == c or path.startswith(c.rstrip("/") + "/") for c in copied), (
+            f"src/faultline resolves {path!r} at run time and no COPY line ships it"
+        )
