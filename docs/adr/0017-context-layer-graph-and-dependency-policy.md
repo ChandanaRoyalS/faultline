@@ -401,3 +401,57 @@ needs the distinction.
 The two therefore disagree on purpose, and `tests/test_triage.py` pins one case so the
 disagreement cannot drift into an accident: for an `adservice` incident, `cartservice` is
 **inside** the undirected 2-hop join and **outside** the directed blast radius.
+
+---
+
+## Addendum 3 (2026-09-07, T5.7): the first consumer arrived, and it is the culprit-service axis
+
+The body of this ADR marked one thing for a later decision and named the condition:
+
+> **Marked for decision: whether infrastructure belongs in the catalog.** … Not decided here
+> because nothing at T2.4 consumes it; **the first consumer should decide.**
+
+**Dev sweep 11 is that consumer.** T4.2's culprit-service axis scores the verdict's blamed service
+against the scenario's injection target, and on 2026-09-07 it scored **3 of 5** with both misses on
+targets this catalog cannot supply:
+
+| scenario | target | where it is | what the verdict said |
+|---|---|---|---|
+| `product-catalog-flag-failure` | `featureflagservice` | in the catalog, `KNOWN_ABSENT`, uninstrumented | `productcatalogservice` |
+| `redis-cart-dependency-latency` | `redis-cart` | **nowhere** — the marked decision | `cartservice` (with `redis-cart` ranked second) |
+
+The first verdict argued its way to the boundary and stopped at it, in its own words: *"if the flag
+lives on featureflagservice the right target is not even in the legal blast radius."* That is the
+catalog's blindness being described by the thing the catalog blinded.
+
+**Decided: infrastructure nodes belong in the catalog, and they do not go in today.** Both halves
+are load-bearing.
+
+*Belong*, because the condition this ADR set has been met twice over. `redis-cart` is not a
+hypothetical central node — it is the target of a scenario whose fault the pipeline diagnosed
+correctly on class and could not name on service. The body's own cost line still holds: *"adding
+them as edgeless nodes costs nothing"*, and the risk it named — *"a catalog that looks more
+complete than it is"* — is answered by adding them **with their presence recorded**, exactly as
+`featureflagservice` is, rather than as ordinary nodes with invented edges.
+
+*Not today*, because a catalog node changes what the graph tool answers for a blast-radius query
+without changing its signature, which is precisely what `TOOL_BEHAVIOUR_REVISION` exists to record
+(`evalharness.capability`). Landing it moves `cap:c4d52d00`, and the twenty-one runs at
+`prompts:b6837dd449ca` on this world — including the ten dev rows finished the same day — stop
+describing the pipeline HEAD builds. That is a comparability event and gets a pre-registration, not
+a commit at the end of a sweep. **Queued as Q27.**
+
+**What lands today instead: the blindness is recorded on every run.** `evalharness.visibility`
+reads this catalog and reports, beside the service axis, whether the target was a name the pipeline
+could have said — `in_graph`, `in_catalog_not_in_graph`, or `absent_from_catalog` — and the run
+report prints it under a missed service. **It changes no score.** ADR-0027's bar for a second
+correct answer is measurement, and reverting config on `productcatalogservice` does not clear a flag
+held in a stub, nor does restarting `cartservice` clear a qdisc on redis-cart's interface. Both are
+real misses; what they are not is *the same kind* of miss as blaming the wrong instrumented service,
+and until now nothing in the record could tell the two apart.
+
+**The other half of the gap is not this ADR's.** `featureflagservice` is already in the catalog with
+its reason attached, so no catalog change would have helped it: what is missing is that the
+synthesizer and proposer are never told a known-absent service may be the culprit. That is a prompt
+change, it moves the stamp, no plan task proposes it, and it is queued as **Q28** — an ablation with
+a registered floor, which is Phase 7's shape of work rather than a fix.
