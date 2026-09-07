@@ -1388,10 +1388,37 @@ which was luck rather than design, and the check for it (targets, Alertmanager, 
 orchestrator log) ran before the fix. Every touched service now lists `default` and `faultline`, and
 the guard that had asserted the first half of the truth asserts both.
 
-**Twenty-eight**, and the six tonight were all the author's, all in the deployment files, all
-found only by running the documented command on the machine it was written for. §3.7's mechanism was
-exercised forward three times between them: one line in `.env`, `up -d --wait`, both containers on
-the new sha in under twenty seconds with the record intact each time.
+**Then the world reconnected and the restored incident's citation was clicked on the public URL
+— and the deployment was given a fault of its own.** `faultline-inject start cart-redis-misconfig`
+from the VM's checkout, against the world the deployment watches. Four minutes later: three alerts
+firing, **three `POST /api/v1/alerts` on the deployed receiver over the compose network** — the
+world-to-platform path proven live — and incident `0a61d825…` opened by the deployment itself at
+08:00:55. The public page showed it: *triaging · critical*, eleven episodes, **"REPORT — not yet
+investigated. EVIDENCE — none yet."** Five minutes later it still said so, and the orchestrator's
+log held no verdict, no dispatch, no error.
+
+**Twenty-nine: nothing in the product advances TRIAGING.** `Orchestrator._open` admits an incident
+and stops; `models.IncidentState` had said in so many words that what advances the agent states
+*"is deliberately not decided."* In every run this repository has recorded, the **harness** decided
+it — `evalharness.run` and `evalharness.demo` wait 90s and invoke `faultline-investigate` as a
+subprocess — and ADR-0004 keeps the harness out of the product, so the deployed orchestrator held the
+key and had no code path that spent it. T5.5b's deviation three was closed by adding *"the one
+container holding the key"*, on the unexamined assumption that holding it meant using it. Closed by
+`orchestrator.runner.InvestigationRunner`: the orchestrator process, when `FAULTLINE_ORCH_INVESTIGATE`
+is set, runs `faultline-investigate` on each incident it admitted, 90s after it opened — the
+harness's own settle, pinned to it by test — with the bounds `make eval` passes, read off the
+Makefile by test so a live investigation is the same experiment as a scored one. One at a time; two
+attempts and then left where it is, logged. **Off by default and set only in `deploy/compose.yml`**,
+because a development machine's harness launches the investigation itself and a runner beside it
+would pay twice; a guard reads every development surface for the flag. `deploy/README.md` §3.6 now
+ends with the check that would have found this: inject once, watch the state leave `triaging`.
+
+**Twenty-nine**, and the seven tonight were all the author's, all found only by running the
+documented command on the machine it was written for — the last by watching a public page not
+change. §3.7's mechanism was exercised forward three times between them: one line in `.env`,
+`up -d --wait`, both containers on the new sha in under twenty seconds with the record intact each
+time. The fault was reverted by hand; the incident it opened stays in the deployment's record as
+what it was.
 
 ### T5.4c — the fresh-machine rehearsal, and the alert path that had never worked on Linux *(in progress)*
 
