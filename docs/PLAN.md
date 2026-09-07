@@ -1269,6 +1269,30 @@ no alternative"* about a verdict that had offered two. **The number was right an
 false, which is worse than either alone.** Whether a verdict ranked is a property of the verdict,
 not of one axis.
 
+### T6.1 — trace analyst *(pre-registered 2026-09-07; not started)*
+
+Phase 6 opens the way every measured step here has opened: with the registration, merged before a
+line of the world changes. [`PREREGISTRATION-T6.1.md`](../evals/runs/PREREGISTRATION-T6.1.md) fixes
+the scope — Tempo beside Jaeger, the span tree and the degrading-hop summariser, Q27's catalog nodes
+and Q29's contract policy in the same generation change, Q26 tested rather than fixed — and the
+measurement: **dev sweep 12 at R=3, two pipeline arms (with and without the traces specialist) and
+B0.2**, about \$45 and eighteen hours of the reference platform's time, the first sweep in this
+project's history with a variance component and the first on which the A/A check can run. Eleven
+predictions, each with its consequence.
+
+**Two things the registration refuses in advance.** No prompt change rides along — if the specialist
+turns out to need one, the registration is amended and the stamp moves before the first run. And no
+holdout entry — ADR-0029 stands; the three holdout bundles re-record because a recording is
+injection-only.
+
+**Phase 5's loose ends, closed the same day.** The repository Actions secret `ANTHROPIC_API_KEY` is
+deleted: the two workflows that read it (`eval-smoke`, `eval-nightly`) are blocked on the runner's
+kafka JDK (GATES, 2026-09-04) and refuse cleanly without it, and a funded key on a scheduled workflow
+that could one day unblock itself is the wrong default. It is re-set when T4.5 is unblocked — which
+is this same world move, so the decision has a date. Q29 goes into T6.1's batch rather than landing
+alone, so the record never holds two proposal policies at one stamp. The VM's pending reboot is
+recorded as a deployment event for `deploy/README.md` §3.9 when it is done, not before.
+
 ## Phase 6 — audited 2026-09-07 against the specification, before any Phase 6 task starts
 
 Read the way the Phase 5 rows were: each task's *deliverable* column in
