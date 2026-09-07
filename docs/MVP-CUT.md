@@ -16,10 +16,12 @@ Figures are from [`SWEEP-2026-09-06-sweep10.md`](../evals/runs/SWEEP-2026-09-06-
 harness that refuses to run when the world is not quiet.** 13 scenarios valid, 4 blocked and kept
 with their `INVALID.md` rather than deleted.
 
-**Measured a multi-agent pipeline against a zero-cost heuristic baseline on five scenarios:
-the pipeline identified the culprit service 5 of 5 where the baseline names no service at all, at
-\$0.72 per investigation.** The trap is that the loudest service is not the broken one —
-`frontend` was the entry point on three of the five and was blamed on none.
+**Measured a multi-agent pipeline against a zero-cost heuristic baseline on ten scenarios:
+the pipeline identified the culprit service 24 of 26 where the baseline names no service at all, at
+about \$0.70 per investigation.** The trap is that the loudest service is not the broken one —
+`frontend` was the triage entry point on five of the ten and was blamed on none. **Both misses are
+structural and named as such**: their targets are a service that emits no telemetry and a datastore
+the dependency graph has no node for, so no blast radius could contain either.
 
 **Found and reported that the pipeline's own fault-class accuracy is not reproducible at n=1:
 the same scenario, at the same prompt digest and world generation, scored correct and then
@@ -86,9 +88,11 @@ be compared with the published ones; and the video's take was chosen by its outc
 **A gate is not passed by the results looking good.**
 
 **Not "benchmarked against 17 scenarios".** 17 authored, 13 valid, and at the stamp this repository
-ships the pipeline has been measured on **5** of them (README, *Results at a glance*: 21 runs, five
-scenarios). The current world has 52 scored runs across 10 scenarios at every stamp. The number a
-reader will check is the first one.
+ships the pipeline has been measured on **10** of them — every dev scenario, 26 runs, R=1 each
+(README, *Results at a glance*). **The three holdout scenarios have no run at this stamp and will
+not get one**: the set has been entered three times and a fourth entry is blocked by ADR-0029. So
+the honest sentence is *ten dev scenarios at R=1, no current holdout figure at all*, and the number
+a reader will check is the R.
 
 ---
 
