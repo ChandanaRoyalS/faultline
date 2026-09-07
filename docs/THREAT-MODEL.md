@@ -68,7 +68,9 @@ execute a write, because the tokens it holds cannot.
 never see it. Both halves:
 
 **There is no executor.** No approval service, no write credential, no action plane anywhere in
-the tree — and *no task number for one* in the execution plan. The pipeline ends at a proposal.
+the tree. ~~*no task number for one* in the execution plan~~ — *struck 2026-09-07: the execution plan
+numbers it T6.2 and T6.3; the reconstruction in `docs/PLAN.md` had not, and this sentence repeated
+the reconstruction.* The pipeline ends at a proposal.
 That is a stronger position than the one this file claimed, not a weaker one: a component that
 does not exist cannot be compromised. But "an agent cannot write because the executor validates
 its token" and "an agent cannot write because there is nothing to write with" are different

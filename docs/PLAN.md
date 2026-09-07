@@ -196,8 +196,8 @@ elapses, which leaves reopening as the window's only job.
 
 Four numbers in it are placeholders with reasons and no measurements (cap 3, settle window
 5m, claim idle timeout 60s, poison threshold 5), to be set from T4.1's first runs. Its last
-two states depend on the action plane, which has no task number: see "Discovered omissions"
-below.
+two states depend on the action plane — T6.2 and T6.3 in the execution plan; "Discovered
+omissions" below records why this file once said it had no task number.
 
 `docs/evidence/t2.2-live-smoke/` records the first live run: a backlog drained unprompted
 against data that was never a fixture, a crash on the first empty read that no fixture-driven
@@ -1268,6 +1268,54 @@ The same fix corrected a false sentence. Against a verdict whose two alternative
 no alternative"* about a verdict that had offered two. **The number was right and the sentence was
 false, which is worse than either alone.** Whether a verdict ranked is a property of the verdict,
 not of one axis.
+
+## Phase 6 — audited 2026-09-07 against the specification, before any Phase 6 task starts
+
+Read the way the Phase 5 rows were: each task's *deliverable* column in
+`docs/spec/execution-plan-rev9.pdf` §9 and the proposal's production-grade list, against every file
+in the tree that touches it. **This is a starting inventory, not a completion claim** — Phase 6 has
+not begun, and the fraction in each row is what earlier phases left behind on the way to their own
+gates. Gate 6's condition is quoted at the bottom so the rows can be read against it.
+
+| task | deliverable (plan §9) | what the tree has | what it does not | pre-existing |
+|---|---|---|---|---|
+| **T6.1** trace analyst | *"Trace evidence in investigations; eval accuracy delta measured"* — Tempo, a fourth specialist, trace-search and span-tree summariser tools | `trace_query` against **Jaeger** (T2.6, ADR-0019), a `traces` specialist the planner dispatches, trace citations that deep-link into Grafana's Jaeger datasource (T5.1). Trace evidence has been in investigations since T3.x | **Tempo** — a world move. **Span-tree summariser** — `_spans_of` flattens every trace to a list and `TraceResult.body()` prints neither a span's timestamp nor its parent, which three sweep-11 verdicts named as the reason they could not place the failing hop (*"traces carried no timestamps or status codes and were truncated at 200 spans"*); Q30. **"Identifies the degrading hop"** — no tool does, the synthesizer infers it. **Accuracy delta** — never measured; no with/without-traces ablation exists | ~40% |
+| **T6.2** action plane | *"Executor service + audit log + kill switch"* — separate process, only holder of write credentials, allowlisted parameter-validated actions, single-use action-bound token, blast-radius re-validation, inverse recorded per action | The allowlist as a **read-only versioned document** (`knowledge/allowlist.yaml`, T2.4b, ADR-0032) with four classes and `scale` recorded as unperformable (ADR-0029); the proposer validated against it (T3.9, ADR-0028); `AWAITING_APPROVAL` / `EXECUTING` in the state machine with `record_approval_outcome` a stub that names this task; the proposal rendered with *not executed* on the screen (T5.6) | Everything that acts: no executor process, no write credential anywhere (by design until here — ADR-0028 §3), no token, no audit table, no kill switch, no inverse recording. **Until this audit the tree said this task had no number**; corrected in six places, see *Discovered omissions* | ~10% |
+| **T6.3** approve / reject UX | *"Approved remediation with visible recovery + rejection → re-investigation loop + sev-1 ack gate"* | The screen and the Slack link that would carry the approve control (T5.1, T5.2); `REJECTED` in the state machine; the proposal card the approver would read | No approve or reject route, no token minting, no rejection reason capture, no re-investigation trigger, no auto-drafted dev scenario from a miss, no severity-1 acknowledgment gate, no post-action metric snapshot on the timeline | ~5% |
+| **T6.4** RAG subsystem | *"Retrieval pipeline over a ≥50-doc corpus + recall@5 / MRR gates"* — heading-aware chunking with document summaries, hybrid dense+sparse, cross-encoder rerank, recency-aware, deprecated excluded at ingest, `origin` carried for self-exclusion, golden set in CI | **Hybrid retrieval is built**: pgvector cosine + `tsvector` full text fused by reciprocal rank (`context/store.py`), embeddings behind a swappable `Embedder` (hashing and sentence-transformer), heading-aware chunking of runbooks and narratives (ADR-0018), `origin` carried and enforced (T4.1b, `leave_one_out.enforced`), quarantine of holdout at seed time (T1.6). **Corpus: 25 documents / 103 chunks** — 15 runbooks + 10 dev narratives | **≥50 documents** (at 25, half); no document-level summaries; no cross-encoder rerank; no recency weighting; no deprecated-doc metadata or filter; no git-synced ingest; **no golden set, no recall@5, no MRR, nothing retrieval-quality gated in CI** | ~45% |
+| **T6.5** scribe loop | *"Postmortem generation + learning-effect measurement"* — post-resolution draft for human edit, accepted postmortems join the corpus, cross-scenario transfer within a fault class measured with/without | A scribe role that writes the incident narrative **during** the investigation, leak-guarded (T3.4, ADR-0020 §4); narratives from dev runs seeded into the corpus under the contamination rules (T2.4b, T4.1b) — which is the quarantine half of this task, already load-bearing | No post-resolution postmortem step, no human-edit/accept gate before a narrative joins the corpus (they join at seed time as recorded), **no transfer measurement** — the with/without-corpus comparison at T4.6's tier has never run and the A/A check it depends on needs R ≥ 2 | ~25% |
+| **T6.6** self-observability | *"Agent traces in Grafana + platform metrics & JSON logs + trajectory UI"* — a span per agent step, tool call and model call, exported to the same Tempo/Grafana; Prometheus metrics for queue depth, investigation latency, eval scores; one dashboard | **The trajectory view exists**: the incident screen's timeline is every trajectory step with role, kind and time (T5.1). Per-run latency, tokens and cost are measured and written to every manifest (T4.3's metric panel) | No OpenTelemetry SDK in the platform at all, no span for any agent step, no `/metrics`, no queue-depth gauge (the metric the plan names as what makes T2.2's cap observable), no structured JSON logs, no platform dashboard. The per-run panel is a benchmark record, not an export | ~15% |
+| **T6.7** reliability pass | *"Passing storm/crash tests + restore runbook"* — circuit breakers on providers and tools, 200-alert storm load test, worker-crash chaos test, DB backup/restore drill, timeout audit | `Resilient` retries with backoff and jitter, fallback recorded never silent (T2.5, ADR-0031); Redis consumer groups with `XAUTOCLAIM` of stale entries (T2.2) — the mechanism a crash test would exercise; alert dedupe and correlation folding a storm into incidents (T2.1, T2.3), with every failure-table row mapped to a reachable state in tests; socket and wall-clock timeouts; per-incident budgets | No circuit breaker (retry is not one); **no 200-alert storm test**, load or replay; **no induced worker-kill test**; **no backup/restore drill** — `deploy/README.md` says *"no backups beyond §3.7's manual snapshot"* and the restore has never been executed; no timeout audit across tools and providers | ~30% |
+| **T6.8** security pass | *"Injection eval results + documented defenses"* — prompt-injection scenarios in the catalog and scored, secret scrubbing before model calls, egress restriction from the runtime, secrets tidy-up, re-hardening of the deployed surface once the action plane exists | The trust envelope on every tool result (T2.6, ADR-0019) and the two guards that depend on it; `THREAT-MODEL.md` with six theses and the deployed-surface addendum (T5.6); basic auth in-app and at the edge, the receiver blocked from the internet, `ufw` (T5.5); notifier scrubbing (T5.2); read-only tool surface by construction (ADR-0028 §3) | **Zero injection scenarios in a 17-scenario catalog** — thesis 1's residual is unbounded by any number, which THREAT-MODEL says in its own words; no secret scrubbing before model calls; no egress restriction or network policy (Q4); no credentials on Prometheus / Loki / Jaeger / Alertmanager; the repository Actions secret `ANTHROPIC_API_KEY` still set with its deletion undecided | ~30% |
+
+**Gate 6, as the plan states it:** *"An approved remediation executes and recovers the system;
+injection and storm scenarios pass; the platform's own traces are on the dashboard; and the Gate 4
+thresholds are re-asserted with the full pipeline — four specialists, retrieval, rerank, and
+self-instrumentation included — still holding median time-to-report ≤ 3 minutes and ≤ \$2 per
+incident on the dev set."* Two of those thresholds are already known: cost holds (\$0.59–0.77 per
+run on sweep 11, \$0.51–0.87 on sweep 10) and **latency does not** — the dev-set median is 247.5 s
+against 180 s and has been over on every sweep on this world. So G6 inherits G4's failing clause,
+and adding a fourth specialist's traces and a reranker to the pipeline moves it the wrong way
+unless something else moves it the right way. That is the number the phase has to plan around,
+not discover at its gate.
+
+**What the fractions mean, and what they do not.** They are the share of each deliverable
+column's named items present in the tree, counted the way the Phase 4 and Phase 5 audits counted;
+they are not a promise about effort, because the missing items are the expensive ones (an executor
+process, a retrieval golden set, an OTel export) and the present ones were built for other tasks'
+reasons. No task is declared, none is started, and the first PR of the phase is a pre-registration,
+not code.
+
+**Order, and why.** T6.1 first. Adding Tempo is a **world move** — a new `compose_digest`, a
+re-record of every bundle, and every published figure re-founded on a new generation. That is the
+one moment where the digest-locked queue can land as a single deliberate change instead of one
+re-record each: **Q26** (the NaN span that fails Jaeger's search), **Q27** (infrastructure nodes in
+the catalog), **Q30** (the span tree the trace tool does not render), and the collector's
+observability digest with them. Then T6.2 → T6.3, which are one mechanism in two tasks and gate on
+nothing else; T6.6 alongside, because instrumenting the executor from its first commit is cheaper
+than retrofitting it; T6.4 and T6.5 together, because the transfer measurement needs the corpus;
+T6.7 and T6.8 last, because both are passes over everything the phase built. Each task's PLAN entry
+opens with its pre-registration where a number is claimed, and the cost is named before it is spent.
 
 ## Phase 5 — audited 2026-09-03, re-audited 2026-09-06 against the specification's wording
 
@@ -7997,6 +8045,21 @@ execution plan lives outside the repository.** The plan may well number this tas
 established is that nothing in the tree cites it, so nobody reading the repository can find
 out — which is the same failure mode this file exists to fix, and the reason it is recorded
 as an omission rather than asserted as a hole in the plan itself.
+
+**Resolved 2026-09-07, by the Phase 6 audit.** The plan does number it: **T6.2 — Action plane**
+(*"a separate executor service holding the only write credentials: allowlisted, parameter-validated
+actions … executed only with a valid single-use approval token; append-only audit; kill switch"*)
+and **T6.3 — Approve / reject UX** (*"approval mints the token; rejection captures a required reason
+that seeds both the re-investigation brief and the drafted scenario"*). The honest limit above was
+the right call and the reconstruction was wrong in the way it said it might be. The execution plan
+has been in `docs/spec/` since T5.3; the claim survived that arrival in six places — this file,
+`ARCHITECTURE.md`, `THREAT-MODEL.md` thesis 2, ADR-0016, `orchestrator/models.py` and the
+`NotImplementedError` in `orchestrator/machine.py` — and every one is corrected in the same change,
+with the correction marked rather than the sentence rewritten where the text is a record. The
+contract is now written, by the plan: what an action is (an allowlist entry, `knowledge/allowlist.yaml`
+since T2.4b), what the token binds to (one action, one target, one incident, single use), who
+issues it (T6.3's approval, from the UI or the Slack link), and where the executor lives (a separate
+process with its own credentials — the proposal's *"three deployables"*).
 
 ---
 

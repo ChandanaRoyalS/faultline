@@ -254,6 +254,17 @@ are rejected inside seconds. The condition also requires an A/A check declaring 
 dev-set median time-to-report ≤ 3 minutes and cost ≤ $2 per incident, and the T4.7 baseline
 suite — none of which exists yet.
 
+**G6.** Its full condition, from the plan: *"an approved remediation executes and recovers the
+system; injection and storm scenarios pass; the platform's own traces are on the dashboard; and the
+Gate 4 thresholds are re-asserted with the full pipeline — four specialists, retrieval, rerank, and
+self-instrumentation included — still holding median time-to-report ≤ 3 minutes and ≤ \$2 per
+incident on the dev set."* The summary row abbreviates the first two clauses; the last one is the
+one to read now, because **it inherits G4's failing latency clause** — dev-set median 247.5 s on
+sweep 11, 248.2 s on sweep 10, every run over 180 s — and asks for it to hold with *more* pipeline,
+not less. Cost holds today (\$0.51–0.87 per run). Nothing in the first three clauses exists yet:
+no executor, zero injection scenarios, no storm test, no platform traces. The Phase 6 audit in
+`docs/PLAN.md` (2026-09-07) grades each task and sets the order.
+
 **2026-09-03, the Phase 4 audit.** Every clause of the plan's §7 graded against the tree, now
 that both specification documents are in the repository and T7.62's blocking condition is
 lifted: **23.5 of 55 clauses delivered, 43%.** This is a completion figure and not a deviation

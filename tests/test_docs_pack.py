@@ -259,7 +259,7 @@ def test_the_theses_are_numbered_without_gaps(threat_model: str) -> None:
 def test_thesis_two_does_not_claim_an_executor_exists(threat_model: str) -> None:
     """**The defect this rewrite fixed.** The old text read *"Write credentials exist only in the
     executor service, which validates actions against an allowlist and a single-use, action-bound
-    human-approval token"* - present tense, about a component with no task number in the plan.
+    human-approval token"* - present tense, about a component that is not built (it is T6.2/T6.3).
 
     ADR-0019 §4 had already corrected the credential half (*"read-only is therefore a property of
     the tool surface, not of the credential ... that has to be stated rather than assumed by anyone

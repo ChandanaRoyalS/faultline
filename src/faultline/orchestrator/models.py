@@ -51,12 +51,15 @@ class IncidentState(StrEnum):
     """Fourteen states: the eleven `docs/spec/` names, plus three the specification itself
     argues for two pages later. See ADR-0016, Addendum 2.
 
-    Five of them (`TRIAGING` through `PROPOSING`) are entered by agent outcomes T3.x has not
-    built, and two (`AWAITING_APPROVAL`, `EXECUTING`) by an action plane that has no task
-    number at all - see `docs/PLAN.md`, "Discovered omissions". They exist here because the
-    machine has to be able to *be* in them. What advances them out of `TRIAGING` was, until
-    T5.5c, only the harness invoking `faultline-investigate`; in a deployment it is
-    `orchestrator.runner.InvestigationRunner`, doing the same thing from inside the product.
+    Five of them (`TRIAGING` through `PROPOSING`) are entered by agent outcomes T3.x built,
+    and two (`AWAITING_APPROVAL`, `EXECUTING`) by the action plane - **T6.2 (the executor) and
+    T6.3 (approve / reject), neither built yet.** This docstring said the plane had *"no task
+    number at all"* until T6's audit (2026-09-07): that was true of `docs/PLAN.md`'s
+    reconstruction and false of the execution plan, which has been in `docs/spec/` since T5.3
+    and numbers both. They exist here because the machine has to be able to *be* in them. What
+    advances them out of `TRIAGING` was, until T5.5c, only the harness invoking
+    `faultline-investigate`; in a deployment it is `orchestrator.runner.InvestigationRunner`,
+    doing the same thing from inside the product.
 
     `REJECTED`, `BUDGET_EXHAUSTED` and `DUPLICATE_MERGED` are the three the specification
     named and this repository did not have. T2.3's acceptance is that every row of the

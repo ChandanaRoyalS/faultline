@@ -220,16 +220,19 @@ def record_investigation_failure(incident: Incident, reason: str) -> None:
 
 
 def record_approval_outcome(incident: Incident, outcome: object) -> None:
-    """Advance `AWAITING_APPROVAL` / `EXECUTING`. **Not built, and unnumbered.**
+    """Advance `AWAITING_APPROVAL` / `EXECUTING`. **Not built - it is T6.2 and T6.3's.**
 
     The action plane is described in `docs/ARCHITECTURE.md` and load-bearing in
     `docs/THREAT-MODEL.md` - it holds the only write credentials and requires a single-use,
-    action-bound approval token - and no task in `docs/PLAN.md` builds it. Recorded there
-    under "Discovered omissions".
+    action-bound approval token. The execution plan numbers it: **T6.2** builds the executor,
+    the token, the audit log and the kill switch; **T6.3** builds the approve / reject surface
+    that mints the token and records the outcome this function will receive. Until T6.3 lands,
+    nothing calls this, and the message says where it will come from rather than that nobody
+    knows.
     """
     raise NotImplementedError(
-        "approval and execution outcomes come from the action plane, which has no task "
-        "number; see docs/PLAN.md, 'Discovered omissions'"
+        "approval and execution outcomes come from the action plane - T6.2's executor and "
+        "T6.3's approve / reject surface - neither of which is built; see docs/PLAN.md, Phase 6"
     )
 
 
