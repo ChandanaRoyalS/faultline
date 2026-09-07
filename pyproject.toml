@@ -107,3 +107,18 @@ addopts = "-q -m 'not integration'"
 markers = [
     "integration: needs Docker - real Postgres, Redis and MinIO via testcontainers (T2.3)",
 ]
+
+# **Torch from the CPU index on Linux, and only on Linux.** The image CI publishes installs the
+# `embeddings` extra (T5.5c, defect twenty-six), and PyPI's linux wheel of torch drags in ~3 GB of
+# CUDA libraries that a VM with no GPU never loads. On macOS the PyPI wheel is already CPU/MPS and
+# is what every published figure was produced with, so the marker leaves the development platform
+# untouched: the lock forks for Linux and nothing else moves. `tests/test_packaging.py` asserts the
+# lock carries no `nvidia-*` package, which is the observable form of this stanza having been
+# applied - a lock regenerated without it would pass every other check and build a 4 GB image.
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu", marker = "sys_platform == 'linux'" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true

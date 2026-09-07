@@ -48,3 +48,45 @@ def test_the_image_ships_the_dev_split_and_never_the_holdout() -> None:
             f"copies both splits: {line}"
         )
         assert not re.match(r"COPY \. ", line), f"copies the whole repository: {line}"
+
+
+def test_the_image_installs_the_extras_the_runtime_needs() -> None:
+    """**`uv sync` alone is not enough**, and README has said so since T5.4b - for a developer's
+    tree. The Dockerfile ran exactly that, so the orchestrator container had no model client and
+    the seeder no embedder: a deployment that could remember investigations and not produce one,
+    T5.5b's deviation three reintroduced by the build (T5.5c, defect twenty-six). Every `uv sync`
+    in the image names both extras; `archive` is deliberately not one of them."""
+    dockerfile = Path("Dockerfile").read_text()
+    # RUN lines, not comments: the comment above the first sync quotes the bare command in order
+    # to explain why it is wrong, and the first version of this test failed on it.
+    syncs = [
+        line for line in dockerfile.splitlines() if line.startswith("RUN") and "uv sync" in line
+    ]
+
+    assert syncs, "the image does not install the project"
+    for line in syncs:
+        assert "--extra agents" in line and "--extra embeddings" in line, line
+        assert "--all-extras" not in line and "archive" not in line, line
+
+
+def test_torch_comes_from_the_cpu_index_on_linux_and_the_lock_shows_it() -> None:
+    """The `embeddings` extra pulls torch, and PyPI's Linux wheel pulls ~3 GB of CUDA libraries a
+    GPU-less VM never loads. `[tool.uv.sources]` sends Linux to the CPU index and leaves macOS -
+    the platform every published figure was produced on - exactly as it was. The lock is the proof
+    the stanza was applied: regenerated with it, no `nvidia-*` package remains."""
+    import tomllib
+
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+    sources = pyproject["tool"]["uv"]["sources"]["torch"]
+    assert any(
+        s.get("index") == "pytorch-cpu" and "linux" in s.get("marker", "") for s in sources
+    ), sources
+    indexes = {i["name"]: i for i in pyproject["tool"]["uv"]["index"]}
+    assert indexes["pytorch-cpu"]["url"].rstrip("/") == "https://download.pytorch.org/whl/cpu"
+    assert indexes["pytorch-cpu"].get("explicit") is True, "must not shadow PyPI for other packages"
+
+    lock = Path("uv.lock").read_text()
+    assert 'name = "nvidia-' not in lock, (
+        "uv.lock still resolves torch's CUDA dependencies: run `uv lock` after this change"
+    )
+    assert "download.pytorch.org/whl/cpu" in lock, "the lock never consulted the CPU index"
