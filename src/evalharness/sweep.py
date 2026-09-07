@@ -125,16 +125,24 @@ def runnable(root: Path = SCENARIO_ROOT) -> list[str]:
     A bundle carrying `INVALID.md` is excluded: its fault produced nothing observable, so a run
     of it can only fail, and **counting guaranteed failures in a catalog rate would move every
     number this harness prints** without anything about the pipeline changing.
-    """
-    from evalharness.scenario import load_catalog
 
-    def blocked(scenario_id: str) -> bool:
+    **Two more exclusions, found by reading `--list` (finding thirty-four, T5.6).** A scenario whose
+    YAML says `blocked: true` has no bundle at all - `bundle_for` cannot load it - and the first
+    version of this function did not look at the field, so `make eval`'s catalog carried four
+    scenarios that would crash the sweep at their turn. And `load_catalog` recurses, so the
+    schema's worked example under `examples/` was in the catalog too. Neither is a scenario a
+    sweep can attempt; both were on the list Gate 4's command would run unattended.
+    """
+    from evalharness.scenario import Scenario
+
+    def invalid(scenario_id: str) -> bool:
         return any(
             (root / "artifacts" / split / scenario_id / "INVALID.md").is_file()
             for split in ("dev", "holdout")
         )
 
-    return sorted(s.id for s in load_catalog(root) if not blocked(s.id))
+    catalog = (Scenario.from_yaml(path) for path in sorted(root.glob("*.yaml")))
+    return sorted(s.id for s in catalog if not s.blocked and not invalid(s.id))
 
 
 class UnknownScenarioError(ValueError):

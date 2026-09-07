@@ -131,6 +131,22 @@ def test_a_scenario_whose_bundle_is_invalid_is_not_runnable(tmp_path: object) ->
     assert ids == sorted(ids), "a stable order, so two sweeps are comparable"
 
 
+def test_a_blocked_scenario_and_the_worked_example_are_not_runnable_either() -> None:
+    """**Finding thirty-four.** `--list` printed `example-checkout-pool-exhaustion` and four
+    `blocked: true` scenarios that have no bundle. A sweep reaching one would fail at `bundle_for`
+    rather than record anything - so Gate 4's *"one command runs all scenarios unattended"* was a
+    command that could not finish, and nothing said so until the list was read."""
+    import yaml
+
+    ids = set(sweep.runnable())
+
+    assert not any(i.startswith("example") for i in ids)
+    for path in sweep.SCENARIO_ROOT.glob("*.yaml"):
+        if yaml.safe_load(path.read_text()).get("blocked"):
+            assert path.stem not in ids, path.stem
+    assert {"payment-telemetry-blackout", "shipping-wrong-image"} <= ids
+
+
 def test_the_driver_is_reachable_as_a_command() -> None:
     """**The defect this file exists to close.** The catalog loop lived in a workflow's `run:`
     block: real, working, and invocable only by GitHub. A capability nothing at a terminal can

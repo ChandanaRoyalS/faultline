@@ -94,15 +94,16 @@ reader will check is the first one.
 
 ## The line that is worth more than any of the bullets
 
-Thirty-three defects in this system were found by running something that had been built, reviewed,
-merged and green (`docs/PLAN.md`, findings one to thirty-three): an incident view no process served, a
+Thirty-four defects in this system were found by running something that had been built, reviewed,
+merged and green (`docs/PLAN.md`, findings one to thirty-four): an incident view no process served, a
 Slack notifier linking to a 404, a judge that silently re-graded 79 manifests, a `CMD` that printed a
 version string instead of starting a server, a deployment that joined the developer's database, a
 scoring axis computed into every manifest and printed nowhere, a `make up` that returned before
 Postgres could accept a connection, a hostname that exists only on Docker Desktop, a credential that
 Caddy checked and then forwarded to Grafana as a failed login, a deployment that remembered incidents
-and investigated none, a demo that narrated *"Class of fix: None"* over a verdict that named one.
-**Each was invisible to the test suite and obvious within seconds of first use.** Thirty are fixed;
+and investigated none, a demo that narrated *"Class of fix: None"* over a verdict that named one, a sweep catalog that listed
+fifteen scenarios where thirteen exist.
+**Each was invisible to the test suite and obvious within seconds of first use.** Thirty-one are fixed;
 two are recorded and not fixed because the fix would move the world generation under published
 figures (nineteen, twenty); one is queued behind the same digest (thirty-two, Q26). That
 is the finding this project would put in front of an interviewer, because it is the one that

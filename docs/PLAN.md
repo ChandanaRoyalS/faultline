@@ -1366,6 +1366,15 @@ the fixes are one branch.
   said 3 min 54 s of a 4 min 25 s video. Each is corrected as a dated addendum or an in-place sentence,
   with the superseded wording kept where it was a historical statement.
 
+**Thirty-four, found while writing sweep 11's pre-registration: `faultline-sweep --list` printed
+fifteen scenarios and thirteen exist.** `sweep.runnable()` excluded a bundle carrying `INVALID.md`
+and nothing else — it never read `blocked: true`, and `load_catalog` recurses into `examples/`. So
+the catalog Gate 4's *"one command runs all scenarios unattended"* would run carried four blocked
+scenarios with no bundle and the schema's worked example, and the sweep would have died at
+`bundle_for` on the first of them. Harness code, no stamp or capability moved; fixed with the test
+that reads the YAML the way the sweep now does. Sweep 11 itself was unaffected — `--only` names its
+five — which is why the defect could sit on the list unnoticed: nobody had run the catalog form.
+
 **Already correct, checked and left alone.** The Slack notifier end to end (T5.2, re-verified
 2026-09-06). Citation deep-links on the public URL (clicked, thirty-one). Basic auth read before the
 database connection, refused at startup. The receiver's 404 at the edge and its guard in
