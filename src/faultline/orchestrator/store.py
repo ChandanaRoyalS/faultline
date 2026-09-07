@@ -74,6 +74,10 @@ class IncidentStore(Protocol):
 
     def queued(self) -> list[Incident]: ...
 
+    def triaging(self) -> list[Incident]:
+        """Admitted and not yet begun - what `InvestigationRunner` advances (T5.5c)."""
+        ...
+
     def active_count(self) -> int:
         """How many incidents hold a slot against the cap."""
 
@@ -132,6 +136,10 @@ class InMemoryIncidentStore:
 
     def queued(self) -> list[Incident]:
         return [i for i in self.incidents.values() if i.state is IncidentState.QUEUED]
+
+    def triaging(self) -> list[Incident]:
+        found = [i for i in self.incidents.values() if i.state is IncidentState.TRIAGING]
+        return sorted(found, key=lambda i: (i.opened_at is None, i.opened_at))
 
     def active_count(self) -> int:
         return sum(1 for i in self.incidents.values() if i.holds_a_slot)
@@ -256,6 +264,9 @@ class PostgresIncidentStore:
 
     def queued(self) -> list[Incident]:
         return self._load("WHERE state = 'queued'", ())
+
+    def triaging(self) -> list[Incident]:
+        return self._load("WHERE state = 'triaging' ORDER BY opened_at", ())
 
     def active_count(self) -> int:
         with self._conn.cursor() as cur:

@@ -50,5 +50,32 @@ class OrchestratorSettings(BaseSettings):
     """**Placeholder.** After this many deliveries an entry goes to the dead-letter stream
     instead of cycling forever."""
 
+    investigate: bool = False
+    """**Whether this process runs the investigations it admits** (T5.5c, defect twenty-nine).
+
+    Off here because a development machine's `make demo` and `make eval` launch
+    `faultline-investigate` themselves; a runner beside them would investigate every incident twice
+    and bill for both. The deployment sets it, and is the only thing that should: there, nothing
+    else will."""
+
+    investigate_settle_seconds: int = 90
+    """How long after an incident opens before it is investigated - so the agents see the blast
+    radius after it has spread, not mid-spread. **The same 90s the harness waits**
+    (`evalharness.run.SETTLE_AFTER_ALERT_SECONDS`); a test pins the two together, because a live
+    investigation that starts earlier or later than a scored one is a different experiment."""
+
+    investigate_poll_seconds: float = 15.0
+
+    investigate_args: tuple[str, ...] = (
+        "--max-tool-calls",
+        "4",
+        "--max-tool-calls-changes",
+        "8",
+        "--max-tokens",
+        "120000",
+    )
+    """T4.7's bounds, exactly as the Makefile's `eval` target passes them. A test reads them off
+    the Makefile so the live configuration cannot drift from the measured one."""
+
     batch_size: int = 32
     block_ms: int = 5000

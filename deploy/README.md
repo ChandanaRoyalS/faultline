@@ -302,6 +302,24 @@ Then take an `incident_id` from the last line and open `https://$SITE_ADDRESS/ui
 and **click a citation** — it should land you in Grafana's explore view with the agent's own query
 already filled in. That link was broken until T5.1's fix and clicking it is the only way to know.
 
+**Then prove the deployment investigates, not only remembers.** The orchestrator runs
+`faultline-investigate` itself 90 seconds after an incident opens (`FAULTLINE_ORCH_INVESTIGATE=1`
+in `compose.yml`; nowhere else, because on a development machine the harness does it). The first
+live deployment did not have this and its first real incident sat in `triaging` with *"not yet
+investigated"* on the public page (T5.5c). To see it work, inject one fault against the world from
+the VM's checkout and watch the state move:
+
+```bash
+cd ~/faultline && uv run faultline-inject start cart-redis-misconfig
+# ~4 minutes later - the alert, the settle window, the first dispatch:
+cd deploy && docker compose exec -T postgres psql -U faultline faultline -tAc "select id, state from incidents order by opened_at desc limit 1"
+docker compose logs orchestrator --since 10m | grep -E "investigating|states:"
+cd ~/faultline && uv run faultline-inject stop --all        # the world does not put itself back
+```
+
+`triaging` at four minutes is the defect; `planning`, `investigating` or a verdict is the pass.
+About \$0.70 of model spend, once.
+
 ### 3.7 Rolling back
 
 T5.5 names *"a documented deploy-and-rollback procedure"*. This is the second half.

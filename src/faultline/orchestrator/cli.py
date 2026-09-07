@@ -27,6 +27,16 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--consumer", default=settings.consumer, help="default: %(default)s")
     p.add_argument("--postgres-dsn", default=settings.postgres_dsn, help="default: %(default)s")
     p.add_argument(
+        "--investigate",
+        action="store_true",
+        default=settings.investigate,
+        help=(
+            "also run `faultline-investigate` on each incident this process admits, after the "
+            "settle window. Off by default: `make demo` and `make eval` launch the investigation "
+            "themselves. The deployment turns it on (default: %(default)s)"
+        ),
+    )
+    p.add_argument(
         "--max-concurrent",
         type=int,
         default=settings.max_concurrent,
@@ -129,6 +139,19 @@ def run(argv: list[str] | None = None) -> int:
         applied = loop.run_once(block=False)
         print(f"applied {len(applied)} event(s)")
         return 0
+    if args.investigate:
+        from faultline.orchestrator.runner import InvestigationRunner, investigate_command
+
+        runner = InvestigationRunner(
+            store,
+            settle=timedelta(seconds=settings.investigate_settle_seconds),
+            command=investigate_command(settings),
+        )
+        runner.start_in_background(settings.investigate_poll_seconds)
+        print(
+            f"investigating what this process admits, {settings.investigate_settle_seconds}s "
+            f"after each incident opens, with {' '.join(settings.investigate_args)}"
+        )
     print(f"consuming {args.stream} as {args.group}/{args.consumer}")
     loop.run_forever()
     return 0

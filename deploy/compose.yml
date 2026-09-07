@@ -244,6 +244,14 @@ services:
       # so once. A deployment without Slack still investigates.
       FAULTLINE_NOTIFY_SLACK_WEBHOOK_URL: ${FAULTLINE_NOTIFY_SLACK_WEBHOOK_URL:-}
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:?set ANTHROPIC_API_KEY in deploy/.env}
+      # **This is what makes the container that holds the key spend it** (T5.5c, defect
+      # twenty-nine). `faultline-orchestrate` correlates and admits; in every recorded run the
+      # *harness* then ran `faultline-investigate`, and the harness is not deployed. The first
+      # live incident sat in TRIAGING with "not yet investigated" on the public page. With this
+      # set, the orchestrator runs the investigation itself 90s after each incident opens, with
+      # the bounds `make eval` uses. Off everywhere else, because `make demo` and `make eval`
+      # launch the investigation themselves and would otherwise pay twice.
+      FAULTLINE_ORCH_INVESTIGATE: "1"
     command:
       - faultline-orchestrate
     networks:
