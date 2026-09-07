@@ -1,0 +1,167 @@
+{
+  "incident_id": "50614972-2e09-40d8-ad86-f71b9dec16b8",
+  "trajectory_id": "bf767588-5539-48f2-aa53-f43974fa4861",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:shipping-wrong-image",
+  "verdict": {
+    "root_cause": "PlaceOrder aborts inside checkoutservice's shipping-quote step: every ShippingService/GetQuote child span returns an error status in ~0.3-2.5ms, and no payment, ShipOrder or email span is ever created. The error propagates up through checkoutservice, frontend PlaceOrder and the frontend HTTP POST with end-to-end latency still under 16ms, so this is a fast, deterministic rejection from shippingservice - not a stall, timeout, or a checkoutservice-side fault. checkoutservice logs show entry lines continuing but no completion sequence after 15:53, matching orders that die before payment. The downstream silence on accountingservice, emailservice and frauddetectionservice follows because those steps are never reached; shippingservice and quoteservice alerting at 15:56 places the failing mechanism on the shipping quote path (shippingservice's own quote computation, which calls quoteservice). No change record was found for checkoutservice or productcatalogservice, and cartservice changes were all reverted 5+ hours before onset, so the failure is not attributable to any observed change on those services. Neither shippingservice nor quoteservice was itself dispatched, so the mechanism inside the quote path is inferred from the trace shape, not directly measured.",
+    "service": "shippingservice",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_46e400ac4855",
+      "tr_183c91d23abf",
+      "tr_6e29843de3c9",
+      "tr_137e671e94a6",
+      "tr_b21e00b2bb19"
+    ],
+    "reasoning": "The trace evidence [tr_46e400ac4855] is the only signal that isolates a single failing call site: GetQuote is the sole erroring child span, it is fast, and the request never proceeds to payment. That explains checkoutservice's log pattern of entry-without-completion [tr_183c91d23abf] and its flat aggregate error ratio [tr_6e29843de3c9] (errors confined to a subset of traffic, no surge). It also explains the 15:56 fan-out: shippingservice and quoteservice alert because they are on the failing path, while accountingservice, emailservice and frauddetectionservice alert on absence of the order events they normally consume. Change queries [tr_b21e00b2bb19, tr_137e671e94a6, tr_390dc8d14b13] remove checkoutservice, productcatalogservice and cartservice as change-driven origins. Because no specialist examined shippingservice or quoteservice, the failing mechanism there - bad config value, exhausted resource, or a rejected upstream quote call - is not established, so fault_class stays unknown and no remediation can be responsibly named.",
+    "open_questions": [
+      "What does shippingservice return on GetQuote, and does the error originate in shippingservice or in its call to quoteservice? No dispatch covered either service.",
+      "Was there any change (deploy, config, flag) on shippingservice or quoteservice near 15:52:45? Their change history was never queried.",
+      "Actual onset time is unpinned: checkoutservice log truncation removes 14:53-15:53, and both change queries began at the onset timestamp rather than before it."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "quoteservice is failing or misconfigured and shippingservice merely surfaces its error as a fast GetQuote failure.",
+        "service": "quoteservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Consistent with quoteservice alerting at 15:56, but no trace span, log or metric from quoteservice was collected; shippingservice is the nearer measured boundary of the failure."
+      },
+      {
+        "root_cause": "A wrong configuration value on the shipping-quote path (e.g. a bad endpoint or credential for the quote backend) causes immediate rejection of every GetQuote.",
+        "service": "shippingservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The fast, uniform failure shape fits a bad address or credential, but no change record or config evidence for shippingservice was ever retrieved, so the specific wrong value is unidentified."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself",
+    "shipping-quote-misconfig / Detection notes: **The alerting service was not the faulty service, and nothing in the alert path could have said\nso.** The whole page was about checkout. Checkout was healthy.\n\n**A service can fail without reporting anything.** Shipping produced no errors and no error logs.\nAn investigation that",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 27503,
+    "pulled_tokens": 8823,
+    "pull_rate": 0.2429,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 458,
+        "content_tokens": 460,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1827,
+        "content_tokens": 1830,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8500,
+        "content_tokens": 8475,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7708,
+        "content_tokens": 7710,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9010,
+        "content_tokens": 9014,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_46e400ac4855",
+      "tr_183c91d23abf",
+      "tr_b21e00b2bb19",
+      "tr_390dc8d14b13",
+      "tr_137e671e94a6"
+    ],
+    "expected_effect": "No action is proposed, so no change in system behaviour should be expected. The observable state should continue as evidence describes: checkoutservice PlaceOrder traces keep showing an error-status ShippingService/GetQuote child span at ~0.3-2.5ms with no payment/ShipOrder/email span, and checkoutservice logs keep emitting entry lines without the payment-confirmation/email/offset completion sequence. The next useful observable is not produced by remediation but by dispatch: a change_history query on shippingservice and quoteservice starting well before 15:52:45, and a trace/log query against shippingservice's GetQuote to read the returned status code and whether the error originates in shippingservice or in its call to quoteservice.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "Abstaining because verdict confidence is low, fault class is unknown, and the mechanism sits inside a quote path (shippingservice -> quoteservice) that no dispatch ever measured. rollback_image and revert_config both require a recorded prior image/config plus evidence naming a change inside the window; for shippingservice and quoteservice no change history was ever queried, and for the services that were queried the records are either empty (tr_b21e00b2bb19, tr_390dc8d14b13) or fully reverted 5.2h before onset (tr_137e671e94a6). restart_service requires evidence pointing at process state, and tr_183c91d23abf and tr_46e400ac4855 point the opposite way: a live process cleanly propagating a fast deterministic downstream rejection. scale_service is unavailable per ADR-0029. This abstention is falsified if a dispatch finds a change record for shippingservice or quoteservice near 15:52:45 - a deploy, image tag, or config/flag flip - which would satisfy rollback_image or revert_config preconditions on a named target. It is also falsified if shippingservice logs show crash-looping, restarts, or corrupted in-process state, which would meet restart_service's precondition. It remains correct if GetQuote errors are shown to originate in quoteservice's computation with no change on either service, since no permitted action addresses that mechanism.",
+    "risk": "The risk of abstaining is continued total loss of order completion: every PlaceOrder aborts at the shipping-quote step, so no orders, payments, confirmation emails, or accounting/fraud records are produced while this persists. That cost is real and ongoing. The risk of acting instead is worse and less recoverable: the only services with recorded change history here are cartservice (all changes reverted 5.2h pre-onset) and checkoutservice and productcatalogservice (no records at all), none of which is the failing component. Rolling back or reverting config on checkoutservice would recreate a container that trace and log evidence shows is alive, serving, and correctly propagating a downstream error - destroying the only healthy observation point on the failure path while changing nothing about the shipping quote. Restarting shippingservice would discard the fast-deterministic-rejection signal that is currently the sole clue to the mechanism, and if the fault lies in quoteservice or in configuration a restart preserves, the failure returns with the evidence trail erased.",
+    "blast_radius": "Nobody sees a change, because nothing changes. Everyone already affected stays affected: frontend (ERROR on PlaceOrder and the HTTP POST, so end users see failed checkouts), checkoutservice, and the never-reached downstream steps paymentservice, emailservice, accountingservice, frauddetectionservice, plus shippingservice and quoteservice on the failing path. cartservice, currencyservice and productcatalogservice continue serving sub-millisecond successful calls and are unaffected either way. The cost of this abstention is borne by end users placing orders and the order-fulfilment chain; spared are the callers of any service a misdirected container recreate would have reset."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Checkout alerted first and its downstream consumers (accounting, email, fraud, quote, shipping) followed three minutes later, which is a real fan-out from a critical seed and cannot be dismissed. No open incident covers it; cause could be checkout itself or one of its unmeasured dependencies, so the fault class stays open."
+  }
+}

@@ -422,5 +422,63 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-quote-misconfig",
+    "run_id": "20260907T141056Z-shipping-quote-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "adjacent",
+    "agreement_reason": "Both identify shipping quote failures as the mechanism, but the agent stops at the boundary without identifying the specific misconfiguration (bad DNS address) that the recorded narrative pinpoints.",
+    "dead_ends_closed": [
+      "checkout itself crashed or restarted",
+      "upstream traffic stopped",
+      "currency conversion problem",
+      "broker producer broken at origin",
+      "checkout self-inflicted change",
+      "payment service environment change",
+      "payment service error ratio"
+    ],
+    "dead_ends_missed": [
+      "shipping service configuration change (never queried)",
+      "shipping service's own error logging behavior",
+      "why only ~4% fail (selectivity question)"
+    ],
+    "traps": [
+      {
+        "trap": "missing log stages (payment, email, producer) implicate downstream services",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "payment service changes look correlated by recency",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "shipping's zero error ratio means shipping is healthy",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent narrative explicitly identifies the trap about missing log stages pointing at wrong suspects ('inversion...was the single biggest time sink'), but never queries shipping's change history or logs despite naming them as needed next steps, leaving the root cause mechanism incomplete.",
+    "tokens_in": 5662,
+    "tokens_out": 352
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 17,
+    "depth": 32,
+    "elapsed_ms": 72236,
+    "role": "traces",
+    "kind": "finding",
+    "reason": "Entry 17 identifies that the checkoutservice client span for ShippingService/GetQuote is marked ERROR and that this is where PlaceOrder traces terminate, committing to the mechanism that shipping's quote call is failing and causing checkout's errors.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }
