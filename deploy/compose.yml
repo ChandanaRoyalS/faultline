@@ -150,6 +150,17 @@ services:
       # `postgres_dsn`; `test_every_settings_class_with_a_dsn_is_pointed_at_the_one_database`
       # now derives the list from the code rather than from anyone's memory.
       FAULTLINE_CONTEXT_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
+      # **Where a reader is sent when they click a citation - set on the container that renders
+      # the page.** `api.view.deep_link` builds the Grafana URL at request time from
+      # `ToolSettings.grafana_url`, read in *this* process. The first version set it on the
+      # orchestrator, which holds every other `FAULTLINE_TOOLS_*` endpoint and never renders a page,
+      # and the guard asserted the orchestrator's value; the live instance served every citation as
+      # `http://localhost:3000/...` - a visitor's own machine (T5.5c, defect twenty-seven). Found by
+      # reading the live API from outside, minutes after the certificate was issued.
+      #
+      # `/grafana` because the demo's own frontend-proxy already serves Grafana there and Caddy
+      # forwards that prefix to it, behind the same credential as this page.
+      FAULTLINE_TOOLS_GRAFANA_URL: https://${SITE_ADDRESS:?set SITE_ADDRESS in deploy/.env}/grafana
     command:
       - faultline-ingest
       - --host
@@ -226,11 +237,6 @@ services:
       # an investigation in this container would look for its corpus on the container's own
       # loopback and find nothing there. See the same line on `faultline` above (T5.5c).
       FAULTLINE_CONTEXT_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
-      # **Public, not internal, and that is the whole point of it.** Every other endpoint here is
-      # where a *tool* reaches. This one is where a *reader* is sent when they click a citation, so
-      # an internal hostname would be a dead link with extra steps. `/grafana` because the demo's
-      # own frontend-proxy already serves Grafana there and Caddy forwards that prefix to it.
-      FAULTLINE_TOOLS_GRAFANA_URL: https://${SITE_ADDRESS:?set SITE_ADDRESS in deploy/.env}/grafana
       # T5.2's links into T5.1's screen, for the same reason: a Slack message has no origin, so
       # this is configuration or the message carries a marked absence instead of a link.
       FAULTLINE_NOTIFY_PUBLIC_BASE_URL: https://${SITE_ADDRESS:?set SITE_ADDRESS in deploy/.env}

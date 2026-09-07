@@ -400,12 +400,30 @@ def test_the_worlds_own_uis_are_behind_the_credential() -> None:
 
 
 def test_the_citation_link_sends_a_reader_somewhere_public(compose: dict) -> None:
-    """Every other endpoint the orchestrator is given is where a *tool* reaches. This one is where
-    a *human* is sent, so an internal hostname would be a dead link with extra steps."""
-    grafana = compose["services"]["orchestrator"]["environment"]["FAULTLINE_TOOLS_GRAFANA_URL"]
+    """Every other `FAULTLINE_TOOLS_*` endpoint is where a *tool* reaches. This one is where a
+    *human* is sent, so an internal hostname would be a dead link with extra steps.
 
+    **And it must be set on the container that renders the page.** `api.view.deep_link` reads
+    `ToolSettings.grafana_url` in the read-surface process; the first version of this test asserted
+    the orchestrator's value, the orchestrator never renders anything, and the live instance served
+    every citation as `http://localhost:3000/...` (T5.5c, defect twenty-seven). The service that
+    runs the read surface is found by its command, not named here, so the assertion follows the
+    process rather than a label.
+    """
+    renderers = [
+        name
+        for name, svc in compose["services"].items()
+        if "faultline-ingest" in (svc.get("command") or [])
+    ]
+    assert renderers == ["faultline"], renderers
+
+    grafana = compose["services"]["faultline"]["environment"]["FAULTLINE_TOOLS_GRAFANA_URL"]
     assert grafana.startswith("https://${SITE_ADDRESS")
     assert grafana.endswith("/grafana"), "the prefix the demo's frontend-proxy already serves"
+
+    assert (
+        "FAULTLINE_TOOLS_GRAFANA_URL" not in compose["services"]["orchestrator"]["environment"]
+    ), "set where it is read; a value on a container that never renders is false comfort"
 
 
 # --- the world is on the same network, and posts to the container ---------------------------------
