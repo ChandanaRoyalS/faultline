@@ -30,8 +30,20 @@
 #
 # What this overlay does, and all it does:
 #
-#   1. puts the four services the platform talks to on the platform's network
+#   1. puts the four services the platform talks to on the platform's network **as well as** the
+#      world's own
 #   2. points Alertmanager at the receiver's container rather than at a developer's host
+#
+# **`default` is listed on every one of them, and the first live deployment is why.** The demo's
+# compose file names no network per service; every container sits on the implicit `default`
+# (named `opentelemetry-demo` at the top of the file). A compose overlay that says
+# `networks: [faultline]` does not *add* a network to that - it **replaces** the implicit membership
+# with the explicit list. So the first version of this file quietly took Alertmanager, Prometheus,
+# Loki and the frontend-proxy *off the world*: Prometheus lost every scrape target (2 targets, 0 up),
+# Promtail could not reach Loki, and Envoy answered a citation click with "no healthy upstream"
+# because it could no longer resolve `grafana` (T5.5c, defect twenty-eight). No rule fired - a
+# Prometheus with no data has nothing to alert on - so the orchestrator spent nothing, which was luck.
+# The guard in `tests/test_deploy.py` now asserts both networks on every service this file touches.
 #
 # It publishes nothing and unpublishes nothing. **The world's own compose files publish a dozen
 # host ports** - 8080, 3000, 3100, 9090, 9093 and more - and a compose overlay cannot remove a
@@ -48,6 +60,7 @@ services:
   # Where alerts go. The world fires them; the platform is what listens.
   alertmanager:
     networks:
+      - default
       - faultline
     # **A second config file rather than an edit to the first.** `compose/prometheus/alertmanager.yml`
     # posts to `host.docker.internal:8000`, which is right on a development machine - the receiver
@@ -66,11 +79,13 @@ services:
   # Queried by the metrics specialist as `http://prometheus:9090`.
   prometheus:
     networks:
+      - default
       - faultline
 
   # Queried by the logs specialist as `http://loki:3100`.
   loki:
     networks:
+      - default
       - faultline
 
   # Two jobs. The traces specialist reaches Jaeger through it at
@@ -86,4 +101,5 @@ services:
   # `tests/test_deploy.py` now checks every key here against `injector.world.SERVICE_CONTAINERS`.
   frontendproxy:
     networks:
+      - default
       - faultline
