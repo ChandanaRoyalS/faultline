@@ -1,0 +1,7 @@
+incident 12047346-f5df-402e-b608-c6cc9eb058f6  state triaging  anchor 19:38:15
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: earliest alerting service (no error-ratio series available)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T193505Z-product-catalog-flag-failure/12047346-f5df-402e-b608-c6cc9eb058f6-verdict.json

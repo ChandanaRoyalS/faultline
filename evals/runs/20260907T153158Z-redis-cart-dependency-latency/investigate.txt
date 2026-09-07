@@ -1,0 +1,41 @@
+incident 8bb7a7bf-1abb-4aa2-b2af-0dea3eb27dbb  state triaging  anchor 15:35:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing
+trajectory: 1a811f45-65e9-4036-936e-41d668b84e4d
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four services including cartservice, checkoutservice and frontend alerted simultaneously, which is more than a single isolated warning and spans the checkout path rather than the load generator alone. The synchronous onset across a shared call chain suggests a common downstream dependency, but nothing here can be dismissed without evidence.
+investigation: 2 round(s), 6 dispatch(es), 19 step(s) 1 failed dispatch(es)
+  FAILED DISPATCH proposer: schema validation failed twice (1 validation error for Proposal
+confirm_within_seconds_note
+  Extra inputs are not permitted [type=extra_forbidden, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden)
+
+context: 16743 pushed / 8040 pulled (pull rate 0.3244), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_e24f457d6c26, tr_f278917582f6, tr_adda4309014f
+  root cause  : Cart cache round trips are uniformly slow and the wait, not any error inside cartservice, is what breaks a slice of frontend requests. Traces show cartservice server spans spending essentially all their time in Redis client spans (HGET/HMSET ~300-306ms each, only ~1-3ms of in-process overhead), while every other downstream in the same traces stays under ~20ms; the delay propagates to frontend GetCart ~304-308ms, frontend AddItem ~909-919ms and checkoutservice PlaceOrder ~635-649ms. Frontend's error ratio stepped off an exactly-zero baseline at 15:13:45Z to ~2.8% mean / ~12% peak, the shape of timeout-driven partial failure rather than a hard break, and both cartservice and checkoutservice keep logging successful operations through the window close. The quantized ~300ms-per-operation signature matches the 300ms eth0 egress delay platform-automation repeatedly attached to cartservice in this environment, so the live mechanism is most likely injected/residual network delay on cartservice's path to its Redis cache.
+  OPEN        : Whether the traffic-shaping container is actually absent from the cartservice pod now; the change log's removal claim is untrusted and no dispatch observed live network state.
+  OPEN        : Traces carried no timestamps or status codes and were truncated at 200 spans, so the slow spans cannot be pinned to the 15:13-15:36 sub-window or tied to specific errored requests.
+  OPEN        : Redis-cart itself was never queried directly (latency, CPU, connections), so a slow cache backend rather than injected path delay is not excluded.
+  OPEN        : Both log queries elided the middle of the window, including 15:13-15:35, so the onset moment was never directly observed.
+
+=== FLAGGED ===
+  proposer produced no valid findings: schema validation failed twice (1 validation error for Proposal
+confirm_within_seconds_note
+  Extra inputs are not permitted [type=extra_forbidden, input_value=None, input_type=NoneType]
+    For further information visit https://errors.pydantic.dev/2.13/v/extra_forbidden)
+
+retrieval: exclude_origin='scenario:redis-cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T153158Z-redis-cart-dependency-latency/8bb7a7bf-1abb-4aa2-b2af-0dea3eb27dbb-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T153158Z-redis-cart-dependency-latency/8bb7a7bf-1abb-4aa2-b2af-0dea3eb27dbb-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 12725.36it/s]

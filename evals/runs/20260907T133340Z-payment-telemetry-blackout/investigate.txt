@@ -1,0 +1,46 @@
+incident d6549498-3f86-41b2-a4d7-48f273164da0  state triaging  anchor 13:39:45
+triage: 3 services, severity critical, start from paymentservice, 2 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 7efa99cf-57f2-40a6-b6c3-38046218e851
+triage judged: investigate (medium confidence, suspects unknown)
+  A single critical alert on paymentservice, a payment-path service whose failure reaches checkout and frontend, is not something that can be dismissed without evidence. No open incidents to attribute it to, and the alert alone does not indicate a fault class.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : paymentservice
+  expect      : Restoring paymentservice's environment to its pre-13:33:46 state removes OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4317, so the SDK falls back to the collector address it used before the automation change. Observable as: (a) new paymentservice spans appearing in Jaeger with timestamps after the recreate, at the same ~0.2ms Charge shape already seen [tr_d06d90259289]; (b) the Prometheus series calls_total{service_name="paymentservice"} returning a non-empty result for the first time in the queried period, which would make the error-ratio query in [tr_f49056f54bc3] evaluable rather than empty; (c) paymentservice logs continuing to show the same info-level charge/transaction-complete pairs with no new error lines after the container recreate [tr_c7f597425245]. Note that the primary claimed effect here is restoration of a telemetry signal, not restoration of a customer-facing behaviour — payment processing is already working and should be unchanged.
+  within      : 600s
+  risk        : The container is recreated, so paymentservice drops in-flight Charge RPCs for the duration of the restart. Since the logs show a steady stream of completing charges through 13:41 [tr_c7f597425245], this will fail real transactions during the recreate window — a working payment path is being interrupted to fix an observability signal. If the diagnosis is wrong and the loopback endpoint was not the mechanism, that interruption buys nothing and the alert persists. There is also a second-order risk: reverting to 'unset' means the SDK uses its compiled default (typically localhost:4317 in some OTel SDKs), which could be the same dead address — in which case the revert is a no-op with a restart's cost attached. Whoever executes this should confirm what the pre-change effective endpoint resolved to before recreating. Finally, the container-replacement already visible in the logs (hostname/pid change, timing unknown) [tr_c7f597425245] means process state is not well understood; a second recreate adds another uncorrelated identity change to the log record.
+  blast radius: One service directly: paymentservice. checkoutservice calls Charge on it and will see connection resets or gRPC UNAVAILABLE during the recreate; its error ratio, currently flat zero with 128 samples [tr_62543eb6d8ea], should show a brief nonzero excursion and then return to zero — if it does not return to zero, the revert made things worse. frontend sits behind checkoutservice and will surface any failed checkouts to users as errors for the length of the recreate. If the reverted value causes spans to move to a real collector, that collector sees new inbound OTLP traffic from paymentservice; no other service's data path changes, since the reverted key is telemetry export only and touches no payment logic, routing, or credential [tr_cd18537d2944].
+  if wrong    : Falsified if, ten minutes after the revert, calls_total{service_name="paymentservice"} still returns no samples and no post-revert-timestamped paymentservice spans appear in Jaeger. That is a live possibility rather than a remote one: the metric gap is not onset-correlated — the ~3h baseline before the config change is equally empty [tr_f49056f54bc3] — so the loopback endpoint cannot be the whole cause of the missing series, and the exporter may have been misdirected earlier or that series may never have existed under this name. Also falsified if the 13:39:45 critical alert is still firing after the revert, which would confirm the alert derives from a source never identified in this investigation [tr_f49056f54bc3] and that this change addresses a different problem than the one that paged. A third falsifier: if paymentservice error or exception lines appear after the recreate, the pre-change configuration was not in fact benign.
+  rests on    : tr_cd18537d2944, tr_f49056f54bc3, tr_c7f597425245
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 19559 pushed / 9196 pulled (pull rate 0.3198), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_cd18537d2944, tr_f49056f54bc3, tr_c7f597425245, tr_d06d90259289, tr_62543eb6d8ea
+  root cause  : The only change in the causal window is an automated environment update on paymentservice five minutes before onset that set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT to http://127.0.0.1:4317 — a loopback address, where no OTLP collector listens from inside the payment container [tr_cd18537d2944]. The value itself is wrong: spans emitted by paymentservice are shipped to a dead local endpoint, so paymentservice's span-derived telemetry (calls_total, and the error-ratio series built on it) has nothing behind it [tr_f49056f54bc3], while the service's own request path keeps working — charges continue to complete on both sides of 13:39:45 with no error, warn, or exception output at all [tr_c7f597425245], and the paymentservice Charge spans that were captured are fast (~0.2ms) and correctly parented under checkoutservice [tr_d06d90259289]. checkoutservice, the caller, shows a flat-zero error ratio with a full complement of samples, so no payment failure was propagating to it [tr_62543eb6d8ea]. The failing mechanism is therefore a telemetry-visibility failure on paymentservice caused by a misconfigured exporter endpoint, not a failure of payment processing; the critical alert reflects the disappearance of paymentservice's observability signal rather than customer-visible payment errors.
+  OPEN        : What actually fired the 13:39:45 critical alert: the paymentservice error-ratio series it would most obviously derive from has no samples in either window [tr_f49056f54bc3], so the alerting signal came from some other source that was never identified.
+  OPEN        : The metric gap is not onset-correlated — the ~3h baseline is equally empty [tr_f49056f54bc3], which predates the 13:33 config change by hours. Either paymentservice never had a calls_total series under that name, or the exporter was already misdirected earlier; the loopback change alone does not explain the baseline emptiness.
+  OPEN        : Whether paymentservice spans stop arriving in Jaeger after ~13:34. The trace result was capped at 200 spans over five trace ids with no per-span timestamps, so the before/after question is explicitly unresolved [tr_d06d90259289].
+  OPEN        : The hostname/pid change between the oldest and newest payment log lines indicates a container replacement at an undetermined time [tr_c7f597425245]; its cause and timing (and whether it was the mechanism by which the new env var took effect) were never established.
+  OPEN        : No paymentservice saturation, latency, restart-count or request-rate data was collected at all [tr_f49056f54bc3], so resource pressure on the service is unmeasured rather than excluded.
+  OPEN        : Triage recorded two unmeasured edges and a third affected service that no dispatch examined; whatever symptom made this critical across three services is unaccounted for.
+
+flags: none
+
+retrieval: exclude_origin='scenario:payment-telemetry-blackout', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T133340Z-payment-telemetry-blackout/d6549498-3f86-41b2-a4d7-48f273164da0-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260907T133340Z-payment-telemetry-blackout/d6549498-3f86-41b2-a4d7-48f273164da0-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7920.02it/s]

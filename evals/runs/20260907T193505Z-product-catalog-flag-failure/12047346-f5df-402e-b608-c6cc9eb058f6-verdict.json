@@ -1,0 +1,42 @@
+{
+  "incident_id": "12047346-f5df-402e-b608-c6cc9eb058f6",
+  "trajectory_id": "cad0197b-4309-45dd-95dc-ebd14ef980c1",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "product-catalog-flag-failure",
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "summary": "suspect: earliest alerting service (no error-ratio series available); class: no change on any alerting service before onset; remediation: table lookup from dependency_latency",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "frontend",
+    "fault_class": "dependency_latency",
+    "fix_class": "restart",
+    "why": [
+      "suspect: earliest alerting service (no error-ratio series available)",
+      "class: no change on any alerting service before onset",
+      "remediation: table lookup from dependency_latency"
+    ]
+  }
+}

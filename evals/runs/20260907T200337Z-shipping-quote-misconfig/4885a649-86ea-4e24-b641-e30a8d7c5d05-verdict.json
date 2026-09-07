@@ -1,0 +1,46 @@
+{
+  "incident_id": "4885a649-86ea-4e24-b641-e30a8d7c5d05",
+  "trajectory_id": "40c1dc96-64b9-4c5a-bf9e-294e739bf288",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "accountingservice",
+    "emailservice",
+    "frauddetectionservice",
+    "quoteservice",
+    "cartservice",
+    "currencyservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "shipping-quote-misconfig",
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "summary": "suspect: earliest alerting service (no error-ratio series available); class: no change on any alerting service before onset; remediation: table lookup from dependency_latency",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "checkoutservice",
+    "fault_class": "dependency_latency",
+    "fix_class": "restart",
+    "why": [
+      "suspect: earliest alerting service (no error-ratio series available)",
+      "class: no change on any alerting service before onset",
+      "remediation: table lookup from dependency_latency"
+    ]
+  }
+}

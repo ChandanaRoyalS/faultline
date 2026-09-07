@@ -23,7 +23,7 @@ shows is `20260907T103142Z-cart-redis-misconfig`: `bad_config` against `bad_conf
 
 ## Results at a glance
 
-**Culprit service 21 / 21 at the shipping stamp; fault class 14 / 15 where a class was named, six
+**Culprit service 24 / 26 at the shipping stamp; fault class 17 / 18 where a class was named, eight
 abstentions.** Those are the headline figures and this table is where each of them comes from, one
 scenario per row. The long form — the baseline arm, the variance finding, what the numbers are not —
 is in [Results](#results) below and in [`docs/RESULTS.md`](docs/RESULTS.md).
@@ -45,30 +45,36 @@ world at all; the zeros are the record. R=1 everywhere, so no row is reproducibl
 | `cart-dependency-latency` | dev | 4 | 4 / 4 | 0 | 4 / 4 | 7 | 7 / 7 |
 | `cart-redis-misconfig` | dev | 4 | 2 / 2 | 2 | 4 / 4 | 10 | 7 / 8 |
 | `frauddetection-memory-squeeze` | dev | 4 | 4 / 4 | 0 | 4 / 4 | 7 | 7 / 7 |
-| `payment-telemetry-blackout` | dev | 0 | — | 0 | — | 5 | 4 / 4 |
-| `product-catalog-flag-failure` | dev | 0 | — | 0 | — | 1 | 1 / 1 |
-| `redis-cart-dependency-latency` | dev | 0 | — | 0 | — | 3 | 3 / 3 |
-| `shipping-quote-misconfig` | dev | 0 | — | 0 | — | 1 | 0 / 1 |
-| `shipping-wrong-image` | dev | 0 | — | 0 | — | 1 | 1 / 1 |
+| `payment-telemetry-blackout` | dev | 1 | 1 / 1 | 0 | 1 / 1 | 6 | 5 / 5 |
+| `product-catalog-flag-failure` | dev | 1 | 1 / 1 | 0 | 0 / 1 | 2 | 2 / 2 |
+| `redis-cart-dependency-latency` | dev | 1 | 1 / 1 | 0 | 0 / 1 | 4 | 4 / 4 |
+| `shipping-quote-misconfig` | dev | 1 | — | 1 | 1 / 1 | 2 | 0 / 1 |
+| `shipping-wrong-image` | dev | 1 | — | 1 | 1 / 1 | 2 | 1 / 1 |
 | `email-wrong-image` | holdout | 0 | — | 0 | — | 0 | — |
 | `productcatalog-dependency-latency` | holdout | 0 | — | 0 | — | 0 | — |
 | `recommendation-memory-squeeze` | holdout | 0 | — | 0 | — | 0 | — |
-| **all** | | **21** | **14 / 15** | **6** | **21 / 21** | **52** | **38 / 42** |
+| **all** | | **26** | **17 / 18** | **8** | **24 / 26** | **57** | **41 / 45** |
 
 Regenerate with `uv run python -m evalharness.scenario_table --write`; `tests/test_scenario_table.py` fails when this block and the tree disagree.
 <!-- scenario-table:end -->
 
-**Read the abstentions before the accuracy.** 6 of 21 runs at this stamp named no class, and the
+**Read the abstentions before the accuracy.** 8 of 26 runs at this stamp named no class, and the
 system is built to say `unknown` rather than guess — coverage and accuracy are reported apart on
-purpose ([ADR-0022](docs/adr/0022-evaluation-harness.md)). And 5 of the 10 dev scenarios and
-all 3 holdout scenarios have **no run at this stamp**. Every one of the 13 has been scored at least
-once across the three world generations in [`evals/runs/`](evals/runs/) — the earlier-world figures
-are in [`docs/RESULTS.md`](docs/RESULTS.md) under their own generation — but the pipeline this
-repository ships has been measured on five scenarios. The five dev rows are a gap in the record and
-are being filled (dev sweep 11, pre-registered). The holdout rows will stay at zero: the set has been
-entered three times and a fourth entry is blocked by
-[ADR-0029](docs/adr/0029-four-fault-classes-and-why-there-is-no-fifth.md) — a three-scenario
-holdout read four times is not a holdout.
+purpose ([ADR-0022](docs/adr/0022-evaluation-harness.md)). On both runs of dev sweep 11 that
+abstained it still named the culprit service correctly, which is the shape of abstention worth
+having.
+
+**Two of the two service misses are structural, and the record says which kind they are.** The
+targets are `featureflagservice`, which is in the service catalog and emits no spans, and
+`redis-cart`, which is not in the catalog at all — so no blast radius could contain either
+([`SWEEP-2026-09-07-sweep11.md`](evals/runs/SWEEP-2026-09-07-sweep11.md) §3). They are counted as
+misses anyway.
+
+**10 of the 10 dev scenarios carry a run at this stamp; 0 of the 3 holdout scenarios do**, and none
+will: the set has been entered three times and a fourth entry is blocked by
+[ADR-0029](docs/adr/0029-four-fault-classes-and-why-there-is-no-fifth.md) — a three-scenario holdout
+read four times is not a holdout. Every one of the 13 has been scored at least once across the three
+world generations in [`evals/runs/`](evals/runs/).
 
 ## Prerequisites
 

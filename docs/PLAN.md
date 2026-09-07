@@ -1284,6 +1284,7 @@ rather than on whether it did what the column said. Both are corrected below.
 | **T5.5** deploy | live instance at a stable URL + documented deploy procedure | **live: `https://faultline.chandanasorakundla.com`** (T5.5c). TLS, 401/404/401 from outside, firewall verified from another machine, uptime check armed, three incidents restored, **and one opened and investigated by the deployment itself.** Nine defects found and closed by running the procedure on the machine it was written for (twenty-three to thirty-one); §3.7 exercised forward five times |
 | **T5.6** gap audit *(not a spec task)* | one pass over every Phase 5 file against both the proposal and the plan; four lists | **done 2026-09-07.** Five gaps fixed (the proposal rendered and narrated, the incident list and root URL, the per-scenario table up top with its staleness guard, four stale documents, finding thirty-three); the already-correct, not-gaps and cannot-fix lists are in the entry below |
 | **T5.7** service-axis name space *(not a spec task)* | ADR-0017's marked decision, settled by its first consumer; the blindness recorded on every run | **done 2026-09-07.** `evalharness.visibility` reports target visibility beside the service axis and changes no score; ADR-0017 Addendum 3 decides infrastructure belongs in the catalog; Q27 (catalog, moves the capability) and Q28 (prompt ablation, moves the stamp) carry the executions |
+| **dev sweep 11** *(measurement, not a task)* | first observation of the other five dev scenarios at the shipping stamp, both arms, pre-registered | **done 2026-09-07, \$3.3901.** 8 of 9 predictions held; fault class 3/3 answered, service 3/5 with both misses structural, two abstentions that both localised correctly. Findings thirty-five (proposer contract, Q29) and the duplicate B0 arm are recorded in the sweep document |
 
 ### T5.3c — the video, three takes, and the trace backend's NaN
 
@@ -1404,6 +1405,44 @@ behind Q26.
 `shipping-quote-misconfig`, `shipping-wrong-image`. Every one has run on the current world at
 `1b0e7cbb4c47`; none since. That is a first observation at this stamp, not a re-run, and it is dev
 sweep 11 (`PREREGISTRATION-2026-09-07-sweep11.md`): about \$3.50 in model calls, both arms.
+
+### Dev sweep 11 — the ten dev rows finished, and the miss that was described in advance *(2026-09-07)*
+
+Full accounting in [`SWEEP-2026-09-07-sweep11.md`](../evals/runs/SWEEP-2026-09-07-sweep11.md),
+against [its pre-registration](../evals/runs/PREREGISTRATION-2026-09-07-sweep11.md). **Eight of nine
+predictions held, \$3.3901, and every one of the ten dev scenarios now carries a run at
+`prompts:b6837dd449ca`** — which was the point: T5.3's column asks for a ten-scenario table and five
+of README's rows were zeros.
+
+| | pipeline | B0.2 |
+|---|---|---|
+| fault class, of answered | **3 / 3** | 2 / 5 |
+| coverage | 3 of 5 (two abstentions) | 5 of 5 |
+| fix class, of answered | 2 / 3 | 2 / 5 |
+| culprit service | **3 / 5** | not scored — B0 names no service |
+| cost | \$3.3901 | \$0.0000 |
+
+**Prediction 3 failed exactly where it said it would**, and that is the sweep's finding: the two
+service misses are `featureflagservice` (in the catalog, no spans) and `redis-cart` (not in the
+catalog), the pair the registration named in advance as *"a finding about the service axis's name
+space"* rather than a plain miss. T5.7 is what came of it. **On both abstaining runs the pipeline
+named the culprit service correctly anyway** — an abstention that localises is the shape worth
+having, and at n=2 it is an observation.
+
+**Prediction 6 fired.** `redis-cart-dependency-latency` returned `config_revert` against a `restart`
+label for the third time in four current-world runs. The registered consequence is T7.17's
+experiment — measure whether clearing the netem qdisc fixes *this* one durably, as it does for
+`cart-dependency-latency` — not a scorer edit, and it has not been run.
+
+**Two things prediction 9 did not cover.** **Thirty-five: the proposer produced nothing on one run**
+— it emitted `confirm_within_seconds_note` beside an otherwise well-formed proposal, `Proposal`
+forbids extra keys, and the whole thing was refused twice and escalated. That is Q25b's finding one
+contract over: a verdict may carry an unexpected key and be recorded (both B0 verdicts in this sweep
+carried `summary` and were), a proposal may not and is discarded. **Queued as Q29**, because changing
+the policy mid-record would make the last runs of a sweep a different pipeline from the first. And
+**the B0 arm was run twice** — operator error, \$0.0000, both arms kept: arm A is the sweep's B0
+column, arm B is reported as the first R=2 observation of the baseline at a fixed stamp and agrees
+with arm A on all five scenarios.
 
 ### T5.7 — the service axis's name space, and the decision ADR-0017 left for its first consumer *(2026-09-07)*
 

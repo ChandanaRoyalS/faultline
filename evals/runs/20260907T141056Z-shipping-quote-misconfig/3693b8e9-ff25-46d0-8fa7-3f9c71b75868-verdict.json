@@ -1,0 +1,165 @@
+{
+  "incident_id": "3693b8e9-ff25-46d0-8fa7-3f9c71b75868",
+  "trajectory_id": "77552758-61ce-4cc4-80a3-4ff160f1b18d",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:shipping-quote-misconfig",
+  "verdict": {
+    "root_cause": "PlaceOrder requests fail inside prepareOrderItemsAndShippingQuoteFromCart when checkoutservice's client call to shippingservice GetQuote returns an immediate error [tr_223adf112801]. The checkout-side span is flagged ERROR while shippingservice's own server span and its outbound HTTP client span are not, so shippingservice is returning a bad status to its caller rather than crashing or stalling. Failure is fast (2-3ms spans, 8-12ms traces), intermittent (~3.9% mean, ~28% peak error ratio with an abrupt change point at 14:12 from a hard-zero baseline) [tr_124b185093c5], and unlogged by checkoutservice, which keeps admitting traffic and simply emits no post-entry stages [tr_39bd55e3452a]. checkoutservice has no changes of its own [tr_8260768eae1d]; the downstream shipping quote path is the failing mechanism. No shippingservice change record, config, or resource evidence was gathered, so the underlying mechanism inside shippingservice is not pinned down.",
+    "service": "shippingservice",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_223adf112801",
+      "tr_124b185093c5",
+      "tr_39bd55e3452a",
+      "tr_8260768eae1d"
+    ],
+    "reasoning": "Traces localize the fault precisely: every sampled PlaceOrder terminates at the checkoutservice->shippingservice GetQuote span with ERROR, with cart, Redis, productcatalog, and currency children all clean, and payment/email/Kafka never reached [tr_223adf112801]. That explains the propagation pattern in triage - checkoutservice alerted first as the caller that noticed, and loadgenerator/accountingservice/quoteservice followed. quoteservice alerting is consistent with shippingservice's quote path being the locus. Metrics establish an abrupt regime change at 14:12 from a zero-variance baseline and a partial, spiky error rate, which matches an error affecting a subset of quote requests rather than a total outage [tr_124b185093c5]. Logs rule out checkoutservice restart, OOM, traffic loss, and currency-specific failure [tr_39bd55e3452a]. No dispatch touched shippingservice's changes, logs, metrics, or resources, so while the failing component is well identified, the mechanism class is not: fast error returns are equally consistent with a bad shippingservice artifact, a wrong config value in its quote path, or its own failing upstream. paymentservice's set-then-revert OTLP endpoint edit leaves no net config delta and its metric series is simply absent for reasons predating the incident [tr_3176679459c4, tr_f24e68e7ef86], and emailservice has no changes [tr_630b5273ca56]; both are downstream of where execution stops.",
+    "open_questions": [
+      "What change, if any, landed on shippingservice at or just before 14:12 - no change-log query was run against it.",
+      "What status code and error message shippingservice returns to checkoutservice on the failing GetQuote calls, and whether shippingservice's own logs record them.",
+      "Why only ~4% of requests fail: whether one replica of shippingservice is bad, or a specific input class (address, item mix) triggers the error.",
+      "Whether shippingservice depends on quoteservice for the quote calculation, which would make quoteservice's 14:17 alert causal rather than consequent."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "quoteservice, which shippingservice calls to compute quotes, is returning errors that shippingservice propagates to checkoutservice.",
+        "service": "quoteservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "quoteservice alerted at 14:17, five minutes after the 14:12 change point, and the shippingservice-side outbound HTTP client span is not flagged ERROR in the sampled traces [tr_223adf112801], so the error appears to originate at or before shipping's response rather than in its upstream call."
+      },
+      {
+        "root_cause": "A bad artifact or wrong config value deployed to shippingservice at ~14:12 makes a fraction of GetQuote calls return an immediate error.",
+        "service": "shippingservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Plausible and consistent with the abrupt zero-variance-to-error change point, but entirely unverified - no change record, log line, or version evidence for shippingservice was collected, so naming bad_deploy over bad_config or an internal resource limit would be a guess."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25668,
+    "pulled_tokens": 7091,
+    "pull_rate": 0.2165,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 464,
+        "content_tokens": 467,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1418,
+        "content_tokens": 1422,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7968,
+        "content_tokens": 7945,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7309,
+        "content_tokens": 7311,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8509,
+        "content_tokens": 8512,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_223adf112801",
+      "tr_124b185093c5",
+      "tr_8260768eae1d"
+    ],
+    "expected_effect": "No action is proposed, so no metric should change. The state to keep watching is unchanged: checkoutservice error ratio (sum by(service_name) (rate(calls_total{service_name=\"checkoutservice\",status_code=\"STATUS_CODE_ERROR\"}[2m])) / total) staying near its ~3.9% mean with ~28% peaks, and PlaceOrder traces continuing to terminate at the checkoutservice -> shippingservice GetQuote client span. The next step is investigation, not remediation: a change_history query against shippingservice covering the hours before 14:12, shippingservice's own logs for the status code and message returned on failing GetQuote calls, and a per-replica or per-input breakdown to explain why only ~4% of calls fail.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "This abstention is wrong if a change_history query against shippingservice returns a deploy, image-tag, or config change landing at or just before 14:12 - that would satisfy rollback_image's or revert_config's preconditions and make a targeted rollback the right move. It is also wrong if shippingservice logs show a crash-loop, climbing restart count, or an in-process state fault (poisoned cache entry, exhausted connection pool) that restart_service would clear. Note the evidence board contains no shippingservice-side signal at all - no change record, no logs, no metrics - so nothing here could currently show a restart or rollback of shippingservice having its intended effect; an action taken now would be unmeasurable on the target itself and judged only through checkoutservice's error ratio, which is too indirect to attribute.",
+    "risk": "Acting anyway would carry real cost. restart_service on shippingservice is irreversible and discards in-process cache; if the mechanism is a bad input class or a downstream dependency (the open question of whether shippingservice calls quoteservice, whose 14:17 alert may be causal rather than consequent), the restart changes nothing and destroys the process state holding the diagnostic evidence - a bad replica's error pattern, connection state, in-flight counters. It would also reset the error clock, making the intermittent ~4% signal harder to attribute and inviting a second, larger intervention. rollback_image or revert_config with no recorded prior tag or config would either fail outright or move shippingservice into an untested state, manufacturing a second fault on top of the first.",
+    "blast_radius": "Nobody, for the abstention itself. Had an action been taken on shippingservice, the container recreate would reset connections seen by checkoutservice (its named inbound caller on this trace path) and propagate up through frontend PlaceOrder and the frontend HTTP root span, so frontend and loadgenerator would see it too; quoteservice would see traffic move if shippingservice depends on it. The cost of abstaining is that the ~3.9% mean / ~28% peak checkout failure rate keeps reaching frontend and end users until shippingservice-side evidence is gathered."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service incident starting at checkoutservice and spreading to accountingservice and quoteservice, with no open incident to attribute it to. The fanout pattern doesn't point clearly at a single cause yet, so the fault class stays unknown."
+  }
+}

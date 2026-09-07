@@ -59,16 +59,23 @@ def test_the_headline_prose_matches_the_table_it_summarises() -> None:
     abstained = re.search(r"(\d+) of (\d+) runs at this stamp named no class", after)
     assert abstained and tuple(map(int, abstained.groups())) == (total.abstained, total.n)
 
-    unrun = re.search(r"(\d+) of the (\d+) dev scenarios and\s+all (\d+) holdout scenarios", after)
-    assert unrun, "the sentence about what has not been run is still there"
+    # **Coverage is a claim about the tree too, and it moved.** The first version of this assertion
+    # matched *"5 of the 10 dev scenarios … have no run at this stamp"*, which was true for a day.
+    # Dev sweep 11 filled the five, so the sentence and the regex both say the positive thing now -
+    # and it is still read back from the rows rather than trusted.
     dev = [r for r in rows if r.split == "dev"]
     holdout = [r for r in rows if r.split == "holdout"]
-    assert tuple(map(int, unrun.groups())) == (
-        sum(1 for r in dev if r.at_stamp.n == 0),
+    covered = re.search(r"(\d+) of the (\d+) dev scenarios carry a run at this stamp", after)
+    assert covered, "the sentence about coverage at this stamp is still there"
+    assert tuple(map(int, covered.groups())) == (
+        sum(1 for r in dev if r.at_stamp.n > 0),
         len(dev),
+    )
+    unrun = re.search(r"(\d+) of the (\d+) holdout scenarios do", after)
+    assert unrun and tuple(map(int, unrun.groups())) == (
+        sum(1 for r in holdout if r.at_stamp.n > 0),
         len(holdout),
     )
-    assert all(r.at_stamp.n == 0 for r in holdout), "the sentence says *all* holdout"
     assert re.search(r"Every one of the (\d+) has been scored", after).group(1) == str(len(rows))
 
 
