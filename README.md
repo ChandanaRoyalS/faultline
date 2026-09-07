@@ -21,6 +21,55 @@ deployment showing an incident it opened and investigated by itself, and the eva
 shows is `20260907T103142Z-cart-redis-misconfig`: `bad_config` against `bad_config`, \$0.71.
 [How it was made, and the two takes it replaced](docs/demo/README.md#the-video).
 
+## Results at a glance
+
+**Culprit service 21 / 21 at the shipping stamp; fault class 14 / 15 where a class was named, six
+abstentions.** Those are the headline figures and this table is where each of them comes from, one
+scenario per row. The long form — the baseline arm, the variance finding, what the numbers are not —
+is in [Results](#results) below and in [`docs/RESULTS.md`](docs/RESULTS.md).
+
+<!-- scenario-table:begin -->
+Per scenario. The first four columns are at `prompts:b6837dd449ca`, the stamp this
+repository ships, on the current world (`f5bd108f4f70`): scored runs only, demos and the B0
+arm excluded. `class` and `service` are correct / answered; abstentions are counted in
+`abst`, not as wrong. The last two columns pool every stamp on this world - **context,
+not a figure**: a prompt change is a different pipeline, and the pooled column is here so
+a reader can see how thin `n` is at any one stamp. Holdout scenarios have no run on this
+world at all; the zeros are the record. R=1 everywhere, so no row is reproducible to ±1
+(RESULTS.md).
+
+| scenario | split | n | class | abst | service | n, all stamps | class, all stamps |
+|---|---|---:|---:|---:|---:|---:|---:|
+| `ad-memory-squeeze` | dev | 4 | 2 / 2 | 2 | 4 / 4 | 8 | 5 / 5 |
+| `cart-bad-image-tag` | dev | 5 | 2 / 3 | 2 | 5 / 5 | 9 | 3 / 5 |
+| `cart-dependency-latency` | dev | 4 | 4 / 4 | 0 | 4 / 4 | 7 | 7 / 7 |
+| `cart-redis-misconfig` | dev | 4 | 2 / 2 | 2 | 4 / 4 | 10 | 7 / 8 |
+| `frauddetection-memory-squeeze` | dev | 4 | 4 / 4 | 0 | 4 / 4 | 7 | 7 / 7 |
+| `payment-telemetry-blackout` | dev | 0 | — | 0 | — | 5 | 4 / 4 |
+| `product-catalog-flag-failure` | dev | 0 | — | 0 | — | 1 | 1 / 1 |
+| `redis-cart-dependency-latency` | dev | 0 | — | 0 | — | 3 | 3 / 3 |
+| `shipping-quote-misconfig` | dev | 0 | — | 0 | — | 1 | 0 / 1 |
+| `shipping-wrong-image` | dev | 0 | — | 0 | — | 1 | 1 / 1 |
+| `email-wrong-image` | holdout | 0 | — | 0 | — | 0 | — |
+| `productcatalog-dependency-latency` | holdout | 0 | — | 0 | — | 0 | — |
+| `recommendation-memory-squeeze` | holdout | 0 | — | 0 | — | 0 | — |
+| **all** | | **21** | **14 / 15** | **6** | **21 / 21** | **52** | **38 / 42** |
+
+Regenerate with `uv run python -m evalharness.scenario_table --write`; `tests/test_scenario_table.py` fails when this block and the tree disagree.
+<!-- scenario-table:end -->
+
+**Read the abstentions before the accuracy.** 6 of 21 runs at this stamp named no class, and the
+system is built to say `unknown` rather than guess — coverage and accuracy are reported apart on
+purpose ([ADR-0022](docs/adr/0022-evaluation-harness.md)). And 5 of the 10 dev scenarios and
+all 3 holdout scenarios have **no run at this stamp**. Every one of the 13 has been scored at least
+once across the three world generations in [`evals/runs/`](evals/runs/) — the earlier-world figures
+are in [`docs/RESULTS.md`](docs/RESULTS.md) under their own generation — but the pipeline this
+repository ships has been measured on five scenarios. The five dev rows are a gap in the record and
+are being filled (dev sweep 11, pre-registered). The holdout rows will stay at zero: the set has been
+entered three times and a fourth entry is blocked by
+[ADR-0029](docs/adr/0029-four-fault-classes-and-why-there-is-no-fifth.md) — a three-scenario
+holdout read four times is not a holdout.
+
 ## Prerequisites
 
 - **Docker**, running, with room for ~20 containers. `make world-up` clones the pinned
@@ -488,9 +537,10 @@ the same port:
 FAULTLINE_API_PASSWORD=local-only make ui
 ```
 
-Then `http://localhost:8000/api/v1/incidents` for the list, and
-`http://localhost:8000/ui/incidents/<id>` for one incident's timeline, verdict, evidence cards and
-citation deep-links. **The password is mandatory and has no default** — the screen serves every log
+Then `http://localhost:8000/` — it lands on the incident list, and each row opens
+`/ui/incidents/<id>`: that incident's timeline, verdict with its open questions, the remediation
+proposal with its risk note and the line saying it was not executed, evidence cards and citation
+deep-links. `/api/v1/incidents` and `/api/v1/incidents/<id>` are the JSON the pages poll. **The password is mandatory and has no default** — the screen serves every log
 line an agent quoted and every query it ran. To put it on a URL, see
 [`deploy/README.md`](deploy/README.md).
 

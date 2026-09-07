@@ -1282,6 +1282,7 @@ rather than on whether it did what the column said. Both are corrected below.
 | **T5.3** docs pack | README · ARCHITECTURE · THREAT-MODEL · demo video · MVP bullets | **5 of 5.** ARCHITECTURE, THREAT-MODEL, README's Results block at `b6837dd449ca`, `docs/MVP-CUT.md`, and the four-minute video attached to `v0.1` — a correct `bad_config` on the reference platform, the incident screen, the live deployment, the table. Three takes; `docs/demo/README.md` records the two it replaced and why (T5.3c) |
 | **T5.4** MVP release | tag v0.1, clean-clone rehearsal *on a fresh machine* | **complete.** Rehearsal on a fresh x86 VM (T5.4c) — every `docs/RELEASE.md` §3 item executed there — and `v0.1` tagged on the commit that declares G5. Findings eighteen to twenty-two on the way |
 | **T5.5** deploy | live instance at a stable URL + documented deploy procedure | **live: `https://faultline.chandanasorakundla.com`** (T5.5c). TLS, 401/404/401 from outside, firewall verified from another machine, uptime check armed, three incidents restored, **and one opened and investigated by the deployment itself.** Nine defects found and closed by running the procedure on the machine it was written for (twenty-three to thirty-one); §3.7 exercised forward five times |
+| **T5.6** gap audit *(not a spec task)* | one pass over every Phase 5 file against both the proposal and the plan; four lists | **done 2026-09-07.** Five gaps fixed (the proposal rendered and narrated, the incident list and root URL, the per-scenario table up top with its staleness guard, four stale documents, finding thirty-three); the already-correct, not-gaps and cannot-fix lists are in the entry below |
 
 ### T5.3c — the video, three takes, and the trace backend's NaN
 
@@ -1320,6 +1321,79 @@ in three.
 (`20260907T094926Z`, `20260907T102934Z` — both the 300s settle window of a just-resolved incident,
 the second by four seconds), and a stray incident opened by the Jaeger restart itself and resolved
 unattended.
+
+### T5.6 — the Phase 5 gap audit, one pass, every file *(2026-09-07)*
+
+**Why a third audit after two.** The 2026-09-03 and 2026-09-06 audits graded the Phase 5 rows against
+the execution plan's deliverable column. This one read the proposal's Phase 5 wording as well — the
+MVP-cut bullets, the video's five beats, *"a URL to point at"* — against every file Phase 5 touched,
+before changing anything, and sorted what it found into four lists. The lists are the deliverable;
+the fixes are one branch.
+
+**Found and fixed.**
+
+- **The proposal was never shown.** The proposer has produced action, target, expected effect,
+  confirmation window, falsifier, risk and blast radius on every scored run since T3.9; the trajectory
+  stored it and `trajectory_proposals` indexed it; the incident screen rendered the verdict's
+  `remediation_class` and nothing else the proposer wrote. The specification's fourth video beat is
+  *"remediation as proposal"* and the MVP-cut bullet is *"proposals with risk notes"* — a risk note
+  nobody can read is not a deliverable. `view.incident_view` now carries `proposal` (catalog ids
+  structural, the four prose fields under `untrusted`, citations resolved from `rests_on`, and a
+  server-side `execution` line saying no executor exists), and the page renders it as a card. The
+  verdict's `open_questions` were in the payload since T5.1 and rendered nowhere; they are shown too.
+- **Thirty-three: the demo narrated `Class of fix: None` on every run it ever narrated.**
+  `evalharness.demo.verdict_story` read `verdict.get("class_of_fix")` — a key no verdict has had;
+  the field is `remediation_class`. Every transcript, including the one in `docs/demo/` and the take
+  in the video, printed `None` over a verdict that named the class. `demo.py` had no tests. It now
+  has `tests/test_demo_narration.py`, which reads the committed artifacts rather than a fixture, and
+  a structural check that every key the narration reads is a `Verdict` field. The demo also narrates
+  THE PROPOSAL now, ending on the sentence that nothing was executed. The transcript is not edited;
+  `docs/demo/README.md` marks the line.
+- **The hostname was not a URL to point at.** `GET /` answered 404 and `GET /ui/incidents` did not
+  exist; a visitor to the deployment had to be handed an incident id out of band. `/` redirects to
+  `/ui/incidents`, which lists newest first and links each row — behind the credential, `textContent`
+  only, with the browser test extended to the second page.
+- **README had no per-scenario table.** T5.3's column says *"the 10-scenario eval table up top"*;
+  the Results block was two hundred lines down and per fault class. `evalharness.scenario_table`
+  generates one row per valid scenario from `evals/runs/` — at the shipping stamp, current world,
+  scored runs only, demos and the B0 arm excluded, abstentions apart from errors — README embeds it
+  between markers under *Results at a glance*, and `tests/test_scenario_table.py` fails when the
+  block, or the three hand-written figures above it, disagree with the tree.
+- **Four documents described the deployment that did not exist yet.** THREAT-MODEL theses 2–4 each
+  ended on *"the moment anything is deployed"*; ARCHITECTURE listed *"authentication on any HTTP
+  surface"* as not built and had no deployment topology; MVP-CUT said *"\$6.49/month… deployable"*,
+  *"runs no investigation"*, *"GATES.md declares G0 only"*, *"nine defects"*; `docs/demo/README.md`
+  said 3 min 54 s of a 4 min 25 s video. Each is corrected as a dated addendum or an in-place sentence,
+  with the superseded wording kept where it was a historical statement.
+
+**Already correct, checked and left alone.** The Slack notifier end to end (T5.2, re-verified
+2026-09-06). Citation deep-links on the public URL (clicked, thirty-one). Basic auth read before the
+database connection, refused at startup. The receiver's 404 at the edge and its guard in
+`test_deploy`. The runner's two-attempt bound and settle window. The fourth compose layer's one-key
+guard. The uptime workflow's skip-when-unset. The release's tag, asset and README link (200).
+`docs/GATES.md`'s G5 row and section agree and the test that says so passes.
+
+**Not gaps, and why.** *Jaeger rather than Tempo* — the plan's T6.1 names Tempo; the world pins the
+demo's Jaeger and every deep link resolves to its uid; a swap is a world move and a Phase 6 task. *The
+Slack webhook is unset on the live instance* — the notifier renders a marked absence by design; setting
+it is an operational choice, not a missing build. *Rollback not exercised backward on the VM* — §3.7
+was rehearsed on the Mac and run forward five times on the VM; a backward run against a live database
+is a decision for its owner, not a gap in the procedure. *The video's length* — excluded by the
+reviewer's instruction. *Findings nineteen and twenty unfixed* — the fix moves the world generation
+under published figures; recorded, not a gap.
+
+**Cannot be fixed without changing scope.** Prometheus, Loki, Jaeger and Alertmanager unauthenticated
+on the deployment's internal network, and the model key in the container that reads telemetry —
+THREAT-MODEL's addendum names both; they are T6.8's. G4's latency clause. **The holdout at the
+shipping stamp** — entry 4 is blocked indefinitely by ADR-0029, not pending: a three-scenario set read
+a fourth time is not a holdout, and the extension that would reopen it is T7.0's work. Thirty-two,
+behind Q26.
+
+**In scope, and priced rather than left.** Five dev scenarios have no run at the shipping stamp —
+`payment-telemetry-blackout`, `product-catalog-flag-failure`, `redis-cart-dependency-latency`,
+`shipping-quote-misconfig`, `shipping-wrong-image`. Every one has run on the current world at
+`1b0e7cbb4c47`; none since. That is a first observation at this stamp, not a re-run, and it is dev
+sweep 11 (`PREREGISTRATION-2026-09-07-sweep11.md`): about \$3.50 in model calls, both arms.
 
 ### T5.5c — the deployment, run for the first time *(live at https://faultline.chandanasorakundla.com)*
 

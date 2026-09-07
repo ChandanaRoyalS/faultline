@@ -23,6 +23,7 @@ from typing import Any
 import pytest
 
 PAGE = Path("src/faultline/api/static/incident.html")
+LIST_PAGE = Path("src/faultline/api/static/incidents.html")
 
 CHROME = next(iter(glob.glob("/opt/pw-browsers/chromium-*/chrome-linux/chrome")), None)
 
@@ -115,7 +116,7 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(data)
             return
-        data = PAGE.read_bytes()
+        data = (LIST_PAGE if self.path == "/ui/incidents" else PAGE).read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", "text/html")
         self.send_header("Content-Length", str(len(data)))
@@ -126,22 +127,24 @@ class Handler(BaseHTTPRequestHandler):
         return
 
 
-def serve(body: dict[str, Any]) -> tuple[Stub, str]:
+def serve(body: dict[str, Any], path: str = "/ui/incidents/inc-1") -> tuple[Stub, str]:
     server = Stub(("127.0.0.1", 0), Handler)
     server.body = body
     threading.Thread(target=server.serve_forever, daemon=True).start()
-    return server, f"http://127.0.0.1:{server.server_port}/ui/incidents/inc-1"
+    return server, f"http://127.0.0.1:{server.server_port}{path}"
 
 
-def rendered(body: dict[str, Any]) -> tuple[Any, Any]:
+def rendered(
+    body: dict[str, Any], path: str = "/ui/incidents/inc-1", ready: str = "#evidence .card"
+) -> tuple[Any, Any]:
     from playwright.sync_api import sync_playwright
 
-    server, url = serve(body)
+    server, url = serve(body, path)
     with sync_playwright() as p:
         browser = p.chromium.launch(executable_path=CHROME)
         page = browser.new_page()
         page.goto(url)
-        page.wait_for_selector("#evidence .card", timeout=5000)
+        page.wait_for_selector(ready, timeout=5000)
         pwned = page.evaluate("() => window.__pwned === 1")
         html = page.content()
         browser.close()
@@ -187,13 +190,18 @@ def test_the_page_never_uses_innerhtml() -> None:
     """
     import re
 
-    source = PAGE.read_text()
-    code = re.sub(r"<!--.*?-->", "", source, flags=re.S)
-    code = re.sub(r"^\s*//.*$", "", code, flags=re.M)
+    for page in (PAGE, LIST_PAGE):
+        source = page.read_text()
+        code = re.sub(r"<!--.*?-->", "", source, flags=re.S)
+        code = re.sub(r"^\s*//.*$", "", code, flags=re.M)
 
-    for unsafe in ("innerHTML", "insertAdjacentHTML", "document.write", "outerHTML"):
-        assert unsafe not in code, f"{unsafe} is a path into the DOM that does not escape"
-    assert "innerHTML" in source, "the comment explaining why it is absent is still there"
+        for unsafe in ("innerHTML", "insertAdjacentHTML", "document.write", "outerHTML"):
+            assert unsafe not in code, (
+                f"{page.name}: {unsafe} is a path into the DOM that does not escape"
+            )
+        assert "innerHTML" in source, (
+            f"{page.name}: the comment explaining why it is absent is still there"
+        )
 
 
 # --- the citation is the demo's most convincing moment, so it has to work ----------------------
@@ -207,3 +215,107 @@ def test_a_resolved_citation_is_a_link_and_an_unresolved_one_is_not() -> None:
     assert 'href="/explore?left=%7B%7D"' in html
     assert "unresolved · tr_invented" in html
     assert "href" not in html.split("unresolved")[1][:80], "the unresolved cite is not a link"
+
+
+# --- the proposal and the open questions, rendered (T5.6's audit) -----------------------------
+
+
+def proposal(**overrides: Any) -> dict[str, Any]:
+    body: dict[str, Any] = {
+        "action_id": "revert-image-tag",
+        "target": "cartservice",
+        "remediation_class": "config_revert",
+        "confirm_within_seconds": 300,
+        "accepted": True,
+        "violations": [],
+        "escalated": False,
+        "execution": "not executed - no executor exists; a proposal is a claim, never the change",
+        "cites": [],
+        "untrusted": {
+            "expected_effect": HOSTILE,
+            "if_wrong": "errors persist",
+            "risk": "a brief restart",
+            "blast_radius": "cartservice only",
+        },
+    }
+    body.update(overrides)
+    return body
+
+
+def test_the_proposal_is_rendered_with_its_risk_note_and_the_execution_line() -> None:
+    """*"Remediation as proposals with risk notes"* is an MVP-cut bullet; before this the page
+    showed the fix class and nothing else the proposer wrote. The execution line is the server's
+    text, rendered verbatim, so the page cannot claim a change it did not make."""
+    pwned, html = rendered(payload(proposal=proposal()))
+
+    assert pwned is False, "the proposer's prose is model text about untrusted telemetry"
+    assert "revert-image-tag on cartservice · config_revert" in html
+    assert "risk: a brief restart" in html and "blast radius: cartservice only" in html
+    assert "within 300s" in html and "falsified if: errors persist" in html
+    assert "not executed - no executor exists" in html
+    assert "&lt;img" in html, "the hostile expected_effect is visible as characters"
+
+
+def test_a_refused_proposal_shows_its_flags() -> None:
+    body = payload(
+        proposal=proposal(accepted=False, escalated=True, violations=["target not in allowlist"])
+    )
+
+    _, html = rendered(body)
+
+    assert "not accepted by the validator" in html
+    assert "violations: target not in allowlist" in html and "escalated" in html
+
+
+def test_an_investigation_without_a_proposal_says_so() -> None:
+    _, html = rendered(payload())
+
+    assert "the proposer produced nothing" in html
+
+
+def test_open_questions_are_shown_under_the_report() -> None:
+    """A verdict shown without what the model said it did not know reads as more certain than the
+    model was. The questions are model prose and render through `textContent` like the rest."""
+    body = payload()
+    body["report"]["untrusted"]["open_questions"] = ["is the cache warm?", HOSTILE]
+
+    pwned, html = rendered(body)
+
+    assert pwned is False
+    assert "open: is the cache warm?" in html
+
+
+# --- the list page, which is where the hostname lands ------------------------------------------
+
+
+def test_the_list_links_each_incident_and_renders_service_names_as_text() -> None:
+    """Service names are labels on telemetry - the monitored world's own strings - and the list is
+    the first page a visitor to the hostname sees. The link is built by the URL encoder from the
+    id, and a hostile service name renders as characters."""
+    body = {
+        "incidents": [
+            {
+                "incident_id": "inc-1",
+                "state": "closed",
+                "severity": "critical",
+                "opened_at": "2026-09-07T10:31:00+00:00",
+                "services": ["cartservice", HOSTILE],
+            }
+        ],
+        "truncated": True,
+    }
+
+    pwned, html = rendered(body, path="/ui/incidents", ready="#list li")
+
+    assert pwned is False
+    assert 'href="/ui/incidents/inc-1"' in html
+    assert "&lt;img" in html and "2026-09-07 10:31:00" in html
+    assert "older incidents exist" in html
+
+
+def test_an_empty_list_says_so() -> None:
+    _, html = rendered(
+        {"incidents": [], "truncated": False}, path="/ui/incidents", ready="text=no incidents yet"
+    )
+
+    assert "no incidents yet" in html

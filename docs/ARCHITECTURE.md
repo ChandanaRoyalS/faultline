@@ -98,8 +98,8 @@ Seven console entry points reach the product; the rest are the harness's.
 
 | Command | What it is |
 |---|---|
-| `faultline-ingest` | the FastAPI app: `POST /api/v1/alerts`, `GET /healthz`, the read routes, and the UI |
-| `faultline-orchestrate` | the consumer loop: read a batch, apply, ack after the durable write |
+| `faultline-ingest` | the FastAPI app: `POST /api/v1/alerts`, `GET /healthz`, and — with a DSN and a credential — the read routes, the incident list at `/ui/incidents`, and the screen |
+| `faultline-orchestrate` | the consumer loop: read a batch, apply, ack after the durable write. With `--investigate` it also runs `faultline-investigate` on each incident that reaches `triaging`, 90 s after it settles, so a deployment investigates without a harness (T5.5c) |
 | `faultline-investigate` | one incident, end to end. Its **exit code is the contract** the harness uses |
 | `faultline-migrate` | Alembic to head (ADR-0033) |
 | `faultline-seed` | the service catalog and the past-incident corpus |
@@ -250,6 +250,34 @@ paths are excluded from the pre-commit hooks that would otherwise reformat a his
 
 ---
 
+## When it is deployed
+
+The development machine runs the platform from `docker-compose.yml` and the harness on the host;
+the deployment (`deploy/`, T5.5) runs without a harness and adds exactly three things, none of them
+product code:
+
+```
+internet ── :443 ── Caddy ──┬── /healthz ───────────────── faultline:8000   (open: the uptime check)
+                            ├── /api/v1/alerts* ─────────── 404 at the edge  (the receiver is not on the internet)
+                            ├── /grafana* /jaeger* ──────── frontend-proxy   (basic auth here; credential stripped)
+                            └── everything else ─────────── faultline:8000   (basic auth in the app)
+
+compose project `faultline-deploy`: caddy, faultline (ingest + read surface), orchestrator (--investigate),
+                                    postgres, redis
+compose project `world`:            the pinned OpenTelemetry demo + this repository's telemetry overlay,
+                                    layered fourth with deploy/compose.world.yml so alertmanager,
+                                    prometheus, loki and frontend-proxy join the shared network
+one docker network:                 the world's Alertmanager posts to faultline:8000 by name; the
+                                    orchestrator's specialists query prometheus/loki/jaeger by name
+```
+
+The deployment serves nothing the development machine does not; what it adds is the edge (TLS, the
+404, the second credential check) and the runner that makes the orchestrator investigate on its own.
+`docs/THREAT-MODEL.md`'s 2026-09-07 addendum is the security reading of this diagram; `deploy/README.md`
+is the procedure.
+
+---
+
 ## What is not built
 
 Listed because a document that omits this is a brochure.
@@ -259,7 +287,9 @@ Listed because a document that omits this is a brochure.
   would remove the runtime's safety property *by neighbourhood* rather than by name, and §4 leaves
   execution success as a reported-not-measured axis. **The action plane has no task number in the
   plan at all** — recorded in `docs/PLAN.md` under discovered omissions.
-- **Authentication on any HTTP surface.** See [thesis 3](THREAT-MODEL.md).
+- **Authentication on the alert receiver.** The read routes and pages have had basic auth since
+  T5.5; the receiver has none, is blocked from the internet at the deployment's edge, and is open
+  to anything on the compose network. See [thesis 3 and the addendum](THREAT-MODEL.md).
 - **Credentials on Prometheus and Loki.** Deferred to T6.8 explicitly; read-only is a property of
   the tool surface today, not of a credential.
 - **Model substitution.** `Resilient` is a retry wrapper unless `fallback_models` is set, which it

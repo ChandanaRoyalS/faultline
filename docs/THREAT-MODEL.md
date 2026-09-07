@@ -16,8 +16,9 @@ attributes, commit messages, Kubernetes labels, alert payloads. This is the real
 for an incident-investigation agent: they do not need to reach this platform at all, only to write
 a string that this platform will read.
 
-**Also in scope.** Anything that can reach the platform's HTTP port, because nothing on it
-authenticates (§3, §4).
+**Also in scope.** Anything that can reach the platform's HTTP port. Nothing on it authenticated
+when §3 and §4 were written; the deployed-surface addendum below says what does now and what does
+not.
 
 **Out of scope for now.** A compromised model provider, a malicious operator, and supply-chain
 attacks on dependencies. Named so their absence is a decision rather than an oversight.
@@ -95,8 +96,9 @@ the gate would be a runtime condition rather than a structural property.
 **Deferred to T6.8 explicitly:** actual credentials on Prometheus and Loki, network policy
 restricting who can reach them, egress restriction. Deferring is defensible only because the world
 is a local benchmark. **A deployed instance with an unauthenticated Prometheus reachable from the
-agent container is a finding, not a configuration** — which makes this T5.5's problem the moment
-anything is deployed.
+agent container is a finding, not a configuration** — which made this T5.5's problem the moment
+anything was deployed. Something is deployed (2026-09-07), and T5.5 did not close it: see the
+addendum below. The finding stands, on the internal network only.
 
 ---
 
@@ -134,7 +136,10 @@ this platform noticed.
 only `get`-shaped protocols, and a test asserts its routes offer no verb but `GET`. A read surface
 that could mutate would be an action plane nobody designed. But read-only is not the same as
 authenticated, and the plan puts *"basic auth on the UI"* at T5.5. **Until something is deployed
-this is a recorded hole; the moment anything is deployed it is an open one.**
+this is a recorded hole; the moment anything is deployed it is an open one.** — *as written on
+2026-09-03. T5.5 deployed on 2026-09-07 and closed this one first: the read routes and pages mount
+behind `faultline.api.auth.guard()` and refuse to start without a credential. The addendum below is
+the current state.*
 
 ---
 
@@ -192,11 +197,66 @@ Nothing here defends that yet. Recorded so T6.8 attacks it rather than discoveri
 
 ---
 
+## Addendum, 2026-09-07: the deployed surface (T5.5, recorded under T5.6's audit)
+
+Theses 2, 3 and 4 were written for a local benchmark and each ended with *"the moment anything is
+deployed"*. Something is: one VM, `https://faultline.chandanasorakundla.com`, Caddy in front,
+Faultline and the monitored world in two compose projects on one shared network
+(`deploy/README.md`). This is what the deployment did about each thesis, and what it did not.
+
+**Closed at the edge and in the process.**
+
+| surface | before | now | where |
+|---|---|---|---|
+| read routes and pages (thesis 4) | unauthenticated | basic auth **in the application**: `auth.guard()` is a dependency on the mount, read before `psycopg.connect`, refused at startup without a credential | `faultline.api.app`, `tests/test_api_app.py` |
+| alert receiver from the internet (thesis 3) | unauthenticated, `0.0.0.0` | **404 at the edge**: Caddy answers `/api/v1/alerts*` itself and proxies nothing. The world's Alertmanager posts to `faultline:8000` on the compose network and never crosses Caddy | `deploy/Caddyfile`, `tests/test_deploy.py` |
+| the world's own UIs (Grafana, Jaeger, load generator) | no authentication of their own | basic auth **at the edge**, credential stripped before Grafana sees it (`header_up -Authorization`) | `deploy/Caddyfile` |
+| transport | — | TLS terminates at Caddy; :80 redirects; basic auth is never sent in the clear | `deploy/Caddyfile` |
+| host | — | `ufw` default-deny; 22, 80, 443 only; the receiver's port is not published to the host | `deploy/README.md` §3.2 |
+
+Two things the table implies and one it does not. **Authentication is checked in two places against
+two sources of truth** — a plaintext in the application's environment, a hash in Caddy's — and the
+Caddyfile says why: Faultline authenticates itself so a test can drive it without a proxy, and the
+demo's UIs check nothing, so the proxy is the only thing in front of them. Drift between the two is a
+real failure mode and `deploy/README.md` §3.1 derives the hash from the one plaintext. **The 404 on the alert path is
+a blocklist, not an allowlist** — a new unauthenticated route added to the receiver would be on the
+internet until someone added a `handle` for it. What the table does *not* say is that the credential
+is strong: it is one username and one password, brute-forceable at the rate Caddy will serve, and
+the access log (`log { output stdout }`) is the only thing that would show it happening.
+
+**Still open, on the internal network.**
+
+- **Prometheus, Loki, Jaeger and Alertmanager have no credentials** (thesis 2). They are reachable
+  from every container on the shared `faultline-deploy-net`, including the agent container — the
+  exact configuration §2 called *a finding, not a configuration*. It is a finding. The blast radius
+  is one compose network on one host with nothing else on it; the fix (credentials on the datasources
+  and a network policy between the agent container and the rest) is T6.8's and is not made smaller
+  by being deferred again.
+- **The alert receiver is unauthenticated from the network** (thesis 3). Anything on the compose
+  network can open an incident and spend model calls. Today that is the world's own containers; a
+  compromised one would have this path.
+- **The model API key is in the orchestrator container's environment**, because the orchestrator
+  now runs `faultline-investigate` itself (`FAULTLINE_ORCH_INVESTIGATE=1`). That container also
+  reads the world's telemetry — the thesis-1 text — so the process that holds the key is the
+  process that reads attacker-influenced input. Secret scrubbing before model calls is T6.8's;
+  egress restriction on that container is T6.8's; both matter more now than when the key lived
+  only on a laptop.
+- **One host, no backups beyond a manual snapshot**, no rate limit on the credential, no alert on
+  the access log. `docs/GATES.md` G6 is where reliability becomes a deliverable and this addendum
+  does not pretend otherwise.
+
+**What this changes in the list at the end.** *"Authentication on the ingest webhook and the read
+routes"* is half done — the read routes are; the webhook is blocked at the edge and open inside.
+*"Public-surface hardening of the deployed instance"* is now a task against a real surface with a
+real access log, rather than a placeholder.
+
+---
+
 ## Credentials this system holds
 
 | Secret | Where | Handling |
 |---|---|---|
-| model API key | `ANTHROPIC_API_KEY`, environment only | never in the tree; `pre-commit` runs `detect-private-key`; CI checks history |
+| model API key | `ANTHROPIC_API_KEY`, environment only; on the VM, the orchestrator container's environment via `deploy/.env` | never in the tree; `pre-commit` runs `detect-private-key`; CI checks history; `deploy/.env` is gitignored and written from the key file without echoing it |
 | Postgres DSN | `FAULTLINE_*_POSTGRES_DSN` | dev credentials are in `docker-compose.yml` and are dev-only by construction; a deployment supplies its own |
 | Slack webhook URL | `FAULTLINE_NOTIFY_SLACK_WEBHOOK_URL` | **a bearer credential, not an address.** `SecretStr`; plaintext transport refused; `__repr__` overridden; every error string scrubbed |
 | archive credentials | `boto3` environment | optional extra; absent by default |
@@ -218,7 +278,8 @@ in a URL is a secret in every stack trace that URL appears in.
 - Egress restriction on the agent container.
 - Secret scrubbing before model calls.
 - Credentials and network policy on Prometheus and Loki (thesis 2).
-- Authentication on the ingest webhook and the read routes (theses 3 and 4).
+- Authentication on the ingest webhook from inside the network (thesis 3); the read routes are
+  authenticated since T5.5 and the webhook is blocked at the edge (addendum).
 - Corpus-poisoning attack against retrieval (thesis 6).
 - Public-surface hardening of the deployed instance; audit-log review; kill-switch drill.
 

@@ -302,8 +302,10 @@ curl -sS -u faultline:$FAULTLINE_API_PASSWORD https://$SITE_ADDRESS/api/v1/incid
 401s mean the credential is doing its job; the **404 on `/api/v1/alerts` means the receiver is not
 on the internet**, which is what stops a stranger from opening incidents that bill your key.
 
-Then take an `incident_id` from the last line and open `https://$SITE_ADDRESS/ui/incidents/<id>`,
-and **click a citation** — it should land you in Grafana's explore view with the agent's own query
+Then open `https://$SITE_ADDRESS/` in a browser — the credential prompt, then the incident list —
+and pick one, or take an `incident_id` from the last line and open
+`https://$SITE_ADDRESS/ui/incidents/<id>` directly. On the incident, read the **Proposed remediation**
+card down to its last line (*not executed - no executor exists*), and **click a citation** — it should land you in Grafana's explore view with the agent's own query
 already filled in. That link was broken until T5.1's fix and clicking it is the only way to know.
 
 **Then prove the deployment investigates, not only remembers.** The orchestrator runs
