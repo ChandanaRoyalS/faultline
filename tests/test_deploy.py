@@ -399,6 +399,27 @@ def test_the_worlds_own_uis_are_behind_the_credential() -> None:
     assert re.search(r"handle @world\s*\{[^}]*basic_auth", caddyfile)
 
 
+def test_the_credential_is_checked_by_caddy_and_never_shown_to_grafana() -> None:
+    """**Grafana treats an incoming `Authorization: Basic` header as a login attempt** against its
+    own users before it falls back to anonymous access. So the header that satisfied Caddy's
+    `basic_auth` reached Grafana intact and every citation click on the live instance answered
+    `{"message":"invalid username or password"}` (T5.5c, defect thirty-one) - the first public
+    click, after seven hours of everything else being fixed. Caddy strips the header after checking
+    it, inside the world handler and nowhere else: the Faultline API reads the same credential
+    itself and must keep receiving it."""
+    caddyfile = CADDYFILE.read_text()
+    start = caddyfile.index("handle @world")
+    world = caddyfile[start : caddyfile.index("\n\t}\n", start)]
+
+    assert re.search(
+        r"reverse_proxy frontend-proxy:8080\s*\{[^}]*header_up -Authorization", world
+    ), "the world handler forwards the credential to Grafana, which rejects it"
+    rest = caddyfile[:start] + caddyfile[start + len(world) :]
+    assert "header_up -Authorization" not in rest, (
+        "only the world's UIs must lose the header; Faultline authenticates with it"
+    )
+
+
 def test_the_citation_link_sends_a_reader_somewhere_public(compose: dict) -> None:
     """Every other `FAULTLINE_TOOLS_*` endpoint is where a *tool* reaches. This one is where a
     *human* is sent, so an internal hostname would be a dead link with extra steps.

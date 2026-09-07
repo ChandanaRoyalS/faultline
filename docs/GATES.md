@@ -18,7 +18,7 @@ authoritative; verify wording against it before relying on it.
 | G2 | one alert → one agent → one persisted, rendered finding | **Declared 2026-09-01** — qualified |
 | G3 | end-to-end investigation passes on 3 scenario classes | **Declared 2026-09-02** — qualified |
 | G4 | one command runs and scores all 10 scenarios into a report | Not declared — blocked |
-| G5 | full demo runs from clean clone; MVP tagged | **Half demonstrated** — see below. Not declared |
+| G5 | full demo runs from clean clone; MVP tagged | **Both halves demonstrated 2026-09-07** — see below. Not declared until `v0.1` is tagged |
 | G6 | approval-gated remediation works; injection + storm tests pass | Not declared |
 | G7 | repo + video + benchmark and ablation reports are application-ready | Not declared |
 
@@ -236,7 +236,45 @@ it moves `compose_digest` and re-founds the world, which is the most expensive a
 to this project; `docs/PLAN.md`'s T4.5 section prices the four routes and takes none of them.
 **T4.5's check is built, correct, and blocked on the runner for a stated reason.**
 
-**G5 — the demo half is now demonstrated; the gate is still not declared.**
+**G5 — both halves demonstrated on 2026-09-07; declared when `v0.1` is tagged.**
+
+**The fresh machine (T5.4c).** An x86 VM with nothing of this project on it — IONOS, Ubuntu 24.04,
+Docker Engine — cloned `main`, and every item in `docs/RELEASE.md` §3 was executed there: `make
+install` from the lock, `make check` before any service (1296 passed), `make world-up` pulling every
+image cold in 1m12s, `make up`/migrate/seed, both servers, **three `make demo` runs** (an abstention
+naming the right service, a correct `bad_config`, and a third whose citations were the first in this
+project to be clicked into Grafana from a browser that was not the author's), a scored run that the
+harness itself announced as a new comparability generation, and `make ui` through a tunnel. Two
+`no-alert` discards were recorded and kept — one because the alert path had never worked on Linux
+(defect eighteen), one because the memory-squeeze scenarios cannot bite on native x86 (twenty). The
+condition says *"from a clean clone"*; the spec's task text says *"a fresh machine"*; this was both.
+
+**The live deployment (T5.5c).** `https://faultline.chandanasorakundla.com`, from CI's image by
+sha, over a Let's Encrypt certificate, with `/api/v1/incidents` 401, `/api/v1/alerts` 404 and
+`/grafana/` 401 from outside and the demo's dozen host ports verified blocked from another machine.
+Then the part that makes it a deployment rather than a display: a fault injected against the world
+it watches produced alerts that crossed the compose network into the deployed receiver, the
+orchestrator opened and admitted an incident, and — after defect twenty-nine gave the product the
+runner it had never had — **investigated it inside the container that holds the key**, to a
+`bad_config` / `config_revert` verdict at low confidence with its open questions stated, in
+production retrieval mode. The public page rendered it. The uptime check polls it from GitHub every
+fifteen minutes.
+
+**What the two halves cost to reach.** Fourteen defects — eighteen through thirty-one — every one
+in a file that was green, merged and reviewed, every one found by running the documented procedure
+on the machine it was written for, nine of them in the deployment files alone and all of those the
+author's. Two are recorded and not fixed because fixing them is a world-generation decision
+(nineteen, twenty). The count is the finding; `docs/PLAN.md` T5.4c and T5.5c carry each one.
+
+**Why "declared on the tag" and not "declared".** The condition's second clause is *"MVP tagged"*,
+and `docs/RELEASE.md` §4 places the tag after §3's rehearsal and before §5's gate update. T5.3's
+demo video is the one Phase 5 deliverable still outstanding, and `v0.1` should carry the whole docs
+pack, so the tag - and with it this gate's declaration line - follows the video. Nothing in the
+condition is unmet except the word *tagged*.
+
+**The superseded notes, kept.**
+
+**2026-09-06, T5.4b — the demo half, first demonstrated.**
 
 **2026-09-06, T5.4b.** A fresh clone of `main`, with **every world image removed first** so all ~20
 were pulled cold rather than reused — the caveat T7.48 could not clear. `uv sync` resolved from the

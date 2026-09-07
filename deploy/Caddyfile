@@ -53,7 +53,15 @@
 		basic_auth {
 			{$FAULTLINE_API_USER} {$FAULTLINE_API_PASSWORD_HASH}
 		}
-		reverse_proxy frontend-proxy:8080
+		# **Check the credential, then take it off the request.** Grafana honours an incoming
+		# `Authorization: Basic` header as a login attempt against its own users before it
+		# falls back to anonymous access, so the same header that satisfied Caddy above reached
+		# Grafana and every citation click on the live instance answered
+		# `{"message":"invalid username or password"}` (T5.5c, defect thirty-one). The demo's
+		# Grafana is anonymous-Admin with the login form disabled; it must see no credential at all.
+		reverse_proxy frontend-proxy:8080 {
+			header_up -Authorization
+		}
 	}
 
 	# --- everything else is Faultline ----------------------------------------------------------
