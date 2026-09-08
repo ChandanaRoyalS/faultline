@@ -2,11 +2,11 @@
 origin: scenario:email-wrong-image
 split: holdout
 fault_class: bad_deploy
-recorded_from: 2026-08-30T00:00:10+00:00
+recorded_from: 2026-09-08T07:47:58+00:00
 capability: cap:dd651ccc
 onset_to_page: 3m46s
 page_to_fix: 5m00s
-fix_to_all_clear: 45s
+fix_to_all_clear: 1m16s
 ---
 
 # Email service deployed with another service's image
@@ -19,7 +19,7 @@ onset.
 On the storefront, browsing, search and basket operations were normal. Checkout failed.
 
 **emailservice did alert — but late, quietly, and not on anything resembling failure.**
-`ServiceNoTraffic` fired on it at **T+6m15s**, two and a quarter minutes after the page
+`ServiceNoTraffic` fired on it at **T+6m15s**, two and a half minutes after the page
 and more than six minutes after onset, and it is the only alert the broken service
 produced. It never showed an error rate and never showed latency: a container that
 cannot finish starting serves nothing, so the only rule it can eventually trip is the
@@ -36,7 +36,7 @@ hands off to emailservice; that hand-off was returning errors and taking the who
 checkout down with it.
 
 **emailservice's logs, which contain the answer in plain text.** The service was
-starting and dying repeatedly — eighteen attempts inside the fault window — and unlike a
+starting and dying repeatedly — seventeen attempts inside the fault window — and unlike a
 process killed from outside, this one printed why every single time:
 
 ```
@@ -74,7 +74,7 @@ should not be running run slightly further.
 ## Resolution
 
 The image reference was restored. emailservice came up on the next reconciliation and
-checkout succeeded immediately. Everything was clear **60 seconds** after the fix —
+checkout succeeded immediately. Everything was clear **1m16s** after the fix —
 nothing had to drain or reconnect, and the checkout path recovered as soon as its
 dependency answered.
 
@@ -89,7 +89,7 @@ fix was to put the previous one back.
 - **The broken service alerted last, and on absence rather than failure.** Its only alert
   was `ServiceNoTraffic` at T+6m15s — no error rate, no latency, because a container that
   cannot finish starting serves nothing and so fails nothing. A responder working from
-  the alert stream alone gets the caller first and the culprit two and a quarter minutes
+  the alert stream alone gets the caller first and the culprit two and a half minutes
   later, in a form that says only "this stopped being called" and not "this is broken".
 - **Do not wait for the broken service to announce itself.** It did here, eventually, and
   the announcement carried less information than the dependency graph did — following

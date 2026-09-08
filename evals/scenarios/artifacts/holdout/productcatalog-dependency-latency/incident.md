@@ -2,11 +2,11 @@
 origin: scenario:productcatalog-dependency-latency
 split: holdout
 fault_class: dependency_latency
-recorded_from: 2026-08-30T00:47:36+00:00
+recorded_from: 2026-09-08T08:03:19+00:00
 capability: cap:dd651ccc
-onset_to_page: 3m49s
+onset_to_page: 3m35s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m01s
+fix_to_all_clear: 2m16s
 ---
 
 # Product catalog network path acquires 300ms of delay, slowing every caller
@@ -15,7 +15,7 @@ fix_to_all_clear: 2m01s
 
 The page was a single alert: `ServiceHighLatency` on **loadgenerator**. **frontend**,
 **productcatalogservice** and **recommendationservice** joined fifteen seconds later, and
-**checkoutservice** fifteen seconds after that — five alerts across five services. The page arrived 3m49s after things
+**checkoutservice** fifteen seconds after that — five alerts across five services. The page arrived 3m35s after things
 started slowing.
 
 **productcatalogservice** — the service the delay was actually on — joined a full minute
@@ -71,7 +71,7 @@ configuration were untouched.
 ## Resolution
 
 Recreating the container cleared the shaping — the rule binds to the container
-instance, so a replacement comes up on a clean network path. Everything was quiet 2m32s
+instance, so a replacement comes up on a clean network path. Everything was quiet 2m16s
 later, which is the metric window emptying rather than a gradual recovery.
 
 Class of fix: **restart**. Nothing was deployed and no configuration was wrong, so
@@ -79,7 +79,7 @@ there was nothing to roll back or revert.
 
 ## Detection notes
 
-- Onset to first page: **3m49s**, against a three-minute persistence clause. Detection
+- Onset to first page: **3m35s**, against a three-minute persistence clause. Detection
   is dominated by the clause.
 - Services alerting at the page: **4**. Over the whole incident: **5**. The blast radius
   never grew.

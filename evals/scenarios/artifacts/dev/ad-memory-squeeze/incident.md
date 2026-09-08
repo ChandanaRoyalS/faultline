@@ -2,11 +2,11 @@
 origin: scenario:ad-memory-squeeze
 split: dev
 fault_class: resource_exhaustion
-recorded_from: 2026-08-29T22:54:04+00:00
+recorded_from: 2026-09-08T04:58:47+00:00
 capability: cap:dd651ccc
-onset_to_page: 3m30s
+onset_to_page: 3m16s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m30s
+fix_to_all_clear: 1m30s
 ---
 
 # Ad service memory limit cut below the working set its JVM was sized for
@@ -14,10 +14,10 @@ fix_to_all_clear: 2m30s
 ## What was observed
 
 The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,
-3m30s after onset. No service between them and the edge was named, and both alerts then
-stayed up continuously for the rest of the incident.
+3m16s after onset. No service between them and the edge was named. Both cleared within a
+quarter of a minute and returned at T+5m45s, staying up for the rest of the incident.
 
-Two and a half minutes later, at **T+6m00s**, `ServiceNoTraffic` fired on **adservice** —
+Two and three-quarter minutes later, at **T+6m00s**, `ServiceNoTraffic` fired on **adservice** —
 the first time anything named a service other than the edge, and the only alert in this
 incident that points inward.
 
@@ -37,12 +37,12 @@ everything else flat. adservice itself: zero errors, then no data at all.
 narrowed it faster than any metric did — frontend's errors were confined to one
 dependency, and the storefront said which one before the alerting did.
 
-**adservice's logs, which is where this one breaks open.** Ordinary request lines up to
-eighteen seconds before onset, and then, from T+0 onward, **sixteen startup attempts**
-inside the fault window — each a JVM banner, the OpenTelemetry agent announcing itself,
-and then nothing. The last begins at T+8m27s, three seconds before the fix. No line
-explains a failure, because the process is being stopped before it can form an opinion
-about anything. **A truncated, repeating startup is a process being killed from
+**adservice's logs, which is where this one breaks open.** The capture opens at T+0m01s and
+holds **twenty-three startup attempts** inside the fault window — each a JVM banner, the
+OpenTelemetry agent announcing itself, and then nothing. The last is at T+8m43s, twenty-seven
+seconds *after* the ceiling was restored, and it is the one that succeeds: the same banner, then
+ordinary request lines. No line explains a failure, because until then the process is being
+stopped before it can form an opinion about anything. **A truncated, repeating startup is a process being killed from
 outside**, and it is the strongest evidence in this incident.
 
 **Whether adservice was idle or absent.** `ServiceNoTraffic` cannot tell those apart:
@@ -65,8 +65,9 @@ new wall, was killed, and never got back up.
 adservice's container memory limit was reduced below the footprint its JVM was
 configured for. Nothing about the service changed — only the ceiling it was allowed to
 occupy. From the first restart after the change, the runtime could not complete a startup
-inside the new limit: it was killed during initialisation, sixteen times over, and never
-served a request again until the ceiling was restored.
+inside the new limit: it was killed during initialisation, twenty-two times over, and never
+served a request again until the ceiling was restored — the twenty-third attempt, after the
+restore, is the one that came up.
 
 This is why it produced no errors of its own: a process that dies before it serves records
 no calls, and therefore no errored ones. Its evidence was absence in the metrics and
@@ -75,14 +76,14 @@ repetition in the logs — nothing failing, and the same startup over and over.
 ## Resolution
 
 The memory limit was restored to its previous value. adservice came back and the ad
-panel returned. Everything was clear 1m45s after the fix.
+panel returned. Everything was clear 1m30s after the fix.
 
 Class of fix: **config_revert**. Nothing was deployed and nothing needed rolling back;
 one resource limit was wrong and was put back.
 
 ## Detection notes
 
-- Onset to first page: **3m30s**.
+- Onset to first page: **3m16s**.
 - Services alerting at the page: **2**. Over the whole incident: **3**, across 3
   alerts.
 - Alerts that fired only during recovery: **none**.

@@ -2,11 +2,11 @@
 origin: scenario:redis-cart-dependency-latency
 split: dev
 fault_class: dependency_latency
-recorded_from: 2026-08-31T03:49:32+00:00
+recorded_from: 2026-09-08T07:01:12+00:00
 capability: cap:dd651ccc
-onset_to_page: 3m50s
+onset_to_page: 3m35s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m31s
+fix_to_all_clear: 2m16s
 ---
 
 # Cart is slow because its datastore is, and the datastore has no spans
@@ -36,17 +36,20 @@ fix_to_all_clear: 2m31s
      followed it, and how long the gap was. A reader looking this up months later needs
      the shape of the cascade, not only its final size. -->
 
-The page went out **T+3m50s** after onset. Times below are relative
+The page went out **T+3m35s** after onset. Times below are relative
 to the page.
 
 | When | Alert | Service | Started | Firing for |
 |---|---|---|---|---|
-| **on the page** | ServiceHighLatency | cartservice | T-20s | 7.5m |
-| later | ServiceHighLatency | checkoutservice | T-5s | 6.8m |
-| later | ServiceHighLatency | frontend | T-5s | 6.8m |
-| later | ServiceHighLatency | loadgenerator | T+10s | 6.8m |
+| **on the page** | ServiceHighLatency | cartservice | T+10s | 7.2m |
+| **on the page** | ServiceHighLatency | checkoutservice | T+10s | 7.0m |
+| **on the page** | ServiceHighLatency | frontend | T+10s | 7.0m |
+| **on the page** | ServiceHighLatency | loadgenerator | T+10s | 7.0m |
 
-The page named 1 service(s). By the time the fault was removed 4 alert(s) had fired - 3 more than the responder saw when they started.
+The page named 4 service(s), all in the same evaluation. No alert fired after it: **the
+responder saw the whole blast radius at once**, which is the opposite of what earlier
+recordings of this fault showed and is worth knowing before reading the radius as a clue to
+ordering.
 
 ## What was checked
 
@@ -93,11 +96,11 @@ any point, because nothing about cartservice was wrong.
 
 ## Detection notes
 
-- Onset to first firing alert: 3m50s
+- Onset to first firing alert: 3m35s
 - Services alerting on the page: 1
 - Services alerting by the end of the fault: 4
 - Alerts that fired only during recovery: 0
 - Steady state held after the page: 5m00s
-- Fix to all-clear: 2m31s
+- Fix to all-clear: 2m16s
 - Did the loudest service turn out to be the culprit? <!-- yes / no - this one matters -->
 - Would the page alone have led you to the right service? <!-- yes / no -->

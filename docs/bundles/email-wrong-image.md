@@ -11,7 +11,7 @@
 | injected at | `emailservice` via `email-wrong-image` |
 | time to page | 3m46s |
 | steady state captured | 300s |
-| capture window | 2026-08-29T23:55:10+00:00 → 2026-08-30T00:11:41+00:00 |
+| capture window | 2026-09-08T07:42:58+00:00 → 2026-09-08T08:00:00+00:00 |
 
 The clock below runs from the moment the fault went in.
 
@@ -20,14 +20,14 @@ The clock below runs from the moment the fault went in.
 | `t_inject` | T+0m00s |
 | first alert firing | T+3m46s |
 | `t_revert` | T+8m46s |
-| all clear | T+9m31s |
+| all clear | T+10m02s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m30s | `checkoutservice` | ServiceHighErrorRate | 6.0 min | **paged** |
-| T+6m00s | `emailservice` | ServiceNoTraffic | 3.2 min | joined later |
+| T+3m45s | `checkoutservice` | ServiceHighErrorRate | 6.2 min | **paged** |
+| T+6m15s | `emailservice` | ServiceNoTraffic | 3.2 min | joined later |
 
 ## What the bundle contains
 
@@ -39,28 +39,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="emailservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/email-service.txt` — 172 lines.
+`logs/email-service.txt` — 190 lines.
 
 ## A look at the logs
 
-From `logs/email-service.txt` (166 lines):
+From `logs/email-service.txt` (184 lines):
 
 ```
-2026-08-29T23:55:16+00:00  172.18.0.20 - - [29/Aug/2026:23:55:16 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0037
-2026-08-29T23:55:25+00:00  172.18.0.20 - - [29/Aug/2026:23:55:25 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
-2026-08-29T23:55:27+00:00  172.18.0.20 - - [29/Aug/2026:23:55:27 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
-2026-08-29T23:55:48+00:00  172.18.0.20 - - [29/Aug/2026:23:55:48 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0021
-2026-08-29T23:56:07+00:00  172.18.0.20 - - [29/Aug/2026:23:56:07 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0022
-2026-08-29T23:56:09+00:00  172.18.0.20 - - [29/Aug/2026:23:56:09 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
-2026-08-29T23:56:37+00:00  172.18.0.20 - - [29/Aug/2026:23:56:37 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0023
-2026-08-29T23:57:02+00:00  172.18.0.20 - - [29/Aug/2026:23:57:02 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
-2026-08-29T23:57:26+00:00  172.18.0.20 - - [29/Aug/2026:23:57:26 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
-2026-08-29T23:57:28+00:00  172.18.0.20 - - [29/Aug/2026:23:57:28 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0021
-2026-08-29T23:57:31+00:00  172.18.0.20 - - [29/Aug/2026:23:57:31 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0020
-2026-08-29T23:57:33+00:00  172.18.0.20 - - [29/Aug/2026:23:57:33 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0019
+2026-09-08T07:43:10+00:00  172.18.0.5 - - [08/Sep/2026:07:43:10 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0015
+2026-09-08T07:43:20+00:00  172.18.0.5 - - [08/Sep/2026:07:43:20 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
+2026-09-08T07:43:26+00:00  172.18.0.5 - - [08/Sep/2026:07:43:26 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
+2026-09-08T07:43:35+00:00  172.18.0.5 - - [08/Sep/2026:07:43:35 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-09-08T07:43:40+00:00  172.18.0.5 - - [08/Sep/2026:07:43:40 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
+2026-09-08T07:43:42+00:00  172.18.0.5 - - [08/Sep/2026:07:43:42 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
+2026-09-08T07:43:45+00:00  172.18.0.5 - - [08/Sep/2026:07:43:45 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-09-08T07:43:47+00:00  172.18.0.5 - - [08/Sep/2026:07:43:47 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
+2026-09-08T07:43:52+00:00  172.18.0.5 - - [08/Sep/2026:07:43:52 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0016
+2026-09-08T07:44:01+00:00  172.18.0.5 - - [08/Sep/2026:07:44:01 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0027
+2026-09-08T07:44:17+00:00  172.18.0.5 - - [08/Sep/2026:07:44:17 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0017
+2026-09-08T07:44:25+00:00  172.18.0.5 - - [08/Sep/2026:07:44:25 +0000] "POST /send_order_confirmation HTTP/1.1" 200 - 0.0018
 ```
 
-_154 further lines are in the bundle._
+_172 further lines are in the bundle._
 
 ## The incident record
 
@@ -83,7 +83,7 @@ onset.
 On the storefront, browsing, search and basket operations were normal. Checkout failed.
 
 **emailservice did alert — but late, quietly, and not on anything resembling failure.**
-`ServiceNoTraffic` fired on it at **T+6m15s**, two and a quarter minutes after the page
+`ServiceNoTraffic` fired on it at **T+6m15s**, two and a half minutes after the page
 and more than six minutes after onset, and it is the only alert the broken service
 produced. It never showed an error rate and never showed latency: a container that
 cannot finish starting serves nothing, so the only rule it can eventually trip is the
@@ -100,7 +100,7 @@ hands off to emailservice; that hand-off was returning errors and taking the who
 checkout down with it.
 
 **emailservice's logs, which contain the answer in plain text.** The service was
-starting and dying repeatedly — eighteen attempts inside the fault window — and unlike a
+starting and dying repeatedly — seventeen attempts inside the fault window — and unlike a
 process killed from outside, this one printed why every single time:
 
 ```
@@ -138,7 +138,7 @@ should not be running run slightly further.
 ### Resolution
 
 The image reference was restored. emailservice came up on the next reconciliation and
-checkout succeeded immediately. Everything was clear **60 seconds** after the fix —
+checkout succeeded immediately. Everything was clear **1m16s** after the fix —
 nothing had to drain or reconnect, and the checkout path recovered as soon as its
 dependency answered.
 
@@ -153,7 +153,7 @@ fix was to put the previous one back.
 - **The broken service alerted last, and on absence rather than failure.** Its only alert
   was `ServiceNoTraffic` at T+6m15s — no error rate, no latency, because a container that
   cannot finish starting serves nothing and so fails nothing. A responder working from
-  the alert stream alone gets the caller first and the culprit two and a quarter minutes
+  the alert stream alone gets the caller first and the culprit two and a half minutes
   later, in a form that says only "this stopped being called" and not "this is broken".
 - **Do not wait for the broken service to announce itself.** It did here, eventually, and
   the announcement carried less information than the dependency graph did — following

@@ -1298,10 +1298,39 @@ policy would have gone into the schema description the model reads (ADR-0028 Add
 note is a comment beside `model_config` and the model is not told extras are welcome. And the
 Actions-secret sentence below was written ahead of its evidence - see the strike.
 
-**What is pending, in order.** Merge; `make world-up` on the Mac and a Tempo smoke check (spans
-arriving, `trace_query` against a live service); re-record all thirteen bundles with
-`evalharness.rehearse`, narratives preserved, in one PR with the new world constant and the
-regenerated table; then dev sweep 12 - `faultline-sweep --tier weekly`, then `--tier weekly
+**Tempo verified live, and one thing it cost.** `make world-up` brought Tempo up; the collector
+needed an explicit restart before it read the new exporter list (a bind-mounted config change is
+not something compose recreates on), after which `trace_query` returned `source=tempo`, ten traces,
+129 spans, indented trees with self-time and a named degrading hop. **Idle for two hours Tempo then
+reached 95 % of its 400 MiB limit and the headroom gate refused eleven rehearsals**; blocks are now
+50 MiB released after two minutes, retention 24 h, `GOMEMLIMIT` 320 MiB, and the one recording made
+before that bound was discarded uncommitted. Both files are digest inputs, which is why the bound
+landed before any bundle was recorded rather than after.
+
+**Re-recorded, 04:58Z–08:35Z, thirteen of thirteen.** World `f5bd108f4f70` → **`90e9f29e578e`**,
+observability `857d95b4d174` → **`f3011ba83021`**. One retry (email-service at 90.1 %, cycled and
+recorded on the second attempt); checkout recycled at the end of every scenario per T7.28's policy.
+**Prediction 1 failed on one bundle and was resolved by measurement**: `cart-bad-image-tag` read
+181 s against a history of 301/242/286, with request rate unchanged across all thirteen
+(0.93–1.08× against their archives), so a busier world does not explain it. A confirmation
+re-record — rule fixed before it ran, *keep whatever it produces and publish both readings* — read
+**272 s**, inside the spread. The 181 was an outlier; **the 91-second gap between two recordings of
+one scenario is itself evidence for the R=3 the sweep is registered at.**
+
+**Eleven of thirteen narratives carried a claim the new captures contradict**, corrected in
+`docs/design/t6.1-capability-review.md`'s addendum in T7.28 stage 3's shape — including three that
+change how a scenario reads: `cart-bad-image-tag` and `cart-dependency-latency` now page a single
+service rather than three, `redis-cart-dependency-latency` pages all four at once, and
+`shipping-wrong-image`'s frontend and loadgenerator never cross the error threshold at all, which
+retires a *"dilution is worth nearly four minutes"* claim in favour of the mechanism without the
+number.
+
+**Every published figure now describes a world that no longer exists**, and README and RESULTS say
+so rather than carrying numbers forward — the T7.1 and T7.28 discipline, third time. README's table
+is empty in both columns and explains why; RESULTS' banner names the new digests and points at the
+pre-registration for what fills the gap.
+
+**What is pending, in order.** Merge; then dev sweep 12 - `faultline-sweep --tier weekly`, then `--tier weekly
 --without traces`, then `--baseline b0` - judged with the shared-lineage override, written up as
 `SWEEP-<date>-sweep12.md` against the eleven predictions. **Rule 8**: about \$45 of model calls plus
 about \$1.50 of judge, named in the pre-registration; the owner has said the budget is not the

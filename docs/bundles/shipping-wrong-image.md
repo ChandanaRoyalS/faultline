@@ -11,7 +11,7 @@
 | injected at | `shippingservice` via `shipping-wrong-image` |
 | time to page | 3m18s |
 | steady state captured | 300s |
-| capture window | 2026-08-30T01:31:51+00:00 → 2026-08-30T01:49:10+00:00 |
+| capture window | 2026-09-08T07:27:34+00:00 → 2026-09-08T07:44:38+00:00 |
 
 The clock below runs from the moment the fault went in.
 
@@ -20,20 +20,18 @@ The clock below runs from the moment the fault went in.
 | `t_inject` | T+0m00s |
 | first alert firing | T+3m18s |
 | `t_revert` | T+8m18s |
-| all clear | T+10m19s |
+| all clear | T+10m04s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m00s | `checkoutservice` | ServiceHighErrorRate | 7.0 min | **paged** |
-| T+6m15s | `accountingservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m15s | `emailservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m15s | `frauddetectionservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m15s | `loadgenerator` | ServiceHighErrorRate | 3.0 min | joined later |
-| T+6m15s | `quoteservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m15s | `shippingservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+9m00s | `frontend` | ServiceHighErrorRate | 0.2 min | began after the revert |
+| T+3m15s | `checkoutservice` | ServiceHighErrorRate | 6.8 min | **paged** |
+| T+6m00s | `accountingservice` | ServiceNoTraffic | 2.8 min | joined later |
+| T+6m00s | `emailservice` | ServiceNoTraffic | 2.8 min | joined later |
+| T+6m00s | `frauddetectionservice` | ServiceNoTraffic | 2.8 min | joined later |
+| T+6m00s | `quoteservice` | ServiceNoTraffic | 2.8 min | joined later |
+| T+6m00s | `shippingservice` | ServiceNoTraffic | 2.8 min | joined later |
 
 ## What the bundle contains
 
@@ -45,28 +43,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="shippingservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/shipping-service.txt` — 364 lines.
+`logs/shipping-service.txt` — 332 lines.
 
 ## A look at the logs
 
-From `logs/shipping-service.txt` (358 lines):
+From `logs/shipping-service.txt` (326 lines):
 
 ```
-2026-08-30T01:36:54+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-30T01:36:55+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-30T01:36:55+00:00  [otel.javaagent 2026-08-30 01:36:55:216 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-08-30T01:37:00+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-30T01:37:00+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-30T01:37:00+00:00  [otel.javaagent 2026-08-30 01:37:00:534 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-08-30T01:37:05+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-30T01:37:05+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-30T01:37:06+00:00  [otel.javaagent 2026-08-30 01:37:06:071 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-08-30T01:37:11+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-30T01:37:11+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-30T01:37:11+00:00  [otel.javaagent 2026-08-30 01:37:11:554 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-08T07:32:37+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-08T07:32:38+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-08T07:32:38+00:00  [otel.javaagent 2026-09-08 07:32:38:175 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-08T07:32:42+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-08T07:32:43+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-08T07:32:43+00:00  [otel.javaagent 2026-09-08 07:32:43:207 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-08T07:32:48+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-08T07:32:48+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-08T07:32:48+00:00  [otel.javaagent 2026-09-08 07:32:48:688 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-08T07:32:53+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-08T07:32:53+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-08T07:32:54+00:00  [otel.javaagent 2026-09-08 07:32:54:043 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
 ```
 
-_346 further lines are in the bundle._
+_314 further lines are in the bundle._
 
 ## The incident record
 
@@ -87,15 +85,16 @@ The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18
 onset. The fastest page this system has produced, and unusually it named a service one
 hop from the problem rather than the edge.
 
-For three and a half minutes it was the only alert. Then five services raised
-`ServiceNoTraffic` — quoteservice at **T+6m00s**, then accountingservice, emailservice,
-frauddetectionservice and **shippingservice** fifteen seconds behind it.
+For nearly three minutes it was the only alert. Then five services raised `ServiceNoTraffic`
+**together** at **T+6m00s** — quoteservice, accountingservice, emailservice,
+frauddetectionservice and **shippingservice**.
 
-**frontend** and **loadgenerator** crossed the error threshold last of all, at
-**T+6m30s**, and stayed up for two minutes. The storefront was failing on checkout only,
-so its diluted error ratio took nearly four minutes longer to cross than checkout's did.
+**frontend and loadgenerator never crossed the error threshold at all.** In earlier recordings
+of this fault they did, four minutes behind checkout; here the storefront's diluted ratio stayed
+under it for the whole incident. Dilution is the same mechanism either way — it is the reason
+checkout alerts and the edge does not — but its size is not stable enough to quote a delay from.
 
-Eight alerts across eight services. On the storefront, browsing and basket operations
+Six alerts across six services. On the storefront, browsing and basket operations
 worked normally. Checkout failed every time.
 
 ### What was checked
@@ -151,7 +150,7 @@ The image reference was restored. shippingservice came up on the next reconcilia
 checkout succeeded immediately. The no-traffic alerts cleared as those services resumed.
 A brief `ServiceHighErrorRate` appeared on frontend fifteen seconds *after* the fix and
 lasted half a minute — queued work draining through a path that had been failing.
-Everything was clear at **T+7m01s**.
+Everything was clear at **T+8m01s**, 1m46s after the fix.
 
 Class of fix: **rollback**. A deployment moved the service to the wrong artifact, and
 the fix was to put the previous one back.
@@ -171,11 +170,12 @@ diagnose than a container that cannot start.
   outright when shipping is unavailable, so its error ratio crosses the threshold before
   the frontend's diluted one does. Being one hop from the fault made it the earliest and
   most specific signal available.
-- **Dilution is measurable here, and it is worth nearly four minutes.** checkout, which
-  fails on every attempt, alerted at T+2m45s; frontend and the synthetic client, whose
-  failures are one path out of many, did not cross until T+6m30s. The same failure
-  reaches the edge last and weakest, so a responder who waits for the storefront to look
-  broken is choosing to start four minutes late.
+- **Dilution decides who alerts, and how much it is worth varies.** checkout, which fails on
+  every attempt, alerted at T+3m15s; frontend and the synthetic client, whose failures are one
+  path out of many, did not cross at all in this recording and crossed nearly four minutes late
+  in earlier ones. The same failure reaches the edge last and weakest — sometimes never — so a
+  responder who waits for the storefront to look broken is choosing to start late or not at
+  all.
 - **A truncated, repeating startup names a symptom, not a cause.** A process stopped
   before it can explain itself is being killed from outside, and that is all the pattern
   says. It does not distinguish "the ceiling came down" from "the thing inside it got
