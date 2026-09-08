@@ -41,6 +41,11 @@ services:
     image: grafana/tempo:2.4.2
     container_name: tempo
     command: -config.file=/etc/tempo/tempo.yaml
+    environment:
+      # Measured at 92-95% of the limit while idle, before the first recording (see tempo.yaml).
+      # GOMEMLIMIT tells the Go runtime the ceiling so it collects before the kernel does; the
+      # 80 MiB below the cgroup limit is headroom for what the runtime does not count.
+      GOMEMLIMIT: 320MiB
     volumes:
       - ../compose/tempo.yaml:/etc/tempo/tempo.yaml:ro
     ports:

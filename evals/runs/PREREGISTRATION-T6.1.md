@@ -41,7 +41,13 @@ nothing can run the pipeline without traces.
   from somebody else's compose file through an override is not a thing compose can do cleanly
   (ADR-0026). The tool stops reading it; the deployment's `/jaeger` route keeps working. Tempo's
   memory is the cost: measured on the Mac before the first recording, against the kafka headroom
-  gate that already refuses at 90 %.
+  gate that already refuses at 90 %. **Measured 2026-09-08, and it failed**: idle for two hours at
+  Tempo's defaults, 367 and 379 MiB of the 400 MiB limit, refused by the gate twice. Bounded before
+  the first recording - `ingester.max_block_bytes` 50 MiB, `complete_block_timeout` 2m, retention
+  24h, `GOMEMLIMIT` 320 MiB - so the world every bundle records against is the bounded one. One
+  recording (`cart-bad-image-tag`, 00:54Z) was made at the unbounded configuration and **discarded
+  uncommitted** rather than kept at a digest no other bundle would share; the discard is noted here
+  because a recording that vanished without a sentence is the record lying by omission.
 
 ### 2.2 The tool (moves `TOOL_BEHAVIOUR_REVISION` → `CAPABILITY_VERSION`)
 

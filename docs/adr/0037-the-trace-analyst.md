@@ -28,8 +28,10 @@ makes that possible. This ADR records what was decided in the landing.
 ## 1. Tempo beside Jaeger, not instead of it
 
 `compose/telemetry.yml` adds `grafana/tempo:2.4.2` as a single binary with local storage
-(`compose/tempo.yaml`: OTLP gRPC receiver on 4317, 48 h block retention, usage reporting off, a
-400 MB memory limit the way Loki's is set), and `compose/otelcol-extras.yml` adds an `otlp/tempo`
+(`compose/tempo.yaml`: OTLP gRPC receiver on 4317, 24 h block retention, usage reporting off, a
+400 MB memory limit the way Loki's is set - and, after the idle measurement reached 95 % of it,
+50 MiB blocks released two minutes after completion and `GOMEMLIMIT` 320 MiB, so the limit is a
+target the runtime aims under rather than a cliff), and `compose/otelcol-extras.yml` adds an `otlp/tempo`
 exporter to the demo collector's traces pipeline **beside** the demo's `otlp` (Jaeger) and
 `logging` exporters. Grafana gets a Tempo datasource provisioned under the uid `tempo`
 (`compose/grafana-tempo-datasource.yml`), the way `loki` is.

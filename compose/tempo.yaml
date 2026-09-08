@@ -6,7 +6,8 @@
 #
 # Local storage, single binary, no object store: the same shape as the demo's Jaeger all-in-one,
 # and the same trade - a trace exists as long as the container does, and `block_retention` bounds
-# how long that is. 48h covers a working day of recording and a sweep on either side of it.
+# how long that is. 24h covers a day of recording and a sweep, and a reader clicking a citation the
+# next morning; longer was the first draft and bought nothing the harness reads.
 #
 # `usage_report.reporting_enabled: false` is not cosmetic. Tempo phones home by default, and this
 # world is the one THREAT-MODEL thesis 2 wants no unexplained egress from. T6.8 restricts egress
@@ -21,12 +22,22 @@ distributor:
         grpc:
           endpoint: 0.0.0.0:4317
 
+# Memory, bounded on evidence rather than hoped for. Idle on the reference platform for two
+# hours before the first recording, Tempo at these defaults reached 367 and 379 MiB of its 400 MiB
+# limit and tripped the harness's 90% headroom gate twice (2026-09-08, before any bundle was
+# recorded). The ingester keeps the head block and every completed block in memory for
+# `complete_block_timeout` (15m by default) after cutting it, so at this span rate four blocks sit
+# in RAM at once. Smaller blocks, cut and released sooner; the Go runtime's own limit is set in
+# compose/telemetry.yml (GOMEMLIMIT), which is what makes the container limit a target the
+# collector sees rather than a cliff it finds.
 ingester:
   max_block_duration: 5m
+  max_block_bytes: 52428800
+  complete_block_timeout: 2m
 
 compactor:
   compaction:
-    block_retention: 48h
+    block_retention: 24h
 
 storage:
   trace:
