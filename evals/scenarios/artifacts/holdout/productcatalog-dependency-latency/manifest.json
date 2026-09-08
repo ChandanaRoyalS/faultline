@@ -1,50 +1,52 @@
 {
   "alerts_at_fire": [
+    "ServiceHighLatency/frontend",
+    "ServiceHighLatency/recommendationservice",
     "ServiceHighLatency/loadgenerator"
   ],
   "alerts_over_window": [
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-08-30T00:51:06+00:00",
-      "last_seen": "2026-08-30T00:58:06+00:00",
+      "first_seen": "2026-09-08T08:06:49+00:00",
+      "last_seen": "2026-09-08T08:13:49+00:00",
       "minutes_firing": 7.2,
-      "service": "loadgenerator"
-    },
-    {
-      "alert": "ServiceHighLatency",
-      "began_after_revert": false,
-      "first_seen": "2026-08-30T00:51:21+00:00",
-      "last_seen": "2026-08-30T00:58:06+00:00",
-      "minutes_firing": 7.0,
       "service": "frontend"
     },
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-08-30T00:51:21+00:00",
-      "last_seen": "2026-08-30T00:57:51+00:00",
-      "minutes_firing": 6.8,
-      "service": "productcatalogservice"
+      "first_seen": "2026-09-08T08:06:49+00:00",
+      "last_seen": "2026-09-08T08:13:34+00:00",
+      "minutes_firing": 7.0,
+      "service": "loadgenerator"
     },
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-08-30T00:51:21+00:00",
-      "last_seen": "2026-08-30T00:58:06+00:00",
-      "minutes_firing": 7.0,
+      "first_seen": "2026-09-08T08:06:49+00:00",
+      "last_seen": "2026-09-08T08:13:19+00:00",
+      "minutes_firing": 6.8,
       "service": "recommendationservice"
     },
     {
       "alert": "ServiceHighLatency",
       "began_after_revert": false,
-      "first_seen": "2026-08-30T00:51:36+00:00",
-      "last_seen": "2026-08-30T00:57:51+00:00",
-      "minutes_firing": 6.5,
+      "first_seen": "2026-09-08T08:07:04+00:00",
+      "last_seen": "2026-09-08T08:13:34+00:00",
+      "minutes_firing": 6.8,
       "service": "checkoutservice"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-08T08:07:34+00:00",
+      "last_seen": "2026-09-08T08:12:49+00:00",
+      "minutes_firing": 5.5,
+      "service": "productcatalogservice"
     }
   ],
-  "baseline_clear_at": "2026-08-30T00:47:36+00:00",
+  "baseline_clear_at": "2026-09-08T08:03:19+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "restart",
@@ -70,41 +72,50 @@
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "95e3e8c07907a9c68bdae5357d5c84574fd6fc91",
+    "git_sha": "9e2097767bfe3ceab21adf0faaab3204fb864655",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "699b7dffac295a72c284601e6c3914caed3f7ab833292d0f1bb2a3d022179179",
   "scenario_id": "productcatalog-dependency-latency",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 229,
-  "seconds_to_settle": 121,
+  "seconds_to_alert": 215,
+  "seconds_to_settle": 136,
   "split": "holdout",
-  "t_alert_firing": "2026-08-30T00:51:25+00:00",
-  "t_clear": "2026-08-30T00:58:26+00:00",
-  "t_inject": "2026-08-30T00:47:36+00:00",
-  "t_revert": "2026-08-30T00:56:25+00:00",
+  "t_alert_firing": "2026-09-08T08:06:54+00:00",
+  "t_clear": "2026-09-08T08:14:10+00:00",
+  "t_inject": "2026-09-08T08:03:19+00:00",
+  "t_revert": "2026-09-08T08:11:54+00:00",
   "title": "Product catalog network path acquires 300ms of delay, slowing every caller",
   "window": {
-    "end": "2026-08-30T01:00:26+00:00",
-    "start": "2026-08-30T00:42:36+00:00"
+    "end": "2026-09-08T08:16:10+00:00",
+    "start": "2026-09-08T07:58:19+00:00"
   },
   "world": {
-    "compose_digest": "f5bd108f4f70f460836f090ecbff4259626cc9264b102a0851b6bb4a4ceda44b",
+    "compose_digest": "90e9f29e578e7e98232ec89e92f2f5844a45482721acb52360010b97b387b7a5",
     "docker_arch": "arm64",
-    "ffs_stub_image_id": "sha256:e273759fb5c16938bbcf9df934650444642495d9bcebb3af841e015d946d377d",
+    "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
     "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
     "host_platform": "Darwin/arm64",
-    "observability_digest": "857d95b4d174ec43b1f64bbb84bdf3438bc7425c1360a0e6e7dd771c4e77cb60",
+    "observability_digest": "f3011ba830219b3f530b0d954867924c9b4afe78fa42949335257f04a5d28410",
     "observability_files": {
-      "compose/otelcol-extras.yml": "c1cdb85343770302a80e6153c9fafcdce3821d870676cbf48f5f05536df84dcf",
+      "compose/otelcol-extras.yml": "c3abca6bfdbab4a093de0c209a30f552a7c60d4cddd5a8cd1bed5bfea95db3b4",
       "compose/prometheus/alert-rules.yml": "ae69d142bc571db5bd697f31368b8e7d5e533a3d0eecd4661ea2b29b7ea8672e",
       "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
       "compose/prometheus/prometheus-config.yaml": "230505c37ddc4f95aa9ec1b085bf1ea32a98346e27e5f6f813aef230f3def749",
       "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+      "compose/tempo.yaml": "7a9a7a455fd1581931a168ba9ae43a3dcf451328d192391244fbbfdc494dfcda",
       "world/src/otelcollector/otelcol-config-extras.yml": "7f3afd57cd82f28d5c5948e843d7d594e60dfb0133611c540ff31fa31804ee92",
       "world/src/otelcollector/otelcol-config.yml": "cf1645d90cc88effcb493edd196238bf73a14d1b30dc654325d25045be0377e5"
     },
     "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice",
     "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994"
+  },
+  "world_lock": {
+    "acquired": true,
+    "host": "chandanas-MacBook-Air.local",
+    "pid": 50899,
+    "reason": "rehearse productcatalog-dependency-latency",
+    "since": "2026-09-08T08:03:14.638241+00:00",
+    "token": "50899-1788854594.6381"
   }
 }
