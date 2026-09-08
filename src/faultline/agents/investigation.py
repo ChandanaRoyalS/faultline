@@ -60,7 +60,7 @@ def _asked(result: Any) -> dict[str, Any]:
 
     Taken off the typed result, not re-composed: `MetricResult.query` and `BaselineResult.query`
     are the PromQL that was sent, `LogResult.selector` the LogQL, and `TraceResult.service` the
-    canonical name Jaeger was searched for. A result that carries none of these - `change_history`
+    canonical name Tempo was searched for. A result that carries none of these - `change_history`
     reads Postgres and has no datasource - adds nothing, and the view links nothing.
     """
     asked: dict[str, Any] = {}
@@ -121,6 +121,14 @@ class InvestigationResult:
 
     proposal_violations: list[str] = field(default_factory=list)
     proposal_escalated: bool = False
+
+    withheld: list[tuple[str, str]] = field(default_factory=list)
+    """Dispatches the planner made and the **ablation** withheld (T6.1): `(specialist, service)`,
+    in plan order. The plan's *"eval accuracy delta measured"* needs the pipeline run twice with
+    one modality present and absent and nothing else different, so the planner is not told and
+    the dispatch is not a failure - it is recorded here, on its own trajectory step, and on the
+    verdict artifact, and it does **not** flag the verdict: a flag would make every ablation run
+    a flagged run, which T4.2 reports separately, and the comparison would be against nothing."""
 
     citation_violations: list[str] = field(default_factory=list)
     """Every refusal the publication boundary issued for this run, in order (T3.8's
@@ -220,7 +228,9 @@ class Investigation:
         corpus: Any = None,
         retrieval_k: int = 3,
         proposer: Proposer | None = None,
+        withhold: tuple[SpecialistName, ...] = (),
     ) -> None:
+        self._withhold = tuple(withhold)
         self._synthesizer = synthesizer
         self._scribe = scribe
         self._proposer = proposer
@@ -659,6 +669,29 @@ class Investigation:
         """
         admitted: list[tuple[Any, int]] = []
         for dispatch in dispatches:
+            if dispatch.specialist in self._withhold:
+                # **The ablation switch** (T6.1, `--without`). The planner asked; the harness
+                # declines on the operator's instruction, and writes down that it did. No tool
+                # call is reserved and no token is spent, so the arm's budget is what the other
+                # arm's would have been with that specialist's spend removed - which is the
+                # comparison. Not a failed dispatch: see `InvestigationResult.withheld`.
+                seq += 1
+                result.withheld.append((dispatch.specialist, dispatch.service))
+                trajectory.add(
+                    TrajectoryStep(
+                        seq=seq,
+                        role=dispatch.specialist,
+                        kind=StepKind.COMPLETION,
+                        at=datetime.now(UTC),
+                        payload={
+                            "withheld": True,
+                            "ablation": dispatch.specialist,
+                            "service": dispatch.service,
+                            "question": dispatch.question,
+                        },
+                    )
+                )
+                continue
             if not state.may_call_tool(dispatch.specialist):
                 break
             state.record_tool_call(dispatch.specialist)
@@ -803,6 +836,9 @@ class Investigation:
                 payload={
                     "attempts": completion.attempts,
                     "proposal": completion.value.model_dump(),
+                    # Q29 (T6.1): keys the proposer volunteered and `Proposal` never asked for.
+                    # Recorded rather than refused, for the reason `contracts.REQUESTED` gives.
+                    "unexpected": sorted(completion.value.model_extra or {}),
                     "accepted": result.proposal is not None,
                     "violations": list(result.proposal_violations),
                     "escalated": result.proposal_escalated,

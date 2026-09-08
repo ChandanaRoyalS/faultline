@@ -188,7 +188,7 @@ credential or it does not mount.
 **Not optional, and it comes before anything is started.**
 
 The OpenTelemetry demo's own compose files publish a dozen host ports — 8080, 3000, 3100, 9090,
-9093 and more. A compose overlay can add a published port and cannot remove one, so
+9093 and more, and this repository's `compose/telemetry.yml` adds 3200 (Tempo, T6.1). A compose overlay can add a published port and cannot remove one, so
 `compose.world.yml` does not try. On a public VM every one of those is reachable on the IP,
 which means Grafana, Prometheus and Alertmanager are on the internet with no credential and Caddy
 in front of nothing.

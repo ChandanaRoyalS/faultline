@@ -42,16 +42,23 @@ def test_an_uninstrumented_service_is_in_the_catalog_and_not_in_the_graph() -> N
     assert "counts exactly as a miss" in line
 
 
-def test_a_datastore_is_not_in_the_catalog_at_all() -> None:
-    """ADR-0017 marked this: *"whether infrastructure belongs in the catalog… not decided here
-    because nothing at T2.4 consumes it; the first consumer should decide."* The culprit-service
-    axis is the consumer, and Q27 is where the catalog change is queued - a node changes what the
-    graph tool answers, which moves `TOOL_BEHAVIOUR_REVISION`."""
+def test_a_datastore_is_in_the_catalog_and_not_in_the_graph_since_t6_1() -> None:
+    """ADR-0017 marked this: *"whether infrastructure belongs in the catalog… the first consumer
+    should decide."* The culprit-service axis was the consumer; Q27 landed with T6.1. `redis-cart`
+    is now a catalog entry with its reason, still outside the span-derived graph, and the note says
+    that rather than "not in the catalog at all"."""
     seen = visibility.target_visibility("redis-cart")
 
-    assert seen["presence"] == visibility.NOT_IN_CATALOG
+    assert seen["presence"] == visibility.NOT_IN_GRAPH
     assert seen["nameable"] is False
-    assert "Q27" in (seen["reason"] or "")
+    assert "datastore" in (seen["reason"] or "")
+    assert "not in the dependency graph" in (visibility.note(seen) or "")
+
+
+def test_a_name_nobody_recorded_is_still_absent_from_the_catalog() -> None:
+    seen = visibility.target_visibility("mongodb")
+
+    assert seen["presence"] == visibility.NOT_IN_CATALOG
     assert "not in the service catalog at all" in (visibility.note(seen) or "")
 
 
@@ -74,7 +81,7 @@ def test_the_note_prints_under_a_missed_service_and_not_under_a_correct_one() ->
     missed = _run(correct=False, target="redis-cart").report()
     assert "target visibility: redis-cart" in missed
 
-    # The same unnameable target, named correctly anyway, is not a caveat - it is the answer.
+    # The same target, named correctly anyway, is not a caveat - it is the answer.
     hit = _run(correct=True, target="redis-cart").report()
     assert "target visibility" not in hit
 
@@ -95,4 +102,4 @@ def test_the_visibility_travels_in_the_manifest() -> None:
     sweep write-up reads this back out of the manifests rather than recomputing it."""
     payload = _run(correct=False, target="redis-cart").as_dict()
 
-    assert payload["service_visibility"]["presence"] == visibility.NOT_IN_CATALOG
+    assert payload["service_visibility"]["presence"] == visibility.NOT_IN_GRAPH

@@ -674,8 +674,9 @@ would score its top-1 three times and lose a comparison it was never entered int
 
 
 Q25B_DIGEST = "b6837dd449ca"
-"""**HEAD.** Reporting contracts accept unexpected keys and the harness records them; requesting
-contracts still refuse them (Q25b). Reached by way of `42e34a1811c4`, which added
+"""Reporting contracts accept unexpected keys and the harness records them; requesting
+contracts still refuse them (Q25b). **Every published figure to date is at this stamp** - dev
+sweeps 10 and 11, README's table, RESULTS.md's banner. Reached by way of `42e34a1811c4`, which added
 `Candidate.remediation_class` and lasted one run.
 
 **Moved to fix a contract that threw a verdict away.** On `cart-bad-image-tag` the synthesizer
@@ -697,6 +698,28 @@ also handed.
 """
 
 
+Q29_DIGEST = "06f24e827915"
+"""**HEAD.** `Proposal` reports unexpected keys instead of refusing them (Q29, T6.1).
+
+**Moved by one line of schema and nothing else.** `extra="forbid"` puts `additionalProperties:
+false` into a contract's JSON schema, and the schema is in the digest, so relaxing it moves the
+stamp exactly as Q25b's did. No `*_SYSTEM` string changed; the diff between this stamp and Q25b's
+is the disappearance of one key from `Proposal`'s schema block.
+
+**Registered before it moved, then found to move.** `PREREGISTRATION-T6.1.md` §2.3 registered Q29
+in this batch and §2.4 said the stamp would stay; the two were inconsistent and the build found
+it. §2.4 is amended in the same PR, before any run, as it said it would be: both arms of dev
+sweep 12 run at this stamp, so the comparison it exists for is unaffected. What is affected is
+coverage - no scored run exists at this stamp until sweep 12, and README's table says so.
+
+**Why it was worth a stamp.** Sweep 11 refused two proposals whole for a
+`confirm_within_seconds_note` (finding 35): the proposer had reached a decision and the contract
+threw it away, which is `remediation_class` on `ba8684b01201` a second time. A boundary that costs
+whole proposals to protect a field nobody reads is not a boundary; `contracts.REQUESTED` records
+the reasoning and ADR-0028 Addendum 2 the decision.
+"""
+
+
 def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """`runtime_version` is the package version plus a digest over every role system prompt and
     every contract schema, so it moves when and only when the agent is a different agent.
@@ -706,8 +729,8 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
     """
     from faultline.agents.stamp import prompt_digest
 
-    assert prompt_digest() == Q25B_DIGEST, (
-        f"expected Q25's pipeline {Q25B_DIGEST}. If a prompt or a contract moved again, "
+    assert prompt_digest() == Q29_DIGEST, (
+        f"expected T6.1's pipeline {Q29_DIGEST}. If a prompt or a contract moved again, "
         f"add its digest here - and if it moved after a pre-registration was written, the sweep "
         f"it governs is measuring something nobody planned to measure."
     )
@@ -718,7 +741,8 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
         BATCH_B_DIGEST,
         BATCH_C_DIGEST,
         TOP3_DIGEST,
-    }, "HEAD is none of the earlier pipelines, dev sweep 9's included"
+        Q25B_DIGEST,
+    }, "HEAD is none of the earlier pipelines, dev sweeps 9 to 11 included"
     assert (
         len(
             {
@@ -731,10 +755,11 @@ def test_the_stamp_names_which_pipeline_produced_a_run() -> None:
                 BATCH_B_DIGEST,
                 BATCH_C_DIGEST,
                 TOP3_DIGEST,
+                Q25B_DIGEST,
             }
         )
-        == 9
-    ), "nine pipelines, five of them measured — dev sweep 9 measured TOP3, not this"
+        == 10
+    ), "ten pipelines, six of them measured — dev sweeps 10 and 11 measured Q25b, not this"
 
 
 def test_the_harness_side_paths_are_not_covered_by_the_stamp() -> None:
@@ -1005,7 +1030,7 @@ def test_the_correlate_budget_is_not_a_stamp_input() -> None:
     ):
         assert stamp_module.prompt_digest() == before
     stamp_module.prompt_digest.cache_clear()
-    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{Q25B_DIGEST}"
+    assert stamp_module.runtime_version() == f"faultline/0.0.1+prompts:{Q29_DIGEST}"
 
 
 # --- T7.14: the rule that fires at rest ----------------------------------------------------
@@ -1938,3 +1963,53 @@ def test_neither_refusal_path_records_a_discard() -> None:
     handlers = _handlers_in_main()
     for name in ("PreflightError", "GateRefusedError"):
         assert "discard" not in _calls(handlers[name]), name
+
+
+# --- T6.1: the ablation switch, on the harness side ---------------------------------------------
+
+
+def test_an_ablation_is_passed_through_and_refused_for_a_baseline(capsys: Any) -> None:
+    """`--without traces` reaches `faultline-investigate` unchanged, and a baseline cannot carry
+    it: a baseline dispatches nothing, so an ablation recorded on one would be a claim about a
+    withholding that never happened. Refused before the world is touched, exit 3."""
+    from evalharness.run import _investigate, main, parser
+
+    args = parser().parse_args(["cart-redis-misconfig", "--single-run", "--without", "traces"])
+    seen: list[list[str]] = []
+    with patch("evalharness.run._sh", side_effect=lambda cmd: (seen.append(cmd), (0, ""))[1]):
+        _investigate("inc", "cart-redis-misconfig", Path("/tmp/x"), args)
+    assert seen[0][seen[0].index("--without") + 1] == "traces"
+    assert "--baseline" not in seen[0]
+
+    assert (
+        main(["cart-redis-misconfig", "--single-run", "--baseline", "b0", "--without", "traces"])
+        == 3
+    )
+    assert "cannot apply to a baseline" in capsys.readouterr().out
+    assert main(["cart-redis-misconfig", "--single-run", "--without", "vibes"]) == 3
+    assert "names no specialist" in capsys.readouterr().out
+
+
+def test_the_ablation_joins_the_fingerprint_and_an_empty_one_is_still_a_value() -> None:
+    """An arm-B run and an arm-A run at the same stamp, models, budget and world differ in one
+    setting, and that setting must be in the hash or the two arms pool. `[]` is a stated value:
+    a full run recorded after the switch existed does not collide with one recorded before."""
+    from evalharness import evaldb
+
+    base = {
+        "models": {"planner": "x"},
+        "efforts": {"default": "medium"},
+        "budget": {"max_tokens": 1},
+        "score": {"runtime_version": "faultline/0.0.1+prompts:06f24e827915"},
+        "injected_at": "2026-09-08T00:00:00+00:00",
+        "repeat_count": 3,
+        "seed_policy": "none",
+    }
+    full = evaldb.fingerprint({**base, "ablation": []})
+    without = evaldb.fingerprint({**base, "ablation": ["traces"]})
+    before_the_switch = evaldb.fingerprint(base)
+
+    assert "ablation" in evaldb.FINGERPRINT_INPUTS
+    assert full.fingerprint != without.fingerprint
+    assert full.fingerprint != before_the_switch.fingerprint
+    assert "ablation" in before_the_switch.missing and "ablation" not in full.missing

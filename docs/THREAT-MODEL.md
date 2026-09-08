@@ -228,7 +228,7 @@ the access log (`log { output stdout }`) is the only thing that would show it ha
 
 **Still open, on the internal network.**
 
-- **Prometheus, Loki, Jaeger and Alertmanager have no credentials** (thesis 2). They are reachable
+- **Prometheus, Loki, Tempo (since T6.1), Jaeger and Alertmanager have no credentials** (thesis 2). They are reachable
   from every container on the shared `faultline-deploy-net`, including the agent container — the
   exact configuration §2 called *a finding, not a configuration*. It is a finding. The blast radius
   is one compose network on one host with nothing else on it; the fix (credentials on the datasources

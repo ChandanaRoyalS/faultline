@@ -23,11 +23,25 @@ processors:
     limit_mib: 450
     spike_limit_mib: 100
 
+# T6.1 - a second trace sink. The demo's own config exports traces to `otlp` (Jaeger, at
+# jaeger:4317) and `logging`; this adds Tempo beside them. **The exporter list below restates the
+# demo's two on purpose**: the collector merges its configs by replacing lists, not appending to
+# them, so a list naming only `otlp/tempo` would silently stop Jaeger receiving anything and the
+# demo's trace UI would go dark. The demo's list is read from
+# world/src/otelcollector/otelcol-config.yml at v1.2.1 - `exporters: [logging, otlp]` - and
+# `tests/test_world_generations.py`'s digest over that file is what says so if it moves.
+exporters:
+  otlp/tempo:
+    endpoint: "tempo:4317"
+    tls:
+      insecure: true
+
 # memory_limiter MUST be first in every pipeline: it can only refuse data it sees before another
 # processor has buffered it.
 service:
   pipelines:
     traces:
       processors: [memory_limiter, spanmetrics, batch]
+      exporters: [logging, otlp, otlp/tempo]
     metrics:
       processors: [memory_limiter, batch]

@@ -1269,7 +1269,45 @@ no alternative"* about a verdict that had offered two. **The number was right an
 false, which is worse than either alone.** Whether a verdict ranked is a property of the verdict,
 not of one axis.
 
-### T6.1 — trace analyst *(pre-registered 2026-09-07; not started)*
+### T6.1 — trace analyst *(built 2026-09-08; re-record and dev sweep 12 pending)*
+
+**What landed, in the order the pre-registration listed it.** The world: Tempo 2.4.2 beside Jaeger
+(`compose/telemetry.yml`, `compose/tempo.yaml`, a Grafana datasource under uid `tempo`, an
+`otlp/tempo` exporter added to the demo collector's traces pipeline with the full exporter list
+restated because the collector replaces lists). The tool: `trace_query` reads Tempo whole-trace by
+id, newest traces first, and `faultline.tools.spantree` renders each trace as a tree - offset from
+root, duration, self-time, status - and names the **degrading hop** by a two-rule deterministic
+summariser (deepest error, else largest self-time on the critical path). The contracts: `Proposal`
+reports unexpected keys (Q29, ADR-0028 Addendum 2). The catalog: `redis-cart` and `kafka` as
+`INFRASTRUCTURE` nodes (Q27). The harness: `--without traces` on `faultline-investigate`,
+`faultline-eval` and `faultline-sweep`, recorded as `ablation` on the manifest and in
+`FINGERPRINT_INPUTS`, withheld dispatches on the trajectory and the artifact and **not** flagged.
+The deployment: `FAULTLINE_TOOLS_TEMPO_URL`, `tempo` on the shared network. ADR-0037 records the
+design; `docs/design/t6.1-capability-review.md` the narrative review behind `cap:dd651ccc`.
+
+**Two things the pre-registration got wrong, amended before any run.** *The stamp moves.* §2.4 said
+`prompts:b6837dd449ca` stays; §2.3 registered Q29; a contract's schema is in the digest, so the two
+were inconsistent and the build found it. HEAD is `prompts:06f24e827915`, both arms run at it, and
+until sweep 12 no scored run exists at HEAD - README's table says so rather than showing the previous
+stamp's figures under the new one. *The order of passes.* §4 alternated arms pass by pass;
+`faultline-sweep --tier weekly` makes its three passes in one invocation by construction, so the
+order is arm A whole, then arm B whole, then B0.2. **Neither amendment touches a prediction.**
+
+**What the build found that nobody had priced.** A `Proposal` docstring sentence about the new
+policy would have gone into the schema description the model reads (ADR-0028 Addendum 1), so the
+note is a comment beside `model_config` and the model is not told extras are welcome. And the
+Actions-secret sentence below was written ahead of its evidence - see the strike.
+
+**What is pending, in order.** Merge; `make world-up` on the Mac and a Tempo smoke check (spans
+arriving, `trace_query` against a live service); re-record all thirteen bundles with
+`evalharness.rehearse`, narratives preserved, in one PR with the new world constant and the
+regenerated table; then dev sweep 12 - `faultline-sweep --tier weekly`, then `--tier weekly
+--without traces`, then `--baseline b0` - judged with the shared-lineage override, written up as
+`SWEEP-<date>-sweep12.md` against the eleven predictions. **Rule 8**: about \$45 of model calls plus
+about \$1.50 of judge, named in the pre-registration; the owner has said the budget is not the
+constraint.
+
+#### The pre-registration entry, as written on 2026-09-07
 
 Phase 6 opens the way every measured step here has opened: with the registration, merged before a
 line of the world changes. [`PREREGISTRATION-T6.1.md`](../evals/runs/PREREGISTRATION-T6.1.md) fixes
@@ -1285,11 +1323,14 @@ turns out to need one, the registration is amended and the stamp moves before th
 holdout entry — ADR-0029 stands; the three holdout bundles re-record because a recording is
 injection-only.
 
-**Phase 5's loose ends, closed the same day.** The repository Actions secret `ANTHROPIC_API_KEY` is
-deleted: the two workflows that read it (`eval-smoke`, `eval-nightly`) are blocked on the runner's
-kafka JDK (GATES, 2026-09-04) and refuse cleanly without it, and a funded key on a scheduled workflow
-that could one day unblock itself is the wrong default. It is re-set when T4.5 is unblocked — which
-is this same world move, so the decision has a date. Q29 goes into T6.1's batch rather than landing
+**Phase 5's loose ends, closed the same day.** ~~The repository Actions secret `ANTHROPIC_API_KEY` is
+deleted~~ **Corrected 2026-09-08: written before the command ran.** `gh secret delete
+ANTHROPIC_API_KEY` answered HTTP 404 on 2026-09-07 - there is no repository-level secret of that
+name, and whether one exists at environment level (`gh secret list --env <name>`) is still open. The
+reasoning stands as the intent: the two workflows that read it (`eval-smoke`, `eval-nightly`) are
+blocked on the runner's kafka JDK (GATES, 2026-09-04) and refuse cleanly without it, and a funded
+key on a scheduled workflow that could one day unblock itself is the wrong default. It is set when
+T4.5 is unblocked — which is this same world move, so the decision has a date. Q29 goes into T6.1's batch rather than landing
 alone, so the record never holds two proposal policies at one stamp. The VM's pending reboot is
 recorded as a deployment event for `deploy/README.md` §3.9 when it is done, not before.
 
@@ -1304,6 +1345,7 @@ gates. Gate 6's condition is quoted at the bottom so the rows can be read agains
 | task | deliverable (plan §9) | what the tree has | what it does not | pre-existing |
 |---|---|---|---|---|
 | **T6.1** trace analyst | *"Trace evidence in investigations; eval accuracy delta measured"* — Tempo, a fourth specialist, trace-search and span-tree summariser tools | `trace_query` against **Jaeger** (T2.6, ADR-0019), a `traces` specialist the planner dispatches, trace citations that deep-link into Grafana's Jaeger datasource (T5.1). Trace evidence has been in investigations since T3.x | **Tempo** — a world move. **Span-tree summariser** — `_spans_of` flattens every trace to a list and `TraceResult.body()` prints neither a span's timestamp nor its parent, which three sweep-11 verdicts named as the reason they could not place the failing hop (*"traces carried no timestamps or status codes and were truncated at 200 spans"*); Q30. **"Identifies the degrading hop"** — no tool does, the synthesizer infers it. **Accuracy delta** — never measured; no with/without-traces ablation exists | ~40% |
+| ↳ **T6.1 build, 2026-09-08** | | Tempo in the world and read by the tool; the span tree and the degrading-hop rule (`spantree.py`); `--without traces` with `ablation` in the fingerprint; Q27, Q29, Q30 landed in one bump; Q26 tested | **The delta** — dev sweep 12 has not run; the re-record has not run. Built is not delivered: the deliverable is *"eval accuracy delta measured"* | ~85% |
 | **T6.2** action plane | *"Executor service + audit log + kill switch"* — separate process, only holder of write credentials, allowlisted parameter-validated actions, single-use action-bound token, blast-radius re-validation, inverse recorded per action | The allowlist as a **read-only versioned document** (`knowledge/allowlist.yaml`, T2.4b, ADR-0032) with four classes and `scale` recorded as unperformable (ADR-0029); the proposer validated against it (T3.9, ADR-0028); `AWAITING_APPROVAL` / `EXECUTING` in the state machine with `record_approval_outcome` a stub that names this task; the proposal rendered with *not executed* on the screen (T5.6) | Everything that acts: no executor process, no write credential anywhere (by design until here — ADR-0028 §3), no token, no audit table, no kill switch, no inverse recording. **Until this audit the tree said this task had no number**; corrected in six places, see *Discovered omissions* | ~10% |
 | **T6.3** approve / reject UX | *"Approved remediation with visible recovery + rejection → re-investigation loop + sev-1 ack gate"* | The screen and the Slack link that would carry the approve control (T5.1, T5.2); `REJECTED` in the state machine; the proposal card the approver would read | No approve or reject route, no token minting, no rejection reason capture, no re-investigation trigger, no auto-drafted dev scenario from a miss, no severity-1 acknowledgment gate, no post-action metric snapshot on the timeline | ~5% |
 | **T6.4** RAG subsystem | *"Retrieval pipeline over a ≥50-doc corpus + recall@5 / MRR gates"* — heading-aware chunking with document summaries, hybrid dense+sparse, cross-encoder rerank, recency-aware, deprecated excluded at ingest, `origin` carried for self-exclusion, golden set in CI | **Hybrid retrieval is built**: pgvector cosine + `tsvector` full text fused by reciprocal rank (`context/store.py`), embeddings behind a swappable `Embedder` (hashing and sentence-transformer), heading-aware chunking of runbooks and narratives (ADR-0018), `origin` carried and enforced (T4.1b, `leave_one_out.enforced`), quarantine of holdout at seed time (T1.6). **Corpus: 25 documents / 103 chunks** — 15 runbooks + 10 dev narratives | **≥50 documents** (at 25, half); no document-level summaries; no cross-encoder rerank; no recency weighting; no deprecated-doc metadata or filter; no git-synced ingest; **no golden set, no recall@5, no MRR, nothing retrieval-quality gated in CI** | ~45% |

@@ -9,12 +9,13 @@ service 3 of 5, and both misses were on targets the pipeline structurally cannot
   spans, appears in no span-derived edge, and cannot enter a blast radius. The verdict said
   `productcatalogservice`, and its own open questions said why: *"if the flag lives on
   featureflagservice the right target is not even in the legal blast radius."*
-- `redis-cart` is **not in the catalog at all**. It is a datastore, it has no `service.name`, and
-  ADR-0017 marked exactly this - *"whether infrastructure belongs in the catalog… `kafka` and
-  `redis-cart`… Not decided here because nothing at T2.4 consumes it; the first consumer should
-  decide."* The culprit-service axis is that consumer, and this module is it deciding: **record
-  the blindness on every run, and change the catalog only through the queue** (Q27), because a
-  catalog node changes what the graph tool answers and that moves `TOOL_BEHAVIOUR_REVISION`.
+- `redis-cart` was **not in the catalog at all** when this was written. It is a datastore, it has
+  no `service.name`, and ADR-0017 marked exactly this - *"whether infrastructure belongs in the
+  catalog… `kafka` and `redis-cart`… Not decided here because nothing at T2.4 consumes it; the
+  first consumer should decide."* The culprit-service axis was that consumer; Addendum 3 decided,
+  Q27 queued the change behind `TOOL_BEHAVIOUR_REVISION`, and **T6.1 landed it**: both are in the
+  catalog as `INFRASTRUCTURE`, so a run now reports them as `in_catalog_not_in_graph` and the
+  question the sweep asks is whether the synthesizer names them.
 
 **Reported, not forgiven.** A miss on an unnameable target scores exactly as a miss. Anything
 else would be the scorer edited to fit a result, which the pre-registration for that sweep ruled
@@ -35,7 +36,8 @@ NOT_IN_GRAPH = "in_catalog_not_in_graph"
 """Known to the catalog, absent from the graph, with a recorded reason (`KNOWN_ABSENT`)."""
 
 NOT_IN_CATALOG = "absent_from_catalog"
-"""The catalog has never heard of it. Today that means infrastructure: `redis-cart`, `kafka`."""
+"""The catalog has never heard of it. Until T6.1 that meant infrastructure - `redis-cart`, `kafka`
+- which Q27 put in the catalog as `INFRASTRUCTURE`; today it means a name nobody has recorded."""
 
 NAMEABLE = frozenset({IN_GRAPH})
 """The presences from which a verdict could have named the target at all."""

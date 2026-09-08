@@ -66,8 +66,17 @@ generation change keeps "same stamp, different proposal policy" from ever existi
 
 ### 2.4 What does not change, registered
 
-- **No prompt changes.** `prompts:b6837dd449ca` stays. The traces specialist reads a differently
-  shaped tool result under the same instructions. If the build finds the specialist needs to be told
+- **No prompt changes.** ~~`prompts:b6837dd449ca` stays.~~ **Amended 2026-09-08, at the build and
+  before any run, as the next sentence said it would be.** No `*_SYSTEM` string changes and the
+  traces specialist reads a differently shaped tool result under the same instructions - but §2.3's
+  Q29 is a contract change, and a contract's JSON schema is in the prompt digest: dropping
+  `extra="forbid"` from `Proposal` removes `additionalProperties: false` from its schema block, so
+  **the stamp moves once, to `prompts:06f24e827915`**, exactly as Q25b's identical change to
+  `Verdict` moved it. §2.3 and the original §2.4 were inconsistent with each other and the build
+  found it; `tests/test_harness_run.py`'s ledger records the digest and the reason. **Both arms of
+  §4 run at the new stamp**, so the comparison this document exists for is unaffected; what is
+  affected is coverage - no scored run exists at HEAD's stamp until sweep 12, and README's table
+  says so in the meantime. If the build finds the specialist needs to be told
   about the tree, **this document is amended and re-merged before the first run**, and the stamp
   moves with it — a prompt edited to help the traces arm and left out of the ablation arm would be a
   comparison of two different agents wearing one name.
@@ -107,11 +116,20 @@ becomes a figure about generation `f5bd108f4f70`, which is what it always was.
 | **B** | the ablation: `--without traces`, everything else identical | 3 | ~\$22 |
 | **B0.2** | the heuristic baseline | 1 | \$0 |
 
-**Order**: passes alternate arms — A₁, B₁, A₂, B₂, A₃, B₃, then B0.2 — so that any drift in the
+**Order**: ~~passes alternate arms — A₁, B₁, A₂, B₂, A₃, B₃, then B0.2 — so that any drift in the
 world over the day falls on both arms rather than on one. Each pass is one `faultline-sweep`
-invocation at the standard bounds; a kafka recycle between passes is the documented remedy and is
-recorded as a continuity event, as in sweep 11. **`--only` is not used**: the scope is the whole dev
-catalog, and `faultline-sweep`'s catalog form has run under `--list`'s corrected count since T5.6.
+invocation at the standard bounds~~ **Amended 2026-09-08, before any run.** `faultline-sweep --tier
+weekly` makes all three passes in **one** invocation, catalog-major
+(`tests/test_sweep.py::test_a_tier_that_declares_three_repeats_runs_the_catalog_three_times`: the
+declared R and the number of passes are the same number by construction, and splitting them across
+invocations would put `repeat_count: 3` on runs made one at a time). So the order is **arm A, three passes in one invocation; then arm B, three
+passes in one invocation (`--without traces`); then B0.2** - three invocations, not seven. The
+drift argument the alternating order made is weaker than the fingerprint argument against it, and
+is answered differently: prediction 9's A/A check is *within* arm A, and prediction 1's re-record
+check bounds what the world was doing across the day. A kafka recycle between invocations is the
+documented remedy and is recorded as a continuity event, as in sweep 11. **`--only` is not used**:
+the scope is the whole dev catalog, and `faultline-sweep`'s catalog form has run under `--list`'s
+corrected count since T5.6.
 
 **Why R=3, and why now.** Every figure this project has ever published is R=1. Sweep 10 measured a
 fixed-stamp disagreement at n=2 by accident; RESULTS.md called the R=3 repeat *"the highest-value
@@ -198,7 +216,8 @@ is a finding about the tree summary's token weight, and it joins the cost notes.
 `docs/RESULTS.md` gains a generation section for the new world with both arms, the variance
 component, and the A/A result; README's table regenerates against the new stamp/world pair and its
 prose is re-read against it; `docs/GATES.md`'s G6 note records the measured latency clause; Q26, Q27,
-Q29 and Q30 are struck as landed or retired, with the figure that did it; ADR-0034 records the design
+Q29 and Q30 are struck as landed or retired, with the figure that did it; ~~ADR-0034~~ **ADR-0037**
+(0034 was already the evidence archive's number when this was written) records the design
 (Tempo beside Jaeger, the span tree, the degrading-hop rule) and is written with the build, not
 after it. T6.1's PLAN entry closes on the sweep's document, `SWEEP-<date>-sweep12.md`, written against
 this one.

@@ -300,3 +300,35 @@ The executor, any write tool, any credential on the world, the approval interfac
 prediction axis. A proposal is scored on three axes today and the fourth is reported as **not
 measured** - not passed, not omitted. ADR-0008's addendum holds the measurement boundary that
 keeps the fourth axis honest when someone builds it.
+
+## Addendum 2 (T6.1, 2026-09-08) — `Proposal` reports unexpected keys; the boundary is redrawn, not removed
+
+Q25b relaxed `Verdict` to `extra="allow"` after `extra="forbid"` destroyed two whole verdicts for
+one volunteered key, and kept `Dispatch` and `Proposal` strict with the sentence *"`Proposal` keeps
+this for the same reason: it names an action against the world."* Dev sweep 11 then refused two
+proposals whole for a `confirm_within_seconds_note` nobody asked for (finding 35): the proposer had
+reached a decision - action, target, expected effect, falsifier, risk, blast radius - and the
+contract threw all of it away to protect a field nothing reads.
+
+**The sentence was the wrong test.** What makes an unexpected key *surface* is not that the contract
+names an action but that something downstream would read the key. A `Dispatch`'s extras reach the
+tool layer, whose windows and selectors are built from the dispatch, so a key nobody declared is a
+key a model might one day get read - that is why
+`test_the_window_is_told_to_the_specialist_never_asked_of_it` exists, and it is unchanged. A `Proposal` is read field by field: by the approver's
+card today, and by T6.2's executor tomorrow, which §2 already binds to validate against the
+**allowlist entry's declared fields** - `action_id`, `target`, the preconditions - never against the
+raw proposal. An extra key on a proposal has no reader and no path. It is inert in exactly the way
+a `Verdict`'s is, and refusing it costs whole proposals.
+
+So `Proposal.model_config = REPORTED`. Extras land on the PROPOSAL step (`unexpected`) and on the
+manifest (`unexpected_fields["proposal"]`), as the verdict's do, so the next volunteered key
+arrives as a signal rather than a failure. `validate_proposal` still checks every declared field
+against the allowlist, the radius and the store. `Dispatch` still refuses. The `REQUESTED` docstring
+in `contracts.py` carries the redrawn boundary, with the old sentence struck rather than deleted.
+
+**Two things the build found.** The class docstring stayed as it was, and the note about this
+policy went into a comment beside `model_config`: Addendum 1 recorded that a contract's docstring
+is the schema `description` the model is shown, and a model is not to be told that extras are
+welcome. And the change moved the prompt stamp anyway - `extra="forbid"` puts
+`additionalProperties: false` into the JSON schema the digest hashes - which the pre-registration
+had not anticipated; it is amended, and ADR-0037 §6 has the cost.

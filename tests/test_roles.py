@@ -1810,3 +1810,89 @@ def test_a_production_retrieval_counts_nothing_because_it_excludes_nothing(
     rows = [s.retrieval for s in store.trajectories[result.trajectory.id].steps if s.retrieval]
     assert rows and all(row.exclude_origin is None for row in rows)
     assert all(row.excluded_count is None for row in rows)
+
+
+# --- T6.1: the ablation switch and the proposal that reports ------------------------------
+
+
+def test_a_withheld_specialist_is_planned_recorded_and_never_run() -> None:
+    """`--without traces`: the planner asked for traces and metrics; traces is withheld. No trace
+    tool call, no trace completion, no token spent on it - and the omission is on the trajectory
+    as its own step and on the result as `withheld`, **not** as a failed dispatch, because a flag
+    on every ablation run would make T4.2 report the whole arm separately."""
+    model = ScriptedModel(
+        {
+            "planner": [
+                plan_reply(
+                    [
+                        {
+                            "specialist": "traces",
+                            "service": "cartservice",
+                            "question": "which hop is slow",
+                            "reason": "latency",
+                        },
+                        {
+                            "specialist": "metrics",
+                            "service": "cartservice",
+                            "question": "is it slow",
+                            "reason": "latency",
+                        },
+                    ],
+                    [],
+                )
+            ]
+        }
+    )
+    tools = Tools(ToolSettings(), changes=InMemoryChangeLog())
+    store = InMemoryTrajectoryStore()
+    engine = Investigation(
+        planner=Planner(model),
+        specialists=build_specialists(tools, model),
+        store=store,
+        model=model,
+        budget=Budget(max_dispatch_rounds=1),
+        withhold=("traces",),
+    )
+
+    result = engine.run("incident-ablation", triage_of("cartservice"), ANCHOR)
+
+    assert result.withheld == [("traces", "cartservice")]
+    assert result.failed_dispatches == []
+    assert not any("traces" in flag for flag in result.flags)
+    assert [run.specialist for run in result.runs] == ["metrics"]
+    assert not any(call.role == "traces" for call in model.calls)
+    withheld = [s for s in result.trajectory.steps if s.payload.get("withheld")]
+    assert len(withheld) == 1 and withheld[0].role == "traces"
+    assert withheld[0].payload["ablation"] == "traces"
+    assert withheld[0].tokens_in == 0 and withheld[0].tool_call is None
+    # Sequence numbers stay dense and ordered, so a trajectory reader sees the gap as a step.
+    seqs = [s.seq for s in result.trajectory.steps]
+    assert seqs == sorted(seqs) and len(set(seqs)) == len(seqs)
+
+
+def test_nothing_is_withheld_unless_asked() -> None:
+    """The default is the full pipeline. An ablation is an operator's instruction, never a
+    default, so arm A of a comparison is the same agent every published figure came from."""
+    engine, _ = investigation(
+        ScriptedModel({"planner": [ONE_DISPATCH]}), Budget(max_dispatch_rounds=1)
+    )
+
+    result = engine.run("incident-full", triage_of("cartservice"), ANCHOR)
+
+    assert result.withheld == []
+    assert engine._withhold == ()
+
+
+def test_a_proposal_key_nobody_asked_for_is_accepted_and_on_the_step() -> None:
+    """Q29, the investigation-level half. Sweep 11's `confirm_within_seconds_note` arrives, the
+    proposal stands, and the PROPOSAL step names the key so the record shows what the model
+    volunteered. `validate_proposal` still ran over every declared field."""
+    result, _, _ = run_with_proposal(proposal_reply(confirm_within_seconds_note="immediate"))
+
+    assert result.proposal is not None
+    assert result.proposal.action_id == "revert_config"
+    assert result.proposal.model_extra == {"confirm_within_seconds_note": "immediate"}
+    step = next(s for s in result.trajectory.steps if s.kind is StepKind.PROPOSAL)
+    assert step.payload["unexpected"] == ["confirm_within_seconds_note"]
+    assert step.payload["proposal"]["confirm_within_seconds_note"] == "immediate"
+    assert step.payload["accepted"] is True

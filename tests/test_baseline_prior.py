@@ -157,10 +157,10 @@ def test_it_makes_exactly_one_model_call() -> None:
 def test_importing_b2_does_not_move_the_agents_stamp() -> None:
     from faultline.agents.stamp import prompt_digest
 
-    # The ledger constant lives in `test_harness_run.py` as TOP3_DIGEST. Asserted by value here
+    # The ledger constant lives in `test_harness_run.py` as Q29_DIGEST. Asserted by value here
     # rather than imported, so this file fails loudly if B2's prompt ever leaks into the
     # agent's digest - importing the constant would make the two move together and prove nothing.
-    assert prompt_digest() == "b6837dd449ca", "B2 must not appear in the agent's stamp."
+    assert prompt_digest() == "06f24e827915", "B2 must not appear in the agent's stamp."
 
 
 def test_b2s_prompt_is_not_a_role_prompt() -> None:

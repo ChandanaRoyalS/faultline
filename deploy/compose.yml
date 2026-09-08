@@ -37,7 +37,7 @@ name: faultline-deploy
 # **One network, named here and joined by the world.** The platform and the demo environment are
 # two compose projects - the world is a pinned clone of somebody else's repository (ADR-0026),
 # never vendored into this one, so it cannot become a service in this file. They still have to
-# reach each other: the orchestrator queries Prometheus, Loki and Jaeger, and the world's
+# reach each other: the orchestrator queries Prometheus, Loki and Tempo, and the world's
 # Alertmanager posts to the receiver.
 #
 # `external: true` rather than a shared default, because otherwise the creating project owns the
@@ -231,7 +231,10 @@ services:
       # network is for.
       FAULTLINE_TOOLS_PROMETHEUS_URL: http://prometheus:9090
       FAULTLINE_TOOLS_LOKI_URL: http://loki:3100
-      FAULTLINE_TOOLS_JAEGER_URL: http://frontend-proxy:8080/jaeger/ui
+      # T6.1: the trace tool reads this repository's Tempo, which `compose/telemetry.yml` adds to
+      # the world and `compose.world.yml` puts on the shared network. Jaeger stays behind
+      # frontend-proxy as the demo's own UI; nothing here reads it any more.
+      FAULTLINE_TOOLS_TEMPO_URL: http://tempo:3200
       FAULTLINE_TOOLS_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
       # Retrieval (ADR-0008's leave-one-out corpus) reads through `ContextSettings`; without this
       # an investigation in this container would look for its corpus on the container's own

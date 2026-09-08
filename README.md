@@ -23,13 +23,17 @@ shows is `20260907T103142Z-cart-redis-misconfig`: `bad_config` against `bad_conf
 
 ## Results at a glance
 
-**Culprit service 24 / 26 at the shipping stamp; fault class 17 / 18 where a class was named, eight
-abstentions.** Those are the headline figures and this table is where each of them comes from, one
-scenario per row. The long form — the baseline arm, the variance finding, what the numbers are not —
-is in [Results](#results) below and in [`docs/RESULTS.md`](docs/RESULTS.md).
+**Nothing has been scored at the shipping stamp yet — Culprit service 0 / 0, fault class 0 / 0.**
+`prompts:06f24e827915` is T6.1's stamp (2026-09-08: Tempo, the span tree, and `Proposal` reporting
+unexpected keys), and the sweep that fills this table is pre-registered before it runs —
+[`PREREGISTRATION-T6.1.md`](evals/runs/PREREGISTRATION-T6.1.md): ten dev scenarios, R=3, with the
+traces specialist and without it. The last published figures are one stamp back at
+`prompts:b6837dd449ca`, dev sweeps 10 and 11: **24 of 26 on the culprit service, 17 of 18 where a
+class was named, eight abstentions** — they sit in the two pooled columns and in
+[Results](#results) below and [`docs/RESULTS.md`](docs/RESULTS.md).
 
 <!-- scenario-table:begin -->
-Per scenario. The first four columns are at `prompts:b6837dd449ca`, the stamp this
+Per scenario. The first four columns are at `prompts:06f24e827915`, the stamp this
 repository ships, on the current world (`f5bd108f4f70`): scored runs only, demos and the B0
 arm excluded. `class` and `service` are correct / answered; abstentions are counted in
 `abst`, not as wrong. The last two columns pool every stamp on this world - **context,
@@ -40,38 +44,40 @@ world at all; the zeros are the record. R=1 everywhere, so no row is reproducibl
 
 | scenario | split | n | class | abst | service | n, all stamps | class, all stamps |
 |---|---|---:|---:|---:|---:|---:|---:|
-| `ad-memory-squeeze` | dev | 4 | 2 / 2 | 2 | 4 / 4 | 8 | 5 / 5 |
-| `cart-bad-image-tag` | dev | 5 | 2 / 3 | 2 | 5 / 5 | 9 | 3 / 5 |
-| `cart-dependency-latency` | dev | 4 | 4 / 4 | 0 | 4 / 4 | 7 | 7 / 7 |
-| `cart-redis-misconfig` | dev | 4 | 2 / 2 | 2 | 4 / 4 | 10 | 7 / 8 |
-| `frauddetection-memory-squeeze` | dev | 4 | 4 / 4 | 0 | 4 / 4 | 7 | 7 / 7 |
-| `payment-telemetry-blackout` | dev | 1 | 1 / 1 | 0 | 1 / 1 | 6 | 5 / 5 |
-| `product-catalog-flag-failure` | dev | 1 | 1 / 1 | 0 | 0 / 1 | 2 | 2 / 2 |
-| `redis-cart-dependency-latency` | dev | 1 | 1 / 1 | 0 | 0 / 1 | 4 | 4 / 4 |
-| `shipping-quote-misconfig` | dev | 1 | — | 1 | 1 / 1 | 2 | 0 / 1 |
-| `shipping-wrong-image` | dev | 1 | — | 1 | 1 / 1 | 2 | 1 / 1 |
+| `ad-memory-squeeze` | dev | 0 | — | 0 | — | 8 | 5 / 5 |
+| `cart-bad-image-tag` | dev | 0 | — | 0 | — | 9 | 3 / 5 |
+| `cart-dependency-latency` | dev | 0 | — | 0 | — | 7 | 7 / 7 |
+| `cart-redis-misconfig` | dev | 0 | — | 0 | — | 10 | 7 / 8 |
+| `frauddetection-memory-squeeze` | dev | 0 | — | 0 | — | 7 | 7 / 7 |
+| `payment-telemetry-blackout` | dev | 0 | — | 0 | — | 6 | 5 / 5 |
+| `product-catalog-flag-failure` | dev | 0 | — | 0 | — | 2 | 2 / 2 |
+| `redis-cart-dependency-latency` | dev | 0 | — | 0 | — | 4 | 4 / 4 |
+| `shipping-quote-misconfig` | dev | 0 | — | 0 | — | 2 | 0 / 1 |
+| `shipping-wrong-image` | dev | 0 | — | 0 | — | 2 | 1 / 1 |
 | `email-wrong-image` | holdout | 0 | — | 0 | — | 0 | — |
 | `productcatalog-dependency-latency` | holdout | 0 | — | 0 | — | 0 | — |
 | `recommendation-memory-squeeze` | holdout | 0 | — | 0 | — | 0 | — |
-| **all** | | **26** | **17 / 18** | **8** | **24 / 26** | **57** | **41 / 45** |
+| **all** | | **0** | **—** | **0** | **—** | **57** | **41 / 45** |
 
 Regenerate with `uv run python -m evalharness.scenario_table --write`; `tests/test_scenario_table.py` fails when this block and the tree disagree.
 <!-- scenario-table:end -->
 
-**Read the abstentions before the accuracy.** 8 of 26 runs at this stamp named no class, and the
-system is built to say `unknown` rather than guess — coverage and accuracy are reported apart on
-purpose ([ADR-0022](docs/adr/0022-evaluation-harness.md)). On both runs of dev sweep 11 that
-abstained it still named the culprit service correctly, which is the shape of abstention worth
-having.
+**Read the abstentions before the accuracy.** 0 of 0 runs at this stamp named no class — at the
+previous stamp it was 8 of 26 — and the system is built to say `unknown` rather than guess:
+coverage and accuracy are reported apart on purpose
+([ADR-0022](docs/adr/0022-evaluation-harness.md)). On both runs of dev sweep 11 that abstained it
+still named the culprit service correctly, which is the shape of abstention worth having.
 
-**Two of the two service misses are structural, and the record says which kind they are.** The
-targets are `featureflagservice`, which is in the service catalog and emits no spans, and
-`redis-cart`, which is not in the catalog at all — so no blast radius could contain either
-([`SWEEP-2026-09-07-sweep11.md`](evals/runs/SWEEP-2026-09-07-sweep11.md) §3). They are counted as
-misses anyway.
+**Both service misses at the previous stamp were structural, and T6.1 changes one of them.** The
+targets were `featureflagservice`, which is in the service catalog and emits no spans, and
+`redis-cart`, which was not in the catalog at all — so no blast radius could contain either
+([`SWEEP-2026-09-07-sweep11.md`](evals/runs/SWEEP-2026-09-07-sweep11.md) §3). `redis-cart` is in
+the catalog now (Q27, an `INFRASTRUCTURE` node with no telemetry of its own); `featureflagservice`
+is deliberately untouched as the control, and the pre-registration's prediction 6 says what each
+is expected to do.
 
-**10 of the 10 dev scenarios carry a run at this stamp; 0 of the 3 holdout scenarios do**, and none
-will: the set has been entered three times and a fourth entry is blocked by
+**0 of the 10 dev scenarios carry a run at this stamp; 0 of the 3 holdout scenarios do**, and the
+holdout never will: the set has been entered three times and a fourth entry is blocked by
 [ADR-0029](docs/adr/0029-four-fault-classes-and-why-there-is-no-fifth.md) — a three-scenario holdout
 read four times is not a holdout. Every one of the 13 has been scored at least once across the three
 world generations in [`evals/runs/`](evals/runs/).

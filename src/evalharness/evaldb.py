@@ -57,12 +57,17 @@ FINGERPRINT_INPUTS = (
     "judge_version",
     "repeat_count",
     "seed_policy",
+    "ablation",
 )
 """The behaviour-relevant settings, in the order T4.4 and T4.6 name them.
 
 `runtime_version` covers *prompt versions* - it is a digest over every role system prompt and
 every contract schema. `models` and `efforts` are the model map. `budget` is the context and cost
-settings. The last three are T4.6's, and are absent from every run recorded before it.
+settings. `repeat_count` and `seed_policy` are T4.6's, and are absent from every run recorded
+before it. `ablation` is T6.1's - the specialists withheld from the agent, `[]` for a full run -
+and is absent from every run recorded before it, which `missing` records; an ablation run and a
+full run therefore never share a fingerprint, and neither pools with a run made before the switch
+existed without the difference being visible.
 """
 
 

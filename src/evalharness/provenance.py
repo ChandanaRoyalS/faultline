@@ -141,6 +141,12 @@ OBSERVABILITY_FILES: tuple[tuple[str, str], ...] = (
         "Covered here rather than the clone's stub file, because this is the one in effect",
     ),
     (
+        "compose/tempo.yaml",
+        "the trace store the trace tool reads (T6.1): its receiver, retention and storage. "
+        "Retention decides whether a trace a specialist asks for still exists; the receiver "
+        "decides whether one arrived at all",
+    ),
+    (
         "world/src/otelcollector/otelcol-config.yml",
         "the spanmetrics connector: whether calls_total and latency_bucket exist, and (by not "
         "overriding them) the histogram bucket boundaries T7.14's whole analysis turned on",
@@ -161,8 +167,9 @@ failure ADR-0014 was written to prevent, on files outside its cover.
 
 Deliberately excluded, and named so the exclusions are decisions rather than oversights:
 
-* `compose/grafana-loki-datasource.yml` and `world/src/grafana/**` - Grafana provisioning. A
-  human reads those; no capture, tool or score does.
+* `compose/grafana-loki-datasource.yml`, `compose/grafana-tempo-datasource.yml` and
+  `world/src/grafana/**` - Grafana provisioning. A human reads those; no capture, tool or score
+  does. (The deep link's uid is read from the Tempo file by test, which is a different guard.)
 * `world/src/prometheus/prometheus-config.yaml` - **dead.** `compose/telemetry.yml` points
   Prometheus at `--config.file=/etc/prometheus/faultline-prometheus.yaml`, so the demo's own
   config is mounted by the demo's compose file and never read.

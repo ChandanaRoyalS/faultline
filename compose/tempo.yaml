@@ -1,0 +1,40 @@
+# T6.1 - Grafana Tempo, the trace store the trace tool reads.
+#
+# Beside Jaeger, not instead of it. Jaeger is the demo's own trace UI behind frontend-proxy and a
+# service in somebody else's compose file (ADR-0026); the collector fans traces out to both, the
+# tool reads this one. The execution plan's word for T6.1 is "add".
+#
+# Local storage, single binary, no object store: the same shape as the demo's Jaeger all-in-one,
+# and the same trade - a trace exists as long as the container does, and `block_retention` bounds
+# how long that is. 48h covers a working day of recording and a sweep on either side of it.
+#
+# `usage_report.reporting_enabled: false` is not cosmetic. Tempo phones home by default, and this
+# world is the one THREAT-MODEL thesis 2 wants no unexplained egress from. T6.8 restricts egress
+# structurally; until then, nothing in this file asks for any.
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+ingester:
+  max_block_duration: 5m
+
+compactor:
+  compaction:
+    block_retention: 48h
+
+storage:
+  trace:
+    backend: local
+    local:
+      path: /var/tempo/traces
+    wal:
+      path: /var/tempo/wal
+
+usage_report:
+  reporting_enabled: false

@@ -27,6 +27,11 @@ class GraphPresence(StrEnum):
     ARTIFACT_ONLY = "artifact_only"
     """Its only edges were excluded as artifacts of how the world is run."""
 
+    INFRASTRUCTURE = "infrastructure"
+    """A datastore or broker the services depend on. Emits no spans of its own - its traffic
+    appears as *client* spans inside the instrumented service that calls it - so it can be a
+    culprit and never a node in a span-derived graph (ADR-0017 Addendum 3, Q27)."""
+
 
 @dataclass(frozen=True, slots=True)
 class ServiceEntry:
@@ -54,6 +59,22 @@ KNOWN_ABSENT: dict[str, tuple[GraphPresence, str]] = {
         "tracing UI routing itself. It is Envoy, and the alert rules already exclude it from "
         "ServiceNoTraffic for the same underlying reason: it emits a few spans at startup "
         "and none after (compose/prometheus/alert-rules.yml).",
+    ),
+    "redis-cart": (
+        GraphPresence.INFRASTRUCTURE,
+        "The cart's datastore. `cartservice` reaches it through a Redis client, and the only "
+        "trace of that is the client span (HGET, HMSET) inside cartservice; Redis itself emits "
+        "no spans and has no service.name. It is the injection target of two dev scenarios "
+        "(`cart-redis-misconfig`, `redis-cart-dependency-latency`) and was unnameable as a "
+        "culprit until T6.1 - ADR-0017 marked the decision and its first consumer, the "
+        "culprit-service axis, settled it (Addendum 3).",
+    ),
+    "kafka": (
+        GraphPresence.INFRASTRUCTURE,
+        "The broker two of checkoutservice's edges pass through, to accountingservice and "
+        "frauddetectionservice. Its producer and consumer spans belong to the services on "
+        "either side; the broker has none. In the catalog for the same reason as redis-cart, "
+        "and because its memory is the world's most-watched number (T7.27, T7.30).",
     ),
     "loadgenerator": (
         GraphPresence.ARTIFACT_ONLY,

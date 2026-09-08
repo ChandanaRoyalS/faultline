@@ -32,12 +32,31 @@ services:
         limits:
           memory: 200M
 
+  # T6.1 - the trace store the trace tool reads. Beside the demo's Jaeger, which stays as the
+  # demo's own UI (ADR-0026: it is somebody else's compose file). The collector exports to both;
+  # see compose/otelcol-extras.yml for the exporter and compose/tempo.yaml for why the store
+  # phones nobody. Same memory discipline as Loki: a limit, so pressure is a refusal and not a
+  # kernel kill that takes the world with it.
+  tempo:
+    image: grafana/tempo:2.4.2
+    container_name: tempo
+    command: -config.file=/etc/tempo/tempo.yaml
+    volumes:
+      - ../compose/tempo.yaml:/etc/tempo/tempo.yaml:ro
+    ports:
+      - "3200:3200"
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+
   # Pin Grafana to a predictable port so dashboards and demo links are stable.
   grafana:
     ports:
       - "3000:3000"
     volumes:
       - ../compose/grafana-loki-datasource.yml:/etc/grafana/provisioning/datasources/loki.yml:ro
+      - ../compose/grafana-tempo-datasource.yml:/etc/grafana/provisioning/datasources/tempo.yml:ro
 
   alertmanager:
     image: prom/alertmanager:v0.27.0
@@ -66,9 +85,12 @@ services:
   # phase of work rather than a working day.
   # T7.28: the collector's second --config, supplied from this repository rather than from the
   # pinned clone. See compose/otelcol-extras.yml for why it cannot live at the demo's own path.
+  # T6.1: the collector must reach Tempo before it starts exporting to it.
   otelcol:
     volumes:
       - ../compose/otelcol-extras.yml:/etc/otelcol-config-extras.yml:ro
+    depends_on:
+      - tempo
 
   prometheus:
     volumes:

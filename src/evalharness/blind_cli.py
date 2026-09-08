@@ -244,7 +244,7 @@ def _draw(
     print("")
     print(f"INCIDENT {incident_id}")
     print(f"  drawn blind from {remaining} remaining of {len(POOL)}. The clock is running.")
-    print("  Evidence: Prometheus, Loki, Jaeger, the change log, the UI. Not the bundle, not")
+    print("  Evidence: Prometheus, Loki, Tempo, the change log, the UI. Not the bundle, not")
     print("  incident.md, not any run directory, not the seal.")
     print("  faultline-blind-rca --answer --fault-class ... --service ...")
     return 0

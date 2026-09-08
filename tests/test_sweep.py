@@ -8,6 +8,8 @@ that as a G4 blocker since before the Phase 4 audit.
 
 from __future__ import annotations
 
+import pytest
+
 from evalharness import sweep
 
 
@@ -467,3 +469,17 @@ def test_a_transient_refusal_on_the_first_scenario_does_not_disarm_the_rest() ->
 
     assert [o.attempts for o in result.outcomes] == [3, 2]
     assert result.scored == 2
+
+
+def test_without_is_passed_through_to_every_run(monkeypatch: pytest.MonkeyPatch) -> None:
+    """T6.1's arm B: one flag on the sweep, the same flag on every `faultline-eval` it launches, so
+    a pass is an ablation pass whole or not at all."""
+    seen: list[list[str]] = []
+    monkeypatch.setattr(sweep, "runnable", lambda: ["a", "b"])
+    monkeypatch.setattr(
+        sweep, "sweep", lambda ids, **kw: seen.append(kw["extra"]) or sweep.SweepResult()
+    )
+
+    sweep.main(["--tier", "weekly", "--without", "traces"])
+
+    assert seen == [["--tier", "weekly", "--without", "traces"]]

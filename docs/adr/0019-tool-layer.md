@@ -705,3 +705,12 @@ capability stamps. **They were reviewed, not re-stamped** —
 `docs/design/t3.3b-capability-review.md` records the two questions the two changes imply, the one
 hit and why it is unaffected, and — because the guard's own message says a green run is not a
 proof — what the review did not ask.
+
+## Addendum (T6.1, 2026-09-08) — the trace tool moves to Tempo; `TOOL_BEHAVIOUR_REVISION` → 3
+
+The second bump, and the second review. `trace_query` reads Tempo rather than Jaeger, fetches
+traces whole by id, keeps the newest when it truncates, and renders a span tree with a named
+degrading hop instead of a flat list. `ALLOWED_PATHS` swaps Jaeger's UI path for `/api/search` and
+`/api/traces/`; nothing else about the read-only guard, the window policy or the envelope changes.
+The design is ADR-0037's; the narrative review the capability move required is
+`docs/design/t6.1-capability-review.md`, in the shape T3.3b's set. `cap:c4d52d00` → `cap:dd651ccc`.

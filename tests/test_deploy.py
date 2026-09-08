@@ -458,11 +458,13 @@ def world() -> dict:
     return yaml.safe_load(WORLD_OVERLAY.read_text())
 
 
-@pytest.mark.parametrize("service", ["alertmanager", "prometheus", "loki", "frontendproxy"])
+@pytest.mark.parametrize(
+    "service", ["alertmanager", "prometheus", "loki", "tempo", "frontendproxy"]
+)
 def test_every_service_the_platform_talks_to_shares_its_network(world: dict, service: str) -> None:
-    """Two compose projects, one network. The orchestrator queries three of these and Caddy
-    forwards the demo's UIs through the fourth; a service left off the network is a tool that
-    times out at the moment it is asked a question.
+    """Two compose projects, one network. The orchestrator queries four of these (Tempo since
+    T6.1) and Caddy forwards the demo's UIs through the fifth; a service left off the network is a
+    tool that times out at the moment it is asked a question.
 
     **This list said `frontend-proxy` and passed for two merges** - it was checking the overlay's
     keys against a copy of the overlay's keys, and both were the container name rather than the

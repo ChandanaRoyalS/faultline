@@ -87,16 +87,17 @@ DATASOURCE_BY_TOOL = {
     "promql_query": "webstore-metrics",
     "metric_baseline": "webstore-metrics",
     "logql_query": "loki",
-    "trace_query": "webstore-traces",
+    "trace_query": "tempo",
 }
 """Which Grafana datasource a tool's query belongs to, **by the uid each is provisioned under**.
 
 The first version said `prometheus`, `loki` and `tempo`. Two of those were wrong for this world and
 nothing could tell: Grafana resolves `left.datasource` by uid, the demo provisions Prometheus as
 `webstore-metrics` and Jaeger as `webstore-traces` (`world/src/grafana/provisioning/datasources/`),
-and there is no Tempo here at all. Only `loki` was right, because this repository provisions it
-(`compose/grafana-loki-datasource.yml`). `tests/test_incident_view.py` now reads the uids from those
-files rather than trusting this table.
+and there was no Tempo here at all. **T6.1 added one**, provisioned by this repository under the uid
+`tempo` (`compose/grafana-tempo-datasource.yml`) the way `loki` is, so the trace link now says
+`tempo` for the second time and is right for the first. `tests/test_incident_view.py` reads the uids
+from the provisioning files rather than trusting this table.
 
 `change_history` is absent deliberately: it reads the platform's own Postgres, has no datasource,
 and gets no link."""
@@ -142,7 +143,7 @@ def deep_link(tool: str, request: dict[str, Any], grafana_url: str | None = None
     clicked on a machine other than the author's was plain text, and so was every other one. The
     investigation now records what the tool reports it asked (`Investigation._asked`), and this
     reads exactly that: PromQL under `query`, LogQL under `selector`, and for traces the canonical
-    service Jaeger was searched for under `traced_service`.
+    service the trace store was searched for under `traced_service`.
 
     `grafana_url` overrides the configured base; `None` reads `ToolSettings.grafana_url`. The
     parameter exists so a test can state the base it expects instead of inheriting the ambient
@@ -152,11 +153,15 @@ def deep_link(tool: str, request: dict[str, Any], grafana_url: str | None = None
     if not datasource:
         return None
     if tool == "trace_query":
-        # Jaeger has no query language. What was asked was a search: this service, this window.
+        # Tempo has a query language, and the tool asked exactly one question in it: this service,
+        # this window (T6.1). The link carries the same TraceQL the tool ran, so what a reader sees
+        # in Explore is the search that produced the evidence - never a broader one.
         traced = str(request.get("traced_service") or "").strip()
         if not traced:
             return None
-        queries: list[dict[str, Any]] = [{"queryType": "search", "service": traced}]
+        queries: list[dict[str, Any]] = [
+            {"queryType": "traceql", "query": f'{{resource.service.name="{traced}"}}'}
+        ]
     else:
         query = str(request.get("query") or request.get("selector") or "").strip()
         if not query:

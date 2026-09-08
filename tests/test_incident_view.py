@@ -93,10 +93,10 @@ def test_each_tool_links_to_its_own_datasource() -> None:
 
     The first version of this test asserted `prometheus`, `loki` and `tempo` - what the table
     said, copied into the test. Grafana resolves `left.datasource` by uid; the demo provisions
-    Prometheus as `webstore-metrics` and Jaeger as `webstore-traces`, and nothing here is Tempo.
-    Two of three links would have opened Explore on no datasource. The Loki uid is this
-    repository's to provision and is read from its file; the demo's two live in the pinned clone
-    and are read from it when it is present, else pinned to what v1.2.1 ships.
+    Prometheus as `webstore-metrics` and Jaeger as `webstore-traces`, and until T6.1 nothing here
+    was Tempo. Two of three links would have opened Explore on no datasource. The Loki and Tempo
+    uids are this repository's to provision and are read from their files; the demo's Prometheus
+    lives in the pinned clone and is read from it when present, else pinned to what v1.2.1 ships.
     """
     logs = Call("logql_query", "tr_l", selector='{app="cart"}', window=WINDOW)
     traces = Call(
@@ -105,7 +105,12 @@ def test_each_tool_links_to_its_own_datasource() -> None:
     metrics = Call("metric_baseline", "tr_m", query="up", window=WINDOW)
 
     loki = yaml.safe_load((REPO_ROOT / "compose" / "grafana-loki-datasource.yml").read_text())
-    expected = {"logql_query": loki["datasources"][0]["uid"], **_world_grafana_uids()}
+    tempo = yaml.safe_load((REPO_ROOT / "compose" / "grafana-tempo-datasource.yml").read_text())
+    expected = {
+        "logql_query": loki["datasources"][0]["uid"],
+        "trace_query": tempo["datasources"][0]["uid"],
+        **_world_grafana_uids(),
+    }
     for call, key in ((logs, "logql_query"), (traces, "trace_query"), (metrics, "metric_baseline")):
         link = view.citations([call.result_id], [call])[0].deep_link
         assert link is not None, key
@@ -113,9 +118,10 @@ def test_each_tool_links_to_its_own_datasource() -> None:
 
 
 def _world_grafana_uids() -> dict[str, str]:
-    """`{tool: uid}` for the two datasources the demo provisions, read from the clone if present."""
+    """`{tool: uid}` for the datasource the demo provisions that a tool links to, read from the
+    clone if present. Since T6.1 that is Prometheus alone; traces link to this repo's Tempo."""
     provisioned = REPO_ROOT / "world" / "src" / "grafana" / "provisioning" / "datasources"
-    uids = {"metric_baseline": "webstore-metrics", "trace_query": "webstore-traces"}
+    uids = {"metric_baseline": "webstore-metrics"}
     if not provisioned.is_dir():
         return uids
     by_type = {
@@ -123,19 +129,21 @@ def _world_grafana_uids() -> dict[str, str]:
         for f in provisioned.glob("*.yaml")
         for d in (yaml.safe_load(f.read_text()) or {}).get("datasources", [])
     }
-    return {"metric_baseline": by_type["prometheus"], "trace_query": by_type["jaeger"]}
+    return {"metric_baseline": by_type["prometheus"]}
 
 
-def test_a_trace_citation_links_to_the_search_jaeger_was_asked() -> None:
-    """Jaeger has no query language: the tool searched one canonical service over one window, and
-    that pair is the whole of what was asked. The link reproduces the search, not a guess at it -
-    and it needs `traced_service`, the name the tool used, not `service`, the name the planner
-    said, because the two differ (`cart` vs `cartservice`) and Jaeger knows only one."""
+def test_a_trace_citation_links_to_the_traceql_tempo_was_asked() -> None:
+    """The tool searched one canonical service over one window in TraceQL, and that is the whole of
+    what was asked (T6.1). The link reproduces the search, not a guess at it - and it needs
+    `traced_service`, the name the tool used, not `service`, the name the planner said, because the
+    two differ (`cart` vs `cartservice`) and the trace store knows only one."""
     call = Call("trace_query", "tr_t", service="cart", traced_service="cartservice", window=WINDOW)
 
     left = json.loads(unquote(view.citations(["tr_t"], [call])[0].deep_link.split("left=", 1)[1]))
 
-    assert left["queries"] == [{"queryType": "search", "service": "cartservice"}]
+    assert left["queries"] == [
+        {"queryType": "traceql", "query": '{resource.service.name="cartservice"}'}
+    ]
     assert left["range"] == {"from": WINDOW[0], "to": WINDOW[1]}
     assert view.deep_link("trace_query", {"service": "cart", "window": WINDOW}) is None, (
         "the planner's name is not what Jaeger was asked; without the recorded one there is no link"
