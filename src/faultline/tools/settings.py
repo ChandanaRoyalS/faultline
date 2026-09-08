@@ -20,18 +20,23 @@ class ToolSettings(BaseSettings):
 
     prometheus_url: str = "http://localhost:9090"
     loki_url: str = "http://localhost:3100"
-    jaeger_url: str = "http://localhost:8080/jaeger/ui"
-    """Through frontend-proxy. `/jaeger/api/...` returns the UI's HTML with a 200 - Jaeger's
-    query service serves the SPA for paths it does not recognise - so the working prefix is
-    `/jaeger/ui/api/...` (measured, docs/evidence/t2.4-dependency-graph/)."""
+    tempo_url: str = "http://localhost:3200"
+    """The trace store the trace tool reads (T6.1), published by `compose/telemetry.yml`.
+
+    This replaced `jaeger_url`. Jaeger stays in the world as the demo's own UI and the collector
+    still exports to it; the tool no longer reads it. `docs/evidence/t2.4-dependency-graph/` was
+    captured from Jaeger's API and stays what it was - a recording is not re-sourced."""
+
+    max_traces: int = 10
+    """How many traces one search may fetch whole. Ten traces of a busy service is more than the
+    span cap admits; the cap, not this, is the bound that usually bites."""
 
     grafana_url: str = "http://localhost:3000"
     """**Where a citation's deep link sends a reader** - the only setting in this class no tool
     reads. `faultline.api.view` does.
 
     It sits beside the others because it is the same kind of fact under the same rule: an endpoint
-    the deployment knows and an agent cannot name. `jaeger_url` is already a *UI* base rather than
-    an API root, so this is not a new species of value here.
+    the deployment knows and an agent cannot name.
 
     **It exists because the link did not work.** `view.deep_link` built `/explore?left=...` as a
     bare relative path, reasoning that *"the platform does not know its own public URL"* - true,

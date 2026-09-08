@@ -50,19 +50,32 @@ T7_1_FIRST_CAPTURE = "20260828T024126Z"
 T7_1_LAST_CAPTURE = "20260828T052049Z"
 T7_28_FIRST_CAPTURE = "20260829T225404Z"
 T7_28_LAST_CAPTURE = "20260830T013651Z"
+T6_1_FIRST_CAPTURE = "20260908T045847Z"
+T6_1_LAST_CAPTURE = "20260908T140000Z"
+"""T6.1's re-record: thirteen bundles from 04:58:47Z, then one confirmation re-record of
+`cart-bad-image-tag` at 13:25Z (its first reading, 181s, was 61s below its historical minimum;
+the confirmation read 272s and both are published). The window's upper bound is rounded up past
+that confirmation rather than set to its exact stamp, because the point of a window is that
+nothing may run *inside* it and a bound that lands on the last capture invites a run at the
+following second."""
 
 RECORD_WINDOWS = (
     (T7_1_FIRST_CAPTURE, T7_1_LAST_CAPTURE, "T7.1"),
     (T7_28_FIRST_CAPTURE, T7_28_LAST_CAPTURE, "T7.28"),
+    (T6_1_FIRST_CAPTURE, T6_1_LAST_CAPTURE, "T6.1"),
 )
 
 WORLD_4A = "4a7690c6fdda"
 WORLD_299 = "299d791c5e0d"
 WORLD_F5B = "f5bd108f4f70"
+WORLD_90E = "90e9f29e578e"
+"""T6.1's world: Tempo beside Jaeger, and the collector exporting traces to both (ADR-0037).
+`observability_digest` moved with it, to `f3011ba83021`."""
 
 WORLD_ERAS = (
     (T7_1_FIRST_CAPTURE, WORLD_4A),
     (T7_28_FIRST_CAPTURE, WORLD_299),
+    (T6_1_FIRST_CAPTURE, WORLD_F5B),
 )
 """`(exclusive upper bound, world)`, oldest first. Anything later is the current world."""
 
@@ -103,7 +116,7 @@ class Generation:
 
 def world_from_stamp(stamp: str) -> str:
     """The world a run started at `stamp` must have executed against (T7.54's reconstruction)."""
-    return next((world for bound, world in WORLD_ERAS if stamp < bound), WORLD_F5B)
+    return next((world for bound, world in WORLD_ERAS if stamp < bound), WORLD_90E)
 
 
 def straddles_a_world_move(stamp: str) -> str | None:

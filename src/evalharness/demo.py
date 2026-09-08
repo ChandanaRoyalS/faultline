@@ -173,7 +173,7 @@ def narrate(event: dict[str, Any]) -> None:
         _beat("THE INVESTIGATION BEGINS")
         _say("  The planner now decides which specialists to send and what to ask")
         _say("  each one. It holds no tools itself. This is the slow part - the")
-        _say("  agents are making real queries against Prometheus, Loki and Jaeger.")
+        _say("  agents are making real queries against Prometheus, Loki and Tempo.")
     elif kind == "investigated":
         _beat("THE INVESTIGATION IS DONE")
         _say(f"  Exit code {event['exit_code']}, on attempt {event['attempts']}.")

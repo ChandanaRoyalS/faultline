@@ -2,24 +2,26 @@
 origin: scenario:shipping-quote-misconfig
 split: dev
 fault_class: bad_config
-recorded_from: 2026-08-30T01:20:48+00:00
-capability: cap:c4d52d00
-onset_to_page: 3m18s
+recorded_from: 2026-09-08T07:17:22+00:00
+capability: cap:dd651ccc
+onset_to_page: 3m19s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m19s
+fix_to_all_clear: 1m34s
 ---
 
 # Checkout failed a quarter of its orders, and the service at fault reported nothing
 
 ## What was observed
 
-The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing
-request. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as
-orders stopped completing — accounting, email, fraud detection, quote and shipping itself —
-for seven alerts across seven services.
+The page named **checkoutservice**: `ServiceHighErrorRate`, 3m19s after the first failing
+request. **loadgenerator** joined briefly at T+6m00s. Later in the fault, four services fell
+silent together as orders stopped completing — accounting, email, fraud detection and quote —
+for six alerts across six services. **shippingservice itself did not fall silent this time**,
+and that is the difference between this recording and the ones before it: quote requests kept
+arriving at it, so its call rate never emptied.
 
-Checkout's error ratio climbed to **27%** within a minute of the page and stayed between
-**25% and 29%** until the fix — steady, not a spike, and about a quarter of every order placed.
+Checkout's error ratio climbed to **30%** within a minute of the page and stayed between
+**25% and 30%** until the fix — steady, not a spike, and about a quarter of every order placed.
 
 ## What was checked
 

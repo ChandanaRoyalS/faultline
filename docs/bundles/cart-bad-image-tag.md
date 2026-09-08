@@ -9,35 +9,34 @@
 | expected remediation | `rollback` |
 | split | `dev` |
 | injected at | `cartservice` via `cart-bad-image-tag` |
-| time to page | 4m46s |
+| time to page | 4m32s |
 | steady state captured | 300s |
-| capture window | 2026-08-29T23:05:30+00:00 → 2026-08-29T23:24:17+00:00 |
+| capture window | 2026-09-08T13:20:53+00:00 → 2026-09-08T13:40:40+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+4m46s |
-| `t_revert` | T+9m46s |
-| all clear | T+11m47s |
+| first alert firing | T+4m32s |
+| `t_revert` | T+9m32s |
+| all clear | T+12m47s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+4m45s | `checkoutservice` | ServiceHighErrorRate | 6.8 min | **paged** |
-| T+4m45s | `frontend` | ServiceHighErrorRate | 7.0 min | **paged** |
-| T+4m45s | `loadgenerator` | ServiceHighErrorRate | 7.0 min | **paged** |
-| T+5m45s | `frontend` | ServiceHighLatency | 1.8 min | joined later |
-| T+5m45s | `loadgenerator` | ServiceHighLatency | 1.8 min | joined later |
-| T+6m15s | `accountingservice` | ServiceNoTraffic | 4.2 min | joined later |
+| T+4m30s | `checkoutservice` | ServiceHighErrorRate | 7.2 min | **paged** |
+| T+4m45s | `frontend` | ServiceHighErrorRate | 7.5 min | joined later |
+| T+4m45s | `loadgenerator` | ServiceHighErrorRate | 7.8 min | joined later |
+| T+6m00s | `currencyservice` | ServiceNoTraffic | 4.2 min | joined later |
+| T+6m00s | `emailservice` | ServiceNoTraffic | 4.2 min | joined later |
+| T+6m00s | `frauddetectionservice` | ServiceNoTraffic | 4.2 min | joined later |
+| T+6m00s | `quoteservice` | ServiceNoTraffic | 4.2 min | joined later |
+| T+6m15s | `accountingservice` | ServiceNoTraffic | 4.0 min | joined later |
 | T+6m15s | `cartservice` | ServiceNoTraffic | 4.0 min | joined later |
-| T+6m15s | `currencyservice` | ServiceNoTraffic | 4.2 min | joined later |
-| T+6m15s | `emailservice` | ServiceNoTraffic | 4.2 min | joined later |
-| T+6m15s | `frauddetectionservice` | ServiceNoTraffic | 4.2 min | joined later |
-| T+6m15s | `quoteservice` | ServiceNoTraffic | 4.2 min | joined later |
-| T+6m15s | `shippingservice` | ServiceNoTraffic | 4.2 min | joined later |
+| T+6m15s | `shippingservice` | ServiceNoTraffic | 4.0 min | joined later |
+| T+12m15s | `emailservice` | ServiceHighErrorRate | 0.5 min | began after the revert |
 
 ## What the bundle contains
 
@@ -56,18 +55,18 @@ The clock below runs from the moment the fault went in.
 From `logs/cart-service.txt` (500 lines):
 
 ```
-2026-08-29T23:05:30+00:00  AddItemAsync called with userId=217c17f6-a3fe-11f1-8c4e-9e12df7a2593, productId=L9ECAV7KIM, quantity=5
-2026-08-29T23:05:30+00:00  GetCartAsync called with userId=217c17f6-a3fe-11f1-8c4e-9e12df7a2593
-2026-08-29T23:05:33+00:00  AddItemAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593, productId=0PUK6V6EV0, quantity=1
-2026-08-29T23:05:33+00:00  GetCartAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593
-2026-08-29T23:05:33+00:00  AddItemAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593, productId=66VCHSJNUP, quantity=4
-2026-08-29T23:05:33+00:00  GetCartAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593
-2026-08-29T23:05:33+00:00  AddItemAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593, productId=2ZYFJ3GM2N, quantity=10
-2026-08-29T23:05:33+00:00  GetCartAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593
-2026-08-29T23:05:33+00:00  AddItemAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593, productId=66VCHSJNUP, quantity=3
-2026-08-29T23:05:33+00:00  GetCartAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593
-2026-08-29T23:05:33+00:00  GetCartAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593
-2026-08-29T23:05:33+00:00  EmptyCartAsync called with userId=2363faca-a3fe-11f1-8c4e-9e12df7a2593
+2026-09-08T13:20:54+00:00  AddItemAsync called with userId=1e8fb462-ab88-11f1-b359-b6ed2071a170, productId=LS4PSXUNUM, quantity=10
+2026-09-08T13:20:54+00:00  GetCartAsync called with userId=1e8fb462-ab88-11f1-b359-b6ed2071a170
+2026-09-08T13:20:57+00:00  GetCartAsync called with userId=
+2026-09-08T13:21:00+00:00  AddItemAsync called with userId=223c927e-ab88-11f1-b359-b6ed2071a170, productId=1YMWWN1N4O, quantity=1
+2026-09-08T13:21:00+00:00  GetCartAsync called with userId=223c927e-ab88-11f1-b359-b6ed2071a170
+2026-09-08T13:21:00+00:00  GetCartAsync called with userId=
+2026-09-08T13:21:02+00:00  AddItemAsync called with userId=238555bc-ab88-11f1-b359-b6ed2071a170, productId=L9ECAV7KIM, quantity=2
+2026-09-08T13:21:02+00:00  GetCartAsync called with userId=238555bc-ab88-11f1-b359-b6ed2071a170
+2026-09-08T13:21:04+00:00  GetCartAsync called with userId=
+2026-09-08T13:21:06+00:00  AddItemAsync called with userId=25e2dc76-ab88-11f1-b359-b6ed2071a170, productId=L9ECAV7KIM, quantity=5
+2026-09-08T13:21:06+00:00  GetCartAsync called with userId=25e2dc76-ab88-11f1-b359-b6ed2071a170
+2026-09-08T13:21:06+00:00  AddItemAsync called with userId=25e2dc76-ab88-11f1-b359-b6ed2071a170, productId=1YMWWN1N4O, quantity=1
 ```
 
 _488 further lines are in the bundle._
@@ -87,17 +86,19 @@ bundle are the tiebreak.
 
 ### What was observed
 
-The page named three services in the same evaluation: `ServiceHighErrorRate` on
-**frontend**, **loadgenerator** and **checkoutservice**. It arrived 4m46s after onset.
+The page was `ServiceHighErrorRate` on **checkoutservice** alone, 4m32s after onset;
+**frontend** and **loadgenerator** followed fifteen seconds later. The direct caller of the
+broken service crossed first, which is the shape the analysis below turns on.
 
 On the storefront, product pages rendered normally. Adding anything to a basket failed.
 
-Two and a half minutes after the page, seven services went quiet **together** at
-T+6m15s — accountingservice, **cartservice**, currencyservice, emailservice,
-frauddetectionservice, quoteservice and shippingservice. All `ServiceNoTraffic`, all in
-the same evaluation.
+A minute and a half after the page, seven services went quiet — four together at
+T+6m00s (currencyservice, emailservice, frauddetectionservice and quoteservice), then
+accountingservice, **cartservice** and shippingservice fifteen seconds after them. All
+`ServiceNoTraffic`.
 
-Ten alerts across ten services.
+Eleven alerts across ten services: the eleventh is a half-minute `ServiceHighErrorRate` on
+emailservice at T+12m15s, **after the revert**, as the world drained what had queued.
 
 ### What was checked
 
@@ -111,8 +112,8 @@ the storefront is failing to do and says nothing about cause.
 **Traces from frontend.** Checkout spans failing on their call to cart. The first real
 narrowing.
 
-**The gap between the errors and the silence.** Errors alerted at T+3m45s; the silence
-did not arrive until T+6m15s, two and a half minutes later. That is not the failure
+**The gap between the errors and the silence.** Errors alerted at T+4m30s; the silence
+did not arrive until T+6m00s, a minute and a half later. That is not the failure
 spreading. `ServiceHighErrorRate` responds to requests that fail, and `ServiceNoTraffic`
 only once calls stop arriving at all and a rate window empties — the same event crossing
 two thresholds that are sensitive to different things. The seven quiet services were all

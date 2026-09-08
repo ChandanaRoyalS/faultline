@@ -266,9 +266,9 @@ compose project `faultline-deploy`: caddy, faultline (ingest + read surface), or
                                     postgres, redis
 compose project `world`:            the pinned OpenTelemetry demo + this repository's telemetry overlay,
                                     layered fourth with deploy/compose.world.yml so alertmanager,
-                                    prometheus, loki and frontend-proxy join the shared network
+                                    prometheus, loki, tempo and frontend-proxy join the shared network
 one docker network:                 the world's Alertmanager posts to faultline:8000 by name; the
-                                    orchestrator's specialists query prometheus/loki/jaeger by name
+                                    orchestrator's specialists query prometheus/loki/tempo by name
 ```
 
 The deployment serves nothing the development machine does not; what it adds is the edge (TLS, the
@@ -343,3 +343,4 @@ Thirty-six ADRs. The ones to read first are marked ★.
 | [0034](adr/0034-the-evidence-archive.md) | The evidence archive |
 | [0035](adr/0035-the-service-catalog.md) | The service catalog |
 | [0036](adr/0036-what-may-be-written-in-a-runbook.md) | What may be written in a runbook |
+| [0037](adr/0037-the-trace-analyst.md) | The trace analyst: Tempo beside Jaeger, the span tree, and the degrading hop |

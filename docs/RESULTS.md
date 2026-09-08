@@ -6,15 +6,27 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 
 **Agent `claude-opus-5` · judge `claude-haiku-4-5` · SHARED LINEAGE on every judged figure.**
 
-> **The current-world result leads; everything else in this document is labelled.** The figures are
-> in [the section immediately below](#the-current-world-result) — **19 scored runs on
-> `compose_digest f5bd108f…`, none of them holdout** — and are not repeated here.
+> **NO FIGURE IN THIS DOCUMENT DESCRIBES THE WORLD THAT EXISTS (2026-09-08, T6.1).** Tempo joined
+> the telemetry stack and all thirteen bundles were re-recorded against it (ADR-0037), so
+> `compose_digest` moved `f5bd108f…` → **`90e9f29e…`** and `observability_digest` → `f3011ba8…`.
+> **Zero scored runs exist on that world.** The section below, *The current-world result*, now
+> describes the **previous** world and is labelled in its own heading; everything under *The tables*
+> describes two worlds before that. Nothing here is wrong — each figure is correct about the world
+> it was measured on, which is the whole reason this document names generations at all (ADR-0014).
+> What fills the gap is **dev sweep 12**, pre-registered in
+> [`PREREGISTRATION-T6.1.md`](../evals/runs/PREREGISTRATION-T6.1.md) before the world moved: ten dev
+> scenarios, R = 3, with and without the traces specialist.
+>
+> **The previous world's figures, for reference while they are the newest that exist.** **19 scored
+> runs on `compose_digest f5bd108f…`, none of them holdout**, in
+> [the section immediately below](#the-current-world-result) and not repeated here.
 > *(They were repeated here until T7.60, which gave them a section; a banner and a section saying
 > the same thing is how the two drift apart.)*
 >
-> **The current world holds under a fifth of the record.** Of the 97 manifest-carrying runs in
+> **No world has ever held much of the record.** Of the 97 manifest-carrying runs in
 > `evals/runs/`, **69 describe `4a7690c6fdda…`** and **12 describe `299d791c5e0d…`**. That is why
-> *The tables* is labelled the way it is.
+> *The tables* is labelled the way it is, and why the new world starting at zero is the ordinary
+> case rather than a setback.
 >
 > **The world is reconstructible, and that is what makes the digest worth quoting (T7.48).** The
 > stack was torn down and rebuilt with the documented commands; **`compose_digest`,
@@ -58,8 +70,13 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 
 ## The current-world result
 
-**This is the only section describing the world that exists.** Everything under *The tables* ran on
-a world that has since been replaced, and says so.
+> **Superseded 2026-09-08 (T6.1): this section describes `f5bd108f4f70`, which is no longer the
+> world that exists.** The heading is kept because six other documents link to it by anchor, and a
+> renamed anchor is a broken link that nothing catches. Read it as *the last measured world*. The
+> world now is `90e9f29e578e` and it has no scored runs — see the banner at the top.
+
+**This was the only section describing the world that existed when it was written.** Everything
+under *The tables* ran on a world that had already been replaced by then, and says so.
 
 ### What is scored, and what is not
 
@@ -89,16 +106,20 @@ coverage, so accuracy and coverage are never quoted apart.
 `prompts:1b0e7cbb4c47`, agent `claude-opus-5`, judge `claude-haiku-4-5` — SHARED LINEAGE on every
 judged figure.**
 
-> **HEAD is no longer this pipeline, and is now five generations away (updated 2026-09-03).**
+> **HEAD is no longer this pipeline, and is now six generations away (updated 2026-09-08).**
 > The remediation proposer added a sixth stage and triage gained a judgement half, so two role
 > prompts and two contracts entered the stamp (T3.9 and T3.1, 2026-09-02) — by way of
 > `prompts:20088b22cede` and `prompts:a7330c098770`. Since then: `prompts:bc222a353936` (Batch B,
 > which dev sweep 8 measured), `prompts:7c6894e9dd92` (Batch C — `TriageJudgement` entered
 > `_CONTRACTS`), `prompts:ba8684b01201` (T4.2 — `Verdict` gained `service` and ranked
 > `alternatives`, and **dev sweep 9 measured it**), and `prompts:42e34a1811c4` (Q25 — `Candidate` gained an optional
-> `remediation_class`; it lasted one run), and **HEAD today is `prompts:b6837dd449ca`** (Q25b —
+> `remediation_class`; it lasted one run), `prompts:b6837dd449ca` (Q25b —
 > reporting contracts accept unexpected keys and record them, requesting contracts still refuse
-> them, after `extra="forbid"` destroyed two whole verdicts on `cart-bad-image-tag` for $0.7323).
+> them, after `extra="forbid"` destroyed two whole verdicts on `cart-bad-image-tag` for $0.7323;
+> **dev sweeps 10 and 11 measured it**, and every figure in README's table is at it), and **HEAD
+> today is `prompts:06f24e827915`** (Q29, T6.1 — `Proposal` reports unexpected keys too, after
+> sweep 11 refused two proposals whole for a `confirm_within_seconds_note`; no prose changed, and
+> no scored run exists at this stamp until dev sweep 12, `PREREGISTRATION-T6.1.md`).
 >
 > *The line above previously named `a7330c098770` as HEAD and was correct on the day it was
 > written. It then went stale through four stamp moves while continuing to read as a statement

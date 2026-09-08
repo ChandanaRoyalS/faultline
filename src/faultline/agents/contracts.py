@@ -70,7 +70,18 @@ keep refusing the ones where an unexpected key is an attempted instruction.** A 
 field by field and an extra changes nothing; a `Dispatch` is a request that drives what the
 harness queries, and an extra there is surface.
 
-`Proposal` keeps this for the same reason: it names an action against the world.
+~~`Proposal` keeps this for the same reason: it names an action against the world.~~ **Reversed
+at T6.1 (Q29, ADR-0028 Addendum 2).** The sentence above was the wrong test. What makes an extra
+key *surface* is not that the contract names an action but that something downstream would read
+the key: a `Dispatch`'s extra reaches the tool layer, whose windows and selectors are built from
+the dispatch, so a key nobody declared is a key a model might one day get read. A `Proposal` is
+read field by field by the approver's card and, when T6.2's executor exists, by an executor that
+validates against the **allowlist entry's declared fields**, never against the raw proposal - so
+an extra key there has no reader and no path, exactly like one on a `Verdict`. What it *did* have
+was a cost: sweep 11 refused two proposals whole for a `confirm_within_seconds_note` nobody asked
+for (finding 35), which is `remediation_class` on `ba8684b01201` again, one contract over.
+`Proposal` therefore reports (`REPORTED`) and its extras go on the PROPOSAL step and the
+manifest, as the verdict's do. `Dispatch` keeps refusing, and this docstring is the boundary.
 """
 
 
@@ -349,7 +360,12 @@ class Proposal(BaseModel):
     is frequently the correct answer.
     """
 
-    model_config = REQUESTED
+    # Q29 (T6.1): unexpected keys are accepted and recorded - `REPORTED`, not `REQUESTED`, for the
+    # reason the `REQUESTED` docstring gives. `unexpected_fields(..., proposal=...)` puts them on
+    # the manifest; `validate_proposal` still checks every declared field. A comment rather than a
+    # docstring sentence because the class docstring is the schema `description` the model reads
+    # (ADR-0028 Addendum 1), and the model is not to be told that extras are welcome.
+    model_config = REPORTED
 
     remediation_class: RemediationClass
     action_id: str = Field(description="An id from the allowlist catalog, or empty when abstaining")
@@ -563,8 +579,11 @@ def validate_triage(judgement: TriageJudgement, known_incidents: set[str]) -> No
         )
 
 
-def unexpected_fields(payload: dict[str, Any]) -> dict[str, list[str]]:
-    """Keys a verdict carries that `Verdict` and `Candidate` never asked for.
+def unexpected_fields(
+    payload: dict[str, Any], proposal: dict[str, Any] | None = None
+) -> dict[str, list[str]]:
+    """Keys a verdict carries that `Verdict` and `Candidate` never asked for - and, when a
+    proposal is given, keys it carries that `Proposal` never asked for (Q29, T6.1).
 
     **The other half of `MODEL_FILLED`.** Accepting an unexpected key without recording it is
     `extra="ignore"` wearing a better name: the model would still be trying to say something and
@@ -592,4 +611,9 @@ def unexpected_fields(payload: dict[str, Any]) -> dict[str, list[str]]:
         extra = sorted(k for k in candidate if k not in declared_candidate)
         if extra:
             found[f"alternatives[{index}]"] = extra
+    if proposal:
+        declared_proposal = set(Proposal.model_fields)
+        extra_proposal = sorted(k for k in proposal if k not in declared_proposal)
+        if extra_proposal:
+            found["proposal"] = extra_proposal
     return found

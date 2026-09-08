@@ -9,26 +9,28 @@
 | expected remediation | `config_revert` |
 | split | `dev` |
 | injected at | `ad-service` via `ad-memory-squeeze` |
-| time to page | 3m30s |
+| time to page | 3m16s |
 | steady state captured | 300s |
-| capture window | 2026-08-29T22:49:04+00:00 → 2026-08-29T23:07:04+00:00 |
+| capture window | 2026-09-08T04:53:47+00:00 → 2026-09-08T05:10:33+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+3m30s |
-| `t_revert` | T+8m30s |
-| all clear | T+11m00s |
+| first alert firing | T+3m16s |
+| `t_revert` | T+8m16s |
+| all clear | T+9m46s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m15s | `frontend` | ServiceHighErrorRate | 7.5 min | **paged** |
-| T+3m15s | `loadgenerator` | ServiceHighErrorRate | 7.5 min | **paged** |
-| T+6m00s | `adservice` | ServiceNoTraffic | 4.0 min | joined later |
+| T+3m15s | `frontend` | ServiceHighErrorRate | 0.2 min | **paged** |
+| T+3m15s | `loadgenerator` | ServiceHighErrorRate | 0.2 min | **paged** |
+| T+5m45s | `frontend` | ServiceHighErrorRate | 4.0 min | **paged** |
+| T+5m45s | `loadgenerator` | ServiceHighErrorRate | 4.0 min | **paged** |
+| T+6m00s | `adservice` | ServiceNoTraffic | 3.0 min | joined later |
 
 ## What the bundle contains
 
@@ -40,28 +42,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="adservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/ad-service.txt` — 151 lines.
+`logs/ad-service.txt` — 162 lines.
 
 ## A look at the logs
 
-From `logs/ad-service.txt` (145 lines):
+From `logs/ad-service.txt` (156 lines):
 
 ```
-2026-08-29T22:54:04+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-29T22:54:04+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-29T22:54:04+00:00  [otel.javaagent 2026-08-29 22:54:04:974 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-08-29T22:54:07+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-29T22:54:07+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-29T22:54:08+00:00  [otel.javaagent 2026-08-29 22:54:08:079 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-08-29T22:54:11+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-29T22:54:11+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-29T22:54:11+00:00  [otel.javaagent 2026-08-29 22:54:11:518 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-08-29T22:54:14+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-08-29T22:54:15+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-08-29T22:54:15+00:00  [otel.javaagent 2026-08-29 22:54:15:213 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-08T04:58:48+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-08T04:58:48+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-08T04:58:48+00:00  [otel.javaagent 2026-09-08 04:58:48:693 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-08T04:58:52+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-08T04:58:52+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-08T04:58:53+00:00  [otel.javaagent 2026-09-08 04:58:53:003 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-08T04:58:57+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-08T04:58:57+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-08T04:58:57+00:00  [otel.javaagent 2026-09-08 04:58:57:615 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-08T04:59:05+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-08T04:59:05+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-08T04:59:05+00:00  [otel.javaagent 2026-09-08 04:59:05:875 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
 ```
 
-_133 further lines are in the bundle._
+_144 further lines are in the bundle._
 
 ## The incident record
 
@@ -79,10 +81,10 @@ bundle are the tiebreak.
 ### What was observed
 
 The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,
-3m30s after onset. No service between them and the edge was named, and both alerts then
-stayed up continuously for the rest of the incident.
+3m16s after onset. No service between them and the edge was named. Both cleared within a
+quarter of a minute and returned at T+5m45s, staying up for the rest of the incident.
 
-Two and a half minutes later, at **T+6m00s**, `ServiceNoTraffic` fired on **adservice** —
+Two and three-quarter minutes later, at **T+6m00s**, `ServiceNoTraffic` fired on **adservice** —
 the first time anything named a service other than the edge, and the only alert in this
 incident that points inward.
 
@@ -102,12 +104,12 @@ everything else flat. adservice itself: zero errors, then no data at all.
 narrowed it faster than any metric did — frontend's errors were confined to one
 dependency, and the storefront said which one before the alerting did.
 
-**adservice's logs, which is where this one breaks open.** Ordinary request lines up to
-eighteen seconds before onset, and then, from T+0 onward, **sixteen startup attempts**
-inside the fault window — each a JVM banner, the OpenTelemetry agent announcing itself,
-and then nothing. The last begins at T+8m27s, three seconds before the fix. No line
-explains a failure, because the process is being stopped before it can form an opinion
-about anything. **A truncated, repeating startup is a process being killed from
+**adservice's logs, which is where this one breaks open.** The capture opens at T+0m01s and
+holds **twenty-three startup attempts** inside the fault window — each a JVM banner, the
+OpenTelemetry agent announcing itself, and then nothing. The last is at T+8m43s, twenty-seven
+seconds *after* the ceiling was restored, and it is the one that succeeds: the same banner, then
+ordinary request lines. No line explains a failure, because until then the process is being
+stopped before it can form an opinion about anything. **A truncated, repeating startup is a process being killed from
 outside**, and it is the strongest evidence in this incident.
 
 **Whether adservice was idle or absent.** `ServiceNoTraffic` cannot tell those apart:
@@ -130,8 +132,9 @@ new wall, was killed, and never got back up.
 adservice's container memory limit was reduced below the footprint its JVM was
 configured for. Nothing about the service changed — only the ceiling it was allowed to
 occupy. From the first restart after the change, the runtime could not complete a startup
-inside the new limit: it was killed during initialisation, sixteen times over, and never
-served a request again until the ceiling was restored.
+inside the new limit: it was killed during initialisation, twenty-two times over, and never
+served a request again until the ceiling was restored — the twenty-third attempt, after the
+restore, is the one that came up.
 
 This is why it produced no errors of its own: a process that dies before it serves records
 no calls, and therefore no errored ones. Its evidence was absence in the metrics and
@@ -140,14 +143,14 @@ repetition in the logs — nothing failing, and the same startup over and over.
 ### Resolution
 
 The memory limit was restored to its previous value. adservice came back and the ad
-panel returned. Everything was clear 1m45s after the fix.
+panel returned. Everything was clear 1m30s after the fix.
 
 Class of fix: **config_revert**. Nothing was deployed and nothing needed rolling back;
 one resource limit was wrong and was put back.
 
 ### Detection notes
 
-- Onset to first page: **3m30s**.
+- Onset to first page: **3m16s**.
 - Services alerting at the page: **2**. Over the whole incident: **3**, across 3
   alerts.
 - Alerts that fired only during recovery: **none**.

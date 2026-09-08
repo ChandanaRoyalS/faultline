@@ -2,28 +2,30 @@
 origin: scenario:cart-bad-image-tag
 split: dev
 fault_class: bad_deploy
-recorded_from: 2026-08-29T23:10:30+00:00
-capability: cap:c4d52d00
-onset_to_page: 4m46s
+recorded_from: 2026-09-08T13:25:53+00:00
+capability: cap:dd651ccc
+onset_to_page: 4m32s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m01s
+fix_to_all_clear: 3m15s
 ---
 
 # Cart service deployed on an image tag that was never published
 
 ## What was observed
 
-The page named three services in the same evaluation: `ServiceHighErrorRate` on
-**frontend**, **loadgenerator** and **checkoutservice**. It arrived 4m46s after onset.
+The page was `ServiceHighErrorRate` on **checkoutservice** alone, 4m32s after onset;
+**frontend** and **loadgenerator** followed fifteen seconds later. The direct caller of the
+broken service crossed first, which is the shape the analysis below turns on.
 
 On the storefront, product pages rendered normally. Adding anything to a basket failed.
 
-Two and a half minutes after the page, seven services went quiet **together** at
-T+6m15s — accountingservice, **cartservice**, currencyservice, emailservice,
-frauddetectionservice, quoteservice and shippingservice. All `ServiceNoTraffic`, all in
-the same evaluation.
+A minute and a half after the page, seven services went quiet — four together at
+T+6m00s (currencyservice, emailservice, frauddetectionservice and quoteservice), then
+accountingservice, **cartservice** and shippingservice fifteen seconds after them. All
+`ServiceNoTraffic`.
 
-Ten alerts across ten services.
+Eleven alerts across ten services: the eleventh is a half-minute `ServiceHighErrorRate` on
+emailservice at T+12m15s, **after the revert**, as the world drained what had queued.
 
 ## What was checked
 
@@ -37,8 +39,8 @@ the storefront is failing to do and says nothing about cause.
 **Traces from frontend.** Checkout spans failing on their call to cart. The first real
 narrowing.
 
-**The gap between the errors and the silence.** Errors alerted at T+3m45s; the silence
-did not arrive until T+6m15s, two and a half minutes later. That is not the failure
+**The gap between the errors and the silence.** Errors alerted at T+4m30s; the silence
+did not arrive until T+6m00s, a minute and a half later. That is not the failure
 spreading. `ServiceHighErrorRate` responds to requests that fail, and `ServiceNoTraffic`
 only once calls stop arriving at all and a rate window empties — the same event crossing
 two thresholds that are sensitive to different things. The seven quiet services were all

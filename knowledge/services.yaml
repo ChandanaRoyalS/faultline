@@ -280,3 +280,15 @@ services:
       p95_latency_ms: 250
       error_ratio: 0.05
       source: compose/prometheus/alert-rules.yml
+  # T6.1: this repository's trace store (compose/telemetry.yml), read by `trace_query`. Added
+  # by this repository, not the demo - but `demo/` stays on the owner because the prefix means
+  # "no real team", not "shipped by the demo" (ADR-0035). Not a node in the dependency graph:
+  # it receives spans from the collector and serves no request path.
+  - name: tempo
+    container: tempo
+    kind: telemetry
+    tier: telemetry
+    owner: demo/observability
+    depends_on: []
+    runbooks: []
+    slo: null

@@ -2,18 +2,18 @@
 origin: scenario:product-catalog-flag-failure
 split: dev
 fault_class: bad_config
-recorded_from: 2026-08-30T00:32:33+00:00
-capability: cap:c4d52d00
-onset_to_page: 3m49s
+recorded_from: 2026-09-08T06:46:16+00:00
+capability: cap:dd651ccc
+onset_to_page: 3m19s
 page_to_fix: 5m00s
-fix_to_all_clear: 48s
+fix_to_all_clear: 1m19s
 ---
 
 # A feature flag turned on at the flag service makes product catalog fail one product
 
 ## What was observed
 
-The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, 3m49s after
+The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, 3m19s after
 onset. Fifteen seconds later **frontend** and **productcatalogservice** joined it, and
 **checkoutservice** almost four minutes after that.
 
@@ -68,7 +68,7 @@ no amount of investigating product catalog would have found it.
 ## Resolution
 
 The flag was turned off. The next request for that product succeeded. Everything was
-clear **1m34s** after the fix. Nothing had to restart, drain or reconnect — a flag flip
+clear **1m19s** after the fix. Nothing had to restart, drain or reconnect — a flag flip
 takes effect on the following request — and the remaining time is the alerting's own
 rolling windows emptying rather than the system recovering.
 
@@ -77,7 +77,7 @@ back to; one configuration value was wrong and was set back.
 
 ## Detection notes
 
-- Onset to first page: **3m49s**.
+- Onset to first page: **3m19s**.
 - Services alerting at the page: **1**. Over the whole incident: **3**, across 4 alerts.
 - Alerts that fired only during recovery: **1** — frontend, about twelve seconds, after
   the fix had already gone in. It names a service that was genuinely part of the failure,

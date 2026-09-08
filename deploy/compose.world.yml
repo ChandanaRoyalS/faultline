@@ -88,9 +88,16 @@ services:
       - default
       - faultline
 
-  # Two jobs. The traces specialist reaches Jaeger through it at
-  # `http://frontend-proxy:8080/jaeger/ui`, and Caddy forwards `/grafana*` and `/jaeger*` to it so
-  # a citation deep link lands a reader in the real data behind one hostname and one credential.
+  # Queried by the traces specialist as `http://tempo:3200` (T6.1). This repository's service, not
+  # the demo's, so it is defined in compose/telemetry.yml and only joins the network here.
+  tempo:
+    networks:
+      - default
+      - faultline
+
+  # One job since T6.1. Caddy forwards `/grafana*` and `/jaeger*` to it so a citation deep link
+  # lands a reader in the real data behind one hostname and one credential; the traces specialist
+  # used to reach Jaeger through it at `/jaeger/ui` and now reads Tempo directly.
   #
   # **`frontendproxy`, not `frontend-proxy`.** The demo names the *service* `frontendproxy` and the
   # *container* `frontend-proxy`; the URLs above use the container name because Docker's DNS

@@ -9,28 +9,28 @@
 | expected remediation | `restart` |
 | split | `holdout` |
 | injected at | `product-catalog-service` via `productcatalog-dependency-latency` |
-| time to page | 3m49s |
+| time to page | 3m35s |
 | steady state captured | 300s |
-| capture window | 2026-08-30T00:42:36+00:00 → 2026-08-30T01:00:26+00:00 |
+| capture window | 2026-09-08T07:58:19+00:00 → 2026-09-08T08:16:10+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+3m49s |
-| `t_revert` | T+8m49s |
-| all clear | T+10m50s |
+| first alert firing | T+3m35s |
+| `t_revert` | T+8m35s |
+| all clear | T+10m51s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m30s | `loadgenerator` | ServiceHighLatency | 7.2 min | **paged** |
-| T+3m45s | `frontend` | ServiceHighLatency | 7.0 min | joined later |
-| T+3m45s | `productcatalogservice` | ServiceHighLatency | 6.8 min | joined later |
-| T+3m45s | `recommendationservice` | ServiceHighLatency | 7.0 min | joined later |
-| T+4m00s | `checkoutservice` | ServiceHighLatency | 6.5 min | joined later |
+| T+3m30s | `frontend` | ServiceHighLatency | 7.2 min | **paged** |
+| T+3m30s | `loadgenerator` | ServiceHighLatency | 7.0 min | **paged** |
+| T+3m30s | `recommendationservice` | ServiceHighLatency | 6.8 min | **paged** |
+| T+3m45s | `checkoutservice` | ServiceHighLatency | 6.8 min | joined later |
+| T+4m15s | `productcatalogservice` | ServiceHighLatency | 5.5 min | joined later |
 
 ## What the bundle contains
 
@@ -61,7 +61,7 @@ bundle are the tiebreak.
 
 The page was a single alert: `ServiceHighLatency` on **loadgenerator**. **frontend**,
 **productcatalogservice** and **recommendationservice** joined fifteen seconds later, and
-**checkoutservice** fifteen seconds after that — five alerts across five services. The page arrived 3m49s after things
+**checkoutservice** fifteen seconds after that — five alerts across five services. The page arrived 3m35s after things
 started slowing.
 
 **productcatalogservice** — the service the delay was actually on — joined a full minute
@@ -117,7 +117,7 @@ configuration were untouched.
 ### Resolution
 
 Recreating the container cleared the shaping — the rule binds to the container
-instance, so a replacement comes up on a clean network path. Everything was quiet 2m32s
+instance, so a replacement comes up on a clean network path. Everything was quiet 2m16s
 later, which is the metric window emptying rather than a gradual recovery.
 
 Class of fix: **restart**. Nothing was deployed and no configuration was wrong, so
@@ -125,7 +125,7 @@ there was nothing to roll back or revert.
 
 ### Detection notes
 
-- Onset to first page: **3m49s**, against a three-minute persistence clause. Detection
+- Onset to first page: **3m35s**, against a three-minute persistence clause. Detection
   is dominated by the clause.
 - Services alerting at the page: **4**. Over the whole incident: **5**. The blast radius
   never grew.

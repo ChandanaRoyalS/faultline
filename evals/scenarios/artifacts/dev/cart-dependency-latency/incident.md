@@ -2,20 +2,21 @@
 origin: scenario:cart-dependency-latency
 split: dev
 fault_class: dependency_latency
-recorded_from: 2026-08-29T23:27:42+00:00
-capability: cap:c4d52d00
-onset_to_page: 3m50s
+recorded_from: 2026-09-08T05:28:59+00:00
+capability: cap:dd651ccc
+onset_to_page: 3m19s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m16s
+fix_to_all_clear: 2m17s
 ---
 
 # Cart service network path acquires 300ms of delay
 
 ## What was observed
 
-The page named three services in the same evaluation: `ServiceHighLatency` on
-**cartservice**, **frontend** and **loadgenerator**, 3m50s after things started slowing.
-**checkoutservice** followed fifteen seconds later, for four alerts across four services.
+The page was `ServiceHighLatency` on **cartservice** alone, 3m19s after things started
+slowing. **frontend**, **loadgenerator** and **checkoutservice** followed fifteen seconds
+later, for four alerts across four services. The slow service alerted first, which is not
+what the other latency scenarios in this catalog do.
 
 No errors. Not one. Every request succeeded; they simply took longer. The storefront
 worked end to end — adding to a basket returned normally, just sluggishly.
@@ -72,7 +73,7 @@ p95 to rise by exactly 300ms would have doubted a correct measurement.
 ## Resolution
 
 Recreating the cart container cleared the shaping — the rule is bound to the container
-instance, so a new one comes up on a clean network path. Everything was quiet 2m32s
+instance, so a new one comes up on a clean network path. Everything was quiet 2m17s
 later.
 
 Class of fix: **restart**. Nothing was deployed and no configuration was wrong, so
@@ -80,7 +81,7 @@ there was nothing to roll back or revert; the container simply needed replacing.
 
 ## Detection notes
 
-- Onset to first page: **3m50s**, against a three-minute persistence clause. Detection
+- Onset to first page: **3m19s**, against a three-minute persistence clause. Detection
   is dominated by the clause, not by how long the signal took to appear — the underlying
   measurement crossed the threshold almost immediately.
 - Services alerting at the page: **2**. Over the whole incident: **4**. The blast radius

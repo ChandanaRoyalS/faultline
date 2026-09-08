@@ -1,0 +1,14 @@
+# T6.1 - register Tempo with the demo's Grafana, the way T1.2 registered Loki.
+# The uid is what `faultline.api.view.DATASOURCE_BY_TOOL` names for `trace_query`: a citation's
+# deep link opens Explore on this datasource with the TraceQL the tool ran. Provisioned as a file
+# so a clean clone comes up wired (Gate 5's condition), and `editable: false` so nobody can move
+# the uid under the links.
+apiVersion: 1
+datasources:
+  - name: Tempo
+    type: tempo
+    access: proxy
+    uid: tempo
+    url: http://tempo:3200
+    isDefault: false
+    editable: false

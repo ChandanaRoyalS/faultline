@@ -12,6 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from faultline.agents.contracts import SPECIALISTS
 from faultline.agents.settings import AgentSettings
 from faultline.archive import connect_or_none
 
@@ -129,6 +130,20 @@ def parser() -> argparse.ArgumentParser:
         help="dispatch rounds; default: %(default)s",
     )
     p.add_argument(
+        "--without",
+        action="append",
+        default=[],
+        choices=SPECIALISTS,
+        metavar="SPECIALIST",
+        help=(
+            "withhold this specialist (T6.1's ablation switch; repeatable). The planner still "
+            "plans and is not told; a dispatch to a withheld specialist is recorded on the "
+            "trajectory and the artifact and never runs, and nothing else about the pipeline "
+            "changes. This is how the plan's 'eval accuracy delta' for a modality is measured: "
+            "the same agent, with and without. Refused for a baseline, which has no dispatches"
+        ),
+    )
+    p.add_argument(
         "--no-notify",
         action="store_true",
         help=(
@@ -218,6 +233,11 @@ def run(argv: list[str] | None = None) -> int:
     print(f"incident {incident.id}  state {incident.state.value}  anchor {anchor:%H:%M:%S}")
     print(f"triage: {triage.summary()}")
 
+    if args.baseline and args.without:
+        # A baseline has no planner and no dispatches, so there is nothing to withhold; accepting
+        # the flag would record an ablation that could not have happened.
+        print(f"REFUSED: --without cannot apply to a baseline ({args.baseline} dispatches nothing)")
+        return int(Exit.REFUSED)
     if args.baseline == "b0":
         # **Before the corpus and before the model.** B0 has neither, and constructing an
         # embedder and a model client it will not use would make its measured cost and latency
@@ -281,6 +301,7 @@ def run(argv: list[str] | None = None) -> int:
         corpus=corpus,
         retrieval_k=args.retrieval_k,
         proposer=Proposer(model),
+        withhold=tuple(args.without),
     )
 
     report = run_investigation(
@@ -375,6 +396,8 @@ def _print_report(report: object) -> None:
 
     for name, why in result.failed_dispatches:
         print(f"  FAILED DISPATCH {name}: {why}")
+    for name, service in getattr(result, "withheld", ()):
+        print(f"  WITHHELD {name} on {service}: ablation (--without {name})")
 
     # **The proposal, which the first live run produced and nobody could see** (T3.9). The
     # incident reached `PROPOSING` and the object was written to the verdict JSON, and the

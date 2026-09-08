@@ -53,7 +53,11 @@ from injector.world import SERVICE_CONTAINERS, canonical_service
 
 PROMETHEUS_QUERY_RANGE = "/api/v1/query_range"
 LOKI_QUERY_RANGE = "/loki/api/v1/query_range"
-JAEGER_TRACES = "/api/traces"
+TEMPO_SEARCH = "/api/search"
+TEMPO_TRACE = "/api/traces/"
+"""Tempo's two read paths (T6.1): a TraceQL search over one service and one window, then one
+fetch per returned trace. Both GETs, both fixed - the trace id is interpolated into the path and it
+comes from Tempo's own search answer, never from an agent."""
 
 OLDEST_MIN = 3
 OLDEST_MAX = 8
@@ -82,8 +86,14 @@ def two_ended_split(cap: int) -> tuple[int, int]:
     return oldest, cap - oldest
 
 
-TOOL_BEHAVIOUR_REVISION = 2
+TOOL_BEHAVIOUR_REVISION = 3
 """Bumped when a tool returns materially different evidence without changing the tool set.
+
+**Bumped to 3 at T6.1**: `trace_query` re-sourced to Tempo and re-shaped from a span list to
+span trees with the degrading hop named - a responder can now conclude *which hop* from the same
+tool name and signature - and, in the same generation change, `redis-cart` and `kafka` joined the
+service catalog (Q27), which moves what the blast-radius query can answer. The narratives written
+against revision 2 are due the re-review `evalharness.capability` asks for.
 
 **The one input to `CAPABILITY_VERSION` that cannot be derived**, and it exists because the
 derivable part misses real capability changes. Two-ended truncation (T3.4b) is the worked
@@ -115,8 +125,9 @@ The tool *set* also grew, so `tool_surface()` moves too - the derivable half of
 which nothing derivable would see.
 """
 
-ALLOWED_PATHS = frozenset({PROMETHEUS_QUERY_RANGE, LOKI_QUERY_RANGE, JAEGER_TRACES})
-"""Every path this layer can reach. Asserted by test, so adding one is a visible act."""
+ALLOWED_PATHS = frozenset({PROMETHEUS_QUERY_RANGE, LOKI_QUERY_RANGE, TEMPO_SEARCH, TEMPO_TRACE})
+"""Every path this layer can reach. Asserted by test, so adding one is a visible act. `TEMPO_TRACE`
+is a prefix: the id appended to it is Tempo's own answer to the search, not an input."""
 
 
 class Tools:
@@ -358,12 +369,14 @@ class Tools:
     def trace_query(
         self, service: str, start: datetime, end: datetime, only_errors: bool = False
     ) -> TraceResult:
-        """Traces touching one service. **The fourth tool, decided at implementation.**
+        """Traces touching one service, as span trees with the degrading hop named (T6.1).
 
-        `ARCHITECTURE.md` named three. Two narratives' first real narrowing is a trace query -
-        "checkout spans failing on their call to cart", in both cart scenarios - and forcing
-        the longer path through error rates and the dependency graph would measure the tool
-        set rather than the agent (ADR-0019).
+        **The fourth tool, decided at implementation (T2.6)** - `ARCHITECTURE.md` named three, and
+        two narratives' first real narrowing was a trace query. **Re-sourced to Tempo and
+        re-shaped at T6.1**: the plan's trace analyst *"finds exemplar slow/failed traces and
+        identifies the degrading hop"*, and a flat span list could do neither. Two reads: a TraceQL
+        search for the service over the window, then each trace whole, newest first, until the span
+        budget is spent. `faultline.tools.spantree` builds and renders the trees.
         """
         canonical = canonical_service(service)
         window = Window(start=start, end=end)
@@ -372,36 +385,50 @@ class Tools:
             return TraceResult(service=canonical, window=window, error=refusal, empty=True)
 
         try:
-            payload = telemetry.get_json(
-                self._settings.jaeger_url,
-                JAEGER_TRACES,
+            found = telemetry.get_json(
+                self._settings.tempo_url,
+                TEMPO_SEARCH,
                 {
-                    "service": canonical,
-                    "start": str(int(start.timestamp() * 1e6)),
-                    "end": str(int(end.timestamp() * 1e6)),
-                    "limit": str(self._settings.max_spans),
+                    "q": f'{{resource.service.name="{canonical}"}}',
+                    "start": str(int(start.timestamp())),
+                    "end": str(int(end.timestamp())),
+                    "limit": str(self._settings.max_traces),
                 },
             )
         except Exception as exc:
             return TraceResult(service=canonical, window=window, error=str(exc), empty=True)
 
-        spans = [
-            span for trace in payload.get("data", []) for span in _spans_of(trace, start.tzinfo)
-        ]
-        if only_errors:
-            spans = [span for span in spans if span.error]
-        # Same truncation direction as the logs, and the same reason. Jaeger returns whole
-        # traces and this flattens them, so without an explicit ordering the retained 200
-        # would be whichever traces the API happened to list first - which in the T2.6 smoke
-        # was the oldest end of the window.
-        newest_first = sorted(spans, key=lambda span: span.started_at, reverse=True)
-        kept = sorted(newest_first[: self._settings.max_spans], key=lambda span: span.started_at)
+        summaries = list(found.get("traces") or [])
+        # Newest first, so a truncated answer is about the end of the window and not its start -
+        # the same direction the logs took at T2.6 and for the same reason.
+        summaries.sort(key=lambda t: int(t.get("startTimeUnixNano") or 0), reverse=True)
+
+        spans: list[TraceSpan] = []
+        kept = 0
+        for summary in summaries:
+            trace_id = str(summary.get("traceID") or "")
+            if not trace_id:
+                continue
+            if len(spans) >= self._settings.max_spans:
+                break
+            try:
+                trace = telemetry.get_json(self._settings.tempo_url, TEMPO_TRACE + trace_id, {})
+            except Exception as exc:
+                return TraceResult(service=canonical, window=window, error=str(exc), empty=True)
+            members = _spans_of_otlp(trace_id, trace, start.tzinfo)
+            if only_errors and not any(m.error for m in members):
+                continue
+            spans.extend(members)
+            kept += 1
+
+        spans.sort(key=lambda span: span.started_at)
         return TraceResult(
             service=canonical,
             window=window,
-            spans=kept,
+            spans=spans[: self._settings.max_spans],
+            traces=len(summaries),
             empty=not spans,
-            truncated=len(spans) > self._settings.max_spans,
+            truncated=len(spans) > self._settings.max_spans or kept < len(summaries),
         )
 
     # --- change history -------------------------------------------------------
@@ -459,22 +486,51 @@ class Tools:
         )
 
 
-def _spans_of(trace: dict[str, Any], tzinfo: Any) -> list[TraceSpan]:
-    processes = trace.get("processes", {})
+STATUS_CODES = {0: "UNSET", 1: "OK", 2: "ERROR"}
+"""OTLP `status.code`. Tempo returns it as an integer in some versions and as its name in others;
+both are accepted and the name is what is stored."""
+
+
+def _attr(attributes: list[dict[str, Any]], key: str) -> str:
+    for attribute in attributes or []:
+        if attribute.get("key") == key:
+            value = attribute.get("value") or {}
+            return str(next(iter(value.values()), "")) if isinstance(value, dict) else str(value)
+    return ""
+
+
+def _spans_of_otlp(trace_id: str, trace: dict[str, Any], tzinfo: Any) -> list[TraceSpan]:
+    """OTLP-JSON as `GET /api/traces/{id}` returns it: batches → resource + scopeSpans → spans.
+
+    Span and parent ids are kept exactly as Tempo encodes them (base64 in OTLP-JSON), because the
+    only thing done with them is matching one to the other inside one trace. The trace id is the
+    search's hex id, so a citation and a Grafana link agree."""
     spans: list[TraceSpan] = []
-    for span in trace.get("spans", []):
-        process = processes.get(span.get("processID"), {})
-        tags = {tag.get("key"): tag.get("value") for tag in span.get("tags", [])}
-        spans.append(
-            TraceSpan(
-                trace_id=str(trace.get("traceID", "")),
-                service=str(process.get("serviceName", "")),
-                operation=str(span.get("operationName", "")),
-                started_at=datetime.fromtimestamp(int(span.get("startTime", 0)) / 1e6, tz=tzinfo),
-                duration_ms=float(span.get("duration", 0)) / 1000.0,
-                error=bool(tags.get("error")) or str(tags.get("otel.status_code")) == "ERROR",
-            )
-        )
+    for batch in trace.get("batches", []) or []:
+        service = _attr((batch.get("resource") or {}).get("attributes") or [], "service.name")
+        for scope in batch.get("scopeSpans", []) or []:
+            for span in scope.get("spans", []) or []:
+                started = int(span.get("startTimeUnixNano") or 0)
+                ended = int(span.get("endTimeUnixNano") or started)
+                raw_status = (span.get("status") or {}).get("code", 0)
+                status = (
+                    STATUS_CODES.get(int(raw_status), "UNSET")
+                    if str(raw_status).isdigit()
+                    else str(raw_status).upper().removeprefix("STATUS_CODE_")
+                )
+                spans.append(
+                    TraceSpan(
+                        trace_id=trace_id,
+                        service=canonical_service(service) if service else "",
+                        operation=str(span.get("name") or ""),
+                        started_at=datetime.fromtimestamp(started / 1e9, tz=tzinfo),
+                        duration_ms=max(0, ended - started) / 1e6,
+                        error=status == "ERROR",
+                        span_id=str(span.get("spanId") or ""),
+                        parent_span_id=str(span.get("parentSpanId") or ""),
+                        status=status,
+                    )
+                )
     return spans
 
 

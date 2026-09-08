@@ -191,25 +191,47 @@ class TraceSpan(BaseModel):
     duration_ms: float
     error: bool = False
 
+    span_id: str = ""
+    parent_span_id: str = ""
+    """Empty for a root. **These two fields are T6.1.** Without them a trace is a list, and a list
+    cannot say which hop degraded - the verdicts on sweep 11 said so in their open questions.
+    Defaulted so a stored envelope from before T6.1 still parses."""
+
+    status: str = ""
+    """OTLP status code as text - `UNSET`, `OK`, `ERROR`. `error` is derived from it and kept for
+    the callers that read it."""
+
 
 class TraceResult(ToolResult):
     tool: Literal["trace_query"] = "trace_query"
-    source: Literal["jaeger"] = "jaeger"
+    source: Literal["tempo"] = "tempo"
     service: str = ""
     spans: list[TraceSpan] = Field(default_factory=list)
 
+    traces: int = 0
+    """How many traces the search returned before the span cap; `len({s.trace_id})` after."""
+
     def body(self) -> str:
+        """The span tree per trace, with the degrading hop, from `faultline.tools.spantree`.
+
+        Rendered from `spans` on demand rather than stored, so a replay from a stored envelope
+        renders exactly what the specialist read, and so the summariser's rule can change under
+        `TOOL_BEHAVIOUR_REVISION` without invalidating what was stored."""
         if self.error is not None:
             return f"query failed: {self.error}"
         if not self.spans:
             return f"no traces for {self.service} over this window"
-        lines = [f"service: {self.service}", f"{len(self.spans)} spans"]
-        for span in self.spans:
-            flag = " ERROR" if span.error else ""
-            lines.append(
-                f"  {span.trace_id[:16]} {span.service}/{span.operation} "
-                f"{span.duration_ms:.1f}ms{flag}"
-            )
+        from faultline.tools.spantree import build, render
+
+        trees = build(self.spans)
+        lines = [
+            f"service: {self.service}",
+            f"{len(trees)} trace(s) shown of {self.traces or len(trees)} found, "
+            f"{len(self.spans)} spans; offsets are from each trace's root",
+        ]
+        for tree in trees:
+            lines.append("")
+            lines.extend(render(tree))
         return "\n".join(lines)
 
 

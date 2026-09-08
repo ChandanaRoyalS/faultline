@@ -9,30 +9,29 @@
 | expected remediation | `config_revert` |
 | split | `dev` |
 | injected at | `shippingservice` via `shipping-quote-misconfig` |
-| time to page | 3m18s |
+| time to page | 3m19s |
 | steady state captured | 300s |
-| capture window | 2026-08-30T01:15:48+00:00 → 2026-08-30T01:33:25+00:00 |
+| capture window | 2026-09-08T07:12:22+00:00 → 2026-09-08T07:29:15+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+3m18s |
-| `t_revert` | T+8m18s |
-| all clear | T+10m37s |
+| first alert firing | T+3m19s |
+| `t_revert` | T+8m19s |
+| all clear | T+9m53s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m00s | `checkoutservice` | ServiceHighErrorRate | 7.2 min | **paged** |
+| T+3m15s | `checkoutservice` | ServiceHighErrorRate | 6.5 min | **paged** |
+| T+6m00s | `loadgenerator` | ServiceHighErrorRate | 0.2 min | joined later |
 | T+6m15s | `accountingservice` | ServiceNoTraffic | 2.5 min | joined later |
 | T+6m15s | `emailservice` | ServiceNoTraffic | 2.5 min | joined later |
 | T+6m15s | `frauddetectionservice` | ServiceNoTraffic | 2.5 min | joined later |
 | T+6m15s | `quoteservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+8m15s | `loadgenerator` | ServiceHighErrorRate | 1.0 min | joined later |
-| T+8m45s | `frontend` | ServiceHighErrorRate | 0.2 min | began after the revert |
 
 ## What the bundle contains
 
@@ -44,28 +43,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="shippingservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/shipping-service.txt` — 393 lines.
+`logs/shipping-service.txt` — 341 lines.
 
 ## A look at the logs
 
-From `logs/shipping-service.txt` (387 lines):
+From `logs/shipping-service.txt` (335 lines):
 
 ```
-2026-08-30T01:15:57+00:00  01:15:57 [INFO] GetQuoteRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-e62f4bed8414a6472177fc867f075db4-dfb53665d106d704-01", "baggage": "synthetic_request=true"} }, message: GetQuoteRequest { address: Some(Address { street_address: "One Microsoft Way", city: "Redmond", state: "WA", country: "United States", zip_code: "98052" }), items: [CartItem { product_id: "9SIQT8TOJO", quantity: 3 }, CartItem { product_id: "LS4PSXUNUM", quantity: 3 }, CartItem { product_id: "66VCHSJNUP", quantity: 10 }] }, extensions: Extensions }
-2026-08-30T01:15:57+00:00  01:15:57 [INFO] Sending Quote: 142.40
-2026-08-30T01:15:57+00:00  01:15:57 [INFO] ShipOrderRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-e62f4bed8414a6472177fc867f075db4-6d0a7ea261302fd7-01", "baggage": "synthetic_request=true"} }, message: ShipOrderRequest { address: Some(Address { street_address: "One Microsoft Way", city: "Redmond", state: "WA", country: "United States", zip_code: "98052" }), items: [CartItem { product_id: "9SIQT8TOJO", quantity: 3 }, CartItem { product_id: "LS4PSXUNUM", quantity: 3 }, CartItem { product_id: "66VCHSJNUP", quantity: 10 }] }, extensions: Extensions }
-2026-08-30T01:15:57+00:00  01:15:57 [INFO] Tracking ID Created: b9d18955-9a6f-4bd1-bf3e-22c11d0139d9
-2026-08-30T01:16:12+00:00  01:16:12 [INFO] GetQuoteRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-1936655c2a2a3a4d40ad74e70d68a8cf-db1e61867e6a4b25-01", "baggage": "synthetic_request=true"} }, message: GetQuoteRequest { address: Some(Address { street_address: "One Apple Park Way", city: "Cupertino", state: "CA", country: "United States", zip_code: "95014" }), items: [CartItem { product_id: "66VCHSJNUP", quantity: 4 }, CartItem { product_id: "2ZYFJ3GM2N", quantity: 2 }] }, extensions: Extensions }
-2026-08-30T01:16:12+00:00  01:16:12 [INFO] Sending Quote: 53.40
-2026-08-30T01:16:12+00:00  01:16:12 [INFO] ShipOrderRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-1936655c2a2a3a4d40ad74e70d68a8cf-3ded1693402eb69e-01", "baggage": "synthetic_request=true"} }, message: ShipOrderRequest { address: Some(Address { street_address: "One Apple Park Way", city: "Cupertino", state: "CA", country: "United States", zip_code: "95014" }), items: [CartItem { product_id: "66VCHSJNUP", quantity: 4 }, CartItem { product_id: "2ZYFJ3GM2N", quantity: 2 }] }, extensions: Extensions }
-2026-08-30T01:16:12+00:00  01:16:12 [INFO] Tracking ID Created: 3c2aa94a-a74f-4bd7-b05b-14beac3d41b7
-2026-08-30T01:16:14+00:00  01:16:14 [INFO] GetQuoteRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-25d4771b927b2045dc1810d7263a3ed0-1e6dddaad319e6a5-01", "baggage": "synthetic_request=true"} }, message: GetQuoteRequest { address: Some(Address { street_address: "1 Hacker Way", city: "Menlo Park", state: "CA", country: "United States", zip_code: "94025" }), items: [CartItem { product_id: "1YMWWN1N4O", quantity: 2 }, CartItem { product_id: "LS4PSXUNUM", quantity: 2 }] }, extensions: Extensions }
-2026-08-30T01:16:14+00:00  01:16:14 [INFO] Sending Quote: 35.60
-2026-08-30T01:16:14+00:00  01:16:14 [INFO] ShipOrderRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-25d4771b927b2045dc1810d7263a3ed0-fe721a71ab1f3019-01", "baggage": "synthetic_request=true"} }, message: ShipOrderRequest { address: Some(Address { street_address: "1 Hacker Way", city: "Menlo Park", state: "CA", country: "United States", zip_code: "94025" }), items: [CartItem { product_id: "1YMWWN1N4O", quantity: 2 }, CartItem { product_id: "LS4PSXUNUM", quantity: 2 }] }, extensions: Extensions }
-2026-08-30T01:16:14+00:00  01:16:14 [INFO] Tracking ID Created: ddffa048-1109-4f4b-95ee-624e5cc3c9de
+2026-09-08T07:12:31+00:00  07:12:31 [INFO] GetQuoteRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-40666d4f0dac6ad7382f32eb62b7b8ae-3ec6717f0a71e586-01", "baggage": "synthetic_request=true"} }, message: GetQuoteRequest { address: Some(Address { street_address: "410 Terry Ave N", city: "Seattle", state: "WA", country: "United States", zip_code: "98109" }), items: [CartItem { product_id: "66VCHSJNUP", quantity: 10 }] }, extensions: Extensions }
+2026-09-08T07:12:31+00:00  07:12:31 [INFO] Sending Quote: 89.0
+2026-09-08T07:12:31+00:00  07:12:31 [INFO] ShipOrderRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-40666d4f0dac6ad7382f32eb62b7b8ae-c4cc8b2bbae9fff0-01", "baggage": "synthetic_request=true"} }, message: ShipOrderRequest { address: Some(Address { street_address: "410 Terry Ave N", city: "Seattle", state: "WA", country: "United States", zip_code: "98109" }), items: [CartItem { product_id: "66VCHSJNUP", quantity: 10 }] }, extensions: Extensions }
+2026-09-08T07:12:31+00:00  07:12:31 [INFO] Tracking ID Created: a99b13b1-860b-4365-8c7b-c5541e102f1c
+2026-09-08T07:12:38+00:00  07:12:38 [INFO] GetQuoteRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-9090279d9fc49c042c8278476c3c3bbe-5b5e906d0cf451c9-01", "baggage": "synthetic_request=true"} }, message: GetQuoteRequest { address: Some(Address { street_address: "2200 Mission College Blvd", city: "Santa Clara", state: "CA", country: "United States", zip_code: "95054" }), items: [CartItem { product_id: "0PUK6V6EV0", quantity: 2 }] }, extensions: Extensions }
+2026-09-08T07:12:38+00:00  07:12:38 [INFO] Sending Quote: 17.80
+2026-09-08T07:12:38+00:00  07:12:38 [INFO] ShipOrderRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-9090279d9fc49c042c8278476c3c3bbe-74ce8630a70ff75a-01", "baggage": "synthetic_request=true"} }, message: ShipOrderRequest { address: Some(Address { street_address: "2200 Mission College Blvd", city: "Santa Clara", state: "CA", country: "United States", zip_code: "95054" }), items: [CartItem { product_id: "0PUK6V6EV0", quantity: 2 }] }, extensions: Extensions }
+2026-09-08T07:12:38+00:00  07:12:38 [INFO] Tracking ID Created: 236233ae-89a4-4edf-ad8e-6a4dc31a63b5
+2026-09-08T07:12:40+00:00  07:12:40 [INFO] GetQuoteRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-acc1acf3704968e0b71574d7aa355eda-3c829cdcc8e3bc20-01", "baggage": "synthetic_request=true"} }, message: GetQuoteRequest { address: Some(Address { street_address: "One Microsoft Way", city: "Redmond", state: "WA", country: "United States", zip_code: "98052" }), items: [CartItem { product_id: "9SIQT8TOJO", quantity: 4 }, CartItem { product_id: "66VCHSJNUP", quantity: 3 }, CartItem { product_id: "2ZYFJ3GM2N", quantity: 3 }, CartItem { product_id: "OLJCESPC7Z", quantity: 10 }] }, extensions: Extensions }
+2026-09-08T07:12:40+00:00  07:12:40 [INFO] Sending Quote: 178.0
+2026-09-08T07:12:40+00:00  07:12:40 [INFO] ShipOrderRequest: Request { metadata: MetadataMap { headers: {"content-type": "application/grpc", "user-agent": "grpc-go/1.46.2", "te": "trailers", "traceparent": "00-acc1acf3704968e0b71574d7aa355eda-f748e602854fb816-01", "baggage": "synthetic_request=true"} }, message: ShipOrderRequest { address: Some(Address { street_address: "One Microsoft Way", city: "Redmond", state: "WA", country: "United States", zip_code: "98052" }), items: [CartItem { product_id: "9SIQT8TOJO", quantity: 4 }, CartItem { product_id: "66VCHSJNUP", quantity: 3 }, CartItem { product_id: "2ZYFJ3GM2N", quantity: 3 }, CartItem { product_id: "OLJCESPC7Z", quantity: 10 }] }, extensions: Extensions }
+2026-09-08T07:12:40+00:00  07:12:40 [INFO] Tracking ID Created: 3d3bbbe0-b948-49e4-b755-977fdc82899f
 ```
 
-_375 further lines are in the bundle._
+_323 further lines are in the bundle._
 
 ## The incident record
 
@@ -82,13 +81,15 @@ bundle are the tiebreak.
 
 ### What was observed
 
-The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing
-request. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as
-orders stopped completing — accounting, email, fraud detection, quote and shipping itself —
-for seven alerts across seven services.
+The page named **checkoutservice**: `ServiceHighErrorRate`, 3m19s after the first failing
+request. **loadgenerator** joined briefly at T+6m00s. Later in the fault, four services fell
+silent together as orders stopped completing — accounting, email, fraud detection and quote —
+for six alerts across six services. **shippingservice itself did not fall silent this time**,
+and that is the difference between this recording and the ones before it: quote requests kept
+arriving at it, so its call rate never emptied.
 
-Checkout's error ratio climbed to **27%** within a minute of the page and stayed between
-**25% and 29%** until the fix — steady, not a spike, and about a quarter of every order placed.
+Checkout's error ratio climbed to **30%** within a minute of the page and stayed between
+**25% and 30%** until the fix — steady, not a spike, and about a quarter of every order placed.
 
 ### What was checked
 

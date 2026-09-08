@@ -232,25 +232,53 @@ def _loki_payload(count: int, first: datetime) -> dict[str, Any]:
     }
 
 
-def _jaeger_payload(count: int, first: datetime) -> dict[str, Any]:
-    return {
-        "data": [
-            {
-                "traceID": f"trace{i:04d}",
-                "processes": {"p1": {"serviceName": "cartservice"}},
-                "spans": [
+def _tempo(traces: int, first: datetime, spans_per_trace: int = 1) -> Any:
+    """A stand-in for Tempo's two reads: `/api/search` lists traces, `/api/traces/{id}` returns
+    one whole, in OTLP-JSON. Trace `i` starts `i` seconds after `first`; its spans are a chain."""
+
+    def get_json(base: str, path: str, params: dict[str, str]) -> dict[str, Any]:
+        if path == "/api/search":
+            return {
+                "traces": [
                     {
-                        "processID": "p1",
-                        "operationName": f"op{i}",
-                        "startTime": int((first + timedelta(seconds=i)).timestamp() * 1e6),
-                        "duration": 1000,
-                        "tags": [],
+                        "traceID": f"trace{i:04d}",
+                        "rootServiceName": "cartservice",
+                        "startTimeUnixNano": str(
+                            int((first + timedelta(seconds=i)).timestamp() * 1e9)
+                        ),
+                        "durationMs": 10,
                     }
-                ],
+                    for i in range(traces)
+                ]
             }
-            for i in range(count)
+        index = int(path.removeprefix("/api/traces/trace"))
+        start_ns = int((first + timedelta(seconds=index)).timestamp() * 1e9)
+        spans = [
+            {
+                "traceId": "dHI=",
+                "spanId": f"s{j}",
+                "parentSpanId": f"s{j - 1}" if j else "",
+                "name": f"op{index}" if j == 0 else f"op{index}.{j}",
+                "startTimeUnixNano": str(start_ns + j * 1_000_000),
+                "endTimeUnixNano": str(start_ns + (spans_per_trace - j) * 2_000_000),
+                "status": {"code": 0},
+            }
+            for j in range(spans_per_trace)
         ]
-    }
+        return {
+            "batches": [
+                {
+                    "resource": {
+                        "attributes": [
+                            {"key": "service.name", "value": {"stringValue": "cart-service"}}
+                        ]
+                    },
+                    "scopeSpans": [{"spans": spans}],
+                }
+            ]
+        }
+
+    return get_json
 
 
 def test_truncated_logs_keep_the_newest_lines_not_the_oldest() -> None:
@@ -299,22 +327,71 @@ def test_the_loki_request_asks_for_the_newest_lines() -> None:
     assert captured["direction"] == "backward"
 
 
-def test_truncated_traces_keep_the_newest_spans_not_the_oldest() -> None:
+def test_truncated_traces_keep_the_newest_traces_not_the_oldest() -> None:
     """The same defect, checked on the tool that had not been observed hitting it.
 
-    Jaeger returns whole traces and this flattens them, so without an explicit ordering the
-    retained spans are whichever traces the API listed first.
+    Tempo's search lists traces in no promised order and the tool fetches them whole until the
+    span budget is spent, so without an explicit ordering the retained traces would be whichever
+    the API listed first. Newest first, as the logs since T2.6.
     """
-    settings = ToolSettings(max_spans=10)
-    payload = _jaeger_payload(100, START)
+    settings = ToolSettings(max_spans=10, max_traces=100)
 
-    with patch("faultline.telemetry.get_json", return_value=payload):
+    with patch("faultline.telemetry.get_json", _tempo(100, START)):
         result = Tools(settings).trace_query("cartservice", START, END)
 
     assert result.truncated
+    assert result.traces == 100
     assert len(result.spans) == 10
     assert [span.operation for span in result.spans] == [f"op{i}" for i in range(90, 100)]
     assert result.spans == sorted(result.spans, key=lambda span: span.started_at)
+
+
+def test_a_trace_is_fetched_whole_and_rendered_as_a_tree_with_its_hop() -> None:
+    """**T6.1's deliverable, in one assertion set.** Parent ids survive the fetch, the body is
+    indented by depth with offsets from the root, and the degrading hop is named - the three
+    things sweep 11's verdicts said the old span list could not tell them."""
+    with patch("faultline.telemetry.get_json", _tempo(1, START, spans_per_trace=3)):
+        result = Tools(ToolSettings()).trace_query("cartservice", START, END)
+
+    assert result.source == "tempo"
+    assert [s.parent_span_id for s in result.spans] == ["", "s0", "s1"]
+    assert all(s.service == "cartservice" for s in result.spans), (
+        "canonicalised from `cart-service`"
+    )
+    body = result.body()
+    assert "trace trace0000  root cartservice/op0" in body
+    assert "    +1.0ms cartservice/op0.1" in body and "      +2.0ms cartservice/op0.2" in body
+    assert "degrading hop:" in body
+
+
+def test_a_tempo_status_arrives_as_a_name_or_a_number_and_is_stored_as_a_name() -> None:
+    from faultline.tools.tools import _spans_of_otlp
+
+    def trace(code: Any) -> dict[str, Any]:
+        return {
+            "batches": [
+                {
+                    "resource": {"attributes": []},
+                    "scopeSpans": [
+                        {
+                            "spans": [
+                                {
+                                    "spanId": "a",
+                                    "name": "x",
+                                    "startTimeUnixNano": "0",
+                                    "endTimeUnixNano": "1000000",
+                                    "status": {"code": code},
+                                }
+                            ]
+                        }
+                    ],
+                }
+            ]
+        }
+
+    assert _spans_of_otlp("t", trace(2), UTC)[0].status == "ERROR"
+    assert _spans_of_otlp("t", trace("STATUS_CODE_ERROR"), UTC)[0].error is True
+    assert _spans_of_otlp("t", trace(0), UTC)[0].error is False
 
 
 # --- read-only as a surface property -------------------------------------------
@@ -328,7 +405,12 @@ def test_the_layer_can_reach_no_lifecycle_or_push_endpoint() -> None:
     So the property is asserted of this surface: three constants, and nothing builds a path
     from agent input.
     """
-    assert {"/api/v1/query_range", "/loki/api/v1/query_range", "/api/traces"} == ALLOWED_PATHS
+    assert {
+        "/api/v1/query_range",
+        "/loki/api/v1/query_range",
+        "/api/search",
+        "/api/traces/",
+    } == ALLOWED_PATHS
     for path in ALLOWED_PATHS:
         assert "push" not in path and "reload" not in path and "admin" not in path
 
@@ -359,7 +441,7 @@ def test_every_tool_takes_its_endpoint_from_settings() -> None:
     """
     configured = "http://198.51.100.1:1"
     tools = Tools(
-        ToolSettings(prometheus_url=configured, loki_url=configured, jaeger_url=configured),
+        ToolSettings(prometheus_url=configured, loki_url=configured, tempo_url=configured),
         changes=InMemoryChangeLog(),
     )
 

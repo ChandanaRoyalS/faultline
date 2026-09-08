@@ -276,6 +276,9 @@ def write_outputs(report: RunReport, out: Path, archive: Archive | None = None) 
                 "flags": result.flags,
                 "retrieved": result.retrieved,
                 "failed_dispatches": [list(pair) for pair in result.failed_dispatches],
+                # T6.1's ablation: the dispatches the operator withheld, so the harness can
+                # confirm an `--without` arm actually went without rather than trusting its flag.
+                "withheld": [list(pair) for pair in getattr(result, "withheld", ())],
                 "narrative_error": result.narrative_error,
                 # T3.2c: briefing size and pull-rate on the artifact the harness reads, so
                 # T7.3's ablation compares stored numbers rather than re-deriving them.

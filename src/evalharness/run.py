@@ -41,7 +41,7 @@ from evalharness.scoring import (
     score_triage,
 )
 from evalharness.visibility import target_visibility
-from faultline.agents.contracts import unexpected_fields
+from faultline.agents.contracts import SPECIALISTS, unexpected_fields
 from injector.worldlock import WorldLock, WorldLockError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -767,7 +767,7 @@ def score(
     # makes that an observation rather than a shrug. Two runs on `cart-bad-image-tag` were
     # destroyed by unexpected keys before the policy changed, and one of those keys -
     # `remediation_class` - turned out to be worth adding.
-    unexpected = unexpected_fields(verdict)
+    unexpected = unexpected_fields(verdict, artifact.get("proposal") or None)
     if unexpected:
         print(f"unexpected fields in the verdict (accepted and recorded): {unexpected}")
     flags = tuple(artifact.get("flags") or ())
@@ -942,6 +942,16 @@ def parser() -> argparse.ArgumentParser:
         help="permit a holdout scenario. Refused without it, because a holdout run is a "
         "different experiment and should be hard to start by accident (ADR-0008 axis 1)",
     )
+    p.add_argument(
+        "--without",
+        action="append",
+        default=[],
+        metavar="SPECIALIST",
+        help="withhold a specialist from the agent (T6.1's ablation; repeatable). Passed "
+        "through to faultline-investigate, recorded on the manifest as `ablation`, and part of "
+        "the config fingerprint, so an ablation run can never pool with a full run. Refused "
+        "with --baseline: a baseline dispatches nothing to withhold.",
+    )
     return p
 
 
@@ -992,6 +1002,8 @@ def _investigate(incident_id: str, scenario_id: str, out: Path, args: Any) -> tu
         # the same scorer after it. Passing it as a flag rather than branching here is what
         # makes it "an ordinary config in the eval DB" rather than a second harness.
         cmd += ["--baseline", args.baseline]
+    for specialist in getattr(args, "without", None) or ():
+        cmd += ["--without", specialist]
     if args.postgres_dsn:
         cmd += ["--postgres-dsn", args.postgres_dsn]
     print(f"  $ {' '.join(cmd)}")
@@ -1059,6 +1071,17 @@ def main(argv: list[str] | None = None) -> int:
 
     dsn = args.postgres_dsn or ContextSettings().postgres_dsn
     settings = AgentSettings()
+
+    if args.baseline and args.without:
+        print(f"REFUSED: --without cannot apply to a baseline ({args.baseline} dispatches nothing)")
+        return 3
+    unknown = sorted(set(args.without) - set(SPECIALISTS))
+    if unknown:
+        print(
+            f"REFUSED: --without names no specialist: {', '.join(unknown)} "
+            f"(one of {', '.join(SPECIALISTS)})"
+        )
+        return 3
 
     bundle = bundle_for(args.scenario_id)
     if bundle.get("split") == "holdout" and not args.holdout:
@@ -1206,6 +1229,11 @@ def main(argv: list[str] | None = None) -> int:
             # `seed_policy` records that nothing here is seedable rather than leaving a reader
             # to infer it from an absent field.
             run.manifest["baseline"] = args.baseline
+            # T6.1: the ablation, as a sorted list so `["traces"]` fingerprints one way however
+            # the flags were ordered. `[]` is written for a full run rather than omitted - the
+            # fingerprint must see "nothing withheld" as a stated value, or a full run recorded
+            # after this field existed would be indistinguishable from one recorded before it.
+            run.manifest["ablation"] = sorted(set(args.without))
             run.manifest["repeat_count"] = variance.TIERS[args.tier][0]
             run.manifest["tier"] = args.tier
             run.manifest["seed_policy"] = variance.SEED_POLICY
@@ -1298,7 +1326,9 @@ def main(argv: list[str] | None = None) -> int:
         # nobody asked for; recording them here is what separates that from `extra="ignore"`.
         # `{}` is the expected value and is written anyway - a field that appears only when it is
         # non-empty is one nobody knows to look for.
-        run.manifest["unexpected_fields"] = unexpected_fields(artifact.get("verdict") or {})
+        run.manifest["unexpected_fields"] = unexpected_fields(
+            artifact.get("verdict") or {}, artifact.get("proposal") or None
+        )
         trajectory_id = artifact.get("trajectory_id")
         facts = read_trajectory_facts(dsn, trajectory_id) if trajectory_id else {"steps": 0}
         if facts["steps"] == 0:

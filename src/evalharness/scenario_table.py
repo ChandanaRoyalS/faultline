@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any
 
 from evalharness.evaldb import outcome_of
-from evalharness.generations import WORLD_F5B, generation_of
+from evalharness.generations import WORLD_90E, generation_of
 from evalharness.run import counts_toward_aggregates
 from evalharness.scenario import Scenario
 
@@ -54,7 +54,7 @@ BEGIN = "<!-- scenario-table:begin -->"
 END = "<!-- scenario-table:end -->"
 """README's markers. Everything between them is this module's output and nobody else's."""
 
-CURRENT_WORLD = WORLD_F5B
+CURRENT_WORLD = WORLD_90E
 """The reference-platform generation every published figure carries. A run on another platform
 has a different key (`generations.world_key`) and is not in this table."""
 

@@ -379,6 +379,13 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--max-tool-calls-changes", default=None)
     p.add_argument("--max-tokens", default=None)
     p.add_argument("--baseline", choices=("b0", "b1", "b2"), default=None)
+    p.add_argument(
+        "--without",
+        action="append",
+        default=[],
+        metavar="SPECIALIST",
+        help="passed through to faultline-eval: withhold a specialist on every run (T6.1)",
+    )
     p.add_argument("--postgres-dsn", default=None)
     p.add_argument(
         "--settle",
@@ -438,6 +445,8 @@ def main(argv: list[str] | None = None) -> int:
         value = getattr(args, flag)
         if value is not None:
             extra += [f"--{flag.replace('_', '-')}", str(value)]
+    for specialist in args.without:
+        extra += ["--without", specialist]
 
     # **The declared repeat count and the number of passes are the same number.** A tier that
     # declared R = 3 while one pass ran would put a corrupt fingerprint on every run in the sweep.

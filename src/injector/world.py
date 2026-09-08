@@ -51,8 +51,11 @@ SERVICE_CONTAINERS: dict[str, str] = {
     "recommendationservice": "recommendation-service",
     "redis-cart": "redis-cart",
     "shippingservice": "shipping-service",
+    "tempo": "tempo",
 }
-"""Compose service name -> container name, across all three files the injector loads."""
+"""Compose service name -> container name, across all three files the injector loads.
+`tempo` is this repository's (compose/telemetry.yml, T6.1), not the demo's, and is here because
+the drift test reads every file the injector loads and the deploy overlay puts it on the network."""
 
 CONTAINER_SERVICES: dict[str, str] = {
     container: service for service, container in SERVICE_CONTAINERS.items()

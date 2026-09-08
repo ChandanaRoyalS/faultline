@@ -2,11 +2,11 @@
 origin: scenario:cart-redis-misconfig
 split: dev
 fault_class: bad_config
-recorded_from: 2026-08-29T23:44:13+00:00
-capability: cap:c4d52d00
-onset_to_page: 3m01s
+recorded_from: 2026-09-08T05:49:56+00:00
+capability: cap:dd651ccc
+onset_to_page: 2m46s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m30s
+fix_to_all_clear: 3m46s
 ---
 
 # Cart service pointed at the wrong Redis port
@@ -14,7 +14,7 @@ fix_to_all_clear: 2m30s
 ## What was observed
 
 The page named two services together: `ServiceHighErrorRate` on **loadgenerator** and
-**frontend**, 3m01s after the first bad request. **checkoutservice** joined fifteen seconds
+**frontend**, 2m46s after the first bad request. **checkoutservice** joined half a minute
 later.
 
 On the storefront, product pages rendered normally. Adding anything to a basket failed.
@@ -24,7 +24,8 @@ at T+6m00s (accountingservice, currencyservice, emailservice, frauddetectionserv
 quoteservice and shippingservice), and **cartservice** fifteen seconds after them. All
 `ServiceNoTraffic`.
 
-Ten alerts across ten services.
+Eleven alerts across ten services: the eleventh is a one-minute `ServiceHighErrorRate` on
+emailservice at T+10m30s, **after the revert**, as the world drained what had queued.
 
 ## What was checked
 
@@ -40,8 +41,8 @@ the incident rather than the most.
 **Traces from frontend.** Checkout spans failing on their call to cart. The first real
 narrowing, roughly three minutes in.
 
-**The gap between the errors and the silence.** The error alerts fired at T+2m30s to
-T+2m45s; the silence did not arrive until T+6m00s. Those are the same failure at two
+**The gap between the errors and the silence.** The error alerts fired at T+2m45s to
+T+3m15s; the silence did not arrive until T+6m00s. Those are the same failure at two
 different thresholds — `ServiceHighErrorRate` responds to the requests that fail, and
 `ServiceNoTraffic` only once the calls stop arriving at all and a rate window empties.
 

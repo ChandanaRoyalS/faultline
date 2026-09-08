@@ -769,3 +769,55 @@ def test_a_field_that_becomes_real_stops_being_unexpected() -> None:
     )
 
     assert found == {}
+
+
+# --- keys nobody asked for, on the proposal (Q29, T6.1) -------------------------
+
+
+def test_a_proposal_key_nobody_asked_for_is_accepted_and_named() -> None:
+    """**Finding 35, closed.** Sweep 11 refused two proposals whole - no action, no target, no
+    abstention - for a `confirm_within_seconds_note` the proposer volunteered. `Proposal` now
+    reports as `Verdict` does, and the key lands on the manifest under its own heading so a reader
+    can tell a proposer's invention from a synthesizer's."""
+    from faultline.agents.contracts import Proposal, unexpected_fields
+
+    proposal = Proposal.model_validate(
+        {
+            "remediation_class": "none",
+            "action_id": "",
+            "target": "",
+            "rests_on": [],
+            "expected_effect": "nothing",
+            "confirm_within_seconds": 0,
+            "if_wrong": "nothing",
+            "risk": "none",
+            "blast_radius": "none",
+            "confirm_within_seconds_note": "immediate",
+        }
+    )
+
+    assert proposal.model_extra == {"confirm_within_seconds_note": "immediate"}
+    found = unexpected_fields({"fault_class": "bad_deploy"}, proposal.model_dump())
+    assert found == {"proposal": ["confirm_within_seconds_note"]}
+    assert unexpected_fields({"fault_class": "bad_deploy"}, None) == {}
+
+
+def test_a_dispatch_key_nobody_asked_for_is_still_refused() -> None:
+    """The boundary Q29 did not move. A dispatch drives what the harness queries; a key nobody
+    declared there is surface, and `test_the_window_is_told_to_the_specialist_never_asked_of_it`
+    is the test that first said so."""
+    import pytest
+    from pydantic import ValidationError
+
+    from faultline.agents.contracts import Dispatch
+
+    with pytest.raises(ValidationError):
+        Dispatch.model_validate(
+            {
+                "specialist": "traces",
+                "service": "cartservice",
+                "question": "q",
+                "reason": "r",
+                "window": "yesterday",
+            }
+        )
