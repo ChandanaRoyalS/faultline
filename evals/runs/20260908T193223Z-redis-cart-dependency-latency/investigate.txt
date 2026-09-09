@@ -1,0 +1,38 @@
+incident 3ef37135-46c0-4771-94f5-f46f59b129a5  state triaging  anchor 19:36:00
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 47dd7bbd-214e-4dc7-af3a-0353d0cf7d0e
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four services alerting near-simultaneously across the cart/checkout/frontend path is not a single quiet warning and cannot be dismissed. Cart is a plausible shared dependency, so latency or a resource issue behind it is the cheapest starting prior.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if someone produces evidence that a *currently active* configuration on cartservice is the delay source - i.e. an apply-type change in effect at onset, or a live tc/sidecar attachment confirmed outside the untrusted change log. It is also wrong if latency persists and nobody ever inspects redis-cart, since that unmeasured dependency is the remaining mechanism. Note that neither the fix nor its absence can be tracked in metrics today: the only cartservice metric series queried is empty in both incident and baseline windows [tr_a84bc1d09e9f, tr_ffe30945fc03], so any confirmation must come from traces or log inter-operation spacing, not dashboards.
+  rests on    : tr_a9cf71300764, tr_9f968ce8d2bc, tr_5d665bee9c5a
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 21069 pushed / 4150 pulled (pull rate 0.1646), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_9f968ce8d2bc, tr_5d665bee9c5a, tr_a9cf71300764
+  root cause  : cartservice latency is entirely consumed by its cart-cache round trips: every trace shows ~301-307ms of self-time in leaf HGET/HMSET spans while GetCart/AddItem handler spans contribute under 1ms, and ~600ms writes and ~900ms end-user POSTs decompose into two or three of these fixed ~300ms cache operations [tr_9f968ce8d2bc]. Operations still succeed - logs show continuous error-free cart handling through 19:38, with only inter-operation spacing stretching from single-digit ms to ~600ms [tr_5d665bee9c5a] - so this is a wait, not a failure. The near-constant penalty (300.8-307.4ms, identical on reads and writes) matches a fixed injected delay on the cache path rather than load-dependent queueing, and the change record contains repeated platform-automation fault injections on exactly that path, including traffic-shaping sidecars adding fixed egress delay on the cart-service network namespace [tr_a9cf71300764]. frontend, checkoutservice and loadgenerator alerted because they were waiting on cartservice.
+  OPEN        : Whether a delay-injection sidecar or tc rule was actually still active on the cart-service network namespace at onset, since the change log claims all were reverted and is marked untrusted.
+  OPEN        : When the latency shift began: logs are truncated between ~15:46 and ~19:37 and no cartservice latency metric series was retrievable.
+  OPEN        : Health of redis-cart itself (CPU, memory, saturation, restarts) was never measured, so intrinsic cache slowness is not excluded.
+
+flags: none
+
+retrieval: exclude_origin='scenario:redis-cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T193223Z-redis-cart-dependency-latency/3ef37135-46c0-4771-94f5-f46f59b129a5-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T193223Z-redis-cart-dependency-latency/3ef37135-46c0-4771-94f5-f46f59b129a5-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8333.91it/s]

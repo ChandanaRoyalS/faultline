@@ -1,0 +1,41 @@
+incident 7c7cb253-9e84-465c-80d8-8b2de610c606  state triaging  anchor 00:00:15
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: ea92db7e-dbea-49ab-a7b3-36832cc27c99
+triage judged: investigate (medium confidence, suspects unknown)
+  Checkout alerted first and its downstream consumers followed three minutes later, a fan-out pattern consistent with a real failure originating at or beneath checkout. No open incidents to attribute it to and nothing here is dismissible.
+investigation: 1 round(s), 6 dispatch(es), 19 step(s) BUDGET EXHAUSTED (changes tool calls: 4 of 4 used)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if per-dependency evidence, not yet collected, names a specific peer and a permitted action's preconditions. Concretely: a latency or error breakdown of checkoutservice's outbound calls split by peer that isolates one downstream service, or error-severity logs from that peer, or a change record inside 23:20-23:40Z for emailservice, shippingservice, quoteservice, frauddetectionservice, accountingservice or the broker. Absent those, nothing here distinguishes payment from email from the message-broker write path, and the named blame target (paymentservice) is explicitly provisional. Note also that a slow-dependency stall may not be visible in checkoutservice's own logs at all, since that service emits no error-severity lines in the whole window [tr_05f23f43430f] — so a fix's success could not be confirmed from the seed service's logs, only from its error-ratio series.
+  rests on    : tr_9c194b234664, tr_570864ccda49, tr_05f23f43430f, tr_64ac25ba73d6
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 21617 pushed / 4416 pulled (pull rate 0.1696), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : none
+  confidence  : low
+  evidence    : tr_570864ccda49, tr_05f23f43430f, tr_9c194b234664, tr_fa609aeb7e14, tr_64ac25ba73d6
+  root cause  : checkoutservice began failing ~23:38Z with an intermittent error ratio around 12% (peaks 30%), while its own logs show orders still being accepted but downstream steps (payment confirmation, email, message write) no longer logging completion [tr_570864ccda49][tr_05f23f43430f]. That pattern is silent non-completion of in-flight calls — a wait, not a loud rejection — so checkoutservice is the service that noticed, not the service that broke. No change record exists for checkoutservice [tr_9c194b234664], and the changes on cartservice, productcatalogservice and paymentservice are all matched automated apply/revert pairs that closed 1.4h or more before onset [tr_fa609aeb7e14][tr_3d7a8b232fad][tr_64ac25ba73d6]. Best-supported reading: a downstream dependency in the checkout fan-out (payment/email/message-write path) became slow and checkoutservice failed on timeout. The specific dependency was never measured — the change budget was exhausted before any per-peer metrics or downstream logs were pulled — so the blamed service is checkoutservice's failing dependency path, named provisionally as paymentservice, the first step to stop completing.
+  OPEN        : Which downstream peer actually slowed — no per-dependency latency or error breakdown was retrieved, the metric aggregated by service_name only [tr_570864ccda49].
+  OPEN        : No changes were queried for emailservice, shippingservice, quoteservice, frauddetectionservice, accountingservice or the message broker; the changes budget was exhausted at 4 of 4.
+  OPEN        : Why the five downstream services alerted three minutes after checkoutservice — whether they are victims of the same slow dependency or the source of it.
+  OPEN        : Whether the message-broker write path (the missing offset lines) is the stall point rather than payment.
+  OPEN        : Whether an unmeasured infrastructure factor (broker, Redis, node-level saturation) underlies this; no resource metrics were collected.
+
+=== FLAGGED ===
+  budget exhausted: changes tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T235723Z-shipping-wrong-image/7c7cb253-9e84-465c-80d8-8b2de610c606-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T235723Z-shipping-wrong-image/7c7cb253-9e84-465c-80d8-8b2de610c606-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 13618.73it/s]

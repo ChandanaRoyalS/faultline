@@ -1,0 +1,39 @@
+incident dfdbd8a6-8d77-40b7-a8dd-37ba6b2da3d5  state triaging  anchor 20:15:30
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 01add746-c84f-4774-b485-7a45046b2e8d
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service failure fanning out from checkoutservice into its downstream consumers and the frontend within minutes; nothing here can be dismissed as a working system. Cause is ambiguous between a checkout deploy and a shared dependency, so no prior is asserted.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a change_history query on shippingservice returns a deploy or config edit immediately before 20:15:30 - that would meet rollback_image's or revert_config's preconditions and make a targeted rollback the correct proposal. It is also wrong if PlaceOrder failures are still continuous an hour from now and no investigative dispatch has been run, in which case the cost of waiting exceeded the cost of a speculative restart_service on shippingservice.
+  rests on    : tr_4a2e78a4b574, tr_759a815ca833, tr_df308219e272
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 24942 pushed / 8412 pulled (pull rate 0.2522), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_4a2e78a4b574, tr_759a815ca833, tr_5e157bd09087, tr_df308219e272
+  root cause  : checkoutservice is the reporter, not the culprit. In every sampled failing PlaceOrder trace the error originates on checkoutservice's outbound client span for hipstershop.ShippingService/GetQuote, failing fast in 0.5-2.7ms with no shippingservice server-side span beneath it, while cartservice, currencyservice and productcatalogservice all complete normally with matching server spans. Immediate error plus absent server span means the call is rejected or never accepted at the shipping endpoint rather than being slow. checkoutservice's own self time stays at ~0.1-0.2ms, its error ratio is flat against baseline, and its process stays alive placing orders that no longer reach payment/email/message-write completion after ~20:16:52 - consistent with a hard failure inside prepareOrderItemsAndShippingQuoteFromCart. The downstream alert fan-out (accountingservice, emailservice, frauddetectionservice, quoteservice at 20:18:30; frontend and loadgenerator at 20:19:xx) follows from this one break: post-checkout consumers starve, quoteservice goes idle because shippingservice never calls it, and frontend sees the propagated error. No dispatch ever examined shippingservice itself, so the mechanism behind its refusal is inferred from the client side only; the fast-reject-with-no-server-span pattern points at shippingservice not serving the endpoint as addressed - a wrong or unreachable target/port or a service that cannot serve requests - rather than at exhaustion or latency.
+  OPEN        : No change, log, or metric dispatch was ever run against shippingservice - whether a deploy, config edit, or capacity limit precedes 20:15:30 there is entirely unmeasured.
+  OPEN        : The gRPC status code on the failing GetQuote spans (UNAVAILABLE vs UNIMPLEMENTED vs RESOURCE_EXHAUSTED) was not reported and would discriminate between bad_deploy, bad_config, and resource_exhaustion.
+  OPEN        : checkoutservice logs were truncated across the 20:15:30 onset region, so the first error text and any named endpoint remain unread; a severity-filtered re-query is needed.
+  OPEN        : paymentservice span metrics are absent across the whole period [tr_f76a71bf6e67], so its health is unknown - though traces show PlaceOrder fails before payment is reached.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T201225Z-shipping-wrong-image/dfdbd8a6-8d77-40b7-a8dd-37ba6b2da3d5-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T201225Z-shipping-wrong-image/dfdbd8a6-8d77-40b7-a8dd-37ba6b2da3d5-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 13122.73it/s]

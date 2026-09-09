@@ -1,0 +1,162 @@
+{
+  "incident_id": "81ab8222-e831-40f6-831f-bc3b8dd08cd7",
+  "trajectory_id": "2c66a4e0-6962-45a9-8102-15d6f725bdb8",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "Frontend's shipping-quote gRPC calls are dialed at 172.18.0.7:50050 and refused at the TCP connect step \u2014 name resolution succeeds, but nothing accepts on that port [tr_bf4e2b4d888f]. All frontend errors surface through the gRPC client stack as propagated remote statuses (13 INTERNAL wrapping transport Unavailable, later bare 14 UNAVAILABLE), not from frontend's own logic [tr_bf4e2b4d888f]. Meanwhile checkoutservice completes end-to-end orders through the final minute [tr_f965864a3e76] and cartservice serves normally [tr_11494c4f1ae3], so the wider order path is not broken. Only frontend's leg fails, and only partially \u2014 error ratio roughly doubled to a ~12.8% peak [tr_054d0c4b99b1]. The most consistent reading is that the shipping-quote endpoint address frontend uses names the wrong port/target: the wrong value is itself what breaks the request.",
+    "service": "frontend",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_bf4e2b4d888f",
+      "tr_f965864a3e76",
+      "tr_054d0c4b99b1"
+    ],
+    "reasoning": "The log evidence pins the failure to the TCP connect step on frontend's outbound hop, excluding DNS, TLS/authz, ingress 5xx, frontend application code, and a slow-but-serving backend (no DEADLINE_EXCEEDED) [tr_bf4e2b4d888f]. That leaves 'nothing listening where frontend dials.' The discriminator between a dead shipping backend and a misaddressed client is checkoutservice, which is a single long-lived process placing orders successfully at both window edges [tr_f965864a3e76] \u2014 hard to reconcile with the shipping dependency being wholly down. The partial, non-total error ratio [tr_054d0c4b99b1] fits one misaddressed dependency path rather than a service-wide outage. Both change queries ran forward from onset and cannot see a pre-incident edit [tr_44b207d6043c, tr_a25b9fc77192], so the change record neither supports nor refutes this.",
+    "open_questions": [
+      "No change query covered the hours before 20:38:15, so the actual edit that set the endpoint/port was never observed.",
+      "The shipping-quote service was never dispatched on directly \u2014 its process state, listening port, and whether checkoutservice reaches it on a different address are unverified.",
+      "cartservice metrics returned no samples in either window [tr_4262b1cb6929], leaving an instrumentation gap; frontend metrics have no per-route or per-dependency breakdown [tr_054d0c4b99b1]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The shipping-quote service itself is down or crash-looping, and frontend's refused connects are the symptom of an absent listener.",
+        "service": "shippingservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "restart",
+        "why_not": "checkoutservice completes full order flows including downstream writes through the window's end [tr_f965864a3e76], which a wholly unreachable shipping dependency should have disrupted; and the shipping service was never directly inspected either way."
+      },
+      {
+        "root_cause": "The shipping-quote service was redeployed on a changed listening port, leaving frontend's unchanged address pointing at a dead port.",
+        "service": "shippingservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The one-hop change query around checkoutservice recorded no port or dependency change [tr_a25b9fc77192], though its window began at onset and could not see a pre-onset rollout."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "product-catalog-flag-failure / What was observed: The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, 3m49s after\nonset. Fifteen seconds later **frontend** and **productcatalogservice** joined it, and\n**checkoutservice** almost four minutes after that.\n\nFour services alerted during the failure and the set n",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25695,
+    "pulled_tokens": 5327,
+    "pull_rate": 0.1717,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 425,
+        "content_tokens": 427,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1631,
+        "content_tokens": 1635,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7950,
+        "content_tokens": 7926,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7255,
+        "content_tokens": 7258,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8434,
+        "content_tokens": 8412,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_44b207d6043c",
+      "tr_bf4e2b4d888f",
+      "tr_054d0c4b99b1"
+    ],
+    "expected_effect": "No action is proposed, so no change in any series is expected. Frontend's error ratio should continue at roughly its incident-window level (mean ~0.032, peaks ~12.8%) and the gRPC client log lines naming `dial tcp 172.18.0.7:50050: connect: connection refused` / bare 14 UNAVAILABLE should keep appearing until someone acts on the real listener. That continuation is itself the observable: it confirms nothing was disturbed by this step.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "Three things would show abstention was the wrong call. (1) A change-history query widened to cover the hours *before* 2026-09-07T20:38:15 returns a frontend config or endpoint edit with a recorded prior value \u2014 that would satisfy revert_config's preconditions and make a config revert on frontend the right proposal. (2) A direct dispatch on the shipping-quote service shows a healthy process listening on a port other than 50050, pinning the fault to frontend's address value rather than to a dead backend. (3) The error ratio climbs well past ~12.8% toward total failure, which would raise the cost of waiting above the cost of acting on a medium-confidence diagnosis. Absent any of these, waiting is cheap: 87% of frontend calls still succeed [tr_054d0c4b99b1] and checkoutservice completes orders end-to-end through the final minute [tr_f965864a3e76].",
+    "risk": "The risk of abstaining is duration: the shipping-quote leg stays broken and users keep hitting a partial checkout failure for as long as it takes a human to run the pre-window change query or dispatch on the shipping-quote host. That is a real cost, not zero. It is accepted here because every permitted action carries a larger one. revert_config is the class the synthesizer named, but its preconditions are explicitly unmet: the change-history query for frontend returned no changes of any kind [tr_44b207d6043c], so there is no recorded prior configuration to restore and no in-window config change named by evidence \u2014 the same result also notes the queried window never covered the hours before 20:38:15, so the edit that set the endpoint was never observed. Reverting to an unrecorded prior state is not a revert, it is a guess. restart_service is worse: the evidence points at a wrong address value, not at process state, and recreating frontend discards cache, resets connections for every live user session, and cannot change the endpoint the container is configured with. rollback_image has no deploy or image change in evidence to roll back to. scale_service is unavailable per ADR-0029. Most importantly, the service that actually is not listening on 172.18.0.7:50050 was never dispatched on and is not in the blast radius, so the system cannot legally touch the thing the mechanism implicates.",
+    "blast_radius": "None. No service is modified, so no caller of frontend, checkoutservice, cartservice, productcatalogservice, adservice, or recommendationservice sees anything change. The existing blast radius persists unchanged: frontend users on the shipping-quote path continue to see errors at ~12.8% peak; loadgenerator continues to record them; the wider order path via checkoutservice and cartservice remains unaffected [tr_f965864a3e76, tr_11494c4f1ae3]. Note that two blind spots survive this abstention and should be closed before any later action: cartservice has no metric series in either window [tr_4262b1cb6929] and frontend metrics carry no per-route or per-dependency breakdown [tr_054d0c4b99b1], so post-action confirmation on the shipping-quote leg specifically would have to come from logs, not metrics."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on frontend followed immediately by the load generator indicates user-facing impact, not a lone warning. No open incidents to attribute it to, and any of frontend's five direct dependencies could be the source, so evidence is needed."
+  }
+}

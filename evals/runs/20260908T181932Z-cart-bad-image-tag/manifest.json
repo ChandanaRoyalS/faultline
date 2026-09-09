@@ -1,0 +1,94 @@
+{
+  "run_id": "20260908T181932Z-cart-bad-image-tag",
+  "scenario_id": "cart-bad-image-tag",
+  "split": "dev",
+  "scenario_fingerprint": "d4b9a16337b55bfe9feb260c5e6c3173f6cf8b23fec2724198a472bd26481ada",
+  "started_at": "2026-09-08T18:19:32.476933+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "73477ceb1a0bfdbfe979f0db4215ed1e030c090a",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 55622,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-08T18:19:32.507293+00:00",
+    "reason": "faultline-eval cart-bad-image-tag",
+    "token": "55622-1788891572.507234"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": false,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 4191,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "checkout-service",
+      368
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 26.56,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 13.205,
+      "runs_remaining": 38,
+      "uptime_seconds": 388,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 1994.0,
+      "projected_percent": 123.92,
+      "threshold_percent": -7.36,
+      "guard_percent": 90.0,
+      "fits": false
+    },
+    "refusals": [
+      "kafka is at 26.6% of its 2048MB limit and would reach ~123.9% across the 38 run(s) still to come (13.20h), past the 90% guard the recorder refuses at.\n    threshold -7.4% = 90% - (151MB/h x 13.20h / 2048MB), growth measured under load at T7.29.\n    Recycle it first, and its consumers with it or they never reconnect (T7.27):\n      docker restart kafka && docker restart accounting-service frauddetection-service checkout-service\n    A restart clears this completely - T7.30 measured 99.87% -> 26.27%. Raising the limit is not the remedy: the growth is Rosetta translation cache and is driven by work, not bounded by a ceiling (ADR-0005's T7.30 addendum).\n    THIS IS A PAUSE, NOT A DISCARD - nothing was injected and this scenario has not been attempted. Recycle, then start again from here."
+    ]
+  },
+  "paused": {
+    "reason": "clearable precondition",
+    "at": "2026-09-08T18:19:38.668461+00:00",
+    "detail": "baseline gate refused; nothing was injected.\n  - kafka is at 26.6% of its 2048MB limit and would reach ~123.9% across the 38 run(s) still to come (13.20h), past the 90% guard the recorder refuses at.\n    threshold -7.4% = 90% - (151MB/h x 13.20h / 2048MB), growth measured under load at T7.29.\n    Recycle it first, and its consumers with it or they never reconnect (T7.27):\n      docker restart kafka && docker restart accounting-service frauddetection-service checkout-service\n    A restart clears this completely - T7.30 measured 99.87% -> 26.27%. Raising the limit is not the remedy: the growth is Rosetta translation cache and is driven by work, not bounded by a ceiling (ADR-0005's T7.30 addendum).\n    THIS IS A PAUSE, NOT A DISCARD - nothing was injected and this scenario has not been attempted. Recycle, then start again from here.\nThe world must be quiet before a scored run, or the run measures the world's prior state as well as the fault (ADR-0022 \u00a73.1). Containers settle in 300s."
+  }
+}

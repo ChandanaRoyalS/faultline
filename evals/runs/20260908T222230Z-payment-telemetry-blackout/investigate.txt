@@ -1,0 +1,44 @@
+incident 02b997d8-b288-4121-b002-5680417641a5  state triaging  anchor 22:28:30
+triage: 3 services, severity critical, start from paymentservice, 2 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 3f357bf3-c49d-458e-87b2-b85fee6e9ce3
+triage judged: investigate (medium confidence, suspects unknown)
+  A critical alert on paymentservice, a payment-path service with downstream checkout and frontend exposure, is not something to dismiss without evidence. Nothing in the alert pattern points to a specific fault class yet.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : paymentservice
+  expect      : Restoring paymentservice's prior environment removes OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4317 (the recorded prior value for that key is unset, per the 06:40 revert entry in tr_6fa03767e678) and recreates the container. Observable within one recreate plus one export interval: a Tempo trace query for service=paymentservice over the post-action window returns traces again, each completed checkout trace containing a paymentservice `Charge` server span with its `charge` child, correctly parented under checkoutservice/hipstershop.PaymentService/Charge — the exact shape tr_037f29f680c2 recorded under the correct endpoint value. Secondary, weaker signal: calls_total{service_name="paymentservice"} may begin returning samples in Prometheus. Payment-path logs should be unchanged — charge-received / transaction-completed info lines resuming at their prior cadence after a short gap for the recreate (tr_12485e04056c).
+  within      : 600s
+  risk        : If the diagnosis is wrong, this is a container recreate on a service that the logs show is currently healthy and completing charges through 22:30:16 — that is, it converts a telemetry-visibility defect into a real, if brief, payment outage for no gain. In-flight charge RPCs at the moment of recreate are dropped; paymentservice holds cache-only state so nothing durable is lost, but a customer checkout in flight can fail. Because the 22:28:30 alert's actual trigger is unknown and no latency, throughput, or saturation series was ever retrieved, there may be a second, unaddressed fault that this action neither fixes nor reveals — and the recreate will muddy timelines for whoever investigates it next. Reverting the endpoint also moves span export traffic back onto the real collector; if that collector is itself unhealthy, this restores load to it.
+  blast radius: One service directly: paymentservice. checkoutservice is its named caller and will see connection resets or failed Charge RPCs for the duration of the recreate; frontend sits behind checkoutservice and will see those as failed or slow PlaceOrder calls, so the blast radius reaches end-user checkout for seconds to tens of seconds. Because the reverted value is a dependency address, the OTLP collector previously named by the correct endpoint will see paymentservice span traffic return. The action is reversible.
+  if wrong    : Falsified if, 10 minutes after the recreate, a Tempo query for paymentservice over the post-action window still returns no spans (or checkout traces still show a gap where the Charge span belongs) — that would mean the loopback endpoint was not the reason spans are missing, or that spans were never actually missing post-22:22 and the alert fired on something else entirely. Also falsified in the other direction if paymentservice charge logs do NOT resume within ~60s of the recreate, or if checkoutservice's error ratio, currently flat zero (tr_c2d711c2f9d0), rises above zero and stays there. Note the honest gap: no post-22:22 trace query was ever run, so span absence is inferred from the change record, not observed. If the operator can run that query first, do that before acting — it costs nothing and converts this proposal from inference to measurement. Separately, if the config reappears within ~15 minutes (the automation reverted-then-reapplied this same key before), the revert has been overwritten by the platform-automation loop and the durable fix is upstream of this system.
+  rests on    : tr_6fa03767e678, tr_037f29f680c2, tr_12485e04056c
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22540 pushed / 10069 pulled (pull rate 0.3088), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_6fa03767e678, tr_a34fb3d22c34, tr_12485e04056c, tr_037f29f680c2
+  root cause  : At 22:22:36, five minutes before the 22:28:30 alert, platform-automation set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT on paymentservice to http://127.0.0.1:4317 [tr_6fa03767e678]. That value names an address where no collector listens, so paymentservice spans are exported into a black hole and its span-derived call metrics cannot be computed [tr_a34fb3d22c34], while the service itself keeps serving: charges are received and completed successfully through 22:30:16 with no error lines [tr_12485e04056c], and caller checkoutservice shows a flat-zero error ratio across the whole incident window [tr_c2d711c2f9d0]. The wrong endpoint value is the mechanism. The traces specialist's rule-out of this hypothesis does not hold: its window (04:28-10:28, samples 08:02-08:16) sits after the 06:40 revert and ~14h before the 22:22 re-application [tr_037f29f680c2], so it shows healthy export under the correct value, not the post-onset state. The identical edit applied and reverted ~16h earlier indicates an automation loop re-injecting it [tr_6fa03767e678].
+  OPEN        : No post-22:22 trace query was run for paymentservice, so span absence after the re-application is inferred from the change record rather than observed.
+  OPEN        : What the 22:28:30 alert actually fired on is unknown; no latency, throughput, or saturation series was retrieved for either service.
+  OPEN        : paymentservice call metrics were empty in the two-hour baseline too, which may reflect a service_name label mismatch [tr_a34fb3d22c34] and would weaken metric silence as an onset signal.
+  OPEN        : The hostname change between log blocks [tr_12485e04056c] is undated - a pod replacement near onset is neither confirmed nor excluded.
+
+flags: none
+
+retrieval: exclude_origin='scenario:payment-telemetry-blackout', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T222230Z-payment-telemetry-blackout/02b997d8-b288-4121-b002-5680417641a5-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T222230Z-payment-telemetry-blackout/02b997d8-b288-4121-b002-5680417641a5-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9295.41it/s]

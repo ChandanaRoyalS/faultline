@@ -1,0 +1,43 @@
+incident 1b4473bc-7cc7-42f4-b94a-ebd67afdf424  state triaging  anchor 18:40:30
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: c0d31c1f-eb64-4e4d-9e92-b67f9ef8027a
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with simultaneous checkout and frontend alerts plus loadgenerator impact indicates a real user-facing failure, not a lone latency warning. No open incidents to attribute it to, and the shared downstream set gives no single fault signature yet.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Reverting cartservice's environment to its pre-18:37:55 state removes the REDIS_ADDR=redis-cart:6380 override and recreates the container against the previously-working default Redis endpoint. Observable: (1) in cart-service logs, the repeating cycle of 'connection attempt -> failure to connect -> unhandled ApplicationException -> restart' seen from 18:40:06 to 18:42:14 stops, replaced by a single successful startup followed by ordinary AddItemAsync/GetCartAsync lines with no error severity [tr_8cc792d6a61f]; (2) checkoutservice's error ratio returns from its 0.067 mean / 0.67 peak to the flat zero of its pre-18:38:45 baseline [tr_b3910e6d922e]; (3) newly sampled checkout traces no longer carry ERROR on the checkoutservice CartService/GetCart leaf span, and PlaceOrder traces extend past prepareOrderItemsAndShippingQuoteFromCart into payment/currency spans that are currently absent [tr_38fa477ad955]. Note cartservice's own call metrics returned no samples in either window [tr_584aeb4b9afb], so cartservice-side confirmation must come from logs, not metrics.
+  within      : 300s
+  risk        : If the cache legitimately moved to port 6380 and the 6380 listener is simply down, this revert points cartservice at an endpoint that is also not listening and the crash loop continues — no recovery, and roughly one extra restart cycle of downtime. The recreate itself terminates the current process mid-flight, discarding any in-process cart state (cache only for this service). If the automated pipeline re-applies the 6380 value, the config will flap between two states and cartservice may crash-loop through several more cycles rather than settling. Reverting also silently undoes whatever the pipeline intended, so if 6380 was a deliberate migration step this hides the real problem instead of fixing it.
+  blast radius: One service, cartservice. Its inbound caller checkoutservice, and frontend above it, see connection resets on CartService/GetCart for the duration of the container recreate — the same call that is already failing in all 10 sampled traces [tr_38fa477ad955], so the marginal harm to callers is small but not zero. loadgenerator's checkout path sees the same brief reset. Because the reverted value is a dependency address, the Redis instance at the previous endpoint sees cart traffic return, and redis-cart:6380 stops receiving connection attempts.
+  if wrong    : Falsified if, within ~2 minutes of the recreate, cart-service logs show the same EnsureRedisConnected/InitializeAsync ApplicationException cycle continuing against the reverted address — that would mean the redis-cart instance itself is unavailable and the port value was not the fault (the open question: nobody probed redis-cart). Also falsified if the crash loop stops but checkoutservice's error ratio stays elevated, which would mean GetCart was only one of several failure paths and something else carried the ~33% of checkouts that kept succeeding — an unexplained gap in the current diagnosis. A third falsifier: the REDIS_ADDR=6380 value reappears shortly after revert, since all 13 recorded changes come from platform-automation on a recurring set/revert cycle [tr_357d9c0d9bd1]; then the fix is to stop the pipeline, which is outside this system's actions.
+  rests on    : tr_357d9c0d9bd1, tr_8cc792d6a61f, tr_38fa477ad955, tr_b3910e6d922e
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 28890 pushed / 6858 pulled (pull rate 0.1918), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_357d9c0d9bd1, tr_8cc792d6a61f, tr_38fa477ad955, tr_b3910e6d922e, tr_a3115dfb62d3, tr_fdfef69d1dae
+  root cause  : An automated environment change set cartservice's REDIS_ADDR to redis-cart:6380 at 18:37:55, about two minutes before onset [tr_357d9c0d9bd1]. cartservice cannot connect to that endpoint, and since the connection is made during process initialization (Main -> InitializeAsync -> EnsureRedisConnected), the failure throws an unhandled exception and kills the process, leaving a crash loop still active at window end [tr_8cc792d6a61f]. With cartservice unable to serve gRPC calls, checkoutservice's CartService/GetCart call is the error-bearing leaf span in all 10 sampled traces, propagating up through PlaceOrder to the frontend [tr_38fa477ad955], and checkoutservice's error ratio steps off a flat-zero baseline at 18:38:45 [tr_b3910e6d922e]. The wrong address value is itself the mechanism.
+  OPEN        : Nobody probed redis-cart itself. If the cache legitimately moved to 6380 and the instance is down or not listening, the fault is the store's availability rather than the address value.
+  OPEN        : cartservice call metrics returned no samples in either window [tr_584aeb4b9afb], so onset timing and the crash loop have no independent metric corroboration.
+  OPEN        : checkoutservice's error ratio peaks near 0.67 rather than 1.0 [tr_b3910e6d922e] while cartservice appears fully down; what carried the successful checkouts is unexplained, and both log results were truncated across roughly 18:10-18:39 [tr_a3115dfb62d3, tr_8cc792d6a61f].
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T183750Z-cart-redis-misconfig/1b4473bc-7cc7-42f4-b94a-ebd67afdf424-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T183750Z-cart-redis-misconfig/1b4473bc-7cc7-42f4-b94a-ebd67afdf424-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8941.78it/s]

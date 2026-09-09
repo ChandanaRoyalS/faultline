@@ -1,0 +1,38 @@
+incident 6b72a2b3-061e-4be6-a373-0c52bdeea9f1  state triaging  anchor 21:34:00
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 93c5e7de-43a3-48d8-86a8-80fe668429b0
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend and checkoutservice within seconds of each other, with no open incident to attribute them to, describe a user-facing failure that cannot be dismissed. The shared downstream fan-out of checkoutservice leaves the trigger ambiguous, so no fault class is assumed yet.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if cartservice process state turns out to be plainly bad — e.g. a nonzero and climbing restart count, an OOMKilled exit, or a log tail ending in a panic with no subsequent listen line. That observation would satisfy restart_service's precondition ('evidence points at process state rather than at a change') and make recreating the cartservice container the right move. It is also wrong if a cartservice change record exists inside the window naming a deploy or a bind-address/port config edit, in which case rollback_image or revert_config is indicated and a restart would have papered over a change that returns on the next deploy.
+  rests on    : tr_96ee5ce2de29, tr_0271ca85f856, tr_fd630b3e661c
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 31352 pushed / 8965 pulled (pull rate 0.2224), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_96ee5ce2de29, tr_0271ca85f856, tr_742a0e81c22a, tr_247ff21e0444, tr_fd630b3e661c, tr_167ae270c816, tr_809820cbb77d
+  root cause  : Frontend PlaceOrder requests are failing because the cart dependency is refusing connections. Failing traces run 1.2-1.7ms and terminate at the checkoutservice -> CartService/GetCart span with ERROR on the whole ancestor chain and nothing recorded below it [tr_96ee5ce2de29], while frontend logs show gRPC code 14 UNAVAILABLE with 'no connection established' plus a detail line naming the checkout cart fetch and a refused TCP dial to a concrete address on port 7070 [tr_0271ca85f856]. Blame sits on cartservice: it resolves but is not accepting connections on a fraction of dials. Frontend and checkoutservice are reporting an unreachable dependency, not their own fault - checkoutservice's error ratio is flat-to-lower than baseline with no error logs at onset [tr_742a0e81c22a][tr_247ff21e0444], and frontend's errors are bursty with minima at zero [tr_fd630b3e661c]. Why cartservice refuses connections is not established: no cartservice logs, metrics, change history or process state were ever queried, so crash loop, limit kill, wrong bind address, or replica loss all remain open. I name the service and the mechanism (dependency unreachable by active connection refusal) but leave the class unknown.
+  OPEN        : No cartservice evidence of any kind was collected, so the mechanism behind the refusal - crash loop, limit kill, wrong bind port, replica loss - is unsettled.
+  OPEN        : The same UNAVAILABLE pattern appears at ~20:56, before the 21:34 alert [tr_0271ca85f856], and all change queries began at or after 21:34 [tr_51c4169ff3a9], so true onset and any triggering act pre-onset were never searched.
+  OPEN        : Why only part of traffic fails (peak ~33%, minimum 0%) - partial replica loss versus intermittent restarts - is not distinguished by any result.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T213130Z-cart-redis-misconfig/6b72a2b3-061e-4be6-a373-0c52bdeea9f1-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T213130Z-cart-redis-misconfig/6b72a2b3-061e-4be6-a373-0c52bdeea9f1-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 12845.69it/s]
