@@ -64,6 +64,16 @@ whole rather than the tail of a flat list. `max_traces` (default 10) bounds the 
 arrives as a name or an OTLP code and is stored as a name. `TraceResult.source` is `"tempo"`, and
 `traces` says how many were fetched.
 
+**A store is only as useful as its freshest searchable trace, and the first configuration got that
+wrong.** `ingester.max_block_duration` was 5m, and nothing in Tempo is searchable until a block is
+cut: measured on 2026-09-09, the newest searchable trace froze at one instant for five minutes and
+then jumped to 14s behind, so **at any moment the tool was blind to the last 0-5 minutes** - the
+window an investigation asks about. Two dev sweep 12 verdicts reported exactly that (*"every
+returned trace predates onset"*) and both were wrong. At 30s the lag is 6-88s with a median around
+14s, and memory falls rather than rises. `compose/tempo.yaml` records the measurement. **This is
+why a delta measured on the first configuration would have been a measurement of the config**, and
+why the sweep was not run on it.
+
 `ALLOWED_PATHS` gains `/api/search` and `/api/traces/` and loses Jaeger's; the read-only guard is
 otherwise unchanged. **Every recorded bundle's `traces/` capture stays what it was**: a recording is
 not re-sourced, and the thirteen bundles re-record on the new world anyway (§5).
@@ -127,6 +137,12 @@ provided it before, which is why the delta had never been measured.
 - `compose_digest` and `observability_digest` move: every published figure becomes a figure about
   generation `f5bd108f4f70`, which is what it always was. Thirteen bundles re-record, narratives
   preserved (T7.28's rule), about two hours on the reference platform.
+- **No second `TOOL_BEHAVIOUR_REVISION` bump for the block-duration fix**, and the reason is worth
+  stating rather than assuming: `CAPTURE_SET` holds metric files and logs and **no bundle holds a
+  trace**, so how fresh Tempo's search index is cannot falsify a claim in any narrative. It changes
+  what the *agent* sees at runtime, which the sweep measures directly. It does move
+  `observability_digest`, because `compose/tempo.yaml` is under it - so the thirteen bundles record
+  again, and that is the whole cost.
 - `TOOL_BEHAVIOUR_REVISION` 2 → 3, `cap:c4d52d00` → `cap:dd651ccc`. The fifteen narrative stamps
   were **reviewed, not re-stamped**: `docs/design/t6.1-capability-review.md` names the three claim
   shapes the three changes could falsify, the hits, and why each is unaffected.

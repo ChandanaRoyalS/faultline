@@ -30,8 +30,22 @@ distributor:
 # in RAM at once. Smaller blocks, cut and released sooner; the Go runtime's own limit is set in
 # compose/telemetry.yml (GOMEMLIMIT), which is what makes the container limit a target the
 # collector sees rather than a cliff it finds.
+#
+# **`max_block_duration` is 30s because 5m made the trace tool blind to the incident.** Nothing is
+# searchable until a block is cut, so with 5m blocks the newest searchable trace froze at a fixed
+# instant while the clock ran on. Measured 2026-09-09, twelve samples fifteen seconds apart: the
+# newest trace sat at 02:27:03 through five consecutive minutes - 138s behind, then 153, 169, 184,
+# 199, 214, 229, 244, 259, 274, 289 - and then snapped to 14s behind as the block was cut. **At any
+# moment the tool was blind to the last 0-5 minutes**, which is precisely the window an
+# investigation asks about: onset is 3-6 minutes before the agent runs. Two dev sweep 12 verdicts
+# said so in their own words - *"every returned trace predates onset"* - and both were wrong.
+#
+# At 30s the same measurement reads 6-88s behind, median around 14s, with no monotonic climb, and
+# memory went **down**, 55% to 40% of the limit, because blocks are released sooner than they
+# accumulate. The cost of this line is more, smaller blocks for the compactor; the cost of the
+# previous one was a trace analyst that could not see the fault it was dispatched to explain.
 ingester:
-  max_block_duration: 5m
+  max_block_duration: 30s
   max_block_bytes: 52428800
   complete_block_timeout: 2m
 
