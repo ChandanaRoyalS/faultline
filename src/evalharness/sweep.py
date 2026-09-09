@@ -119,8 +119,8 @@ covers it — a second hand-written copy of a contract is how a driver comes to 
 a run the harness calls INVALID."""
 
 
-def runnable(root: Path = SCENARIO_ROOT) -> list[str]:
-    """Every scenario that can be run, in a stable order.
+def runnable(root: Path = SCENARIO_ROOT, *, holdout: bool = False) -> list[str]:
+    """Every scenario that can be run, in a stable order. **Dev only unless `holdout` is set.**
 
     A bundle carrying `INVALID.md` is excluded: its fault produced nothing observable, so a run
     of it can only fail, and **counting guaranteed failures in a catalog rate would move every
@@ -132,6 +132,18 @@ def runnable(root: Path = SCENARIO_ROOT) -> list[str]:
     scenarios that would crash the sweep at their turn. And `load_catalog` recurses, so the
     schema's worked example under `examples/` was in the catalog too. Neither is a scenario a
     sweep can attempt; both were on the list Gate 4's command would run unattended.
+
+    **A fourth exclusion, and it cost a whole sweep (dev sweep 12, 2026-09-08).** Holdout scenarios
+    were in this list from the start. `faultline-eval` refuses them without `--holdout` - correctly,
+    because ADR-0008's axis 1 makes a holdout entry a different experiment that should be hard to
+    start by accident - so a catalog sweep attempted three of them once per pass and was refused
+    nine times. **The refusals were harmless; their place in the count was not.** The baseline gate
+    projects kafka's growth over `--runs-remaining`, so three scenarios that could never run still
+    inflated the projection that decides whether the sweep may start at all.
+
+    `holdout=True` puts them back, for a driver that means it. `PREREGISTRATION-T6.1.md` section 4
+    said *"the ten dev scenarios"* and named a command that attempted thirteen; this is the
+    difference between those two sentences.
     """
     from evalharness.scenario import Scenario
 
@@ -142,7 +154,11 @@ def runnable(root: Path = SCENARIO_ROOT) -> list[str]:
         )
 
     catalog = (Scenario.from_yaml(path) for path in sorted(root.glob("*.yaml")))
-    return sorted(s.id for s in catalog if not s.blocked and not invalid(s.id))
+    return sorted(
+        s.id
+        for s in catalog
+        if not s.blocked and not invalid(s.id) and (holdout or s.split != "holdout")
+    )
 
 
 class UnknownScenarioError(ValueError):
@@ -193,10 +209,35 @@ class SweepResult:
     """What a pass over the catalog did. **Never a score** — see the module docstring."""
 
     outcomes: list[Outcome] = field(default_factory=list)
+    declared_repeats: int = 1
+    """The R every run in this sweep wrote into its manifest. Compared against what the world
+    actually gave each scenario - see `divergence`."""
 
     @property
     def scored(self) -> int:
         return sum(1 for o in self.outcomes if o.scored)
+
+    @property
+    def divergence(self) -> dict[str, int]:
+        """Scenarios that scored fewer times than their manifests declare, and how many they got.
+
+        **The failure this exists to name (dev sweep 12, 2026-09-08).** `--tier weekly` writes
+        `repeat_count: 3` into every manifest. The gate then refused the first fifteen slots, so
+        five scenarios scored twice and five scored once - **fifteen runs each declaring R = 3 on a
+        world that never gave any of them three.** That is a corrupt fingerprint on every run, and
+        the exact "declared R and observed runs per scenario differ" mismatch `compare.report`
+        warns about; the sweep printed `15/39 scored` and said nothing about it.
+
+        `test_a_tier_that_declares_three_repeats_runs_the_catalog_three_times` covers the driver
+        making three passes. It cannot cover the world refusing them, which is what happened.
+        """
+        scored = Counter(o.scenario_id for o in self.outcomes if o.scored)
+        attempted = {o.scenario_id for o in self.outcomes}
+        return {
+            scenario: scored.get(scenario, 0)
+            for scenario in sorted(attempted)
+            if scored.get(scenario, 0) != self.declared_repeats
+        }
 
     @property
     def exit_code(self) -> int:
@@ -219,6 +260,21 @@ class SweepResult:
         if not_scored:
             lines += ["", "  not scored:"]
             lines += [f"    {o.scenario_id:34} {o.name}" for o in not_scored]
+        diverged = self.divergence
+        if diverged and self.declared_repeats > 1:
+            lines += [
+                "",
+                f"  *** DECLARED R = {self.declared_repeats}, OBSERVED FEWER ***",
+                "  Every run in this sweep wrote "
+                f"repeat_count = {self.declared_repeats} into its manifest, and these scenarios "
+                "did not score that many times:",
+            ]
+            lines += [f"    {name:34} scored {n}" for name, n in diverged.items()]
+            lines += [
+                "  Those runs carry a repeat count the world did not give them. They are not the "
+                "sweep that was registered, and pooling them as one would be the mismatch "
+                "`compare.report` warns about. Re-run, or report the divergence with the figures.",
+            ]
         lines += [
             "",
             "This is a count of outcomes, not a score. `faultline-judge` grades the narratives "
@@ -237,8 +293,9 @@ def sweep(
     settle: int = 0,
     retries: int = 1,
     sleeper: Any = None,
+    recycler: Any = None,
 ) -> SweepResult:
-    """The catalog, `repeats` times, counting down `--runs-remaining` across the whole job.
+    """The catalog, `repeats` times, counting `--runs-remaining` down **within each pass**.
 
     **`repeats` exists because the tier flag alone was a lie.** `faultline-eval --tier weekly`
     writes `repeat_count = 3` into the manifest and runs **once**; nothing in it repeats. A driver
@@ -260,6 +317,23 @@ def sweep(
     **Catalog-major, not scenario-major**: every scenario once before any scenario twice. Running a
     scenario's three repeats back to back would measure it against three nearly identical world
     states and understate run-to-run variance, which is the one quantity R > 1 exists to estimate.
+
+    **`recycler` exists because the countdown and the gate disagreed, and the gate won (dev sweep
+    12, 2026-09-08).** The baseline gate projects kafka's growth forward over `--runs-remaining` and
+    refuses if the forecast crosses 90 %. The first version counted down across the *whole* job, so
+    a three-pass sweep told the gate about 30-39 runs at once: the forecast was 124 %, and the gate
+    refused **fifteen consecutive slots with kafka sitting at a healthy 24 %**. The sweep only began
+    working when the countdown had fallen far enough on its own, by which point pass 1 was gone.
+    The arithmetic says this was not bad luck - at the registered 30 runs the gate needs kafka under
+    ~13 %, and a freshly recycled kafka is 24-26 %, so **a three-pass sweep could not be started at
+    all**.
+
+    The fix is the one `PREREGISTRATION-T6.1.md` section 4 already named - *"a kafka recycle between
+    passes is the documented remedy and is recorded as a continuity event"* - implemented rather
+    than left to the operator: `recycler` runs between passes, and the countdown therefore spans
+    **one pass**, which is the horizon the projection is now honest about. A `recycler` of `None`
+    keeps the whole-job countdown, because a driver that does not recycle must not tell the gate
+    that it did.
 
     **`settle` and `retries` default to off, and that is deliberate.** The first version defaulted
     them to the real 300s and 6, and the test suite hung: every existing test called `sweep()`
@@ -294,13 +368,21 @@ def sweep(
     standing_refusal = False
 
     for pass_number in range(1, repeats + 1):
-        for scenario_id in ids:
+        if recycler is not None and pass_number > 1:
+            # Between passes, never during one: the gate's projection below assumes it.
+            print(f"--- recycling the world between passes {pass_number - 1} and {pass_number}")
+            recycler()
+        for index, scenario_id in enumerate(ids):
             done += 1
+            # **The horizon the gate is told about, and why it is one pass.** With a recycler, kafka
+            # is cleared between passes, so the growth this pass's runs can accumulate is bounded by
+            # this pass. Without one, nothing clears it and the honest horizon is the whole job.
+            remaining = len(ids) - index if recycler is not None else total - done + 1
             argv = [
                 "faultline-eval",
                 scenario_id,
                 "--runs-remaining",
-                str(total - done + 1),
+                str(remaining),
                 *(extra or []),
             ]
             # **Wait before, not after.** The block is the *previous* incident's settle window, so
@@ -349,6 +431,31 @@ def _shell(argv: list[str]) -> int:  # pragma: no cover - the subprocess path
     return subprocess.run(argv, check=False).returncode
 
 
+RECYCLE_SETTLE_SECONDS = 300
+"""What the baseline gate's own refusal says: *"Containers settle in 300s."* A recycle followed
+immediately by a run trades one refusal for another."""
+
+
+def _recycle_world() -> None:  # pragma: no cover - the subprocess path
+    """kafka and the three consumers that never reconnect without it, then the settle.
+
+    **Not a workaround - the documented remedy, run rather than printed.** T7.27 measured that
+    kafka's consumers do not reconnect on their own, T7.30 measured the recycle clearing 99.87% to
+    26.27%, and ADR-0005's T7.30 addendum records why raising the limit is not the answer: the
+    growth is Rosetta translation cache, driven by work and not bounded by a ceiling. The gate has
+    printed these exact two commands at every refusal since T7.29; `PREREGISTRATION-T6.1.md`
+    section 4 registered them as a continuity event between passes. This is that, executed.
+    """
+    subprocess.run(["docker", "restart", "kafka"], check=False)
+    time.sleep(20)
+    subprocess.run(
+        ["docker", "restart", "accounting-service", "frauddetection-service", "checkout-service"],
+        check=False,
+    )
+    print(f"--- recycled; settling {RECYCLE_SETTLE_SECONDS}s before the next pass", flush=True)
+    time.sleep(RECYCLE_SETTLE_SECONDS)
+
+
 def parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(
         prog="faultline-sweep",
@@ -378,6 +485,14 @@ def parser() -> argparse.ArgumentParser:
     p.add_argument("--max-tool-calls", default=None)
     p.add_argument("--max-tool-calls-changes", default=None)
     p.add_argument("--max-tokens", default=None)
+    p.add_argument(
+        "--holdout",
+        action="store_true",
+        help="include the holdout scenarios, which are excluded by default. A holdout entry is a "
+        "different experiment (ADR-0008 axis 1) and faultline-eval refuses one without its own "
+        "--holdout, so before this flag existed a catalog sweep attempted three scenarios it "
+        "could never run - and their place in --runs-remaining inflated the gate's projection",
+    )
     p.add_argument("--baseline", choices=("b0", "b1", "b2"), default=None)
     p.add_argument(
         "--without",
@@ -415,7 +530,7 @@ def parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
-    ids = runnable()
+    ids = runnable(holdout=args.holdout)
 
     if args.only:
         try:
@@ -447,6 +562,8 @@ def main(argv: list[str] | None = None) -> int:
             extra += [f"--{flag.replace('_', '-')}", str(value)]
     for specialist in args.without:
         extra += ["--without", specialist]
+    if args.holdout:
+        extra += ["--holdout"]
 
     # **The declared repeat count and the number of passes are the same number.** A tier that
     # declared R = 3 while one pass ran would put a corrupt fingerprint on every run in the sweep.
@@ -458,7 +575,15 @@ def main(argv: list[str] | None = None) -> int:
         f"${estimate * MEDIAN_RUN_USD:.0f}, and the measured discard rate is "
         f"{DISCARD_RATE:.0%} - budget about ${estimate * MEDIAN_RUN_USD / (1 - DISCARD_RATE):.0f}."
     )
-    result = sweep(ids, repeats=repeats, extra=extra, settle=args.settle, retries=args.retries)
+    result = sweep(
+        ids,
+        repeats=repeats,
+        extra=extra,
+        settle=args.settle,
+        retries=args.retries,
+        recycler=_recycle_world if repeats > 1 else None,
+    )
+    result.declared_repeats = repeats
     print("\n".join(result.render()))
     return result.exit_code
 

@@ -133,9 +133,28 @@ passes in one invocation (`--without traces`); then B0.2** - three invocations, 
 drift argument the alternating order made is weaker than the fingerprint argument against it, and
 is answered differently: prediction 9's A/A check is *within* arm A, and prediction 1's re-record
 check bounds what the world was doing across the day. A kafka recycle between invocations is the
-documented remedy and is recorded as a continuity event, as in sweep 11. **`--only` is not used**:
-the scope is the whole dev catalog, and `faultline-sweep`'s catalog form has run under `--list`'s
-corrected count since T5.6.
+documented remedy and is recorded as a continuity event, as in sweep 11. ~~**`--only` is not used**: the scope is the whole dev catalog, and `faultline-sweep`'s catalog
+form has run under `--list`'s corrected count since T5.6.~~ **Wrong, and it cost the first attempt
+(amended 2026-09-08 after that attempt, before the re-run).** `--list`'s thirteen includes the three
+**holdout** scenarios, which `faultline-eval` refuses without `--holdout`; the sentence above read
+thirteen as the dev catalog. `--only` is still not used and the scope is still the ten dev
+scenarios - `sweep.runnable()` now excludes holdout unless a driver asks for it, which is what makes
+the command and this paragraph say the same thing.
+
+**And a second thing the first attempt found, which no document had anticipated.** The baseline
+gate projects kafka's growth over `--runs-remaining`; told about a whole three-pass job it forecast
+124 % and **refused fifteen consecutive slots with kafka at 24 %**. At the registered thirty runs it
+needs kafka under ~13 %, and a freshly recycled kafka is 24-26 %, so **a three-pass sweep could not
+be started at all** under the guard this project already had. The remedy is the one the paragraph
+above already names: the recycle between passes is now performed by the driver, and the countdown
+spans one pass, which is the horizon the projection is then honest about.
+
+**What the first attempt produced, and why it is not this sweep.** Fifteen scored runs on
+2026-09-08, one or two per scenario and never three, every manifest declaring `repeat_count: 3`.
+They stay in `evals/runs/` as what they are. They are **not** arm A: the variance component and the
+A/A check both need the R they declare, and pooling them as one would be the mismatch
+`compare.report` warns about. `SweepResult.divergence` now prints that in the sweep's own summary
+rather than leaving it to be noticed.
 
 **Why R=3, and why now.** Every figure this project has ever published is R=1. Sweep 10 measured a
 fixed-stamp disagreement at n=2 by accident; RESULTS.md called the R=3 repeat *"the highest-value

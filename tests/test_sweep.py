@@ -475,7 +475,7 @@ def test_without_is_passed_through_to_every_run(monkeypatch: pytest.MonkeyPatch)
     """T6.1's arm B: one flag on the sweep, the same flag on every `faultline-eval` it launches, so
     a pass is an ablation pass whole or not at all."""
     seen: list[list[str]] = []
-    monkeypatch.setattr(sweep, "runnable", lambda: ["a", "b"])
+    monkeypatch.setattr(sweep, "runnable", lambda **_: ["a", "b"])
     monkeypatch.setattr(
         sweep, "sweep", lambda ids, **kw: seen.append(kw["extra"]) or sweep.SweepResult()
     )
@@ -483,3 +483,72 @@ def test_without_is_passed_through_to_every_run(monkeypatch: pytest.MonkeyPatch)
     sweep.main(["--tier", "weekly", "--without", "traces"])
 
     assert seen == [["--tier", "weekly", "--without", "traces"]]
+
+
+# --- what dev sweep 12 cost, closed three ways ---------------------------------------------------
+
+
+def test_the_catalog_is_dev_only_unless_a_driver_means_the_holdout() -> None:
+    """**Nine refusals and a poisoned projection (dev sweep 12).** `faultline-eval` refuses a
+    holdout scenario without `--holdout`, so a catalog sweep attempted three it could never run.
+    The refusals cost nothing; their place in `--runs-remaining` cost the sweep its first pass."""
+    dev = sweep.runnable()
+    both = sweep.runnable(holdout=True)
+
+    assert len(dev) == 10, "the ten dev scenarios PREREGISTRATION-T6.1.md section 4 registered"
+    assert set(both) - set(dev) == {
+        "email-wrong-image",
+        "productcatalog-dependency-latency",
+        "recommendation-memory-squeeze",
+    }
+
+
+def test_the_countdown_spans_one_pass_when_the_world_is_recycled_between_them() -> None:
+    """The gate projects kafka's growth over `--runs-remaining`. Told about 39 runs it forecast
+    124 % and refused fifteen slots at 24 % actual; told about one pass, it is being told the truth
+    - because the recycler clears kafka between passes."""
+    seen: list[list[str]] = []
+
+    def run(argv: list[str]) -> int:
+        seen.append(argv)
+        return 0
+
+    recycles: list[int] = []
+    sweep.sweep(["a", "b"], repeats=3, runner=run, recycler=lambda: recycles.append(1))
+
+    remaining = [argv[argv.index("--runs-remaining") + 1] for argv in seen]
+    assert remaining == list("212121"), "each pass counts down from its own length"
+    assert len(recycles) == 2, "between passes, never before the first or after the last"
+
+
+def test_without_a_recycler_the_countdown_still_spans_the_whole_job() -> None:
+    """A driver that does not clear kafka must not tell the gate that it did."""
+    seen: list[list[str]] = []
+    sweep.sweep(["a", "b"], repeats=3, runner=lambda argv: seen.append(argv) or 0)
+
+    assert [argv[argv.index("--runs-remaining") + 1] for argv in seen] == list("654321")
+
+
+def test_a_sweep_that_scored_fewer_passes_than_it_declared_says_so() -> None:
+    """**The line dev sweep 12 did not print.** Fifteen runs wrote `repeat_count: 3` on a world
+    that gave five scenarios two runs and five one. The count `15/39 scored` is true and hides it;
+    the fingerprint on every one of those runs is a claim the world never honoured."""
+    codes = {"a": 0, "b": 3}
+    seen, run = recorder(codes)
+    result = sweep.sweep(["a", "b"], repeats=3, runner=run)
+    result.declared_repeats = 3
+
+    assert result.divergence == {"b": 0}, "a scored three times; b never did"
+    rendered = "\n".join(result.render())
+    assert "DECLARED R = 3, OBSERVED FEWER" in rendered
+    assert "b                                  scored 0" in rendered
+    assert len(seen) == 6
+
+
+def test_no_divergence_line_when_every_scenario_got_its_repeats() -> None:
+    _, run = recorder({})
+    result = sweep.sweep(["a", "b"], repeats=3, runner=run)
+    result.declared_repeats = 3
+
+    assert result.divergence == {}
+    assert "DECLARED R" not in "\n".join(result.render())
