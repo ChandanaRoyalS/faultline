@@ -1,0 +1,43 @@
+incident 002266cc-604a-44c2-b284-5c734c9fd419  state triaging  anchor 11:24:15
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 6c220acd-8cce-4a57-8ac8-29752f376690
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend plus the load generator simultaneously indicate user-facing failure, not an isolated synthetic blip, and no open incident covers it. Cause is undetermined - any of the five frontend dependencies could be the origin.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : adservice
+  expect      : Restoring adservice's prior resource configuration (the state before the 11:20:01 lowering to memory=256m, which is the same state the three earlier cycles reverted to) and recreating the container should bring the adservice name back into the embedded Docker resolver. Observable as: (1) frontend Loki lines matching 'code = 14 UNAVAILABLE' with 'lookup adservice' / 'adservice:9555' stop appearing within a few minutes of the recreate — currently recurring every few seconds around 11:26:06/13/15 [tr_b33f2bc5d8a5]; (2) new Tempo traces show frontend -> AdService/GetAds spans completing with OK status at normal single-digit-ms latency instead of erroring sub-millisecond [tr_0a3da1cfa1c6]; (3) frontend aggregate error ratio drifts back toward the ~0.013 baseline mean from the ~0.025 incident mean [tr_785c021784e8], though this is a weak confirmator given its high variance. Note explicitly: adservice's own calls_total series cannot confirm anything — it was empty across the baseline hour too [tr_0fc427247c69], so its continued absence is not evidence of failure and its appearance is not required.
+  within      : 300s
+  risk        : If the diagnosis is wrong the recreate still costs a container restart: in-process ad cache is discarded and frontend sees connection resets for the seconds the container is down, which will briefly raise the very error ratio being watched and can be mistaken for the fix failing. If adservice genuinely leaks memory, removing the 256m ceiling lets it grow unbounded on the host and can pressure co-located containers — the limit loop may have been protecting the host, and this revert removes that protection. If the true fault is the embedded resolver / service discovery (the 10:54 shippingservice failure on a service with no recorded change is unexplained), this action changes nothing, and the 5 minutes spent confirming it are 5 minutes not spent on discovery. Finally, this fights an active automation loop: platform-automation has lowered and restored this limit four times today and may re-lower it, producing a flap that looks like an intermittent adservice fault.
+  blast radius: adservice itself, plus its callers. In the sampled traces frontend is the only observed caller of AdService/GetAds [tr_0a3da1cfa1c6], so frontend — and loadgenerator traffic flowing through it — sees the reset window; user-visible effect is ad slots failing for the duration of the recreate. checkoutservice, cartservice, productcatalogservice and recommendationservice are in the incident's reach but show clean edges in the same minutes and are not touched by this change. Whoever owns platform-automation should be told, since this overwrites a value that loop believes it controls.
+  if wrong    : Falsified if, 5 minutes after the recreate, frontend still logs code 14 UNAVAILABLE naming adservice:9555 at the DNS resolution stage, or new frontend -> AdService/GetAds spans still carry ERROR. Also falsified — differently — if adservice comes back and then fails again within ~15 minutes: that says the memory ceiling was a symptom-suppressant for an adservice memory leak, or that platform-automation re-applied the lowering, and the fix belongs in the automation loop, not here. A third falsifier: if shippingservice lookup failures of the same class continue [tr_b33f2bc5d8a5], the mechanism is service discovery broadly rather than one killed container, and this revert treated a coincidence. Weakest link in the chain: no adservice-side OOMKill, exit code, restart count or working-set metric was ever observed — the kill is inferred entirely from the limit edit plus DNS-level unreachability.
+  rests on    : tr_257b319d2633, tr_b33f2bc5d8a5, tr_0a3da1cfa1c6
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 23364 pushed / 5126 pulled (pull rate 0.1799), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_257b319d2633, tr_b33f2bc5d8a5, tr_0a3da1cfa1c6, tr_7d50408be1eb, tr_785c021784e8, tr_0fc427247c69
+  root cause  : An automated platform-automation loop lowered the ad-service memory limit to 256m at 11:20:01, ~4 minutes before onset, and unlike three earlier cycles that day this lowering has no matching revert [tr_257b319d2633]. With the constrained limit in force the adservice container was killed and its name stopped resolving: frontend's outbound gRPC calls fail with code 14 UNAVAILABLE naming adservice:9555 at the DNS resolution stage [tr_b33f2bc5d8a5], and traces show frontend -> AdService/GetAds as the only erroring downstream edge, failing sub-millisecond rather than timing out, with onset ~11:24:49 while productcatalog, cart+redis and recommendation edges stay clean in the same minutes [tr_0a3da1cfa1c6]. Frontend has no changes in 24h [tr_7d50408be1eb] and no sustained error breakout of its own [tr_785c021784e8], so it is the reporter, not the fault. The mechanism is adservice exceeding a lowered memory ceiling and being killed for it; the limit edit is the trigger, exhaustion is what is happening.
+  OPEN        : No adservice-side evidence exists: no container logs, OOMKill/exit codes, restart counts or memory working-set metrics. The OOM kill is inferred from the limit change plus DNS-level unreachability, never observed.
+  OPEN        : adservice call metrics were empty across the full preceding-hour baseline too [tr_0fc427247c69], so whether adservice was ever emitting span metrics - or was already unhealthy before 11:20 - is unsettled, which would weaken the limit change as trigger.
+  OPEN        : The ~10:54 shippingservice lookup failure [tr_b33f2bc5d8a5] predates the limit change on a service with no recorded change; whether it is independent noise or a broader discovery problem is unresolved, and frontend logs are truncated across 10:54-11:26 so nothing was observed at the 11:24:15 alert itself.
+
+flags: none
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T111957Z-ad-memory-squeeze/002266cc-604a-44c2-b284-5c734c9fd419-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T111957Z-ad-memory-squeeze/002266cc-604a-44c2-b284-5c734c9fd419-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 5995.02it/s]

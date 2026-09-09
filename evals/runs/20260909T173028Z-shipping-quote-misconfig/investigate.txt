@@ -1,0 +1,39 @@
+incident e56c369e-719a-4794-8dfb-ee7fff1925b9  state triaging  anchor 17:33:15
+triage: 12 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 5a0c8247-3c5a-4a2c-99bf-bdb1c97f51d7
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service failure starting at checkoutservice and spreading three minutes later to its downstream consumers, with loadgenerator following - that is a real customer-facing checkout outage, not a quiet world. Fault class is unclear from alerts alone; checkoutservice is the likely origin to probe first.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if the missing queries come back naming a concrete, actionable cause inside the permitted classes - for example a shippingservice image or config change landing shortly before 17:31:30, which would make rollback_image or revert_config on shippingservice both precondition-satisfying and targeted. It is also wrong if the GetQuote status code turns out to be UNAVAILABLE with connection-level failure and shippingservice shows a wedged connection or process-state symptom, which would move restart_service into scope. Conversely, if the error ratio decays to baseline on its own within the next few minutes while nothing is changed, the abstention is confirmed and any action taken now would have been miscredited with the recovery.
+  rests on    : tr_d06a5501028c, tr_8356a0199a05, tr_ed1f48b28f48, tr_0a0cf7b61d67
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 28856 pushed / 11135 pulled (pull rate 0.2784), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_d06a5501028c, tr_0a0cf7b61d67, tr_7531ce607edf, tr_8356a0199a05, tr_ed1f48b28f48
+  root cause  : From ~17:31:30 checkoutservice PlaceOrder aborts inside prepareOrderItemsAndShippingQuoteFromCart because its client call to hipstershop.ShippingService/GetQuote returns ERROR in 11 of 12 sampled traces. The errors return in ~2.6-4.4ms with the shippingservice server span itself completing without error, so this is a prompt rejection at the checkout->shipping RPC boundary, not a slow or hung dependency. The failure is bursty (peak ~29% error ratio, minimum still zero) and everything else checkout touches - cart, currency, product catalog - completes cleanly. No change record exists for checkoutservice, and all 34 cartservice changes are self-reverting automation pairs whose last event was ~1.6h before onset, leaving cartservice at baseline state. The most defensible reading is that the shipping quote path is returning errors to checkoutservice for a subset of requests; the downstream alerts (accounting, email, fraud, quote) follow because orders never reach the payment/email/broker stages, which the logs confirm are absent for every request after 17:34.
+  OPEN        : The gRPC status code and error message on the failing GetQuote span were not exposed, so UNAVAILABLE vs INTERNAL vs a business-logic rejection is undetermined.
+  OPEN        : No specialist examined shippingservice or quoteservice directly - no logs, metrics, or change history for either, despite quoteservice alerting.
+  OPEN        : Why the shippingservice server span succeeds while the checkoutservice client span errors: connection-level failure, response-validation failure, or instrumentation gap all remain open.
+  OPEN        : Change history for shippingservice/quoteservice and for the hours before 17:33:15 was never queried; the executed change window started at onset and covered only the seed service.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-quote-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T173028Z-shipping-quote-misconfig/e56c369e-719a-4794-8dfb-ee7fff1925b9-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T173028Z-shipping-quote-misconfig/e56c369e-719a-4794-8dfb-ee7fff1925b9-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7000.59it/s]

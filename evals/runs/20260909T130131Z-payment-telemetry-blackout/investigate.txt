@@ -1,0 +1,38 @@
+incident 61c56c0d-f15d-4171-a87c-25203e31b567  state triaging  anchor 13:07:45
+triage: 3 services, severity critical, start from paymentservice, 2 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: fa0c1fe4-9611-4384-a73d-96d0b281aa57
+triage judged: investigate (low confidence, suspects unknown)
+  A single critical alert on paymentservice, a payment-path service with downstream checkout and frontend exposure, is not something to dismiss without evidence. No signal yet distinguishes deploy, config, or resource causes.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : If a re-query of calls_total under a corrected selector shows a real series that goes empty only after 13:01, and Tempo shows paymentservice spans under a different service name before 13:01, then the endpoint change is causal and revert_config on paymentservice becomes justified.
+  rests on    : tr_377af1a1ab1b, tr_4f92ce2f10dc, tr_efe29a065740
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22775 pushed / 7859 pulled (pull rate 0.2565), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_8a66c0eabb4e, tr_377af1a1ab1b, tr_02a51f7ee8d6, tr_efe29a065740, tr_c05acdab65ba
+  root cause  : Six minutes before the 13:07:45 alert, platform automation set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT on paymentservice to a loopback address, and unlike the three earlier applications of the same variable this one was never reverted [tr_8a66c0eabb4e]. With the exporter pointed at a port where no collector listens, paymentservice spans never reach the trace backend — Tempo holds zero traces for the service [tr_377af1a1ab1b] — and the span-derived calls_total series the error-ratio query depends on is empty in both incident and baseline windows [tr_02a51f7ee8d6, tr_4f92ce2f10dc]. Meanwhile the business path is healthy: paymentservice logs show continuous charge/complete pairs completing sub-millisecond through 13:09:51 [tr_efe29a065740], and checkoutservice shows complete order flows with advancing queue offsets and 14–20 ms payment latency at window close [tr_c05acdab65ba]. The wrong endpoint value is itself the failing thing: it silently discards the service's telemetry, which is what the alert is reacting to.
+  OPEN        : Which signal actually fired the 13:07:45 alert was never retrieved, so the link between empty telemetry and the page is inferred rather than observed.
+  OPEN        : Both log queries were truncated and omitted roughly 12:38–13:07:57 [tr_efe29a065740, tr_c05acdab65ba], so a short self-healing degradation at onset is not excluded.
+  OPEN        : Trace absence spans 100+ minutes predating the 13:01 change [tr_377af1a1ab1b] while the variable was reportedly reverted at 09:40, so a longer-standing instrumentation or label/tenant mismatch may explain the gap instead; calls_total was never tried under any other selector.
+
+flags: none
+
+retrieval: exclude_origin='scenario:payment-telemetry-blackout', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T130131Z-payment-telemetry-blackout/61c56c0d-f15d-4171-a87c-25203e31b567-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T130131Z-payment-telemetry-blackout/61c56c0d-f15d-4171-a87c-25203e31b567-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11520.97it/s]

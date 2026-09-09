@@ -1,0 +1,177 @@
+{
+  "incident_id": "fdd89423-af39-4ad4-8890-ca332028f827",
+  "trajectory_id": "71a07407-8bad-4f78-82cf-d57f051d7bd6",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "Frontend's shipping-quote gRPC calls fail at connection setup: refused dial to 172.18.0.7:50050 early, then raw UNAVAILABLE 'no connection established' at 14:55:42-46 [tr_ebfa7a07f037]. Nothing is listening on shippingservice's serving port. The shippingservice change log shows platform-automation repeatedly overriding the container image to an adservice-tagged demo image and reverting it, cycling ~5 times over 19 hours [tr_af048c7f3e68]; the first frontend refusal (~14:24:18) follows the 14:24:15 image override by seconds. So the wrong artifact is running in the shippingservice slot and does not bind port 50050. Frontend has no changes and no local faults [tr_eed7e45b0514, tr_ebfa7a07f037]. The chronic flapping explains the mild, unsustained frontend error-ratio shift with baseline maxima near incident maxima [tr_71c3c01b8f1a].",
+    "service": "shippingservice",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_ebfa7a07f037",
+      "tr_af048c7f3e68",
+      "tr_71c3c01b8f1a"
+    ],
+    "reasoning": "Connection-refused and no-connection-established statuses locate the fault at the callee's listening socket, not in latency, capacity, or application logic [tr_ebfa7a07f037]. The only change activity found is on shippingservice and it swaps the image reference to a foreign (adservice) artifact, which would not serve port 50050 [tr_af048c7f3e68]; the earliest refusal coincides with one such override. Frontend is exonerated as origin by its empty change history [tr_eed7e45b0514] and by traces showing no errored spans and only self-time latency [tr_07959bffd11b], which is consistent with a fault present in only a minority slice of traffic [tr_71c3c01b8f1a].",
+    "open_questions": [
+      "Which image and port state shippingservice actually had at 14:53:45 was never observed directly - the changes specialist ruled the bad-image override reverted 19m before onset, so an unrecorded re-application or a stale pod is assumed, not proven.",
+      "The late 14:55:xx UNAVAILABLE lines carry no target address or method [tr_ebfa7a07f037], so the callee at onset time is inferred from the earlier lines rather than identified.",
+      "No dispatch reached shippingservice or quoteservice logs/metrics, and planner errors dropped the adservice/cartservice/checkoutservice/productcatalogservice/recommendationservice fan-out entirely - a broader infrastructure or network cause remains untested.",
+      "Traces sampled only 14:55:25-14:55:50 with zero errors [tr_07959bffd11b], which is in tension with the log evidence and unexplained."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "shippingservice is still running with QUOTE_SERVICE_ADDR pointed at a nonexistent quote host on port 8090, so shipping-quote requests fail.",
+        "service": "shippingservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "That override was reverted 40m before onset and not re-applied [tr_af048c7f3e68], and a bad outbound address would produce a served error from shippingservice, not a refused TCP connect on port 50050 [tr_ebfa7a07f037]."
+      },
+      {
+        "root_cause": "No real service fault; the alert fired on noise in a chronically degraded environment where the same connection failures exist in the baseline.",
+        "service": "frontend",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "The refused-connection signature is a concrete broken dependency, not noise, even if its rate is low; the flat metric only shows the fault is chronic, not absent [tr_ebfa7a07f037, tr_71c3c01b8f1a]."
+      }
+    ]
+  },
+  "flags": [
+    "planner produced no valid findings: dispatch service 'frontend,adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice.",
+    "planner produced no valid findings: dispatch service 'adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice."
+  ],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself"
+  ],
+  "failed_dispatches": [
+    [
+      "planner",
+      "dispatch service 'frontend,adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice."
+    ],
+    [
+      "planner",
+      "dispatch service 'adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice."
+    ]
+  ],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 19818,
+    "pulled_tokens": 5275,
+    "pull_rate": 0.2102,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 425,
+        "content_tokens": 427,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1226,
+        "content_tokens": 1230,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6176,
+        "content_tokens": 6154,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "incompleteness"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5479,
+        "content_tokens": 5481,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 6512,
+        "content_tokens": 6489,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_af048c7f3e68",
+      "tr_eed7e45b0514",
+      "tr_07959bffd11b",
+      "tr_71c3c01b8f1a"
+    ],
+    "expected_effect": "No action is proposed, so no change in metrics or logs should be expected. The diagnosis points the fix at shippingservice's image, and shippingservice is not among the services this system may target; the only rollback that could produce the predicted effect (frontend shipping-quote UNAVAILABLE lines ceasing, frontend error ratio settling back toward the ~1.6% baseline) cannot be issued here.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "Three things would have to change for an action to be justified. (1) shippingservice becomes a legal target \u2014 then rollback_image on shippingservice, whose change history records a prior image tag and an in-window image override at 14:24:15 [tr_af048c7f3e68], is the indicated proposal. (2) Direct observation of shippingservice at onset shows the adservice-tagged image running and nothing bound to 50050 \u2014 the verdict itself concedes this was never observed and that the bad image was recorded as reverted 19m before onset [tr_af048c7f3e68]. (3) The trace/log contradiction is resolved: the 14:55:25-14:55:50 sample shows the shipping GetQuote path completing successfully in ~7ms with zero errored spans [tr_07959bffd11b], which directly conflicts with 'nothing is listening on 50050' during the same seconds. Until that is explained, acting on the shipping-image hypothesis is acting on an unverified mechanism. Nothing here justifies touching a service that is a legal target: frontend has no changes to revert [tr_eed7e45b0514], its own logs rule it out as the faulty component, and the error ratio never departs sustainably from baseline [tr_71c3c01b8f1a], so restarting or rolling back frontend or any fan-out candidate would be a guess against the evidence.",
+    "risk": "The risk of abstaining is that the wrong artifact keeps cycling into the shippingservice slot and a minority of checkout/shipping-quote requests keep failing, unmitigated, until someone with authority over shippingservice acts. That risk is real but bounded: the great majority of frontend requests succeed throughout (peak error ratio ~7.3% against a ~6.3% baseline max) [tr_71c3c01b8f1a], and the pattern has recurred roughly five times over 19 hours without escalation [tr_af048c7f3e68]. The risk of the alternative \u2014 restarting or rolling back a legal-but-innocent target such as frontend, cartservice, or checkoutservice \u2014 is that a currently working service is torn down, its callers see resets, and the actual mechanism is untouched, leaving the incident live while the evidence board is muddied by a change nobody can attribute.",
+    "blast_radius": "No one; nothing is changed. Escalation is the real deliverable: whoever owns shippingservice deployment and the platform-automation loop that is flapping its image and QUOTE_SERVICE_ADDR needs the handoff, since the repeating set/revert cycle [tr_af048c7f3e68] will reapply the override regardless of any one-shot rollback. Callers who would have been affected had shippingservice been actionable are frontend and checkoutservice (the shipping/quote fan-out appears beneath checkoutservice) [tr_07959bffd11b]."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on frontend with the load generator following shortly after indicates user-facing impact, not a lone synthetic-probe artifact. No open incidents to attribute it to, and the fault could sit in any of several first-hop dependencies, so specialists are warranted."
+  }
+}

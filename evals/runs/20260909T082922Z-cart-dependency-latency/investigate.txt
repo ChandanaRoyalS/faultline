@@ -1,0 +1,43 @@
+incident aa44e090-2803-4bda-9cc8-ccfc1ef60fa4  state triaging  anchor 08:32:45
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 5ec08b15-c46b-4de2-8b15-92ec3a813f5f
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Four services alerted within 15s starting at cartservice and propagating up through checkoutservice and frontend to the load generator, which is a user-visible failure path rather than a single quiet warning. The cartservice-first ordering suggests a downstream dependency or its backing store degrading, but that is only a prior for dispatch ordering.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Removing the injected 300ms/0-jitter eth0 shaper should drop cartservice's Redis leaf spans (HGET/HMSET) from ~300ms self-time to single-digit ms, remove the duplicated ~300ms on frontend and checkoutservice client spans, and bring checkout roots down from ~2.45-2.49s. checkoutservice error ratio should decay from ~0.17 toward its ~0.0025 baseline. Judge cartservice via traces and logs, not its error-ratio series, which is empty in both windows.
+  within      : 600s
+  risk        : Recreates the container, so a brief cart outage for no gain if wrong, and it destroys the live shaper as forensic evidence. If 'previous configuration' resolves to a stale generation, it could reintroduce the reverted REDIS_ADDR:6380 endpoint and turn a latency fault into a hard cart failure. In-flight cart calls are dropped.
+  blast radius: cartservice's inbound callers: frontend and checkoutservice see connection resets during the recreate, and loadgenerator sees the resulting checkout errors. Redis-cart sees a short traffic pause then a return to full-rate cart operations.
+  if wrong    : Falsified if fresh traces after 10 minutes still show a ~300ms floor on HGET/HMSET with sub-2ms handler self-time - then the shaper is outside what revert_config restores, or the platform automation re-attached it, and the fix is to stop that automation. Expected partial miss: checkoutservice errors may persist, since its only change point is 08:10:45, ~19 min before the attach and inside the hotfix.2 window.
+  rests on    : tr_0e856a4a6361, tr_302ff7824a9d, tr_39eb73a5217c
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 23064 pushed / 6895 pulled (pull rate 0.2301), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_0e856a4a6361, tr_302ff7824a9d, tr_39eb73a5217c
+  root cause  : A platform-automation traffic-shaping container was attached to cartservice's network namespace at 08:29:32, imposing a fixed 300ms zero-jitter egress delay on eth0 with no removal recorded, unlike the three earlier self-resolving iterations of the same automated cycle [tr_0e856a4a6361]. Every packet leaving the cart pod pays 300ms, which appears in traces as a hard ~300ms floor on cartservice's Redis leaf spans (HGET/HMSET, nearly all self-time) while the cartservice handler itself contributes under 2ms, plus a duplicated ~300ms on caller-side client spans in frontend and checkoutservice [tr_302ff7824a9d]. The delay is additive per cart operation, inflating checkout roots to ~2.45-2.49s while non-cart dependencies stay in single-digit ms [tr_302ff7824a9d], which pushes checkoutservice calls past deadlines and produces its bursty ~17% error ratio against a ~0.2% baseline [tr_39eb73a5217c]. cartservice itself serves normally with no error text [tr_fbb6346f0941]. The mechanism is waiting on an artificially slowed call path; removing the injected shaper stops it.
+  OPEN        : checkoutservice's only error-ratio change point is 08:10:45, ~19 minutes before the shaper was attached [tr_39eb73a5217c]; that earlier degradation coincides with the hotfix.2 image window and is not explained by shaping, so the incident may have two phases.
+  OPEN        : No cartservice CPU, memory, request-rate or restart data exists - its metric series is empty in both incident and baseline windows [tr_18f1d86128f2].
+  OPEN        : Neither traces nor logs cover 08:32:45 itself (traces start 08:34:01; log truncation dropped the middle) [tr_302ff7824a9d, tr_fbb6346f0941], so onset timing is inferred from the untrusted change record.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T082922Z-cart-dependency-latency/aa44e090-2803-4bda-9cc8-ccfc1ef60fa4-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T082922Z-cart-dependency-latency/aa44e090-2803-4bda-9cc8-ccfc1ef60fa4-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10139.02it/s]

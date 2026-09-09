@@ -1,0 +1,4 @@
+injected payment-telemetry-blackout (bad_config) on paymentservice
+  - compose: paymentservice recreated with OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4317
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/payment-telemetry-blackout.yml
+revert with: faultline-inject stop payment-telemetry-blackout

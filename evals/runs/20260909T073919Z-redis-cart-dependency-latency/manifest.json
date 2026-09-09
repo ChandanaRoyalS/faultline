@@ -1,0 +1,96 @@
+{
+  "run_id": "20260909T073919Z-redis-cart-dependency-latency",
+  "scenario_id": "redis-cart-dependency-latency",
+  "split": "dev",
+  "scenario_fingerprint": "89277f499b4b6dcbead07f4e74f9b50a8e443c688e7cd15409ab17229b51529f",
+  "started_at": "2026-09-09T07:39:19.821201+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "817e976acffa336b1bdad57b76e04ac25871153a",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 75257,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-09T07:39:19.851887+00:00",
+    "reason": "faultline-eval redis-cart-dependency-latency",
+    "token": "75257-1788939559.851824"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": false,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": null,
+    "consumer_idle_ms": 17324043,
+    "pipeline_down": [
+      "ingest is not accepting on http://localhost:8000/healthz - start it with `uv run faultline-ingest`",
+      "the orchestrator's consumer last spoke to Redis 17324043ms ago, over the 30000ms ceiling - it is attached but not polling. Restart it with `uv run faultline-orchestrate`"
+    ],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "accounting-service",
+      349
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 26.89,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 1.0425,
+      "runs_remaining": 3,
+      "uptime_seconds": 370,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 157.4,
+      "projected_percent": 34.58,
+      "threshold_percent": 82.31,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [
+      "the alert pipeline is not assembled: ingest is not accepting on http://localhost:8000/healthz - start it with `uv run faultline-ingest`; the orchestrator's consumer last spoke to Redis 17324043ms ago, over the 30000ms ceiling - it is attached but not polling. Restart it with `uv run faultline-orchestrate`. This is NOT the world failing to alert - the fault would fire and no incident would open, which records as `no-alert` and reads as a fact about the scenario (T7.24)."
+    ]
+  },
+  "refused": {
+    "reason": "pipeline-down",
+    "at": "2026-09-09T07:39:26.199752+00:00"
+  }
+}

@@ -1,0 +1,38 @@
+incident 480e52bc-1320-4275-892b-8ef553bc942a  state triaging  anchor 10:15:00
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 615e38f1-c864-436d-8c31-49f044500c2d
+triage judged: investigate (medium confidence, suspects unknown)
+  Four services alerting simultaneously along the cart/checkout/frontend path is a coordinated failure, not a single stray warning. No open incident covers it, and the shared dependency behind checkout and frontend is unidentified.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if direct inspection of a cartservice pod shows a tc netem rule or a shaping sidecar container still attached to eth0 with a ~150ms per-direction delay, or if the change log turns out to under-record a fifth un-reverted attach - in that case the mechanism is confirmed live and detaching it (an action outside this allowlist, requiring pod-level exec rather than config restore) becomes the correct fix and every minute of abstention is customer-visible latency. It is also wrong if redis-cart's slowlog or CPU shows a server-side stall producing the same flat floor, in which case the target is redis-cart, which is not in the blast radius given to me and cannot be acted on here at all. Note that the confirming observations for either branch cannot be made from the evidence board as it stands: cartservice's calls_total series is empty in both windows [tr_a2e03da51503] and every returned trace is bunched into 10:15:28-10:15:59 [tr_1f9ddd7bccaa], so there is no latency baseline against which to measure any recovery, and onset time itself is unconfirmed. An action taken now would not be verifiable as having worked.
+  rests on    : tr_bba397c639cb, tr_1f9ddd7bccaa, tr_a2e03da51503
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 28850 pushed / 8353 pulled (pull rate 0.2245), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_1f9ddd7bccaa, tr_bba397c639cb, tr_ba698652f8b1
+  root cause  : Every cartservice Redis call takes a near-constant 300-310ms for both HGET and HMSET, while cartservice handler self-time stays under ~1.3ms and no span or log line carries an error [tr_1f9ddd7bccaa, tr_ba698652f8b1]. Latency scales arithmetically with call count: GetCart ~300ms, AddItem ~600ms, frontend roots ~910-926ms. All other dependencies in the same traces are sub-millisecond to low-milliseconds [tr_1f9ddd7bccaa]. The tight floor rather than a long tail is the signature of a fixed per-round-trip injected delay, matching the traffic-shaping sidecar that the change log shows applied and reverted four times on cartservice in the preceding day [tr_bba397c639cb]. The log claims the last detach was ~1.6h before onset, but the observed behaviour says fixed delay is still in effect on the cartservice-to-redis-cart hop, so either that revert did not clear the shaping rule or a re-application went unrecorded. checkoutservice and frontend alerted because they waited on cartservice, not because they failed [tr_9e59e291b12d, tr_34f7d9e1f14e].
+  OPEN        : Is the traffic-shaping sidecar or its tc rule still present on cartservice pods at 10:15, given the change log records a detach ~1.6h before onset? Direct pod/interface inspection was never dispatched.
+  OPEN        : redis-cart itself was never examined - server-side slowlog, CPU, or persistence stalls could produce a similar flat ~300ms floor.
+  OPEN        : No pre-incident latency baseline exists: returned traces cluster in 10:15:28-10:15:59 only [tr_1f9ddd7bccaa], and cartservice's error-ratio series is empty in both windows [tr_a2e03da51503], so onset timing is unconfirmed.
+
+flags: none
+
+retrieval: exclude_origin='scenario:redis-cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T101130Z-redis-cart-dependency-latency/480e52bc-1320-4275-892b-8ef553bc942a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T101130Z-redis-cart-dependency-latency/480e52bc-1320-4275-892b-8ef553bc942a-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8742.02it/s]

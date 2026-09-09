@@ -1,0 +1,174 @@
+{
+  "incident_id": "ebce928f-1837-491f-bb38-dcb5d1ac9758",
+  "trajectory_id": "46de770d-8a17-4eea-b4a4-aebac09a38c6",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:shipping-wrong-image",
+  "verdict": {
+    "root_cause": "At 10:52:03Z \u2014 about two minutes before onset \u2014 platform-automation updated the shippingservice container image reference to ghcr.io/open-telemetry/demo:v1.2.1-adservice, an artifact belonging to a different service, and unlike the four earlier update/revert cycles this one was never reverted [tr_1cb128a4a1c2]. From roughly 10:52:25 onward the shipping-service log stream contains only JVM/OpenTelemetry-javaagent process-startup sequences repeating at short intervals, with the earlier Rust-style request-handling logger gone and no GetQuote or ShipOrder handling at all [tr_805b5a83eb83] \u2014 i.e. the wrong (Java) artifact is starting under the shippingservice identity and never serving the shipping gRPC surface. Consequently every checkoutservice call to hipstershop.ShippingService/GetQuote fails fast (0.4\u20132.4ms) with no server-side child span, and that single erroring child terminates PlaceOrder and propagates to the frontend root [tr_9ad90e426eb5]. checkoutservice itself is healthy: no changes recorded against it [tr_8b49d40eb91d], no error-ratio departure from baseline [tr_0cb74cf61e9e], no error lines and continued order acceptance, but with the payment/email/queue-write completion steps missing after the onset [tr_55c59e9f5ddd] \u2014 the signature of a caller blocked at an upstream step, not an origin of failure. The downstream alerts (accounting, email, frauddetection, quote) follow from orders never reaching the payment/queue stages and from shippingservice no longer calling quoteservice.",
+    "service": "shippingservice",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_1cb128a4a1c2",
+      "tr_805b5a83eb83",
+      "tr_9ad90e426eb5",
+      "tr_55c59e9f5ddd",
+      "tr_0cb74cf61e9e",
+      "tr_8b49d40eb91d",
+      "tr_a8b5ce8362bc"
+    ],
+    "reasoning": "Three independent lines converge on shippingservice as the failing element rather than the alerting checkoutservice. (1) Timing and artifact identity: the only unreverted change anywhere near onset is an image reference set to an adservice-tagged build on shippingservice at 10:52:03, two minutes before the 10:54:30 alert [tr_1cb128a4a1c2]. (2) Runtime evidence that the running artifact is not the shipping binary: the log stream switches from Rust-style request handling to repeating JVM/javaagent startup groups with zero request handling after 10:52:25 [tr_805b5a83eb83]. (3) Caller-side evidence of the mechanism: GetQuote client spans error in all ten sampled traces with no server-side counterpart, sub-3ms, consistent with connection-level rejection rather than a deadline, and every other checkout dependency (cart/Redis, currency, product catalog, feature flags) completes cleanly [tr_9ad90e426eb5]. checkoutservice is exonerated by its empty change log [tr_8b49d40eb91d], flat error ratio versus baseline [tr_0cb74cf61e9e], and absence of any diagnostic error while it keeps accepting orders [tr_55c59e9f5ddd]. The failing mechanism is that the artifact in place is not the one that should be running, which is bad_deploy; the fix is to restore the correct shippingservice image, not to restart the wrong one. shippingservice metrics contributed nothing either way \u2014 the counter is absent in both windows, a collection gap that predates the incident [tr_a8b5ce8362bc].",
+    "open_questions": [
+      "No dispatch confirmed what the correct/prior shippingservice image reference was; the change record shows 'None -> ghcr.io/.../demo:v1.2.1-adservice', so the rollback target has to be recovered from deployment config rather than from this evidence.",
+      "Why the process restarts repeatedly is not established \u2014 the startup sequences complete with no exception, parse error, or fatal line [tr_805b5a83eb83], so whether it is a crash loop, a liveness-probe kill against a service that never opens the shipping port, or something else is unknown.",
+      "Log coverage for shippingservice is missing roughly 10:24:44\u201310:52:25, and checkoutservice logs skip the minutes on either side of 10:54:30 [tr_805b5a83eb83, tr_55c59e9f5ddd], so the precise transition from healthy to failing was never directly observed.",
+      "The declared checkoutservice dependencies other than shippingservice were never checked for changes (radius=seed, hops=0) [tr_8b49d40eb91d]; a concurrent change elsewhere cannot be excluded, only made unnecessary as an explanation.",
+      "quoteservice, emailservice, accountingservice and frauddetectionservice were never dispatched on; their alerts are inferred to be downstream consequences, not verified as such.",
+      "The change record is attributed to platform-automation on a repeating set/revert cycle [tr_1cb128a4a1c2]; whether the automation will re-apply or self-revert the image, and whether it must be paused before a manual rollback holds, is unsettled."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The shippingservice process is being killed and restarted for exceeding a memory or CPU limit, and the quote failures are a symptom of an unavailable, thrashing process rather than of the wrong artifact.",
+        "service": "shippingservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "Nothing in the evidence shows an OOM kill, limit breach, or resource metric; the restart pattern begins within ~20 seconds of the image reference change [tr_1cb128a4a1c2, tr_805b5a83eb83], and the log stream changes runtime family (Rust to JVM), which a resource kill of the correct binary would not explain.",
+        "why_not_": ""
+      },
+      {
+        "root_cause": "A misconfigured QUOTE_SERVICE_ADDR pointing shippingservice at an unresolvable quote host is what breaks GetQuote.",
+        "service": "shippingservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "That variable was set at 10:29:46Z and reverted at 10:41:27Z with no later re-application, so it was out of effect ~13 minutes before onset [tr_1cb128a4a1c2]; it also predicts a served-but-erroring GetQuote handler, whereas traces show no server-side shipping span at all [tr_9ad90e426eb5] and logs show no request handling [tr_805b5a83eb83]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-quote-misconfig / Detection notes: **The alerting service was not the faulty service, and nothing in the alert path could have said\nso.** The whole page was about checkout. Checkout was healthy.\n\n**A service can fail without reporting anything.** Shipping produced no errors and no error logs.\nAn investigation that",
+    "payment-telemetry-blackout / Root cause: The payment service's trace exporter was pointed at an address with nothing listening on it, so the\nservice stopped shipping spans. Nothing about the service itself changed: it kept accepting charges\nand kept logging them. The traffic metric that `ServiceNoTraffic` watches is bui",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28742,
+    "pulled_tokens": 10360,
+    "pull_rate": 0.2649,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 458,
+        "content_tokens": 460,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1918,
+        "content_tokens": 1922,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8622,
+        "content_tokens": 8598,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8225,
+        "content_tokens": 8227,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9519,
+        "content_tokens": 9497,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "shippingservice",
+    "rests_on": [
+      "tr_1cb128a4a1c2",
+      "tr_805b5a83eb83",
+      "tr_9ad90e426eb5"
+    ],
+    "expected_effect": "Redeploying shippingservice at its pre-10:52:03Z image should restore the Rust shipping binary: the shipping-service log stream stops the repeating JVM/javaagent startup sequences and resumes INFO GetQuoteRequest/ShipOrder handling lines as at 10:24:36; checkoutservice traces show a server-side shippingservice child under hipstershop.ShippingService/GetQuote with no STATUS_CODE_ERROR, and frontend roots stop inheriting the error. Note shippingservice's own error-ratio series is empty in both windows, so confirmation must come from logs and caller-side traces, not target metrics.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if after 5 minutes the JVM startup sequences still repeat (wrong prior tag recovered, or platform-automation re-applied the adservice image), or if GetQuote spans still error with a healthy-looking Rust shipping process running \u2014 which would mean the mechanism is not the image swap. Also unresolved: the change record shows 'None -> ...', so the correct prior tag must be read from deployment config before executing; if no prior tag exists there, this action's precondition is not met and it should not be run.",
+    "risk": "If the diagnosis is wrong, this is a needless container recreate that drops shipping in-process state and extends the outage by the recreate duration. If the automation cycle re-applies the bad image, the rollback flaps and the service restarts repeatedly. Rolling back to a stale tag could reintroduce an older shipping defect.",
+    "blast_radius": "shippingservice only. During recreate, checkoutservice sees GetQuote/ShipOrder connection resets, which propagates to frontend as failed PlaceOrder; quoteservice sees shipping's outbound traffic return. Recovery of orders reaching payment/queue stages should relieve the accounting, email and frauddetection alerts."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Checkout alerts first, then its downstream consumers fan out minutes later, which is consistent with a checkout-centric failure rather than a benign blip. No open incidents to fold this into and the pattern is not dismissible, so it warrants specialists; the trigger (deploy, config, or a dependency) is not yet distinguishable."
+  }
+}

@@ -1,0 +1,43 @@
+incident 961cb1ad-1136-4919-b461-91d5b1909899  state triaging  anchor 17:56:00
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 471f6dd5-a835-497a-8ec9-73abe5120480
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service fanout originating at checkoutservice and spreading to frontend and its downstream consumers within minutes; nothing here can be dismissed. Fault class is unclear without evidence, though checkoutservice's lead position makes it the natural first dispatch.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : shippingservice
+  expect      : Shipping's logs stop the ~60s JVM/OTel bootstrap block and resume Rust/tonic GetQuote handler pairs; checkoutservice's GetQuote client spans regain a shippingservice server child and stop erroring; checkoutservice error ratio falls from ~0.136 mean toward the ~0.007 baseline. Shipping emits no calls_total series, so confirm from caller-side traces/metrics and logs only.
+  within      : 300s
+  risk        : Prior image reference is recorded as 'None' rather than a concrete tag, so the recreate may land on an unexpected artifact and leave shipping broken. The recreate also destroys the container that pod/image inspection would need to settle the co-label doubt. If some replicas still ran the correct image (bursty errors, min 0, max ~0.30), those are taken down too and errors spike to near-total during the recreate. Does not stop platform-automation from re-applying the bad image next cycle.
+  blast radius: shippingservice during the recreate; checkoutservice sees resets, propagating to frontend and loadgenerator checkout traffic. quoteservice sees GetQuote traffic resume; paymentservice and emailservice see order completions resume.
+  if wrong    : Falsified if checkout error ratio stays elevated while shipping logs look healthy (points instead at the unresolved ~17:31:30 change point / QUOTE_SERVICE_ADDR), or if the JVM bootstrap loop continues after rollback (confirming that loop belongs to a co-labelled Java workload, not the shipping binary).
+  rests on    : tr_9febbf74c6c7, tr_0c02ff9adc51, tr_f999417a9398
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 30937 pushed / 11255 pulled (pull rate 0.2668), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : tr_9febbf74c6c7, tr_0c02ff9adc51, tr_f999417a9398, tr_a635f5787293, tr_9e757c00ecde, tr_06ea24e3898c
+  root cause  : Two minutes before onset, platform-automation updated shippingservice's image reference to a demo artifact whose tag names a different service (adservice), with no revert recorded unlike the four prior apply/revert cycles [tr_9febbf74c6c7]. The container that came up is not the shipping binary: shipping's logs shift from normal Rust/tonic GetQuote handler pairs earlier in the window to a repeating JVM/OTel bootstrap block every ~60s with zero handler activity from 17:53 to 18:00 — a process that never reaches serving state [tr_0c02ff9adc51]. With nothing listening, checkoutservice's GetQuote client calls fail fast: in every failing trace the deepest error span is checkout's ShippingService/GetQuote client span with no shippingservice server child at ~2ms, while cart, currency, product-catalog and Redis spans are clean [tr_f999417a9398]. Checkout aborts order preparation before payment, matching order-start log lines with no payment/email/message-write completions [tr_a635f5787293], producing the ~19x error-ratio rise that alerted first [tr_9e757c00ecde]. Nothing changed on checkoutservice itself [tr_06ea24e3898c].
+  OPEN        : The earliest metric change point is ~17:31:30, ~25 minutes before the image update and coincident with the QUOTE_SERVICE_ADDR override being set [tr_9e757c00ecde, tr_9febbf74c6c7]; whether the incident is one continuous failure with two successive causes, or partially recovered after the 17:42 revert, is unsettled.
+  OPEN        : Errors are bursty with intervals at zero and max ~0.30 [tr_9e757c00ecde], while a fully crash-looping shipping should fail every quote; whether some replicas still ran the correct image is unresolved, and shippingservice emits no calls_total series to confirm server-side onset [tr_f7bdd49397be].
+  OPEN        : The shipping log selector returns two runtimes under one label and the 15:58-17:53 interval is truncated [tr_0c02ff9adc51], so it is not fully excluded that the JVM restart loop belongs to a co-labelled workload; pod/image inspection would settle it.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T175301Z-shipping-wrong-image/961cb1ad-1136-4919-b461-91d5b1909899-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T175301Z-shipping-wrong-image/961cb1ad-1136-4919-b461-91d5b1909899-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8457.91it/s]

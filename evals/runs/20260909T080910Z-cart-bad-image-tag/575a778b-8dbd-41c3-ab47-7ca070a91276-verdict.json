@@ -1,0 +1,170 @@
+{
+  "incident_id": "575a778b-8dbd-41c3-ab47-7ca070a91276",
+  "trajectory_id": "3ff03b49-2caf-404c-9d6f-7c506fe18884",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-bad-image-tag",
+  "verdict": {
+    "root_cause": "At 08:09:16Z platform-automation updated cartservice's image reference to hotfix tag v1.2.1-cartservice-hotfix.2 [tr_61b2940ecbca]. cartservice logged an orderly application-shutdown at that same timestamp and emitted nothing for the rest of the window [tr_7bdd4aa1d794], meaning the replacement artifact never resumed serving. From then, every one of 10 failed checkout traces breaks at exactly one hop - checkoutservice's client span to CartService GetCart, the only erroring leaf, failing in 1.8-4.2ms, a fast refusal rather than a timeout [tr_56a493eeb70c]. checkoutservice logs show PlaceOrder starting and never reaching payment/email/queue steps, with no error lines of its own [tr_f68a63bd858c], and its error ratio steps up at a single change point at 08:10:45, ~90s after the image swap [tr_95ce63fc849e]. No change at all is recorded against checkoutservice [tr_93bb155447cf], and unlike the four earlier image-update cycles that day this one has no paired revert - it was the only change in effect at onset [tr_61b2940ecbca]. checkoutservice and frontend are propagating the failure, not causing it.",
+    "service": "cartservice",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_61b2940ecbca",
+      "tr_7bdd4aa1d794",
+      "tr_56a493eeb70c",
+      "tr_f68a63bd858c",
+      "tr_95ce63fc849e",
+      "tr_93bb155447cf"
+    ],
+    "reasoning": "Traces localize the origin to the checkoutservice->CartService GetCart edge and rule out the frontend, checkout's own preparation logic, and the unmeasured accounting/currency/payment edges since checkout aborts before those are attempted; sub-10ms durations also rule out timeout/latency exhaustion, which is what separates this from dependency_latency [tr_56a493eeb70c]. On the callee side, cartservice's stream ends with a lifecycle shutdown at the exact timestamp of the image update, with normal traffic right up to the last seconds - an abrupt stop, not saturation or a logged store fault [tr_7bdd4aa1d794]. Change history supplies the mechanism and excludes the other candidates: the REDIS_ADDR override and the 300ms traffic-shaping sidecar were both reverted 4.3-4.5h before onset [tr_61b2940ecbca]. checkoutservice itself has no changes [tr_93bb155447cf]. The wrongness is the artifact that is not running, not the value of a setting, so bad_deploy; restoring the prior image is the fix, as the earlier cycles did.",
+    "open_questions": [
+      "No pod-level evidence: whether the hotfix image failed to pull, crash-looped, or exited at startup is inferred from log silence alone.",
+      "checkoutservice's error ratio averaged only ~0.077 with a minimum still at zero [tr_95ce63fc849e], hard to reconcile with cartservice being wholly absent; a partial rollout with surviving replicas or a client fallback would explain it but was not checked.",
+      "cartservice has no span-derived metrics under that label in either window [tr_e8c53092e54c], so its rate/error/latency could not be independently confirmed; frontend and loadgenerator were never dispatched to."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The hotfix image started fine but its configuration or startup environment is wrong, so it refuses GetCart calls.",
+        "service": "cartservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "No config change was in effect at onset - REDIS_ADDR was reverted 4.3h earlier [tr_61b2940ecbca] - and the process emitted nothing after shutdown [tr_7bdd4aa1d794], so it is absence of a working artifact rather than a wrong value breaking requests."
+      },
+      {
+        "root_cause": "checkoutservice itself began failing cart lookups internally around 08:10:45 for reasons unrelated to the cartservice deploy.",
+        "service": "checkoutservice",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "The erroring span is checkout's outbound client call with near-zero self time in its parent, and the error propagates upward [tr_56a493eeb70c]; checkoutservice has no recorded change [tr_93bb155447cf] and logs no errors of its own [tr_f68a63bd858c]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **3m18s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26790,
+    "pulled_tokens": 6945,
+    "pull_rate": 0.2059,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 483,
+        "content_tokens": 485,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1724,
+        "content_tokens": 1727,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8214,
+        "content_tokens": 8190,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7510,
+        "content_tokens": 7512,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8859,
+        "content_tokens": 8836,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_61b2940ecbca",
+      "tr_7bdd4aa1d794",
+      "tr_56a493eeb70c"
+    ],
+    "expected_effect": "cart-service Loki stream resumes ordinary GetCartAsync/AddItemAsync info lines after being silent since the 08:09:16 shutdown line; new checkout traces stop showing an erroring checkoutservice->CartService/GetCart leaf; checkoutservice error ratio falls from incident mean ~0.077 toward its ~0.0036 baseline and PlaceOrder logs again reach payment/email/queue lines.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if cart-service logs stay silent after the recreate (no runnable prior tag \u2014 the change record shows the pre-change value as 'None', so the prior tag must be confirmed from earlier update/revert cycles first), or if cart logs resume but GetCart leaves keep erroring, which would move the fault to the checkout->cart edge. cartservice has no span-derived metrics under its label, so recovery must be judged from cart logs plus checkoutservice traces/metrics.",
+    "risk": "Re-introduces whatever defect the hotfix tag was cut to fix. If the residual checkout successes (mean 0.077, min 0) come from a surviving cart instance, the recreate takes it down and briefly converts partial failure into total checkout outage. In-memory cart state is discarded; if no prior tag resolves, cartservice could end with no runnable image.",
+    "blast_radius": "cartservice only is changed; its caller checkoutservice sees connection resets during the recreate, propagating to frontend and loadgenerator (all already alerted). Other downstreams are untouched but resume receiving checkout traffic once orders progress."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on checkoutservice then frontend plus loadgenerator within seconds indicate a real user-facing failure originating at or below checkout. No open incidents to attribute it to, and the alert pattern gives no clear fault signature yet."
+  }
+}

@@ -1,0 +1,43 @@
+incident 350a0925-dae5-48df-83ed-d5dc98740a72  state triaging  anchor 14:26:45
+triage: 10 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: f3eca6d9-b04b-472a-9a32-45fcfbe0a760
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alert on checkoutservice followed by the load generator indicates real user-facing checkout failure, not a lone warning. No open incidents to attribute it to, and the fan-out of unverified dependencies gives no clear prior cause.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : shippingservice
+  expect      : Within ~5 minutes of the recreate: shipping-service logs stop the repeating JVM/OTel-agent startup lines and resume Rust-style GetQuote/ShipOrder handling with prices and tracking IDs; sampled PlaceOrder traces again show a server-side shippingservice span under the checkoutservice ShippingService/GetQuote client span with OK status; checkoutservice error ratio falls from ~0.12 toward the ~0.01 baseline and its logs resume the full order/payment/email/message-write sequence.
+  within      : 300s
+  risk        : If the mechanism is the address/config path rather than the image, this recreates the container with the same broken config and extends the shipping outage by the recreate window. Automation has cycled image update-and-revert every 4-5 hours, so this rollback may be overwritten by the next cycle and relief may be temporary.
+  blast radius: shippingservice container only. checkoutservice (its inbound caller) sees connection resets during the recreate, propagating to frontend and loadgenerator as PlaceOrder failures - the same requests already failing. No other callee is touched.
+  if wrong    : Falsified if error ratio stays near 0.12 and GetQuote client spans still error with no callee span after the recreate, or if the JVM startup lines persist in the shipping-service stream - the latter would mean those lines were never shippingservice (rated low confidence) and the wrong artifact was replaced. Also: the prior image value is recorded as 'None' [tr_625b05302b69]; if no concrete prior tag resolves, do not execute.
+  rests on    : tr_625b05302b69, tr_e151438f74bf, tr_07ea98356fa4
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 28784 pushed / 9922 pulled (pull rate 0.2563), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_07ea98356fa4, tr_e151438f74bf, tr_625b05302b69, tr_c23b2d629e51, tr_119f459f6067
+  root cause  : checkoutservice is the caller that noticed, not the fault. Every sampled PlaceOrder trace fails on one hop - the checkoutservice client span for ShippingService/GetQuote - with no server-side shippingservice span beneath it and durations of 0.4-2.5ms, the signature of a call rejected at connect before the callee handles it [tr_07ea98356fa4]. On the shippingservice side, the newest portion of the log stream carries no quote or ship-order handling at all, only JVM and OpenTelemetry Java agent startup lines repeating every 30-60 seconds, in a stream that earlier the same window carried a healthy Rust-style server [tr_e151438f74bf]. The change log explains the mismatch: at 14:24:15 platform-automation updated the shippingservice image reference to a demo tag whose name denotes adservice [tr_625b05302b69]. The artifact running under the shippingservice identity is the wrong one, so its gRPC port never serves GetQuote and checkout aborts in the prepare/shipping-quote phase before payment and email [tr_07ea98356fa4, tr_119f459f6067]. The 14:25:30 error re-crossing follows that update [tr_c23b2d629e51]. The earlier phase - QUOTE_SERVICE_ADDR pointed at a non-existent host at 14:02:13, matching the 14:03:30 onset - was reverted at 14:13:37 and cannot explain failures still occurring at 14:29-14:30 [tr_625b05302b69].
+  OPEN        : What checkoutservice error ratio did between 14:13:37 and 14:24:15 - recovery there confirms two phases; no recovery admits one sustained cause.
+  OPEN        : Both log queries were truncated, leaving 14:03-14:24 unobserved, and no gRPC status code for the failing GetQuote calls was retrieved.
+  OPEN        : Whether the late JVM lines truly belong to shippingservice (rated low confidence) and whether the automation's 4-5 hour cycle will revert the 14:24:15 image on its own.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T142407Z-shipping-wrong-image/350a0925-dae5-48df-83ed-d5dc98740a72-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T142407Z-shipping-wrong-image/350a0925-dae5-48df-83ed-d5dc98740a72-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9593.05it/s]

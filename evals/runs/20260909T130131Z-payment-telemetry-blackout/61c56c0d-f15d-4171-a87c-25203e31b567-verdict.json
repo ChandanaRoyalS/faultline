@@ -1,0 +1,160 @@
+{
+  "incident_id": "61c56c0d-f15d-4171-a87c-25203e31b567",
+  "trajectory_id": "fa0c1fe4-9611-4384-a73d-96d0b281aa57",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "frontend",
+    "paymentservice"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origin": "scenario:payment-telemetry-blackout",
+  "verdict": {
+    "root_cause": "Six minutes before the 13:07:45 alert, platform automation set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT on paymentservice to a loopback address, and unlike the three earlier applications of the same variable this one was never reverted [tr_8a66c0eabb4e]. With the exporter pointed at a port where no collector listens, paymentservice spans never reach the trace backend \u2014 Tempo holds zero traces for the service [tr_377af1a1ab1b] \u2014 and the span-derived calls_total series the error-ratio query depends on is empty in both incident and baseline windows [tr_02a51f7ee8d6, tr_4f92ce2f10dc]. Meanwhile the business path is healthy: paymentservice logs show continuous charge/complete pairs completing sub-millisecond through 13:09:51 [tr_efe29a065740], and checkoutservice shows complete order flows with advancing queue offsets and 14\u201320 ms payment latency at window close [tr_c05acdab65ba]. The wrong endpoint value is itself the failing thing: it silently discards the service's telemetry, which is what the alert is reacting to.",
+    "service": "paymentservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_8a66c0eabb4e",
+      "tr_377af1a1ab1b",
+      "tr_02a51f7ee8d6",
+      "tr_efe29a065740",
+      "tr_c05acdab65ba"
+    ],
+    "reasoning": "Traces are wholly absent rather than sparse [tr_377af1a1ab1b] and the error-ratio series is empty [tr_02a51f7ee8d6], yet both paymentservice and its caller log healthy, fast, completing transactions at window close [tr_efe29a065740, tr_c05acdab65ba]. A genuine payment failure would surface in the caller, which is the service that notices first; it does not. The only recorded change is repeated toggling of one variable, the OTLP traces endpoint, with the pre-onset application uniquely lacking a revert [tr_8a66c0eabb4e] \u2014 that asymmetry distinguishes this occurrence from the three earlier incident-free ones. Not bad_deploy: no deployment or image record exists in the window. Not dependency_latency: nothing waited, latencies are sub-millisecond.",
+    "open_questions": [
+      "Which signal actually fired the 13:07:45 alert was never retrieved, so the link between empty telemetry and the page is inferred rather than observed.",
+      "Both log queries were truncated and omitted roughly 12:38\u201313:07:57 [tr_efe29a065740, tr_c05acdab65ba], so a short self-healing degradation at onset is not excluded.",
+      "Trace absence spans 100+ minutes predating the 13:01 change [tr_377af1a1ab1b] while the variable was reportedly reverted at 09:40, so a longer-standing instrumentation or label/tenant mismatch may explain the gap instead; calls_total was never tried under any other selector."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "paymentservice traces and metrics never existed under the queried names due to a standing instrumentation or label mismatch, and the alert is a monitoring artifact unrelated to the 13:01 change.",
+        "service": "paymentservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Fails to explain why an alert fired at 13:07:45 specifically, six minutes after the one un-reverted application of the endpoint variable; the change timing is the only thing on the board correlated with onset."
+      },
+      {
+        "root_cause": "A brief real degradation on the charge path occurred around 13:07:45 and recovered before the retained log lines resume at 13:07:57.",
+        "service": "paymentservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "No error or timeout line appears anywhere in either service's returned logs, and checkout's payment latency is unchanged at both ends of the window; the hypothesis survives only inside the truncated gap and has no positive evidence."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    " / Confirming it: The change record shows the variable and both values. A configuration pointing at an address\nthat no longer answers usually produces connection errors in the service's own logs with the\naddress quoted verbatim - the fastest confirmation available, because the wrong value appears\n",
+    " / Blast radius: One service - with one exception worth naming explicitly. Where the reverted value is a\ndependency address, the services it was pointing at see traffic move. That is a second-order\neffect on a service nobody alerted on, and it belongs in the proposal.",
+    " / Blast radius, and the one irreversible property: One service, for the duration of the recreate. **This action is not reversible** - it discards\nin-process state, which for this world's services is cache only. Say so in the proposal rather\nthan leaving the approver to know it."
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 22775,
+    "pulled_tokens": 7859,
+    "pull_rate": 0.2565,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 386,
+        "content_tokens": 388,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1401,
+        "content_tokens": 1404,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6992,
+        "content_tokens": 6968,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6449,
+        "content_tokens": 6451,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7547,
+        "content_tokens": 7525,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_377af1a1ab1b",
+      "tr_4f92ce2f10dc",
+      "tr_efe29a065740"
+    ],
+    "expected_effect": "No action taken. The proposed config_revert does not fit the evidence: Tempo holds zero paymentservice traces uniformly from 11:07:45, and that result explicitly rules out a pipeline break starting at 13:01 [tr_377af1a1ab1b], so reverting a 13:01 endpoint change cannot restore spans already absent for 100+ minutes prior. The empty calls_total series is separately explained as a selector/label mismatch, since service_name='paymentservice' returns nothing over four hours and is called unusable [tr_4f92ce2f10dc]. Meanwhile the business path is healthy [tr_efe29a065740], so there is no user-visible symptom for a revert to fix. Correct next step is investigation, not remediation: re-query calls_total under the app/job label or 'payment-service', and retrieve the actual alert rule that fired at 13:07:45.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "If a re-query of calls_total under a corrected selector shows a real series that goes empty only after 13:01, and Tempo shows paymentservice spans under a different service name before 13:01, then the endpoint change is causal and revert_config on paymentservice becomes justified.",
+    "risk": "Abstaining leaves a misconfigured OTLP endpoint in place, so paymentservice telemetry stays blind and a genuine future fault on the charge path may go unobserved. The drift loop [tr_8a66c0eabb4e] may also reapply the value regardless of any manual revert.",
+    "blast_radius": "No change, so nobody sees anything. Had the revert proceeded, paymentservice would have been recreated, with checkoutservice (and frontend behind it) seeing reset connections on the charge path during a period when both are confirmed healthy."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A single critical alert on paymentservice, a payment-path service with downstream checkout and frontend exposure, is not something to dismiss without evidence. No signal yet distinguishes deploy, config, or resource causes."
+  }
+}

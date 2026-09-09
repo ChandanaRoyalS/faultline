@@ -1,0 +1,38 @@
+incident a92e0e40-8fe2-4996-9668-62fb952bcbd7  state triaging  anchor 15:35:15
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 9d9f6090-137e-4b4e-8ba7-b3fa5b341479
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four simultaneous alerts spanning cart, checkout, and frontend plus the load generator is not a single quiet warning; the shared-path pattern points at a common downstream dependency. No open incident could absorb it, so it warrants investigation.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Abstention is wrong if change history holds a cartservice config entry that actually carries the netem/eth0 delay as reverted configuration, or if the unexplained 15:13:15 checkout error change point traces to a config or image state that a listed action could restore. Both are checkable in change history before acting.
+  rests on    : tr_f948a9e2be42, tr_bf5a5d442083
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 26753 pushed / 9206 pulled (pull rate 0.256), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_f948a9e2be42, tr_bf5a5d442083, tr_eefdb339da98, tr_8394851a34a1, tr_0fde65ed948b
+  root cause  : At 15:31:54, ~3 minutes before onset, platform-automation attached a traffic-shaping (netem) sidecar to cartservice's network namespace imposing a fixed 300ms egress delay with zero jitter on eth0, and unlike every prior iteration of the same automated experiment cycle no matching removal followed, so the delay was live at onset [tr_f948a9e2be42]. Traces show the mechanism precisely: every cartservice Redis leaf sits at a tight 300-310ms floor and each caller's client span into cartservice carries an extra ~300ms of self-time, while cartservice's own in-process work is under ~1.2ms and non-cart dependencies in the same traces stay sub-millisecond to ~18ms [tr_bf5a5d442083]. The penalty is additive per network crossing, inflating AddItem hops to ~904ms and frontend requests to ~1.5s. Checkout, frontend and loadgenerator alerted because they wait on cartservice: checkout logs are error-free but each order step is separated by ~1.2s instead of tens of ms [tr_8394851a34a1], and its error ratio rises ~9.5x in bursty fashion [tr_eefdb339da98], consistent with deadline expiry on the cart hop. Removing the orphaned netem sidecar resolves it.
+  OPEN        : Checkout's error-ratio change point is ~15:13:15, roughly 19 minutes before the netem attachment [tr_eefdb339da98, tr_f948a9e2be42]; that gap is unexplained and overlaps the hotfix image apply/revert window.
+  OPEN        : No latency or request-rate series were returned for either service [tr_eefdb339da98, tr_c6e73bad0992], and traces cover only 15:36:31-15:37:08 with both log queries truncated across ~15:05-15:36, so nothing directly observed the 15:31-15:35 transition.
+  OPEN        : Why checkoutservice's client spans to cartservice carry ~905ms of self-time (three 300ms units) above a ~305ms server span [tr_bf5a5d442083] is unaccounted for by a single egress delay.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T153145Z-cart-dependency-latency/a92e0e40-8fe2-4996-9668-62fb952bcbd7-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T153145Z-cart-dependency-latency/a92e0e40-8fe2-4996-9668-62fb952bcbd7-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9004.97it/s]

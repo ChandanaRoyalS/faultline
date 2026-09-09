@@ -1,0 +1,174 @@
+{
+  "incident_id": "2c562d8d-40e5-47f5-bf43-a1db1f1e9276",
+  "trajectory_id": "43cc773a-0ef3-4c0f-89c6-f136f03c3b0e",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "Frontend's gRPC client calls to adservice are failing continuously with code 14 UNAVAILABLE, and the late-window lines name DNS name resolution of the adservice target on port 9555 as the failure surface [tr_71fa3376d57b]. No connection is ever established, so this is not slowness on an established path and not a frontend handler fault. Frontend itself is change-quiet [tr_d8e3a177e302], and the recorded changes on productcatalogservice and cartservice are matched platform-automation attach/revert pairs that all closed hours before onset [tr_8c54913ce706][tr_eae1db565371]. The most probable mechanism is that the adservice endpoint is not resolvable/registered - the service's pods or its DNS record are absent - so frontend's ad-panel calls fail for every request. Because the adservice change log was never queried (changes budget exhausted after four services), whether that unavailability stems from a bad rollout, a wrong target address, or crashed instances is not settled; the class is therefore reported as unknown rather than guessed.",
+    "service": "adservice",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_71fa3376d57b",
+      "tr_d8e3a177e302",
+      "tr_664069326583",
+      "tr_8c54913ce706",
+      "tr_eae1db565371"
+    ],
+    "reasoning": "Frontend is the caller in every retained error line, so its symptoms propagate from a dependency rather than originating locally [tr_71fa3376d57b]; the only target ever named is adservice:9555, which rules out cartservice, checkoutservice and productcatalogservice as the named peer. Name-resolution failure means no connection was made, which excludes dependency slowness on that path. Frontend's own change log is empty across the window [tr_d8e3a177e302], and its aggregate error ratio shows a single sharp change point near onset with no prior drift, so this is an abrupt external break, not creeping saturation [tr_664069326583]; that metric also carries no dependency dimension, so it cannot confirm attribution on its own. The productcatalogservice and cartservice fault-injection episodes are real but fully reverted well before onset [tr_8c54913ce706][tr_eae1db565371], leaving them as background noise. Nothing on the board observes adservice directly, so the failing mechanism behind its disappearance remains unnamed.",
+    "open_questions": [
+      "adservice was never dispatched: its change log, logs, pod state and readiness at onset are entirely unobserved.",
+      "Whether the adservice DNS record/endpoint is missing because pods are down (crash, OOM, failed rollout) or because the target address configured in frontend is wrong.",
+      "Why frontend's aggregate error ratio is only ~10% at peak and below baseline on average if a whole dependency is unreachable - suggests ad calls are a minority path or partially degraded gracefully.",
+      "Whether the log-onset time (~07:26) versus the metric change point (07:52) reflect two distinct events or one ongoing failure.",
+      "Whether loadgenerator's alert is purely downstream of frontend or independent.",
+      "Whether the same platform-automation experiment cycle also touched adservice, which would make this an injected fault rather than an organic one."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Frontend is configured with a wrong or stale adservice target address/port, so resolution of the name fails on every call.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Frontend's change log is empty across the window [tr_d8e3a177e302], so no config edit is recorded that would have introduced a wrong target; a wrong value present all along would not produce a sharp onset near 07:52 [tr_664069326583]."
+      },
+      {
+        "root_cause": "A bad adservice rollout left the pods unable to start, withdrawing their endpoints from DNS and making the target unresolvable.",
+        "service": "adservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Plausible and consistent with the resolution failure, but the adservice change log was never queried because the changes budget was exhausted, so no deploy record supports it."
+      },
+      {
+        "root_cause": "Residual effects of the platform-automation fault-injection cycles on productcatalogservice/cartservice destabilised the request path.",
+        "service": "productcatalogservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "Every injection has a matching removal completed 1.7-4h before onset [tr_8c54913ce706][tr_eae1db565371], and neither service is named in any frontend error line [tr_71fa3376d57b]."
+      }
+    ]
+  },
+  "flags": [
+    "budget exhausted: changes tool calls: 4 of 4 used"
+  ],
+  "retrieved": [
+    " / Summary: Network delay injected into a container's namespace, so calls across that boundary take longer\nwhile both processes remain healthy.\n\n**Resolves by `restart`.** Every `dependency_latency` scenario in the catalog carries\n`expected_remediation_class: restart`, because the delay live",
+    "cart-dependency-latency / What was observed: The page named three services in the same evaluation: `ServiceHighLatency` on\n**cartservice**, **frontend** and **loadgenerator**, 3m50s after things started slowing.\n**checkoutservice** followed fifteen seconds later, for four alerts across four services.\n\nNo errors. Not one. Ev",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m50s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **2**. Over the"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 22268,
+    "pulled_tokens": 3301,
+    "pull_rate": 0.1291,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 425,
+        "content_tokens": 427,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2267,
+        "content_tokens": 2271,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6473,
+        "content_tokens": 6450,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "incompleteness"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6034,
+        "content_tokens": 6036,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7069,
+        "content_tokens": 7072,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_71fa3376d57b",
+      "tr_d8e3a177e302"
+    ],
+    "expected_effect": "No action is proposed, so no change in metrics or logs is expected. Frontend should continue to emit gRPC code 14 UNAVAILABLE lines naming DNS resolution failure for the adservice target on port 9555, recurring every few seconds, until adservice itself is observed and a targeted fix is chosen. The next step is investigative, not remedial: dispatch adservice's change log, container/pod state, readiness and logs across 07:20-08:00, which would settle whether the endpoint is absent because instances are down (crash/OOM/failed rollout), because a rollout replaced the image, or because frontend's configured target address is wrong.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "This abstention is wrong if adservice is in fact simply dead and a container recreate would restore it - in that case the cost of waiting is continued ad-panel failure for every frontend request, visible as the same code 14 lines persisting. It is also wrong if the ~10% peak error ratio [tr_664069326583] is understating real user harm. Concretely: if an adservice pod-state or log query comes back showing a crash-looping or exited container with no in-window image or config change, restart_service on adservice becomes the correct proposal and this abstention should be overridden immediately.",
+    "risk": "The risk of abstaining is prolonged unavailability of the ad panel on frontend. The risk of NOT abstaining is larger and is why I abstain: every permitted action is aimed at the wrong service or fails its preconditions. rollback_image on adservice requires a recorded prior image tag and evidence of a deploy inside the window - adservice's change log was never queried, so no such record has been seen and the action could redeploy an arbitrary tag over a healthy configuration. revert_config on frontend requires a recorded configuration change inside the window, and frontend's change log is empty [tr_d8e3a177e302], so there is no prior configuration to restore; proposing it would recreate a change-quiet, working frontend for nothing. restart_service on adservice requires evidence pointing at process state, and no adservice process evidence of any kind exists - a DNS resolution failure observed from the caller is equally consistent with a wrong target address in frontend, in which case restarting adservice changes nothing and destroys the pre-restart state that would have diagnosed it. scale_service is unavailable per ADR-0029.",
+    "blast_radius": "None from this proposal, since nothing is changed. For context on what was declined: any action on adservice would be seen by frontend, its only inbound caller in this incident, and transitively by loadgenerator, which alerts downstream of frontend; any action on frontend would be seen by loadgenerator and by all five downstream candidates it calls (adservice, cartservice, checkoutservice, productcatalogservice, recommendationservice) as reset connections during the recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity at the frontend with the load generator also alerting indicates user-facing impact, not a lone synthetic-only signal. No open incident covers it and any of several downstream dependencies could be the cause, so it warrants investigation."
+  }
+}

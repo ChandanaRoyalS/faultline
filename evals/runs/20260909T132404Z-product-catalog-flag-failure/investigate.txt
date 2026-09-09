@@ -1,0 +1,38 @@
+incident 588d6312-1b2f-4c40-a125-582e1e21d5a9  state triaging  anchor 13:27:30
+triage: 7 services, severity critical, start from productcatalogservice, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: ffa4398a-33ff-409c-ba68-de232098eb33
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Critical multi-service alerting starting at productcatalogservice and propagating to frontend and load generator is not dismissible. Pattern fits a productcatalogservice degradation fanning out to its consumers, though a recent deploy or resource limit there is equally plausible.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if the flag query comes back showing a productcatalogservice-scoped flag that was enabled at or before 09:52:30, or if change history re-queried against the right identifier turns up a config push / flag mutation and a recorded prior configuration for this service. Either of those would satisfy revert_config's preconditions and make a targeted config revert the correct proposal, at the cost of the extra minutes spent confirming. It is also wrong if the errors escalate from the current ~0.5% mean into a sustained elevation and start showing up as failed PlaceOrder flows in checkoutservice logs, which currently complete end to end with successful payments and advancing queue offsets [tr_03699d01be59] - in that case waiting for confirmation becomes more expensive than acting on a low-confidence diagnosis.
+  rests on    : tr_030d4296340e, tr_3ee81acb3a6c, tr_315c533aff54, tr_44cf857d8e4e
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 23046 pushed / 6809 pulled (pull rate 0.2281), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : low
+  evidence    : tr_3ee81acb3a6c, tr_315c533aff54, tr_030d4296340e, tr_03699d01be59, tr_61ed613becc4, tr_44cf857d8e4e
+  root cause  : productcatalogservice is failing a small, intermittent fraction of its own GetProduct calls. Its error ratio was exactly zero across a 968-sample four-hour baseline, then went non-zero from ~09:52 with a renewed burst at ~13:25 just before the alert [tr_3ee81acb3a6c]. The single sampled error trace puts the error on productcatalogservice's own GetProduct server span, failing in ~0.8ms with ~0.1ms self time, whose only child (FeatureFlagService/GetFlag) is fast and error-free, propagating up through checkoutservice/PlaceOrder to the frontend POST [tr_315c533aff54]. No deploy, image, tag, or config push exists anywhere in the window, and the only recorded activity (a 300ms egress delay injected and removed between 06:00 and 06:09) was net-zero and gone 7.3h before onset [tr_030d4296340e]. A fast in-handler rejection immediately after a feature-flag read, with no latency or saturation anywhere in the path, points to a flag-gated failure mode being enabled in productcatalogservice: the flag value is itself what makes the request fail. Downstream services are not the source - checkout still completes full order flows with successful payments and queue writes [tr_03699d01be59], and frontend's error ratio fell to 0.14x of its own baseline [tr_61ed613becc4], so the frontend alert is propagation, not an independent fault.
+  OPEN        : The feature flag state was never queried; the flag-gated mechanism is inferred from trace shape alone and is unconfirmed.
+  OPEN        : productcatalogservice's own logs were never really read - the selector likely mismatched the label, so error returns, panics and restarts remain unexamined; re-querying is the top next step.
+  OPEN        : What started the errors at ~09:52 is unexplained, and whether the failures are scoped by product id, caller, or fixed probability cannot be told from one error trace.
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T132404Z-product-catalog-flag-failure/588d6312-1b2f-4c40-a125-582e1e21d5a9-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T132404Z-product-catalog-flag-failure/588d6312-1b2f-4c40-a125-582e1e21d5a9-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11154.20it/s]

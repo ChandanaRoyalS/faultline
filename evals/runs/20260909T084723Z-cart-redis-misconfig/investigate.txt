@@ -1,0 +1,41 @@
+incident cc741510-d264-43c3-a6db-3bcfea9d66b1  state triaging  anchor 08:50:00
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 8a6ea82a-cda0-4071-bdcd-f9d9c3af9634
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on checkout and frontend simultaneously with load generator impact indicate a real user-facing failure that cannot be dismissed. The shared checkout dependencies leave the cause open, so no fault class is asserted yet.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if change history for cartservice does in fact contain a recorded prior configuration with the cart backing-store port set to 6379 and an edit to 6380 timestamped inside the incident window — in that case revert_config on cartservice meets both of its preconditions and should be proposed immediately, with the expected effect that the cart-service log stream stops emitting connect-failure and initialization-exception lines within ~60s of container recreation, GetCartAsync request lines resume, and checkoutservice traces stop erroring at the GetCart leaf. It is also wrong if the operator's judgement is that a blind restart is worth trying; I judge it is not, because the evidence locates the fault in a configuration value read at startup, and a restart_service that preserves that value would reproduce the identical crash on the next boot, costing an outage extension for no information.
+  rests on    : tr_7c90a77b1763, tr_8338f7487f5d
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 26855 pushed / 5569 pulled (pull rate 0.1718), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_7c90a77b1763, tr_8338f7487f5d, tr_0ec22ffb17fe, tr_28c109c65274, tr_a7140baea402, tr_443caba87a56, tr_6c8f032b5bde
+  root cause  : cartservice cannot reach its Redis backing store and dies during startup initialization, so it never accepts cart RPCs. Its connect attempts name the redis-cart host on port 6380 — not Redis's default 6379 — with the exception thrown from the cart-store initialization path called straight from program startup, producing a restart loop roughly every 1-30 seconds from ~08:50:22 onward [tr_7c90a77b1763]. Because cartservice is unavailable, every checkoutservice PlaceOrder aborts at the GetCart leaf, and that error propagates up through checkoutservice's PlaceOrder span, the frontend gRPC client span and the frontend HTTP root — which is exactly why checkoutservice, frontend and loadgenerator all alerted at 08:50 while checkoutservice itself is internally healthy [tr_8338f7487f5d]. checkoutservice is the caller that noticed, not the fault: it has no changes in the window [tr_a7140baea402], its own error ratio actually fell versus baseline [tr_28c109c65274], its logs carry no error lines and it keeps accepting new orders throughout [tr_0ec22ffb17fe], and its self time is ~0.1ms per span [tr_8338f7487f5d]. The best-supported mechanism is a wrong endpoint value for the cart backing store: the port in the connection configuration does not point at a listening Redis, and requests break because that value is wrong.
+  OPEN        : No change history was ever queried for cartservice or for the redis-cart deployment, so nothing in this briefing shows who or what set the port to 6380, or when. The bad_config reading rests on 6380 being non-default, not on a recorded edit.
+  OPEN        : It was not confirmed that redis-cart is actually listening on 6379 (or on any port) right now. If Redis itself is down or was moved, 6380 could be the correct value and the endpoint reading is wrong.
+  OPEN        : Timeline mismatch: checkoutservice logs show orders ceasing to complete from ~08:47:31 [tr_0ec22ffb17fe], but the cartservice crash loop is only visible from ~08:50:22 [tr_7c90a77b1763] and the traces cluster after 08:50:48 [tr_8338f7487f5d]. What happened in the ~3-minute gap — an earlier, slower cartservice degradation before the crash loop began — is unexplained.
+  OPEN        : The mixed failure latencies per connect attempt, sub-second to ~30 seconds [tr_7c90a77b1763], are not fully consistent with a pure closed-port rejection and hint at a network-path or DNS component that was not investigated.
+  OPEN        : No cartservice resource metrics (memory, CPU, connections) or redis-cart-side evidence were collected at all; the four unmeasured edges triage flagged remain unmeasured.
+  OPEN        : Past incidents were withheld from this briefing, so no corpus comparison informed this verdict.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T084723Z-cart-redis-misconfig/cc741510-d264-43c3-a6db-3bcfea9d66b1-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T084723Z-cart-redis-misconfig/cc741510-d264-43c3-a6db-3bcfea9d66b1-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10164.78it/s]
