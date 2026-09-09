@@ -58,6 +58,7 @@ FINGERPRINT_INPUTS = (
     "repeat_count",
     "seed_policy",
     "ablation",
+    "observability_digest",
 )
 """The behaviour-relevant settings, in the order T4.4 and T4.6 name them.
 
@@ -68,6 +69,22 @@ before it. `ablation` is T6.1's - the specialists withheld from the agent, `[]` 
 and is absent from every run recorded before it, which `missing` records; an ablation run and a
 full run therefore never share a fingerprint, and neither pools with a run made before the switch
 existed without the difference being visible.
+
+**`observability_digest` is T6.1's too, and closes a hole this table had from the start.**
+A run's generation is named by `compose_digest` alone (`generations.world_key`), so **two
+worlds differing only in what the agent can observe were one configuration here.** Harmless
+until it was not: on 2026-09-08 fifteen runs were scored against a Tempo whose
+`max_block_duration` made its search blind to the last five minutes - the window an investigation
+asks about - and the fix moved
+`observability_digest` and left `compose_digest` untouched. Without this input those fifteen runs
+would share a fingerprint with every run made after the fix, which is the silent pooling the whole
+table exists to prevent.
+
+**Read off the freeze, which has recorded it since T7.15** - not a new measurement, a recorded
+one that nothing was reading. `None` for the runs whose freeze predates the field, which
+`missing` reports rather than defaulting. **The generation *name* still under-specifies the world**;
+naming it properly would rename every generation in README, RESULTS and PLAN, and belongs in a
+change of its own rather than in this docstring - `docs/QUEUE.md` Q31.
 """
 
 
@@ -147,6 +164,9 @@ def _setting(manifest: dict[str, Any], key: str) -> Any:
         return (manifest.get("freeze") or {}).get("runtime_version")
     if key == "world_generation":
         return (manifest.get("comparability") or {}).get("generation")
+    if key == "observability_digest":
+        # The freeze's, not the repository's: the question is what this run executed against.
+        return ((manifest.get("freeze") or {}).get("world") or {}).get("observability_digest")
     if key == "judge_version":
         return (manifest.get("judge") or {}).get("judge_model")
     if key == "baseline":

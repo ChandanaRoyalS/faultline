@@ -9,17 +9,17 @@
 | expected remediation | `config_revert` |
 | split | `dev` |
 | injected at | `frauddetection-service` via `frauddetection-memory-squeeze` |
-| time to page | 6m00s |
+| time to page | 6m15s |
 | steady state captured | 300s |
-| capture window | 2026-09-08T06:07:04+00:00 → 2026-09-08T06:25:50+00:00 |
+| capture window | 2026-09-09T03:59:08+00:00 → 2026-09-09T04:17:54+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+6m00s |
-| `t_revert` | T+11m00s |
+| first alert firing | T+6m15s |
+| `t_revert` | T+11m15s |
 | all clear | T+11m46s |
 
 ## What fired, and when
@@ -38,28 +38,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="frauddetectionservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/frauddetection-service.txt` — 176 lines.
+`logs/frauddetection-service.txt` — 162 lines.
 
 ## A look at the logs
 
-From `logs/frauddetection-service.txt` (170 lines):
+From `logs/frauddetection-service.txt` (156 lines):
 
 ```
-2026-09-08T06:13:19+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T06:13:19+00:00  [otel.javaagent 2026-09-08 06:13:19:196 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-09-08T06:17:18+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T06:17:19+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T06:17:19+00:00  [otel.javaagent 2026-09-08 06:17:19:365 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
-2026-09-08T06:23:34+00:00  SLF4J: No SLF4J providers were found.
-2026-09-08T06:23:34+00:00  SLF4J: Defaulting to no-operation (NOP) logger implementation
-2026-09-08T06:23:34+00:00  SLF4J: See https://www.slf4j.org/codes.html#noProviders for further details.
-2026-09-08T06:07:04+00:00  Consumed record with orderId: 83c7fcd9-ab4b-11f1-aeaa-26f7473970bd, and updated total count to: 576
-2026-09-08T06:07:10+00:00  Consumed record with orderId: 87318700-ab4b-11f1-aeaa-26f7473970bd, and updated total count to: 577
-2026-09-08T06:07:22+00:00  Consumed record with orderId: 8e18c02f-ab4b-11f1-aeaa-26f7473970bd, and updated total count to: 578
-2026-09-08T06:07:35+00:00  Consumed record with orderId: 9641c17e-ab4b-11f1-aeaa-26f7473970bd, and updated total count to: 579
+2026-09-09T04:04:41+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T04:04:41+00:00  [otel.javaagent 2026-09-09 04:04:41:137 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-09-09T04:04:56+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T04:04:56+00:00  [otel.javaagent 2026-09-09 04:04:56:333 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.16.0
+2026-09-09T03:59:10+00:00  Consumed record with orderId: d01a7959-ac02-11f1-a2ad-dabd96a21050, and updated total count to: 429
+2026-09-09T03:59:16+00:00  Consumed record with orderId: d3d185e0-ac02-11f1-a2ad-dabd96a21050, and updated total count to: 430
+2026-09-09T03:59:25+00:00  Consumed record with orderId: d912cda7-ac02-11f1-a2ad-dabd96a21050, and updated total count to: 431
+2026-09-09T03:59:26+00:00  Consumed record with orderId: d975a244-ac02-11f1-a2ad-dabd96a21050, and updated total count to: 432
+2026-09-09T03:59:30+00:00  Consumed record with orderId: dc27a1e6-ac02-11f1-a2ad-dabd96a21050, and updated total count to: 433
+2026-09-09T03:59:36+00:00  Consumed record with orderId: df52cdbd-ac02-11f1-a2ad-dabd96a21050, and updated total count to: 434
+2026-09-09T03:59:54+00:00  Consumed record with orderId: ea470d97-ac02-11f1-a2ad-dabd96a21050, and updated total count to: 435
+2026-09-09T04:00:13+00:00  Consumed record with orderId: f5cf2449-ac02-11f1-a2ad-dabd96a21050, and updated total count to: 436
 ```
 
-_158 further lines are in the bundle._
+_144 further lines are in the bundle._
 
 ## The incident record
 
@@ -76,7 +76,7 @@ bundle are the tiebreak.
 
 ### What was observed
 
-One alert. `ServiceNoTraffic` on **frauddetectionservice**, 6m00s after onset. Nothing
+One alert. `ServiceNoTraffic` on **frauddetectionservice**, 6m15s after onset. Nothing
 else fired for the entire incident.
 
 The storefront was perfect throughout. Product pages, search, basket, checkout, payment
@@ -137,7 +137,7 @@ the orchestrator restarted it, and it hit the same wall.
 ### Resolution
 
 The memory limit was restored. The service came up on its next restart, resumed
-consuming, and worked through what had accumulated. Everything was clear **46s**
+consuming, and worked through what had accumulated. Everything was clear **31s**
 after the fix — the fastest recovery of any incident on this system, because nothing in
 the request path had to drain or reconnect.
 
@@ -146,7 +146,7 @@ one resource limit was wrong and was put back.
 
 ### Detection notes
 
-- Onset to first page: **6m00s**, the slowest on this system, and it is a function of
+- Onset to first page: **6m15s**, the slowest on this system, and it is a function of
   traffic rate rather than of severity. At one call every ten seconds a two-minute rate
   window empties slowly and the persistence clause starts late. The same fault on a
   busy service pages in under three minutes. The figure is also the least stable one

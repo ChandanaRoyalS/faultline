@@ -9,27 +9,27 @@
 | expected remediation | `restart` |
 | split | `dev` |
 | injected at | `redis-cart` via `redis-cart-dependency-latency` |
-| time to page | 3m35s |
+| time to page | 3m50s |
 | steady state captured | 300s |
-| capture window | 2026-09-08T06:56:12+00:00 → 2026-09-08T07:14:03+00:00 |
+| capture window | 2026-09-09T04:52:58+00:00 → 2026-09-09T05:11:04+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+3m35s |
-| `t_revert` | T+8m35s |
-| all clear | T+10m51s |
+| first alert firing | T+3m50s |
+| `t_revert` | T+8m50s |
+| all clear | T+11m06s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
 | T+3m45s | `cartservice` | ServiceHighLatency | 7.2 min | **paged** |
-| T+3m45s | `checkoutservice` | ServiceHighLatency | 7.0 min | **paged** |
-| T+3m45s | `frontend` | ServiceHighLatency | 7.0 min | **paged** |
-| T+3m45s | `loadgenerator` | ServiceHighLatency | 7.0 min | **paged** |
+| T+3m45s | `frontend` | ServiceHighLatency | 7.2 min | **paged** |
+| T+4m00s | `loadgenerator` | ServiceHighLatency | 6.8 min | joined later |
+| T+4m15s | `checkoutservice` | ServiceHighLatency | 6.8 min | joined later |
 
 ## What the bundle contains
 
@@ -41,28 +41,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="redis-cart", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/redis-cart.txt` — 30 lines.
+`logs/redis-cart.txt` — 24 lines.
 
 ## A look at the logs
 
-From `logs/redis-cart.txt` (24 lines):
+From `logs/redis-cart.txt` (18 lines):
 
 ```
-2026-09-08T06:56:57+00:00  1:M 08 Sep 2026 06:56:57.003 * 100 changes in 300 seconds. Saving...
-2026-09-08T06:56:57+00:00  1:M 08 Sep 2026 06:56:57.003 * Background saving started by pid 324
-2026-09-08T06:56:57+00:00  324:C 08 Sep 2026 06:56:57.015 * BGSAVE done, 37883 keys saved, 0 keys skipped, 3272486 bytes written.
-2026-09-08T06:56:57+00:00  324:C 08 Sep 2026 06:56:57.021 * DB saved on disk
-2026-09-08T06:56:57+00:00  324:C 08 Sep 2026 06:56:57.021 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
-2026-09-08T06:56:57+00:00  1:M 08 Sep 2026 06:56:57.104 * Background saving terminated with success
-2026-09-08T07:01:58+00:00  1:M 08 Sep 2026 07:01:58.077 * 100 changes in 300 seconds. Saving...
-2026-09-08T07:01:58+00:00  1:M 08 Sep 2026 07:01:58.078 * Background saving started by pid 325
-2026-09-08T07:01:58+00:00  325:C 08 Sep 2026 07:01:58.092 * BGSAVE done, 37970 keys saved, 0 keys skipped, 3279955 bytes written.
-2026-09-08T07:01:58+00:00  325:C 08 Sep 2026 07:01:58.098 * DB saved on disk
-2026-09-08T07:01:58+00:00  325:C 08 Sep 2026 07:01:58.099 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
-2026-09-08T07:01:58+00:00  1:M 08 Sep 2026 07:01:58.180 * Background saving terminated with success
+2026-09-09T04:57:11+00:00  1:M 09 Sep 2026 04:57:11.017 * 100 changes in 300 seconds. Saving...
+2026-09-09T04:57:11+00:00  1:M 09 Sep 2026 04:57:11.018 * Background saving started by pid 479
+2026-09-09T04:57:11+00:00  479:C 09 Sep 2026 04:57:11.055 * BGSAVE done, 50974 keys saved, 0 keys skipped, 4437709 bytes written.
+2026-09-09T04:57:11+00:00  479:C 09 Sep 2026 04:57:11.063 * DB saved on disk
+2026-09-09T04:57:11+00:00  479:C 09 Sep 2026 04:57:11.063 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-09-09T04:57:11+00:00  1:M 09 Sep 2026 04:57:11.120 * Background saving terminated with success
+2026-09-09T05:02:12+00:00  1:M 09 Sep 2026 05:02:12.003 * 100 changes in 300 seconds. Saving...
+2026-09-09T05:02:12+00:00  1:M 09 Sep 2026 05:02:12.004 * Background saving started by pid 480
+2026-09-09T05:02:12+00:00  480:C 09 Sep 2026 05:02:12.050 * BGSAVE done, 51061 keys saved, 0 keys skipped, 4445129 bytes written.
+2026-09-09T05:02:12+00:00  480:C 09 Sep 2026 05:02:12.061 * DB saved on disk
+2026-09-09T05:02:12+00:00  480:C 09 Sep 2026 05:02:12.061 * Fork CoW for RDB: current 0 MB, peak 0 MB, average 0 MB
+2026-09-09T05:02:12+00:00  1:M 09 Sep 2026 05:02:12.106 * Background saving terminated with success
 ```
 
-_12 further lines are in the bundle._
+_6 further lines are in the bundle._
 
 ## The incident record
 
@@ -102,20 +102,20 @@ bundle are the tiebreak.
      followed it, and how long the gap was. A reader looking this up months later needs
      the shape of the cascade, not only its final size. -->
 
-The page went out **T+3m35s** after onset. Times below are relative
+The page went out **T+3m50s** after onset. Times below are relative
 to the page.
 
 | When | Alert | Service | Started | Firing for |
 |---|---|---|---|---|
-| **on the page** | ServiceHighLatency | cartservice | T+10s | 7.2m |
-| **on the page** | ServiceHighLatency | checkoutservice | T+10s | 7.0m |
-| **on the page** | ServiceHighLatency | frontend | T+10s | 7.0m |
-| **on the page** | ServiceHighLatency | loadgenerator | T+10s | 7.0m |
+| **on the page** | ServiceHighLatency | cartservice | T-5s | 7.2m |
+| **on the page** | ServiceHighLatency | frontend | T-5s | 7.2m |
+| later | ServiceHighLatency | loadgenerator | T+10s | 6.8m |
+| later | ServiceHighLatency | checkoutservice | T+25s | 6.8m |
 
-The page named 4 service(s), all in the same evaluation. No alert fired after it: **the
-responder saw the whole blast radius at once**, which is the opposite of what earlier
-recordings of this fault showed and is worth knowing before reading the radius as a clue to
-ordering.
+The page named 2 service(s); the other two followed within half a minute. **Which services
+land on the page and which arrive after it is not stable across recordings of this fault** -
+the previous one put all four on the page together, the one before that put cartservice alone -
+so the radius at page time is worth reading as a sample rather than as a clue to ordering.
 
 ### What was checked
 
@@ -162,7 +162,7 @@ any point, because nothing about cartservice was wrong.
 
 ### Detection notes
 
-- Onset to first firing alert: 3m35s
+- Onset to first firing alert: 3m50s
 - Services alerting on the page: 1
 - Services alerting by the end of the fault: 4
 - Alerts that fired only during recovery: 0

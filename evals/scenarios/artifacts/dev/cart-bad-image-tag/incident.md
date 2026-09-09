@@ -2,30 +2,30 @@
 origin: scenario:cart-bad-image-tag
 split: dev
 fault_class: bad_deploy
-recorded_from: 2026-09-08T13:25:53+00:00
+recorded_from: 2026-09-09T03:13:22+00:00
 capability: cap:dd651ccc
-onset_to_page: 4m32s
+onset_to_page: 4m46s
 page_to_fix: 5m00s
-fix_to_all_clear: 3m15s
+fix_to_all_clear: 2m31s
 ---
 
 # Cart service deployed on an image tag that was never published
 
 ## What was observed
 
-The page was `ServiceHighErrorRate` on **checkoutservice** alone, 4m32s after onset;
-**frontend** and **loadgenerator** followed fifteen seconds later. The direct caller of the
-broken service crossed first, which is the shape the analysis below turns on.
+The page was `ServiceHighErrorRate` on **checkoutservice** and **loadgenerator** together,
+4m46s after onset; **frontend** followed fifteen seconds later. The direct caller of the broken
+service was on the page, which is the shape the analysis below turns on.
 
 On the storefront, product pages rendered normally. Adding anything to a basket failed.
 
-A minute and a half after the page, seven services went quiet — four together at
-T+6m00s (currencyservice, emailservice, frauddetectionservice and quoteservice), then
-accountingservice, **cartservice** and shippingservice fifteen seconds after them. All
+A minute and a quarter after the page, seven services went quiet in three waves —
+currencyservice, quoteservice and shippingservice at T+5m45s, then accountingservice,
+emailservice and frauddetectionservice, then **cartservice** last at T+6m15s. All
 `ServiceNoTraffic`.
 
-Eleven alerts across ten services: the eleventh is a half-minute `ServiceHighErrorRate` on
-emailservice at T+12m15s, **after the revert**, as the world drained what had queued.
+Eleven alerts across ten services: the eleventh is a brief `ServiceHighErrorRate` on
+emailservice at T+12m00s, **after the revert**, as the world drained what had queued.
 
 ## What was checked
 

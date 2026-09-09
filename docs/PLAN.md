@@ -1330,6 +1330,41 @@ so rather than carrying numbers forward — the T7.1 and T7.28 discipline, third
 is empty in both columns and explains why; RESULTS' banner names the new digests and points at the
 pre-registration for what fills the gap.
 
+**The first sweep attempt found three driver defects and a world defect, and none was the
+pipeline (2026-09-08/09).** `faultline-sweep --tier weekly` attempted 39 slots and scored 15.
+`runnable()` had never excluded holdout, so three scenarios it could never run took nine slots -
+and their place in `--runs-remaining` inflated the baseline gate's kafka projection, which refused
+**fifteen consecutive slots with kafka at 24 %**. The arithmetic says a three-pass sweep could not
+have started at all: at thirty runs the gate needs kafka under ~13 % and a freshly recycled kafka
+is 24-26 %. The driver now excludes holdout, performs the between-pass recycle §4 had already
+registered, counts down within a pass, and prints when declared repeats and observed passes
+diverge — which is the line that would have caught this at run 2 rather than run 39. **The fifteen
+runs stay in `evals/runs/` and are not arm A**: each declares `repeat_count: 3` on a world that
+gave it one or two.
+
+**And Tempo's search was blind to the last five minutes.** Nothing is searchable until a block is
+cut, and `max_block_duration` was 5m: measured 2026-09-09, the newest searchable trace froze at one
+instant for five consecutive minutes and then snapped to 14 s behind. Two of the fifteen verdicts
+said so in their own words — *"every returned trace predates onset"* — and both were wrong. **A
+delta measured on that configuration would have measured the configuration**, which is why the
+sweep was not re-run on it. 30 s gives 6-88 s with a median near 14 s, and *less* memory. All
+thirteen bundles recorded again on the fixed world, thirteen of thirteen first attempt, kafka
+peaking at 62 % against 100 %.
+
+**Three readings of `seconds_to_alert` in two days, and the spread is the finding.** Most scenarios
+move by one scrape interval or not at all; `cart-bad-image-tag` spans 105 s and `ad-memory-squeeze`
+60 s. The alert *fan-out* is less stable still — `shipping-wrong-image`'s edge services crossed four
+minutes late, then not at all, then two and a half minutes late. **Onset timing and blast radius at
+page time are properties of a run, not of a scenario**, which is the R = 3 argument arriving from
+the recorder rather than the sweep. `docs/design/t6.1-capability-review.md`'s second addendum has
+the tables and the prose corrections.
+
+**One hole closed, one queued.** `observability_digest` joins `evaldb.FINGERPRINT_INPUTS` and
+`scenario_table`'s at-stamp columns ask for both digests, so runs made against the blind Tempo
+cannot pool with arm A. **Naming** a generation by both digests is Q31: it would rename every
+generation in README, RESULTS, PLAN and eleven documents under `evals/runs/`, and deserves its own
+registration rather than a 6 am rewrite.
+
 **What is pending, in order.** Merge; then dev sweep 12 - `faultline-sweep --tier weekly`, then `--tier weekly
 --without traces`, then `--baseline b0` - judged with the shared-lineage override, written up as
 `SWEEP-<date>-sweep12.md` against the eleven predictions. **Rule 8**: about \$45 of model calls plus

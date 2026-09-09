@@ -9,24 +9,24 @@
 | expected remediation | `config_revert` |
 | split | `dev` |
 | injected at | `paymentservice` via `payment-telemetry-blackout` |
-| time to page | 6m17s |
+| time to page | 6m01s |
 | steady state captured | 300s |
-| capture window | 2026-09-08T06:24:09+00:00 → 2026-09-08T06:42:57+00:00 |
+| capture window | 2026-09-09T04:16:11+00:00 → 2026-09-09T04:34:44+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+6m17s |
-| `t_revert` | T+11m17s |
-| all clear | T+11m48s |
+| first alert firing | T+6m01s |
+| `t_revert` | T+11m01s |
+| all clear | T+11m33s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+6m15s | `paymentservice` | ServiceNoTraffic | 5.5 min | **paged** |
+| T+6m00s | `paymentservice` | ServiceNoTraffic | 5.5 min | **paged** |
 
 ## What the bundle contains
 
@@ -38,28 +38,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="paymentservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/payment-service.txt` — 346 lines.
+`logs/payment-service.txt` — 360 lines.
 
 ## A look at the logs
 
-From `logs/payment-service.txt` (340 lines):
+From `logs/payment-service.txt` (354 lines):
 
 ```
-2026-09-08T06:29:10+00:00  npm notice
-2026-09-08T06:29:10+00:00  npm notice New major version of npm available! 8.19.2 -> 12.0.2
-2026-09-08T06:29:10+00:00  npm notice Changelog: <https://github.com/npm/cli/releases/tag/v12.0.2>
-2026-09-08T06:29:10+00:00  npm notice Run `npm install -g npm@12.0.2` to update!
-2026-09-08T06:29:10+00:00  npm notice
-2026-09-08T06:29:10+00:00  npm ERR! path /usr/src/app
-2026-09-08T06:29:10+00:00  npm ERR! command failed
-2026-09-08T06:29:10+00:00  npm ERR! signal SIGTERM
-2026-09-08T06:29:10+00:00  npm ERR! command sh -c -- node opentelemetry.js
-2026-09-08T06:29:10+00:00
-2026-09-08T06:29:10+00:00  npm ERR! A complete log of this run can be found in:
-2026-09-08T06:29:10+00:00  npm ERR!     /home/node/.npm/_logs/2026-09-07T20_45_19_789Z-debug-0.log
+2026-09-09T04:21:12+00:00  npm notice
+2026-09-09T04:21:12+00:00  npm notice New major version of npm available! 8.19.2 -> 12.0.2
+2026-09-09T04:21:12+00:00  npm notice Changelog: <https://github.com/npm/cli/releases/tag/v12.0.2>
+2026-09-09T04:21:12+00:00  npm notice Run `npm install -g npm@12.0.2` to update!
+2026-09-09T04:21:12+00:00  npm notice
+2026-09-09T04:21:12+00:00  npm ERR! path /usr/src/app
+2026-09-09T04:21:12+00:00  npm ERR! command failed
+2026-09-09T04:21:12+00:00  npm ERR! signal SIGTERM
+2026-09-09T04:21:12+00:00  npm ERR! command sh -c -- node opentelemetry.js
+2026-09-09T04:21:12+00:00
+2026-09-09T04:21:12+00:00  npm ERR! A complete log of this run can be found in:
+2026-09-09T04:21:12+00:00  npm ERR!     /home/node/.npm/_logs/2026-09-08T22_34_26_828Z-debug-0.log
 ```
 
-_328 further lines are in the bundle._
+_342 further lines are in the bundle._
 
 ## The incident record
 
@@ -99,7 +99,7 @@ bundle are the tiebreak.
      followed it, and how long the gap was. A reader looking this up months later needs
      the shape of the cascade, not only its final size. -->
 
-The page went out **T+6m17s** after onset. Times below are relative
+The page went out **T+6m01s** after onset. Times below are relative
 to the page.
 
 | When | Alert | Service | Started | Firing for |
@@ -151,12 +151,12 @@ service had never been unhealthy.
 
 ### Detection notes
 
-- Onset to first firing alert: 6m17s
+- Onset to first firing alert: 6m01s
 - Services alerting on the page: 1
 - Services alerting by the end of the fault: 1
 - Alerts that fired only during recovery: 0
 - Steady state held after the page: 5m00s
-- Fix to all-clear: 31s
+- Fix to all-clear: 32s
 - Did the loudest service turn out to be the culprit? <!-- yes / no - this one matters -->
 - Would the page alone have led you to the right service? <!-- yes / no -->
 

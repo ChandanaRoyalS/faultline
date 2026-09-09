@@ -11,7 +11,7 @@
 | injected at | `cartservice` via `cart-redis-misconfig` |
 | time to page | 2m46s |
 | steady state captured | 300s |
-| capture window | 2026-09-08T05:44:56+00:00 → 2026-09-08T06:03:28+00:00 |
+| capture window | 2026-09-09T03:42:19+00:00 → 2026-09-09T04:00:51+00:00 |
 
 The clock below runs from the moment the fault went in.
 
@@ -26,17 +26,17 @@ The clock below runs from the moment the fault went in.
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+2m45s | `frontend` | ServiceHighErrorRate | 8.5 min | **paged** |
-| T+2m45s | `loadgenerator` | ServiceHighErrorRate | 8.5 min | **paged** |
-| T+3m15s | `checkoutservice` | ServiceHighErrorRate | 7.8 min | joined later |
-| T+6m00s | `accountingservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m00s | `currencyservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m00s | `emailservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m00s | `frauddetectionservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m00s | `quoteservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m00s | `shippingservice` | ServiceNoTraffic | 2.5 min | joined later |
-| T+6m15s | `cartservice` | ServiceNoTraffic | 2.2 min | joined later |
-| T+10m30s | `emailservice` | ServiceHighErrorRate | 1.0 min | began after the revert |
+| T+2m30s | `frontend` | ServiceHighErrorRate | 8.5 min | **paged** |
+| T+2m30s | `loadgenerator` | ServiceHighErrorRate | 8.5 min | **paged** |
+| T+2m45s | `checkoutservice` | ServiceHighErrorRate | 7.5 min | joined later |
+| T+6m00s | `accountingservice` | ServiceNoTraffic | 2.0 min | joined later |
+| T+6m00s | `currencyservice` | ServiceNoTraffic | 2.0 min | joined later |
+| T+6m00s | `emailservice` | ServiceNoTraffic | 2.0 min | joined later |
+| T+6m00s | `frauddetectionservice` | ServiceNoTraffic | 2.0 min | joined later |
+| T+6m00s | `quoteservice` | ServiceNoTraffic | 2.0 min | joined later |
+| T+6m00s | `shippingservice` | ServiceNoTraffic | 2.0 min | joined later |
+| T+6m15s | `cartservice` | ServiceNoTraffic | 1.8 min | joined later |
+| T+10m00s | `emailservice` | ServiceHighErrorRate | 1.2 min | began after the revert |
 
 ## What the bundle contains
 
@@ -55,18 +55,18 @@ The clock below runs from the moment the fault went in.
 From `logs/cart-service.txt` (500 lines):
 
 ```
-2026-09-08T05:50:23+00:00  Unhandled exception. System.ApplicationException: Wasn't able to connect to redis
-2026-09-08T05:50:23+00:00     at cartservice.cartstore.RedisCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 89
-2026-09-08T05:50:23+00:00     at cartservice.cartstore.RedisCartStore.InitializeAsync() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 62
-2026-09-08T05:50:23+00:00     at Program.<Main>$(String[] args) in /usr/src/app/src/Program.cs:line 39
-2026-09-08T05:50:34+00:00  Unhandled exception. System.ApplicationException: Wasn't able to connect to redis
-2026-09-08T05:50:34+00:00     at cartservice.cartstore.RedisCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 89
-2026-09-08T05:50:34+00:00     at cartservice.cartstore.RedisCartStore.InitializeAsync() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 62
-2026-09-08T05:50:34+00:00     at Program.<Main>$(String[] args) in /usr/src/app/src/Program.cs:line 39
-2026-09-08T05:51:11+00:00  Unhandled exception. System.ApplicationException: Wasn't able to connect to redis
-2026-09-08T05:51:11+00:00     at cartservice.cartstore.RedisCartStore.EnsureRedisConnected() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 89
-2026-09-08T05:51:11+00:00     at cartservice.cartstore.RedisCartStore.InitializeAsync() in /usr/src/app/src/cartstore/RedisCartStore.cs:line 62
-2026-09-08T05:51:11+00:00     at Program.<Main>$(String[] args) in /usr/src/app/src/Program.cs:line 39
+2026-09-09T03:42:19+00:00  GetCartAsync called with userId=
+2026-09-09T03:42:26+00:00  AddItemAsync called with userId=799a3f26-ac00-11f1-b359-b6ed2071a170, productId=L9ECAV7KIM, quantity=10
+2026-09-09T03:42:26+00:00  GetCartAsync called with userId=799a3f26-ac00-11f1-b359-b6ed2071a170
+2026-09-09T03:42:27+00:00  AddItemAsync called with userId=7a480ae8-ac00-11f1-b359-b6ed2071a170, productId=L9ECAV7KIM, quantity=4
+2026-09-09T03:42:27+00:00  GetCartAsync called with userId=7a480ae8-ac00-11f1-b359-b6ed2071a170
+2026-09-09T03:42:27+00:00  GetCartAsync called with userId=7a480ae8-ac00-11f1-b359-b6ed2071a170
+2026-09-09T03:42:27+00:00  EmptyCartAsync called with userId=7a480ae8-ac00-11f1-b359-b6ed2071a170
+2026-09-09T03:42:28+00:00  GetCartAsync called with userId=
+2026-09-09T03:42:30+00:00  AddItemAsync called with userId=7be5eafa-ac00-11f1-b359-b6ed2071a170, productId=0PUK6V6EV0, quantity=4
+2026-09-09T03:42:30+00:00  GetCartAsync called with userId=7be5eafa-ac00-11f1-b359-b6ed2071a170
+2026-09-09T03:42:33+00:00  AddItemAsync called with userId=7de4effe-ac00-11f1-b359-b6ed2071a170, productId=1YMWWN1N4O, quantity=2
+2026-09-09T03:42:33+00:00  GetCartAsync called with userId=7de4effe-ac00-11f1-b359-b6ed2071a170
 ```
 
 _488 further lines are in the bundle._
@@ -87,7 +87,7 @@ bundle are the tiebreak.
 ### What was observed
 
 The page named two services together: `ServiceHighErrorRate` on **loadgenerator** and
-**frontend**, 2m46s after the first bad request. **checkoutservice** joined half a minute
+**frontend**, 2m46s after the first bad request. **checkoutservice** joined fifteen seconds
 later.
 
 On the storefront, product pages rendered normally. Adding anything to a basket failed.
@@ -98,7 +98,7 @@ quoteservice and shippingservice), and **cartservice** fifteen seconds after the
 `ServiceNoTraffic`.
 
 Eleven alerts across ten services: the eleventh is a one-minute `ServiceHighErrorRate` on
-emailservice at T+10m30s, **after the revert**, as the world drained what had queued.
+emailservice at T+10m00s, **after the revert**, as the world drained what had queued.
 
 ### What was checked
 
@@ -114,8 +114,8 @@ the incident rather than the most.
 **Traces from frontend.** Checkout spans failing on their call to cart. The first real
 narrowing, roughly three minutes in.
 
-**The gap between the errors and the silence.** The error alerts fired at T+2m45s to
-T+3m15s; the silence did not arrive until T+6m00s. Those are the same failure at two
+**The gap between the errors and the silence.** The error alerts fired at T+2m30s to
+T+2m45s; the silence did not arrive until T+6m00s. Those are the same failure at two
 different thresholds — `ServiceHighErrorRate` responds to the requests that fail, and
 `ServiceNoTraffic` only once the calls stop arriving at all and a rate window empties.
 

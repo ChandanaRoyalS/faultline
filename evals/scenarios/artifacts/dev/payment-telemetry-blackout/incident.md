@@ -2,11 +2,11 @@
 origin: scenario:payment-telemetry-blackout
 split: dev
 fault_class: bad_config
-recorded_from: 2026-09-08T06:29:09+00:00
+recorded_from: 2026-09-09T04:21:11+00:00
 capability: cap:dd651ccc
-onset_to_page: 6m17s
+onset_to_page: 6m01s
 page_to_fix: 5m00s
-fix_to_all_clear: 31s
+fix_to_all_clear: 32s
 ---
 
 # Payment service healthy, serving, and invisible in the traffic metric
@@ -36,7 +36,7 @@ fix_to_all_clear: 31s
      followed it, and how long the gap was. A reader looking this up months later needs
      the shape of the cascade, not only its final size. -->
 
-The page went out **T+6m17s** after onset. Times below are relative
+The page went out **T+6m01s** after onset. Times below are relative
 to the page.
 
 | When | Alert | Service | Started | Firing for |
@@ -88,11 +88,11 @@ service had never been unhealthy.
 
 ## Detection notes
 
-- Onset to first firing alert: 6m17s
+- Onset to first firing alert: 6m01s
 - Services alerting on the page: 1
 - Services alerting by the end of the fault: 1
 - Alerts that fired only during recovery: 0
 - Steady state held after the page: 5m00s
-- Fix to all-clear: 31s
+- Fix to all-clear: 32s
 - Did the loudest service turn out to be the culprit? <!-- yes / no - this one matters -->
 - Would the page alone have led you to the right service? <!-- yes / no -->

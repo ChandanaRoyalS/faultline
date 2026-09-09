@@ -2,11 +2,11 @@
 origin: scenario:ad-memory-squeeze
 split: dev
 fault_class: resource_exhaustion
-recorded_from: 2026-09-08T04:58:47+00:00
+recorded_from: 2026-09-09T02:56:49+00:00
 capability: cap:dd651ccc
-onset_to_page: 3m16s
+onset_to_page: 4m16s
 page_to_fix: 5m00s
-fix_to_all_clear: 1m30s
+fix_to_all_clear: 2m00s
 ---
 
 # Ad service memory limit cut below the working set its JVM was sized for
@@ -14,14 +14,17 @@ fix_to_all_clear: 1m30s
 ## What was observed
 
 The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,
-3m16s after onset. No service between them and the edge was named. Both cleared within a
-quarter of a minute and returned at T+5m45s, staying up for the rest of the incident.
+4m16s after onset. No service between them and the edge was named, and both stayed up for the
+rest of the incident.
 
-Two and three-quarter minutes later, at **T+6m00s**, `ServiceNoTraffic` fired on **adservice** —
+Two minutes later, at **T+6m00s**, `ServiceNoTraffic` fired on **adservice** —
 the first time anything named a service other than the edge, and the only alert in this
 incident that points inward.
 
-Three alerts across three services. The storefront was mostly usable throughout:
+Latency followed errors rather than preceding them: `ServiceHighLatency` on the same two edge
+services at **T+8m15s**, four minutes after they were already erroring.
+
+Five alerts across three services. The storefront was mostly usable throughout:
 product pages loaded, baskets worked, checkout completed. The advertisement panel was
 missing.
 
@@ -76,14 +79,14 @@ repetition in the logs — nothing failing, and the same startup over and over.
 ## Resolution
 
 The memory limit was restored to its previous value. adservice came back and the ad
-panel returned. Everything was clear 1m30s after the fix.
+panel returned. Everything was clear 2m00s after the fix.
 
 Class of fix: **config_revert**. Nothing was deployed and nothing needed rolling back;
 one resource limit was wrong and was put back.
 
 ## Detection notes
 
-- Onset to first page: **3m16s**.
+- Onset to first page: **4m16s**.
 - Services alerting at the page: **2**. Over the whole incident: **3**, across 3
   alerts.
 - Alerts that fired only during recovery: **none**.

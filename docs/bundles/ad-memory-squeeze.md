@@ -9,28 +9,28 @@
 | expected remediation | `config_revert` |
 | split | `dev` |
 | injected at | `ad-service` via `ad-memory-squeeze` |
-| time to page | 3m16s |
+| time to page | 4m16s |
 | steady state captured | 300s |
-| capture window | 2026-09-08T04:53:47+00:00 → 2026-09-08T05:10:33+00:00 |
+| capture window | 2026-09-09T02:51:49+00:00 → 2026-09-09T03:10:05+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+3m16s |
-| `t_revert` | T+8m16s |
-| all clear | T+9m46s |
+| first alert firing | T+4m16s |
+| `t_revert` | T+9m16s |
+| all clear | T+11m16s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m15s | `frontend` | ServiceHighErrorRate | 0.2 min | **paged** |
-| T+3m15s | `loadgenerator` | ServiceHighErrorRate | 0.2 min | **paged** |
-| T+5m45s | `frontend` | ServiceHighErrorRate | 4.0 min | **paged** |
-| T+5m45s | `loadgenerator` | ServiceHighErrorRate | 4.0 min | **paged** |
-| T+6m00s | `adservice` | ServiceNoTraffic | 3.0 min | joined later |
+| T+4m00s | `frontend` | ServiceHighErrorRate | 7.0 min | **paged** |
+| T+4m00s | `loadgenerator` | ServiceHighErrorRate | 5.0 min | **paged** |
+| T+6m00s | `adservice` | ServiceNoTraffic | 4.0 min | joined later |
+| T+8m15s | `frontend` | ServiceHighLatency | 2.8 min | joined later |
+| T+8m15s | `loadgenerator` | ServiceHighLatency | 0.8 min | joined later |
 
 ## What the bundle contains
 
@@ -42,28 +42,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="adservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/ad-service.txt` — 162 lines.
+`logs/ad-service.txt` — 148 lines.
 
 ## A look at the logs
 
-From `logs/ad-service.txt` (156 lines):
+From `logs/ad-service.txt` (142 lines):
 
 ```
-2026-09-08T04:58:48+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:58:48+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T04:58:48+00:00  [otel.javaagent 2026-09-08 04:58:48:693 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T04:58:52+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:58:52+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T04:58:53+00:00  [otel.javaagent 2026-09-08 04:58:53:003 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T04:58:57+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:58:57+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T04:58:57+00:00  [otel.javaagent 2026-09-08 04:58:57:615 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T04:59:05+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:59:05+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T04:59:05+00:00  [otel.javaagent 2026-09-08 04:59:05:875 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:56:50+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:56:50+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:56:50+00:00  [otel.javaagent 2026-09-09 02:56:50:450 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:56:53+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:56:53+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:56:53+00:00  [otel.javaagent 2026-09-09 02:56:53:722 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:56:56+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:56:57+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:56:57+00:00  [otel.javaagent 2026-09-09 02:56:57:210 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:57:00+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:57:01+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:57:01+00:00  [otel.javaagent 2026-09-09 02:57:01:163 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
 ```
 
-_144 further lines are in the bundle._
+_130 further lines are in the bundle._
 
 ## The incident record
 
@@ -81,14 +81,17 @@ bundle are the tiebreak.
 ### What was observed
 
 The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,
-3m16s after onset. No service between them and the edge was named. Both cleared within a
-quarter of a minute and returned at T+5m45s, staying up for the rest of the incident.
+4m16s after onset. No service between them and the edge was named, and both stayed up for the
+rest of the incident.
 
-Two and three-quarter minutes later, at **T+6m00s**, `ServiceNoTraffic` fired on **adservice** —
+Two minutes later, at **T+6m00s**, `ServiceNoTraffic` fired on **adservice** —
 the first time anything named a service other than the edge, and the only alert in this
 incident that points inward.
 
-Three alerts across three services. The storefront was mostly usable throughout:
+Latency followed errors rather than preceding them: `ServiceHighLatency` on the same two edge
+services at **T+8m15s**, four minutes after they were already erroring.
+
+Five alerts across three services. The storefront was mostly usable throughout:
 product pages loaded, baskets worked, checkout completed. The advertisement panel was
 missing.
 
@@ -143,14 +146,14 @@ repetition in the logs — nothing failing, and the same startup over and over.
 ### Resolution
 
 The memory limit was restored to its previous value. adservice came back and the ad
-panel returned. Everything was clear 1m30s after the fix.
+panel returned. Everything was clear 2m00s after the fix.
 
 Class of fix: **config_revert**. Nothing was deployed and nothing needed rolling back;
 one resource limit was wrong and was put back.
 
 ### Detection notes
 
-- Onset to first page: **3m16s**.
+- Onset to first page: **4m16s**.
 - Services alerting at the page: **2**. Over the whole incident: **3**, across 3
   alerts.
 - Alerts that fired only during recovery: **none**.

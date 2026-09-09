@@ -116,7 +116,7 @@ def _manifests(runs: Path) -> list[dict[str, Any]]:
     ]
 
 
-def _qualifies(manifest: dict[str, Any], world: str) -> bool:
+def _qualifies(manifest: dict[str, Any], world: str, observability: str | None = None) -> bool:
     return (
         counts_toward_aggregates(manifest)
         # The pipeline arm only. A B0 baseline run (`manifest["baseline"]`, stamp
@@ -125,7 +125,34 @@ def _qualifies(manifest: dict[str, Any], world: str) -> bool:
         and not manifest.get("baseline")
         and outcome_of(manifest) == "scored"
         and generation_of(manifest).world == world
+        and (observability is None or _observability(manifest) == observability)
     )
+
+
+def _observability(manifest: dict[str, Any]) -> str | None:
+    return ((manifest.get("freeze") or {}).get("world") or {}).get("observability_digest")
+
+
+def current_observability() -> str | None:
+    """The repository's observability digest, or `None` when `world/` is not cloned.
+
+    **A generation is named by `compose_digest` alone, and that is not the whole world (T6.1).** On
+    2026-09-08 fifteen runs were scored against a Tempo whose search was blind to the last five
+    minutes; the fix moved `observability_digest` and left `compose_digest` where it was, so those
+    runs and every run made after the fix carry the same generation name. They are not the same
+    world to an agent, and this table's headline figures are about what an agent got right.
+
+    So the at-stamp columns ask for **both** digests, and a run whose observability differs falls
+    out of them while staying in `evals/runs/` and in the pooled column. `None` disables the check,
+    which is what a clean clone without `world/` gets - it cannot compute the digest, and a
+    table that silently emptied itself there would be worse than one that pools.
+
+    Naming the generation properly is `docs/QUEUE.md` Q31: it would rename every generation in
+    README, RESULTS and PLAN, which is a change that deserves its own registration.
+    """
+    from evalharness.provenance import observability_digest
+
+    return observability_digest()
 
 
 def rows(
@@ -140,15 +167,22 @@ def rows(
     loaded = (Scenario.from_yaml(p) for p in sorted(scenarios.glob("*.yaml")))
     catalog = [s for s in loaded if not s.blocked]
     catalog.sort(key=lambda s: (s.split != "dev", s.id))
-    qualifying = [m for m in _manifests(runs) if _qualifies(m, world)]
+    observability = current_observability()
+    on_world = [m for m in _manifests(runs) if _qualifies(m, world)]
+    qualifying = [m for m in on_world if _qualifies(m, world, observability)]
 
     out: list[ScenarioRow] = []
     for scenario in catalog:
-        mine = [m for m in qualifying if m.get("scenario_id") == scenario.id]
+        # **The two columns ask different questions, so they filter differently.** The pooled
+        # column is context - every stamp on this compose world - and keeps runs whose
+        # observability differs, because dropping them would hide runs that happened.
+        # The at-stamp columns are the figures, and ask for both digests.
+        mine = [m for m in on_world if m.get("scenario_id") == scenario.id]
         at_stamp = [
             m
-            for m in mine
-            if str((m.get("score") or {}).get("runtime_version", "")).endswith(f"prompts:{stamp}")
+            for m in qualifying
+            if m.get("scenario_id") == scenario.id
+            and str((m.get("score") or {}).get("runtime_version", "")).endswith(f"prompts:{stamp}")
         ]
         out.append(ScenarioRow(scenario.id, scenario.split, Tally.over(at_stamp), Tally.over(mine)))
     return out

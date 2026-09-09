@@ -2,23 +2,22 @@
 origin: scenario:recommendation-memory-squeeze
 split: holdout
 fault_class: resource_exhaustion
-recorded_from: 2026-09-08T08:19:29+00:00
+recorded_from: 2026-09-09T06:16:50+00:00
 capability: cap:dd651ccc
-onset_to_page: 4m01s
+onset_to_page: 3m45s
 page_to_fix: 5m00s
-fix_to_all_clear: 1m45s
+fix_to_all_clear: 1m01s
 ---
 
 # Recommendation service memory limit cut below what its runtime needs to start
 
 ## What was observed
 
-The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, with **frontend**
-joining fifteen seconds later.
-It arrived 4m01s after onset.
+The page was `ServiceHighErrorRate` on **loadgenerator** and **frontend** together.
+It arrived 3m45s after onset.
 
-`ServiceNoTraffic` fired on **recommendationservice** at **T+6m15s**, a minute and
-three-quarters after the page and the only alert naming the broken service.
+`ServiceNoTraffic` fired on **recommendationservice** at **T+6m00s**, two and a half
+minutes after the page and the only alert naming the broken service.
 
 Three alerts across three services. The storefront loaded, product pages rendered, the
 basket and checkout worked. The recommendation strip on the home page was empty, and
@@ -78,7 +77,7 @@ absence arrived a full minute after the downstream errors did.
 ## Resolution
 
 The memory limit was restored. recommendationservice completed startup on its next
-attempt and the recommendation strip returned. Everything was clear 1m45s after the
+attempt and the recommendation strip returned. Everything was clear 1m01s after the
 fix.
 
 Class of fix: **config_revert**. Nothing was deployed and nothing needed rolling back;
@@ -86,13 +85,13 @@ one resource limit was wrong and was put back.
 
 ## Detection notes
 
-- Onset to first page: **4m01s**. A dependency whose failure is tolerated by its caller
+- Onset to first page: **3m45s**. A dependency whose failure is tolerated by its caller
   takes longer to page than one whose failure is fatal — partial degradation crosses a
   ratio threshold slowly.
 - Services alerting at the page: **2**. Over the whole incident: **3**, across 3 alerts.
 - Alerts that fired only during recovery: **none**.
 - **The page named neither the broken service nor anything adjacent to it.** frontend
-  and loadgenerator are the edge; the culprit appeared a minute and three-quarters later,
+  and loadgenerator are the edge; the culprit appeared two and a half minutes later,
   and only as an absence.
 - Did the loudest service turn out to be the culprit? **No.** frontend and loadgenerator
   alerted longest at 6.8 minutes each and neither was broken.

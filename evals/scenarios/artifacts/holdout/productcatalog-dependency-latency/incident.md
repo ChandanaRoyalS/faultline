@@ -2,21 +2,21 @@
 origin: scenario:productcatalog-dependency-latency
 split: holdout
 fault_class: dependency_latency
-recorded_from: 2026-09-08T08:03:19+00:00
+recorded_from: 2026-09-09T06:00:27+00:00
 capability: cap:dd651ccc
 onset_to_page: 3m35s
 page_to_fix: 5m00s
-fix_to_all_clear: 2m16s
+fix_to_all_clear: 2m31s
 ---
 
 # Product catalog network path acquires 300ms of delay, slowing every caller
 
 ## What was observed
 
-The page was a single alert: `ServiceHighLatency` on **loadgenerator**. **frontend**,
-**productcatalogservice** and **recommendationservice** joined fifteen seconds later, and
-**checkoutservice** fifteen seconds after that — five alerts across five services. The page arrived 3m35s after things
-started slowing.
+The page named four services in the same evaluation: `ServiceHighLatency` on
+**checkoutservice**, **frontend**, **loadgenerator** and **recommendationservice**, with the
+slow service itself — **productcatalogservice** — arriving half a minute *later*, for five
+alerts across five services. The page arrived 3m35s after things started slowing.
 
 **productcatalogservice** — the service the delay was actually on — joined a full minute
 after the others, last of the five.
@@ -71,7 +71,7 @@ configuration were untouched.
 ## Resolution
 
 Recreating the container cleared the shaping — the rule binds to the container
-instance, so a replacement comes up on a clean network path. Everything was quiet 2m16s
+instance, so a replacement comes up on a clean network path. Everything was quiet 2m31s
 later, which is the metric window emptying rather than a gradual recovery.
 
 Class of fix: **restart**. Nothing was deployed and no configuration was wrong, so

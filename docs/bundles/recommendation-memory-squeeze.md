@@ -9,26 +9,26 @@
 | expected remediation | `config_revert` |
 | split | `holdout` |
 | injected at | `recommendation-service` via `recommendation-memory-squeeze` |
-| time to page | 4m01s |
+| time to page | 3m45s |
 | steady state captured | 300s |
-| capture window | 2026-09-08T08:14:29+00:00 → 2026-09-08T08:32:15+00:00 |
+| capture window | 2026-09-09T06:11:50+00:00 → 2026-09-09T06:28:36+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+4m01s |
-| `t_revert` | T+9m01s |
-| all clear | T+10m46s |
+| first alert firing | T+3m45s |
+| `t_revert` | T+8m45s |
+| all clear | T+9m46s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+4m00s | `frontend` | ServiceHighErrorRate | 6.8 min | **paged** |
-| T+4m00s | `loadgenerator` | ServiceHighErrorRate | 6.8 min | **paged** |
-| T+6m15s | `recommendationservice` | ServiceNoTraffic | 4.2 min | joined later |
+| T+3m30s | `frontend` | ServiceHighErrorRate | 6.0 min | **paged** |
+| T+3m30s | `loadgenerator` | ServiceHighErrorRate | 6.0 min | **paged** |
+| T+6m00s | `recommendationservice` | ServiceNoTraffic | 3.0 min | joined later |
 
 ## What the bundle contains
 
@@ -40,28 +40,28 @@ The clock below runs from the moment the fault went in.
 | `metrics/latency-p95.json` | `histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))` |
 | `metrics/runtime.json` | `{exported_job="recommendationservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}` |
 
-`logs/recommendation-service.txt` — 169 lines.
+`logs/recommendation-service.txt` — 201 lines.
 
 ## A look at the logs
 
-From `logs/recommendation-service.txt` (163 lines):
+From `logs/recommendation-service.txt` (195 lines):
 
 ```
-2026-09-08T08:14:33+00:00  {"asctime": "2026-09-08 08:14:33,864", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 122, "otelTraceID": "55538e9310d8c895e851c55b903798d1", "otelSpanID": "cc4e407002f31bb3", "message": "name: \"recommendationCache\"\ndescription: \"stub: flags are disabled unless FAULTLINE_ENABLED_FLAGS names them\"\n", "otelServiceName": "recommendationservice"}
-2026-09-08T08:14:33+00:00  {"asctime": "2026-09-08 08:14:33,865", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 46, "otelTraceID": "55538e9310d8c895e851c55b903798d1", "otelSpanID": "d943d8dc03cea695", "message": "[Recv ListRecommendations] product_ids=['LS4PSXUNUM', '1YMWWN1N4O', 'L9ECAV7KIM', 'OLJCESPC7Z', '0PUK6V6EV0']", "otelServiceName": "recommendationservice"}
-2026-09-08T08:14:46+00:00  {"asctime": "2026-09-08 08:14:46,347", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 122, "otelTraceID": "9154b4e48c5be5aa77893ad5c76d4e79", "otelSpanID": "e81a23aeda909d8a", "message": "name: \"recommendationCache\"\ndescription: \"stub: flags are disabled unless FAULTLINE_ENABLED_FLAGS names them\"\n", "otelServiceName": "recommendationservice"}
-2026-09-08T08:14:46+00:00  {"asctime": "2026-09-08 08:14:46,349", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 46, "otelTraceID": "9154b4e48c5be5aa77893ad5c76d4e79", "otelSpanID": "6335e2b8695b17dd", "message": "[Recv ListRecommendations] product_ids=['66VCHSJNUP', '0PUK6V6EV0', 'L9ECAV7KIM', 'LS4PSXUNUM', '6E92ZMYYFZ']", "otelServiceName": "recommendationservice"}
-2026-09-08T08:14:53+00:00  {"asctime": "2026-09-08 08:14:53,760", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 122, "otelTraceID": "bf43cfb43ac38e15ec53e8d3160e491e", "otelSpanID": "9fc8d5bb8d06d404", "message": "name: \"recommendationCache\"\ndescription: \"stub: flags are disabled unless FAULTLINE_ENABLED_FLAGS names them\"\n", "otelServiceName": "recommendationservice"}
-2026-09-08T08:14:53+00:00  {"asctime": "2026-09-08 08:14:53,762", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 46, "otelTraceID": "bf43cfb43ac38e15ec53e8d3160e491e", "otelSpanID": "cab57393ae54d86c", "message": "[Recv ListRecommendations] product_ids=['6E92ZMYYFZ', '9SIQT8TOJO', 'LS4PSXUNUM', '1YMWWN1N4O', '2ZYFJ3GM2N']", "otelServiceName": "recommendationservice"}
-2026-09-08T08:14:55+00:00  {"asctime": "2026-09-08 08:14:55,947", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 122, "otelTraceID": "587082347cfcb4b4c62e17c5439999f2", "otelSpanID": "dfc6302a94cbf9a4", "message": "name: \"recommendationCache\"\ndescription: \"stub: flags are disabled unless FAULTLINE_ENABLED_FLAGS names them\"\n", "otelServiceName": "recommendationservice"}
-2026-09-08T08:14:55+00:00  {"asctime": "2026-09-08 08:14:55,949", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 46, "otelTraceID": "587082347cfcb4b4c62e17c5439999f2", "otelSpanID": "2f0b653359d0f185", "message": "[Recv ListRecommendations] product_ids=['LS4PSXUNUM', '9SIQT8TOJO', 'L9ECAV7KIM', 'OLJCESPC7Z', '0PUK6V6EV0']", "otelServiceName": "recommendationservice"}
-2026-09-08T08:14:56+00:00  {"asctime": "2026-09-08 08:14:56,937", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 122, "otelTraceID": "8d76fefebbd0502371f0008e9b7b20a2", "otelSpanID": "276dd22f4910b9e8", "message": "name: \"recommendationCache\"\ndescription: \"stub: flags are disabled unless FAULTLINE_ENABLED_FLAGS names them\"\n", "otelServiceName": "recommendationservice"}
-2026-09-08T08:14:56+00:00  {"asctime": "2026-09-08 08:14:56,939", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 46, "otelTraceID": "8d76fefebbd0502371f0008e9b7b20a2", "otelSpanID": "474107d07e1934a0", "message": "[Recv ListRecommendations] product_ids=['66VCHSJNUP', '0PUK6V6EV0', '6E92ZMYYFZ', 'LS4PSXUNUM', '9SIQT8TOJO']", "otelServiceName": "recommendationservice"}
-2026-09-08T08:15:00+00:00  {"asctime": "2026-09-08 08:15:00,588", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 122, "otelTraceID": "ebbe5ddbdc11f87202f52d9b1ea9fd80", "otelSpanID": "74baa8601568704d", "message": "name: \"recommendationCache\"\ndescription: \"stub: flags are disabled unless FAULTLINE_ENABLED_FLAGS names them\"\n", "otelServiceName": "recommendationservice"}
-2026-09-08T08:15:00+00:00  {"asctime": "2026-09-08 08:15:00,590", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 46, "otelTraceID": "ebbe5ddbdc11f87202f52d9b1ea9fd80", "otelSpanID": "c6b94a3a8ccfc172", "message": "[Recv ListRecommendations] product_ids=['L9ECAV7KIM', '2ZYFJ3GM2N', 'OLJCESPC7Z', '0PUK6V6EV0', '6E92ZMYYFZ']", "otelServiceName": "recommendationservice"}
+2026-09-09T06:11:52+00:00  {"asctime": "2026-09-09 06:11:52,001", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 122, "otelTraceID": "dcd17748fa3892f588cc3b5ce3a2d322", "otelSpanID": "9d6911e70776c2c3", "message": "name: \"recommendationCache\"\ndescription: \"stub: flags are disabled unless FAULTLINE_ENABLED_FLAGS names them\"\n", "otelServiceName": "recommendationservice"}
+2026-09-09T06:11:52+00:00  {"asctime": "2026-09-09 06:11:52,003", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 46, "otelTraceID": "dcd17748fa3892f588cc3b5ce3a2d322", "otelSpanID": "5c2c97ccb7d7bac6", "message": "[Recv ListRecommendations] product_ids=['OLJCESPC7Z', '0PUK6V6EV0', '2ZYFJ3GM2N', 'LS4PSXUNUM', '1YMWWN1N4O']", "otelServiceName": "recommendationservice"}
+2026-09-09T06:11:52+00:00  {"asctime": "2026-09-09 06:11:52,052", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 122, "otelTraceID": "e1d0811691f7dc5f8786bfef1b5e341a", "otelSpanID": "10790e75486384e0", "message": "name: \"recommendationCache\"\ndescription: \"stub: flags are disabled unless FAULTLINE_ENABLED_FLAGS names them\"\n", "otelServiceName": "recommendationservice"}
+2026-09-09T06:11:52+00:00  {"asctime": "2026-09-09 06:11:52,053", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 46, "otelTraceID": "e1d0811691f7dc5f8786bfef1b5e341a", "otelSpanID": "c6e8ea697d506d5d", "message": "[Recv ListRecommendations] product_ids=['OLJCESPC7Z', '66VCHSJNUP', 'L9ECAV7KIM', '6E92ZMYYFZ', '2ZYFJ3GM2N']", "otelServiceName": "recommendationservice"}
+2026-09-09T06:11:55+00:00  {"asctime": "2026-09-09 06:11:55,056", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 122, "otelTraceID": "d1957c8305ab953abb2abedea29646b2", "otelSpanID": "96776fec78435910", "message": "name: \"recommendationCache\"\ndescription: \"stub: flags are disabled unless FAULTLINE_ENABLED_FLAGS names them\"\n", "otelServiceName": "recommendationservice"}
+2026-09-09T06:11:55+00:00  {"asctime": "2026-09-09 06:11:55,058", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 46, "otelTraceID": "d1957c8305ab953abb2abedea29646b2", "otelSpanID": "0832c6fd2a72ab53", "message": "[Recv ListRecommendations] product_ids=['2ZYFJ3GM2N', '0PUK6V6EV0', 'LS4PSXUNUM', '1YMWWN1N4O', 'OLJCESPC7Z']", "otelServiceName": "recommendationservice"}
+2026-09-09T06:11:58+00:00  {"asctime": "2026-09-09 06:11:58,239", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 122, "otelTraceID": "af810c0dad2e390f0c2e7e1da1740c00", "otelSpanID": "3eaf2839c37b5974", "message": "name: \"recommendationCache\"\ndescription: \"stub: flags are disabled unless FAULTLINE_ENABLED_FLAGS names them\"\n", "otelServiceName": "recommendationservice"}
+2026-09-09T06:11:58+00:00  {"asctime": "2026-09-09 06:11:58,242", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 46, "otelTraceID": "af810c0dad2e390f0c2e7e1da1740c00", "otelSpanID": "a4deecf30bc8b94c", "message": "[Recv ListRecommendations] product_ids=['6E92ZMYYFZ', '9SIQT8TOJO', 'L9ECAV7KIM', '1YMWWN1N4O', 'OLJCESPC7Z']", "otelServiceName": "recommendationservice"}
+2026-09-09T06:11:59+00:00  {"asctime": "2026-09-09 06:11:59,656", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 122, "otelTraceID": "572cb4fed24babd887e568057adcbc5e", "otelSpanID": "6b37df4f23fbf2e5", "message": "name: \"recommendationCache\"\ndescription: \"stub: flags are disabled unless FAULTLINE_ENABLED_FLAGS names them\"\n", "otelServiceName": "recommendationservice"}
+2026-09-09T06:11:59+00:00  {"asctime": "2026-09-09 06:11:59,658", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 46, "otelTraceID": "572cb4fed24babd887e568057adcbc5e", "otelSpanID": "190053e6522f1dd2", "message": "[Recv ListRecommendations] product_ids=['6E92ZMYYFZ', '1YMWWN1N4O', '0PUK6V6EV0', '9SIQT8TOJO', 'OLJCESPC7Z']", "otelServiceName": "recommendationservice"}
+2026-09-09T06:12:00+00:00  {"asctime": "2026-09-09 06:12:00,059", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 122, "otelTraceID": "65defb26ba46b49e80e74ebe437a0ada", "otelSpanID": "9312ad6ab7ff9fc8", "message": "name: \"recommendationCache\"\ndescription: \"stub: flags are disabled unless FAULTLINE_ENABLED_FLAGS names them\"\n", "otelServiceName": "recommendationservice"}
+2026-09-09T06:12:00+00:00  {"asctime": "2026-09-09 06:12:00,061", "levelname": "INFO", "name": "recommendationservice-server", "filename": "recommendation_server.py", "lineno": 46, "otelTraceID": "65defb26ba46b49e80e74ebe437a0ada", "otelSpanID": "62a700a366f8d543", "message": "[Recv ListRecommendations] product_ids=['66VCHSJNUP', 'OLJCESPC7Z', '6E92ZMYYFZ', '0PUK6V6EV0', '1YMWWN1N4O']", "otelServiceName": "recommendationservice"}
 ```
 
-_151 further lines are in the bundle._
+_183 further lines are in the bundle._
 
 ## The incident record
 
@@ -78,12 +78,11 @@ bundle are the tiebreak.
 
 ### What was observed
 
-The page was a single alert: `ServiceHighErrorRate` on **loadgenerator**, with **frontend**
-joining fifteen seconds later.
-It arrived 4m01s after onset.
+The page was `ServiceHighErrorRate` on **loadgenerator** and **frontend** together.
+It arrived 3m45s after onset.
 
-`ServiceNoTraffic` fired on **recommendationservice** at **T+6m15s**, a minute and
-three-quarters after the page and the only alert naming the broken service.
+`ServiceNoTraffic` fired on **recommendationservice** at **T+6m00s**, two and a half
+minutes after the page and the only alert naming the broken service.
 
 Three alerts across three services. The storefront loaded, product pages rendered, the
 basket and checkout worked. The recommendation strip on the home page was empty, and
@@ -143,7 +142,7 @@ absence arrived a full minute after the downstream errors did.
 ### Resolution
 
 The memory limit was restored. recommendationservice completed startup on its next
-attempt and the recommendation strip returned. Everything was clear 1m45s after the
+attempt and the recommendation strip returned. Everything was clear 1m01s after the
 fix.
 
 Class of fix: **config_revert**. Nothing was deployed and nothing needed rolling back;
@@ -151,13 +150,13 @@ one resource limit was wrong and was put back.
 
 ### Detection notes
 
-- Onset to first page: **4m01s**. A dependency whose failure is tolerated by its caller
+- Onset to first page: **3m45s**. A dependency whose failure is tolerated by its caller
   takes longer to page than one whose failure is fatal — partial degradation crosses a
   ratio threshold slowly.
 - Services alerting at the page: **2**. Over the whole incident: **3**, across 3 alerts.
 - Alerts that fired only during recovery: **none**.
 - **The page named neither the broken service nor anything adjacent to it.** frontend
-  and loadgenerator are the edge; the culprit appeared a minute and three-quarters later,
+  and loadgenerator are the edge; the culprit appeared two and a half minutes later,
   and only as an absence.
 - Did the loudest service turn out to be the culprit? **No.** frontend and loadgenerator
   alerted longest at 6.8 minutes each and neither was broken.

@@ -52,6 +52,14 @@ T7_28_FIRST_CAPTURE = "20260829T225404Z"
 T7_28_LAST_CAPTURE = "20260830T013651Z"
 T6_1_FIRST_CAPTURE = "20260908T045847Z"
 T6_1_LAST_CAPTURE = "20260908T140000Z"
+T6_1B_FIRST_CAPTURE = "20260909T025640Z"
+T6_1B_LAST_CAPTURE = "20260909T070000Z"
+"""**A second re-record, six hours after the first, and the reason is worth the extra window.**
+The first was made against a Tempo whose `max_block_duration` left its search blind to the last
+0-5 minutes - the window an investigation asks about. `compose/tempo.yaml` records the
+measurement. Fixing it moved `observability_digest` and left `compose_digest` alone, so this is
+the same world *era* and a different world to an agent; `evaldb.FINGERPRINT_INPUTS` is where that
+distinction is enforced."""
 """T6.1's re-record: thirteen bundles from 04:58:47Z, then one confirmation re-record of
 `cart-bad-image-tag` at 13:25Z (its first reading, 181s, was 61s below its historical minimum;
 the confirmation read 272s and both are published). The window's upper bound is rounded up past
@@ -63,6 +71,7 @@ RECORD_WINDOWS = (
     (T7_1_FIRST_CAPTURE, T7_1_LAST_CAPTURE, "T7.1"),
     (T7_28_FIRST_CAPTURE, T7_28_LAST_CAPTURE, "T7.28"),
     (T6_1_FIRST_CAPTURE, T6_1_LAST_CAPTURE, "T6.1"),
+    (T6_1B_FIRST_CAPTURE, T6_1B_LAST_CAPTURE, "T6.1b"),
 )
 
 WORLD_4A = "4a7690c6fdda"
