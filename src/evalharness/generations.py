@@ -79,7 +79,24 @@ WORLD_299 = "299d791c5e0d"
 WORLD_F5B = "f5bd108f4f70"
 WORLD_90E = "90e9f29e578e"
 """T6.1's world: Tempo beside Jaeger, and the collector exporting traces to both (ADR-0037).
-`observability_digest` moved with it, to `f3011ba83021`."""
+`observability_digest` moved with it, to `f3011ba83021`, and again to `7aaba3818737` when the
+trace store's block duration was fixed - see `CURRENT_OBSERVABILITY`."""
+
+CURRENT_OBSERVABILITY = "7aaba3818737582359ef74b125ae107096b2a8d90fc94d57c7af5ccc2fc676c8"
+"""The observability digest a figure at the current world is expected to carry.
+
+**Pinned rather than computed, for the same reason `WORLD_F5B` and its siblings are.** The first
+version of this read `provenance.observability_digest()` off the repository, which returns `None`
+when `world/` is not cloned - so README's generated table would have counted fifteen runs in CI and
+excluded them on the development Mac, and `test_readme_carries_exactly_what_the_tree_generates`
+would have passed in exactly one of the two places. A published figure's membership must not depend
+on whether the reader has cloned somebody else's repository.
+
+**Why it exists at all.** A generation is named by `compose_digest` alone, so the world whose Tempo
+was blind to the last five minutes and the world whose Tempo is not are one generation (Q31). This
+constant is what the scenario table's at-stamp columns compare against so that runs from the first
+cannot be printed as figures about the second. Move it when the observability files move, in the
+same commit that re-records the bundles."""
 
 WORLD_ERAS = (
     (T7_1_FIRST_CAPTURE, WORLD_4A),

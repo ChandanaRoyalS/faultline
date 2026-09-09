@@ -48,14 +48,26 @@ SCENARIO_ROOT = REPO_ROOT / "evals/scenarios"
 MEDIAN_RUN_USD = 0.53
 """Measured over the 87 recorded agent runs that carry a cost: median $0.53, range $0.26-$0.88.
 
+**Unmoved on 2026-09-09, and the reason is worth saying.** Dev sweep 12's first attempt ran 15
+scored runs at $0.56-$0.85 - inside the range, and with a median nearer $0.69 than $0.53, so the
+estimate this constant prints under-predicted that sweep by about a third. It is left alone because
+a run's cost is in the trajectory store rather than in its manifest, so unlike `DISCARD_RATE` this
+number cannot be recomputed from the committed tree and no guard asserts it. **Treat the printed
+estimate as a floor at this stamp**; the four-specialist pipeline costs more than the three-
+specialist one did, which is the whole reason prediction 11 registers a cost range.
+
 **Printed before the sweep starts, not estimated afterwards.** CLAUDE.md rule 8: a blocker with a
 price can be cleared; one without is indistinguishable from a blocker with no solution. An
 operator about to spend an hour of world time and real money should see the number first.
 """
 
-DISCARD_RATE = 0.15
-"""**22 discarded against 148 runs that started** - 126 scored plus those 22. A sweep is budgeted
+DISCARD_RATE = 0.13
+"""**24 discarded against 186 runs that started** - 162 scored plus those 24. A sweep is budgeted
 against the runs it will start, and a run that never started costs nothing to budget for.
+
+**0.15 → 0.13 on 2026-09-09**, when dev sweep 12's first attempt added 15 scored runs and no
+discards to the record. `test_the_correction_holds_on_the_committed_record` moved it: the constant
+is derived from the tree and is asserted against it, so it tracks rather than ages.
 
 **This read 0.33 for a day, and the 33% was half gate refusals.** 44 of 132 runs carried a
 `DISCARDED.md`, but 22 of those had no `injected_at` - they never started, so they cost nothing and

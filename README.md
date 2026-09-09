@@ -23,8 +23,13 @@ shows is `20260907T103142Z-cart-redis-misconfig`: `bad_config` against `bad_conf
 
 ## Results at a glance
 
-**Culprit service 0 / 0, fault class 0 / 0.** The table below is empty on purpose, and that is
-the honest state of this repository today.
+**Culprit service 0 / 0, fault class 0 / 0.** The first four columns are empty on purpose, and
+that is the honest state of this repository today. The pooled column is not: it holds **fifteen
+runs from dev sweep 12's first attempt**, which is context rather than a figure — that attempt
+declared R = 3 and the world gave each scenario one or two, and it ran against a trace store whose
+search was blind to the last five minutes of every incident
+([ADR-0037](docs/adr/0037-the-trace-analyst.md) §2). They are in
+[`evals/runs/`](evals/runs/) entire, and they are not a result.
 T6.1 (2026-09-08) added Tempo to the world and re-recorded all thirteen bundles against it, which
 moved the world generation to `90e9f29e578e` and the stamp to `prompts:06f24e827915`. **A figure
 belongs to the world it was measured on**, so nothing measured before today can appear in either
@@ -55,20 +60,20 @@ world at all; the zeros are the record. R=1 everywhere, so no row is reproducibl
 
 | scenario | split | n | class | abst | service | n, all stamps | class, all stamps |
 |---|---|---:|---:|---:|---:|---:|---:|
-| `ad-memory-squeeze` | dev | 0 | — | 0 | — | 0 | — |
-| `cart-bad-image-tag` | dev | 0 | — | 0 | — | 0 | — |
-| `cart-dependency-latency` | dev | 0 | — | 0 | — | 0 | — |
-| `cart-redis-misconfig` | dev | 0 | — | 0 | — | 0 | — |
-| `frauddetection-memory-squeeze` | dev | 0 | — | 0 | — | 0 | — |
-| `payment-telemetry-blackout` | dev | 0 | — | 0 | — | 0 | — |
-| `product-catalog-flag-failure` | dev | 0 | — | 0 | — | 0 | — |
-| `redis-cart-dependency-latency` | dev | 0 | — | 0 | — | 0 | — |
-| `shipping-quote-misconfig` | dev | 0 | — | 0 | — | 0 | — |
-| `shipping-wrong-image` | dev | 0 | — | 0 | — | 0 | — |
+| `ad-memory-squeeze` | dev | 0 | — | 0 | — | 1 | 0 / 1 |
+| `cart-bad-image-tag` | dev | 0 | — | 0 | — | 1 | 1 / 1 |
+| `cart-dependency-latency` | dev | 0 | — | 0 | — | 2 | 2 / 2 |
+| `cart-redis-misconfig` | dev | 0 | — | 0 | — | 2 | 1 / 1 |
+| `frauddetection-memory-squeeze` | dev | 0 | — | 0 | — | 1 | 1 / 1 |
+| `payment-telemetry-blackout` | dev | 0 | — | 0 | — | 1 | 1 / 1 |
+| `product-catalog-flag-failure` | dev | 0 | — | 0 | — | 1 | 1 / 1 |
+| `redis-cart-dependency-latency` | dev | 0 | — | 0 | — | 2 | 2 / 2 |
+| `shipping-quote-misconfig` | dev | 0 | — | 0 | — | 2 | 1 / 2 |
+| `shipping-wrong-image` | dev | 0 | — | 0 | — | 2 | 0 / 1 |
 | `email-wrong-image` | holdout | 0 | — | 0 | — | 0 | — |
 | `productcatalog-dependency-latency` | holdout | 0 | — | 0 | — | 0 | — |
 | `recommendation-memory-squeeze` | holdout | 0 | — | 0 | — | 0 | — |
-| **all** | | **0** | **—** | **0** | **—** | **0** | **—** |
+| **all** | | **0** | **—** | **0** | **—** | **15** | **10 / 13** |
 
 Regenerate with `uv run python -m evalharness.scenario_table --write`; `tests/test_scenario_table.py` fails when this block and the tree disagree.
 <!-- scenario-table:end -->

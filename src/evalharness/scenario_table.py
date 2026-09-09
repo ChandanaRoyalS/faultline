@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any
 
 from evalharness.evaldb import outcome_of
-from evalharness.generations import WORLD_90E, generation_of
+from evalharness.generations import CURRENT_OBSERVABILITY, WORLD_90E, generation_of
 from evalharness.run import counts_toward_aggregates
 from evalharness.scenario import Scenario
 
@@ -125,7 +125,7 @@ def _qualifies(manifest: dict[str, Any], world: str, observability: str | None =
         and not manifest.get("baseline")
         and outcome_of(manifest) == "scored"
         and generation_of(manifest).world == world
-        and (observability is None or _observability(manifest) == observability)
+        and _observability_agrees(manifest, observability)
     )
 
 
@@ -133,26 +133,25 @@ def _observability(manifest: dict[str, Any]) -> str | None:
     return ((manifest.get("freeze") or {}).get("world") or {}).get("observability_digest")
 
 
-def current_observability() -> str | None:
-    """The repository's observability digest, or `None` when `world/` is not cloned.
+def _observability_agrees(manifest: dict[str, Any], expected: str | None) -> bool:
+    """Whether this run's observability config is the one the current figures describe.
 
     **A generation is named by `compose_digest` alone, and that is not the whole world (T6.1).** On
     2026-09-08 fifteen runs were scored against a Tempo whose search was blind to the last five
     minutes; the fix moved `observability_digest` and left `compose_digest` where it was, so those
-    runs and every run made after the fix carry the same generation name. They are not the same
-    world to an agent, and this table's headline figures are about what an agent got right.
+    runs and every run made after carry the same generation name. They are not the same world to an
+    agent, and this table's headline figures are about what an agent got right.
 
-    So the at-stamp columns ask for **both** digests, and a run whose observability differs falls
-    out of them while staying in `evals/runs/` and in the pooled column. `None` disables the check,
-    which is what a clean clone without `world/` gets - it cannot compute the digest, and a
-    table that silently emptied itself there would be worse than one that pools.
+    **A manifest that never recorded the digest is not excluded.** Absent means unknown, not
+    different - the same rule `evaldb.fingerprint` applies through `missing`, and the reason the
+    first version of this function was wrong: it dropped every run whose freeze predates T7.15,
+    which is most of the record. Only a *recorded and differing* digest excludes a run, and it
+    excludes it from the at-stamp figures alone; `evals/runs/` and the pooled column keep it.
 
-    Naming the generation properly is `docs/QUEUE.md` Q31: it would rename every generation in
-    README, RESULTS and PLAN, which is a change that deserves its own registration.
+    Naming the generation properly is `docs/QUEUE.md` Q31.
     """
-    from evalharness.provenance import observability_digest
-
-    return observability_digest()
+    recorded = _observability(manifest)
+    return expected is None or recorded is None or recorded == expected
 
 
 def rows(
@@ -160,6 +159,7 @@ def rows(
     runs: Path = RUNS,
     scenarios: Path = SCENARIOS,
     world: str = CURRENT_WORLD,
+    observability: str | None = CURRENT_OBSERVABILITY,
 ) -> list[ScenarioRow]:
     """One row per unblocked scenario, dev first, then holdout, alphabetical within each."""
     # The top-level files only: `evals/scenarios/examples/` is the schema's worked example and
@@ -167,7 +167,6 @@ def rows(
     loaded = (Scenario.from_yaml(p) for p in sorted(scenarios.glob("*.yaml")))
     catalog = [s for s in loaded if not s.blocked]
     catalog.sort(key=lambda s: (s.split != "dev", s.id))
-    observability = current_observability()
     on_world = [m for m in _manifests(runs) if _qualifies(m, world)]
     qualifying = [m for m in on_world if _qualifies(m, world, observability)]
 

@@ -89,6 +89,7 @@ def _manifest(
     demo: bool = False,
     baseline: bool = False,
     world: str = st.CURRENT_WORLD,
+    observability: str | None = None,
     abstained: bool = False,
     correct: bool = True,
     service: bool | None = True,
@@ -99,7 +100,13 @@ def _manifest(
         "scenario_id": scenario,
         "injected_at": "2026-09-07T00:00:00+00:00",
         "demo": demo,
-        "freeze": {"world": {"compose_digest": world + "0" * 52, "host_platform": "Darwin/arm64"}},
+        "freeze": {
+            "world": {
+                "compose_digest": world + "0" * 52,
+                "host_platform": "Darwin/arm64",
+                **({"observability_digest": observability} if observability else {}),
+            }
+        },
     }
     if baseline:
         m["baseline"] = "b0"
@@ -188,3 +195,57 @@ def test_every_unblocked_scenario_is_a_row_and_no_blocked_or_example_one_is(tmp_
     assert not any(i.startswith("example") for i in ids)
     dev_then_holdout = [r.split for r in rows]
     assert dev_then_holdout == sorted(dev_then_holdout, key=lambda s: s != "dev")
+
+
+# --- a world is more than its compose files (T6.1, Q31) -----------------------------------------
+
+
+def test_a_run_on_a_different_observability_config_is_context_not_a_figure(tmp_path: Path) -> None:
+    """**A generation is named by `compose_digest` alone, and that is not the whole world.** On
+    2026-09-08 fifteen runs were scored against a Tempo whose search was blind to the last five
+    minutes; the fix moved `observability_digest` and left `compose_digest` where it was. Without
+    this the two would print as one set of figures about one world.
+
+    They stay in the pooled column, which is context and says so, and in `evals/runs/` entire.
+    """
+    scenario = "cart-redis-misconfig"
+    old, new = "0" * 64, st.CURRENT_OBSERVABILITY
+    runs = _tree(
+        tmp_path,
+        [
+            _manifest(scenario, observability=new),
+            _manifest(scenario, observability=old),
+        ],
+    )
+
+    row = next(r for r in st.rows("b6837dd449ca", runs=runs) if r.scenario_id == scenario)
+
+    assert row.at_stamp.n == 1, "only the run on this observability config is a figure"
+    assert row.on_world.n == 2, "both are context: the compose world is the same"
+
+
+def test_a_run_that_never_recorded_the_digest_is_unknown_rather_than_different(
+    tmp_path: Path,
+) -> None:
+    """**Absent means unknown, not different** - the rule `evaldb.fingerprint` applies through
+    `missing`. No freeze before T7.15 carries the field, which is most of the record, and the first
+    version of this filter dropped every one of them."""
+    scenario = "ad-memory-squeeze"
+    runs = _tree(tmp_path, [_manifest(scenario), _manifest(scenario, observability="0" * 64)])
+
+    row = next(r for r in st.rows("b6837dd449ca", runs=runs) if r.scenario_id == scenario)
+
+    assert row.at_stamp.n == 1, "the one with no digest counts; the one that differs does not"
+
+
+def test_the_expected_digest_is_pinned_rather_than_read_off_the_repository() -> None:
+    """**A published figure's membership must not depend on whether the reader cloned `world/`.**
+    Computing it meant `provenance.observability_digest()` returned `None` without the clone, so
+    README's table counted fifteen runs in CI and excluded them on the development Mac, and the
+    byte-for-byte guard above would have passed in exactly one of the two places."""
+    from evalharness import generations
+
+    assert len(generations.CURRENT_OBSERVABILITY) == 64
+    assert "observability_digest()" not in Path(st.__file__).read_text(), (
+        "the table must not compute the digest; move the constant when the files move"
+    )
