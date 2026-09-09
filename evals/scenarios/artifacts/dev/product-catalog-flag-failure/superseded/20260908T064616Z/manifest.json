@@ -1,0 +1,101 @@
+{
+  "alerts_at_fire": [
+    "ServiceHighErrorRate/loadgenerator"
+  ],
+  "alerts_over_window": [
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-08T06:49:31+00:00",
+      "last_seen": "2026-09-08T06:55:31+00:00",
+      "minutes_firing": 6.2,
+      "service": "loadgenerator"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-08T06:50:01+00:00",
+      "last_seen": "2026-09-08T06:55:31+00:00",
+      "minutes_firing": 5.8,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-08T06:50:01+00:00",
+      "last_seen": "2026-09-08T06:55:31+00:00",
+      "minutes_firing": 5.8,
+      "service": "productcatalogservice"
+    }
+  ],
+  "baseline_clear_at": "2026-09-08T06:46:16+00:00",
+  "bundle_schema_version": 2,
+  "capture_set": 2,
+  "expected_remediation_class": "config_revert",
+  "fault_class": "bad_config",
+  "injection": {
+    "method": "product-catalog-flag-failure",
+    "params": {
+      "env_var": "FAULTLINE_ENABLED_FLAGS",
+      "value": "productCatalogFailure"
+    },
+    "target": "featureflagservice"
+  },
+  "origin": "scenario:product-catalog-flag-failure",
+  "reachability": {
+    "answers_idle_or_absent": [],
+    "derived_from": "the bundle's own captures (T7.5)",
+    "none_can_answer": true,
+    "runtime_series": 0,
+    "target_log_lines": 2
+  },
+  "recorded_by": "evalharness.rehearse",
+  "recorder": {
+    "git_dirty": true,
+    "git_sha": "9e2097767bfe3ceab21adf0faaab3204fb864655",
+    "tool": "evalharness.rehearse"
+  },
+  "scenario_fingerprint": "78c464d798db218705fbd6f124c501902cbda526703cfc5355dc003ed2a0d645",
+  "scenario_id": "product-catalog-flag-failure",
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": 199,
+  "seconds_to_settle": 79,
+  "split": "dev",
+  "t_alert_firing": "2026-09-08T06:49:35+00:00",
+  "t_clear": "2026-09-08T06:55:54+00:00",
+  "t_inject": "2026-09-08T06:46:16+00:00",
+  "t_revert": "2026-09-08T06:54:35+00:00",
+  "title": "A feature flag turned on at the flag service makes product catalog fail one product",
+  "window": {
+    "end": "2026-09-08T06:57:54+00:00",
+    "start": "2026-09-08T06:41:16+00:00"
+  },
+  "world": {
+    "compose_digest": "90e9f29e578e7e98232ec89e92f2f5844a45482721acb52360010b97b387b7a5",
+    "docker_arch": "arm64",
+    "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
+    "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+    "host_platform": "Darwin/arm64",
+    "observability_digest": "f3011ba830219b3f530b0d954867924c9b4afe78fa42949335257f04a5d28410",
+    "observability_files": {
+      "compose/otelcol-extras.yml": "c3abca6bfdbab4a093de0c209a30f552a7c60d4cddd5a8cd1bed5bfea95db3b4",
+      "compose/prometheus/alert-rules.yml": "ae69d142bc571db5bd697f31368b8e7d5e533a3d0eecd4661ea2b29b7ea8672e",
+      "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+      "compose/prometheus/prometheus-config.yaml": "230505c37ddc4f95aa9ec1b085bf1ea32a98346e27e5f6f813aef230f3def749",
+      "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+      "compose/tempo.yaml": "7a9a7a455fd1581931a168ba9ae43a3dcf451328d192391244fbbfdc494dfcda",
+      "world/src/otelcollector/otelcol-config-extras.yml": "7f3afd57cd82f28d5c5948e843d7d594e60dfb0133611c540ff31fa31804ee92",
+      "world/src/otelcollector/otelcol-config.yml": "cf1645d90cc88effcb493edd196238bf73a14d1b30dc654325d25045be0377e5"
+    },
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice",
+    "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994"
+  },
+  "world_lock": {
+    "acquired": true,
+    "host": "chandanas-MacBook-Air.local",
+    "pid": 48903,
+    "reason": "rehearse product-catalog-flag-failure",
+    "since": "2026-09-08T06:46:11.646954+00:00",
+    "token": "48903-1788849971.646803"
+  }
+}
