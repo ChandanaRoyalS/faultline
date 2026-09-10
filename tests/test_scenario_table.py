@@ -90,6 +90,7 @@ def _manifest(
     baseline: bool = False,
     world: str = st.CURRENT_WORLD,
     observability: str | None = None,
+    ablation: list[str] | None = None,
     abstained: bool = False,
     correct: bool = True,
     service: bool | None = True,
@@ -110,6 +111,8 @@ def _manifest(
     }
     if baseline:
         m["baseline"] = "b0"
+    if ablation is not None:
+        m["ablation"] = ablation
     if discarded:
         m["discarded"] = {"reason": "no-alert"}
         return m
@@ -249,3 +252,49 @@ def test_the_expected_digest_is_pinned_rather_than_read_off_the_repository() -> 
     assert "observability_digest()" not in Path(st.__file__).read_text(), (
         "the table must not compute the digest; move the constant when the files move"
     )
+
+
+def test_an_ablation_arm_is_not_pooled_with_the_full_arm(tmp_path: Path) -> None:
+    """**Found on 2026-09-10, and it is the third of these.** T6.1 put `ablation` into
+    `evaldb.FINGERPRINT_INPUTS` so the two arms could never pool, and this table has its own
+    filter which did not know about it. Arm B's first six `--without traces` runs landed straight
+    into arm A's column: `ad-memory-squeeze` read `n = 5` with `3 / 5` on the service axis, four of
+    those runs measuring the opposite thing.
+
+    A key joining the fingerprint is not a key joining this filter. `observability_digest` was the
+    same hole two days earlier and the B0 arm was it before that.
+    """
+    scenario = "cart-redis-misconfig"
+    runs = _tree(
+        tmp_path,
+        [
+            _manifest(scenario, ablation=[]),
+            _manifest(scenario, ablation=None),
+            _manifest(scenario, ablation=["traces"], correct=False, service=False),
+        ],
+    )
+    row = next(r for r in st.rows("b6837dd449ca", runs=runs) if r.scenario_id == scenario)
+
+    assert row.at_stamp.n == 2, "the full arm only - an explicit [] and an absent key both count"
+    assert row.at_stamp.service_correct == 2
+    assert row.on_world.n == 2, "and the pooled column excludes it too: still a different pipeline"
+
+
+def test_the_repeats_sentence_is_read_off_the_rows(tmp_path: Path) -> None:
+    """The preamble said *"R=1 everywhere"* through every sweep in this repository and was still
+    saying it when arm A landed thirty runs at R = 3. A generated block may not carry a
+    hand-maintained claim about its own contents."""
+    scenario = "cart-redis-misconfig"
+    runs = _tree(tmp_path, [_manifest(scenario) for _ in range(3)])
+    rows = st.rows("b6837dd449ca", runs=runs)
+
+    assert "R = 3 on every dev scenario with a run" in st.render("b6837dd449ca", rows)
+
+    uneven = st.rows(
+        "b6837dd449ca",
+        runs=_tree(
+            tmp_path / "b",
+            [_manifest(scenario), _manifest(scenario), _manifest("cart-bad-image-tag")],
+        ),
+    )
+    assert "different numbers of runs at this stamp" in st.render("b6837dd449ca", uneven)

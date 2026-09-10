@@ -59,13 +59,14 @@ consecutive runs. No delta is claimed anywhere in this repository until that arm
 
 <!-- scenario-table:begin -->
 Per scenario. The first four columns are at `prompts:06f24e827915`, the stamp this
-repository ships, on the current world (`90e9f29e578e`): scored runs only, demos and the B0
-arm excluded. `class` and `service` are correct / answered; abstentions are counted in
-`abst`, not as wrong. The last two columns pool every stamp on this world - **context,
-not a figure**: a prompt change is a different pipeline, and the pooled column is here so
-a reader can see how thin `n` is at any one stamp. Holdout scenarios have no run on this
-world at all; the zeros are the record. R=1 everywhere, so no row is reproducible to ±1
-(RESULTS.md).
+repository ships, on the current world (`90e9f29e578e`): scored runs only, demos, the B0
+arm and ablation arms excluded. `class` and `service` are correct / answered;
+abstentions are counted in `abst`, not as wrong. The last two columns pool every stamp
+on this world - **context, not a figure**: a prompt change is a different pipeline, and
+the pooled column is here so a reader can see how thin `n` is at any one stamp. Holdout
+scenarios have no run on this world at all; the zeros are the record.
+R = 3 on every dev scenario with a run, which is what makes a row a small
+sample rather than a single observation (RESULTS.md).
 
 | scenario | split | n | class | abst | service | n, all stamps | class, all stamps |
 |---|---|---:|---:|---:|---:|---:|---:|

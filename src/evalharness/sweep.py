@@ -61,13 +61,17 @@ price can be cleared; one without is indistinguishable from a blocker with no so
 operator about to spend an hour of world time and real money should see the number first.
 """
 
-DISCARD_RATE = 0.13
-"""**24 discarded against 186 runs that started** - 162 scored plus those 24. A sweep is budgeted
-against the runs it will start, and a run that never started costs nothing to budget for.
+DISCARD_RATE = 0.11
+"""**24 discarded against the runs that started** - the scored ones plus those 24. A sweep is
+budgeted against the runs it will start, and a run that never started costs nothing to budget for.
 
 **0.15 → 0.13 on 2026-09-09**, when dev sweep 12's first attempt added 15 scored runs and no
-discards to the record. `test_the_correction_holds_on_the_committed_record` moved it: the constant
-is derived from the tree and is asserted against it, so it tracks rather than ages.
+discards to the record. **0.13 → 0.11 on 2026-09-10**, when arm A's thirty and arm B's six did the
+same. `test_the_correction_holds_on_the_committed_record` moved it both times: the constant is
+derived from the tree and is asserted against it, so it tracks rather than ages. **Expect it to
+keep falling while sweeps land clean runs**, and note what that means - this is a rate over the
+whole history, so a recorder that has got better shows up here as a smaller number rather than as
+a claim anyone had to make.
 
 **This read 0.33 for a day, and the 33% was half gate refusals.** 44 of 132 runs carried a
 `DISCARDED.md`, but 22 of those had no `injected_at` - they never started, so they cost nothing and

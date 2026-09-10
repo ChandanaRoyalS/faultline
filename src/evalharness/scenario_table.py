@@ -123,6 +123,16 @@ def _qualifies(manifest: dict[str, Any], world: str, observability: str | None =
         # `+baseline:B0`) is scored on the same axes and would otherwise be summed in as if
         # the control were the system - RESULTS.md gives the baselines their own column.
         and not manifest.get("baseline")
+        # **And the full arm only.** A `--without traces` run is a different pipeline in exactly
+        # the sense the line above means it: T6.1 put `ablation` in `evaldb.FINGERPRINT_INPUTS`
+        # *"so an ablation run can never pool with a full run"*, and this table has its own filter
+        # that did not know about it. Arm B's first six runs landed straight into arm A's column
+        # on 2026-09-10 - `ad-memory-squeeze` read `n = 5` and `3 / 5` on the service axis, four
+        # of those runs being an arm measuring the opposite thing. **Third time**: the same hole
+        # took `observability_digest` two days earlier and the B0 arm before that. A key joining
+        # the fingerprint is not the same as a key joining this filter, and the fingerprint is not
+        # what a reader of README sees.
+        and not (manifest.get("ablation") or [])
         and outcome_of(manifest) == "scored"
         and generation_of(manifest).world == world
         and _observability_agrees(manifest, observability)
@@ -191,18 +201,44 @@ def _cell(correct: int, answered: int) -> str:
     return "—" if answered == 0 else f"{correct} / {answered}"
 
 
+def _repeats_sentence(table: list[ScenarioRow]) -> str:
+    """How many runs each dev scenario got at this stamp, read off the rows rather than asserted.
+
+    **Because the hand-written version went stale the moment it mattered.** The preamble said
+    *"R=1 everywhere, so no row is reproducible to ±1"* through every sweep in this repository, and
+    then arm A of dev sweep 12 landed thirty runs at R = 3 beside a sentence still saying R = 1.
+    A generated block that carries a hand-maintained claim about its own contents has one claim
+    nobody regenerates.
+    """
+    counts = sorted({r.at_stamp.n for r in table if r.split == "dev" and r.at_stamp.n})
+    if not counts:
+        return "No dev scenario has a run at this stamp."
+    if len(counts) == 1:
+        n = counts[0]
+        if n == 1:
+            return "R = 1 on every dev scenario with a run, so no row is reproducible to +/-1."
+        return (
+            f"R = {n} on every dev scenario with a run, which is what makes a row a small\n"
+            "sample rather than a single observation (RESULTS.md)."
+        )
+    return (
+        f"**Dev scenarios got different numbers of runs at this stamp ({counts}).** That is a "
+        "sweep the world did not complete, not a design - see the sweep's own divergence report."
+    )
+
+
 def render(stamp: str, table: list[ScenarioRow], world: str = CURRENT_WORLD) -> str:
     """The Markdown README embeds, markers included. Deterministic for a given tree."""
     lines = [
         BEGIN,
         f"Per scenario. The first four columns are at `prompts:{stamp}`, the stamp this",
-        f"repository ships, on the current world (`{world}`): scored runs only, demos and the B0",
-        "arm excluded. `class` and `service` are correct / answered; abstentions are counted in",
-        "`abst`, not as wrong. The last two columns pool every stamp on this world - **context,",
-        "not a figure**: a prompt change is a different pipeline, and the pooled column is here so",
-        "a reader can see how thin `n` is at any one stamp. Holdout scenarios have no run on this",
-        "world at all; the zeros are the record. R=1 everywhere, so no row is reproducible to ±1",
-        "(RESULTS.md).",
+        f"repository ships, on the current world (`{world}`): scored runs only, demos, the B0",
+        "arm and ablation arms excluded. `class` and `service` are correct / answered;",
+        "abstentions are counted in `abst`, not as wrong. The last two columns pool every stamp",
+        "on this world - **context, not a figure**: a prompt change is a different pipeline, and",
+        "the pooled column is here so a reader can see how thin `n` is at any one stamp. Holdout",
+        "scenarios have no run on this world at all; the zeros are the record.",
+        _repeats_sentence(table),
         "",
         "| scenario | split | n | class | abst | service | n, all stamps | class, all stamps |",
         "|---|---|---:|---:|---:|---:|---:|---:|",
