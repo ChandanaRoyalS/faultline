@@ -1,0 +1,173 @@
+{
+  "incident_id": "cc103d59-e19f-4a05-87e6-9522a54ea558",
+  "trajectory_id": "eb04c6db-d734-4143-8c59-d7b0a2a7f8fd",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-bad-image-tag",
+  "verdict": {
+    "root_cause": "At ~05:25 checkoutservice began failing intermittently while still up: PlaceOrder requests enter and stall before the payment and email stages, with no error lines and no downstream status code emitted [tr_36f27ffc828b], and its error ratio moved from an exactly-flat zero baseline to bursty failures averaging ~7% [tr_dc3a850e378d]. Nothing changed on checkoutservice itself [tr_f65e8090bef6], and productcatalogservice emitted zero errors with no change near onset [tr_bcbd00cddb24, tr_997255ac4ee2]. The only change in the onset window across every service inspected is an unreverted cartservice image-reference update to a hotfix build at 05:23:37, ~3 minutes before onset, unlike earlier image updates which all carried reverts [tr_08a3daab77f0]. Cartservice sits early in the order path, upstream of payment, which is where checkout's requests die; the running cartservice artifact is the most likely cause.",
+    "service": "cartservice",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_08a3daab77f0",
+      "tr_36f27ffc828b",
+      "tr_dc3a850e378d"
+    ],
+    "reasoning": "Onset is pinned by a zero-variance baseline breaking at 05:25 [tr_dc3a850e378d], so the fault was newly introduced. The failure shape is a stall before the payment stage, not a fast failure or a crash [tr_36f27ffc828b], which points at an early dependency in the order path rather than checkout itself. Checkoutservice has no change to roll back [tr_f65e8090bef6] and productcatalogservice emitted zero errors throughout [tr_bcbd00cddb24], leaving the unreverted cartservice hotfix image at 05:23:37 as the only change temporally adjacent to onset [tr_08a3daab77f0]. Cartservice's own error metrics are unmeasurable (no samples in either window), so it is neither confirmed nor exonerated by metrics [tr_5e42d6b73fe2].",
+    "open_questions": [
+      "No per-dependency or per-RPC breakdown was collected for checkoutservice, so the stalling callee is inferred, not observed [tr_dc3a850e378d].",
+      "Cartservice and shippingservice error-ratio series returned no samples at all, so neither is measured; empty is not healthy [tr_5e42d6b73fe2, tr_c7753157fef4].",
+      "No latency data was gathered for any service, and no cartservice logs were queried to confirm the new image is misbehaving.",
+      "Change history for payment, currency, email, ad and recommendation was never inspected [tr_f65e8090bef6]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "An uninspected checkout dependency (payment, currency, email) became slow, and checkoutservice hangs waiting on it.",
+        "service": "checkoutservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "Consistent with the stall signature, but no change record or metric was gathered for those services, and the log evidence shows the request dying before the payment stage is reached [tr_36f27ffc828b]."
+      },
+      {
+        "root_cause": "The new cartservice hotfix image carries a wrong runtime setting rather than a broken build, and that value breaks the cart call path.",
+        "service": "cartservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The recorded change is an image reference, not a config value; the recurring REDIS_ADDR override was reverted ~6.8h before onset and was not in effect [tr_08a3daab77f0]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five"
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "checkoutservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29761,
+    "pulled_tokens": 4745,
+    "pull_rate": 0.1375,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 483,
+        "content_tokens": 485,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1478,
+        "content_tokens": 1482,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9405,
+        "content_tokens": 9381,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8464,
+        "content_tokens": 8466,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9931,
+        "content_tokens": 9909,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_08a3daab77f0",
+      "tr_36f27ffc828b",
+      "tr_dc3a850e378d"
+    ],
+    "expected_effect": "After redeploying cartservice at its pre-05:23:37 image tag, checkoutservice logs should again show payment, email and queue-write lines following each PlaceOrder entry [tr_36f27ffc828b], and the checkoutservice error-ratio series should fall from ~7% bursty back to flat zero as in baseline [tr_dc3a850e378d]. Confirmation must come from checkoutservice telemetry, since cartservice's own error-ratio series returns no samples.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "If ten minutes after the recreate checkoutservice error ratio is still bursty and PlaceOrder lines still have no following stage line, the stall is not in the cart call and the hotfix is exonerated. Also: the change entry records 'None -> hotfix.2' [tr_08a3daab77f0]; if no concrete prior tag exists for cartservice, the precondition fails and this must be withdrawn. The stalling callee was inferred, never observed [tr_dc3a850e378d].",
+    "risk": "If the fault is in payment, currency, shipping or checkout's own state, this reverts a healthy service, reintroduces whatever the hotfix fixed, and delays the real fix by the confirmation window. Cartservice has no error or latency series [tr_5e42d6b73fe2], so a rollback that worsens it is only visible indirectly.",
+    "blast_radius": "One service recreated; frontend and checkoutservice see cart RPC connection resets for the recreate duration, and loadgenerator sessions on those paths register errors. Cart contents live in redis-cart, so persisted state should survive."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity with simultaneous checkout, frontend, and loadgenerator alerts indicates a user-facing failure across the request path, not a single quiet warning. No open incidents to attribute it to, and the alerts alone do not distinguish a bad deploy from a failing downstream dependency."
+  }
+}

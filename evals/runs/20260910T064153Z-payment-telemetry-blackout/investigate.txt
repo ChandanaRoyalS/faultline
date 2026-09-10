@@ -1,0 +1,44 @@
+incident 587cba3c-d6a9-47c1-9b0c-f9bdeb0271ed  state triaging  anchor 06:48:00
+triage: 3 services, severity critical, start from paymentservice, 2 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 1c20ee88-41dc-4fda-8946-10a20ea081a6
+triage judged: investigate (medium confidence, suspects unknown)
+  A critical alert on paymentservice with checkout and frontend downstream is not something to dismiss without evidence, and no open incident could account for it. Nothing in the alert alone points to a specific fault class.
+investigation: 2 round(s), 4 dispatch(es), 17 step(s)
+  WITHHELD traces on paymentservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : paymentservice
+  expect      : Restoring paymentservice's prior environment removes OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4317 (the four earlier cycles show the prior state is the variable unset, i.e. the default collector endpoint), so trace export should resume to the real collector. Observable as: (1) the span-derived series calls_total{service_name="paymentservice"} starts returning samples in Prometheus, so the error-ratio query in [tr_a32af0265a24] stops being empty and yields a value (expected near zero, matching the clean logs); (2) paymentservice spans reappear as children of checkoutservice traces; (3) paymentservice logs continue the charge-received / transaction-complete pairs seen through 06:49:54 [tr_1aeca8c4ed2c] with only a short gap while the container is recreated, and no new error lines. The proposal predicts telemetry returning, not payment behaviour changing — the payment path is already healthy.
+  within      : 420s
+  risk        : The payment path is currently working — charges completing successfully through the end of the observed window [tr_1aeca8c4ed2c] — so this recreates a healthy container for a telemetry-only benefit. In-flight charge RPCs at the moment of recreate are dropped; if the diagnosis is wrong the incident is untouched and we have added a self-inflicted gap in payment availability plus a hostname/container change that further muddies the already-truncated log timeline. If the loopback endpoint was set deliberately by platform-automation as part of an in-progress operation, reverting it races with that automation and may flap. Reverting also moves trace-export traffic back onto the real collector; if the collector is itself unhealthy (never measured here), paymentservice could take on export back-pressure it does not have while pointed at a dead loopback port.
+  blast radius: One service recreated: paymentservice. Its named caller checkoutservice sees connection resets / failed Charge calls for the duration of the recreate, and that surfaces to frontend as checkout failures for those seconds — checkoutservice error ratio is currently near zero [tr_712a833fa9e8], so a brief spike there is the expected footprint of this action and should not be mistaken for the incident worsening. The reverted value is a telemetry dependency address, so the OTLP collector also sees paymentservice trace traffic arrive where it had none.
+  if wrong    : If, 5-7 minutes after the recreate, the paymentservice error-ratio / calls_total query is still empty, the missing series is not caused by the loopback endpoint — it is a naming, label or instrumentation mismatch that predates 06:42 (the pre-edit baseline window is equally empty [tr_a32af0265a24]), and the causal link from the 06:42 change to the alert is broken. Also falsifying: paymentservice spans still absent from checkoutservice traces after the revert; or platform-automation re-setting the variable within minutes (it has done nine such edits, all automated [tr_9a64d95e4027]), which would mean the fix must be made in the automation, not on the service. Note that the signal which actually fired the 06:48 alert was never recovered, so this action cannot be confirmed to clear the alert — only to restore trace export. If the alert persists with telemetry restored, the real fault is still unidentified.
+  rests on    : tr_9a64d95e4027, tr_a32af0265a24, tr_1aeca8c4ed2c
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 17249 pushed / 6065 pulled (pull rate 0.2601), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_9a64d95e4027, tr_a32af0265a24, tr_1aeca8c4ed2c, tr_712a833fa9e8
+  root cause  : Six minutes before onset, platform-automation set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4317 on paymentservice and, unlike the four preceding set/revert cycles in the same window, never reverted it, so the service entered the incident with a trace-export endpoint pointing at a loopback port with no collector behind it [tr_9a64d95e4027]. The wrong value is itself the failure: paymentservice's spans never reach the collector, which is consistent with the empty span-derived error-ratio series [tr_a32af0265a24]. The payment path itself is healthy - charges continued completing successfully with no error, auth, validation or downstream-failure lines through 06:49:54 [tr_1aeca8c4ed2c] - and the caller checkoutservice showed near-zero error ratio in the window [tr_712a833fa9e8]. This is a telemetry-visibility failure from a wrong config value, not a payment outage.
+  OPEN        : What signal actually fired the paymentservice alert at 06:48 - no error, latency or saturation series for paymentservice was recovered [tr_a32af0265a24].
+  OPEN        : Whether paymentservice calls_total ever existed under that label: the pre-edit baseline is also empty [tr_a32af0265a24], which would break the causal link to the 06:42 change.
+  OPEN        : 06:18-06:48 logs are truncated and unobserved [tr_1aeca8c4ed2c], and the third triaged service plus two unmeasured edges were never dispatched.
+
+flags: none
+
+retrieval: exclude_origin='scenario:payment-telemetry-blackout', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T064153Z-payment-telemetry-blackout/587cba3c-d6a9-47c1-9b0c-f9bdeb0271ed-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T064153Z-payment-telemetry-blackout/587cba3c-d6a9-47c1-9b0c-f9bdeb0271ed-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 6762.99it/s]

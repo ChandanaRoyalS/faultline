@@ -1,0 +1,160 @@
+{
+  "incident_id": "1e3ccc6e-5e1b-4a84-8dd6-ae9518f43f26",
+  "trajectory_id": "76956118-0196-4aca-b75b-2af228f25af8",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origin": "scenario:frauddetection-memory-squeeze",
+  "verdict": {
+    "root_cause": "At 06:20:12, roughly six minutes before onset, platform automation applied a resource-limit change to frauddetection-service that set a memory cap of 200m where none had previously been configured [tr_9628629cabea]. The JVM cannot live inside that cap: from ~06:20 onward the Loki stream contains nothing but a repeating three-line JVM/OpenTelemetry startup banner at ~60-second intervals (06:21:22, 06:22:15, 06:23:18, 06:24:20, 06:25:22, 06:26:24, 06:27:27), with the healthy Kafka record-consumption output that was present at 05:56-05:57 stopping entirely [tr_375a5b63f2a2]. The process dies without writing any exception, panic or rejection line, which is the signature of an external kill (OOM killer) rather than an in-process fault [tr_375a5b63f2a2]. The service is therefore in a crash-restart loop because it is being terminated for exceeding a memory allocation it cannot fit in \u2014 the failing mechanism is memory exhaustion against the newly imposed 200m cap, with the limit edit as the trigger. Three earlier lower/revert cycles at ~21h, ~18h and ~14h before onset each ended when automation restored the limit ~10-11 minutes later; the onset-adjacent lowering had no matching revert at capture time, so the bad cap was still in force [tr_9628629cabea].",
+    "service": "frauddetectionservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_9628629cabea",
+      "tr_375a5b63f2a2",
+      "tr_749b14d0b8a1",
+      "tr_1229d1eb8d69"
+    ],
+    "reasoning": "Two independent lines converge on the same 06:20 timepoint. The change history gives a single, precisely-timed, un-reverted memory-limit lowering to 200m on this exact service, from a single automated actor, with no deploy, no flag flip and no application-config edit anywhere in the 24h window [tr_9628629cabea]. The logs give the consequence: healthy Kafka consumption before the change, then a metronomic ~60s JVM restart cadence beginning at the same time, with the process never reaching steady-state work and never emitting a diagnostic before dying [tr_375a5b63f2a2]. A process that is torn down repeatedly without logging its own failure is being killed from outside, and the only outside actor introduced minutes earlier is a memory cap. The specialists also actively ruled out the competing shapes: no exception/stack trace, no per-request rejections, no hung-but-alive process, and no javaagent initialisation failure (the agent banner completes on every restart) [tr_375a5b63f2a2]. The prior three lower-then-restore cycles establish that this automation's lowered value is not survivable and that restoring the limit is what previously ended the condition [tr_9628629cabea]. I class this as resource_exhaustion rather than bad_config because what the service is doing wrong right now is running out of memory and being killed for it; the edit is how it started, exhaustion is the mechanism. The metric dispatches contribute almost nothing: the error-ratio series is empty in both the incident and the baseline windows and in a separate 6h comparison, which the specialists correctly read as an instrumentation/label gap rather than a behavioural signal, and which explicitly leaves the OOMKill and memory-working-set question unaddressed [tr_749b14d0b8a1] [tr_1229d1eb8d69]. That absence is why confidence is medium rather than high: the causal chain is inferred from timing plus log shape, not from a direct OOMKill or memory-vs-limit reading.",
+    "open_questions": [
+      "No container_memory_working_set, container_spec_memory_limit, OOMKill counter or kube restart-count data was ever retrieved, so the OOM kill is inferred from log shape and timing rather than directly observed [tr_1229d1eb8d69].",
+      "The kill could be a liveness-probe restart rather than an OOM kill; both produce a silent teardown with no application log line, and nothing dispatched distinguishes them.",
+      "Why the calls_total series is empty for this service across all queried windows including healthy baselines is unexplained \u2014 an instrumentation or label mismatch that also means we cannot confirm the service was serving traffic before onset except via the Kafka consumption lines [tr_749b14d0b8a1].",
+      "Whether the platform automation will revert this lowering on its own (as it did after ~10-11 minutes in the three prior cycles) or whether this instance is stuck, and what drives the automation to lower the limit at all, is unknown [tr_9628629cabea].",
+      "Blast radius was scoped to one service; no dispatch checked whether downstream consumers of frauddetection (or the Kafka topic backlog) are degraded, so downstream impact is unmeasured."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The 200m cap is not being exceeded; instead the container is being restarted by a failing liveness/readiness probe, and the restart loop is a probe-configuration problem.",
+        "service": "frauddetectionservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Nothing in the change history shows a probe or application-config edit \u2014 all seven recorded changes are resource_limits on this one target [tr_9628629cabea] \u2014 so this hypothesis needs an unobserved trigger to explain onset at exactly 06:20, whereas the memory cap explains it directly.",
+        "confidence": "low"
+      },
+      {
+        "root_cause": "The JVM fails to initialise at all under a 200m cap (heap reservation rejected at startup), making this a start-up failure of the configured value rather than gradual memory growth to an OOM kill.",
+        "service": "frauddetectionservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Mechanically near-identical and cured by the same revert, but the logs show the JVM getting far enough to load JAVA_TOOL_OPTIONS and print the OpenTelemetry agent banner on every cycle before dying [tr_375a5b63f2a2], which is more consistent with running and then being killed than with refusing to start; either way the mechanism is memory, so this is a sub-variant rather than a competing cause.",
+        "confidence": "low"
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. From the first restart after the change, the runtime could not complete a startup\ninside the new limit: it",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m50s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **2**. Over the",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 18270,
+    "pulled_tokens": 2881,
+    "pull_rate": 0.1362,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 365,
+        "content_tokens": 368,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1462,
+        "content_tokens": 1466,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 5242,
+        "content_tokens": 5218,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5136,
+        "content_tokens": 5138,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 6065,
+        "content_tokens": 6043,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "frauddetectionservice",
+    "rests_on": [
+      "tr_9628629cabea",
+      "tr_375a5b63f2a2"
+    ],
+    "expected_effect": "Restoring the pre-06:20:12 config removes the memory=200m cap. In Loki under {service=\"frauddetection-service\"} the ~60s repeating JVM/OpenTelemetry startup triple should stop recurring (no new banner for two consecutive minutes) and the 05:56-05:57 workload lines should return: 'Consumed record with orderId ... total count to: N' with a rising counter. The log stream is the only confirmation channel, since calls_total is empty for this service even in healthy baselines [tr_749b14d0b8a1].",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if the ~60s startup banner still repeats and no consumption lines appear 3-5 minutes after the revert - which would point at a liveness-probe restart, indistinguishable from an OOM kill in what was dispatched. Also weakened if a fresh resource_limits lowering appears within ~15 minutes, as in the three prior cycles; the durable fix is retuning that automation, which is outside this system.",
+    "risk": "Forces one more container recreate and a Kafka consumer-group rebalance, losing in-process offsets/counter state (possible duplicate or skipped records). If the cap was deliberate containment of a real memory leak, removing it lets the JVM grow unbounded and converts a contained crash-loop into host-level memory pressure affecting co-located containers. No memory working-set, limit or OOMKill series was ever retrieved [tr_1229d1eb8d69], so the mechanism is inferred, not measured.",
+    "blast_radius": "frauddetectionservice, already fully down in a restart loop, so little additional availability is lost. Downstream consumers of its fraud verdicts and the Kafka topic backlog were never measured, so they see behaviour change at revert time with no baseline. Other members of the consumer group see a rebalance."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A single critical alert on frauddetectionservice with no open incidents to attribute it to and no benign pattern to dismiss it by. Nothing here can be waved off, so it warrants investigation even though the alert alone suggests no particular fault class."
+  }
+}

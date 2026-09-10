@@ -1,0 +1,176 @@
+{
+  "incident_id": "913f0b02-1fba-4370-a4b9-a81f83b88981",
+  "trajectory_id": "359a59d1-9a7e-4352-bf05-d52b9172c0d6",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-dependency-latency",
+  "verdict": {
+    "root_cause": "A platform-automation traffic-shaping container was attached to cartservice's network namespace ~3 minutes before onset, injecting a fixed 300ms egress delay on eth0 with no jitter, and \u2014 unlike every prior iteration of the same ~3-hourly automation cycle \u2014 the matching removal step never ran, so the delay was still in effect at and after onset [tr_b2e50e2b8ae3]. cartservice itself kept serving normally (dense, error-free request handling through 05:48:57, no restarts, no backend errors) [tr_cb8c4d5a43e7], so the failure is not in cart's own logic but in how long its callers wait on it: checkoutservice, which sits directly on the cart call path, went from a near-zero error ratio to a mean ~354x higher with bursts up to two-thirds of requests failing [tr_04f6a104bf02], and frontend/loadgenerator alerted seconds later as the error propagated toward the caller. The mechanism is injected dependency latency in the cart call path, not a broken artifact or a semantically wrong setting value.",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_b2e50e2b8ae3",
+      "tr_cb8c4d5a43e7",
+      "tr_04f6a104bf02",
+      "tr_a50c82ffc90e"
+    ],
+    "reasoning": "Three findings have to be reconciled. First, cartservice alerted but shows no fault of its own: its logs contain only routine INFO cart operations at both ends of the window, with no exceptions, no crash-loop or startup banners, and no backend connection failures [tr_cb8c4d5a43e7]. A service that is healthy in its own logs but implicated by alerting is usually slow rather than broken. Second, the only change close to onset is a latency-injecting sidecar on cart's network namespace, 300ms fixed egress delay, attached ~3 minutes before onset with no removal recorded \u2014 and the specialist established that the same cycle had completed a removal step on at least four prior iterations, making the un-removed sidecar the single anomalous element of an otherwise routine change pattern [tr_b2e50e2b8ae3]. The two competing change hypotheses in that same record are eliminated on timing: the hotfix image was reverted ~13 minutes before onset, and the REDIS_ADDR override was reverted ~7.2 hours before onset [tr_b2e50e2b8ae3]. Third, the failure signature is downstream, in the caller: checkoutservice's error ratio is two-plus orders of magnitude above baseline with high dispersion, consistent with intermittent timeout bursts rather than a hard break [tr_04f6a104bf02]. Added 300ms per cart egress, applied to a checkout flow that makes several cart calls, is exactly the shape that pushes a fraction of checkout requests past their deadline while cart itself logs every one of those requests as served. The cartservice error-ratio metric is silent in both incident and baseline windows and therefore carries no counter-evidence either way \u2014 the absence predates the incident and is an instrumentation gap, not a symptom [tr_a50c82ffc90e]. I name cartservice rather than checkoutservice because checkoutservice is where the errors surfaced, while the injected delay lives in cart's network namespace; removing that sidecar is what would make checkout's timeouts stop.",
+    "open_questions": [
+      "No latency measurement for cartservice was obtained \u2014 the 300ms delay's actual effect on cart response times and on checkout's p99 is inferred from the shaping configuration, not observed.",
+      "The single change point in checkoutservice's error ratio is at 05:25, ~18 minutes before the sidecar was attached at 05:43 [tr_04f6a104bf02]. This is unexplained: either the checkout metric window (05:17 onward) was too short to place the change point reliably, or something degraded checkout before the shaping was applied. This is the strongest piece of evidence against the verdict and it was not resolved.",
+      "No checkoutservice logs were pulled, so it is unconfirmed that checkout's errors are timeouts/deadline-exceeded against cartservice rather than failures against payment, email or another downstream.",
+      "The cartservice log result was truncated and returned nothing from 05:47 itself [tr_cb8c4d5a43e7], so cart's behaviour at the exact onset minute is unobserved.",
+      "Whether the shaping sidecar has since been removed by a later automation step, and why the removal step in this cycle did not fire, is unknown.",
+      "Triage reported 4 unmeasured edges; no service between cart and the frontend was examined, so an intermediate amplifier cannot be excluded."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A downstream dependency of checkoutservice (payment, shipping or similar) degraded around 05:25 and checkoutservice's errors are timeouts against it, with the cart shaping sidecar an unrelated coincidence.",
+        "service": "checkoutservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "It fits the 05:25 change point better than the shaping sidecar does, but nothing was dispatched against any checkout dependency, so it rests entirely on a timing gap rather than positive evidence; meanwhile the shaping sidecar is a concrete, still-active latency injection on a service that alerted in the same second as checkout."
+      },
+      {
+        "root_cause": "The cartservice image revert ~13 minutes before onset restored an artifact that cannot correctly serve current traffic, and checkout's errors are cart's semantic failures surfacing at the caller.",
+        "service": "cartservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "cartservice's logs show cart adds, gets and empties completing normally through 05:48:57 with no errors or restart banners [tr_cb8c4d5a43e7], which is not what a wrong or unstartable artifact looks like; the revert also returned the service to the image it had run before the hotfix."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / Resolution: `REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and\nthe no-traffic alerts cleared \u2014 those six services had never been broken, only starved.\nEverything was clear at **T+10m32s**, 3m01s after the fix.\n\nClass of fix: **config_revert**. Nothing had",
+    "redis-cart-dependency-latency / Resolution: The delay was removed from the Redis container's interface and latency returned to baseline as the\nalert windows drained. **Class of fix: `restart`** - the intervention was on the container carrying\nthe fault, not a revert of any application configuration. Nothing about cartservi",
+    "cart-bad-image-tag / Root cause: cartservice was pointed at an image tag that had never been published, and the service\nceased to exist. Redis was fine, the network was fine, the code was fine \u2014 there was no\nrunning copy of the code for any of that to matter to.\n\nIts apparent zero error rate was an absence of da"
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "cartservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 16586,
+    "pulled_tokens": 3319,
+    "pull_rate": 0.1667,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 472,
+        "content_tokens": 474,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1449,
+        "content_tokens": 1453,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 4635,
+        "content_tokens": 4611,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 4479,
+        "content_tokens": 4481,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 5551,
+        "content_tokens": 5529,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_b2e50e2b8ae3",
+      "tr_04f6a104bf02",
+      "tr_cb8c4d5a43e7"
+    ],
+    "expected_effect": "Removing the 300ms egress delay attached at 05:43:42 and recreating cartservice should be visible at its callers: checkoutservice error ratio falls from incident mean ~0.17 (peaks ~0.67) back under 0.01 for two consecutive 2m windows, and frontend/loadgenerator alerts clear. Cart's own error-ratio series emits no samples, so confirmation must be read at checkoutservice and frontend.",
+    "confirm_within_seconds": 420,
+    "if_wrong": "Falsified if checkout's error ratio stays above ~0.01 five to seven minutes after the recreate. That would support the unresolved objection that checkout's only change point is at 05:25, ~18 minutes before the sidecar attached, pointing at a payment/email/shipping/currency path or an unexamined intermediate hop. Also falsified if the recreate leaves the shaping container attached to cart's netns, in which case nothing changed. No cart or checkout latency was ever measured, so the delay's effect is inferred, not observed.",
+    "risk": "cartservice is currently healthy and serving without errors; recreating it drops in-flight cart calls and its cache, causing a fresh burst of checkout/frontend errors that could be mistaken for worsening. It also destroys the live shaping sidecar, the only physical evidence of the incomplete automation cycle. If the real cause is downstream of checkout, this buys nothing and delays the right fix.",
+    "blast_radius": "cartservice for the duration of the recreate; checkoutservice sees connection resets on the cart call path, propagating to frontend and loadgenerator. The stuck automation cycle may reapply shaping on its next ~3-hourly run unless the automation is also addressed."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "low",
+    "reasoning": "Four services alerted within seconds along the cart/checkout/frontend path, which is a coordinated multi-service failure rather than an isolated warning. No open incident covers it, and the simultaneity suggests a shared downstream dependency."
+  }
+}

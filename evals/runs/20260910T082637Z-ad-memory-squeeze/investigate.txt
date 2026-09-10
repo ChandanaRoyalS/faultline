@@ -1,0 +1,16 @@
+incident 118ab8d8-8f84-4175-bdaf-d5ec9d24a02b  state triaging  anchor 08:30:00
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> failed
+trajectory: fcd7fef0-4978-4dbe-a679-84ece4799d40
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend plus the load generator simultaneously indicate user-facing failure, not a lone synthetic blip, and no open incident covers it. Fault class is undetermined until a downstream dependency is checked.
+
+FAILED MID-INVESTIGATION: BadRequestError: Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CeuT7BgVDkVMsSoWD1rJr'}
+the trajectory holds everything that ran before the failure
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8542.20it/s]

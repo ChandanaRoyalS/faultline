@@ -1,0 +1,176 @@
+{
+  "incident_id": "afbce06a-4265-4a86-a549-d36655a16fad",
+  "trajectory_id": "2424cc75-f6ed-483d-8362-14211b591033",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-redis-misconfig",
+  "verdict": {
+    "root_cause": "At 06:00:31, ~2 minutes before onset, platform-automation set REDIS_ADDR=redis-cart:6380 on cartservice and, unlike the four earlier occurrences of the same automated cycle, never reverted it [tr_374c3515f9cb]. That port value is wrong: cartservice started cleanly at 05:33 against the standard Redis port and bound its listener on 7070, but from ~06:02 every start attempt dials the new port, times out, and dies with an unhandled ApplicationException in RedisCartStore.EnsureRedisConnected before the listener is bound [tr_5da85760ac8b]. With nothing listening on 7070, callers see transport refusal: frontend logs gRPC 14 (no connection established) and a status 13 naming a cart failure fetching the user cart, dialing 172.18.0.8:7070 refused [tr_02a9dbc72d4c]. The wrong address value is itself the failure mechanism.",
+    "service": "cartservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_374c3515f9cb",
+      "tr_5da85760ac8b",
+      "tr_02a9dbc72d4c",
+      "tr_d63cedf2f39f",
+      "tr_6a6a8616ae1e",
+      "tr_2847de2abd5a",
+      "tr_fbb2d5e02a05"
+    ],
+    "reasoning": "Change, cartservice logs, and caller logs converge. The only still-active change adjacent to onset is the unreverted Redis address edit; the image change was reverted ~29m before onset and the 300ms traffic-shaping sidecar removed ~10m before onset, so neither was in effect [tr_374c3515f9cb]. cartservice logs show healthy start on the old port then a crash loop on the new one, dying before bind [tr_5da85760ac8b], which predicts exactly the connection-refused signature frontend reports on 7070 with no deadline-exceeded codes [tr_02a9dbc72d4c]. Frontend is exonerated: no changes in 24h [tr_6a6a8616ae1e] and its error ratio fell [tr_2847de2abd5a]. checkoutservice is a victim - error ratio also fell [tr_fbb2d5e02a05], no error logs, order flow truncating after the start entry [tr_d63cedf2f39f]. Not bad_deploy (intended image running), not dependency_latency (hard refusal, not a wait), not resource_exhaustion (orderly managed exception, not an OOM kill) [tr_5da85760ac8b].",
+    "open_questions": [
+      "Whether redis-cart is genuinely absent on 6380 or the backend is separately down - redis-cart itself was never inspected.",
+      "Why checkout truncates silently rather than logging a refusal [tr_d63cedf2f39f], and why frontend's UNAVAILABLE errors already appear at 05:33, before the 06:00:31 edit [tr_02a9dbc72d4c].",
+      "cartservice emits no call metrics in either window [tr_48c5e62128bc], so restarts, memory and volume are unmeasured; the ten other downstream services' change state is also unqueried."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "redis-cart is itself down or relocated, and cartservice's startup failure reflects a dead dependency rather than a wrong value.",
+        "service": "redis-cart",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "cartservice reached the same host successfully at 05:33; the only variable that changed is the port in the config [tr_5da85760ac8b, tr_374c3515f9cb]."
+      },
+      {
+        "root_cause": "A second, independent hang in checkout's payment/email/queue path is the real user-visible failure, with cart refusal incidental.",
+        "service": "checkoutservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Checkout shows no errors and no new error elevation [tr_d63cedf2f39f, tr_fbb2d5e02a05], and the cart dependency is explicitly named in frontend's failure detail [tr_02a9dbc72d4c]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five",
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **3m30s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 3\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence two and a\n  half minutes la",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse"
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "checkoutservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 30977,
+    "pulled_tokens": 6820,
+    "pull_rate": 0.1804,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 481,
+        "content_tokens": 483,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1990,
+        "content_tokens": 1994,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9661,
+        "content_tokens": 9637,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8688,
+        "content_tokens": 8691,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10157,
+        "content_tokens": 10135,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_374c3515f9cb",
+      "tr_5da85760ac8b",
+      "tr_02a9dbc72d4c"
+    ],
+    "expected_effect": "Restoring cartservice's pre-06:00:31 environment removes REDIS_ADDR=redis-cart:6380 and returns the Redis target to the standard port used during the clean 05:33 start. On the recreated container, cart-service logs should show the 05:33-shaped startup sequence again within one start cycle: 'Connecting to Redis: redis-cart:6379', 'Successfully connected to Redis', 'Small test result: OK', 'Initialization completed', and a listener bind on 7070. The unhandled ApplicationException from RedisCartStore.EnsureRedisConnected should stop recurring, and the ~30-60s restart cadence should stop (no new process-start lines after the first successful start). Downstream, frontend's error stream should stop producing the status-13 line naming a dial to 172.18.0.8:7070 connection refused, and the grpc-js 'code 14 No connection established' volume should fall. Note that frontend error-ratio metrics will not be a useful confirmation signal here (aggregate ratio fell during the incident, tr_2847de2abd5a is not cited for that reason), and cartservice emits no call metrics at all, so confirmation must come from logs: cart-service startup lines and absence of the 7070 refusal string in frontend.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, after the recreate, cart-service logs still show a Redis connect timeout and the same ApplicationException \u2014 now against the standard port \u2014 which would mean redis-cart itself is down or absent rather than the address being wrong (this was never inspected and is an open question). Also falsified, partially, if cartservice binds 7070 cleanly and frontend continues to emit 'code 14 No connection established' at a similar rate: those errors were already present at 05:33, before the 06:00:31 edit, so a second, unexplained source of UNAVAILABLE exists that this action does not touch. Neither outcome would be visible in metrics \u2014 cartservice has no calls_total series in either window \u2014 so if log lines are also unavailable after the recreate, treat the action as unconfirmed rather than successful.",
+    "risk": "If the diagnosis is wrong and redis-cart is genuinely unreachable on any port, this recreates a healthy-image container into the same crash loop and costs one more outage cycle without gain. The recreate itself drops cartservice's in-process state and kills any in-flight cart RPCs. A further risk is the actor: all 25 recorded changes come from platform-automation running an ~6h chaos cycle; if that harness re-applies REDIS_ADDR=redis-cart:6380 after the revert, the service will flap between working and crash-looping, which is worse to debug than a steady failure \u2014 the harness should be paused or the revert re-checked at the next cycle boundary. Finally, checkoutservice's silent order truncation is not explained by this evidence and may not clear; do not close the incident on the cart signal alone.",
+    "blast_radius": "cartservice only, plus its callers. frontend calls cart directly and will see connection resets during the recreate (it is already seeing refusals, so this is a change in kind, not a new outage). checkoutservice reaches cart via the user-cart fetch on the checkout path and may see the same reset window. Downstream of cartservice, the Redis backend on the standard port begins receiving cart traffic again and redis-cart:6380 stops being dialed. loadgenerator traffic through frontend will reflect the change in cart-page and checkout success. No other service in the blast radius has its configuration touched."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend and checkoutservice together with the load generator indicate user-facing failure across two independent request paths, not a dismissible single warning. No open incident to attribute it to, and the alerts alone don't favor a particular cause."
+  }
+}

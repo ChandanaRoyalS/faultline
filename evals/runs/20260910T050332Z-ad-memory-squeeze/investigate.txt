@@ -1,0 +1,43 @@
+incident 44c52b44-f977-4f42-b88c-aeb9a71e3a51  state triaging  anchor 05:06:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 5352a207-6ee9-4c9c-9126-9845a149c8f8
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend plus the load generator simultaneously indicate user-facing failure, not an isolated synthetic-traffic artifact. No open incident covers it, and the fault could lie in any of the five downstream dependencies, so evidence is needed.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : adservice
+  expect      : Restoring adservice's prior resource configuration (memory limit back to unset, from the 256m applied at 05:03:36) and recreating the container should end the boot loop. Observable as: (1) in {service="ad-service"} logs, the repeating three-line JVM/OTel startup banner stops recurring and is followed within one boot cycle by "received ad request ... trace_id=" lines, as seen at 04:36-04:37 [tr_7f31a4dfd996]; (2) in {service="frontend"} logs, "14 UNAVAILABLE" errors naming dns:...adservice:9555 cease [tr_06e20fa34668]; (3) frontend's error-ratio series returns toward its baseline mean of ~0.0004 from the incident peak of ~0.11 [tr_b40dbc22c764]. Note the adservice error-ratio series is empty in both windows [tr_f572198ff0f1], so adservice's own recovery must be read from logs, not from that metric.
+  within      : 300s
+  risk        : If the diagnosis is wrong, this spends the recreate for nothing and adds one more forced restart to a service already crash-looping, extending the ad outage. Removing the memory ceiling lets the JVM's heap grow to whatever the host allows; if the process is genuinely leaking rather than merely over-constrained, the unbounded container can create host-level memory pressure that reaches co-located services rather than staying inside adservice. The change is also likely transient: platform-automation has re-applied this limit five times in 21 hours [tr_066fd3438efe], so it can re-lower to 256m and reopen the incident — the automation itself is not something this action touches, and stopping it is outside what this system may do.
+  blast radius: adservice is recreated, so ad serving is down for the duration of the recreate. frontend is the only caller named in this incident's evidence [tr_06e20fa34668]; it will see connection reset / continued code 14 for that interval, on top of what it already sees. The reverted value is a resource limit, not a dependency address, so no traffic moves to other services. Host-level memory contention is the one path by which cartservice, checkoutservice, productcatalogservice, or recommendationservice could notice.
+  if wrong    : Falsified if, more than ~180s after the container is recreated, adservice logs still show fresh startup banners with backoff-shaped spacing and no ad-request serving lines, or frontend continues emitting code 14 against adservice:9555. That would mean the 256m ceiling is not what kills the process — consistent with the unresolved fact that this lower/revert pair has run at least five times before without a recorded crash loop [tr_066fd3438efe], implying a second change or a failing startup probe. Also falsified in a subtler way if adservice recovers but frontend's error ratio does not fall: the frontend metric is aggregated by service_name with no downstream dimension [tr_b40dbc22c764], so it can carry error contributions this action does not address. Before approving, the exit code / OOMKilled event and adservice memory metrics would settle the mechanism directly; they were never queried.
+  rests on    : tr_066fd3438efe, tr_7f31a4dfd996, tr_06e20fa34668, tr_b40dbc22c764
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22220 pushed / 4418 pulled (pull rate 0.1659), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_066fd3438efe, tr_7f31a4dfd996, tr_06e20fa34668, tr_b40dbc22c764, tr_f3e14df687d2
+  root cause  : Platform-automation lowered ad-service's memory limit to 256m about three minutes before onset [tr_066fd3438efe]. The JVM cannot stay resident under that ceiling and is killed shortly after each boot: adservice logs go from normal ad-request serving at 04:36 to at least ten repeated startup banners with backoff-shaped spacing, dying silently with no OOM trace, exception, or SIGTERM [tr_7f31a4dfd996]. With no pod reaching ready, frontend's gRPC client fails against dns:...adservice:9555 with code 14 UNAVAILABLE at name resolution [tr_06e20fa34668], surfacing as frontend's late-onset error spike with a change point at 05:05 [tr_b40dbc22c764]. Frontend changed nothing [tr_f3e14df687d2] and is the reporter, not the cause. The mechanism is adservice exhausting its memory ceiling and being killed for it; the limit edit is how it started, exhaustion is what is happening.
+  OPEN        : No direct OOM confirmation: container exit codes, OOMKilled events, and adservice memory/heap metrics were never queried; a failing startup probe under a constrained heap fits equally well.
+  OPEN        : The automation has toggled this limit five times before; whether prior 256m episodes also crash-looped is unknown, and if not, something else changed too.
+  OPEN        : The adservice log result was truncated mid-window, so an OutOfMemoryError could exist in unreturned lines; Kubernetes endpoint/DNS state was never inspected directly.
+
+flags: none
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T050332Z-ad-memory-squeeze/44c52b44-f977-4f42-b88c-aeb9a71e3a51-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T050332Z-ad-memory-squeeze/44c52b44-f977-4f42-b88c-aeb9a71e3a51-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7782.90it/s]

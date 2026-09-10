@@ -1,0 +1,45 @@
+incident 1e3ccc6e-5e1b-4a84-8dd6-ae9518f43f26  state triaging  anchor 06:26:15
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 76956118-0196-4aca-b75b-2af228f25af8
+triage judged: investigate (low confidence, suspects unknown)
+  A single critical alert on frauddetectionservice with no open incidents to attribute it to and no benign pattern to dismiss it by. Nothing here can be waved off, so it warrants investigation even though the alert alone suggests no particular fault class.
+investigation: 2 round(s), 4 dispatch(es), 16 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Restoring the pre-06:20:12 config removes the memory=200m cap. In Loki under {service="frauddetection-service"} the ~60s repeating JVM/OpenTelemetry startup triple should stop recurring (no new banner for two consecutive minutes) and the 05:56-05:57 workload lines should return: 'Consumed record with orderId ... total count to: N' with a rising counter. The log stream is the only confirmation channel, since calls_total is empty for this service even in healthy baselines [tr_749b14d0b8a1].
+  within      : 300s
+  risk        : Forces one more container recreate and a Kafka consumer-group rebalance, losing in-process offsets/counter state (possible duplicate or skipped records). If the cap was deliberate containment of a real memory leak, removing it lets the JVM grow unbounded and converts a contained crash-loop into host-level memory pressure affecting co-located containers. No memory working-set, limit or OOMKill series was ever retrieved [tr_1229d1eb8d69], so the mechanism is inferred, not measured.
+  blast radius: frauddetectionservice, already fully down in a restart loop, so little additional availability is lost. Downstream consumers of its fraud verdicts and the Kafka topic backlog were never measured, so they see behaviour change at revert time with no baseline. Other members of the consumer group see a rebalance.
+  if wrong    : Falsified if the ~60s startup banner still repeats and no consumption lines appear 3-5 minutes after the revert - which would point at a liveness-probe restart, indistinguishable from an OOM kill in what was dispatched. Also weakened if a fresh resource_limits lowering appears within ~15 minutes, as in the three prior cycles; the durable fix is retuning that automation, which is outside this system.
+  rests on    : tr_9628629cabea, tr_375a5b63f2a2
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 18270 pushed / 2881 pulled (pull rate 0.1362), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_9628629cabea, tr_375a5b63f2a2, tr_749b14d0b8a1, tr_1229d1eb8d69
+  root cause  : At 06:20:12, roughly six minutes before onset, platform automation applied a resource-limit change to frauddetection-service that set a memory cap of 200m where none had previously been configured [tr_9628629cabea]. The JVM cannot live inside that cap: from ~06:20 onward the Loki stream contains nothing but a repeating three-line JVM/OpenTelemetry startup banner at ~60-second intervals (06:21:22, 06:22:15, 06:23:18, 06:24:20, 06:25:22, 06:26:24, 06:27:27), with the healthy Kafka record-consumption output that was present at 05:56-05:57 stopping entirely [tr_375a5b63f2a2]. The process dies without writing any exception, panic or rejection line, which is the signature of an external kill (OOM killer) rather than an in-process fault [tr_375a5b63f2a2]. The service is therefore in a crash-restart loop because it is being terminated for exceeding a memory allocation it cannot fit in — the failing mechanism is memory exhaustion against the newly imposed 200m cap, with the limit edit as the trigger. Three earlier lower/revert cycles at ~21h, ~18h and ~14h before onset each ended when automation restored the limit ~10-11 minutes later; the onset-adjacent lowering had no matching revert at capture time, so the bad cap was still in force [tr_9628629cabea].
+  OPEN        : No container_memory_working_set, container_spec_memory_limit, OOMKill counter or kube restart-count data was ever retrieved, so the OOM kill is inferred from log shape and timing rather than directly observed [tr_1229d1eb8d69].
+  OPEN        : The kill could be a liveness-probe restart rather than an OOM kill; both produce a silent teardown with no application log line, and nothing dispatched distinguishes them.
+  OPEN        : Why the calls_total series is empty for this service across all queried windows including healthy baselines is unexplained — an instrumentation or label mismatch that also means we cannot confirm the service was serving traffic before onset except via the Kafka consumption lines [tr_749b14d0b8a1].
+  OPEN        : Whether the platform automation will revert this lowering on its own (as it did after ~10-11 minutes in the three prior cycles) or whether this instance is stuck, and what drives the automation to lower the limit at all, is unknown [tr_9628629cabea].
+  OPEN        : Blast radius was scoped to one service; no dispatch checked whether downstream consumers of frauddetection (or the Kafka topic backlog) are degraded, so downstream impact is unmeasured.
+
+flags: none
+
+retrieval: exclude_origin='scenario:frauddetection-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T062007Z-frauddetection-memory-squeeze/1e3ccc6e-5e1b-4a84-8dd6-ae9518f43f26-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T062007Z-frauddetection-memory-squeeze/1e3ccc6e-5e1b-4a84-8dd6-ae9518f43f26-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7555.19it/s]

@@ -1,0 +1,47 @@
+incident 913f0b02-1fba-4370-a4b9-a81f83b88981  state triaging  anchor 05:47:00
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 359a59d1-9a7e-4352-bf05-d52b9172c0d6
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four services alerted within seconds along the cart/checkout/frontend path, which is a coordinated multi-service failure rather than an isolated warning. No open incident covers it, and the simultaneity suggests a shared downstream dependency.
+investigation: 2 round(s), 4 dispatch(es), 17 step(s)
+  WITHHELD traces on cartservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Removing the 300ms egress delay attached at 05:43:42 and recreating cartservice should be visible at its callers: checkoutservice error ratio falls from incident mean ~0.17 (peaks ~0.67) back under 0.01 for two consecutive 2m windows, and frontend/loadgenerator alerts clear. Cart's own error-ratio series emits no samples, so confirmation must be read at checkoutservice and frontend.
+  within      : 420s
+  risk        : cartservice is currently healthy and serving without errors; recreating it drops in-flight cart calls and its cache, causing a fresh burst of checkout/frontend errors that could be mistaken for worsening. It also destroys the live shaping sidecar, the only physical evidence of the incomplete automation cycle. If the real cause is downstream of checkout, this buys nothing and delays the right fix.
+  blast radius: cartservice for the duration of the recreate; checkoutservice sees connection resets on the cart call path, propagating to frontend and loadgenerator. The stuck automation cycle may reapply shaping on its next ~3-hourly run unless the automation is also addressed.
+  if wrong    : Falsified if checkout's error ratio stays above ~0.01 five to seven minutes after the recreate. That would support the unresolved objection that checkout's only change point is at 05:25, ~18 minutes before the sidecar attached, pointing at a payment/email/shipping/currency path or an unexamined intermediate hop. Also falsified if the recreate leaves the shaping container attached to cart's netns, in which case nothing changed. No cart or checkout latency was ever measured, so the delay's effect is inferred, not observed.
+  rests on    : tr_b2e50e2b8ae3, tr_04f6a104bf02, tr_cb8c4d5a43e7
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 16586 pushed / 3319 pulled (pull rate 0.1667), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_b2e50e2b8ae3, tr_cb8c4d5a43e7, tr_04f6a104bf02, tr_a50c82ffc90e
+  root cause  : A platform-automation traffic-shaping container was attached to cartservice's network namespace ~3 minutes before onset, injecting a fixed 300ms egress delay on eth0 with no jitter, and — unlike every prior iteration of the same ~3-hourly automation cycle — the matching removal step never ran, so the delay was still in effect at and after onset [tr_b2e50e2b8ae3]. cartservice itself kept serving normally (dense, error-free request handling through 05:48:57, no restarts, no backend errors) [tr_cb8c4d5a43e7], so the failure is not in cart's own logic but in how long its callers wait on it: checkoutservice, which sits directly on the cart call path, went from a near-zero error ratio to a mean ~354x higher with bursts up to two-thirds of requests failing [tr_04f6a104bf02], and frontend/loadgenerator alerted seconds later as the error propagated toward the caller. The mechanism is injected dependency latency in the cart call path, not a broken artifact or a semantically wrong setting value.
+  OPEN        : No latency measurement for cartservice was obtained — the 300ms delay's actual effect on cart response times and on checkout's p99 is inferred from the shaping configuration, not observed.
+  OPEN        : The single change point in checkoutservice's error ratio is at 05:25, ~18 minutes before the sidecar was attached at 05:43 [tr_04f6a104bf02]. This is unexplained: either the checkout metric window (05:17 onward) was too short to place the change point reliably, or something degraded checkout before the shaping was applied. This is the strongest piece of evidence against the verdict and it was not resolved.
+  OPEN        : No checkoutservice logs were pulled, so it is unconfirmed that checkout's errors are timeouts/deadline-exceeded against cartservice rather than failures against payment, email or another downstream.
+  OPEN        : The cartservice log result was truncated and returned nothing from 05:47 itself [tr_cb8c4d5a43e7], so cart's behaviour at the exact onset minute is unobserved.
+  OPEN        : Whether the shaping sidecar has since been removed by a later automation step, and why the removal step in this cycle did not fire, is unknown.
+  OPEN        : Triage reported 4 unmeasured edges; no service between cart and the frontend was examined, so an intermediate amplifier cannot be excluded.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T054333Z-cart-dependency-latency/913f0b02-1fba-4370-a4b9-a81f83b88981-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T054333Z-cart-dependency-latency/913f0b02-1fba-4370-a4b9-a81f83b88981-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8703.80it/s]

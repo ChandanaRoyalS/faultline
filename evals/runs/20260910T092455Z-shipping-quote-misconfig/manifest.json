@@ -1,0 +1,53 @@
+{
+  "run_id": "20260910T092455Z-shipping-quote-misconfig",
+  "scenario_id": "shipping-quote-misconfig",
+  "split": "dev",
+  "scenario_fingerprint": "42e4b92cc3e46410b9b1b9a968a0c246c923bc410f6f576eb083686206b659f8",
+  "started_at": "2026-09-10T09:24:55.827261+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "be7c2efef3e5d807bd22bacb13a1d66bf9a7fc30",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 13680,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-10T09:24:55.908684+00:00",
+    "reason": "faultline-eval shipping-quote-misconfig",
+    "token": "13680-1789032295.908617"
+  },
+  "preflight": {
+    "checked": true,
+    "ok": false,
+    "detail": "the configured model (claude-opus-5) could not be reached or billed.\n  Error code: 400 - {'type': 'error', 'error': {'type': 'invalid_request_error', 'message': 'Your credit balance is too low to access the Anthropic API. Please go to Plans & Billing to upgrade or purchase credits.'}, 'request_id': 'req_011CeuWyYJi2vJPmJeiGqFbR'}\nNothing was injected and the world is untouched. This is not a discard - the run\nnever started, and counting it as one would inflate a number kept honest on purpose.\nDev sweep 8 injected the same scenario four times before discovering this at the\ntriage call; the check that would have caught it costs one token (Q20)."
+  },
+  "refused": {
+    "reason": "model unreachable",
+    "at": "2026-09-10T09:24:56.471676+00:00"
+  }
+}
