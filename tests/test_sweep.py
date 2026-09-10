@@ -518,7 +518,10 @@ def test_the_countdown_spans_one_pass_when_the_world_is_recycled_between_them() 
 
     remaining = [argv[argv.index("--runs-remaining") + 1] for argv in seen]
     assert remaining == list("212121"), "each pass counts down from its own length"
-    assert len(recycles) == 2, "between passes, never before the first or after the last"
+    assert len(recycles) == 3, (
+        "before every pass, including the first. Arm B of dev sweep 12 began on the world arm A "
+        "had just exhausted and lost five of pass 1's ten slots to a projection that was right"
+    )
 
 
 def test_without_a_recycler_the_countdown_still_spans_the_whole_job() -> None:
@@ -552,3 +555,34 @@ def test_no_divergence_line_when_every_scenario_got_its_repeats() -> None:
 
     assert result.divergence == {}
     assert "DECLARED R" not in "\n".join(result.render())
+
+
+# --- a condition no scenario can clear -------------------------------------------------------
+
+
+def test_a_catalog_of_refusals_in_a_row_aborts_instead_of_asking_again() -> None:
+    """**Arm B of dev sweep 12, 2026-09-10.** A closed incident wearing an open state made the
+    gate refuse, correctly, every run that followed. The driver launched nineteen of them over two
+    and a half hours - settling 300s between each - to be told the same sentence nineteen times.
+
+    `standing_refusal` had already stopped the *retries*; it kept marching, because a refusal one
+    scenario's world can clear is worth re-asking about. This one no scenario could."""
+    seen, run = recorder({"a": 3, "b": 3, "c": 3})
+    result = sweep.sweep(["a", "b", "c"], repeats=3, runner=run)
+
+    assert len(seen) == 3, "one catalog's worth, then it stops - not nine"
+    assert result.aborted is not None
+    rendered = "\n".join(result.render())
+    assert "SWEEP ABORTED - THIS IS NOT THE CATALOG" in rendered
+    assert "6 slot(s) were not attempted" in rendered
+    assert result.exit_code == 1
+
+
+def test_one_scored_run_resets_the_count_so_an_unlucky_sweep_runs_out() -> None:
+    """Arm B's own pass 1 alternated five scored and five refused. That is a bad afternoon, not a
+    broken world, and a driver that gave up on it would be worse than one that marched."""
+    seen, run = recorder({"b": 3, "d": 3})
+    result = sweep.sweep(["a", "b", "c", "d"], repeats=2, runner=run)
+
+    assert result.aborted is None
+    assert len(seen) == 8, "every slot attempted"

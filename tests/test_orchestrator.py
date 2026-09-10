@@ -783,3 +783,53 @@ def test_a_live_worker_keeps_its_entries() -> None:
 
     assert ConsumerLoop(source=b, orchestrator=ingest, batch=32).run_once() == []
     assert len(stream.pending) == len(events)
+
+
+# --- the runner may not resurrect an incident the orchestrator closed --------------------------
+
+
+def test_a_phase_write_does_not_move_a_closed_incident() -> None:
+    """**Dev sweep 12, arm B, 2026-09-10.** The investigation runner holds an `Incident` it loaded
+    before the run and writes its phase back at each boundary. A run froze for 1h50m; the
+    orchestrator resolved both episodes and closed the incident meanwhile; the runner then thawed
+    and wrote `proposing` from its stale copy. The row ended `state = proposing` with `resolved_at`
+    set and both episodes resolved - a closed incident wearing an open state - and the baseline
+    gate refused nineteen consecutive runs, correctly, on the state it read.
+
+    The narrow write introduced at T4.5 fixed the columns it stopped touching. This is the column
+    it kept.
+    """
+    store = InMemoryIncidentStore()
+    closed = Incident(
+        state=IncidentState.RESOLVED, resolved_at=datetime(2026, 9, 10, 1, 44, tzinfo=UTC)
+    )
+    store.save(closed)
+
+    stale = Incident(id=closed.id, state=IncidentState.PROPOSING, investigation_id="inv-1")
+    store.save_investigation_state(stale)
+
+    kept = store.get(closed.id)
+    assert kept is not None
+    assert kept.state is IncidentState.RESOLVED, "a closed incident stays closed"
+    assert kept.is_terminal, "and the gate reads it as terminal"
+    assert kept.state_before_resolution is IncidentState.PROPOSING, (
+        "the phase the investigation reached is remembered where a reopen looks for it"
+    )
+    assert kept.investigation_id == "inv-1", "the join the verdict hangs off is still written"
+
+
+def test_a_phase_write_still_advances_an_open_incident() -> None:
+    """The guard is about terminal states and nothing else: an investigation in flight on a live
+    incident advances it exactly as before."""
+    store = InMemoryIncidentStore()
+    live = Incident(state=IncidentState.TRIAGING)
+    store.save(live)
+
+    store.save_investigation_state(
+        Incident(id=live.id, state=IncidentState.PLANNING, investigation_id="inv-2")
+    )
+
+    moved = store.get(live.id)
+    assert moved is not None
+    assert moved.state is IncidentState.PLANNING
+    assert moved.investigation_id == "inv-2"

@@ -23,30 +23,39 @@ shows is `20260907T103142Z-cart-redis-misconfig`: `bad_config` against `bad_conf
 
 ## Results at a glance
 
-**Culprit service 0 / 0, fault class 0 / 0.** The first four columns are empty on purpose, and
-that is the honest state of this repository today. The pooled column is not: it holds **fifteen
-runs from dev sweep 12's first attempt**, which is context rather than a figure — that attempt
-declared R = 3 and the world gave each scenario one or two, and it ran against a trace store whose
-search was blind to the last five minutes of every incident
+**Culprit service 23 / 30, fault class 26 / 27, three abstentions.** Arm A of dev sweep 12 —
+thirty runs on 2026-09-09 at `prompts:06f24e827915` on world `90e9f29e578e`, ten dev scenarios
+three times each, pre-registered before a line of T6.1 was written. **The first figure in this
+repository at R = 3**, which is the only reason a row here is more than an observation.
+**All seven service misses are two scenarios**, each missed on all three passes:
+`redis-cart-dependency-latency` named `cartservice`, and `product-catalog-flag-failure` named
+`productcatalogservice` — the two structural targets prediction 6 named, and Q27's catalog entry
+alone moved neither.
+The pooled column adds the **fifteen runs from the sweep's first attempt**, which are context
+rather than a figure: that attempt declared R = 3 and the world gave each scenario one or two, and
+it ran against a trace store whose search was blind to the last five minutes of every incident
 ([ADR-0037](docs/adr/0037-the-trace-analyst.md) §2). They are in
-[`evals/runs/`](evals/runs/) entire, and they are not a result.
-T6.1 (2026-09-08) added Tempo to the world and re-recorded all thirteen bundles against it, which
-moved the world generation to `90e9f29e578e` and the stamp to `prompts:06f24e827915`. **A figure
-belongs to the world it was measured on**, so nothing measured before today can appear in either
-column — not because those runs were wrong, but because they describe a world that no longer
+[`evals/runs/`](evals/runs/) entire.
+Nothing measured before T6.1 (2026-09-08) appears in either column, because it added Tempo to the
+world and re-recorded all thirteen bundles against it. **A figure
+belongs to the world it was measured on**, so those runs cannot appear here — not because they
+were wrong, but because they describe a world that no longer
 exists. The same thing happened at T7.1 and again at T7.28; ADR-0014 is why it is handled this way
 rather than by carrying the old numbers forward.
 
-**The last published figures, and the world they belong to.** Dev sweeps 10 and 11, at
+**The previous generation, and the world it belongs to.** Dev sweeps 10 and 11, at
 `prompts:b6837dd449ca` on world `f5bd108f4f70`: **24 of 26 on the culprit service, 17 of 18 where a
 class was named, eight abstentions**, R=1 throughout. They are in [Results](#results) below and in
-[`docs/RESULTS.md`](docs/RESULTS.md), under the generation they were measured on.
+[`docs/RESULTS.md`](docs/RESULTS.md), under the generation they were measured on. The numbers above
+are not an improvement on them and are not offered as one: different world, different stamp.
 
-**What fills this table, and when.** Dev sweep 12, pre-registered before a line of the world
-changed — [`PREREGISTRATION-T6.1.md`](evals/runs/PREREGISTRATION-T6.1.md): ten dev scenarios,
-**R = 3**, two arms (with the traces specialist and `--without traces`) plus the B0 baseline. It is
-the first sweep in this project with a variance component, and the first on which the A/A check can
-run.
+**What is still missing, and it is the point of the sweep.** Dev sweep 12 was pre-registered before
+a line of the world changed — [`PREREGISTRATION-T6.1.md`](evals/runs/PREREGISTRATION-T6.1.md): ten
+dev scenarios, **R = 3**, **two arms** (with the traces specialist and `--without traces`) plus the
+B0 baseline. Only arm A is above. Arm B is what turns the plan's *"eval accuracy delta measured"*
+into a measurement rather than a claim, and **its first attempt on 2026-09-10 scored 6 of 30** —
+a closed incident left wearing an open state, after which the baseline gate refused nineteen
+consecutive runs. No delta is claimed anywhere in this repository until that arm runs.
 
 <!-- scenario-table:begin -->
 Per scenario. The first four columns are at `prompts:06f24e827915`, the stamp this
@@ -60,39 +69,40 @@ world at all; the zeros are the record. R=1 everywhere, so no row is reproducibl
 
 | scenario | split | n | class | abst | service | n, all stamps | class, all stamps |
 |---|---|---:|---:|---:|---:|---:|---:|
-| `ad-memory-squeeze` | dev | 0 | — | 0 | — | 1 | 0 / 1 |
-| `cart-bad-image-tag` | dev | 0 | — | 0 | — | 1 | 1 / 1 |
-| `cart-dependency-latency` | dev | 0 | — | 0 | — | 2 | 2 / 2 |
-| `cart-redis-misconfig` | dev | 0 | — | 0 | — | 2 | 1 / 1 |
-| `frauddetection-memory-squeeze` | dev | 0 | — | 0 | — | 1 | 1 / 1 |
-| `payment-telemetry-blackout` | dev | 0 | — | 0 | — | 1 | 1 / 1 |
-| `product-catalog-flag-failure` | dev | 0 | — | 0 | — | 1 | 1 / 1 |
-| `redis-cart-dependency-latency` | dev | 0 | — | 0 | — | 2 | 2 / 2 |
-| `shipping-quote-misconfig` | dev | 0 | — | 0 | — | 2 | 1 / 2 |
-| `shipping-wrong-image` | dev | 0 | — | 0 | — | 2 | 0 / 1 |
+| `ad-memory-squeeze` | dev | 3 | 1 / 2 | 1 | 2 / 3 | 4 | 1 / 3 |
+| `cart-bad-image-tag` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 4 | 4 / 4 |
+| `cart-dependency-latency` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 5 | 5 / 5 |
+| `cart-redis-misconfig` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 5 | 4 / 4 |
+| `frauddetection-memory-squeeze` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 4 | 4 / 4 |
+| `payment-telemetry-blackout` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 4 | 4 / 4 |
+| `product-catalog-flag-failure` | dev | 3 | 2 / 2 | 1 | 0 / 3 | 4 | 3 / 3 |
+| `redis-cart-dependency-latency` | dev | 3 | 3 / 3 | 0 | 0 / 3 | 5 | 5 / 5 |
+| `shipping-quote-misconfig` | dev | 3 | 2 / 2 | 1 | 3 / 3 | 5 | 3 / 4 |
+| `shipping-wrong-image` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 5 | 3 / 4 |
 | `email-wrong-image` | holdout | 0 | — | 0 | — | 0 | — |
 | `productcatalog-dependency-latency` | holdout | 0 | — | 0 | — | 0 | — |
 | `recommendation-memory-squeeze` | holdout | 0 | — | 0 | — | 0 | — |
-| **all** | | **0** | **—** | **0** | **—** | **15** | **10 / 13** |
+| **all** | | **30** | **26 / 27** | **3** | **23 / 30** | **45** | **36 / 40** |
 
 Regenerate with `uv run python -m evalharness.scenario_table --write`; `tests/test_scenario_table.py` fails when this block and the tree disagree.
 <!-- scenario-table:end -->
 
-**Read the abstentions before the accuracy.** 0 of 0 runs at this stamp named no class — on the
+**Read the abstentions before the accuracy.** 3 of 30 runs at this stamp named no class — on the
 previous world it was 8 of 26 — and the system is built to say `unknown` rather than guess:
 coverage and accuracy are reported apart on purpose
-([ADR-0022](docs/adr/0022-evaluation-harness.md)). On both runs of dev sweep 11 that abstained it
-still named the culprit service correctly, which is the shape of abstention worth having.
+([ADR-0022](docs/adr/0022-evaluation-harness.md)). Two of the three still named the culprit service
+correctly, which is the shape of abstention worth having.
 
-**Both service misses on the previous world were structural, and T6.1 changes one of them.** The
-targets were `featureflagservice`, which is in the service catalog and emits no spans, and
-`redis-cart`, which was not in the catalog at all — so no blast radius could contain either
-([`SWEEP-2026-09-07-sweep11.md`](evals/runs/SWEEP-2026-09-07-sweep11.md) §3). `redis-cart` is in
-the catalog now (Q27, an `INFRASTRUCTURE` node with no telemetry of its own); `featureflagservice`
-is deliberately untouched as the control, and the pre-registration's prediction 6 says what each
-is expected to do.
+**The two service misses are structural, and Q27 did not fix either.** The targets are
+`featureflagservice`, which is in the service catalog and emits no spans, and `redis-cart`, which
+was not in the catalog at all — so no blast radius could contain either
+([`SWEEP-2026-09-07-sweep11.md`](evals/runs/SWEEP-2026-09-07-sweep11.md) §3). T6.1 put `redis-cart`
+in the catalog (Q27, an `INFRASTRUCTURE` node with no telemetry of its own) and left
+`featureflagservice` alone as the control. **Prediction 6 failed on both sides**: the catalogued
+node was still missed 0 / 3, and so was the control, which says the catalog entry alone does not
+move the culprit axis and points at Q28 — a prompt-side change, and Phase 7's.
 
-**0 of the 10 dev scenarios carry a run at this stamp; 0 of the 3 holdout scenarios do**, and the
+**10 of the 10 dev scenarios carry a run at this stamp; 0 of the 3 holdout scenarios do**, and the
 holdout never will: the set has been entered three times and a fourth entry is blocked by
 [ADR-0029](docs/adr/0029-four-fault-classes-and-why-there-is-no-fifth.md) — a three-scenario holdout
 read four times is not a holdout. Every one of the 13 has been scored at least once across the four

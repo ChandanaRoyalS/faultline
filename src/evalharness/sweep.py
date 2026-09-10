@@ -225,6 +225,14 @@ class SweepResult:
     """The R every run in this sweep wrote into its manifest. Compared against what the world
     actually gave each scenario - see `divergence`."""
 
+    aborted: str | None = None
+    """Why the sweep stopped early, or `None` if it ran the catalog out.
+
+    **Set only when the world stopped it, never when a scenario did.** The rest of this class
+    reports outcomes for everything that was launched; this reports what was not, and says so
+    rather than letting a short `outcomes` list read as a short catalog.
+    """
+
     @property
     def scored(self) -> int:
         return sum(1 for o in self.outcomes if o.scored)
@@ -268,6 +276,14 @@ class SweepResult:
             f"SWEEP: {self.scored}/{len(self.outcomes)} scored",
             "  " + " · ".join(f"{name} {n}" for name, n in sorted(counts.items())),
         ]
+        if self.aborted is not None:
+            lines += [
+                "",
+                "  *** SWEEP ABORTED - THIS IS NOT THE CATALOG ***",
+                f"  {self.aborted}",
+                "  Fix the world, then run the sweep again. The scenarios that did score are "
+                "recorded and are not re-runs to redo; what is missing was never attempted.",
+            ]
         not_scored = [o for o in self.outcomes if not o.scored]
         if not_scored:
             lines += ["", "  not scored:"]
@@ -378,11 +394,36 @@ def sweep(
     # one scored run clears it - a world that let a run through is one whose refusals are worth
     # retrying again.
     standing_refusal = False
+    # **And when a whole catalog's worth refuses in a row, stop asking altogether.**
+    #
+    # `standing_refusal` stops the *retries* and keeps marching, which is right for a condition
+    # one scenario's world can clear. It is wrong for one no scenario can. Arm B of dev sweep 12
+    # left a closed incident wearing an open state (see `store.save_investigation_state`) and then
+    # launched **nineteen consecutive refusals over two and a half hours**, settling 300s between
+    # each, to be told the same sentence nineteen times. A catalog's worth of consecutive
+    # non-scoring outcomes is that: not this scenario's world, but the world.
+    #
+    # The bound is `len(ids)` rather than a constant because it is that argument and not a taste:
+    # every scenario in the catalog has now failed at least once with nothing in between. One
+    # scored run resets it, so a sweep that is merely unlucky never reaches it - arm B's own pass 1
+    # alternated five scored and five refused and would not have tripped this.
+    unscored_in_a_row = 0
 
     for pass_number in range(1, repeats + 1):
-        if recycler is not None and pass_number > 1:
-            # Between passes, never during one: the gate's projection below assumes it.
-            print(f"--- recycling the world between passes {pass_number - 1} and {pass_number}")
+        if recycler is not None:
+            # **Before every pass, including the first**, never during one: the gate's projection
+            # below assumes a pass begins on a cleared kafka, and until 2026-09-10 pass 1 was the
+            # one pass that never got one. Arm B of dev sweep 12 started on the world arm A had
+            # just spent ten hours filling - kafka at 69.7 % - and the gate refused five of the
+            # first pass's ten slots on a forecast that was arithmetically right about a world
+            # nobody had recycled. A driver that tells the gate "one pass' worth of growth" owes
+            # it a pass that starts clear.
+            where = (
+                "before pass 1"
+                if pass_number == 1
+                else f"between passes {pass_number - 1} and {pass_number}"
+            )
+            print(f"--- recycling the world {where}", flush=True)
             recycler()
         for index, scenario_id in enumerate(ids):
             done += 1
@@ -430,12 +471,25 @@ def sweep(
             if code == 0:
                 injected_something = True
                 standing_refusal = False
-            elif code in CLEARABLE and budget > 1:
-                standing_refusal = True
+                unscored_in_a_row = 0
+            else:
+                unscored_in_a_row += 1
+                if code in CLEARABLE and budget > 1:
+                    standing_refusal = True
             result.outcomes.append(
                 Outcome(scenario_id=scenario_id, exit_code=code, attempts=attempt)
             )
             print(f"=== {scenario_id}: {EXIT_NAMES.get(code, code)}", flush=True)
+
+            if unscored_in_a_row >= len(ids):
+                result.aborted = (
+                    f"{unscored_in_a_row} scenarios in a row did not score - a whole catalog's "
+                    f"worth, the last of them {EXIT_NAMES.get(code, code)}. The condition is in "
+                    "the world, not in any one scenario; the remaining "
+                    f"{total - done} slot(s) were not attempted."
+                )
+                print(f"\n*** ABORTING: {result.aborted}", flush=True)
+                return result
     return result
 
 
