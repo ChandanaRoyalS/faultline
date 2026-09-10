@@ -1,0 +1,42 @@
+incident 509e616a-0776-44d7-a6ea-9e654c17f4b3  state triaging  anchor 15:52:15
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: de938250-fd65-47a5-b3c9-7ff792ca2ced
+triage judged: investigate (medium confidence, suspects unknown)
+  Four services alerted simultaneously across cart, frontend and checkout paths, which is more than a single warning-latency blip and cannot be dismissed without evidence. No open incident to fold this into, and the alerts alone do not favor a particular fault class; cartservice as a shared dependency is a plausible starting point.
+investigation: 2 round(s), 4 dispatch(es), 17 step(s)
+  WITHHELD traces on cartservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Falsified if no detach appears in the change log and frontend error ratio stays above ~0.03 for 30 minutes - then waiting is not a fix and direct removal of the shaping, which this system cannot do, is required. Note the 300ms shift was never observed: no latency series was measured, cartservice's error-ratio series is empty in both windows [tr_ad6970c02872], and its logs for 15:52 were truncated [tr_5b17d6adec75].
+  rests on    : tr_e19992e3a664, tr_5b17d6adec75, tr_ad6970c02872
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 18052 pushed / 3105 pulled (pull rate 0.1468), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_e19992e3a664, tr_4b078c000e35, tr_5b17d6adec75, tr_ad6970c02872
+  root cause  : An automated chaos/experiment harness (the platform-automation actor) attached a traffic-shaping container to cart-service's network namespace roughly three minutes before alert onset, imposing a fixed 300ms egress delay with zero jitter on eth0, and no matching detach is recorded, so the delay was still in force when the alerts fired [tr_e19992e3a664]. Every cart call therefore paid a flat added latency; cartservice itself kept serving normally with no errors or restarts [tr_5b17d6adec75], while its callers absorbed the wait — the frontend's error ratio rose ~3.2x over baseline with bursty peaks near 0.42, i.e. partial degradation consistent with a fraction of upstream calls exceeding deadlines rather than a hard failure [tr_4b078c000e35], and checkoutservice (another cart consumer) alerted 15 seconds later. The two earlier prior-artifact changes in the same harness cycle (hotfix image applied ~15:28, reverted ~15:38; REDIS_ADDR override reverted ~3h prior) were not in effect at onset [tr_e19992e3a664], though the hotfix window plausibly explains the earlier frontend change point around 15:30.
+  OPEN        : No cartservice or frontend latency series was measured at all, so the 300ms shift is inferred from the change record and the caller's error shape rather than observed directly.
+  OPEN        : The frontend change points at ~15:11 and ~15:30 precede the shaping attachment at 15:48:46; the 15:30 step may belong to the hotfix-image phase of the same harness cycle, but nothing here confirms that, and the ~15:11 step is unexplained.
+  OPEN        : cartservice logs for the 15:52 minute itself were never returned (truncation left a gap from ~12:52 to 15:54:10), so behaviour at onset is extrapolated from the window edges.
+  OPEN        : checkoutservice and loadgenerator were never investigated; their symptoms are assumed to follow from cart latency rather than shown to.
+  OPEN        : Whether the shaping container was detached after the window (as prior cycles did) and whether frontend errors recovered on that detach — the cleanest confirmation available and not yet collected.
+  OPEN        : Four unmeasured edges were crossed by triage; a slow dependency behind cartservice (e.g. its cache/store) contributing additional latency has not been directly excluded, only made unnecessary as an explanation.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T154837Z-cart-dependency-latency/509e616a-0776-44d7-a6ea-9e654c17f4b3-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T154837Z-cart-dependency-latency/509e616a-0776-44d7-a6ea-9e654c17f4b3-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9576.04it/s]

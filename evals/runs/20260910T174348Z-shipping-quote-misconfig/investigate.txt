@@ -1,0 +1,40 @@
+incident 3752173d-a6bf-492f-bf54-bae568894af9  state triaging  anchor 17:46:45
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 7ca019cd-8eab-4a26-915a-cea5e1a11870
+triage judged: investigate (medium confidence, suspects unknown)
+  Checkout alerts first and a broad fan-out of downstream consumers follows within minutes, which is a real multi-service failure and cannot be dismissed. No open incidents to attribute it to, and the ordering does not yet distinguish a deploy, config change, or a shared dependency.
+investigation: 2 round(s), 5 dispatch(es), 20 step(s)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Abstention would be shown wrong if a follow-up query produced evidence meeting an action's preconditions: a deploy or image change for a blast-radius service inside or shortly before the window (would enable rollback_image), a config or flag change on such a service (would enable revert_config), or a restart/OOM-kill count, memory ceiling, or connection-pool exhaustion signature at checkoutservice explaining the two traffic-free intervals (would enable restart_service). Conversely, if the error bursts self-clear without intervention, the abstention is confirmed and the correct locus was never checkoutservice's process state.
+  rests on    : tr_7fd73c0fee57, tr_04984ffc214e, tr_5aad0ca7eb90, tr_4a1494514241, tr_1530bdbebf59
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 20598 pushed / 3138 pulled (pull rate 0.1322), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_5aad0ca7eb90, tr_4a1494514241, tr_7fd73c0fee57, tr_04984ffc214e, tr_1530bdbebf59
+  root cause  : The only positively measured degradation is at checkoutservice: an intermittent, partial error regime that established itself around 15:30-16:07 UTC, over 90 minutes before the 17:46:45 alert, raising the frequency of error bursts (mean error ratio 0.043 -> 0.079) without changing their depth (max 0.667 in both windows) [tr_5aad0ca7eb90]. checkoutservice shows no self-inflicted signature: no deploy, config edit, flag flip or endpoint repoint recorded for it [tr_7fd73c0fee57][tr_04984ffc214e], and its logs are entirely info-severity order-flow lines with normal cadence through 17:50:45 [tr_4a1494514241]. A live, unchanged service losing a steady minority of requests points at something it calls or the runtime beneath it, but no dispatch measured either. The one downstream probed, cartservice, returned no samples in incident or baseline window, read as missing instrumentation rather than lost traffic [tr_1530bdbebf59], so that edge is neither implicated nor cleared. With 5 unmeasured edges and no per-dependency, latency, or resource series, the mechanism is not identified; only the locus of loss and the fact that onset predates the alert.
+  OPEN        : Which downstream call fails or slows: no per-target RPC, latency, or status-code breakdown was collected [tr_5aad0ca7eb90], and checkout logs name no host or endpoint [tr_4a1494514241].
+  OPEN        : What happened at 15:30:30 and 16:07:30 change points: no change query covered the hours before onset [tr_7fd73c0fee57], and no service other than checkoutservice and cartservice was queried for changes.
+  OPEN        : Whether cartservice is genuinely healthy or simply uninstrumented under this label [tr_1530bdbebf59], and what caused the two intervals with no checkoutservice traffic - restarts, OOM kills, and CPU/memory series were never sampled.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-quote-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T174348Z-shipping-quote-misconfig/3752173d-a6bf-492f-bf54-bae568894af9-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T174348Z-shipping-quote-misconfig/3752173d-a6bf-492f-bf54-bae568894af9-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9322.28it/s]

@@ -1,0 +1,40 @@
+incident 500979d2-9cfe-4c93-8d1c-708eb5d4802f  state triaging  anchor 18:07:45
+triage: 10 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 39d767ee-67cf-4c87-b6cf-bbfe127f5858
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alert on checkoutservice followed by the load generator indicates real user-facing order failures, not a quiet warning. No open incidents to attribute it to, and the alerts alone don't distinguish a bad deploy from a failing downstream dependency.
+investigation: 2 round(s), 8 dispatch(es), 26 step(s)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a latency or saturation measurement on paymentservice, once taken, shows a clear p95/p99 climb beginning at or before 17:45 that matches the checkoutservice error onset — in that case the delay cost real orders. It is also wrong if paymentservice logs show a stuck worker pool, connection-pool exhaustion or a hung goroutine, i.e. genuine process state, which is the precondition restart_service actually needs. Note also that even the proposed action's success would be hard to read: with no pre-existing paymentservice latency series, 'latency recovered' could not be measured, only the indirect proxies of checkoutservice error ratio falling back toward ~1.2% and the payment-confirmation log line resuming.
+  rests on    : tr_dcd49902d604, tr_3d794d53052e, tr_c95aab5ae90c
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 28935 pushed / 4013 pulled (pull rate 0.1218), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : restart
+  confidence  : low
+  evidence    : tr_3d794d53052e, tr_dcd49902d604, tr_c95aab5ae90c
+  root cause  : checkoutservice is not itself broken: no recorded deploy, config or endpoint change over the full 24h window [tr_a6957e4bcc31][tr_799a128029f1], the process stays alive and keeps accepting traffic, and it emits no error or warn lines at all [tr_3d794d53052e]. What changed is what happens after a request arrives — early in the window every PlaceOrder line is followed by payment confirmation, confirmation email and a message write, while from ~18:07 onward only the order-entry line appears [tr_3d794d53052e]. Requests begin and then hang before the first downstream step that logs a result, and a fraction surface as errors: span error ratio rose from ~1.2% baseline to ~11.7% mean with a ~29% peak, first crossing at 17:45, ~22 minutes before the alert [tr_dcd49902d604]. Errors are partial and intermittent, the signature of timeouts against a slow dependency. productcatalogservice is excluded (identically zero error ratio across 133 samples, working collector) [tr_ef47f2d347e2]. The payment call is the first downstream hop whose completion is logged, and it is exactly that line that disappears, so the most probable failing element is paymentservice becoming slow enough that checkout requests block and a fraction time out. Its only recorded changes are a routine automated telemetry-endpoint set/revert, fully reverted 48 minutes before onset with net state unchanged [tr_c95aab5ae90c], so this is latency in the dependency, not a wrong config value.
+  OPEN        : paymentservice was never measured — no latency, error, saturation or log dispatch ran against it; only its change history was queried.
+  OPEN        : No latency data was returned for any service; every metrics dispatch evaluated only the error-ratio template [tr_dcd49902d604][tr_ef47f2d347e2].
+  OPEN        : cartservice and shippingservice have no samples in either window [tr_410a7fdf9e8d][tr_00ae781e435a], so they are neither implicated nor cleared; emailservice and the message-broker hop were never dispatched at all.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T180503Z-shipping-wrong-image/500979d2-9cfe-4c93-8d1c-708eb5d4802f-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T180503Z-shipping-wrong-image/500979d2-9cfe-4c93-8d1c-708eb5d4802f-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8061.45it/s]

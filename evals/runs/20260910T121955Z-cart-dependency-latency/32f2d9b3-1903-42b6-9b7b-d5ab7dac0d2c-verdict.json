@@ -1,0 +1,175 @@
+{
+  "incident_id": "32f2d9b3-1903-42b6-9b7b-d5ab7dac0d2c",
+  "trajectory_id": "cc07682a-1e7f-4876-8005-3b4a79228952",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-dependency-latency",
+  "verdict": {
+    "root_cause": "A scheduled platform-automation fault-injection routine attached a traffic-shaping container to cartservice's network namespace at 12:20:04, imposing a fixed 300ms egress delay with no jitter, and unlike every earlier attachment in the window this one was never paired with a removal, so it was still in force at the 12:23:30 alerts [tr_1a6b4ecd47ad]. Every cart call therefore pays a synthetic delay, propagating up the checkout path: checkoutservice's error ratio steps ~125x above baseline while still serving most requests [tr_091795de4d3f], and both cartservice and checkoutservice logs show per-step gaps growing from milliseconds to about a second with no error, timeout or startup text [tr_eb7e3f4ea605, tr_40505355587d]. The mechanism is waiting on a slowed dependency, not a broken artifact or a wrong value in cart's own config.",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_1a6b4ecd47ad",
+      "tr_091795de4d3f",
+      "tr_40505355587d",
+      "tr_eb7e3f4ea605",
+      "tr_d9521161aa64"
+    ],
+    "reasoning": "The only change outstanding at onset is the unpaired traffic-shaping attachment, ~3 minutes before alerts; the hotfix image and REDIS_ADDR edits from the same chaos triplet were both reverted beforehand [tr_1a6b4ecd47ad]. Symptoms match injected delay rather than failure: cartservice logs routine cart operations to within seconds of window end with no errors, startup banners, image-pull or redis messages [tr_eb7e3f4ea605]; checkoutservice peaks well below total failure, returns to zero intermittently, and steps discretely rather than ramping, arguing against internal exhaustion [tr_091795de4d3f], while its tail shows orders completing with successful payments and monotonic offsets [tr_40505355587d]. Both services show timing inflation to roughly a second per step [tr_eb7e3f4ea605, tr_40505355587d]. Latency downstream with errors surfacing only as deadline spillover at the caller is dependency_latency; cartservice is blamed because the delay is applied at its interface and checkout/frontend/loadgenerator symptoms follow by call order. cartservice's own error series is absent in both incident and baseline windows, so it neither supports nor contradicts this [tr_d9521161aa64]. The fix is detaching the injected shaping, not rolling back an artifact.",
+    "open_questions": [
+      "checkoutservice's change point is 12:02:30, ~18 minutes before the shaping attach at 12:20:04, so the shaping cannot explain the earlier elevation \u2014 possibly a separate earlier injection or a change-point artifact [tr_091795de4d3f, tr_1a6b4ecd47ad].",
+      "No latency metric was queried for either service; the 300ms figure comes from the change record and is corroborated only by log timestamp gaps, a weak proxy [tr_eb7e3f4ea605, tr_40505355587d].",
+      "Both log queries were truncated across the entire 12:02-12:23 interval, so onset behaviour and any peer-named error were never observed, and checkout's metric has no peer dimension to confirm the failing calls are cart calls [tr_40505355587d, tr_091795de4d3f]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "An earlier chaos step around 12:02 (the hotfix image push/revert cycle) degraded the checkout path, and the shaping attach is coincidental to the alert time.",
+        "service": "cartservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The hotfix reference was already reverted ~14 minutes before onset and cartservice shows no startup or image-pull failures, so no wrong artifact was running at onset [tr_1a6b4ecd47ad, tr_eb7e3f4ea605].",
+        "note": "It does align better with the 12:02:30 change point, which keeps it plausible."
+      },
+      {
+        "root_cause": "checkoutservice itself degraded \u2014 an internal fault or an unexamined dependency such as payment, shipping or productcatalog \u2014 and cart's slowness is incidental.",
+        "service": "checkoutservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Checkout's baseline was flat and clean, its errors step rather than ramp, and payment and publish paths were observed succeeding; no checkout-side change is recorded, whereas an unreverted delay sits on its cart dependency [tr_091795de4d3f, tr_40505355587d, tr_1a6b4ecd47ad]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "redis-cart-dependency-latency / Resolution: The delay was removed from the Redis container's interface and latency returned to baseline as the\nalert windows drained. **Class of fix: `restart`** - the intervention was on the container carrying\nthe fault, not a revert of any application configuration. Nothing about cartservi",
+    "cart-redis-misconfig / Resolution: `REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and\nthe no-traffic alerts cleared \u2014 those six services had never been broken, only starved.\nEverything was clear at **T+10m32s**, 3m01s after the fix.\n\nClass of fix: **config_revert**. Nothing had",
+    "cart-redis-misconfig / Root cause: cartservice was configured with the wrong Redis port. The dependency was never\nunhealthy; only the address was wrong.\n\nBecause cart validates its Redis connection during startup rather than on first use, the\nwrong address stopped the process coming up at all. Cart did not degrade"
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "cartservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 22788,
+    "pulled_tokens": 4945,
+    "pull_rate": 0.1783,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 472,
+        "content_tokens": 474,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1961,
+        "content_tokens": 1964,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6720,
+        "content_tokens": 6696,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6222,
+        "content_tokens": 6224,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7413,
+        "content_tokens": 7391,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_1a6b4ecd47ad",
+      "tr_091795de4d3f",
+      "tr_eb7e3f4ea605"
+    ],
+    "expected_effect": "Nothing changes; no action proposed. The fix the evidence implies \u2014 detaching the unpaired traffic-shaping container attached to cartservice's netns at 12:20:04 with eth0 delay=300ms [tr_1a6b4ecd47ad] \u2014 is outside this system's permitted actions. If a human detaches it, confirmation would be cartservice log step gaps returning from ~0.9s to milliseconds [tr_eb7e3f4ea605] and checkoutservice error ratio falling from ~15.7% toward the ~0.13% baseline [tr_091795de4d3f].",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Wrong if recreating cartservice via revert_config would itself drop the foreign shaping sidecar \u2014 unestablished here \u2014 or if a latency query showed p95 stepping ~300ms exactly at 12:20:04, raising confidence above medium. Reinforced by checkoutservice's unexplained 12:02:30 change point, 18 minutes before the attach [tr_091795de4d3f, tr_1a6b4ecd47ad].",
+    "risk": "Abstaining leaves the 300ms delay in force and checkout shedding orders until a human intervenes. But revert_config would restore a prior recorded config, and the outstanding pair in history is REDIS_ADDR at redis-cart:6380 [tr_1a6b4ecd47ad] \u2014 reinstating it could turn latency degradation into total cart failure. restart_service fails its precondition (evidence names a change, not process state; logs show a live non-restarting process). rollback_image fails too: the hotfix image was already reverted 14 minutes before onset.",
+    "blast_radius": "No one, since nothing is done. The rejected revert_config on cartservice would have reset its container: checkoutservice and frontend see connection resets on cart calls, loadgenerator records the failures, and redis-cart could see traffic move ports."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Four services alerted simultaneously along the cart/checkout/frontend path, which is more than a lone warning latency blip and cannot be dismissed. No open incident covers it and the alerts don't point to a specific mechanism yet."
+  }
+}

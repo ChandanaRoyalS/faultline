@@ -1,0 +1,40 @@
+incident 7f98ffa8-ebc8-4005-bd15-a9409f835bff  state triaging  anchor 14:19:30
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 324b8ec4-bc5d-43c0-9244-cd63b8e38a81
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alert on checkoutservice followed three minutes later by its four downstream consumers alerting simultaneously — a real fan-out failure that cannot be dismissed. The checkout-first ordering points upstream at checkout or one of its dependencies, but nothing in the alerts distinguishes a deploy, config, or dependency slowdown yet.
+investigation: 2 round(s), 7 dispatch(es), 23 step(s)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if the stall is in fact resident in checkoutservice's own process state — for example an exhausted outbound connection pool or a leaked goroutine holding every worker — in which case a restart_service on checkoutservice would restore the payment/email/queue-write completion lines within a minute and the abstention will have cost that minute. The evidence available cannot distinguish that from a genuinely slow dependency: no latency percentiles, no per-downstream breakdown, no restart or resource-saturation signal for checkoutservice was ever collected [tr_6165d2b75628], and checkoutservice's own logs name no dependency and carry no error or status codes at all [tr_c7bb7669feb9]. It is also wrong if a latency injection fired inside the unqueried onset window on a service whose change log was never pulled — paymentservice, emailservice and currencyservice all have no change history in evidence — in which case the fix is a config_revert on that service, still not on checkoutservice.
+  rests on    : tr_aa8840893bee, tr_c7bb7669feb9, tr_6165d2b75628
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 26857 pushed / 5482 pulled (pull rate 0.1695), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : none
+  confidence  : low
+  evidence    : tr_c7bb7669feb9, tr_6165d2b75628, tr_07ca09e8b4d2, tr_96ce5f7c3658, tr_aa8840893bee, tr_183ded784091
+  root cause  : checkoutservice is stalling, not erroring. Its logs show PlaceOrder entry lines continuing at normal cadence through 14:24:33 while the payment, confirmation-email and queue-write completion lines that followed every order earlier vanish from ~14:21:22 onward [tr_c7bb7669feb9], and its aggregate error ratio fell to roughly 43% of baseline with no threshold breach [tr_6165d2b75628]. Requests that start, never complete, and never carry an error status are the signature of a synchronous downstream call that hangs rather than fails. cartservice and productcatalogservice are both healthy in the observed evidence [tr_07ca09e8b4d2][tr_96ce5f7c3658], and no change landed on checkoutservice at all [tr_aa8840893bee] while every cartservice mutation was reverted well before onset [tr_183ded784091]. The best-supported verdict is that a dependency in checkout's post-intake path (payment, email, or the order-queue write) became slow, and checkoutservice's downstream fan-out — accounting, email, fraud-detection, quote all alerting together at 14:22:45 — reflects orders never reaching those stages. checkoutservice is named because it is where the stall is observed and where request completion breaks, but the failing dependency itself was never measured.
+  OPEN        : Which dependency is actually slow: no latency percentiles, trace spans, or per-downstream breakdown were ever collected for checkoutservice, paymentservice, emailservice, or the order queue.
+  OPEN        : cartservice logs are truncated across 12:49:38-14:24:19, so the entire onset interval is unobserved, and its error-ratio series is absent in both windows [tr_6de53147ad78] — cartservice is unexcluded, not cleared.
+  OPEN        : Whether the recurring platform-automation latency-injection cycle on cartservice fired again inside the unqueried onset window, or landed on a service whose change log was never pulled.
+  OPEN        : What signal the 14:19:30 checkoutservice alert actually fired on, since it was not error ratio [tr_6165d2b75628].
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-quote-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T141628Z-shipping-quote-misconfig/7f98ffa8-ebc8-4005-bd15-a9409f835bff-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T141628Z-shipping-quote-misconfig/7f98ffa8-ebc8-4005-bd15-a9409f835bff-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9936.37it/s]

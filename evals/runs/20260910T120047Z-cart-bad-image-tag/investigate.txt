@@ -1,0 +1,39 @@
+incident eb3ee689-cc98-43bf-9960-e2d4a2444d69  state triaging  anchor 12:03:45
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 6b5a8ba2-41db-4543-8a1c-234e59f21acd
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with multiple user-facing services failing near-simultaneously and no open incident to attribute it to; this cannot be dismissed as a working world. Shared downstream dependencies of frontend and checkout are plausible but nothing yet distinguishes a fault class.
+investigation: 2 round(s), 6 dispatch(es), 21 step(s)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if paymentservice is in fact wedged and a restart would have cleared it within a minute — the cost of abstaining is continued stalled checkouts. It would be shown wrong by the follow-up queries returning a clear paymentservice stall signature (in-flight requests climbing while completions stop, or all payment RPCs sitting at the checkout deadline) with no such signature on cartservice, currencyservice or emailservice. Note also that the effect a restart would need to produce — checkoutservice completion lines (payment, confirmation email, queue write) resuming after each order-entry line, and checkoutservice error ratio returning toward its flat-zero baseline [tr_10a8d40cdea2] — is observable, so the abstention is about evidence, not about unobservability.
+  rests on    : tr_10a8d40cdea2, tr_924e7df4577b, tr_e9920e3d9337
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22970 pushed / 3641 pulled (pull rate 0.1368), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : restart
+  confidence  : low
+  evidence    : tr_924e7df4577b, tr_10a8d40cdea2, tr_e9920e3d9337
+  root cause  : checkoutservice requests are hanging rather than failing: order-entry lines continue at a steady cadence through 12:05 but the three completion lines (payment, confirmation email, queue write) that previously followed within tens of milliseconds are entirely absent, with no error, warn, timeout or rejection output at all [tr_924e7df4577b]. Its error ratio moves from a flat-zero baseline to a bursty 6.7% mean with 67% peaks and one sustained crossing at 12:02:30 [tr_10a8d40cdea2], the shape of deadlines expiring on stalled calls rather than a ramp. The first missing completion is the payment confirmation, placing the stall at or before the charge call, so the stalled dependency is most likely paymentservice, whose only recorded changes are periodic telemetry-endpoint set/revert pairs by automation, last one 5.2h before onset and already reverted [tr_e9920e3d9337]. No deploy, config edit or flag flip exists on frontend [tr_3accd263f91b] or checkoutservice [tr_9dbf71894e33]; frontend's bursty partial elevation is the caller timing out on that path [tr_1791c8174aec].
+  OPEN        : No latency percentiles were returned for any service, so the stall is inferred from log-gap structure rather than measured directly [tr_10a8d40cdea2, tr_1791c8174aec].
+  OPEN        : paymentservice was never queried for logs or metrics; attribution to it rests on which checkoutservice completion line is missing first, and cartservice/currencyservice/emailservice remain unexcluded.
+  OPEN        : The checkoutservice log result was truncated to the oldest 8 and newest 32 lines, so the transition from healthy to entry-only logging was never observed [tr_924e7df4577b]; frontend's first change point at 11:53 also predates any examined evidence [tr_1791c8174aec].
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T120047Z-cart-bad-image-tag/eb3ee689-cc98-43bf-9960-e2d4a2444d69-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T120047Z-cart-bad-image-tag/eb3ee689-cc98-43bf-9960-e2d4a2444d69-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8805.82it/s]

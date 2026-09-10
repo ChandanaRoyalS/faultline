@@ -1,0 +1,49 @@
+incident e3b57a9a-8074-4e00-8b27-25e28a9dce8a  state triaging  anchor 14:42:45
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 10bbc583-df01-4f63-b6a6-9463a713ed7a
+triage judged: investigate (medium confidence, suspects unknown)
+  Checkout alerts first, then its downstream consumers fan out three minutes later — a real multi-service failure centered on checkout, not dismissible. No open incidents to attribute it to, and nothing in the alert pattern yet distinguishes a deploy, config, or dependency cause.
+investigation: 2 round(s), 6 dispatch(es), 22 step(s)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : shippingservice
+  expect      : Redeploying shippingservice at its pre-14:39:44Z image should restore a real shipping binary behind GetQuote/ShipOrder. Observable as shippingservice's error ratio in calls_total returning to pre-14:39 baseline and its alert clearing, quoteservice's alert clearing, and the accounting/email/frauddetection alerts clearing within one or two evaluation intervals. Capture one shippingservice metric and log query before acting: no shippingservice telemetry exists in this investigation, so without a pre-state there is nothing to compare against.
+  within      : 600s
+  risk        : Medium confidence resting only on a change record; no observed shippingservice errors or crash-loops. If the diagnosis is wrong, this recreates a container central to the order path, adds a fresh in-flight failure window during a live incident, and destroys the process state needed to confirm the hypothesis. If the recorded prior image is not the canonical shipping artifact, the rollback lands on a second wrong image.
+  blast radius: shippingservice alone during the recreate. Its caller checkoutservice (and frontend behind it) sees connection resets on shipping RPCs; quoteservice sees shipping traffic pause then resume; order-side consumers accounting, email, and frauddetection see a brief further gap before recovery.
+  if wrong    : Falsified if shippingservice error ratio stays elevated after the recreate, or the quote/order-side alerts do not clear within two evaluation intervals. Also falsified if the pre-rollback capture shows shippingservice serving shipping RPCs normally on the adservice-tagged image — consistent with checkoutservice's flat aggregate error ratio [tr_3a6d36c988e6] — meaning the mechanism is wrong. Recurrence via the same automation cycle would show this treated a harness artifact.
+  rests on    : tr_412929c4514d, tr_efbc29cfaecc, tr_c1d1e350769a
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22823 pushed / 4853 pulled (pull rate 0.1754), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_412929c4514d, tr_efbc29cfaecc, tr_3a6d36c988e6, tr_2f526671f154, tr_c1d1e350769a, tr_8760e94b17eb
+  root cause  : shippingservice is running the wrong container artifact. An automated image-reference update landed on shippingservice at 14:39:44Z — about three minutes before the 14:42:45 onset — pointing it at an adservice-tagged demo image, and unlike the three preceding apply/revert cycles this one was never reverted, so it was the only change in effect anywhere in the investigated blast radius at onset [tr_412929c4514d]. A shippingservice pod running the adservice binary cannot serve the shipping RPCs (GetQuote/ShipOrder), which explains why shippingservice and its quote dependency alerted together and why downstream order-side consumers (accounting, email, frauddetection) alerted three minutes later, while checkoutservice — which alerted first merely because it is the caller that notices — shows no aggregate error-rate regression and continues logging accepted PlaceOrder calls [tr_3a6d36c988e6, tr_2f526671f154]. Nothing was changed on checkoutservice or productcatalogservice in the window [tr_efbc29cfaecc, tr_8760e94b17eb], and every cartservice mutation had been reverted ~1.9h before onset [tr_c1d1e350769a].
+  OPEN        : No metrics, logs, or traces were collected for shippingservice at all — the wrong-image hypothesis is inferred from the change record and has not been confirmed by observed shippingservice errors, crash-loops, or missing RPC handlers.
+  OPEN        : The three earlier cycles applied the same anomalous image reference and were reverted; it is unsettled whether those earlier applications produced the same symptom signature (which would confirm causality) or passed unnoticed.
+  OPEN        : checkoutservice's aggregate error ratio did not move, so the actual user-visible symptom that fired the 14:42:45 critical alert is unexplained; the metric query returned no per-RPC-method, per-downstream-target, latency, or request-rate breakdown [tr_3a6d36c988e6].
+  OPEN        : The checkoutservice log result was truncated across 12:43:28–14:45:17, so the onset interval itself (14:40–14:45) was never observed [tr_2f526671f154].
+  OPEN        : Why accountingservice, emailservice, frauddetectionservice, and quoteservice all alerted at exactly 14:45:45 is untested — a shared alert evaluation interval, a Kafka order-pipeline stall, or a common cause upstream of all of them remain distinguishable only with data not gathered.
+  OPEN        : 5 unmeasured edges in the triage graph were never crossed; a cause outside the six services queried is not excluded.
+  OPEN        : The productcatalogservice change query looked only forward from onset, so a pre-existing change still in effect there would not appear [tr_8760e94b17eb].
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T143936Z-shipping-wrong-image/e3b57a9a-8074-4e00-8b27-25e28a9dce8a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T143936Z-shipping-wrong-image/e3b57a9a-8074-4e00-8b27-25e28a9dce8a-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9119.98it/s]

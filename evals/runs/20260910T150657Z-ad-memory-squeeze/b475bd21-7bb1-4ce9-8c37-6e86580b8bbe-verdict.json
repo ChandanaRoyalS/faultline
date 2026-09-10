@@ -1,0 +1,165 @@
+{
+  "incident_id": "b475bd21-7bb1-4ce9-8c37-6e86580b8bbe",
+  "trajectory_id": "491c1fdb-ed05-4ddf-aae2-44331fd2a159",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "At 15:07:02 platform-automation lowered the ad-service memory limit from uncapped to a 256m cap, and this is the only lowering in a 17-hour oscillating sequence with no matching revert on record [tr_83587b9c5868]. Seconds later adservice entered a crash-loop: from 15:07:09 its stdout holds only repeating JVM/OpenTelemetry-agent startup banners, first every few seconds then at ~60s restart-backoff spacing through 15:12:20, with no request-handling lines and no exception or clean-shutdown text [tr_45865e0db755]. The container is being killed for exceeding the new ceiling before it reaches a serving state, so the adservice Service carries no ready endpoints and frontend's outbound ad calls fail at DNS name resolution for the adservice target on port 9555 with gRPC code 14 UNAVAILABLE at 15:12:35-15:12:37 [tr_12bd90c32996]. Frontend has no recorded change at onset [tr_fba95be7a9b8] and its own error ratio fell below baseline [tr_e05c7ecd11f7], so it is the service that noticed, not the one that broke.",
+    "service": "adservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_83587b9c5868",
+      "tr_45865e0db755",
+      "tr_12bd90c32996",
+      "tr_fba95be7a9b8",
+      "tr_e05c7ecd11f7",
+      "tr_182b1d3d5a80"
+    ],
+    "reasoning": "Timing, mechanism and propagation converge. The unreverted limit edit lands at 15:07:02 and the first restart banner appears ~15:07:09 [tr_83587b9c5868][tr_45865e0db755]. Repeated fresh JVM boots with no exception or clean shutdown indicate external termination rather than an application fault, which under a freshly tightened memory ceiling is the exhaustion path [tr_45865e0db755]. Because the process never serves, the Service has no endpoints, explaining why frontend fails at name resolution rather than with a refused dial to an IP or a deadline from a reachable backend [tr_12bd90c32996]. I choose resource_exhaustion over bad_config because the edit is how it started while being killed for exceeding a limit is what is happening; remediation is still config_revert, since restoring an adequate limit is what stops the loop where a restart would not. The empty adservice error-ratio series predates onset and is an instrumentation gap, so it neither supports nor undercuts this [tr_182b1d3d5a80].",
+    "open_questions": [
+      "No direct kill evidence was retrieved \u2014 no OOMKilled reason, exit code 137, kubelet events or memory-usage series; exhaustion is inferred from the edit plus restart cadence [tr_45865e0db755][tr_182b1d3d5a80].",
+      "The 13:18 payment-path failure (code 13 INTERNAL wrapping a refused dial to port 50051) is a second, unexplained signature; paymentservice was never dispatched [tr_12bd90c32996][tr_5c94d70e3097].",
+      "Severity was critical yet frontend's error ratio fell to ~0.4x baseline; the user-facing signal behind that rating was never measured, so blast radius is unquantified [tr_e05c7ecd11f7]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The 256m value is outright unworkable for this JVM, so the container cannot complete boot at all \u2014 the wrong value is itself the failure.",
+        "service": "adservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "No boot-failure or unstartable-artifact evidence was returned; the same 256m cap was applied six times earlier without a logged incident, which fits a process outgrowing a tight budget rather than a value that forbids startup [tr_83587b9c5868][tr_45865e0db755]."
+      },
+      {
+        "root_cause": "A DNS or service-discovery fault made the adservice name unresolvable to frontend independently of adservice's own health.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "none",
+        "why_not": "Unresolvability is fully explained downstream by a pod that never reaches Ready, and no DNS, routing or endpoint change is recorded for adservice in the window [tr_45865e0db755][tr_83587b9c5868]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25660,
+    "pulled_tokens": 4541,
+    "pull_rate": 0.1504,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 425,
+        "content_tokens": 427,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1548,
+        "content_tokens": 1552,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7922,
+        "content_tokens": 7898,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7292,
+        "content_tokens": 7294,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8473,
+        "content_tokens": 8451,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "adservice",
+    "rests_on": [
+      "tr_83587b9c5868",
+      "tr_45865e0db755",
+      "tr_12bd90c32996"
+    ],
+    "expected_effect": "Restoring ad-service's prior resource_limits state (memory uncapped, the value in force before the 15:07:02 edit) and recreating the container should end the crash-loop. Observable as: (1) in Loki {service=\"ad-service\"}, the repeating three-line JVM/OpenTelemetry startup banner stops recurring \u2014 one final boot sequence and then no new banner at the ~60s backoff cadence seen at 15:08:17/15:09:11/15:10:14/15:11:18/15:12:20; (2) application-level 'received ad request' lines reappear in that same stream, as they did at 14:40-14:41; (3) frontend stops emitting gRPC code 14 UNAVAILABLE with DNS-resolution detail for the adservice target on port 9555.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, more than ~2 minutes after the recreate, the ad-service stream still shows only startup banners repeating at backoff spacing with no request-handling lines, or frontend keeps logging code 14 UNAVAILABLE for adservice:9555. That would mean the container is dying for a reason other than the 256m ceiling \u2014 plausible, because no direct kill evidence was ever retrieved (no OOMKilled reason, no exit 137, no kubelet event, no memory-usage series) [tr_45865e0db755]. Note also two things this action is not predicted to fix and which must not be read as confirmation or refutation: the 13:18 payment-path failure (code 13 INTERNAL, refused dial to :50051) is a separate unexplained signature, and adservice's own error-ratio series is empty in both incident and baseline windows, so it cannot be used to confirm recovery \u2014 only logs can. Additionally, six prior lower/revert cycles by platform-automation are on record; if the automation re-applies the 256m cap the banners will resume, which falsifies durability rather than the diagnosis.",
+    "risk": "Two real risks. First, the reverted-to state is 'uncapped': if the true fault is an adservice memory leak or a genuine over-consumption that the cap was placed to contain, removing the ceiling lets the JVM grow without bound and shifts the failure from a contained crash-loop to host-level memory pressure, which can degrade services co-located on the same host rather than just adservice. Second, the revert fights an automated actor \u2014 platform-automation has oscillated this value eleven times in 24h \u2014 so the change may be silently re-applied, producing a flapping adservice and a confusing recovery signal. The recreate itself also discards the in-process cache and drops any in-flight ad calls.",
+    "blast_radius": "adservice directly. Within the traversed graph, frontend is the caller of adservice and is the service that sees the change: during the recreate its outbound ad calls continue to fail (they already are), and on success its code 14 UNAVAILABLE lines for :9555 should cease. loadgenerator sees it only indirectly through frontend. cartservice, checkoutservice, productcatalogservice and recommendationservice are not touched by this action, and the frontend aggregate error ratio is a poor witness here \u2014 it ran at ~0.4x baseline through the incident [tr_e05c7ecd11f7] and has no per-dependency dimension, so do not expect it to move."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend plus the load generator simultaneously indicate a user-facing failure, not an isolated synthetic blip, and no open incident covers it. Cause is unclear at this stage; frontend's several dependencies are all viable candidates."
+  }
+}
