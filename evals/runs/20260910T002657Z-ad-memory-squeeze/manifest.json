@@ -424,5 +424,68 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "ad-memory-squeeze",
+    "run_id": "20260910T002657Z-ad-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies adservice's container memory limit being set below its JVM's configured footprint, while the agent narrative identifies an unreachable shipping service backend and leaves adservice as an unexplained secondary phenomenon.",
+    "dead_ends_closed": [
+      "authorization, quota, or bad-request rejection",
+      "latency saturation with deadlines expiring",
+      "TLS or handshake problem",
+      "frontend's own handlers throwing",
+      "service-wide outage"
+    ],
+    "dead_ends_missed": [
+      "loadgenerator as source",
+      "recent code or image changes",
+      "recent environment changes",
+      "adservice's repeating truncated startup pattern",
+      "adservice's runtime metrics disappearing",
+      "memory ceiling reduction"
+    ],
+    "traps": [
+      {
+        "trap": "shipping service failure explains all symptoms",
+        "outcome": "took"
+      },
+      {
+        "trap": "frontend and loadgenerator alerts name the culprit",
+        "outcome": "took"
+      },
+      {
+        "trap": "change history near onset caused the incident",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "adservice absence is explained by the same cause as shipping failure",
+        "outcome": "took"
+      }
+    ],
+    "notes": "The agent narrative investigated the wrong service entirely (shipping instead of adservice), missed the single critical piece of evidence (adservice's repeated JVM startup attempts in the logs), and never examined adservice's change history where the memory limit reduction would have been found. It also conflated two distinct failure signatures as potentially related without evidence, and built confidence in a hypothesis it never actually verified against the implicated service.",
+    "tokens_in": 6608,
+    "tokens_out": 434
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 30,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigator never identifies that adservice's memory limit was reduced below its JVM working set; it pursues shipping service failures and DNS resolution issues instead, and while entry 24-25 name adservice DNS failures, they do not commit to the mechanism of a memory limit misconfiguration causing process kills.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

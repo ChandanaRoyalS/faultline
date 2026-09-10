@@ -413,5 +413,61 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "product-catalog-flag-failure",
+    "run_id": "20260908T224453Z-product-catalog-flag-failure",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a feature flag at the flag service was enabled, instructing productcatalogservice to fail requests for a specific product.",
+    "dead_ends_closed": [
+      "productcatalogservice image, environment, configuration unchanged",
+      "database and cache were fine",
+      "partial failure with stable boundary rules out resource pressure, dependency outage, network problem",
+      "traffic-shaping container attached and removed 14+ hours before onset",
+      "cartservice changes all reverted before onset"
+    ],
+    "dead_ends_missed": [
+      "flag service's own configuration and change history never queried",
+      "why only 8\u20139% of calls fail remains unexplained",
+      "why only GetProduct fails while ListProducts succeeds unexplained"
+    ],
+    "traps": [
+      {
+        "trap": "the loudest service (productcatalogservice) is the culprit",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "something changed on productcatalogservice itself",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "a dependency (database, cache, cartservice) caused the failure",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent narrative reaches the correct root cause through systematic evidence collection but leaves open several investigative threads the recorded narrative explicitly closed, particularly the flag service's change history and the mechanism determining which 8-9% of requests fail.",
+    "tokens_in": 5121,
+    "tokens_out": 380
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 37,
+    "depth": 38,
+    "elapsed_ms": 124000,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 37 identifies that productcatalogservice is deliberately failing GetProduct calls because a feature flag ('ProductCatalogService Fail') is enabled at the flag service, which is the exact mechanism stated in the recorded narrative: a feature flag was switched on at the flag service, instructing product catalog to fail requests for a specific product.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

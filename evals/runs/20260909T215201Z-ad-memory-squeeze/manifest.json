@@ -422,5 +422,63 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "ad-memory-squeeze",
+    "run_id": "20260909T215201Z-ad-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: the container memory limit was reduced to 256 MiB below the JVM's working set, causing the process to be killed repeatedly during startup before it could serve requests.",
+    "dead_ends_closed": [
+      "loadgenerator error rate (not an independent cause)",
+      "application error or exception (no ERROR lines in logs)",
+      "JVM misconfiguration or failure (banners emit successfully)",
+      "hung or wedged process (repeated restarts visible in logs)",
+      "pre-existing error background (baseline is hard zero)",
+      "adservice serving degraded responses (never reaches request stage)",
+      "external trigger unrelated to changes (change history shows the limit reduction)"
+    ],
+    "dead_ends_missed": [
+      "why the automation's restore step did not fire this cycle (agent notes this as open)",
+      "whether other services in the blast radius contributed concurrently (agent notes this as open)",
+      "per-dependency or per-route error dimensions (agent notes adservice call path is inferred, not measured)"
+    ],
+    "traps": [
+      {
+        "trap": "trusting the alert timestamp as onset (delay between error and page fire)",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "reading adservice's empty error-ratio metric as evidence of health",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "interpreting a silent process termination pattern without change context",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative correctly identifies the mechanism and closes the same primary dead ends, explicitly acknowledging several open gaps (missing restart-count telemetry, automation failure investigation, monitoring holes, and unmeasured services). Both reach config_revert as fix class with appropriate confidence calibration.",
+    "tokens_in": 7910,
+    "tokens_out": 453
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 23,
+    "depth": 24,
+    "elapsed_ms": 104627,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 23 commits to the mechanism: the JVM could not complete startup within the 256m memory allocation, causing the container to be killed from outside for exceeding its memory limit, which matches the narrative's root cause that the memory limit was reduced below the JVM's configured footprint.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

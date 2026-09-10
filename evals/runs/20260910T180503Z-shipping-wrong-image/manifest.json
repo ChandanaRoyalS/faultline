@@ -431,5 +431,56 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-wrong-image",
+    "run_id": "20260910T180503Z-shipping-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a wrong image deployment to shippingservice as the root cause; the agent narrative concludes paymentservice became slow and checkout requests timeout waiting for it.",
+    "dead_ends_closed": [
+      "checkoutservice configuration unchanged",
+      "productcatalogservice healthy",
+      "paymentservice configuration reverted 48m before onset"
+    ],
+    "dead_ends_missed": [
+      "shippingservice image change",
+      "shippingservice container restart loop",
+      "language runtime change in shippingservice logs",
+      "memory limit versus container needs"
+    ],
+    "traps": [
+      {
+        "trap": "repeating startup failure pattern suggests memory limit exceeded",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "partial intermittent errors suggest slow dependency rather than hard outage",
+        "outcome": "took"
+      }
+    ],
+    "notes": "The agent never examined shippingservice logs or metrics despite both being dark (no samples); it fixated on payment based solely on checkout's log silence at that step, missing the critical evidence that shippingservice changed runtime languages at the exact failure boundary.",
+    "tokens_in": 7478,
+    "tokens_out": 305
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 36,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigator never identifies that shippingservice received a wrong container image; instead it pursues paymentservice latency as the root cause, misled by the log signature of a process killed before startup completes into diagnosing the wrong service entirely.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

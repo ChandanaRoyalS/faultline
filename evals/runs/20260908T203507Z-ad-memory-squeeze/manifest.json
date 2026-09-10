@@ -416,5 +416,60 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "ad-memory-squeeze",
+    "run_id": "20260908T203507Z-ad-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a container memory limit reduction below the JVM heap size, causing repeated OOM kills of adservice. The agent narrative identifies frontend misconfiguration pointing to a wrong shipping-quote endpoint address, with no mention of adservice, memory limits, or process kills.",
+    "dead_ends_closed": [
+      "loadgenerator as root cause",
+      "checkoutservice failure",
+      "cartservice failure",
+      "frontend code or deployment change"
+    ],
+    "dead_ends_missed": [
+      "adservice process state or restart loop",
+      "metrics visibility and time lag issues",
+      "distinction between idle and dead service"
+    ],
+    "traps": [
+      {
+        "trap": "frontend error rate and alerts point to the culprit",
+        "outcome": "took"
+      },
+      {
+        "trap": "partial outage in metrics matches a specific broken dependency",
+        "outcome": "took"
+      },
+      {
+        "trap": "change history query covering the incident window would reveal the cause",
+        "outcome": "took"
+      }
+    ],
+    "notes": "The agent investigated a completely different incident scenario\u2014frontend misconfiguration for shipping-quote endpoint\u2014while the recorded narrative concerns adservice memory limit exhaustion. These are incompatible root causes affecting different services via different mechanisms. The agent narrative did explicitly recognize that its change history queries had forward-only windows and thus could miss pre-incident edits, which is honest, but this recognition came too late: it had already committed to a shipping-quote configuration hypothesis unsupported by evidence of what adservice was actually doing.",
+    "tokens_in": 8315,
+    "tokens_out": 397
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 31,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigation never identifies that adservice's container memory limit was reduced below its JVM's configured footprint, which is the actual mechanism described in the narrative; instead, it pursues an unrelated theory about frontend's shipping-quote endpoint being unavailable due to wrong address/port configuration.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

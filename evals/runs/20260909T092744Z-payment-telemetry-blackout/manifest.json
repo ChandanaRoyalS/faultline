@@ -412,5 +412,63 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "payment-telemetry-blackout",
+    "run_id": "20260909T092744Z-payment-telemetry-blackout",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the OTLP trace exporter endpoint pointed at a loopback address (127.0.0.1:4317) as the root cause, causing missing telemetry rather than actual service failure.",
+    "dead_ends_closed": [
+      "crash or restart",
+      "cascade of downstream alerts",
+      "error rates in payment service",
+      "shippingservice latency issue"
+    ],
+    "dead_ends_missed": [
+      "earlier identical set/revert cycles that produced no page",
+      "span query against the incident window itself",
+      "request-rate, latency, CPU, memory or saturation data for paymentservice"
+    ],
+    "traps": [
+      {
+        "trap": "trace query showing 21 complete traces with correct structure suggests span export was fine",
+        "outcome": "took",
+        "note": "agent notes this was scoped to T-12h to T-6h and killed the telemetry hypothesis 'for a while'"
+      },
+      {
+        "trap": "empty error-ratio series could mean actual outage",
+        "outcome": "avoided",
+        "note": "agent explicitly states 'Empty is not healthy and it is not an outage either'"
+      },
+      {
+        "trap": "gap in charge traffic at T+0 could be meaningful",
+        "outcome": "avoided",
+        "note": "agent checked it against later 25s and 34s gaps and dismissed it"
+      }
+    ],
+    "notes": "Agent correctly identifies root cause and closes most critical dead ends, but acknowledges three significant gaps: no span query on the incident window itself, no investigation of why earlier identical changes didn't fire alerts, and no performance metrics for paymentservice ruling out silent degradation. Confidence is medium in both narratives.",
+    "tokens_in": 6153,
+    "tokens_out": 452
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 30,
+    "depth": 31,
+    "elapsed_ms": 132915,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 30 is the synthesizer verdict that explicitly states the mechanism: the OTLP traces exporter endpoint was pointed at a loopback address (http://127.0.0.1:4317) where no collector listens, causing span export to break and the span-derived traffic metric to go absent, triggering the ServiceNoTraffic alert on a service that was actually healthy and processing charges normally.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

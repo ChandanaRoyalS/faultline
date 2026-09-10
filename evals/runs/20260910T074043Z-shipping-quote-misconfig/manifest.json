@@ -424,5 +424,60 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-quote-misconfig",
+    "run_id": "20260910T074043Z-shipping-quote-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a specific misconfiguration: shipping's quote-service address pointed at a non-existent host, causing shipping to fail silently and propagate errors upward to checkout. The agent narrative identifies a generic unidentified stall at an unknown downstream dependency (possibly at or before the payment step) without pinpointing shipping or a configuration change.",
+    "dead_ends_closed": [
+      "checkoutservice itself had no changes",
+      "paymentservice health is unknown (instrumentation gap)",
+      "cartservice automation cycle does not correlate with onset (changes 1.6+ hours prior)",
+      "no human operator changes"
+    ],
+    "dead_ends_missed": [
+      "shippingservice configuration change (the actual root cause)",
+      "quote-service address misconfiguration",
+      "services one hop away from the alerting service"
+    ],
+    "traps": [
+      {
+        "trap": "no error logs from checkout means nothing went wrong there",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "alerting service (checkout) must be the faulty service",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "shipping's lack of error reporting means shipping is healthy",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent never queried shipping's configuration or logs despite listing it as a suspect; it examined payment's telemetry (empty) but not shipping's. The recorded narrative found the answer by checking changes on services adjacent to the failure point, not the alerting point\u2014a methodology the agent did not employ.",
+    "tokens_in": 6957,
+    "tokens_out": 403
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 25,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigator never identifies that shippingservice's quote-service address was misconfigured to a non-existent host; it suspects a slow downstream dependency causing timeouts at or before the payment step, but never names shipping or discovers the DNS misconfiguration that is the actual mechanism.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

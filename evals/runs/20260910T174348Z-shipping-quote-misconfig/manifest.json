@@ -431,5 +431,58 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-quote-misconfig",
+    "run_id": "20260910T174348Z-shipping-quote-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a misconfigured DNS address on shippingservice pointing to a non-existent host for quoteservice; the agent narrative leaves the mechanism unidentified and suspects runtime issues beneath checkoutservice.",
+    "dead_ends_closed": [
+      "checkoutservice itself changed",
+      "checkoutservice crashed or stalled"
+    ],
+    "dead_ends_missed": [
+      "changes on downstream services (shippingservice never queried)",
+      "shippingservice's configuration or dependencies",
+      "quote service addressability"
+    ],
+    "traps": [
+      {
+        "trap": "the alerting service is the faulty service",
+        "outcome": "took"
+      },
+      {
+        "trap": "no errors in logs means nothing is wrong",
+        "outcome": "took"
+      },
+      {
+        "trap": "a service that reports no errors is healthy",
+        "outcome": "took"
+      }
+    ],
+    "notes": "The agent narrative failed to query change history on shippingservice or other downstream dependencies, and never examined the service one hop away that was actually misconfigured; it treated the absence of evidence in checkoutservice's own domain as narrowing the search space rather than redirecting it to dependency configuration.",
+    "tokens_in": 5631,
+    "tokens_out": 324
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 23,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigator never identifies that shippingservice's quote-service address was misconfigured to a non-resolving host; it focuses on checkoutservice's error rate and traces without examining shipping's configuration or dependencies.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

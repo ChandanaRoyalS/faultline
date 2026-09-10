@@ -421,5 +421,61 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-quote-misconfig",
+    "run_id": "20260909T140204Z-shipping-quote-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: shipping's quote-service address (QUOTE_SERVICE_ADDR) was misconfigured to point to a non-existent host, causing shipping to fail silently on quote requests, which propagates upward as checkout errors.",
+    "dead_ends_closed": [
+      "change on checkoutservice itself",
+      "shippingservice error metrics",
+      "internal handler failure on shippingservice",
+      "malformed payloads or schema mismatch",
+      "rollout loop or crash-loop"
+    ],
+    "dead_ends_missed": [
+      "status code checkoutservice receives",
+      "whether shippingservice returns degraded or empty quote",
+      "quoteservice independent unhealthiness"
+    ],
+    "traps": [
+      {
+        "trap": "shippingservice reported no errors, so it is healthy",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "alerting service (checkout) is the faulty service",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "metrics silence on shippingservice means nothing went wrong there",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent narrative explicitly acknowledges the trap that 'no errors here means nothing wrong here' and works through it systematically. It reaches the same root cause through careful log shape analysis and configuration history, though it leaves three minor technical questions open that the recorded narrative does not address.",
+    "tokens_in": 5010,
+    "tokens_out": 380
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 22,
+    "depth": 37,
+    "elapsed_ms": 55157,
+    "role": "changes",
+    "kind": "finding",
+    "reason": "Entry 22 identifies the root cause mechanism: a configuration edit that set QUOTE_SERVICE_ADDR to a non-existent host on shippingservice, which is exactly what the narrative states caused the failures.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

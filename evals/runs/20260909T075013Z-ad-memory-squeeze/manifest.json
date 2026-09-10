@@ -419,5 +419,63 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "ad-memory-squeeze",
+    "run_id": "20260909T075013Z-ad-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a memory limit reduction causing repeated OOM kills and process restart loops; the agent narrative identifies DNS resolution failure of the adservice endpoint as the mechanism, without examining adservice's state at all.",
+    "dead_ends_closed": [
+      "frontend local changes",
+      "checkoutservice changes",
+      "productcatalogservice traffic shaping",
+      "cartservice redis config lingering",
+      "early-window deploy regression",
+      "slow creeping degradation"
+    ],
+    "dead_ends_missed": [
+      "adservice's own state and logs (never examined)",
+      "adservice change history (budget exhausted before querying it)",
+      "whether adservice pods were running or crashed",
+      "reconcile the 27-minute gap between frontend log errors and metric threshold crossing"
+    ],
+    "traps": [
+      {
+        "trap": "gRPC UNAVAILABLE with DNS resolution failure in logs points to configuration or endpoint absence",
+        "outcome": "took"
+      },
+      {
+        "trap": "frontend error ratio only 0.1 peak despite 'entire dependency unreachable' suggests isolation rather than total outage",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "platform-automation cycle touching other services suggests similar intervention on adservice",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent narrative correctly closed several false leads but never examined adservice itself, exhausting the change-history budget on neighbors and missing the actual root cause (memory limit reduction) evidenced by adservice's repeated startup attempts in logs and absence from metrics. The DNS resolution failure in frontend logs was an observable symptom of adservice being repeatedly killed, not the underlying cause.",
+    "tokens_in": 6398,
+    "tokens_out": 432
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 28,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigator never queries adservice's change history, logs showing repeated startup attempts, or metrics showing the JVM heap series disappearing\u2014the only three windows that would reveal the memory limit was reduced below the JVM's working set; instead it stops at a DNS resolution hypothesis without examining the service's actual state.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

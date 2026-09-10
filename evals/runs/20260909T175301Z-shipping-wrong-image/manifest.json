@@ -422,5 +422,64 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-wrong-image",
+    "run_id": "20260909T175301Z-shipping-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: the shipping service image reference was updated to point at a different service's image (adservice), causing a JVM-based service to be deployed where a Rust native binary was expected, which then failed to start within the existing memory limit.",
+    "dead_ends_closed": [
+      "checkoutservice's own configuration unchanged",
+      "checkoutservice's other dependencies fine",
+      "cart, currency, product-catalog working normally",
+      "no payment span in failing traces",
+      "no checkoutservice deployments or config changes",
+      "shipping's error ratio metrics empty (standing property, not crash indicator)",
+      "failure is not inside shipping's handler"
+    ],
+    "dead_ends_missed": [
+      "whether bursty error ratio indicates partial replica failure",
+      "whether earliest metric change point (25m before image update) represents one continuous failure or separate cause",
+      "whether restart loop belongs to co-labelled workload rather than shipping itself",
+      "pod and image inspection would settle remaining questions"
+    ],
+    "traps": [
+      {
+        "trap": "memory limit set below service needs (JVM dying on startup with no error output)",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "shipping's error-ratio metrics being absent means crash",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "endpoint override set 25m before onset as active cause",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative explicitly acknowledges the memory-limit trap and the metrics-absence trap, correctly reasoning through them. It identifies the same image-swap mechanism and leaves open narrower questions about partial degradation and workload labeling that the recorded narrative also leaves for pod inspection.",
+    "tokens_in": 5753,
+    "tokens_out": 442
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 25,
+    "depth": 37,
+    "elapsed_ms": 63393,
+    "role": "changes",
+    "kind": "finding",
+    "reason": "Entry 25 identifies that shippingservice's image reference was updated to a different service's image (adservice demo tag) approximately 2 minutes before onset, which is the exact mechanism stated in the narrative: 'A deployment put the wrong image on shippingservice.'",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

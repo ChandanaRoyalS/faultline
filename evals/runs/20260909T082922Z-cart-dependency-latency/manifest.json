@@ -430,5 +430,59 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "cart-dependency-latency",
+    "run_id": "20260909T082922Z-cart-dependency-latency",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a traffic-shaping container attached to cartservice's network namespace imposing a fixed 300ms egress delay on packets.",
+    "dead_ends_closed": [
+      "cartservice's own metrics (error ratio)",
+      "cartservice being down or crashing",
+      "bad rollout from hotfix image",
+      "misconfigured cache endpoint"
+    ],
+    "dead_ends_missed": [
+      "cartservice restart warm-up decay (not explicitly addressed)",
+      "the earlier error ratio change point in checkoutservice (~19 minutes before shaper attachment)"
+    ],
+    "traps": [
+      {
+        "trap": "reading four empty rows of change queries as 'the service was not touched'",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "expecting p95 to rise by exactly 300ms rather than roughly double",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "reading the firing order (cart before checkout) as causal",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "Agent narrative correctly identifies the mechanism and supports it with strong trace evidence showing fixed 300ms delays on Redis operations. However, it leaves open the earlier unexplained error ratio degradation in checkoutservice and notes data gaps (metrics unmeasured, onset minute not directly observed) that the recorded narrative did not emphasize as unsolved.",
+    "tokens_in": 7256,
+    "tokens_out": 369
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 3,
+    "depth": 28,
+    "elapsed_ms": 21891,
+    "role": "changes",
+    "kind": "finding",
+    "reason": "Entry 3 identifies the traffic-shaping container imposing 300ms egress delay on cartservice's network namespace as the mechanism, matching the recorded narrative's root cause exactly.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

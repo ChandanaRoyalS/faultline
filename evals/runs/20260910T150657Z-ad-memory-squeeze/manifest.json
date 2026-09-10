@@ -418,5 +418,60 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "ad-memory-squeeze",
+    "run_id": "20260910T150657Z-ad-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: the memory limit was lowered to 256 MiB below the JVM's configured footprint, causing repeated crashes during startup before the service could serve requests.",
+    "dead_ends_closed": [
+      "frontend-wide surge or total outage of high-traffic dependency",
+      "frontend deploy or config change",
+      "checkoutservice change",
+      "DNS or routing change",
+      "scaling action"
+    ],
+    "dead_ends_missed": [
+      "the mechanism by which the process was killed (container events, exit codes, memory-usage series)",
+      "whether the automated loop would re-arm after restore"
+    ],
+    "traps": [
+      {
+        "trap": "the page and alerts pointed at frontend and loadgenerator as culprits",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "a total outage of a single high-traffic dependency",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the DNS resolution failure in frontend logs as the root cause rather than a symptom",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent correctly identified the memory limit change as the root cause and connected it to the restart loop. However, it did not retrieve the full startup banner sequence evidence (the 23 repeated startup attempts) that the recorded narrative emphasizes as 'the strongest evidence in this incident,' and it explicitly notes the kill mechanism was inferred rather than observed\u2014a limitation the recorded narrative does not highlight as prominently.",
+    "tokens_in": 5671,
+    "tokens_out": 392
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 31,
+    "depth": 32,
+    "elapsed_ms": 122516,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 31 commits to the mechanism: the memory limit was lowered below the JVM's working set size, causing the container to be killed during startup before it could serve requests, resulting in a crash-loop that matches the recorded narrative's root cause.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

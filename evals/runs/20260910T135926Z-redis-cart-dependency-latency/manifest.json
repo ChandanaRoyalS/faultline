@@ -423,5 +423,57 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "redis-cart-dependency-latency",
+    "run_id": "20260910T135926Z-redis-cart-dependency-latency",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a 300ms network delay on the Redis container interface as the root cause; the agent narrative identifies no root cause and explicitly states the origin remains unestablished, with the only confirmed finding being a frontend error ratio increase.",
+    "dead_ends_closed": [
+      "cartservice's own recent history (deploy, config change, restart)",
+      "cartservice change log activity (all reverted well before onset)"
+    ],
+    "dead_ends_missed": [
+      "Redis as a datastore with no telemetry",
+      "latency appearing in caller due to blocked datastore access"
+    ],
+    "traps": [
+      {
+        "trap": "cartservice as the origin of the fault",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the 14:03 cartservice alert time as the onset",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "error-driven failure rather than latency/queuing",
+        "outcome": "took"
+      }
+    ],
+    "notes": "The agent correctly rejected cartservice as the culprit but then failed to pursue the datastore hypothesis that the recorded narrative reveals; it concluded the investigation without identifying the actual root cause, leaving three open questions instead of naming the 300ms Redis delay.",
+    "tokens_in": 5527,
+    "tokens_out": 330
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 22,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "No entry commits to the recorded mechanism: the investigator never identifies that Redis had a 300ms network delay applied to its interface, only that changes to cartservice's configuration had been reverted hours before onset and that frontend errors increased without a clear cartservice fault.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

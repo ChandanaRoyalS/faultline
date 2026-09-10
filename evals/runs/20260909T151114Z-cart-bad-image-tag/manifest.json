@@ -424,5 +424,66 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "cart-bad-image-tag",
+    "run_id": "20260909T151114Z-cart-bad-image-tag",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: cartservice's image reference was updated to a tag that does not exist, causing the service to stop running, which broke checkout functionality.",
+    "dead_ends_closed": [
+      "checkoutservice self-deploy regression",
+      "checkoutservice's own error metrics as signal",
+      "redis address configuration issue",
+      "traffic-shaping network delay causing failures",
+      "checkout aborting in payment, currency, email, or accounting services",
+      "local crash or OOM stop on checkout"
+    ],
+    "dead_ends_missed": [
+      "whether the new image failed to pull vs crash-looped vs came up under different log label",
+      "cart's rate, latency and error onset from metric series",
+      "the 3-5 minute gap between shutdown and alerts (prior automation cycle behavior)"
+    ],
+    "traps": [
+      {
+        "trap": "cartservice's zero error rate as evidence of health",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "loadgenerator and frontend as primary culprits given loudest alerting",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "reading the two-minute gap between error alerts and no-traffic alerts as failure spreading",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "redis or network configuration as cause given historical change entries",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative explicitly acknowledges it did not collect pod/container lifecycle evidence and leaves three investigative gaps open; recorded narrative infers the pull failure from circumstantial evidence but makes this inference transparent. Both reach the same conclusion but agent stops short of claiming the pull definitely failed.",
+    "tokens_in": 6228,
+    "tokens_out": 438
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 33,
+    "depth": 34,
+    "elapsed_ms": 118889,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 33 commits to the exact mechanism: cartservice's image reference was updated to a tag that is not running (the artifact is not available), the old process stopped, and cartservice ceased to exist, causing checkout to fail on GetCart calls.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

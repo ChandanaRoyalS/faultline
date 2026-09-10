@@ -423,5 +423,61 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "cart-dependency-latency",
+    "run_id": "20260909T120152Z-cart-dependency-latency",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a traffic-shaping container attached to cartservice's network namespace adding 300ms of egress delay to packets.",
+    "dead_ends_closed": [
+      "cartservice crash or restart",
+      "service configuration or deploy changes",
+      "downstream service failures",
+      "queueing effects",
+      "write-specific persistence stalls"
+    ],
+    "dead_ends_missed": [
+      "whether the sidecar remains attached at incident time",
+      "cartservice latency or request-rate metrics existence",
+      "true onset time (agent notes checkoutservice error change 19 minutes before sidecar attachment)"
+    ],
+    "traps": [
+      {
+        "trap": "nothing changed on cartservice (reading four empty configuration rows)",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "reading alert firing order as causal (cart alerting before checkout)",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "p95 should rise by exactly 300ms (not accounting for multiple round trips)",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "Agent narrative correctly identifies the mechanism but explicitly flags significant gaps: checkoutservice error onset predates the sidecar attachment by 19 minutes, trace coverage is sparse and late in the window, logs have a gap, and cartservice metrics are absent\u2014all limiting confidence in the timeline and fix certainty.",
+    "tokens_in": 4956,
+    "tokens_out": 374
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 3,
+    "depth": 28,
+    "elapsed_ms": 20271,
+    "role": "changes",
+    "kind": "finding",
+    "reason": "Entry 3 identifies the mechanism: a traffic-shaping (netem) sidecar container attached to cartservice's network namespace applying a 300ms fixed egress delay, which is precisely what the narrative states as root cause.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

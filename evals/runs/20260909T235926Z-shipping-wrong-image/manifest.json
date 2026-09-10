@@ -426,5 +426,58 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-wrong-image",
+    "run_id": "20260909T235926Z-shipping-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a deployment updated shippingservice's image reference to a different service's JVM-based image (adservice), replacing the original Rust binary, causing startup failures within the unchanged memory limit.",
+    "dead_ends_closed": [
+      "checkoutservice itself had no changes or errors",
+      "QUOTE_SERVICE_ADDR endpoint decoy (reverted before onset)",
+      "shipping error-ratio metrics are empty (telemetry gap, not signal)",
+      "currency-specific problem",
+      "email or publish failure"
+    ],
+    "dead_ends_missed": [
+      "direct trace or latency evidence on checkout-to-shipping edge",
+      "alerts on quoteservice, accountingservice, loadgenerator (assumed downstream but not investigated)",
+      "whether incident self-cleared and recurs on four-to-five-hour cycle",
+      "concurrent failure on another checkout dependency"
+    ],
+    "traps": [
+      {
+        "trap": "memory limit set below what the service needs (confident wrong answer from repeated JVM startup failures)",
+        "outcome": "avoided explicitly"
+      },
+      {
+        "trap": "shipping's repeated startup pattern names a cause rather than a symptom",
+        "outcome": "avoided explicitly"
+      }
+    ],
+    "notes": "Agent narrative demonstrates sophisticated reasoning: it identifies the wrong image, correctly rejects the resource-exhaustion-only hypothesis by noting the language change (Rust to JVM), explicitly names the memory-limit trap and avoids it, and acknowledges gaps in direct evidence while maintaining high confidence in the cause.",
+    "tokens_in": 6676,
+    "tokens_out": 400
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 28,
+    "depth": 29,
+    "elapsed_ms": 96394,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 28 commits to the mechanism: a deployment put the wrong image (adservice) on shippingservice, causing it to run a Java application instead of the Rust shipping binary, which crashes in a restart loop and never reaches a serving state, blocking checkoutservice's PlaceOrder requests at the shipping quote call.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

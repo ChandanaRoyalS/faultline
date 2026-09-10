@@ -418,5 +418,67 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "frauddetection-memory-squeeze",
+    "run_id": "20260910T162439Z-frauddetection-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both identify the same root cause: the memory limit was lowered to 200 MiB below the JVM's working set, causing the kernel to kill the process in a crash-loop.",
+    "dead_ends_closed": [
+      "code deployment or image rollout",
+      "feature-flag flip",
+      "shared or platform-wide change",
+      "OpenTelemetry agent failure",
+      "degradation (slow service)",
+      "single restart blip that self-healed",
+      "in-application initialisation error"
+    ],
+    "dead_ends_missed": [
+      "whether the service was idle or absent (recorded narrative uses JVM heap series publication as discriminator; agent never checks runtime metrics directly)",
+      "queue depth and backlog accumulation (recorded narrative names this as the actual impact; agent never investigates)",
+      "downstream impact on order screening (recorded narrative emphasizes orders unprocessed; agent explicitly notes this was never investigated)"
+    ],
+    "traps": [
+      {
+        "trap": "metrics-based error ratio queries returning empty",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "earlier reverted memory-limit changes as evidence of harmlessness",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "OpenTelemetry agent banner as a load failure signal",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "treating alert timestamp as onset time",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent reaches the correct diagnosis but with lower confidence and several unresolved gaps: no direct observation of container termination reason, restart count, or memory working-set metrics; no investigation of downstream impact; missing clarity on why automation might re-apply the limit; and lack of understanding that absence of downstream symptoms does not indicate low severity for an asynchronous consumer.",
+    "tokens_in": 7416,
+    "tokens_out": 465
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 18,
+    "depth": 19,
+    "elapsed_ms": 94215,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 18 commits to the complete mechanism: the memory limit was reduced below the JVM's working set requirements, causing the kernel to kill the process during startup in a crash loop, which is exactly what the recorded narrative states as root cause.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

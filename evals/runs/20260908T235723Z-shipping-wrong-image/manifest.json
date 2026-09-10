@@ -421,5 +421,61 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-wrong-image",
+    "run_id": "20260908T235723Z-shipping-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a wrong image deployment to shippingservice causing JVM startup failure under an unchanged memory limit; the agent narrative proposes an unidentified dependency slowness affecting checkoutservice's payment/email/message-write path, without naming shippingservice or any deployment.",
+    "dead_ends_closed": [
+      "checkoutservice itself changed (no deploy/config changes found)",
+      "cartservice recent changes (all reverted before onset)",
+      "productcatalogservice changes (15.8h before onset)",
+      "paymentservice environment changes (reverted 1.4h before onset)"
+    ],
+    "dead_ends_missed": [
+      "shippingservice deployment/image change",
+      "shippingservice runtime language change (Rust to JVM)",
+      "shippingservice memory limit adequacy",
+      "container startup failures in shippingservice logs"
+    ],
+    "traps": [
+      {
+        "trap": "memory limit dropped below service needs",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "checkoutservice is the broken component (named in alert)",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "paymentservice caused the incident (first completion to stop)",
+        "outcome": "took"
+      }
+    ],
+    "notes": "The agent narrative explicitly avoids blaming checkoutservice and the most recent changes, but stops investigation prematurely due to budget exhaustion before examining shippingservice or any of the five services that alerted later, never discovering the actual root cause. It settles on paymentservice as a 'named suspect' based only on log sequence ordering, which the recorded narrative warns is a confidence trap.",
+    "tokens_in": 6688,
+    "tokens_out": 427
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 33,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigator never commits to the actual mechanism: a deployment that pointed shippingservice at a different service's image. Entry 6 asks about shippingservice changes but the investigator never retrieves or examines that answer, instead exhausting the change budget on checkoutservice and unrelated services, and concluding (incorrectly) that paymentservice became slow. The narrative's mechanism\u2014wrong image deployed to shippingservice\u2014is never stated by any entry.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

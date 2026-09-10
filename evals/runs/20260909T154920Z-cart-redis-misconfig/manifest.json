@@ -432,5 +432,61 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "cart-redis-misconfig",
+    "run_id": "20260909T154920Z-cart-redis-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: cartservice configured with wrong Redis port (6380 instead of 6379), causing startup failures and restart loops.",
+    "dead_ends_closed": [
+      "checkoutservice error rate as primary cause",
+      "checkoutservice deployment as trigger",
+      "cartservice hotfix image and traffic-shaping sidecar involvement",
+      "email service 500 error involvement"
+    ],
+    "dead_ends_missed": [
+      "redis-cart port 6380 actually being closed (inferred not confirmed)",
+      "earlier error change point in checkoutservice",
+      "why automation failed to revert the change",
+      "checkout silent stall logs vs fast trace rejection discrepancy"
+    ],
+    "traps": [
+      {
+        "trap": "cartservice's flat zero error rate as evidence of health",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the fifteen-second gap between six services and cartservice going silent as indicating cartservice fell last",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "loadgenerator or frontend as primary culprits (loudest alerts)",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative reached correct conclusion with solid trace and log evidence but left several investigative threads unresolved (redis-cart direct query, automation failure root cause, onset-window log anomaly) that the recorded narrative treated more conclusively.",
+    "tokens_in": 4991,
+    "tokens_out": 377
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 26,
+    "depth": 39,
+    "elapsed_ms": 58645,
+    "role": "changes",
+    "kind": "finding",
+    "reason": "Entry 26 commits to the mechanism: an environment update set cartservice's Redis address to a non-default port (6380 instead of 6379) approximately 2 minutes before onset, which is the root cause stated in the narrative.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

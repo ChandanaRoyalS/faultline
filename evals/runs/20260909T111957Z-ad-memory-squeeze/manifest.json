@@ -417,5 +417,69 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "ad-memory-squeeze",
+    "run_id": "20260909T111957Z-ad-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify that the memory limit was reduced below adservice's JVM footprint, causing repeated process kills and unavailability.",
+    "dead_ends_closed": [
+      "frontend broke out on its own",
+      "double-digit sustained failure",
+      "shipped change or ongoing rollout",
+      "broad fan-out outage",
+      "cart/Redis failure",
+      "productcatalog failure",
+      "recommendation failure",
+      "upstream application-level rejection",
+      "connect/TLS/deadline problem",
+      "frontend handler bug",
+      "code deploy or image rollout",
+      "replica scale-down",
+      "operator restart",
+      "address/discovery edit"
+    ],
+    "dead_ends_missed": [
+      "whether adservice was idle or absent (agent notes absence of metrics but does not resolve the distinction)",
+      "whether the ceiling came down or the thing inside got bigger (agent infers ceiling but does not close the opposite hypothesis explicitly)"
+    ],
+    "traps": [
+      {
+        "trap": "resolver failure (status 13 on shippingservice DNS lookup)",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "adservice metrics never existed in baseline, so already unhealthy before the limit dropped",
+        "outcome": "took"
+      },
+      {
+        "trap": "three earlier self-healing cycles suggest normal behavior",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent correctly identifies the root cause but expresses lower confidence ('medium confidence') than warranted. It also leaves open whether adservice was pre-existing unhealthy rather than killed by the constraint, and does not engage the trap that earlier cycles had restored themselves\u2014which distinguishes this incident from routine operations.",
+    "tokens_in": 4525,
+    "tokens_out": 443
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 29,
+    "depth": 30,
+    "elapsed_ms": 126784,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 29 explicitly states the mechanism: 'adservice exceeding a lowered memory ceiling and being killed for it; the limit edit is the trigger, exhaustion is what is happening,' which matches the recorded narrative's root cause that 'adservice's container memory limit was reduced below the footprint its JVM was configured for' causing repeated kills during startup.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

@@ -424,5 +424,63 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "cart-redis-misconfig",
+    "run_id": "20260908T213130Z-cart-redis-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "adjacent",
+    "agreement_reason": "The agent correctly identifies that cartservice is refusing connections, but it does not identify the specific mechanism: a wrong Redis port in the configuration causing a startup validation failure and restart loop.",
+    "dead_ends_closed": [
+      "checkoutservice itself is broken",
+      "frontend business logic is broken",
+      "TLS and auth errors",
+      "timeouts and DEADLINE_EXCEEDED",
+      "service discovery failures",
+      "productcatalogservice traffic shaping",
+      "payment, email, currency, shipping, and product catalog dependencies"
+    ],
+    "dead_ends_missed": [
+      "why cartservice refuses connections specifically (crash loop vs. limit kill vs. wrong bind vs. replica loss)",
+      "true onset time (UNAVAILABLE pattern 38 minutes before alert)",
+      "why only part of traffic fails (partial replica loss vs. intermittent restarts)"
+    ],
+    "traps": [
+      {
+        "trap": "cartservice error rate is zero, so it must be healthy",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the fifteen-second gap between six services and cartservice going silent indicates cartservice fell last",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "checkoutservice's lower error rate in the incident window indicates it is not the cause",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent identified the right subsystem and the connection refusal, but stopped short of discovering the root cause: the configuration error (REDIS_ADDR set to port 6380 instead of 6379) that caused cartservice to fail its startup validation check and enter a restart loop. The agent explicitly notes it collected no cartservice evidence and left the mechanism unsettled.",
+    "tokens_in": 5851,
+    "tokens_out": 438
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 39,
+    "depth": 40,
+    "elapsed_ms": 132813,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 39 identifies that cartservice is refusing connections on port 7070, which reflects the recorded narrative's mechanism: cartservice configured with wrong Redis port (6380 instead of 6379) causing it to crash on startup and become unreachable, though the investigator does not yet identify the specific root cause (wrong config value) versus only naming the symptom (connection refusal).",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

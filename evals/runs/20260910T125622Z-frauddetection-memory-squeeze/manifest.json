@@ -418,5 +418,66 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "frauddetection-memory-squeeze",
+    "run_id": "20260910T125622Z-frauddetection-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the container memory limit being reduced to 200m against the JVM's working set requirement as the root cause, with the kernel terminating the process during startup as the failure mechanism.",
+    "dead_ends_closed": [
+      "application code path failing",
+      "downstream dependency error",
+      "service-side RPC call metrics as diagnostic",
+      "code or config change",
+      "graceful service shutdown"
+    ],
+    "dead_ends_missed": [
+      "why earlier 200m applications were reverted without incident",
+      "what the automated actor applying the limit is doing",
+      "actual working-set requirement of the JVM",
+      "topic backlog and consumer-lag consequence"
+    ],
+    "traps": [
+      {
+        "trap": "service went silent means it crashed",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "error-ratio queries would show the failure",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "T+0 alert timestamp is the moment something broke",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "liveness-probe failure or non-memory orchestrator kill",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "Agent narrative explicitly acknowledges the liveness-probe alternative and the gap in container metrics confirmation, showing disciplined uncertainty; recorded narrative presents memory limit as certainty without flagging this alternative.",
+    "tokens_in": 6532,
+    "tokens_out": 374
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 19,
+    "depth": 20,
+    "elapsed_ms": 93955,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 19 (the synthesizer verdict) identifies the exact mechanism: the container memory limit was reduced to 200m, the JVM requires more memory to start up, the kernel kills the process for exceeding the memory limit, causing a restart loop and service unavailability.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

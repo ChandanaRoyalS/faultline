@@ -424,5 +424,62 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-wrong-image",
+    "run_id": "20260910T080115Z-shipping-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a wrong image deployment to shippingservice causing memory exhaustion; the agent narrative never reaches a root cause and explicitly stops with checkoutservice's errors pointing downstream without naming which service or what changed.",
+    "dead_ends_closed": [
+      "checkoutservice's own process was healthy",
+      "checkoutservice's configuration unchanged",
+      "not baseline noise",
+      "not a total outage",
+      "not pre-existing drift"
+    ],
+    "dead_ends_missed": [
+      "deployment change on any service",
+      "shippingservice image or resource changes",
+      "which downstream dependency failed",
+      "whether failure was returned vs. timeout"
+    ],
+    "traps": [
+      {
+        "trap": "memory limit lowered or resource exhaustion",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "a truncated repeating startup names the cause rather than symptom",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "blank error metrics mean the service is healthy",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent narrative is incomplete and stops at the edge of the actual problem. It correctly rules out checkoutservice itself but never queries change history before onset (explicitly noting this gap), never examines shippingservice logs or behavior, and never identifies the image swap. The recorded narrative explicitly closes the 'memory limit' trap by distinguishing 'ceiling came down' from 'thing inside got bigger' via runtime language change; the agent never sees this evidence.",
+    "tokens_in": 5569,
+    "tokens_out": 396
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 25,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigator never committed to the mechanism of a deployed wrong image causing startup failure; it examined checkoutservice and its dependencies for error-ratio changes but never identified that shippingservice had been redeployed with a JVM-based image replacing a native binary, which could not start within the existing memory ceiling.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

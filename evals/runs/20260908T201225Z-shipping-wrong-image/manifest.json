@@ -423,5 +423,58 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-wrong-image",
+    "run_id": "20260908T201225Z-shipping-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The agent correctly identified shippingservice as the culprit but stopped at 'the call is rejected or never accepted' without determining that a wrong image (JVM instead of Rust native binary) was deployed, causing memory exhaustion.",
+    "dead_ends_closed": [
+      "checkoutservice's own process was healthy",
+      "checkoutservice configuration unchanged",
+      "checkoutservice other dependencies fine",
+      "paymentservice changes (OTLP endpoint edits)"
+    ],
+    "dead_ends_missed": [
+      "what changed on shippingservice",
+      "shippingservice image reference",
+      "shippingservice logs before onset",
+      "runtime change from Rust to JVM",
+      "memory ceiling sizing for old vs new image"
+    ],
+    "traps": [
+      {
+        "trap": "memory limit set below what the service needs produces identical signature to observed startup failure",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "raising the memory limit would have stopped the alert but made the problem worse (wrong protocol, service appears healthy while failing)",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent correctly narrowed to shippingservice as the broken dependency but explicitly states it examined nothing on that service itself and proposed no fix. It identified the symptom (immediate error, no server span) but not the cause (wrong image deployed). The recorded narrative went further by examining shippingservice logs across the onset boundary, discovering the language runtime changed from Rust to JVM, which led to identifying the image swap.",
+    "tokens_in": 5726,
+    "tokens_out": 398
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 30,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigator correctly identifies shippingservice as the culprit but never commits to the mechanism stated in the narrative: that a deployment put the wrong image (a JVM-based service) onto shippingservice, replacing the native Rust binary that was there before, causing it to exceed its memory limit during startup. Entry 29 infers 'wrong or unreachable target/port or a service that cannot serve requests' from the client-side fast-reject pattern, which is a symptom of the crash but not the deployment-of-wrong-image mechanism itself. No entry examines shippingservice's logs, deployment history, or running image to discover what actually changed.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

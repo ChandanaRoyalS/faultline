@@ -423,5 +423,64 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-quote-misconfig",
+    "run_id": "20260909T102938Z-shipping-quote-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both identify that shipping's quote-service address was misconfigured to point to a non-existent host, causing shipping to fail silently and checkout to fail visibly when requesting quotes.",
+    "dead_ends_closed": [
+      "checkout's own change history empty",
+      "checkout's error ratio misleading/below baseline",
+      "cartservice's noisy automation logs irrelevant",
+      "currency service present and fast",
+      "payment completing successfully",
+      "cart/Redis functioning"
+    ],
+    "dead_ends_missed": [
+      "the ~3ms fast failure vs hung outbound call incompatibility",
+      "shipping's server span non-error while checkout's client span errors",
+      "checkout-side response-handling or validation failure not directly excluded",
+      "log truncation around onset means transition was inferred not observed",
+      "automation may re-apply the bad value unless paused"
+    ],
+    "traps": [
+      {
+        "trap": "treating shipping's zero error ratio and INFO logging as proof nothing went wrong",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "stopping at checkout's change history being empty, concluding nothing changed",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "treating checkout as the actual faulty service rather than the alerting service",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative is notably thorough about what remains unreconciled (trace vs log interpretations, server vs client perspective) and about automation risks, exceeding the recorded narrative's closure level while still identifying the same root cause.",
+    "tokens_in": 4379,
+    "tokens_out": 407
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 28,
+    "depth": 41,
+    "elapsed_ms": 62357,
+    "role": "changes",
+    "kind": "finding",
+    "reason": "Entry 28 is the first to commit to the mechanism: a config edit pointed shippingservice's quote backend address to a non-existent host, which matches the recorded narrative's root cause that 'shipping's quote-service address was pointed at a host that does not exist.'",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": true
   }
 }

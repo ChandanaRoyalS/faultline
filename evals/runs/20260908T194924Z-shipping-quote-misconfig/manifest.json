@@ -421,5 +421,66 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-quote-misconfig",
+    "run_id": "20260908T194924Z-shipping-quote-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both documents identify the same root cause: shipping's quote-service address was misconfigured to point at a non-existent host, causing quote calls to fail and errors to propagate upward to checkout.",
+    "dead_ends_closed": [
+      "checkout's own change log empty",
+      "checkout's dependencies all fast and succeeding",
+      "shipping reported no errors",
+      "shipping produced no error logs",
+      "quoteservice change log empty",
+      "image rollouts not responsible"
+    ],
+    "dead_ends_missed": [
+      "per-replica breakdown for burstiness explanation",
+      "whether reverted configuration takes effect without restart",
+      "shippingservice span-metrics and GetQuote latency"
+    ],
+    "traps": [
+      {
+        "trap": "alerting service (checkout) is the faulty service",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "no errors in shipping logs means nothing wrong with shipping",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "quoteservice is at fault (appeared in alert list)",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "error span should appear on the failing server (shipping)",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent narrative demonstrates sophisticated reasoning by recognizing that absence of evidence (no shipping errors, no changes to checkout) forced the search outward, and by explicitly naming the span-marking trap. It reaches the same conclusion with comparable rigor and even documents similar open questions about incomplete observability.",
+    "tokens_in": 4886,
+    "tokens_out": 403
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 25,
+    "depth": 38,
+    "elapsed_ms": 70655,
+    "role": "changes",
+    "kind": "finding",
+    "reason": "Entry 25 identifies that shippingservice's QUOTE_SERVICE_ADDR environment variable was changed to point at a non-existent host, which is the exact mechanism stated in the narrative: 'Shipping's quote-service address was pointed at a host that does not exist.'",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

@@ -413,5 +413,62 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "product-catalog-flag-failure",
+    "run_id": "20260909T132404Z-product-catalog-flag-failure",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify a feature flag at the flag service causing productcatalogservice to return errors; the agent correctly infers a flag-gated failure mode from trace evidence.",
+    "dead_ends_closed": [
+      "productcatalogservice image, environment, configuration, resource limits unchanged",
+      "database and cache healthy",
+      "downstream services unaffected",
+      "frontend alert is propagation not independent failure",
+      "checkout logs show healthy order flow completion",
+      "change history shows only platform automation entries hours before onset"
+    ],
+    "dead_ends_missed": [
+      "flag service configuration never actually queried",
+      "productcatalogservice logs never examined due to label mismatch",
+      "failure scoping by product id vs calling service vs probability unclear"
+    ],
+    "traps": [
+      {
+        "trap": "loudest service (loadgenerator) is the culprit",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the service named in alerts is misconfigured",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "change near alert timestamp explains onset",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative correctly identifies the mechanism via trace shape analysis but explicitly flags low confidence and lists three critical gaps: flag state unverified, service logs unread (label mismatch), and failure scoping unknown. The recorded narrative confirms all three remain true even post-resolution.",
+    "tokens_in": 5839,
+    "tokens_out": 377
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 27,
+    "depth": 28,
+    "elapsed_ms": 126051,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 27 commits to the mechanism: a feature flag value being enabled that instructs productcatalogservice to fail requests, identified through the fast in-handler rejection immediately after a feature-flag read with no downstream latency, matching the recorded narrative's root cause exactly.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

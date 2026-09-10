@@ -419,5 +419,62 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "ad-memory-squeeze",
+    "run_id": "20260910T050332Z-ad-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: the container memory limit was reduced to 256 MiB below the JVM's configured heap size, causing repeated OOM kills during startup before the process could fully initialize.",
+    "dead_ends_closed": [
+      "frontend change history (no deploys or config edits to frontend)",
+      "frontend business logic or application-level errors",
+      "slow-but-reachable peer causing deadline exceeded",
+      "deployments or rollout blips to ad-service",
+      "ad-service scaling or replica changes",
+      "broken log pipeline",
+      "clean drain or scale-down"
+    ],
+    "dead_ends_missed": [
+      "why the same lower/revert pattern repeated five times in preceding 21 hours without incident",
+      "why the latency alert lagged errors by four minutes (not explored in agent narrative)"
+    ],
+    "traps": [
+      {
+        "trap": "the silence in ad-service error metrics predates onset, so telemetry went silent at T+0 because instances died",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "frontend change history empty at seed radius means nothing changed anywhere",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "no OutOfMemoryError or exception means an in-process error occurred",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative reaches the correct conclusion but explicitly acknowledges remaining open questions (direct kill confirmation, heap metrics, startup probe failure alternative, prior episodes), whereas recorded narrative is definitive. Agent also does not engage with the timing nuance between when logs show first kill (T+0) versus when heap metrics stop appearing (T+4m30s).",
+    "tokens_in": 5042,
+    "tokens_out": 438
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 28,
+    "depth": 29,
+    "elapsed_ms": 127841,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 28 is the first to commit to the complete mechanism: platform-automation lowered adservice's memory limit to 256m, the JVM cannot stay resident under that ceiling and is killed shortly after each boot, causing the crash-loop and frontend's downstream failures.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

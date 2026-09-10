@@ -417,5 +417,59 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "frauddetection-memory-squeeze",
+    "run_id": "20260910T062007Z-frauddetection-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a container memory limit (200 MiB) set below the JVM's working set requirement, causing the kernel to kill the process repeatedly during startup.",
+    "dead_ends_closed": [
+      "service hung or deadlocked",
+      "service rejecting work at high volume",
+      "telemetry agent as culprit",
+      "metrics-derived error-ratio as indicator"
+    ],
+    "dead_ends_missed": [
+      "liveness-probe restart as alternative explanation",
+      "blast radius beyond one service (Kafka topic consumers and backlog)"
+    ],
+    "traps": [
+      {
+        "trap": "empty error-ratio metrics means service was serving before onset",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "no-traffic alert on sparse service is monitoring artifact and dismissible",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "absence of downstream symptoms indicates low severity",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative correctly identifies the mechanism and closes most major hypotheses through log analysis. Key remaining uncertainties are explicitly stated (memory kill inferred not observed, liveness-probe not excluded, automation behavior unknown), showing appropriate epistemic humility. The recorded narrative adds detail on downstream impact (orders unscreened) and detection latency characteristics that the agent did not explore, but these are elaborations rather than disagreements on causation.",
+    "tokens_in": 5987,
+    "tokens_out": 373
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 18,
+    "depth": 19,
+    "elapsed_ms": 98080,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 18 commits to the exact mechanism: the container memory limit was reduced below the JVM's working set requirement, causing the kernel to OOM-kill the process during startup, resulting in a crash-restart loop.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

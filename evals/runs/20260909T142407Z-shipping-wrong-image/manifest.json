@@ -421,5 +421,59 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-wrong-image",
+    "run_id": "20260909T142407Z-shipping-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both identify the same root cause: a deployment that updated shippingservice's image reference to an incorrect artifact (adservice instead of the native shipping implementation), causing the container to fail startup within an unchanged memory limit.",
+    "dead_ends_closed": [
+      "checkoutservice itself unchanged",
+      "currency-specific theory",
+      "cartservice error-ratio problems",
+      "memory limit had not changed"
+    ],
+    "dead_ends_missed": [
+      "error ratio behavior between 14:13:37 and 14:24:15 (two-phase nature)",
+      "full log content from 14:03\u201314:24 (logs truncated)"
+    ],
+    "traps": [
+      {
+        "trap": "memory limit lowered causing startup failure",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "QUOTE_SERVICE_ADDR environment variable change at 14:02:13 as sustained cause",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "resource exhaustion as root cause rather than deployment error",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent correctly identified the wrong image deployment and avoided the memory-limit trap by noting the absent server-side spans and the shift from Rust to JVM logs, matching the recorded narrative's key evidence. The agent's confidence is appropriately qualified by uncertainties around log truncation and automation revert cycles.",
+    "tokens_in": 5845,
+    "tokens_out": 368
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 34,
+    "depth": 35,
+    "elapsed_ms": 129233,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 34 identifies that shippingservice's image reference was updated to the wrong artifact (a demo tag for adservice instead of the correct shippingservice image), causing the container to run a JVM-based service instead of the expected Rust binary, which cannot start within the existing memory limit\u2014matching the recorded narrative's mechanism that 'a deployment put the wrong image on shippingservice.'",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

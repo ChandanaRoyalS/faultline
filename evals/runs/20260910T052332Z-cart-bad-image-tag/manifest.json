@@ -427,5 +427,60 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "cart-bad-image-tag",
+    "run_id": "20260910T052332Z-cart-bad-image-tag",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "adjacent",
+    "agreement_reason": "Both identify cartservice as the culprit, but the agent thinks a newly deployed hotfix build is misbehaving while the recorded narrative shows the image tag itself does not exist in the registry\u2014a deployment/orchestration failure rather than a code defect.",
+    "dead_ends_closed": [
+      "broker connection refusal from early in logs",
+      "nothing changed on checkout itself",
+      "productcatalogservice error-free and unchanged"
+    ],
+    "dead_ends_missed": [
+      "whether cartservice actually started or crashed on startup",
+      "cartservice logs never pulled to confirm behavior",
+      "no latency data gathered for any service",
+      "change history for payment, currency, email, ad, recommendation never inspected"
+    ],
+    "traps": [
+      {
+        "trap": "cartservice showing zero error rate means it is healthy",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the broker connection error is the cause",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the failure is spreading outward from frontend over time",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent correctly ruled out checkout and product catalog but stopped short of discovering that the image tag was never published; it treated the cartservice deployment as a bad code change rather than an orchestration failure where no container was created at all.",
+    "tokens_in": 7407,
+    "tokens_out": 357
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 35,
+    "depth": 36,
+    "elapsed_ms": 135759,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 35 identifies that cartservice had an unreverted image-reference update to a hotfix build at 05:23:37, which is the deployment of an image tag, and commits to this being the cause of the failure by stating it is 'the most likely cause' and the only change near onset across all inspected services.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

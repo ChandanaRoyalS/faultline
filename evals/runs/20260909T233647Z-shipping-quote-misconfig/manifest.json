@@ -424,5 +424,57 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-quote-misconfig",
+    "run_id": "20260909T233647Z-shipping-quote-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies shipping's misconfigured quote-service address as the root cause; the agent narrative concludes a slow downstream call on the payment path, never identifying shipping or any configuration change.",
+    "dead_ends_closed": [
+      "checkoutservice itself changed (closed by empty change log on seed service)",
+      "cartservice responsible (closed by normal logs and operations throughout)"
+    ],
+    "dead_ends_missed": [
+      "shipping service and its configuration (never investigated)",
+      "quote service address resolution (never investigated)"
+    ],
+    "traps": [
+      {
+        "trap": "no errors reported by shipping means shipping is healthy",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "the alerting service is the faulty service",
+        "outcome": "took"
+      },
+      {
+        "trap": "error metrics show the problem",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent correctly rejected several plausible dead-ends but failed to investigate shipping despite it being one hop away from checkout in the call path; it also stopped searching after finding that checkout's own change history was empty, missing the recorded narrative's key insight that the change exists on a service that never alerts.",
+    "tokens_in": 6471,
+    "tokens_out": 321
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 36,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "No entry identifies that shippingservice's quote-service address was misconfigured to a non-resolving host, causing shipping to fail silently without error logs and propagating failures upward to checkout.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

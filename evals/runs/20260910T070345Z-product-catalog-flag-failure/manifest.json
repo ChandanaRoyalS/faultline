@@ -416,5 +416,59 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "product-catalog-flag-failure",
+    "run_id": "20260910T070345Z-product-catalog-flag-failure",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a feature flag enabled at the flag service instructing productcatalogservice to fail requests for a specific product, with the fix being to disable that flag.",
+    "dead_ends_closed": [
+      "productcatalogservice itself was unchanged",
+      "database and cache were healthy",
+      "no deploy coincided with or followed onset",
+      "other services unaffected"
+    ],
+    "dead_ends_missed": [
+      "early connection-refused errors on port 50051 (card-charge path) - agent documents but leaves open; recorded narrative does not mention",
+      "flag flip never directly observed in change history - agent acknowledges this gap explicitly"
+    ],
+    "traps": [
+      {
+        "trap": "productcatalogservice being the loudest/obvious service to investigate",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "assuming service metrics alone would reveal the cause",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "treating early 50051 connection-refused as part of the main incident",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative reaches the correct conclusion but with medium confidence rather than high, explicitly listing unexcluded resource contribution and unconfirmed flag flip. Both documents identify the same mechanism but the agent takes a more cautious stance on certainty.",
+    "tokens_in": 7016,
+    "tokens_out": 360
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 25,
+    "depth": 26,
+    "elapsed_ms": 112650,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 25 explicitly identifies that a product-catalog failure feature flag was enabled, causing productcatalogservice to return errors, and commits to the mechanism that the flag's enabled state is what makes the request fail\u2014matching the recorded narrative's root cause that a feature flag at the flag service instructed product catalog to fail requests for a specific product.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

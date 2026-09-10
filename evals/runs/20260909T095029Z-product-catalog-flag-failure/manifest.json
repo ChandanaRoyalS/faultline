@@ -421,5 +421,63 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "product-catalog-flag-failure",
+    "run_id": "20260909T095029Z-product-catalog-flag-failure",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a feature flag configured at the flag service as the root cause; the agent narrative finds only a modest late error rise on productcatalogservice and explicitly states 'the evidence does not establish a mechanism' with low confidence and no fix class proposed.",
+    "dead_ends_closed": [
+      "productcatalogservice image unchanged",
+      "productcatalogservice environment unchanged",
+      "productcatalogservice dependencies healthy",
+      "total outage or crash loop",
+      "slow handler",
+      "deep multi-hop failure",
+      "connection refused before arrival"
+    ],
+    "dead_ends_missed": [
+      "feature flag service configuration",
+      "partial failure with stable boundary signature",
+      "one product identifier failing consistently"
+    ],
+    "traps": [
+      {
+        "trap": "loudest service (loadgenerator) as culprit",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "frontend as origin of failure",
+        "outcome": "took"
+      },
+      {
+        "trap": "productcatalogservice handler as cause",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent narrative explicitly acknowledges it cannot establish a mechanism and recommends further investigation, whereas the recorded narrative definitively names the feature flag service. The agent never investigates the flag service at all, leaving the actual root cause completely unexamined.",
+    "tokens_in": 5111,
+    "tokens_out": 361
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 40,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigator never identified that a feature flag at the flag service was the cause; all investigation focused on changes and metrics at productcatalogservice, cartservice, and adservice, never examining or even mentioning the flag service that the narrative identifies as the actual mechanism.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

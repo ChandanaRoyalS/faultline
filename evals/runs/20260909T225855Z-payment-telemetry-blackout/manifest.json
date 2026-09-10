@@ -413,5 +413,67 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "payment-telemetry-blackout",
+    "run_id": "20260909T225855Z-payment-telemetry-blackout",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: the OTLP trace exporter endpoint was misconfigured to point at a dead loopback address (127.0.0.1:4317), causing traces to be lost while the payment service itself continued operating normally.",
+    "dead_ends_closed": [
+      "crash or restart of the service",
+      "cascade of failures in dependent services",
+      "downstream processor or ledger failure",
+      "code deploy or feature flag change",
+      "checkoutservice as originator or propagator",
+      "exception storm in logs",
+      "crash-looping container",
+      "currency or card-specific failure"
+    ],
+    "dead_ends_missed": [
+      "what fired the alert signal at onset (agent acknowledges as unresolved)",
+      "why metrics baseline is empty predating the change (agent acknowledges as unresolved)"
+    ],
+    "traps": [
+      {
+        "trap": "service was down or restarted",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "cascade pattern (multiple services alerting)",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "container hostname change indicates restart",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "telemetry loss began at onset",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative is more comprehensive and cautious than recorded narrative, explicitly surfacing three unresolved questions including a critical label-mismatch caveat that the recorded narrative does not mention. Both reach identical conclusions through overlapping evidence paths.",
+    "tokens_in": 9655,
+    "tokens_out": 410
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 4,
+    "depth": 22,
+    "elapsed_ms": 19914,
+    "role": "changes",
+    "kind": "finding",
+    "reason": "Entry 4 identifies that the OTLP traces-endpoint variable was set to a loopback address roughly 5 minutes before onset and was never reverted, committing to the mechanism: a configuration pointing the trace exporter to a non-existent endpoint caused spans to stop shipping, which broke the traffic metric while the service itself continued operating normally.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

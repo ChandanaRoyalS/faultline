@@ -430,5 +430,66 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "cart-bad-image-tag",
+    "run_id": "20260910T152751Z-cart-bad-image-tag",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies cartservice as non-existent due to an unresolved image tag, while the agent narrative concludes checkoutservice is stalling on a downstream dependency with low confidence and no identified root cause.",
+    "dead_ends_closed": [
+      "checkout's own change history",
+      "currency-specific bug",
+      "slow degradation / gradual ramp",
+      "breadth of alert list",
+      "flat mean error ratio"
+    ],
+    "dead_ends_missed": [
+      "cartservice's image reference or deployment status",
+      "cartservice's logs and runtime series",
+      "whether later services went quiet vs. propagated failure",
+      "dependency change history (agent explicitly notes it ran at zero hops only)"
+    ],
+    "traps": [
+      {
+        "trap": "cartservice's zero error rate as evidence of health",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "seven quiet services as downstream propagation from checkout",
+        "outcome": "took"
+      },
+      {
+        "trap": "checkout itself as the broken service",
+        "outcome": "took"
+      },
+      {
+        "trap": "alert timestamp as search anchor for onset",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent narrative explicitly states it did not query dependency changes (zero-hop queries only) and never examined cartservice, missing the actual root cause entirely. It correctly avoided several false trails but fell into the propagation trap and missed the opportunity to investigate what the recorded narrative found: an absent service with orderly shutdown rather than a stalling one.",
+    "tokens_in": 8116,
+    "tokens_out": 407
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 31,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigator never identifies that cartservice's image tag pointed to a non-existent registry entry, which is the recorded mechanism; instead it pursues a stalling/blocking hypothesis centered on downstream calls in the checkout path and never examines cartservice's deployment or image configuration.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

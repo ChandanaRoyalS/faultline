@@ -414,5 +414,58 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "payment-telemetry-blackout",
+    "run_id": "20260910T131815Z-payment-telemetry-blackout",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a broken trace exporter endpoint on paymentservice as the root cause; the agent narrative identifies an intermittent error condition on checkoutservice as the failing mechanism.",
+    "dead_ends_closed": [
+      "crash or restart of paymentservice",
+      "cascade of alerts across dependent services",
+      "paymentservice hard failure or unavailability"
+    ],
+    "dead_ends_missed": [
+      "configuration change as root cause (agent explicitly rejected it but on wrong grounds)",
+      "actual source of checkoutservice errors (agent left this open)"
+    ],
+    "traps": [
+      {
+        "trap": "OTLP trace exporter endpoint pointed at loopback address",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the configuration change five minutes before alert onset caused the failure",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "paymentservice was the service actually failing",
+        "outcome": "took"
+      }
+    ],
+    "notes": "The agent correctly ruled out several traps about paymentservice but fatally misread the change history evidence. The recorded narrative shows the exporter configuration change was the root cause; the agent saw the same change record but rejected it because the failure predated it by 82 minutes. However, that 82-minute discrepancy exists only because the agent looked at checkoutservice's error ratio instead of paymentservice's traffic metric (which was unavailable). The agent confused the absence of paymentservice metrics with evidence that payment was unrelated to the problem.",
+    "tokens_in": 7194,
+    "tokens_out": 391
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 28,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The recorded narrative establishes that payment's trace exporter endpoint was misconfigured to point at an unreachable address, causing spans to stop shipping and the traffic metric to go to zero while the service continued processing charges normally. Entry 3 identifies this configuration change, and entries 6 and 15 recognize it as a telemetry/trace export issue, but no entry commits to the mechanism that the traffic metric is built from spans and went zero because span export failed\u2014entry 27's verdict explicitly rejects the exporter toggle as the mechanism and instead blames an unlocalized error condition on checkoutservice, which contradicts the narrative's root cause.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

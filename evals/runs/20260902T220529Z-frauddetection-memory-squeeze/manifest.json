@@ -316,5 +316,62 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-09-02T22:27:14.772037+00:00"
+  "finished_at": "2026-09-02T22:27:14.772037+00:00",
+  "judge": {
+    "scenario_id": "frauddetection-memory-squeeze",
+    "run_id": "20260902T220529Z-frauddetection-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a container memory limit (200 MiB) was reduced below the JVM's working set requirement (~326 MiB in recorded narrative), causing the kernel to kill the process repeatedly during startup.",
+    "dead_ends_closed": [
+      "code deploy or image rollout",
+      "application config or environment-variable edit",
+      "emergency remediation applied to sick service",
+      "error-rate metric"
+    ],
+    "dead_ends_missed": [
+      "previous memory limit value",
+      "timing verification that loop began after the change",
+      "page firing mechanism/what signal tripped the alert",
+      "blast radius and consumer lag impact",
+      "automation policy reason for the reduction"
+    ],
+    "traps": [
+      {
+        "trap": "no errors/exceptions in logs means application failure",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "no downstream alerts means low severity",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "asynchronous consumer stopping is low-impact",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "Agent narrative correctly identifies the root cause but leaves four significant investigative gaps open (kill mechanism unobserved, prior limit unknown, causality timing unverified, page trigger unexplained) and does not examine blast radius or automation intent. Recorded narrative emphasizes why these gaps matter; agent acknowledges but does not close them.",
+    "tokens_in": 6340,
+    "tokens_out": 378
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 18,
+    "depth": 19,
+    "elapsed_ms": 93396,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 18 commits to the mechanism: the JVM's footprint exceeded the container memory limit (200m), causing the kernel to kill the process during startup, resulting in the restart loop observed in logs.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
+  }
 }

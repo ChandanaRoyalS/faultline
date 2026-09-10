@@ -420,5 +420,60 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-quote-misconfig",
+    "run_id": "20260909T173028Z-shipping-quote-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "adjacent",
+    "agreement_reason": "The agent identifies shipping service's GetQuote call failing and aborting PlaceOrder, but stops short of identifying the specific mechanism: a misconfigured quote-service address pointing to a non-existent host.",
+    "dead_ends_closed": [
+      "checkout's own dependencies were slow or failing",
+      "checkout was crash/restart/rejecting entries",
+      "cartservice change history from automation cycles",
+      "currency/payment/product catalog involvement"
+    ],
+    "dead_ends_missed": [
+      "shipping service configuration change (never queried)",
+      "quoteservice configuration or state (never examined)",
+      "gRPC status code specifics (UNAVAILABLE vs INTERNAL vs business logic)"
+    ],
+    "traps": [
+      {
+        "trap": "shipping logs show healthy request receipt with no errors",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "shipping server span succeeds in traces while client span errors",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "cartservice change history shows many recent mutations",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent correctly located the failure point (shipping GetQuote) but explicitly acknowledged it did not query shipping or quoteservice change history, leaving the root cause (misconfigured address) unidentified. The recorded narrative solved it by checking changes on services surrounding the alert rather than on the alert seed itself.",
+    "tokens_in": 4993,
+    "tokens_out": 366
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 20,
+    "depth": 36,
+    "elapsed_ms": 66761,
+    "role": "traces",
+    "kind": "finding",
+    "reason": "Entry 20 identifies that the ShippingService/GetQuote call is erroring at the checkout->shipping boundary, which matches the narrative's mechanism: shipping's misconfigured quote-service address causes it to fail quote requests, and those failures propagate upward into checkout's errors.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

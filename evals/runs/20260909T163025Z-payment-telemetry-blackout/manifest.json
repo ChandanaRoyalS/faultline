@@ -412,5 +412,59 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "payment-telemetry-blackout",
+    "run_id": "20260909T163025Z-payment-telemetry-blackout",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: the OTLP trace exporter endpoint was misconfigured to point at a loopback address (127.0.0.1:4317) with no collector listening, causing traces to stop being exported while the payment service itself continued functioning normally.",
+    "dead_ends_closed": [
+      "crash or restart of paymentservice",
+      "cascade of failures downstream",
+      "payment service actually down or unhealthy",
+      "charges failing or timing out"
+    ],
+    "dead_ends_missed": [
+      "user-facing frontend success rate (agent explicitly notes this as most valuable missing query)",
+      "collector-wide outage (agent notes this as main competing explanation never tested)"
+    ],
+    "traps": [
+      {
+        "trap": "servicenovtraffic alert means service is actually down",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "cascade pattern (other services should alert when one downstream fails)",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "error ratio spike in checkout would indicate payment failure propagating",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative explicitly acknowledges uncertainty and competing hypotheses (collector outage, log truncation gaps, automated flapping loop history) that the recorded narrative does not mention, showing appropriate epistemic humility while reaching the same correct conclusion.",
+    "tokens_in": 7458,
+    "tokens_out": 359
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 29,
+    "depth": 30,
+    "elapsed_ms": 122156,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "The verdict identifies that the trace exporter endpoint was set to a loopback address where no collector listens, causing the observability blackout - the exact mechanism stated in the recorded narrative.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

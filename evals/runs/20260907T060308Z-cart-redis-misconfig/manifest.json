@@ -422,5 +422,55 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "cart-redis-misconfig",
+    "run_id": "20260907T060308Z-cart-redis-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "adjacent",
+    "agreement_reason": "The agent correctly identifies cartservice as down/unavailable and causing checkout failures, but stops at 'nothing listening on cart endpoint' without discovering the specific mechanism: wrong Redis port configuration preventing startup.",
+    "dead_ends_closed": [
+      "frontend as primary cause",
+      "metric baseline comparison suggesting no sustained departure",
+      "productcatalogservice involvement",
+      "post-onset config changes"
+    ],
+    "dead_ends_missed": [
+      "cartservice logs never queried",
+      "cartservice restart/OOMKill state never checked",
+      "cartservice change history never examined",
+      "why error ratio only ~7% if cart path hard-failing (cartservice flapping vs partial traffic)"
+    ],
+    "traps": [
+      {
+        "trap": "flat error ratio reading as health rather than absence",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "fifteen-second gap between service silence groups as causal sequence ordering",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "loadgenerator alerting as meaningful signal of primary failure",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "metric aggregation by service name only masking dependency-specific failures",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent correctly narrowed to cartservice unavailability through frontend error logs but never examined cartservice itself\u2014missing the specific config error (REDIS_ADDR pointing to wrong port) that the recorded narrative identified from cartservice logs showing repeated connection failures to 6380 instead of 6379.",
+    "tokens_in": 6738,
+    "tokens_out": 405
+  },
+  "first_correct": {
+    "measured": true,
+    "index": -1,
+    "why": "the trajectory holds no hypothesis"
   }
 }

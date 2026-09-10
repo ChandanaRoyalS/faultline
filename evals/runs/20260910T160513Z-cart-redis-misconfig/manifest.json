@@ -428,5 +428,61 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "cart-redis-misconfig",
+    "run_id": "20260910T160513Z-cart-redis-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies cartservice configured with wrong Redis port (6380 instead of 6379), while the agent narrative identifies an unnamed downstream dependency with gRPC connection failures from frontend, never determining which service or what caused the connection problem.",
+    "dead_ends_closed": [
+      "frontend fully down",
+      "degradation predating the window",
+      "reachable-but-slow dependency",
+      "checkoutservice as the source"
+    ],
+    "dead_ends_missed": [
+      "cartservice restart loop",
+      "dependency validation on startup vs first use",
+      "the wrong port in configuration",
+      "six services downstream of checkout going silent because checkout stopped calling them"
+    ],
+    "traps": [
+      {
+        "trap": "flat zero error rate on cartservice read as health",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "cartservice appearing last in silence alerts, tempting causal interpretation",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "loadgenerator alerting first and alone, making it seem informative",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent narrative stops at an incomplete hypothesis (unnamed dependency, connection failure) and never retrieves cartservice logs that would have shown the restart loop and Redis address, the critical evidence the recorded narrative identified as legible from logs alone without host access.",
+    "tokens_in": 5327,
+    "tokens_out": 363
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 31,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigator's verdict identifies a frontend gRPC connection failure to an unidentified dependency, while the recorded narrative establishes that cartservice was configured with the wrong Redis port (6380 instead of 6379), causing it to fail startup validation and never come up. These are fundamentally different mechanisms: the investigator never examined cartservice's configuration, logs showing Redis connection attempts, or the actual root cause in the config change to REDIS_ADDR.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

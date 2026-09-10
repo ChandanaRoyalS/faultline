@@ -428,5 +428,61 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-quote-misconfig",
+    "run_id": "20260910T141628Z-shipping-quote-misconfig",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a misconfigured DNS address on shippingservice pointing to a non-existent host for the quote service; the agent narrative proposes a hanging synchronous call in checkout's post-intake path (payment, email, or queue) without identifying any specific misconfiguration.",
+    "dead_ends_closed": [
+      "checkout itself as the origin of error surge",
+      "downstream hard failure propagating upward",
+      "crash or restart",
+      "internal exception at intake",
+      "checkoutservice deployment or config change"
+    ],
+    "dead_ends_missed": [
+      "shipping service and its quote-service address configuration",
+      "change history on services around the failure rather than the alerting service",
+      "the fact that shipping logged requests but never logged failures"
+    ],
+    "traps": [
+      {
+        "trap": "no errors reported means nothing wrong",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "alerting service is the faulty service",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "a hanging dependency would show in checkout's own error ratio",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent narrative correctly ruled out checkout as the origin and recognized a hanging call pattern from log gaps, but stopped at 'low confidence' without querying change history on non-alerting services\u2014precisely where the recorded narrative found the misconfigured DNS address. The agent's hypothesis about a slow downstream call in checkout's path is superficially plausible but orthogonal to the actual root cause on shippingservice.",
+    "tokens_in": 5215,
+    "tokens_out": 407
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 33,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "No entry identifies the actual mechanism: that shippingservice's quote-service address was misconfigured to a non-resolving host, causing quote requests to fail silently and orders to fail upstream in checkout.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

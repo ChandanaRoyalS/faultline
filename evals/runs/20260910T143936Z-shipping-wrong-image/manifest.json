@@ -424,5 +424,56 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-wrong-image",
+    "run_id": "20260910T143936Z-shipping-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: shippingservice was deployed with the wrong image (adservice instead of the correct shipping binary), causing the container to fail to start within the existing memory limit.",
+    "dead_ends_closed": [
+      "checkoutservice had no changes and flat error ratio",
+      "cartservice changes were all reverted before onset",
+      "productcatalogservice had no changes",
+      "endpoint override on shippingservice was reverted before onset"
+    ],
+    "dead_ends_missed": [
+      "why the three earlier anomalous image cycles passed unnoticed",
+      "per-method and per-target breakdown of checkout errors",
+      "the exact mechanism of why accountingservice, emailservice, frauddetectionservice, and quoteservice alerted simultaneously"
+    ],
+    "traps": [
+      {
+        "trap": "memory limit set below service needs",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "process failed on its own configuration",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "The agent correctly avoided the confident wrong answer about memory limits by not having shippingservice container logs to inspect, but it also explicitly acknowledged gaps in data collection for shippingservice itself (logs, metrics, traces) that would have confirmed the wrong-artifact story\u2014a more cautious stance than the recorded narrative took.",
+    "tokens_in": 7133,
+    "tokens_out": 352
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 28,
+    "depth": 29,
+    "elapsed_ms": 98370,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 28 identifies that shippingservice is running the wrong container artifact (adservice image instead of shippingservice), which is exactly the mechanism stated in the narrative: 'A deployment put the wrong image on shippingservice.'",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

@@ -422,5 +422,63 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "product-catalog-flag-failure",
+    "run_id": "20260910T133958Z-product-catalog-flag-failure",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies a feature flag at the flag service as the root cause; the agent narrative identifies productcatalogservice as the locus of failure but explicitly states the mechanism is unresolved and leaves the investigation incomplete.",
+    "dead_ends_closed": [
+      "frontend as origin",
+      "cartservice automation cycles",
+      "adservice automation cycles",
+      "local change on productcatalogservice"
+    ],
+    "dead_ends_missed": [
+      "productcatalogservice dependencies (database and cache)",
+      "feature flag service configuration"
+    ],
+    "traps": [
+      {
+        "trap": "frontend as the origin service because it alerted first",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "productcatalogservice having a local change or deployment that caused the errors",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "cartservice or adservice platform-automation changes as the cause",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "resource exhaustion or dependency outage explaining the partial failure",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent narrative correctly identifies productcatalogservice as the failing service but stops short of the recorded narrative's conclusion by never investigating the feature flag service, which the recorded narrative identifies as having no telemetry and therefore invisible to the metrics stack. The agent notes three gaps to investigate next, one of which (dependencies) the recorded narrative explicitly closed, and the other two (logs, external changes) point toward but do not reach the actual cause.",
+    "tokens_in": 5848,
+    "tokens_out": 401
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 30,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "No entry commits to the actual mechanism: a feature flag at the flag service instructing productcatalogservice to fail requests for a specific product. The investigator correctly identifies productcatalogservice as the erroring service but never queries or examines the feature flag service, which the narrative identifies as the true root cause and the component with no telemetry.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

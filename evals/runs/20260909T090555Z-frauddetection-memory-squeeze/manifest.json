@@ -416,5 +416,67 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "frauddetection-memory-squeeze",
+    "run_id": "20260909T090555Z-frauddetection-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the memory limit being lowered below the service's working set as the root cause, with the kernel killing the process as the mechanism.",
+    "dead_ends_closed": [
+      "error rate/explicit error text in logs",
+      "service restart or crash-loop",
+      "service degradation rather than cliff stop",
+      "checkout pipeline stoppage",
+      "fraud detection as source of checkout latency",
+      "external trigger with no local change"
+    ],
+    "dead_ends_missed": [
+      "actual pod restart behavior after onset (logs truncated)",
+      "service's normal working set size verification",
+      "why the automation runs the recurring lower/revert cycle",
+      "downstream backlog/queue depth measurement"
+    ],
+    "traps": [
+      {
+        "trap": "service had an explicit error or failure reason in logs",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "service was degrading gradually rather than stopping abruptly",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "checkout path itself was affected/broken",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "no samples in error-ratio metric means the service died",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative explicitly identifies the kill as inferred rather than observed and appropriately flags what would definitively prove it (kubelet events, container memory series, restart count). Both reach the same conclusion with comparable confidence levels and caveats.",
+    "tokens_in": 6610,
+    "tokens_out": 391
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 24,
+    "depth": 25,
+    "elapsed_ms": 101988,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 24 explicitly commits to the mechanism: the memory limit was reduced below the JVM working set, causing the kernel to kill the container when it exceeded the ceiling during startup/runtime, which stopped message consumption.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }

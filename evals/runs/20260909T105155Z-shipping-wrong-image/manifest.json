@@ -425,5 +425,60 @@
       "regenerated": false,
       "escalated": false
     }
+  },
+  "judge": {
+    "scenario_id": "shipping-wrong-image",
+    "run_id": "20260909T105155Z-shipping-wrong-image",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: a deployment that changed shippingservice's image reference to a different service's JVM-based artifact, causing the container to fail startup under the existing memory limit.",
+    "dead_ends_closed": [
+      "checkoutservice itself was healthy",
+      "checkoutservice configuration unchanged",
+      "checkoutservice's other dependencies working normally",
+      "QUOTE_SERVICE_ADDR configuration changes (reverted before onset)",
+      "shippingservice error-ratio metric (no samples in baseline either)",
+      "cartservice, currencyservice, productcatalogservice latency or timeout"
+    ],
+    "dead_ends_missed": [
+      "correct prior image reference confirmation",
+      "whether process restarts from crash loop or probe timeout",
+      "log coverage gaps around the transition moment",
+      "whether automation will re-apply the wrong image",
+      "verification that four downstream alerts were actual consequences"
+    ],
+    "traps": [
+      {
+        "trap": "memory limit was the cause",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "truncated startup sequence indicates resource exhaustion",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative correctly identified the image swap as root cause and explicitly acknowledged but rejected the memory-limit trap, though with less detailed reasoning about why the language change proves redeployment rather than resource failure.",
+    "tokens_in": 6297,
+    "tokens_out": 360
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 23,
+    "depth": 37,
+    "elapsed_ms": 64404,
+    "role": "changes",
+    "kind": "finding",
+    "reason": "This entry identifies that the shippingservice image reference was updated to an adservice-tagged build at 10:52:03Z, which is the exact mechanism: a deployment put the wrong service's image on shippingservice.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
   }
 }
