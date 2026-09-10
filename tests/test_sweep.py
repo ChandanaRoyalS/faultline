@@ -586,3 +586,50 @@ def test_one_scored_run_resets_the_count_so_an_unlucky_sweep_runs_out() -> None:
 
     assert result.aborted is None
     assert len(seen) == 8, "every slot attempted"
+
+
+# --- resuming a sweep something outside the world stopped --------------------------------------
+
+
+def test_start_pass_runs_only_the_remaining_passes_and_numbers_them_as_the_whole() -> None:
+    """**Dev sweep 12, arm B, 2026-09-10.** Pass 1 of 3 scored ten of ten; then the API credit
+    balance ran out and every gate after it refused. The only way to finish was `--tier weekly`
+    again: thirty runs for a twenty-run hole, ten of them surplus and every scenario at four.
+
+    The slots are numbered as the whole sweep's would be - `[11/30]`, not `[1/20]` - because the
+    record they join is the thirty-slot one."""
+    seen: list[list[str]] = []
+    recycles: list[int] = []
+    result = sweep.sweep(
+        ["a", "b"],
+        repeats=3,
+        runner=lambda argv: seen.append(argv) or 0,
+        recycler=lambda: recycles.append(1),
+        start_pass=2,
+    )
+    result.declared_repeats = 3
+
+    assert len(seen) == 4, "passes 2 and 3 only"
+    assert len(recycles) == 2, "a recycle before each pass that ran"
+    assert result.passes_run == 2
+    assert result.divergence == {}, "two of two in this invocation is not a divergence"
+    rendered = "\n".join(result.render())
+    assert "RESUMED: this invocation ran passes 2-3 of a declared 3" in rendered
+    assert "DECLARED R" not in rendered
+
+
+def test_a_resumed_sweep_still_reports_a_scenario_it_could_not_finish() -> None:
+    _, run = recorder({"b": 3})
+    result = sweep.sweep(["a", "b"], repeats=3, runner=run, start_pass=2)
+    result.declared_repeats = 3
+
+    assert result.divergence == {"b": 0}
+    assert "b                                  scored 0" in "\n".join(result.render())
+
+
+def test_the_cli_refuses_a_start_pass_outside_the_tier(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sweep, "runnable", lambda **_: ["a"])
+    assert sweep.main(["--tier", "weekly", "--start-pass", "4"]) == 3
+    assert "outside this tier's 1..3 passes" in capsys.readouterr().out

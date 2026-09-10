@@ -237,6 +237,15 @@ class SweepResult:
     rather than letting a short `outcomes` list read as a short catalog.
     """
 
+    start_pass: int = 1
+    """The pass this invocation began at. `1` for a whole sweep; higher when resuming one that
+    an outside condition stopped (`--start-pass`). The passes before it are the operator's claim
+    to have run elsewhere, and `divergence` expects only the passes this invocation ran."""
+
+    @property
+    def passes_run(self) -> int:
+        return self.declared_repeats - self.start_pass + 1
+
     @property
     def scored(self) -> int:
         return sum(1 for o in self.outcomes if o.scored)
@@ -260,7 +269,7 @@ class SweepResult:
         return {
             scenario: scored.get(scenario, 0)
             for scenario in sorted(attempted)
-            if scored.get(scenario, 0) != self.declared_repeats
+            if scored.get(scenario, 0) != self.passes_run
         }
 
     @property
@@ -280,6 +289,14 @@ class SweepResult:
             f"SWEEP: {self.scored}/{len(self.outcomes)} scored",
             "  " + " · ".join(f"{name} {n}" for name, n in sorted(counts.items())),
         ]
+        if self.start_pass > 1:
+            lines += [
+                "",
+                f"  RESUMED: this invocation ran passes {self.start_pass}-{self.declared_repeats} "
+                f"of a declared {self.declared_repeats}. Passes 1-{self.start_pass - 1} are the "
+                "operator's claim to have scored elsewhere (--start-pass); the figures below are "
+                "for this invocation only, and `faultline-eval-db` is where the whole arm is read.",
+            ]
         if self.aborted is not None:
             lines += [
                 "",
@@ -326,6 +343,7 @@ def sweep(
     retries: int = 1,
     sleeper: Any = None,
     recycler: Any = None,
+    start_pass: int = 1,
 ) -> SweepResult:
     """The catalog, `repeats` times, counting `--runs-remaining` down **within each pass**.
 
@@ -381,7 +399,9 @@ def sweep(
     wait = sleeper or time.sleep
     result = SweepResult()
     total = len(ids) * repeats
-    done = 0
+    # **Resuming numbers the slots as the whole sweep would have**: a resumed pass 2 of 3 prints
+    # `[11/30]`, not `[1/20]`, because the record it joins is the thirty-slot one.
+    done = len(ids) * (start_pass - 1)
     injected_something = False
     # **Set when a scenario exhausts every retry on a clearable code; the scenarios after it are
     # launched once each instead of `retries` times.**
@@ -413,7 +433,8 @@ def sweep(
     # alternated five scored and five refused and would not have tripped this.
     unscored_in_a_row = 0
 
-    for pass_number in range(1, repeats + 1):
+    result.start_pass = start_pass
+    for pass_number in range(start_pass, repeats + 1):
         if recycler is not None:
             # **Before every pass, including the first**, never during one: the gate's projection
             # below assumes a pass begins on a cleared kafka, and until 2026-09-10 pass 1 was the
@@ -423,8 +444,8 @@ def sweep(
             # nobody had recycled. A driver that tells the gate "one pass' worth of growth" owes
             # it a pass that starts clear.
             where = (
-                "before pass 1"
-                if pass_number == 1
+                f"before pass {pass_number}"
+                if pass_number == start_pass
                 else f"between passes {pass_number - 1} and {pass_number}"
             )
             print(f"--- recycling the world {where}", flush=True)
@@ -573,6 +594,20 @@ def parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--postgres-dsn", default=None)
     p.add_argument(
+        "--start-pass",
+        type=int,
+        default=1,
+        metavar="N",
+        help=(
+            "resume a tier's sweep at pass N instead of pass 1. **For a sweep something outside "
+            "the world stopped** - dev sweep 12's arm B completed pass 1 of 3 and then the API "
+            "credit balance ran out, and the only way to finish it was thirty more runs, ten of "
+            "them surplus. The manifests still declare the tier's R because that is still the "
+            "design; the slots are numbered as the whole sweep's would be; the passes before N "
+            "are your claim to have scored elsewhere, and the summary says so (default: 1)"
+        ),
+    )
+    p.add_argument(
         "--settle",
         type=int,
         default=SETTLE_SECONDS,
@@ -638,9 +673,16 @@ def main(argv: list[str] | None = None) -> int:
     # **The declared repeat count and the number of passes are the same number.** A tier that
     # declared R = 3 while one pass ran would put a corrupt fingerprint on every run in the sweep.
     repeats = variance.TIERS[args.tier][0] if args.tier else 1
-    estimate = len(ids) * repeats
+    if not 1 <= args.start_pass <= repeats:
+        print(
+            f"REFUSED: --start-pass {args.start_pass} is outside this tier's 1..{repeats} passes."
+        )
+        return 3
+    passes = repeats - args.start_pass + 1
+    estimate = len(ids) * passes
+    resumed = f" (resuming at pass {args.start_pass} of {repeats})" if args.start_pass > 1 else ""
     print(
-        f"{len(ids)} scenario(s) x {repeats} pass(es) = {estimate} run(s). "
+        f"{len(ids)} scenario(s) x {passes} pass(es) = {estimate} run(s){resumed}. "
         f"At the recorded median of ${MEDIAN_RUN_USD:.2f}/run that is about "
         f"${estimate * MEDIAN_RUN_USD:.0f}, and the measured discard rate is "
         f"{DISCARD_RATE:.0%} - budget about ${estimate * MEDIAN_RUN_USD / (1 - DISCARD_RATE):.0f}."
@@ -652,6 +694,7 @@ def main(argv: list[str] | None = None) -> int:
         settle=args.settle,
         retries=args.retries,
         recycler=_recycle_world if repeats > 1 else None,
+        start_pass=args.start_pass,
     )
     result.declared_repeats = repeats
     print("\n".join(result.render()))
