@@ -1,0 +1,177 @@
+{
+  "incident_id": "64dbe44f-ec97-46c3-9845-124e261c847a",
+  "trajectory_id": "c493cb26-9628-4fe6-b0db-6a0e46b99799",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:shipping-wrong-image",
+  "verdict": {
+    "root_cause": "At 23:59:34Z platform-automation updated shippingservice's container image reference to a pinned demo image tagged for adservice (ghcr.io/open-telemetry/demo:v1.2.1-adservice) [tr_3fff7fa32c0a]. From 00:00:46Z onward the shipping-service log stream stops containing any Rust GetQuote/ShipOrder handling and instead shows only JVM/OpenTelemetry-agent boot output repeating on a ~65s cadence with no application-ready or request-serving line [tr_bca40051a706]. The pod under the shipping label is therefore running the wrong artifact and never reaches a serving state, so shipping's gRPC surface is effectively dead. checkoutservice is alive and still accepting PlaceOrder requests at normal cadence, but every late-window request stops after the entry line \u2014 the payment, email and message-write completion lines that followed every healthy request are absent [tr_0eca1a02289d] \u2014 i.e. checkout is blocking in the pre-payment portion of PlaceOrder, which is where the shipping quote call sits, and it is doing so without emitting errors [tr_e4e7255a1eef]. checkoutservice itself had no change of any kind in the window [tr_12f2caa5f52b]. The fix is to restore the correct shippingservice image (roll back the 23:59:34Z image update) and to stop the automated cycle that keeps re-applying it.",
+    "service": "shippingservice",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_3fff7fa32c0a",
+      "tr_bca40051a706",
+      "tr_0eca1a02289d",
+      "tr_e4e7255a1eef",
+      "tr_12f2caa5f52b",
+      "tr_c1a5792875b8"
+    ],
+    "reasoning": "Three independent strands converge. (1) Change history puts an image-reference swap on shippingservice two minutes before onset, and unlike every prior cycle in the 24h loop this one had not been reverted by incident time [tr_3fff7fa32c0a]. (2) Logs under the shipping label show the Rust shipping application serving normally until 23:59:31Z and then nothing but a repeating JVM boot sequence that never reaches a serving line [tr_bca40051a706] \u2014 the running artifact is not the shipping binary, which is the definition of bad_deploy rather than a crash of the correct binary. (3) The seed service's symptom shape follows from that: checkout keeps accepting PlaceOrder but never logs the payment/email/publish sequence, and never logs an error either [tr_0eca1a02289d], which is what a blocking call into a non-serving dependency looks like from the caller. The absence of an aggregate error spike on checkout [tr_e4e7255a1eef] is consistent with requests hanging rather than failing fast, and rules out a hard total failure of a mandatory dependency that returns errors. checkoutservice has no change to roll back [tr_12f2caa5f52b], so remediation must target shipping. The reverted QUOTE_SERVICE_ADDR misconfiguration is temporally excluded \u2014 reverted ~13 minutes before onset [tr_3fff7fa32c0a] \u2014 and would in any case not explain a JVM booting under the shipping label. shippingservice error-ratio telemetry is absent across both windows, so it neither supports nor contradicts anything here [tr_c1a5792875b8].",
+    "open_questions": [
+      "No trace or latency evidence was gathered on the checkout->shipping edge; the link between the checkout stall and shipping is inferred from call-order and log-absence, not directly observed.",
+      "The Java process under the shipping label is identified only by a JVM/agent banner [tr_bca40051a706]; it is not positively confirmed to be adservice, and no pod/container status, exit code or OOM evidence was collected to explain why it restarts every ~65s.",
+      "quoteservice, accountingservice and loadgenerator alerts were never dispatched on; their symptoms are assumed to be downstream consequences of shipping being unserviceable but were not verified.",
+      "Prior cycles reverted the image 10-12 minutes after applying it [tr_3fff7fa32c0a]. Whether the automation has since self-reverted, and whether the incident is therefore self-clearing and recurring on a 4-5h cadence, is unsettled \u2014 and the durable fix may be disabling that automation rather than a one-off rollback.",
+      "shippingservice call telemetry is missing for at least four hours [tr_c1a5792875b8]; whether that instrumentation gap predates and is independent of this incident was not established.",
+      "checkoutservice metrics were only queried in aggregate with no per-dependency breakdown [tr_e4e7255a1eef], so an additional concurrent fault on another checkout dependency cannot be excluded."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The QUOTE_SERVICE_ADDR pointed at a non-existent quote endpoint left shippingservice (or quoteservice callers) broken through restart/propagation lag after the 23:48:59Z revert.",
+        "service": "shippingservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The variable was already reverted ~13 minutes before onset [tr_3fff7fa32c0a], and the post-cutover log stream shows a JVM booting rather than a Rust shipping process failing to reach its quote dependency [tr_bca40051a706] \u2014 a wrong address cannot produce a different language runtime under the label."
+      },
+      {
+        "root_cause": "quoteservice became slow or unavailable and checkoutservice/shippingservice stalled waiting on it.",
+        "service": "quoteservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "quoteservice was never dispatched on, so this rests on its alert timestamp alone; and it does not explain the wrong artifact and crash loop observed directly under the shipping label [tr_bca40051a706] [tr_3fff7fa32c0a], which is a sufficient cause for both the shipping and checkout symptoms."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "checkoutservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24225,
+    "pulled_tokens": 7010,
+    "pull_rate": 0.2244,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 460,
+        "content_tokens": 462,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1818,
+        "content_tokens": 1821,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7125,
+        "content_tokens": 7100,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6820,
+        "content_tokens": 6822,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8002,
+        "content_tokens": 7980,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "shippingservice",
+    "rests_on": [
+      "tr_3fff7fa32c0a",
+      "tr_bca40051a706",
+      "tr_0eca1a02289d"
+    ],
+    "expected_effect": "Redeploying shippingservice at the image tag it ran before the 23:59:34Z update should put the Rust shipping binary back under the shipping label. Observable in two places: (1) the {service=\"shipping-service\"} Loki stream stops emitting the JVM/OTel-agent boot banner on its ~65s cadence and resumes GetQuoteRequest / quote-reply / ShipOrder tracking-ID lines within one container start; (2) the {service=\"checkout-service\"} stream returns to its healthy shape, where each PlaceOrder entry is followed within tens of milliseconds by a payment transaction line, an order-confirmation email line, and a message-write line with incrementing offset \u2014 the three lines absent from every entry after 00:02:41. Because PlaceOrder entries continue every 3-13s, two or three completed sequences are enough to confirm. Note that shippingservice calls_total has had no samples for at least four hours [tr_c1a5792875b8], so Prometheus error-ratio or latency for shipping cannot be used as the confirming signal; logs are the only channel that can show this.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Three falsifiers. (a) The shipping stream resumes GetQuote/ShipOrder lines but checkoutservice PlaceOrder entries still have no payment/email/message-write follow-ups \u2014 then the checkout stall is not the shipping quote call; the checkout->shipping edge was never observed in trace or latency data, and checkout metrics were only queried in aggregate with no per-dependency breakdown, so a concurrent fault on cart, currency, payment or productcatalog would look identical from here. (b) The JVM boot loop continues on the ~65s cadence after the recreate \u2014 then the previous tag recorded in change history is not a working shipping image, or the automation re-applied the pinned tag immediately. (c) The shipping label goes silent entirely rather than resuming Rust lines \u2014 the recorded prior value for this image field reads as absent in the change log, so the rollback may target a tag that does not resolve.",
+    "risk": "Not the durable fix. The change history shows the same four-step cycle (bad QUOTE_SERVICE_ADDR, revert, image swap, image revert) repeating every 4-5 hours from platform-automation, and prior cycles self-reverted the image 10-12 minutes after applying it. So this rollback may race the automation's own revert, and will be undone again on the next cycle; disabling that automation is the real remediation and is outside what this system may do. If the diagnosis is wrong and shipping was already recovering on its own, the recreate adds an avoidable restart. If the prior image reference is not a valid shipping build, this leaves shipping down in a new way rather than the current one, though the action is reversible. This action also does nothing about the QUOTE_SERVICE_ADDR key that the same automation flips, and does not address the four-hour shippingservice telemetry gap, which will keep this service unobservable by metrics after the fix.",
+    "blast_radius": "One service recreated: shippingservice. Its named callers see the connection reset during recreate \u2014 checkoutservice directly (and through it frontend and loadgenerator), plus quoteservice which shipping calls downstream, and accountingservice. In practice the reset costs little, since the pod under this label has served no shipping request since 23:59:31Z and is restarting every ~65s already. Anyone watching shipping's log stream will see the JVM banner replaced by Rust request handling, which is the intended signal."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service failure starting at checkoutservice and spreading to its downstream consumers (shipping, quote, accounting) plus loadgenerator, which is consistent with a real checkout-path outage rather than noise. No open incidents to attribute it to, and nothing in the alerts distinguishes a deploy, config, or dependency cause yet."
+  }
+}

@@ -1,0 +1,40 @@
+incident d2558c36-ad5d-42ba-842c-beaf0d06005d  state triaging  anchor 00:30:15
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: a2a1b2a1-5f37-46dd-9dd2-1cf4d7981a20
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical-severity alert on frontend with loadgenerator confirming user-visible impact, not a lone synthetic or single warning latency alert. No open incidents to attribute it to, and any of five direct dependencies could be the cause, so evidence is needed before naming a class.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s) BUDGET EXHAUSTED (changes tool calls: 4 of 4 used)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a dispatch against shippingservice shows a crash-looping or exited process AND shippingservice becomes a legal target — then restart_service on shippingservice is the correct proposal and the delay cost real minutes. It is also wrong if adservice is found to have exited (not merely unresolvable), since a restart there would restore the DNS A record and stop the status-14 name-resolution lines at frontend within about 60s. Neither is established by anything on this board: no dispatch reached shippingservice or adservice, so the distinction between 'process down', 'never scheduled', and 'service-discovery plane broken' is unmeasured.
+  rests on    : tr_bcae65308ea6, tr_740317c61dd9, tr_e23a4a5dfbd5
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 23757 pushed / 3614 pulled (pull rate 0.132), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : low
+  evidence    : tr_bcae65308ea6, tr_740317c61dd9, tr_e23a4a5dfbd5, tr_665283141e69, tr_ca3b26de3bf8, tr_2321fe80a532
+  root cause  : Frontend is not itself broken: every error it emits is a client-side gRPC status propagated from outbound calls that never established a connection [tr_bcae65308ea6]. At onset the failing call is a shipping-quote RPC to 172.18.0.7:50050 returning TCP connection refused — the name resolved but no listener was accepting, which is the signature of a shipping backend process that is down or not bound. Later in the window a second, distinct failure appears: DNS name resolution failure for adservice:9555. No change record explains either: frontend and checkoutservice have empty change logs [tr_e23a4a5dfbd5][tr_2321fe80a532], and the only mutations on productcatalogservice and cartservice are automation apply/revert pairs, all reverted 1.9-18.5 hours before onset [tr_665283141e69][tr_ca3b26de3bf8]. Frontend's aggregate error ratio moved only 1.8%->2.6% with no sustained departure [tr_740317c61dd9], consistent with a minority-of-traffic path (shipping quotes, ads) failing rather than a service-wide outage. The best-supported blame is the shipping service being unavailable at its listening endpoint; the fault class is left unknown because no dispatch reached shippingservice to determine whether it crashed, was never started, or is exhausted.
+  OPEN        : No dispatch examined shippingservice itself: whether it crashed, OOMed, crash-looped, or was never scheduled is entirely unestablished, and that determines the real fault class.
+  OPEN        : The adservice DNS resolution failures late in the window are unexplained and may be an independent fault, a shared control-plane/DNS problem, or a downstream effect; one unmeasured edge was crossed in triage.
+  OPEN        : Whether both symptoms share a single upstream cause (node, network namespace, or service-discovery plane) was never tested — no infrastructure-level dispatch was made.
+  OPEN        : The change budget was exhausted on services with no relevant changes; shippingservice's own change history was never queried and could still contain the trigger.
+
+=== FLAGGED ===
+  budget exhausted: changes tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T002657Z-ad-memory-squeeze/d2558c36-ad5d-42ba-842c-beaf0d06005d-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T002657Z-ad-memory-squeeze/d2558c36-ad5d-42ba-842c-beaf0d06005d-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11226.37it/s]

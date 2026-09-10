@@ -1,0 +1,47 @@
+incident 629e3c83-e9bb-465b-af90-459a4097b864  state triaging  anchor 21:55:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 23c6eea4-776d-41c5-b8b4-f883f1eac819
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Critical alerts on frontend then adservice, with loadgenerator following, indicates real user-facing degradation rather than a synthetic-only blip. Ordering suggests a downstream dependency of frontend, but nothing rules out a bad deploy on adservice.
+investigation: 2 round(s), 5 dispatch(es), 19 step(s)
+  WITHHELD traces on frontend: ablation (--without traces)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : adservice
+  expect      : Restoring adservice's configuration to its pre-21:52:06 state (memory limit back to unset, as it was after each of the four earlier restore steps that day) and recreating the container should let the JVM complete startup. Observable as: (1) the ad-service log stream in Loki stops repeating the JAVA_TOOL_OPTIONS / class-sharing-warning / otel-javaagent-banner triplet on a ~60s cadence, and instead emits 'hipstershop.AdService - received ad request' lines with trace ids, as it did around 21:25 [tr_b9f2c8660b74]; (2) frontend's error ratio (sum by(service_name) rate(calls_total{service_name="frontend",status_code="STATUS_CODE_ERROR"}[2m]) / total) falls from its ~1.9% mean / 8.4% peak back to the flat zero it held for the 35-minute baseline [tr_54c23f6fa41f]. Item (2) is the decisive one, since adservice's own call metrics are absent in both windows and cannot be used to confirm anything [tr_84368465d4fc].
+  within      : 300s
+  risk        : If the diagnosis is wrong, this removes a memory ceiling that platform-automation deliberately applies on a ~4h cadence, and adservice runs unbounded: a genuinely leaking or over-allocating JVM could then consume host memory and pressure co-located services instead of being confined to a single restarting container — trading a partial 1.9% frontend error rate for a broader host-level failure. The recreate itself drops adservice's in-process cache and resets live connections. This also fixes only the symptom: the reason the automation's restore step never fired this cycle is unexplained [tr_4468cb81ac03], so the automation may re-lower the limit at the next cycle (~01:50) and reproduce the incident, or may fight this manual revert. A follow-up on the automation is required regardless of outcome.
+  blast radius: adservice's container is recreated; frontend is the named inbound caller and will see connection resets for the duration of the recreate, on top of the failures it already sees. loadgenerator, which alerted at 21:59:15 and is assumed downstream of frontend, would see the same brief disturbance. cartservice, checkoutservice, productcatalogservice and recommendationservice are not touched by this change. If the reverted resource limit frees memory on a shared host, other co-located containers may see their own allocation conditions change.
+  if wrong    : Falsified if, within two container-recreate cycles (~120s), the ad-service log stream still shows only the startup triplet with no 'received ad request' line — that would mean the process dies for a reason other than the 256m ceiling, and the OOM-kill mechanism was inferred from silence rather than measured [tr_82bfca6d7aaf]. Also falsified if adservice starts serving normally but frontend's error ratio stays above baseline past 300s: that would mean the failing frontend path is not the ad call, which was never measured per-route or per-dependency [tr_54c23f6fa41f], and would point at one of the four uninvestigated candidate causes (cartservice, checkoutservice, productcatalogservice, recommendationservice). Note a confirmation gap: no memory working-set, OOM-kill, or restart-count series exists for ad-service, so the mechanism itself will remain inferred even if the fix works — only the two effects above are observable.
+  rests on    : tr_4468cb81ac03, tr_b9f2c8660b74, tr_54c23f6fa41f
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22087 pushed / 3299 pulled (pull rate 0.13), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_4468cb81ac03, tr_b9f2c8660b74, tr_54c23f6fa41f, tr_84368465d4fc, tr_82bfca6d7aaf
+  root cause  : An automated platform-automation job lowered the ad-service container memory limit to 256m at 21:52:06 and, unlike the four earlier lower/restore cycles that day, never restored it [tr_4468cb81ac03]. With only 256m available the JVM could not complete startup within its allocation: from ~21:52:23 the adservice log stream shows nothing but repeating JVM/agent startup boilerplate on a ~60s cadence, with no application request handling, no exception, and no JVM-reported fatal error before each termination — the signature of the container being killed from outside for exceeding its memory allocation rather than failing in-process [tr_b9f2c8660b74]. Because adservice never reaches the request-serving stage, frontend's ad-serving calls fail intermittently; frontend's error ratio moved from an exactly-zero 35-minute baseline to a 1.9% mean with an 8.4% peak, first crossing at 21:53:30 — about one minute after the limit change and two minutes before the frontend alert [tr_54c23f6fa41f]. The partial, spiky error pattern matches a dependency that is repeatedly dying and briefly reappearing rather than a hard-down dependency [tr_54c23f6fa41f].
+  OPEN        : No memory working-set, OOM-kill, or restart-count telemetry was ever retrieved for ad-service; the OOM-kill mechanism is inferred from the silent-termination log pattern and the limit change, not directly confirmed [tr_82bfca6d7aaf].
+  OPEN        : Why the platform-automation restore step did not fire this cycle when it had fired four times earlier the same day is unexplained — the automation itself may be broken or stalled [tr_4468cb81ac03].
+  OPEN        : adservice call metrics are absent across both windows, so there is a monitoring gap for this service that predates the incident and was not investigated [tr_84368465d4fc][tr_82bfca6d7aaf].
+  OPEN        : Frontend's error ratio was never broken down by route or downstream dependency, so the ad call path is inferred rather than measured as the failing path [tr_54c23f6fa41f].
+  OPEN        : Triage counted 7 affected services and 1 unmeasured edge; no dispatch examined the other four services, so a second concurrent contributor cannot be excluded.
+  OPEN        : The loadgenerator alert at 21:59:15 was not investigated and is assumed downstream of frontend.
+
+flags: none
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T215201Z-ad-memory-squeeze/629e3c83-e9bb-465b-af90-459a4097b864-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T215201Z-ad-memory-squeeze/629e3c83-e9bb-465b-af90-459a4097b864-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9005.91it/s]

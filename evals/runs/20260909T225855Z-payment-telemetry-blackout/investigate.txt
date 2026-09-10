@@ -1,0 +1,39 @@
+incident ffb03ea8-1dcd-4583-a4c5-19d939e1b668  state triaging  anchor 23:05:00
+triage: 3 services, severity critical, start from paymentservice, 2 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: fef4d622-8e9d-4d01-92b2-2af0800e3c2d
+triage judged: investigate (medium confidence, suspects unknown)
+  A single critical alert on paymentservice sits upstream of checkout and frontend, so it cannot be dismissed as a working world. No open incidents to attribute it to, and the alert alone does not indicate a fault class.
+investigation: 2 round(s), 4 dispatch(es), 17 step(s)
+  WITHHELD traces on paymentservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : If the corrected-label query is still empty and paymentservice spans are genuinely absent, then revert_config on paymentservice becomes the right proposal and this abstention delayed a fix by one query. Cost of that delay is low: logs show charges completing sub-millisecond with no errors across 23:04–23:06 [tr_fc89f8e7fd07], so no user-facing impact is accruing.
+  rests on    : tr_327aa30e6511, tr_fc89f8e7fd07, tr_3fc206e3cba2
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 17764 pushed / 6134 pulled (pull rate 0.2567), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_3fc206e3cba2, tr_327aa30e6511, tr_fc89f8e7fd07, tr_ec4f6e6c8903
+  root cause  : paymentservice is not failing to serve payments — it is failing to be observed. Five minutes before the 23:05 alert, platform-automation set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT to http://127.0.0.1:4317, a loopback address with no collector behind it, and unlike four earlier set/revert pairs in the same window this one was never reverted and was in effect at onset [tr_3fc206e3cba2]. The value itself names a wrong address and that wrongness is the failure: span-derived calls_total for paymentservice returns no samples at all [tr_327aa30e6511], while the service's own logs show charge/completion pairs continuing sub-millisecond across 23:04–23:06 with no errors [tr_fc89f8e7fd07] and caller checkoutservice shows error ratio below baseline with no change point at 23:05 [tr_ec4f6e6c8903]. Fix is reverting the endpoint to the real collector and stopping the automation flap.
+  OPEN        : What signal actually fired the 23:05 alert? Neither metrics nor logs show a symptom at that timestamp, and no user-facing impact evidence exists.
+  OPEN        : The metrics baseline (20:05–23:05) is also empty, but the loopback value was only re-applied at 22:59 — so the missing series predates this change and is not fully explained by it.
+  OPEN        : Label mismatch is unresolved: logs use service="payment-service", the metric query uses service_name="paymentservice". If the selector is simply wrong, the empty result is a query artifact and this verdict weakens.
+
+flags: none
+
+retrieval: exclude_origin='scenario:payment-telemetry-blackout', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T225855Z-payment-telemetry-blackout/ffb03ea8-1dcd-4583-a4c5-19d939e1b668-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T225855Z-payment-telemetry-blackout/ffb03ea8-1dcd-4583-a4c5-19d939e1b668-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9750.01it/s]
