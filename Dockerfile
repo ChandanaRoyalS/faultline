@@ -34,6 +34,24 @@ RUN uv sync --frozen --no-dev --extra agents --extra embeddings
 
 FROM python:3.12-slim
 RUN useradd --create-home appuser
+# T6.2: the executor runs `docker compose ... up -d --force-recreate <service>` against the world,
+# and it is the only process in this image that does - the receiver and the orchestrator never
+# touch these two binaries, and the socket they would need is mounted into one container of the
+# three (deploy/compose.yml). Static builds from Docker's own release channel, pinned, so the image
+# builds the same on the runner and on a developer's machine; `TARGETARCH` is what buildx sets.
+ARG TARGETARCH=amd64
+ARG DOCKER_CLI_VERSION=27.3.1
+ARG COMPOSE_VERSION=v2.29.7
+RUN set -eux; \
+    case "$TARGETARCH" in amd64) arch=x86_64 ;; arm64) arch=aarch64 ;; *) echo "unsupported $TARGETARCH"; exit 1 ;; esac; \
+    apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*; \
+    curl -fsSL "https://download.docker.com/linux/static/stable/${arch}/docker-${DOCKER_CLI_VERSION}.tgz" \
+      | tar -xz -C /tmp && mv /tmp/docker/docker /usr/local/bin/docker && rm -rf /tmp/docker; \
+    mkdir -p /usr/local/lib/docker/cli-plugins; \
+    curl -fsSL -o /usr/local/lib/docker/cli-plugins/docker-compose \
+      "https://github.com/docker/compose/releases/download/${COMPOSE_VERSION}/docker-compose-linux-${arch}"; \
+    chmod +x /usr/local/lib/docker/cli-plugins/docker-compose; \
+    docker --version && docker compose version
 WORKDIR /app
 COPY --from=base /app /app
 ENV PATH="/app/.venv/bin:$PATH"

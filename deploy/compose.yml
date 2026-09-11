@@ -260,6 +260,52 @@ services:
     networks:
       - faultline
 
+  executor:
+    # T6.2: the action plane. **The one container that can change the world**, and the only one
+    # that mounts the Docker socket - `tests/test_deploy.py` counts. Same image, a different
+    # command, and a credential none of the others have: `faultline` serves, `orchestrator`
+    # investigates and holds the model key, `executor` acts and holds the socket. A compromised
+    # investigation can ask; only this can do, and only with a token it did not mint.
+    #
+    # **The kill switch is on.** Until T6.3 there is no approval surface on the deployment, so
+    # nothing legitimate can mint a token here, and an executor that can act with nobody able to
+    # approve is a switch nobody would notice being off. Flipping it is a deliberate edit to this
+    # line in the same PR that lands the surface (PREREGISTRATION-T6.2.md §2.6).
+    image: ${FAULTLINE_IMAGE:?set FAULTLINE_IMAGE in deploy/.env - a sha tag, never :latest}
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    # The socket is root:docker on the host. Rather than run this container as root, it joins the
+    # docker group by id - `stat -c %g /var/run/docker.sock` on the VM - so appuser can reach the
+    # socket and nothing else gained a privilege for it (env.example says how to find the id).
+    group_add:
+      - "${DOCKER_SOCKET_GID:?set DOCKER_SOCKET_GID in deploy/.env - stat -c %g /var/run/docker.sock}"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      # The world's compose files and the injector's state, at the host's own path so the
+      # override files the state names resolve inside the container exactly as they do outside.
+      - ${FAULTLINE_CHECKOUT:?set FAULTLINE_CHECKOUT in deploy/.env - the absolute path of this clone on the VM}:${FAULTLINE_CHECKOUT:?set FAULTLINE_CHECKOUT in deploy/.env}
+    environment:
+      FAULTLINE_EXECUTOR_KILL_SWITCH: "1"
+      FAULTLINE_EXECUTOR_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
+      PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      # The HMAC key the approver and the executor share (`faultline.executor.tokens`). Generated,
+      # not chosen: `openssl rand -hex 32`. With the switch on nothing verifies against it yet; it
+      # is here so that the day the surface lands the key already exists and is already secret.
+      FAULTLINE_EXECUTOR_TOKEN_KEY: ${FAULTLINE_EXECUTOR_TOKEN_KEY:?set FAULTLINE_EXECUTOR_TOKEN_KEY in deploy/.env}
+      FAULTLINE_INJECTOR_WORLD_DIR: ${FAULTLINE_CHECKOUT:?set FAULTLINE_CHECKOUT in deploy/.env}/world
+      FAULTLINE_INJECTOR_STATE_DIR: ${FAULTLINE_CHECKOUT:?set FAULTLINE_CHECKOUT in deploy/.env}/.faultline
+    command:
+      - faultline-execute
+      - serve
+      - --host
+      - "0.0.0.0"
+      - --port
+      - "8100"
+    networks:
+      - faultline
+
   caddy:
     # Automatic TLS from Let's Encrypt on first request, which is the cheapest correct answer to
     # "a stable URL" and the reason this container exists at all rather than a bare port.

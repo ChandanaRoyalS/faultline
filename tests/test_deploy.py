@@ -44,7 +44,7 @@ def compose() -> dict:
 # --- nothing is published that should not be ----------------------------------------------------
 
 
-@pytest.mark.parametrize("service", ["postgres", "faultline", "redis", "orchestrator"])
+@pytest.mark.parametrize("service", ["postgres", "faultline", "redis", "orchestrator", "executor"])
 def test_only_caddy_publishes_a_port(compose: dict, service: str) -> None:
     """The difference between this file and `docker-compose.yml`, and the reason it is a separate
     file rather than another profile.
@@ -210,15 +210,31 @@ def test_every_settings_class_with_a_dsn_is_pointed_at_the_one_database(compose:
         for _, cls in inspect.getmembers(importlib.import_module(module.name), inspect.isclass):
             if issubclass(cls, BaseSettings) and "postgres_dsn" in cls.model_fields:
                 prefixes.add(str(cls.model_config.get("env_prefix", "")))
-    assert prefixes >= {"FAULTLINE_ORCH_", "FAULTLINE_CONTEXT_", "FAULTLINE_TOOLS_"}, prefixes
+    assert prefixes >= {
+        "FAULTLINE_ORCH_",
+        "FAULTLINE_CONTEXT_",
+        "FAULTLINE_TOOLS_",
+        "FAULTLINE_EXECUTOR_",
+    }, prefixes
 
+    # Which container reads which class. A class a container never imports is not set there,
+    # because an environment variable that nothing reads is documentation that lies eventually.
+    # `faultline` serves the read surface: no tools, no executor. `orchestrator` investigates:
+    # every agent-side class, no executor. `executor` (T6.2) acts: its own class alone - the
+    # incident scope it recomputes reads the catalog snapshot from disk, not the database.
+    not_read = {
+        "faultline": {"FAULTLINE_TOOLS_", "FAULTLINE_EXECUTOR_"},
+        "orchestrator": {"FAULTLINE_EXECUTOR_"},
+        "executor": {"FAULTLINE_ORCH_", "FAULTLINE_CONTEXT_", "FAULTLINE_TOOLS_"},
+    }
     app = compose["services"]["faultline"]
     served = app["command"][app["command"].index("--postgres-dsn") + 1]
-    for name in ("faultline", "orchestrator"):
+    for name in ("faultline", "orchestrator", "executor"):
         env = compose["services"][name]["environment"]
         for prefix in prefixes:
-            if name == "faultline" and prefix == "FAULTLINE_TOOLS_":
-                continue  # the read surface runs no tools; nothing in it reads this class
+            if prefix in not_read[name]:
+                assert f"{prefix}POSTGRES_DSN" not in env, f"{name} does not read {prefix}"
+                continue
             assert env.get(f"{prefix}POSTGRES_DSN") == served, (
                 f"{name}: {prefix}POSTGRES_DSN must name the served database, got "
                 f"{env.get(f'{prefix}POSTGRES_DSN')!r}"
@@ -330,7 +346,7 @@ def test_the_secrets_are_ignored() -> None:
 # this file's guards were wrong on first writing for exactly that reason (T5.5, T5.4b).
 
 
-@pytest.mark.parametrize("service", ["faultline", "orchestrator"])
+@pytest.mark.parametrize("service", ["faultline", "orchestrator", "executor"])
 def test_the_deployment_pulls_rather_than_builds(compose: dict, service: str) -> None:
     """T5.5: *"the same images CI builds"*, *"images pulled from the registry CI publishes to"*.
 
@@ -673,6 +689,52 @@ def test_every_telemetry_container_survives_a_reboot(world: dict, service: str) 
     assert world["services"][service].get("restart") == "always", (
         f"{service} will not come back after a reboot"
     )
+
+
+# --- T6.2: the one container that can act ---------------------------------------------------------
+
+
+def test_exactly_one_service_mounts_the_docker_socket_and_it_is_the_executor(compose: dict) -> None:
+    """`PREREGISTRATION-T6.2.md` §3 item 9. The socket is the world's write credential; the
+    receiver, the orchestrator and Caddy must not have it - a compromised investigation that could
+    reach the socket would not need an executor."""
+    holders = sorted(
+        name
+        for name, service in compose["services"].items()
+        if any("docker.sock" in str(v) for v in service.get("volumes", []))
+    )
+    assert holders == ["executor"], holders
+
+
+def test_the_executor_starts_with_the_kill_switch_on_and_the_key_mandatory(compose: dict) -> None:
+    """§2.6: on the deployment the switch is on until T6.3 exists. And the key has no default,
+    like every other credential in this file."""
+    env = compose["services"]["executor"]["environment"]
+    assert env["FAULTLINE_EXECUTOR_KILL_SWITCH"] == "1"
+    assert env["FAULTLINE_EXECUTOR_TOKEN_KEY"].startswith("${FAULTLINE_EXECUTOR_TOKEN_KEY:?")
+    assert compose["services"]["executor"]["command"][:2] == ["faultline-execute", "serve"]
+
+
+def test_the_executor_joins_the_docker_group_rather_than_running_as_root(compose: dict) -> None:
+    executor = compose["services"]["executor"]
+    assert "user" not in executor, "the image's appuser stays; the group is what changes"
+    assert any("DOCKER_SOCKET_GID" in str(g) for g in executor.get("group_add", []))
+
+
+def test_caddy_forwards_nothing_to_the_executor() -> None:
+    """The served executor is for T6.3's surface on the compose network. A public route to it
+    would put a token-accepting endpoint on the internet behind one basic-auth credential."""
+    caddyfile = (DEPLOY / "Caddyfile").read_text()
+    assert "executor" not in caddyfile and "8100" not in caddyfile
+
+
+def test_the_image_carries_the_docker_cli_for_the_executor() -> None:
+    """The executor runs `docker compose`; an image without the binary has an executor that can
+    refuse and never act, which is the kill switch with extra steps. Pinned versions, both."""
+    dockerfile = (DEPLOY.parent / "Dockerfile").read_text()
+    assert "DOCKER_CLI_VERSION=" in dockerfile and "COMPOSE_VERSION=v" in dockerfile
+    assert "docker compose version" in dockerfile, "prove the plugin loads at build time"
+    assert "cli-plugins/docker-compose" in dockerfile
 
 
 # --- the rehearsal changes only what it claims to ------------------------------------------------

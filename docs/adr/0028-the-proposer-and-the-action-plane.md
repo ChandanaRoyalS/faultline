@@ -332,3 +332,29 @@ is the schema `description` the model is shown, and a model is not to be told th
 welcome. And the change moved the prompt stamp anyway - `extra="forbid"` puts
 `additionalProperties: false` into the JSON schema the digest hashes - which the pre-registration
 had not anticipated; it is amended, and ADR-0037 §6 has the cost.
+
+## Addendum 3 (T6.2, 2026-09-11) — the executor exists; §3's boundary is a process, and §5's control is sequencing
+
+**§3 is built as written.** `faultline.executor` is a separate process with its own credential -
+the Docker socket and the compose files, which in this world are the write credential - and the
+investigation runtime gains no write tool: `tests/test_executor_boundary.py` holds by AST that
+nothing under `faultline.agents` or `faultline.tools` can import the executor, the injector's
+clients or `subprocess`. ADR-0038 is the design.
+
+**§5, restated as T7.50 asked and as Q7's strike recorded at T3.9, now with the mechanism that makes
+it true.** The oracle control is *sequencing*, not *withholding*: the agent's last read precedes any
+execution because the agent that wrote the proposal has finished before anyone can approve it, and
+the executor acts on an incident whose trajectory has ended. Withholding the executor's return
+value would not have closed the channel - the agent's own read tools observe the changed world -
+and nothing here relies on it. What §4 called the fourth axis is now measurable from what the
+proposal already carries (`expected_effect`, `confirm_within_seconds`) plus what the injector knows
+(whether the fault is still in force): `PREREGISTRATION-T6.2.md` §4 is that benchmark, scored apart
+from diagnosis under a different name, and every fix-class figure in the repository keeps the
+meaning this ADR gave it - *the agent named a fix*.
+
+**§2's refusal list, as built.** *Unexecutable* is drift-based rather than change-history-based
+(ADR-0038 §2; ADR-0032's addendum says why); *the world moved* is the incident having reached a
+terminal state; *no approval* is the default and the kill switch is a fifth refusal with its own
+outcome name. A refusal is recorded and never retried; an `error` spends the token and fails the
+incident, so a half-applied change cannot be re-applied by anyone but a person who has read the
+audit row.

@@ -212,3 +212,44 @@ def test_docker_failure_during_start_is_reported_cleanly(
     assert code == 1
     assert "error:" in capsys.readouterr().err
     assert make_engine(settings, runner).active() == {}, "a fault that failed is not active"
+
+
+# --- T6.2: the executor tells the injector what it did ------------------------------------------
+
+
+def test_an_external_restore_forgets_the_override_fault_and_recreates_nothing(
+    settings: InjectorSettings, runner: FakeRunner
+) -> None:
+    """The coupling `PREREGISTRATION-T6.2.md` §2.2 priced. The executor recreated the service from
+    the declared definition; the injector drops the state entry and the override file without a
+    second recreate, so `stop --all` afterwards has nothing to revert and counts nothing."""
+    engine = make_engine(settings, runner)
+    engine.start("shipping-wrong-image")
+    override = Path(engine.active()["shipping-wrong-image"].restore.override_file)
+    assert override.is_file()
+    recreates_before = sum(1 for c in runner.calls if "--force-recreate" in c.args)
+
+    forgotten = make_engine(settings, runner, minute=5).acknowledge_external_restore(
+        "shipping-service"  # the container name; canonicalised to the compose service
+    )
+
+    assert forgotten == ["shipping-wrong-image"]
+    assert not override.exists()
+    assert "shipping-wrong-image" not in make_engine(settings, runner).active()
+    assert sum(1 for c in runner.calls if "--force-recreate" in c.args) == recreates_before
+    assert all(not r.was_active for r in make_engine(settings, runner).stop_all())
+
+
+def test_an_external_restore_leaves_a_sidecar_fault_on_the_same_service_alone(
+    settings: InjectorSettings, runner: FakeRunner
+) -> None:
+    """A traffic-shaping sidecar is a different restore kind: the executor's recreate did not touch
+    it, and forgetting it would strand the world with a fault nobody records."""
+    engine = make_engine(settings, runner)
+    engine.start("cart-dependency-latency")
+    engine.start("cart-redis-misconfig")
+
+    forgotten = make_engine(settings, runner, minute=5).acknowledge_external_restore("cartservice")
+
+    assert forgotten == ["cart-redis-misconfig"]
+    assert set(make_engine(settings, runner).active()) == {"cart-dependency-latency"}

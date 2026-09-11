@@ -93,6 +93,7 @@ EXPECTED_TABLES = {
     "trajectory_proposals",
     "incident_chunks",
     "change_records",
+    "action_audit",
 }
 
 

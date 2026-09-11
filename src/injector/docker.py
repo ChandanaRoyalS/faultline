@@ -11,11 +11,12 @@ network in `make check`.
 
 from __future__ import annotations
 
+import json
 import subprocess
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Protocol
+from typing import Any, Protocol
 
 from injector.settings import InjectorSettings
 
@@ -133,6 +134,32 @@ class DockerCli:
         args += list(command)
         self._runner.run(args)
 
+    def running_definition(self, container: str) -> dict[str, Any]:
+        """What the container is actually running: image, environment, memory, CPU quota.
+
+        **The executor's half of a drift check (T6.2).** The other half is
+        `ComposeCli.declared_definition`; the difference between them is what a rollback would
+        change, and an empty difference is what refuses one. Read with one `inspect` so the four
+        fields describe the same instant."""
+        result = self._runner.run(
+            [
+                "docker",
+                "inspect",
+                "--format",
+                "{{json .Config.Image}}\t{{json .Config.Env}}\t"
+                "{{.HostConfig.Memory}}\t{{.HostConfig.NanoCpus}}",
+                container,
+            ]
+        )
+        image, env, memory, nano_cpus = result.stdout.strip().split("\t")
+        pairs = (item.split("=", 1) for item in json.loads(env) or [])
+        return {
+            "image": json.loads(image),
+            "environment": {k: (v[0] if v else "") for k, *v in pairs},
+            "memory": int(memory),
+            "nano_cpus": int(nano_cpus),
+        }
+
     def container_exists(self, name: str) -> bool:
         result = self._runner.run(
             ["docker", "inspect", "--type", "container", "--format", "{{.Id}}", name],
@@ -159,6 +186,21 @@ class DockerCli:
         self._runner.run(["docker", "rm", "--force", name], check=False)
 
 
+def _compose_bytes(value: Any) -> int:
+    """A compose memory limit as bytes; 0 when there is none. `config --format json` renders
+    limits as integers already, but a hand-written `600M` survives some versions."""
+    if value is None:
+        return 0
+    if isinstance(value, int):
+        return value
+    text = str(value).strip().lower()
+    units = {"k": 1024, "m": 1024**2, "g": 1024**3, "b": 1}
+    for suffix, factor in units.items():
+        if text.endswith(suffix):
+            return int(float(text[: -len(suffix)]) * factor)
+    return int(text)
+
+
 class ComposeCli:
     """Compose, invoked exactly as the Makefile invokes it, so it targets the same project."""
 
@@ -171,6 +213,30 @@ class ComposeCli:
         for compose_file in self._settings.compose_files:
             args += ["-f", compose_file]
         return args
+
+    def declared_definition(self, service: str) -> dict[str, Any]:
+        """What the world's own files say `service` should run, with no generated override.
+
+        `docker compose config` over exactly `compose_files` - the three hashed files, the
+        declared world - rendered to JSON and reduced to the four fields a fault can move: image,
+        environment, memory limit, CPU quota. This is the executor's "last known good" (T6.2,
+        ADR-0038): in a world with no CD system the declared definition *is* the previous state,
+        and change history records `before=None` on purpose (`injector.changelog`)."""
+        result = self._runner.run(
+            [*self._base_args(), "config", "--format", "json"], cwd=self._settings.world_dir
+        )
+        document = json.loads(result.stdout)
+        spec = document["services"][service]
+        limits = ((spec.get("deploy") or {}).get("resources") or {}).get("limits") or {}
+        environment = spec.get("environment") or {}
+        if isinstance(environment, list):
+            environment = dict(item.split("=", 1) for item in environment)
+        return {
+            "image": spec.get("image"),
+            "environment": {k: ("" if v is None else str(v)) for k, v in environment.items()},
+            "memory": _compose_bytes(limits.get("memory")),
+            "nano_cpus": round(float(limits["cpus"]) * 1_000_000_000) if "cpus" in limits else 0,
+        }
 
     def recreate(self, service: str, *, overrides: Sequence[Path] = ()) -> None:
         """Recreate one service, optionally with extra override files layered on top.

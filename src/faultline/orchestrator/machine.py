@@ -7,6 +7,8 @@ transitions are only a table in a markdown file is a diagram.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from faultline.orchestrator.models import (
     ACTION_PLANE_DRIVEN,
     AGENT_DRIVEN,
@@ -34,6 +36,11 @@ ALLOWED: dict[IncidentState, frozenset[IncidentState]] = {
     IncidentState.TRIAGING: frozenset(
         {
             IncidentState.PLANNING,
+            # T6.2, ADR-0016 Addendum 4: the operator path. A human approves an action for an
+            # incident no agent has investigated, and it goes through the executor rather than
+            # around it. From TRIAGING only - the one state in which no investigation is running
+            # that could later try to move the incident somewhere else.
+            IncidentState.AWAITING_APPROVAL,
             IncidentState.RESOLVED,
             IncidentState.FAILED,
             IncidentState.BUDGET_EXHAUSTED,
@@ -219,21 +226,51 @@ def record_investigation_failure(incident: Incident, reason: str) -> None:
     transition(incident, IncidentState.FAILED, trigger=f"investigation failed: {reason}")
 
 
-def record_approval_outcome(incident: Incident, outcome: object) -> None:
-    """Advance `AWAITING_APPROVAL` / `EXECUTING`. **Not built - it is T6.2 and T6.3's.**
+@dataclass(frozen=True, slots=True)
+class ApprovalOutcome:
+    """What the action plane reports (T6.2). `kind` is one of four:
 
-    The action plane is described in `docs/ARCHITECTURE.md` and load-bearing in
-    `docs/THREAT-MODEL.md` - it holds the only write credentials and requires a single-use,
-    action-bound approval token. The execution plan numbers it: **T6.2** builds the executor,
-    the token, the audit log and the kill switch; **T6.3** builds the approve / reject surface
-    that mints the token and records the outcome this function will receive. Until T6.3 lands,
-    nothing calls this, and the message says where it will come from rather than that nobody
-    knows.
+    - `approved` - a token was minted for a proposal; the incident waits for execution;
+    - `executed` - the executor performed the action; the incident is `EXECUTING` until the
+      world's alerts resolve it (the orchestrator's ordinary path) or the operator fails it;
+    - `refused` - the executor did not act; the incident does not move, and the audit says why;
+    - `failed` - the command ran and did not succeed; the incident is `FAILED`, with the audit
+      row named, because a half-applied change is not a state a machine should call anything else.
+
+    `audit_id` is the `action_audit` row, so every transition this causes points at its evidence.
     """
-    raise NotImplementedError(
-        "approval and execution outcomes come from the action plane - T6.2's executor and "
-        "T6.3's approve / reject surface - neither of which is built; see docs/PLAN.md, Phase 6"
-    )
+
+    kind: str
+    audit_id: str | None = None
+
+
+def record_approval_outcome(incident: Incident, outcome: ApprovalOutcome) -> None:
+    """Advance `AWAITING_APPROVAL` / `EXECUTING` from what the action plane reports (T6.2).
+
+    Built at T6.2 against ADR-0016's table, with one row added there first (Addendum 4):
+    `TRIAGING -> AWAITING_APPROVAL`, the operator path - an approval given before any agent has
+    run, so that a manual remediation goes through the same executor, token and audit as an
+    agent-proposed one, rather than around them. T6.3's approve / reject surface will call the
+    same function; the CLI `faultline-approve` calls it today.
+    """
+    if outcome.kind == "approved":
+        transition(
+            incident,
+            IncidentState.AWAITING_APPROVAL,
+            trigger=f"approval minted (audit {outcome.audit_id or 'n/a'})",
+        )
+    elif outcome.kind == "executed":
+        transition(
+            incident, IncidentState.EXECUTING, trigger=f"action executed (audit {outcome.audit_id})"
+        )
+    elif outcome.kind == "failed":
+        transition(
+            incident, IncidentState.FAILED, trigger=f"action failed (audit {outcome.audit_id})"
+        )
+    elif outcome.kind == "refused":
+        return
+    else:
+        raise ValueError(f"unknown approval outcome kind {outcome.kind!r}")
 
 
 def is_terminal(state: IncidentState) -> bool:

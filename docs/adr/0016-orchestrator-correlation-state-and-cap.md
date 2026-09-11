@@ -648,3 +648,28 @@ double carries the same guard, for the reason its docstring already gives — a 
 reproduce the bug is a double that lets it back in — and it is where the two tests live, because
 `PostgresIncidentStore` is still not exercised by `make check`. That is the same hole Addendum 2's
 *"two latent bugs"* section names, now for the third time.
+
+## Addendum 4 (T6.2, 2026-09-11) — one row added: `TRIAGING → AWAITING_APPROVAL`, the operator path
+
+The table had one door into `AWAITING_APPROVAL`: from `PROPOSING`, when an agent had proposed and
+a human approved. T6.2 adds a second, from `TRIAGING`, and the reason is stated here before the
+code carries it, as this document's own rule requires (*"add it there before adding it here"*).
+
+**A manual remediation must go through the executor, not around it.** The action plane's claim is
+that every change to the world is an approved, token-bound, audited action. An operator who wants
+to roll a service back on an incident no agent has investigated has, without this row, exactly one
+way to do it: the injector or a shell, neither of which writes an audit row or checks a scope. The
+row lets `faultline-approve --from-run <dir>` mint a token for an incident in `TRIAGING`, move it
+to `AWAITING_APPROVAL`, and hand execution to the same executor with the same eight refusals. It is
+also what the pre-registered repair replay needs: fresh incidents opened by the world's own alerts,
+no agent run, the recorded proposal approved against them.
+
+**From `TRIAGING` only.** `PLANNING`, `INVESTIGATING` and `SYNTHESIZING` are states an agent is
+moving; a second process moving the same incident is the lost-update Addendum 3 just closed, one
+transition over. `TRIAGING` is the one non-terminal state in which no investigation is running -
+it is `INVESTIGABLE`'s single member for the same reason - so the approval cannot race a runner's
+next phase write. `record_approval_outcome`, the stub that named this task, is built against the
+table as amended: `approved` enters `AWAITING_APPROVAL` from either door, `executed` enters
+`EXECUTING`, `failed` enters `FAILED` with the audit row named, `refused` moves nothing.
+`EXECUTING → RESOLVED` stays the orchestrator's alert-resolution path; the executor never declares
+that the world recovered.

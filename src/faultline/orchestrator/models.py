@@ -52,8 +52,9 @@ class IncidentState(StrEnum):
     argues for two pages later. See ADR-0016, Addendum 2.
 
     Five of them (`TRIAGING` through `PROPOSING`) are entered by agent outcomes T3.x built,
-    and two (`AWAITING_APPROVAL`, `EXECUTING`) by the action plane - **T6.2 (the executor) and
-    T6.3 (approve / reject), neither built yet.** This docstring said the plane had *"no task
+    and two (`AWAITING_APPROVAL`, `EXECUTING`) by the action plane - **T6.2 (the executor,
+    built 2026-09-11, ADR-0038) and T6.3 (approve / reject), not yet.** This docstring said the
+    plane had *"no task
     number at all"* until T6's audit (2026-09-07): that was true of `docs/PLAN.md`'s
     reconstruction and false of the execution plan, which has been in `docs/spec/` since T5.3
     and numbers both. They exist here because the machine has to be able to *be* in them. What
@@ -119,7 +120,10 @@ AGENT_DRIVEN = frozenset(
 """Advanced by T3.x agent outcomes. Not built - see `machine.record_agent_outcome`."""
 
 ACTION_PLANE_DRIVEN = frozenset({IncidentState.AWAITING_APPROVAL, IncidentState.EXECUTING})
-"""Advanced by approval and execution outcomes. Not built, and unnumbered in the plan."""
+"""Advanced by approval and execution outcomes - `machine.record_approval_outcome`, built at T6.2
+(ADR-0038). `AWAITING_APPROVAL` is entered from `PROPOSING` or, since ADR-0016 Addendum 4, from
+`TRIAGING`; `EXECUTING` is left by the orchestrator's alert-resolution path, never by the
+executor."""
 
 
 class Severity(StrEnum):
