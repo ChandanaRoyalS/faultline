@@ -1,0 +1,39 @@
+{
+  "action_id": "revert_config",
+  "at": "2026-09-11T07:28:15.394267+00:00",
+  "caller": "repair replay",
+  "command": [
+    "docker",
+    "compose",
+    "-f",
+    "docker-compose.yml",
+    "-f",
+    "../compose/world-arm64.override.yml",
+    "-f",
+    "../compose/telemetry.yml",
+    "up",
+    "-d",
+    "--no-build",
+    "--no-deps",
+    "--force-recreate",
+    "frauddetectionservice"
+  ],
+  "drift": {
+    "drift": {
+      "memory": {
+        "declared": 524288000,
+        "running": 209715200
+      }
+    }
+  },
+  "exit_code": 0,
+  "id": "6b59f695-f83b-4564-809d-5fd97816e3f9",
+  "incident_id": "0df05d22-c599-4b7a-8e5b-6afcd2e562b4",
+  "inverse": "no override was in force; re-apply the running values that differed: {\"memory\": {\"declared\": 524288000, \"running\": 209715200}}",
+  "outcome": "executed",
+  "output_sha256": "5fd656be4f19f01e2396cfa3099b4973184efb31df5a67375d2d5b2b436296b5",
+  "proposal_id": "20260909T160827Z-frauddetection-memory-squeeze",
+  "reason": "",
+  "target": "frauddetectionservice",
+  "token_id": "9449c4e5dc2ee833"
+}

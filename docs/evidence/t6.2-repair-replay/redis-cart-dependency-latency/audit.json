@@ -1,0 +1,34 @@
+{
+  "action_id": "restart_service",
+  "at": "2026-09-11T07:57:04.687470+00:00",
+  "caller": "repair replay",
+  "command": [
+    "docker",
+    "compose",
+    "-f",
+    "docker-compose.yml",
+    "-f",
+    "../compose/world-arm64.override.yml",
+    "-f",
+    "../compose/telemetry.yml",
+    "up",
+    "-d",
+    "--no-build",
+    "--no-deps",
+    "--force-recreate",
+    "cartservice"
+  ],
+  "drift": {
+    "drift": {}
+  },
+  "exit_code": 0,
+  "id": "252c4af4-cb22-4f9a-bfe6-50964d7d42e2",
+  "incident_id": "d9aba0ac-3d7b-4150-b876-ba55a6db1cee",
+  "inverse": "no inverse: a restart discards process state and nothing restores it",
+  "outcome": "executed",
+  "output_sha256": "878b8ac691c14d7c7704f339efa9114d035b3ab25401a6463d9ebc77270e077d",
+  "proposal_id": "20260909T171220Z-redis-cart-dependency-latency",
+  "reason": "",
+  "target": "cartservice",
+  "token_id": "4d9eb936ff2719db"
+}
