@@ -97,6 +97,17 @@ stopped service as drift — a defect in the executor, fixed, with a pre-registe
 Predicted 7 of 8, 1 refused, 0 errors. Six predictions held, two failed on the executor's side, and
 **zero errors** — the executor never broke the world it was asked to fix — is the one that mattered.
 
+**The three refusals, demonstrated on the world and not only in tests.** A live proof presented the
+executor with a token it had already spent, a token while the kill switch was on, and a token for a
+service outside the incident's scope, in the second after a real execution and while the incident
+was still `EXECUTING`. Each was refused by the clause that owns it: *already spent*, naming the
+audit row; `kill_switch`, with investigation unaffected; and *outside the incident's scope*, refused
+before the token could be spent. It took four attempts, and the two that failed failed because the
+demonstration was built wrong — the refusals were presented after the world had recovered, and then
+a "wrong" target that was in scope — not because a check was missing. That is the honest version of
+the flagship safety sentence: the properties hold, and showing they hold on a live system was harder
+than writing the tests that assert them.
+
 ## The current-world result
 
 > **Superseded 2026-09-08 (T6.1): this section describes `f5bd108f4f70`, which is no longer the

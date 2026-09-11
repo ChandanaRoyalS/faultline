@@ -90,6 +90,16 @@ fully prompt-injected investigation agent cannot execute a write, because the to
 cannot"* is, for the first time, a description rather than an intent: the agent holds no token at
 all, and a token it somehow obtained would name what a human approved and nothing else.
 
+**Three of those refusals are demonstrated on a live world, not only asserted by tests**
+(`REPLAY-2026-09-11-t6.2.md` §7.5, evidence under
+`docs/evidence/t6.2-first-execution/shipping-wrong-image.fourth-attempt/`): in the second after a
+real execution, the spent token was refused as *already spent* naming its audit row, a fresh token
+was refused as `kill_switch` with investigation unaffected, and a token for a service outside the
+incident's blast radius was refused as an *action-target mismatch* before it could be spent. Four
+attempts were needed, and the two that failed failed in the demonstration, not in the executor —
+which is itself worth recording here: a safety property that is hard to exhibit on a running system
+is easy to believe you have exhibited.
+
 **What does not hold yet.** On the deployment the kill switch is on and no surface mints: T6.3 is
 the approval loop, and until it lands the executor there can refuse and record and nothing more.
 And the executor's own boundary is the compose network - Caddy forwards nothing to it - which is a

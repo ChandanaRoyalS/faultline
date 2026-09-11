@@ -184,3 +184,20 @@ token, naming the first action and its row. `faultline-approve` refuses to mint 
 or terminal incident and is idempotent for one awaiting approval - several tokens, each single-use,
 no second transition. A second remediation goes through rejection and re-investigation (T6.3), never
 through a second token.
+
+## Addendum 3 (2026-09-11) — what seeds the scope, seen from the fourth proof attempt
+
+The live proof's wrong-target refusal named the scope it checked against, and the list was not the
+one the driver's author had computed: `loadgenerator` in it, `quoteservice` not. §5 says scope is
+`Triage`'s output recomputed, and `Triage` seeds from the incident's **alerting** episodes — which
+for `shipping-wrong-image` were checkoutservice and loadgenerator. **shippingservice, the service
+the scenario breaks and the target of the action that was approved and executed, never alerted**;
+it entered its own incident's scope as a *candidate cause* one downstream step from checkout, and
+quoteservice, one step further down from shipping, was never reached, because the downstream step
+runs from the seeds only and does not compose (ADR-0017).
+
+Nothing changes in the executor. It is recorded because it is the answer to a question this ADR
+left implicit — *whose* services define the scope an action is checked against — and the answer is
+the ones that complained, not the one that broke. An action plane that admitted only alerting
+services would have refused the correct remediation for every fault whose service is silent, which
+in this world is most of them.
