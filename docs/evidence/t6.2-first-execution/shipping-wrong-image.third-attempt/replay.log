@@ -1,0 +1,12 @@
+2026-09-11T22:25:18.908964+00:00 gate admitted
+2026-09-11T22:25:18.909496+00:00 injecting shipping-wrong-image
+2026-09-11T22:31:03.116102+00:00 incident 2c18d6a7-d4e0-4df9-8424-5b1228ef67d9 opened; no investigation is run
+2026-09-11T22:31:03.143878+00:00 approved rollback_image -> shippingservice; token 293f7ecc010df586
+2026-09-11T22:31:03.167211+00:00 proof: minted the kill-switch and wrong-target tokens ahead of the execution
+2026-09-11T22:31:03.641566+00:00 executor: executed
+2026-09-11T22:31:03.651014+00:00 replayed token: refused - token 293f7ecc010df586 was already spent by audit row 9f9c6712-983f-4039-8f6f-2ed58e78b804 at 2026-09-11T22:31:03.638600+00:00 (executed)
+2026-09-11T22:31:03.658329+00:00 kill switch: kill_switch - kill switch is on (FAULTLINE_EXECUTOR_KILL_SWITCH); nothing executes while it is. Investigation is unaffected.
+2026-09-11T22:31:03.667049+00:00 wrong target: refused - incident 2c18d6a7-d4e0-4df9-8424-5b1228ef67d9 already had an action executed: rollback_image -> shippingservice (audit row 9f9c6712-983f-4039-8f6f-2ed58e78b804, executed). One action per incident (ADR-0028 §5); a second goes through rejection and re-investigation.
+2026-09-11T22:33:03.731062+00:00 scored recovered
+2026-09-11T22:33:03.733703+00:00 stop --all reverted: nothing
+2026-09-11T22:33:03.733777+00:00 settling 300s
