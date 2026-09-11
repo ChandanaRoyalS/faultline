@@ -13,6 +13,8 @@ from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from evalharness import replay
 
 REPO = Path(__file__).resolve().parents[1]
@@ -215,7 +217,7 @@ def test_the_proof_presents_exactly_three_refusals_after_the_first_execution(
     assert outcome.refusals[0]["outcome"] == "refused"
     assert outcome.refusals[1]["outcome"] == "kill_switch"
     assert steps.kill_switch_seen == [False, False, True, False]
-    assert "approve paymentservice" in steps.calls
+    assert f"approve {replay.WRONG_TARGET}" in steps.calls
     assert (tmp_path / "e" / "refusals.json").exists()
     # Before the recovery wait, while the incident is still EXECUTING - the first run presented
     # them after the world had recovered and both were refused as "incident is resolved".
@@ -398,3 +400,75 @@ def test_a_partial_run_writes_its_own_summary_and_leaves_the_aggregate_alone(
     assert aggregate.read_text() == "nine rows\n"
     partial = tmp_path / "t6.2-repair-replay" / "REPLAY.cart-bad-image-tag.md"
     assert partial.exists() and "n = 1" in partial.read_text()
+
+
+def test_the_wrong_target_is_outside_every_incident_scope_the_catalog_can_produce() -> None:
+    """Third proof attempt, 2026-09-11: `paymentservice` was one downstream step from the alerting
+    checkoutservice, so it was *in* scope and the refusal that fired was one-action-per-incident,
+    not blast radius. The wrong target has to be wrong for every seed set, not just the one the
+    driver's author imagined."""
+    from faultline.context.catalog import ServiceCatalog
+    from faultline.context.settings import ContextSettings
+
+    graph = ServiceCatalog.from_snapshot().graph
+    radius = ContextSettings().hop_radius
+    assert replay.WRONG_TARGET in ServiceCatalog.from_snapshot().services
+    for seed in sorted(ServiceCatalog.from_snapshot().services):
+        if seed == replay.WRONG_TARGET:
+            continue
+        reached = {r.service for r in graph.blast_radius([seed], radius).reach}
+        assert replay.WRONG_TARGET not in reached, (seed, sorted(reached))
+
+
+def test_an_attempt_label_names_the_evidence_and_the_summary(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    monkeypatch.setattr(replay, "RealSteps", lambda dsn: FakeSteps())
+    monkeypatch.setattr(replay, "REPO_ROOT", REPO)
+    code = replay.run_cli(
+        [
+            "--only",
+            "shipping-wrong-image",
+            "--proof",
+            "--attempt",
+            "fourth-attempt",
+            "--evidence-root",
+            str(tmp_path),
+            "--settle",
+            "0",
+            "--postgres-dsn",
+            "postgresql://unused",
+        ]
+    )
+    assert code == 0
+    assert (tmp_path / "t6.2-first-execution" / "shipping-wrong-image.fourth-attempt").is_dir()
+    assert not (tmp_path / "t6.2-first-execution" / "shipping-wrong-image").exists()
+    assert (
+        tmp_path / "t6.2-repair-replay" / "REPLAY.shipping-wrong-image.fourth-attempt.md"
+    ).exists()
+
+
+def test_the_driver_refuses_to_rewrite_captured_evidence(tmp_path: Path, monkeypatch: Any) -> None:
+    """The third attempt's directory was kept only because the earlier ones had been renamed by
+    hand. Now the run checks every directory it would write before it injects anything."""
+    steps = FakeSteps()
+    monkeypatch.setattr(replay, "RealSteps", lambda dsn: steps)
+    monkeypatch.setattr(replay, "REPO_ROOT", REPO)
+    captured = tmp_path / "t6.2-repair-replay" / "cart-bad-image-tag"
+    captured.mkdir(parents=True)
+    (captured / "outcome.json").write_text("{}")
+    with pytest.raises(SystemExit):
+        replay.run_cli(
+            [
+                "--only",
+                "cart-bad-image-tag",
+                "--evidence-root",
+                str(tmp_path),
+                "--settle",
+                "0",
+                "--postgres-dsn",
+                "postgresql://unused",
+            ]
+        )
+    assert steps.calls == []
+    assert (captured / "outcome.json").read_text() == "{}"
