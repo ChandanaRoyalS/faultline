@@ -1269,7 +1269,7 @@ no alternative"* about a verdict that had offered two. **The number was right an
 false, which is worse than either alone.** Whether a verdict ranked is a property of the verdict,
 not of one axis.
 
-### T6.1 — trace analyst *(built 2026-09-08; re-record and dev sweep 12 pending)*
+### T6.1 — trace analyst *(built 2026-09-08; dev sweep 12 measured 2026-09-11 — the delta exists, and prediction 5 failed as written)*
 
 **What landed, in the order the pre-registration listed it.** The world: Tempo 2.4.2 beside Jaeger
 (`compose/telemetry.yml`, `compose/tempo.yaml`, a Grafana datasource under uid `tempo`, an
@@ -1365,11 +1365,44 @@ cannot pool with arm A. **Naming** a generation by both digests is Q31: it would
 generation in README, RESULTS, PLAN and eleven documents under `evals/runs/`, and deserves its own
 registration rather than a 6 am rewrite.
 
-**What is pending, in order.** Merge; then dev sweep 12 - `faultline-sweep --tier weekly`, then `--tier weekly
+~~**What is pending, in order.** Merge; then dev sweep 12 - `faultline-sweep --tier weekly`, then `--tier weekly
 --without traces`, then `--baseline b0` - judged with the shared-lineage override, written up as
 `SWEEP-<date>-sweep12.md` against the eleven predictions. **Rule 8**: about \$45 of model calls plus
 about \$1.50 of judge, named in the pre-registration; the owner has said the budget is not the
-constraint.
+constraint.~~ **Done, 2026-09-09 → 2026-09-11.**
+[`SWEEP-2026-09-11-sweep12.md`](../evals/runs/SWEEP-2026-09-11-sweep12.md) is the record.
+
+**Dev sweep 12, measured.** Arm A 30 runs at R = 3; arm B 29 in the registered attempt plus 6 from an
+aborted one; B0.2 10. **≈ \$43.5 in the figures**, \$10.36 more on fifteen runs against the blind Tempo
+that are in none — rule 8's estimate held. Eight of eleven predictions held. **With traces: fault
+class 26 / 27, culprit service 23 / 30, judge agrees on the mechanism 26 / 30. Without: 20 / 27 with
+seven abstentions, 18 / 34, 18 / 34.** `faultline-compare`: **+20.0 pp** on fault class
+[−5.0, +46.7] at n = 10, R = 3 — above the 16.2 pp MDE on the point estimate, interval reaching zero
+— and **+\$0.10 a run**, interval excluding zero. **The A/A check ran for the first time and passed**,
+after a defect in its own verdict logic was fixed (§5 of the sweep document): a largest within-arm
+delta of 10 pp on fault class, half the between-arm effect.
+
+**Prediction 5 failed where it was aimed.** No gap on either `dependency_latency` scenario — one at
+the ceiling in both arms, one at the floor. The effect is on `shipping-quote-misconfig`,
+`cart-bad-image-tag` and `shipping-wrong-image`: nine of nine culprit services with traces, three of
+eleven without, and arm B's misses are the same miss — checkout's log trail stops and the synthesizer
+names the next hop by position. That is the degrading-hop rule (ADR-0037 §3) on the checkout hop
+rather than the cart one. **The pre-registration's consequence clause reads *not delivered*; the
+plan's deliverable reads *delta measured*; the sweep document puts both sentences to the owner and
+recommends *delivered, with prediction 5 recorded as failed-as-written and why*.** The Phase 6 table
+row below carries that reading. **Prediction 6 failed on the test and held on the control** — Q27's
+catalog entry moved nothing, so Q28 is the change to look at, as the registration said.
+
+**What the sweep cost to run: four nights, and eight defects found by the recorder refusing.** Three
+sweep-driver defects and Tempo's five-minute blind window on night one; a lost update in the
+orchestrator's incident row (T4.5's, one column over — ADR-0016 Addendum 3), the README table
+pooling the ablation arm with the full one (the third fingerprint key to do so), a recycle missing
+before pass 1 and no abort on a standing refusal on night two; the API credit balance and
+`--start-pass` on night three; the eval-db loader refusing the 2026-09-04 re-reading, the A/A
+check's verdict string and the baseline lookup on night four. Each has its commit on the branch.
+Two world findings queued: a stale gRPC endpoint after a container recreate leaks one scenario's
+failure into the next (**Q32**), and a run whose latency exceeds its own wall clock should read
+`invalid` at write time (**Q33**).
 
 #### The pre-registration entry, as written on 2026-09-07
 
@@ -1410,6 +1443,7 @@ gates. Gate 6's condition is quoted at the bottom so the rows can be read agains
 |---|---|---|---|---|
 | **T6.1** trace analyst | *"Trace evidence in investigations; eval accuracy delta measured"* — Tempo, a fourth specialist, trace-search and span-tree summariser tools | `trace_query` against **Jaeger** (T2.6, ADR-0019), a `traces` specialist the planner dispatches, trace citations that deep-link into Grafana's Jaeger datasource (T5.1). Trace evidence has been in investigations since T3.x | **Tempo** — a world move. **Span-tree summariser** — `_spans_of` flattens every trace to a list and `TraceResult.body()` prints neither a span's timestamp nor its parent, which three sweep-11 verdicts named as the reason they could not place the failing hop (*"traces carried no timestamps or status codes and were truncated at 200 spans"*); Q30. **"Identifies the degrading hop"** — no tool does, the synthesizer infers it. **Accuracy delta** — never measured; no with/without-traces ablation exists | ~40% |
 | ↳ **T6.1 build, 2026-09-08** | | Tempo in the world and read by the tool; the span tree and the degrading-hop rule (`spantree.py`); `--without traces` with `ablation` in the fingerprint; Q27, Q29, Q30 landed in one bump; Q26 tested | **The delta** — dev sweep 12 has not run; the re-record has not run. Built is not delivered: the deliverable is *"eval accuracy delta measured"* | ~85% |
+| ↳ **T6.1 measured, 2026-09-11** | | **The delta**: dev sweep 12 at R = 3, both arms, B0.2, A/A passed — `SWEEP-2026-09-11-sweep12.md`. With traces 26 / 27 · 23 / 30; without 20 / 27 · 18 / 34; +20.0 pp [−5.0, +46.7] on fault class, +\$0.10 a run. Q26 retired by the world move (prediction 8) | **Prediction 5 as written**: no gap on the two `dependency_latency` scenarios (ceiling and floor); the gap is on the checkout hop. **Q27 did not move the culprit axis; Q28 is Phase 7's.** Both latency medians over 180 s — G6 inherits G4's failing clause and the fourth specialist adds 37 s to it | **delivered, on the sweep document's reading** — the owner's call, recorded there |
 | **T6.2** action plane | *"Executor service + audit log + kill switch"* — separate process, only holder of write credentials, allowlisted parameter-validated actions, single-use action-bound token, blast-radius re-validation, inverse recorded per action | The allowlist as a **read-only versioned document** (`knowledge/allowlist.yaml`, T2.4b, ADR-0032) with four classes and `scale` recorded as unperformable (ADR-0029); the proposer validated against it (T3.9, ADR-0028); `AWAITING_APPROVAL` / `EXECUTING` in the state machine with `record_approval_outcome` a stub that names this task; the proposal rendered with *not executed* on the screen (T5.6) | Everything that acts: no executor process, no write credential anywhere (by design until here — ADR-0028 §3), no token, no audit table, no kill switch, no inverse recording. **Until this audit the tree said this task had no number**; corrected in six places, see *Discovered omissions* | ~10% |
 | **T6.3** approve / reject UX | *"Approved remediation with visible recovery + rejection → re-investigation loop + sev-1 ack gate"* | The screen and the Slack link that would carry the approve control (T5.1, T5.2); `REJECTED` in the state machine; the proposal card the approver would read | No approve or reject route, no token minting, no rejection reason capture, no re-investigation trigger, no auto-drafted dev scenario from a miss, no severity-1 acknowledgment gate, no post-action metric snapshot on the timeline | ~5% |
 | **T6.4** RAG subsystem | *"Retrieval pipeline over a ≥50-doc corpus + recall@5 / MRR gates"* — heading-aware chunking with document summaries, hybrid dense+sparse, cross-encoder rerank, recency-aware, deprecated excluded at ingest, `origin` carried for self-exclusion, golden set in CI | **Hybrid retrieval is built**: pgvector cosine + `tsvector` full text fused by reciprocal rank (`context/store.py`), embeddings behind a swappable `Embedder` (hashing and sentence-transformer), heading-aware chunking of runbooks and narratives (ADR-0018), `origin` carried and enforced (T4.1b, `leave_one_out.enforced`), quarantine of holdout at seed time (T1.6). **Corpus: 25 documents / 103 chunks** — 15 runbooks + 10 dev narratives | **≥50 documents** (at 25, half); no document-level summaries; no cross-encoder rerank; no recency weighting; no deprecated-doc metadata or filter; no git-synced ingest; **no golden set, no recall@5, no MRR, nothing retrieval-quality gated in CI** | ~45% |

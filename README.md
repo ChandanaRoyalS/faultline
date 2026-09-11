@@ -49,13 +49,21 @@ class was named, eight abstentions**, R=1 throughout. They are in [Results](#res
 [`docs/RESULTS.md`](docs/RESULTS.md), under the generation they were measured on. The numbers above
 are not an improvement on them and are not offered as one: different world, different stamp.
 
-**What is still missing, and it is the point of the sweep.** Dev sweep 12 was pre-registered before
-a line of the world changed — [`PREREGISTRATION-T6.1.md`](evals/runs/PREREGISTRATION-T6.1.md): ten
-dev scenarios, **R = 3**, **two arms** (with the traces specialist and `--without traces`) plus the
-B0 baseline. Only arm A is above. Arm B is what turns the plan's *"eval accuracy delta measured"*
-into a measurement rather than a claim, and **its first attempt on 2026-09-10 scored 6 of 30** —
-a closed incident left wearing an open state, after which the baseline gate refused nineteen
-consecutive runs. No delta is claimed anywhere in this repository until that arm runs.
+**The table is arm A. The delta is measured against arm B, and it is in
+[`SWEEP-2026-09-11-sweep12.md`](evals/runs/SWEEP-2026-09-11-sweep12.md).** Dev sweep 12 was
+pre-registered before a line of the world changed — [`PREREGISTRATION-T6.1.md`](evals/runs/PREREGISTRATION-T6.1.md):
+ten dev scenarios, **R = 3**, **two arms** — with the traces specialist and `--without traces` — plus
+the B0 baseline. Without traces: fault class **20 / 27** with **7 abstentions** (against 26 / 27 and
+3), culprit service **18 / 34** (against 23 / 30), judge agreement on the mechanism 18 / 34 (against
+26 / 30). As `faultline-compare` computes it, **+20.0 pp on fault class** [95 % CI −5.0, +46.7] at
+n = 10, R = 3 — above the pre-registered 16.2 pp MDE on the point estimate, with an interval that
+reaches zero — and **+\$0.10 a run**, the one delta whose interval excludes zero. **The A/A check
+passed.** The effect is not where the pre-registration said it would be: the two `dependency_latency`
+scenarios show no gap (one at the ceiling in both arms, one at the floor), and it sits instead on
+the three deploy and config faults downstream of checkout, where without a span tree the
+synthesizer names the next hop by position — nine of nine with traces, three of eleven without.
+Ablation runs are excluded from the table above because they are a different pipeline, the same
+way the B0 arm is.
 
 <!-- scenario-table:begin -->
 Per scenario. The first four columns are at `prompts:06f24e827915`, the stamp this

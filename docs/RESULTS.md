@@ -6,67 +6,71 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 
 **Agent `claude-opus-5` · judge `claude-haiku-4-5` · SHARED LINEAGE on every judged figure.**
 
-> **NO FIGURE IN THIS DOCUMENT DESCRIBES THE WORLD THAT EXISTS (2026-09-08, T6.1).** Tempo joined
-> the telemetry stack and all thirteen bundles were re-recorded against it (ADR-0037), so
-> `compose_digest` moved `f5bd108f…` → **`90e9f29e…`** and `observability_digest` → `f3011ba8…`.
-> **Zero scored runs exist on that world.** The section below, *The current-world result*, now
-> describes the **previous** world and is labelled in its own heading; everything under *The tables*
-> describes two worlds before that. Nothing here is wrong — each figure is correct about the world
-> it was measured on, which is the whole reason this document names generations at all (ADR-0014).
-> What fills the gap is **dev sweep 12**, pre-registered in
-> [`PREREGISTRATION-T6.1.md`](../evals/runs/PREREGISTRATION-T6.1.md) before the world moved: ten dev
-> scenarios, R = 3, with and without the traces specialist.
+> **The world that exists has a measured result (2026-09-11, dev sweep 12).** Tempo joined the
+> telemetry stack on 2026-09-08 and all thirteen bundles were re-recorded against it (ADR-0037), so
+> `compose_digest` moved `f5bd108f…` → **`90e9f29e…`** and `observability_digest` → **`7aaba381…`**
+> (the first Tempo configuration, `f3011ba8…`, was blind to the last five minutes and its fifteen
+> runs are in no figure — ADR-0037 §2). On that world: **arm A 30 runs at R = 3, arm B 34, B0.2 10**,
+> in [the section immediately below](#dev-sweep-12--the-world-that-exists). Everything from
+> *The current-world result* down describes worlds that no longer exist and is labelled so in its
+> own headings. Nothing there is wrong — each figure is correct about the world it was measured on,
+> which is the whole reason this document names generations at all (ADR-0014).
 >
-> **The previous world's figures, for reference while they are the newest that exist.** **19 scored
-> runs on `compose_digest f5bd108f…`, none of them holdout**, in
-> [the section immediately below](#the-current-world-result) and not repeated here.
-> *(They were repeated here until T7.60, which gave them a section; a banner and a section saying
-> the same thing is how the two drift apart.)*
+> **No world has ever held much of the record**, and this one now holds the most: **80 scored
+> pipeline runs** on `90e9f29e…` (65 at the current observability digest, 15 at the blind one),
+> against 49 on `f5bd108f…`. That is the R = 3 design doing what it was bought for.
 >
-> **No world has ever held much of the record.** Of the 97 manifest-carrying runs in
-> `evals/runs/`, **69 describe `4a7690c6fdda…`** and **12 describe `299d791c5e0d…`**. That is why
-> *The tables* is labelled the way it is, and why the new world starting at zero is the ordinary
-> case rather than a setback.
->
-> **The world is reconstructible, and that is what makes the digest worth quoting (T7.48).** The
-> stack was torn down and rebuilt with the documented commands; **`compose_digest`,
-> `observability_digest`, `ffs_stub_source_digest`, the demo image digest and all 28 container image
-> ids came back identical**, and the behaviour did too — `cartservice` p95 back at its documented
-> **1.9 ms**. The before/after comparison is committed at
-> [`docs/evidence/t7.48-rebuild/`](evidence/t7.48-rebuild/) for a reader who would rather check than
-> believe.
->
-> **What that does and does not license.** It means a digest here identifies a world someone can
-> reconstruct rather than one that merely happened to be running. It does **not** mean a cold
-> clone-and-pull reproduces it: the teardown reused local images, and the separate check that the
-> registry tag still resolves to `sha256:97d55955…` is **a weaker substitute for a cold pull**.
-> **No scored run has been made since the rebuild**, so the world is identical and the figures are
-> not thereby re-established.
->
-> **What `n` counts.** Every scenario figure in this document is over **slots filled, not slots
-> allocated** - 13 valid scenarios against 20 allocated. `bad_deploy-5` is deliberately left empty
-> because that class's mechanism space is exhausted (T7.34, T7.35), and the reasoning is in
-> [CATALOG.md](../evals/scenarios/CATALOG.md). A gap between the two numbers is a recorded decision;
-> it is not a target to be closed by authoring filler.
->
-> **The rest of this document describes earlier worlds** — **most of it `4a7690c6fdda…`, and some
-> of it `299d791c5e0d…` (dev sweep 6).** *(Corrected 2026-09-01, T7.54: this sentence had the two
-> worlds the wrong way round. Counted by run directory the split over the 97 run directories that carry a manifest is
-> **69 on `4a7690c6fdda…`, 12 on `299d791c5e0d…`, 16 on the current `f5bd108f…`** — the older world is the majority of the
-> record, not the minority. The per-file banners in `evals/runs/` had the same error and are
-> corrected.)* Those figures are not wrong; they are correct about
-> worlds that no longer exist, and they do not carry over. **Comparing a figure here against sweep
-> 7 compares worlds, not agents**, and sweep 7's own comparison to sweep 6 rescores sweep 6 first
-> so the two sides are like-for-like.
->
-> **A method note that outlived its world.** Sweep 7 found that `scoring.py` had moved at T7.17,
-> after every sweep-6 run — so sweep 6's stored figures were computed by a scorer that did not know
-> two remediations work for `dependency_latency`. Rescoring moved sweep 6's class-of-fix from 4/5
-> to 5/5. This is the second time a scorer change has silently sat between two sweeps (T7.10 caught
-> the first, T7.3's blast-radius fix), and **any future comparison must check for it before
-> reporting a delta.**
+## Dev sweep 12 — the world that exists
 
----
+**World `compose_digest 90e9f29e…` / `observability_digest 7aaba381…`, stamp
+`prompts:06f24e827915`, capability `cap:dd651ccc`, agent `claude-opus-5`, judge `claude-haiku-4-5`
+— SHARED LINEAGE on every judged figure.** Pre-registered in
+[`PREREGISTRATION-T6.1.md`](../evals/runs/PREREGISTRATION-T6.1.md); reported in full in
+[`SWEEP-2026-09-11-sweep12.md`](../evals/runs/SWEEP-2026-09-11-sweep12.md), which is the
+authority for every number here.
+
+**The first R = 3 figures in this repository, and the first comparison between two arms of the
+pipeline.** Ten dev scenarios, three passes each, with the traces specialist (arm A) and with it
+withheld (arm B, `--without traces`), plus the heuristic baseline once. Abstentions excluded from
+accuracy and counted, per ADR-0022 §1.2.
+
+| axis | **A — with traces (30)** | **B — without (34)** | B0.2 (10) |
+|---|---|---|---|
+| fault class, of answered | **26 / 27** | 20 / 27 | 2 / 10 |
+| abstentions | 3 | 7 | 0 |
+| **culprit service** | **23 / 30** | 18 / 34 | not produced |
+| fix class, of answered | 23 / 27 | 19 / 23 (11 abstained) | 2 / 10 |
+| judge: same mechanism / adjacent / different | **26 / 1 / 3** | 18 / 2 / 14 | — |
+| first correct hypothesis reached | 27 / 30 | 20 / 34 | — |
+| median latency | 251.6 s | 214.4 s | 7 ms |
+| median cost | \$0.713 | \$0.602 | \$0 |
+
+**The delta, as `faultline-compare` computes it** (per-scenario means, paired, with-traces minus
+without): fault class **+20.0 pp** [95 % CI −5.0, +46.7], n = 10, R = 3 — above the pre-registered
+16.2 pp MDE on the point estimate, with an interval that reaches zero; fix class +6.5 pp
+[−5.6, +20.4]; cost **+\$0.10** [+\$0.06, +\$0.14], the one delta whose interval excludes zero.
+The **A/A check passed** on arm A's passes against each other, with a largest within-arm delta of
+10 pp on fault class — half the between-arm effect on the same axis.
+
+**Where the effect is, and where it is not.** The two `dependency_latency` scenarios the
+pre-registration named show no gap: one is 3 / 3 in both arms, the other 0 / 3 on service in both.
+The effect sits on `shipping-quote-misconfig` (3 / 3 against 0 / 4 on service),
+`cart-bad-image-tag` (3 / 3 against 1 / 3) and `shipping-wrong-image` (3 / 3 against 2 / 4) —
+deploy and config faults downstream of checkout, where without a span tree the synthesizer sees
+checkout's log trail stop and names the next hop by position. With traces, nine of nine. That is
+the degrading-hop rule (ADR-0037 §3) working on the hop the pre-registration did not name, and the
+sweep document's §3 puts the reading of that to the owner rather than making it.
+
+**What still fails, and was predicted to.** `redis-cart-dependency-latency` names `cartservice`
+in all six runs — the catalog entry (Q27) did not move the culprit axis and the control did not
+move either, so Q28 is the change to look at. `product-catalog-flag-failure` names
+`productcatalogservice` in all six. Both medians are above 180 s, so the clause Gate 6 inherits
+from Gate 4 fails on both arms, and the with-traces arm fails it by 37 s more.
+
+**Honest n.** Ten scenarios; the MDE at R = 3 is 16 pp. Arm B's fingerprint holds 35 runs, one of
+which measured a world broken for two hours and is excluded from this table but not from the
+tool's (`SWEEP-2026-09-11-sweep12.md` §6, §8). The holdout has no run on this world and is blocked
+at three entries (ADR-0029).
 
 ## The current-world result
 
