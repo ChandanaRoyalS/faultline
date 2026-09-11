@@ -164,3 +164,27 @@ def test_tracked_files_under_the_runs_tree_are_left_alone(world: tuple[Path, Pat
 def test_the_script_is_executable_and_bash_clean() -> None:
     assert os.access(SCRIPT, os.X_OK), "chmod +x scripts/nightly_record.sh"
     subprocess.run(["bash", "-n", str(SCRIPT)], check=True)
+
+
+def test_the_script_runs_on_the_macs_bash_3() -> None:
+    """**Found by the owner's `make check`, 2026-09-11.** `mapfile` failed all five tests above on
+    the development Mac with `command not found`: Apple ships bash 3.2, the runner has bash 5,
+    and the script had passed everywhere except the one machine that gates every merge. Every
+    bash-4-only construct the script could plausibly reach for is forbidden here by name.
+
+    Code lines only: the script's own comment names the builtin in order to say why it is not
+    used, and prose may name what code must not contain (ADR-0030's guard learned this first).
+    """
+    code = "\n".join(
+        line for line in SCRIPT.read_text().splitlines() if not line.lstrip().startswith("#")
+    )
+    for construct, why in (
+        ("mapfile", "bash 4.0"),
+        ("readarray", "bash 4.0"),
+        ("declare -A", "associative arrays, bash 4.0"),
+        ("|&", "bash 4.0 pipe of stderr"),
+        ("&>>", "bash 4.0"),
+        (",,", "case modification, bash 4.0"),
+        ("^^", "case modification, bash 4.0"),
+    ):
+        assert construct not in code, f"{construct} needs {why}; the Mac has 3.2"
