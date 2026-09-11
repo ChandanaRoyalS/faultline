@@ -183,6 +183,23 @@ VM changes what it runs on the next `up -d`, and §3.7's rollback stops having a
 **raises before it connects to the database** if it is unset. The read surface mounts behind a
 credential or it does not mount.
 
+**Three more since T6.2 (2026-09-11), for the executor container** — the action plane, ADR-0038:
+
+```bash
+openssl rand -hex 32                                             # FAULTLINE_EXECUTOR_TOKEN_KEY
+stat -c %g /var/run/docker.sock                                  # DOCKER_SOCKET_GID
+echo $HOME/faultline                                             # FAULTLINE_CHECKOUT, absolute, no trailing slash
+```
+
+The key signs approval tokens and has the standing of the API password. The group id lets the
+executor container reach the Docker socket as `appuser` instead of as root. The checkout path is
+mounted into the container **at the same path**, so the world's compose files and the injector's
+override files resolve inside exactly as they do outside. `compose.yml` refuses to start without
+any of the three. **The executor starts with its kill switch on** (`FAULTLINE_EXECUTOR_KILL_SWITCH:
+"1"` in `compose.yml`): until T6.3 lands an approval surface nothing here can mint a token, so the
+container can refuse and record and cannot act. Turning it off is an edit to that line in the same
+PR as the surface.
+
 ### 3.2 Close the ports the world opens
 
 **Not optional, and it comes before anything is started.**
@@ -295,6 +312,7 @@ curl -sS https://$SITE_ADDRESS/healthz                                          
 curl -sS -o /dev/null -w '%{http_code}\n' https://$SITE_ADDRESS/api/v1/incidents    # 401
 curl -sS -o /dev/null -w '%{http_code}\n' https://$SITE_ADDRESS/api/v1/alerts       # 404
 curl -sS -o /dev/null -w '%{http_code}\n' https://$SITE_ADDRESS/grafana/            # 401
+docker compose exec executor curl -fsS localhost:8100/healthz                      # {"status":"ok","kill_switch":true}
 curl -sS -u faultline:$FAULTLINE_API_PASSWORD https://$SITE_ADDRESS/api/v1/incidents | head -c 200
 ```
 

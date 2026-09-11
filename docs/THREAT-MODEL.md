@@ -67,14 +67,33 @@ execute a write, because the tokens it holds cannot.
 [ADR-0019 §4](adr/0019-tool-layer.md) recorded the correction where a reader of this file would
 never see it. Both halves:
 
-**There is no executor.** No approval service, no write credential, no action plane anywhere in
-the tree. ~~*no task number for one* in the execution plan~~ — *struck 2026-09-07: the execution plan
-numbers it T6.2 and T6.3; the reconstruction in `docs/PLAN.md` had not, and this sentence repeated
-the reconstruction.* The pipeline ends at a proposal.
-That is a stronger position than the one this file claimed, not a weaker one: a component that
-does not exist cannot be compromised. But "an agent cannot write because the executor validates
-its token" and "an agent cannot write because there is nothing to write with" are different
-sentences, and only the second is true today.
+~~**There is no executor.**~~ *Struck 2026-09-11: T6.2 built it - ADR-0038.* The paragraph that
+stood here is kept below because it was true for the whole of Phases 3-5 and its distinction still
+matters:
+
+> No approval service, no write credential, no action plane anywhere in the tree. The pipeline
+> ends at a proposal. That is a stronger position than the one this file claimed, not a weaker
+> one: a component that does not exist cannot be compromised. But "an agent cannot write because
+> the executor validates its token" and "an agent cannot write because there is nothing to write
+> with" are different sentences, and only the second is true today.
+
+**What holds since T6.2.** Both sentences are now true, and they are true of different processes.
+The investigation runtime still has nothing to write with: `tests/test_executor_boundary.py` holds
+by AST that nothing under `faultline.agents` or `faultline.tools` imports the executor package, the
+injector's Docker or compose clients, or `subprocess`. The executor - `faultline-execute`, a
+separate process and on the deployment a separate container, the only one that mounts the Docker
+socket - can write, and acts only on a token that names one action against one target for one
+incident under one catalog version, signed with a key the runtime never sees, spent on first use
+by an append-only ledger the database refuses to edit, and refused before any of that if the target
+is outside the incident's own blast radius or the kill switch is on. The plan's sentence *"even a
+fully prompt-injected investigation agent cannot execute a write, because the tokens it holds
+cannot"* is, for the first time, a description rather than an intent: the agent holds no token at
+all, and a token it somehow obtained would name what a human approved and nothing else.
+
+**What does not hold yet.** On the deployment the kill switch is on and no surface mints: T6.3 is
+the approval loop, and until it lands the executor there can refuse and record and nothing more.
+And the executor's own boundary is the compose network - Caddy forwards nothing to it - which is a
+network property, not a credential; T6.8's re-hardening pass is where that is re-read.
 
 **Read-only is a property of the tool surface, not of a credential.** In this world Prometheus and
 Loki have no authentication at all — Prometheus runs with `--web.enable-lifecycle`, so

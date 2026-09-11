@@ -57,3 +57,24 @@ That cost belongs to T3.9 and is recorded here so it is not a surprise.
 The catalog is versioned by an integer, and `catalog_version` is expected to change when an
 entry's meaning changes. Nothing consumes the version yet; T6.2 should pin it per approval so
 an approval token cannot outlive the catalog it was granted against.
+
+## Addendum (T6.2, 2026-09-11) — the preconditions were unmeetable as written; they are drift now
+
+Two of the catalog's entries carry preconditions of the form *"a prior image tag for this service
+is recorded in change history"* and *"a prior configuration for this service is recorded in change
+history."* `evals/runs/PREREGISTRATION-T6.2.md` §2.2 found, before any executor existed, that
+**every change record the injector emits carries `before=None`** - deliberately, by
+`injector.changelog.describe`'s leak boundary (T2.6) - so no executor could ever have met them by
+reading change history. This ADR wrote the preconditions in a CD system's vocabulary for a world
+that has no CD system.
+
+**The prior state is the world's declared definition**, and the precondition the executor
+evaluates is **drift**: the running container differs from what the three hashed compose files
+would produce, in the field the action would change (ADR-0038 §2). The catalog's prose is left as
+the operator-facing description of *when this action is appropriate* - it still says, correctly,
+that the evidence should name a change - and `faultline.executor.core.DRIFT_FIELDS` is the
+executable meaning. `catalog_version` stays at 1: no entry's *meaning* changed; what changed is
+how one of its clauses is checked, and the pre-registration is where that is dated.
+
+**And `catalog_version` is now consumed**, as the Consequences section asked: the token carries
+the version it was granted against and the executor refuses a token from another version.

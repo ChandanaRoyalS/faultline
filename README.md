@@ -316,6 +316,8 @@ And the platform itself, if you want to run it rather than measure it:
 | command | what it does |
 |---|---|
 | `faultline-migrate` | applies the schema. A clean clone needs this before anything stores |
+| `faultline-approve` | approves one proposed action for one incident: mints its single-use, action-bound token (T6.2) |
+| `faultline-execute` | the action plane: `run --token` executes one approved action against the world, once, and writes the audit row; `serve` is the endpoint T6.3's surface will call |
 | `faultline-seed` | loads the retrieval corpus |
 | `faultline-ingest` | the alert receiver, and with `--postgres-dsn` the incident screen |
 | `faultline-orchestrate` | consumes alert events and opens incidents |

@@ -484,19 +484,19 @@ def test_the_transition_table_refuses_what_adr_0016_does_not_list() -> None:
         transition(incident, IncidentState.EXECUTING, trigger="a test")
 
 
-def test_the_state_that_still_needs_an_unbuilt_component_is_a_stub_that_says_so() -> None:
-    """One of the two stubs is still a stub, and its message should name what is missing.
-
-    `record_agent_outcome` stopped being one at T3.5 - the runner is the component it was
-    waiting for. Approval and execution outcomes arrive from the action plane, which the
-    execution plan numbers T6.2 and T6.3 and which is not built; the message names both so a
-    reader of the exception knows which task to look for rather than being told nobody knows.
-    """
+def test_neither_outcome_recorder_is_a_stub_any_more() -> None:
+    """Both stubs are built. `record_agent_outcome` stopped being one at T3.5 - the runner is the
+    component it was waiting for. `record_approval_outcome` stopped being one at T6.2 - the
+    executor is (`tests/test_executor.py` has its behaviour). What this test keeps is the shape of
+    what it receives: an `ApprovalOutcome` with a kind, and an unknown kind is an error rather
+    than a no-op, because a machine that ignores what it does not recognise is a machine that
+    cannot be told it is wrong."""
     from faultline.orchestrator import machine
 
     incident = Incident(state=IncidentState.TRIAGING)
-    with pytest.raises(NotImplementedError, match=r"T6\.2.*T6\.3"):
-        machine.record_approval_outcome(incident, object())
+    with pytest.raises(ValueError, match="unknown approval outcome"):
+        machine.record_approval_outcome(incident, machine.ApprovalOutcome(kind="nonsense"))
+    assert incident.state is IncidentState.TRIAGING
 
 
 # --- helpers -------------------------------------------------------------------

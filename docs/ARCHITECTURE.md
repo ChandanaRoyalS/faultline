@@ -49,7 +49,9 @@ flowchart TB
     triage -.->|"noise · duplicate"| gated(["gated — nothing spent"])
     spec -->|"PromQL · LogQL · trace"| otel
     spec -->|"change_history"| pg
-    prop ==>|"no executor exists"| stop(["a proposal, and a stop"])
+    prop ==>|"a proposal, as data"| approve(["a human approves — token"])
+    approve -->|"faultline-execute"| exec["executor · separate process · the socket"]
+    exec -.->|"audit, append-only"| pg
     pg --> api
     orch --> notify
     notify -.->|"links back into"| api
@@ -282,13 +284,14 @@ is the procedure.
 
 Listed because a document that omits this is a brochure.
 
-- **The action plane.** No executor, no approval service, no write credential anywhere. The
-  proposer emits a proposal and the pipeline stops. ADR-0028 §3 argues that a single write tool
-  would remove the runtime's safety property *by neighbourhood* rather than by name, and §4 leaves
-  execution success as a reported-not-measured axis. **It is T6.2 (the executor, token, audit log,
-  kill switch) and T6.3 (approve / reject) in the execution plan** — until 2026-09-07 this line
-  said the plan did not number it, which was true of `docs/PLAN.md`'s reconstruction and false of
-  the plan itself; `docs/PLAN.md`'s Phase 6 table carries both now.
+- **The approval surface, and the executor's switch.** ~~The action plane.~~ *T6.2 built the
+  executor on 2026-09-11 - ADR-0038: a separate process holding the world's write credential, a
+  single-use action-bound token, an append-only audit, a kill switch, and the repair replay that
+  measures whether the agent's fixes work.* What is not built is **T6.3**: the approve / reject
+  surface in the UI and Slack, the rejection reason, the re-investigation trigger, the drafted
+  scenario from a miss, the sev-1 acknowledgment gate. Until it lands, approval is
+  `faultline-approve` at a terminal, and on the deployment the executor runs with its kill switch
+  on - able to refuse and record, unable to act.
 - **Authentication on the alert receiver.** The read routes and pages have had basic auth since
   T5.5; the receiver has none, is blocked from the internet at the deployment's edge, and is open
   to anything on the compose network. See [thesis 3 and the addendum](THREAT-MODEL.md).
@@ -344,3 +347,4 @@ Thirty-six ADRs. The ones to read first are marked ★.
 | [0035](adr/0035-the-service-catalog.md) | The service catalog |
 | [0036](adr/0036-what-may-be-written-in-a-runbook.md) | What may be written in a runbook |
 | [0037](adr/0037-the-trace-analyst.md) | The trace analyst: Tempo beside Jaeger, the span tree, and the degrading hop |
+| [0038](adr/0038-the-executor.md) | The executor: the one process that can change the world, and what building it changed |

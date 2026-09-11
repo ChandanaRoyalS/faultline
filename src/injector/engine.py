@@ -10,6 +10,7 @@ from __future__ import annotations
 import sys
 from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
+from pathlib import Path
 
 from pydantic import BaseModel, ConfigDict
 
@@ -133,6 +134,40 @@ class Engine:
         self._store.remove(fault_id)
         self._emit(record_for_stop(injection.definition, at=self._clock()))
         return StopResult(fault_id=fault_id, was_active=True, changes=changes)
+
+    def acknowledge_external_restore(self, service: str) -> list[str]:
+        """The executor recreated `service` from the declared definition; forget the overrides
+        that no longer apply, without recreating anything (T6.2, ADR-0038).
+
+        **The coupling the pre-registration priced.** This world has one change mechanism, so an
+        executed `rollback_image` or `revert_config` and an injector `stop` are the same recreate.
+        If the state file still listed the fault afterwards, `faultline-inject stop --all` would
+        recreate the service a second time and count a revert that the executor had already
+        performed - a recovery misattributed to the harness. So the executor tells the injector
+        what it did, and the injector drops the entries whose restore was exactly that recreate,
+        removes their override files, and emits the stop record change history would have carried.
+
+        Only compose-override restores for this service are affected. A traffic-shaping sidecar on
+        the same service is a different restore kind and a different fault, and it stays active -
+        the executor did not touch it, and saying otherwise would be the lie this method exists to
+        prevent in the other direction.
+        """
+        from injector.models import ComposeServiceRestore
+        from injector.world import canonical_service
+
+        wanted = canonical_service(service)
+        forgotten: list[str] = []
+        for fault_id, injection in sorted(self.active().items()):
+            restore = injection.restore
+            if not isinstance(restore, ComposeServiceRestore):
+                continue
+            if canonical_service(restore.service) != wanted:
+                continue
+            Path(restore.override_file).unlink(missing_ok=True)
+            self._store.remove(fault_id)
+            self._emit(record_for_stop(injection.definition, at=self._clock()))
+            forgotten.append(fault_id)
+        return forgotten
 
     def stop_all(self) -> Sequence[StopResult]:
         """Revert everything, newest first, and keep going if one fails."""
