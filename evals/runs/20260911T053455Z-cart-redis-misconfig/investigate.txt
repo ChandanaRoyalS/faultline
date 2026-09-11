@@ -1,0 +1,7 @@
+incident 103276f7-8d65-48f7-b06f-96dac7ebe302  state triaging  anchor 05:37:30
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: earliest alerting service (no error-ratio series available)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /home/runner/work/faultline/faultline/evals/runs/20260911T053455Z-cart-redis-misconfig/103276f7-8d65-48f7-b06f-96dac7ebe302-verdict.json
