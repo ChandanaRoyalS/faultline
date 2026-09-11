@@ -136,6 +136,60 @@ def test_the_post_restart_hazard_is_the_recorders_own_gate_reused() -> None:
     assert any("up 42s" in why for why in reading.refusals)
 
 
+# --- faultline-gate: the pre-flight as a command (T4.5) -------------------------------------
+
+
+def test_the_gate_command_admits_a_quiet_world_and_says_so(capsys: Any) -> None:
+    """`world-boot` in Actions and the operator's own pre-flight ask one question - would the
+    first scored run be admitted - and the exit code is the answer, so a workflow step can fail on
+    it without parsing prose."""
+    with patch.object(gate, "read", return_value=reading_with()) as read:
+        code = gate.run_cli(["--runs-remaining", "15"])
+
+    assert code == 0
+    assert read.call_args.kwargs == {"runs_remaining": 15}
+    out = capsys.readouterr().out
+    assert "GATE WOULD ADMIT" in out
+    assert "ingest accepting: True" in out
+
+
+def test_the_gate_command_refuses_with_every_reason_and_a_nonzero_exit(capsys: Any) -> None:
+    """Every refusal, not the first: a runner whose ingest is down *and* whose containers are
+    young needs both said, or the second is found by failing again."""
+    refused = reading_with(ingest=False, settled=gate.RehearsalError("kafka up 42s\nmore"))
+    assert not refused.passed
+    with patch.object(gate, "read", return_value=refused):
+        code = gate.run_cli([])
+
+    assert code == 1
+    out = capsys.readouterr().out
+    assert "GATE WOULD REFUSE" in out
+    assert "ingest is not accepting" in out
+    assert "kafka up 42s" in out
+
+
+def test_the_gate_command_can_print_the_reading_as_json(capsys: Any) -> None:
+    """The same dict the run manifest carries, so a probe's output and a run's `gate` block can be
+    laid side by side."""
+    with patch.object(gate, "read", return_value=reading_with()):
+        gate.run_cli(["--json"])
+
+    printed = json.loads(capsys.readouterr().out.rsplit("\n", 2)[0])
+    assert printed["passed"] is True
+    assert printed["ingest_accepting"] is True
+    assert "headroom" in printed
+
+
+def test_the_gate_command_never_consults_the_incident_store() -> None:
+    """A probe of the world, not of the harness's database: `read` is called with no incidents,
+    which `test_a_gate_read_with_no_incident_arguments_never_refuses_on_settling` says is safe."""
+    with patch.object(gate, "read", return_value=reading_with()) as read:
+        gate.run_cli([])
+
+    assert read.call_args.args == ()
+    assert set(read.call_args.kwargs) == {"runs_remaining"}
+
+
 # --- the settle window (T4.13) ------------------------------------------------
 #
 # T4.7's first sweep attempt lost a scenario to this. An incident had been resolved by hand

@@ -302,6 +302,7 @@ unable to reproduce one.
 |---|---|
 | `faultline-eval` | one scored run. Needs `--single-run` or `--runs-remaining N`; refuses without |
 | `faultline-sweep` | the whole catalog, unattended. Counts the runs down for the gate itself |
+| `faultline-gate` | the pre-flight: would the gate admit a scored run right now? Injects nothing; exit code is the answer |
 | `faultline-judge` | grades a run's narrative. Skips anything already judged unless `--rejudge` |
 | `faultline-compare` | two arms side by side — a pipeline sweep against a baseline |
 | `faultline-eval-db` | the run record as a queryable table: outcomes, stamps, costs |

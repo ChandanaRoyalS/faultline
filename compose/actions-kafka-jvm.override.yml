@@ -1,0 +1,50 @@
+# T4.5 - the one flag without which kafka cannot start on a GitHub-hosted runner.
+#
+# On 2026-09-04 the world booted fifteen services clean on `ubuntu-latest` and kafka died eight
+# seconds in: `java.lang.NullPointerException at
+# jdk.internal.platform.cgroupv2.CgroupV2Subsystem.getInstance`, thrown by the JMX agent the
+# Confluent image always starts (`kafka-run-class` enables `com.sun.management.jmxremote` by
+# default). The demo's kafka image is a 2022 build, and that JDK's cgroup-v2 parser cannot read
+# the runner's layout. Every dependant refused; docs/GATES.md and docs/PLAN.md (T4.5) have the
+# log. The same image runs without complaint on Docker Desktop and on the IONOS VM, both also
+# cgroup v2 - this is the runner's host, not cgroup v2 as such.
+#
+# `-XX:-UseContainerSupport` makes the JVM skip that parser entirely (`CgroupMetrics.getInstance`
+# returns null when the flag is off, and the agent takes null as "no container"). It is the
+# documented workaround for this class of NPE. `KAFKA_OPTS` is the Confluent image's hook for
+# extra JVM flags and the demo sets nothing in it, so this replaces nothing.
+#
+# **What the flag changes, and why that is not a measurement.** The JVM stops sizing itself from
+# the cgroup: default heap, GC thread count and `availableProcessors` come from the host instead.
+# Kafka's heap is fixed by `KAFKA_HEAP_OPTS` in `world-arm64.override.yml`, so the heap does not
+# move; the container carries no CPU limit, so the processor count does not move; the memory
+# limit the gate reads is the cgroup's, which the kernel enforces whether or not the JVM knows it.
+# Nothing a bundle records or a scorer reads runs through this flag.
+#
+# **Why a fifth file and not a line in `world-arm64.override.yml`.** That file is one of the three
+# `evalharness.provenance.compose_digest` hashes; a line there moves the world generation off
+# `90e9f29e578e` for every future run and re-records every bundle - the most expensive action this
+# project has, spent on a CI runner. docs/PLAN.md priced that on 2026-09-04 and declined it.
+#
+# The 2026-09-04 table also called a CI-only override outside the digest "worse", because runs
+# would claim the recorded world's digest while running a different world. **Two things have
+# changed since.** The freeze records `host_platform` (T5.4c, 2026-09-07) and `generations`
+# names a run's world `<digest>@Linux/x86_64` when it is not the reference platform, so a run
+# from a runner is a different generation by construction - README's table filters on the
+# generation and never seats it beside a Mac run, and the eval database's fingerprint carries
+# the generation. And the freeze now records `host_overrides`: the manifest of a run made with
+# this file says so. What the digest exists to prevent - two worlds pooled as one - cannot happen
+# here, and what a reader needs - to know this ran - is written down.
+#
+# So it is layered by the Makefile **outside** `InjectorSettings.compose_files`, only when
+# `GITHUB_ACTIONS` is `true` (the runner sets it; nothing else does), fifth after the Linux
+# host-gateway shim. `tests/test_actions_kafka_override.py` holds it to one service, one
+# variable, this value - the same hold `tests/test_linux_host_gateway.py` puts on the fourth file,
+# and the same argument: it is defensible only while it stays exactly this small.
+#
+# **The deployment does not use this file.** The VM's kafka starts without it.
+
+services:
+  kafka:
+    environment:
+      KAFKA_OPTS: "-XX:-UseContainerSupport"

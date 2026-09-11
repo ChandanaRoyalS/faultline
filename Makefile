@@ -176,6 +176,14 @@ COMPOSE_WORLD_FILES := -f docker-compose.yml -f ../compose/world-arm64.override.
 ifeq ($(shell uname -s),Linux)
 COMPOSE_WORLD_FILES += -f ../compose/linux-host-gateway.override.yml
 endif
+# A fifth, outside the digest, on a GitHub-hosted runner only: the demo's kafka JDK throws in its
+# cgroup-v2 parser there and never starts (T4.5, 2026-09-04). The file explains the flag, what it
+# does not change, and why a run made with it is a separate generation by construction.
+# `evalharness.provenance.host_overrides` mirrors these two conditionals so the freeze can record
+# which of these files were layered; tests/test_actions_kafka_override.py holds the two together.
+ifeq ($(GITHUB_ACTIONS),true)
+COMPOSE_WORLD_FILES += -f ../compose/actions-kafka-jvm.override.yml
+endif
 COMPOSE_WORLD := docker compose --progress plain $(COMPOSE_WORLD_FILES)
 
 # Rebuild the stub only when its source changes. An unconditional build re-resolves the

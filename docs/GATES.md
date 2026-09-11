@@ -301,6 +301,12 @@ it moves `compose_digest` and re-founds the world, which is the most expensive a
 to this project; `docs/PLAN.md`'s T4.5 section prices the four routes and takes none of them.
 **T4.5's check is built, correct, and blocked on the runner for a stated reason.**
 
+*2026-09-11:* the blocker is being removed by the one route that moves no digest —
+`compose/actions-kafka-jvm.override.yml`, outside `compose_files`, on a runner only, recorded in the
+freeze as `world.host_overrides`, with the runner's runs a separate generation by construction
+(`host_platform`). ADR-0030's addendum has the argument; `world-boot.yml` is the proof, run before
+any key is spent. This document records the world booting there when the probe says so, not before.
+
 **G5 — declared 2026-09-07; the notes below are the history of how it got there.**
 
 **The fresh machine (T5.4c).** An x86 VM with nothing of this project on it — IONOS, Ubuntu 24.04,
