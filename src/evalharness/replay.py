@@ -59,6 +59,16 @@ agent wrote. `PREREGISTRATION-T6.2.md` §4.1 is the table; `tests/test_replay.py
 directories exist and carry the action and target the table says."""
 
 SETTLE_SECONDS = 300
+
+WRONG_TARGET = "frauddetectionservice"
+"""The proof's wrong target. **Not `paymentservice`** (2026-09-11, third attempt): when
+shippingservice breaks, checkoutservice - its synchronous caller - alerts too, and the blast radius
+takes one downstream step from every alerting service, so `paymentservice` sat *inside* the
+incident's scope and the token was refused one clause later, as a second action on an incident
+that already had one. `frauddetectionservice` is reached only over the `async` edge from checkout,
+which `ServiceGraph.blast_radius` never crosses in either direction - so it is outside the scope of
+every incident that is not about frauddetection itself. `tests/test_replay.py` holds that against
+the catalog snapshot."""
 """The sweep's, for the same reason: the orchestrator's settle window."""
 
 
@@ -188,7 +198,7 @@ def replay_one(
     proof_tokens: tuple[str, str] | None = None
     if proof:
         fresh, _ = steps.approve(incident_id, run_dir)
-        wrong, _ = steps.approve(incident_id, run_dir, target_override="paymentservice")
+        wrong, _ = steps.approve(incident_id, run_dir, target_override=WRONG_TARGET)
         proof_tokens = (fresh, wrong)
         log.write("proof: minted the kill-switch and wrong-target tokens ahead of the execution")
     executed_at = steps.now()
@@ -472,6 +482,12 @@ def run_cli(argv: list[str] | None = None) -> int:
         help="after the first executed action, present the three refusals the pre-registration "
         "names (replayed token, kill switch, wrong target); evidence to t6.2-first-execution/",
     )
+    p.add_argument(
+        "--attempt",
+        default=None,
+        help="label for a re-attempt; evidence goes to <scenario>.<label>/ beside the earlier "
+        "attempts instead of <scenario>/",
+    )
     p.add_argument("--postgres-dsn", default=None)
     p.add_argument("--evidence-root", default=str(EVIDENCE_ROOT))
     p.add_argument("--settle", type=int, default=SETTLE_SECONDS)
@@ -483,14 +499,34 @@ def run_cli(argv: list[str] | None = None) -> int:
     steps = RealSteps(dsn)
     triples = [(s, r) for s, r in TRIPLES if not args.only or s in args.only]
     root = Path(args.evidence_root)
+    suffix = f".{args.attempt}" if args.attempt else ""
+    # **Captured evidence is never rewritten.** Every evidence directory this run would write is
+    # checked before the first injection: one that already holds files belongs to an earlier
+    # attempt, and the run refuses rather than replacing it. The earlier attempts of 2026-09-11
+    # were kept only because someone renamed the directories by hand between runs.
+    planned = [
+        (
+            index,
+            scenario_id,
+            run_name,
+            root
+            / ("t6.2-first-execution" if args.proof and index == 1 else "t6.2-repair-replay")
+            / f"{scenario_id}{suffix}",
+        )
+        for index, (scenario_id, run_name) in enumerate(triples, 1)
+    ]
+    taken = [str(d) for _, _, _, d in planned if d.exists() and any(d.iterdir())]
+    if taken:
+        p.error(
+            "evidence already captured, refusing to rewrite it: "
+            + ", ".join(taken)
+            + " (name this run with --attempt <label>)"
+        )
     outcomes: list[Outcome] = []
-    for index, (scenario_id, run_name) in enumerate(triples, 1):
-        print(f"=== [{index}/{len(triples)}] {scenario_id} <- {run_name}", flush=True)
+    for index, scenario_id, run_name, evidence_dir in planned:
+        print(f"=== [{index}/{len(planned)}] {scenario_id} <- {run_name}", flush=True)
         run_dir = REPO_ROOT / "evals" / "runs" / run_name
         is_proof = args.proof and index == 1
-        evidence_dir = (
-            root / ("t6.2-first-execution" if is_proof else "t6.2-repair-replay") / scenario_id
-        )
         outcome = replay_one(
             scenario_id,
             run_dir,
@@ -506,7 +542,8 @@ def run_cli(argv: list[str] | None = None) -> int:
     # replay owns REPLAY.md; a re-attempt writes its own file beside it, named for what it ran.
     replay_dir = root / "t6.2-repair-replay"
     replay_dir.mkdir(parents=True, exist_ok=True)
-    name = "REPLAY.md" if not args.only else f"REPLAY.{'+'.join(sorted(args.only))}.md"
+    only = f".{'+'.join(sorted(args.only))}" if args.only else ""
+    name = f"REPLAY{only}{suffix}.md"
     (replay_dir / name).write_text(summary(outcomes))
     print(summary(outcomes))
     return 0 if all(o.result != "error" for o in outcomes) else 1
