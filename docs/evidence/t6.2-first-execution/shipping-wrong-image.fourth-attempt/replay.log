@@ -1,0 +1,12 @@
+2026-09-11T23:23:58.091705+00:00 gate admitted
+2026-09-11T23:23:58.092110+00:00 injecting shipping-wrong-image
+2026-09-11T23:28:22.162447+00:00 incident d33bf8c9-fff5-4f68-8680-434124532d26 opened; no investigation is run
+2026-09-11T23:28:22.190850+00:00 approved rollback_image -> shippingservice; token 63981b68986eea3b
+2026-09-11T23:28:22.211018+00:00 proof: minted the kill-switch and wrong-target tokens ahead of the execution
+2026-09-11T23:28:22.655270+00:00 executor: executed
+2026-09-11T23:28:22.665414+00:00 replayed token: refused - token 63981b68986eea3b was already spent by audit row ea0231dc-785b-4db1-8f5b-1870933d02d4 at 2026-09-11T23:28:22.652263+00:00 (executed)
+2026-09-11T23:28:22.672137+00:00 kill switch: kill_switch - kill switch is on (FAULTLINE_EXECUTOR_KILL_SWITCH); nothing executes while it is. Investigation is unaffected.
+2026-09-11T23:28:22.679542+00:00 wrong target: refused - target frauddetectionservice is outside the incident's scope ['accountingservice', 'cartservice', 'checkoutservice', 'currencyservice', 'emailservice', 'frontend', 'loadgenerator', 'paymentservice', 'productcatalogservice', 'shippingservice'] - action-target mismatch, refused before the approval is considered
+2026-09-11T23:30:22.743825+00:00 scored recovered
+2026-09-11T23:30:22.746819+00:00 stop --all reverted: nothing
+2026-09-11T23:30:22.746904+00:00 settling 300s
