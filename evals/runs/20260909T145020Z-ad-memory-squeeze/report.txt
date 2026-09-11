@@ -1,0 +1,41 @@
+run 20260909T145020Z-ad-memory-squeeze   scenario ad-memory-squeeze
+trajectory 71a07407-8bad-4f78-82cf-d57f051d7bd6   runtime faultline/0.0.1+prompts:06f24e827915
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (3/3 alerted services predicted)
+  precision 0.43  (3/7 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): cartservice, checkoutservice, productcatalogservice, recommendationservice
+  unmeasured edges crossed: 1 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class bad_deploy vs resource_exhaustion - WRONG
+  fix class   rollback vs config_revert - WRONG
+  service     shippingservice vs adservice - WRONG
+  ranked class top1 miss, top3 miss, depth 3  gained by ranking: no
+    ranked: bad_deploy > bad_config > unknown
+  ranked service top1 miss, top3 miss, depth 2  gained by ranking: no
+    ranked: shippingservice > frontend
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        2  planner produced no valid findings: dispatch service 'frontend,adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice.; planner produced no valid findings: dispatch service 'adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice.
+  specialists failed alone 2  planner: dispatch service 'frontend,adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice.; planner: dispatch service 'adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice.
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 53463 / out 13239 tokens   $0.5983
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        252.8s (OVER G4's 3-minute per-run comparison) tools 0.2s  models 0.0s  steps 18
+  tool calls     5 total, 5 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 1 empty, 1 truncated
+  context budget 5 briefing(s), 3 over budget (0.60), 2 section(s) dropped, largest 6512 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false

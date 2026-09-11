@@ -1,0 +1,165 @@
+{
+  "incident_id": "002266cc-604a-44c2-b284-5c734c9fd419",
+  "trajectory_id": "6c220acd-8cce-4a57-8ac8-29752f376690",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "An automated platform-automation loop lowered the ad-service memory limit to 256m at 11:20:01, ~4 minutes before onset, and unlike three earlier cycles that day this lowering has no matching revert [tr_257b319d2633]. With the constrained limit in force the adservice container was killed and its name stopped resolving: frontend's outbound gRPC calls fail with code 14 UNAVAILABLE naming adservice:9555 at the DNS resolution stage [tr_b33f2bc5d8a5], and traces show frontend -> AdService/GetAds as the only erroring downstream edge, failing sub-millisecond rather than timing out, with onset ~11:24:49 while productcatalog, cart+redis and recommendation edges stay clean in the same minutes [tr_0a3da1cfa1c6]. Frontend has no changes in 24h [tr_7d50408be1eb] and no sustained error breakout of its own [tr_785c021784e8], so it is the reporter, not the fault. The mechanism is adservice exceeding a lowered memory ceiling and being killed for it; the limit edit is the trigger, exhaustion is what is happening.",
+    "service": "adservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_257b319d2633",
+      "tr_b33f2bc5d8a5",
+      "tr_0a3da1cfa1c6",
+      "tr_7d50408be1eb",
+      "tr_785c021784e8",
+      "tr_0fc427247c69"
+    ],
+    "reasoning": "Timing, locality and mechanism converge. The only in-window change anywhere is the unreverted memory-limit cut on ad-service 4 minutes pre-alert [tr_257b319d2633], and trace errors begin ~11:24:49 after clean traces from 10:49 [tr_0a3da1cfa1c6]. Failure is confined to the single ad edge while sibling edges succeed in single-digit ms [tr_0a3da1cfa1c6], excluding a frontend-wide resolver or network collapse. The errors are client-side grpc-js name-resolution failures for adservice:9555 aborting sub-millisecond [tr_b33f2bc5d8a5, tr_0a3da1cfa1c6] - the signature of an absent container, not a slow or erroring one, which excludes dependency_latency and application-level errors. Frontend is exonerated by its empty change log and mild, unsustained error ratio [tr_7d50408be1eb, tr_785c021784e8]. The adservice metric result is uninformative, not corroborating: both incident and baseline windows are empty, so the gap predates onset [tr_0fc427247c69]. Per the taxonomy a limit lowered until the process is killed is resource_exhaustion; restoring the limit and stopping the automation loop is the fix.",
+    "open_questions": [
+      "No adservice-side evidence exists: no container logs, OOMKill/exit codes, restart counts or memory working-set metrics. The OOM kill is inferred from the limit change plus DNS-level unreachability, never observed.",
+      "adservice call metrics were empty across the full preceding-hour baseline too [tr_0fc427247c69], so whether adservice was ever emitting span metrics - or was already unhealthy before 11:20 - is unsettled, which would weaken the limit change as trigger.",
+      "The ~10:54 shippingservice lookup failure [tr_b33f2bc5d8a5] predates the limit change on a service with no recorded change; whether it is independent noise or a broader discovery problem is unresolved, and frontend logs are truncated across 10:54-11:26 so nothing was observed at the 11:24:15 alert itself."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "An intermittent internal service-discovery/DNS fault in the container network is failing name resolution for multiple upstreams, with adservice merely the loudest victim.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "restart",
+        "why_not": "It cannot explain locality or timing: frontend resolved and called productcatalog, cart and recommendation successfully in the same minutes as the ad failures [tr_0a3da1cfa1c6], and no DNS or endpoint change is recorded for adservice [tr_257b319d2633]. A resolver-wide fault would not spare four edges and strike one 4 minutes after that service's memory ceiling was cut."
+      },
+      {
+        "root_cause": "adservice is down or crash-looping for a reason unrelated to the memory limit, and the 11:20 change is coincidental to a pre-existing unhealthy state.",
+        "service": "adservice",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "Traces are clean through 11:24:46 [tr_0a3da1cfa1c6], so adservice was serving until minutes after the limit cut, and no deploy, restart or scaling event appears in its change record [tr_257b319d2633]. The empty metrics baseline [tr_0fc427247c69] keeps this alive but supplies no positive mechanism."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    " / Confirm before scoping: - The alert's `service_name` label names where errors are *counted*, not necessarily where\n  they originate. A dependency returning errors shows up on its caller's ratio too.\n- Rank the affected services by ratio. The one with the highest ratio and the fewest inbound\n  edges in t",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 23364,
+    "pulled_tokens": 5126,
+    "pull_rate": 0.1799,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 425,
+        "content_tokens": 427,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1292,
+        "content_tokens": 1296,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7172,
+        "content_tokens": 7148,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6657,
+        "content_tokens": 6658,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7818,
+        "content_tokens": 7796,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "adservice",
+    "rests_on": [
+      "tr_257b319d2633",
+      "tr_b33f2bc5d8a5",
+      "tr_0a3da1cfa1c6"
+    ],
+    "expected_effect": "Restoring adservice's prior resource configuration (the state before the 11:20:01 lowering to memory=256m, which is the same state the three earlier cycles reverted to) and recreating the container should bring the adservice name back into the embedded Docker resolver. Observable as: (1) frontend Loki lines matching 'code = 14 UNAVAILABLE' with 'lookup adservice' / 'adservice:9555' stop appearing within a few minutes of the recreate \u2014 currently recurring every few seconds around 11:26:06/13/15 [tr_b33f2bc5d8a5]; (2) new Tempo traces show frontend -> AdService/GetAds spans completing with OK status at normal single-digit-ms latency instead of erroring sub-millisecond [tr_0a3da1cfa1c6]; (3) frontend aggregate error ratio drifts back toward the ~0.013 baseline mean from the ~0.025 incident mean [tr_785c021784e8], though this is a weak confirmator given its high variance. Note explicitly: adservice's own calls_total series cannot confirm anything \u2014 it was empty across the baseline hour too [tr_0fc427247c69], so its continued absence is not evidence of failure and its appearance is not required.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, 5 minutes after the recreate, frontend still logs code 14 UNAVAILABLE naming adservice:9555 at the DNS resolution stage, or new frontend -> AdService/GetAds spans still carry ERROR. Also falsified \u2014 differently \u2014 if adservice comes back and then fails again within ~15 minutes: that says the memory ceiling was a symptom-suppressant for an adservice memory leak, or that platform-automation re-applied the lowering, and the fix belongs in the automation loop, not here. A third falsifier: if shippingservice lookup failures of the same class continue [tr_b33f2bc5d8a5], the mechanism is service discovery broadly rather than one killed container, and this revert treated a coincidence. Weakest link in the chain: no adservice-side OOMKill, exit code, restart count or working-set metric was ever observed \u2014 the kill is inferred entirely from the limit edit plus DNS-level unreachability.",
+    "risk": "If the diagnosis is wrong the recreate still costs a container restart: in-process ad cache is discarded and frontend sees connection resets for the seconds the container is down, which will briefly raise the very error ratio being watched and can be mistaken for the fix failing. If adservice genuinely leaks memory, removing the 256m ceiling lets it grow unbounded on the host and can pressure co-located containers \u2014 the limit loop may have been protecting the host, and this revert removes that protection. If the true fault is the embedded resolver / service discovery (the 10:54 shippingservice failure on a service with no recorded change is unexplained), this action changes nothing, and the 5 minutes spent confirming it are 5 minutes not spent on discovery. Finally, this fights an active automation loop: platform-automation has lowered and restored this limit four times today and may re-lower it, producing a flap that looks like an intermittent adservice fault.",
+    "blast_radius": "adservice itself, plus its callers. In the sampled traces frontend is the only observed caller of AdService/GetAds [tr_0a3da1cfa1c6], so frontend \u2014 and loadgenerator traffic flowing through it \u2014 sees the reset window; user-visible effect is ad slots failing for the duration of the recreate. checkoutservice, cartservice, productcatalogservice and recommendationservice are in the incident's reach but show clean edges in the same minutes and are not touched by this change. Whoever owns platform-automation should be told, since this overwrites a value that loop believes it controls."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend plus the load generator simultaneously indicate user-facing failure, not an isolated synthetic blip, and no open incident covers it. Cause is undetermined - any of the five frontend dependencies could be the origin."
+  }
+}

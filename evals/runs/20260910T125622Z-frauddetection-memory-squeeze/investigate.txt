@@ -1,0 +1,47 @@
+incident 5e9d5f17-e216-4e96-bd72-f0b2a204ccd3  state triaging  anchor 13:02:30
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 4f25ba06-efc2-4bf1-a24d-ceb75439f1e0
+triage judged: investigate (low confidence, suspects unknown)
+  A single critical alert on frauddetectionservice with no open incident to attribute it to; critical severity is not something to dismiss without evidence. No signal yet distinguishes deploy, config, or resource causes.
+investigation: 2 round(s), 4 dispatch(es), 17 step(s)
+  WITHHELD traces on frauddetectionservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Restoring the configuration in effect before 2026-09-10T12:56:26Z (memory limit unset, as it was after the two earlier reverts recorded in change history) and recreating the container should end the restart loop. Observable in Loki on {service="frauddetection-service"}: after one final startup banner, no further byte-identical JVM/OpenTelemetry startup sequence appears at the ~60s cadence, and within about two minutes 'Consumed record with orderId: ... updated total count to: N' lines resume with an incrementing counter, as they did at ~12:09-12:10. Prometheus cannot confirm this: the error-ratio series for this service returned no samples in any window queried [tr_785013925cd8][tr_0534648ae890], so log shape is the only available confirmation signal. If container_memory_working_set_bytes or a restart/last-terminated-reason series can be queried post-revert, working set settling above 200m would additionally confirm the OOM mechanism that was never observed directly.
+  within      : 300s
+  risk        : Not none. The 200m limit is removed rather than raised, so if the JVM's real working set is large or leaking, the container becomes unbounded and can pressure host memory shared with co-located services — a bigger failure than one stalled consumer. The recreate also discards in-process state and forces a Kafka consumer-group rebalance, adding a fresh gap in fraud-detection processing right when the topic backlog is already ~10 minutes deep. If the kill is actually a liveness-probe failure, this change does nothing and burns the reversion window while the loop continues. Finally, reverting against an automation that reapplies the limit risks flapping the workload between two configurations.
+  blast radius: One service, frauddetectionservice, plus a Kafka consumer-group rebalance on the orders topic it consumes. The brief names no inbound callers — triage covered this service alone [tr_386f315a11ba] — so the effect on upstream order flow of the existing stall and of this additional recreate is unmeasured and could be wider than stated. Host-level memory pressure from an unlimited JVM would be seen by whatever else shares the host.
+  if wrong    : Startup banners keep repeating at ~60s cadence after the recreate, or the process stays up but never emits record-consumption lines. Either would falsify the memory-limit mechanism and point at a liveness-probe failure or a non-memory SIGKILL, which the evidence explicitly cannot distinguish from an OOM kill [tr_386f315a11ba]. A second falsifier: the loop stops briefly and resumes within minutes, which would mean platform-automation reapplied the 200m limit — the change history shows this actor cycling the same setting three times in 24h [tr_b95d9ef21001], so a manual revert may not hold and the automation itself needs stopping, which is outside what this system can do.
+  rests on    : tr_b95d9ef21001, tr_386f315a11ba
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 18599 pushed / 2783 pulled (pull rate 0.1302), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_b95d9ef21001, tr_386f315a11ba, tr_785013925cd8, tr_0534648ae890
+  root cause  : Six minutes before onset, platform-automation applied a container memory limit of 200m to the frauddetection-service workload where no limit had previously been set [tr_b95d9ef21001]. From roughly 12:56 onward the service's log stream degenerates into identical JVM/OpenTelemetry-agent startup banners repeating at an almost exactly 60-second cadence, with no application errors, no throwables and no graceful-shutdown message, and no Kafka record consumption resuming after any restart [tr_386f315a11ba]. That combination — a JVM boxed into a 200m container followed within minutes by a silent, externally-terminated, minute-cadence restart loop that never reaches steady-state work — is the signature of the container being killed for exceeding its memory limit. The service is not erroring on a code path or waiting on a dependency; it is running out of the memory it needs to complete startup and being killed for it. The alert at 13:02:30 is one iteration of that ongoing loop, not a discrete event [tr_386f315a11ba].
+  OPEN        : No container-level confirmation was obtained: memory working-set/RSS, container_restart_count, and OOMKilled / last-terminated-reason were never queried [tr_0534648ae890]. The OOM mechanism is inferred from log shape and change timing, not observed directly.
+  OPEN        : A liveness-probe failure or SIGKILL from the orchestrator for a non-memory reason would produce the same silent minute-cadence restart loop [tr_386f315a11ba]; nothing in the evidence distinguishes it from an OOM kill.
+  OPEN        : Why the two earlier applications of the same 200m limit (~20.9h and ~6.7h before onset) were reverted without an apparent incident, and whether restarts clustered during those windows — explicitly untestable from the data gathered [tr_b95d9ef21001][tr_0534648ae890].
+  OPEN        : What platform-automation is doing and whether it will reapply the 200m limit after a manual revert [tr_b95d9ef21001]; a revert alone may not hold.
+  OPEN        : The actual working-set requirement of this JVM is unknown, so whether 200m is merely tight or grossly insufficient is unsettled.
+  OPEN        : Blast radius beyond this service was not investigated: triage covered one service, so the effect of a stalled fraud-detection Kafka consumer on upstream order flow is unmeasured [tr_386f315a11ba].
+
+flags: none
+
+retrieval: exclude_origin='scenario:frauddetection-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T125622Z-frauddetection-memory-squeeze/5e9d5f17-e216-4e96-bd72-f0b2a204ccd3-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T125622Z-frauddetection-memory-squeeze/5e9d5f17-e216-4e96-bd72-f0b2a204ccd3-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8756.20it/s]

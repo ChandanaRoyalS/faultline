@@ -1,0 +1,38 @@
+incident df434452-30dc-494f-a79c-676f82740f10  state triaging  anchor 23:40:15
+triage: 10 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 44c5e981-da68-461f-9ce4-40408296297f
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alert on checkoutservice with loadgenerator following shortly, indicating real user-facing checkout failure rather than a lone synthetic signal. No open incidents to attribute it to, and the many unmeasured dependency crossings mean the cause cannot be guessed from alerts alone.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if cartservice's Redis stall is in fact a stuck process state that a container recreate would clear, in which case orders continue hanging for the duration of the investigation and the delay is the cost. It would be shown wrong by cartservice evidence naming process-level state - a connection pool exhausted, a persistence fork stuck, a memory-pressure eviction stall - which is exactly the evidence nobody has collected. Note also that the one signal any restart proposal would rest on is unobservable at onset: every returned trace is 23:14-23:34, before the 23:40:15 onset, and only 5 of 30 traces came back truncated [tr_138e08c49752], so the effect of a restart could not be compared against a pre-onset measurement of the thing being fixed.
+  rests on    : tr_138e08c49752, tr_180605051f30, tr_90ad52897faf
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22162 pushed / 7568 pulled (pull rate 0.2546), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_138e08c49752, tr_180605051f30, tr_90ad52897faf
+  root cause  : checkoutservice is waiting, not failing. Its error ratio in the incident window is far below baseline with no sustained upward departure [tr_90ad52897faf], its logs show no errors and no restart, and PlaceOrder intake continues steadily through 23:42:47 while late-window orders stop at the order-start line with no payment/email/queue follow-up, for both USD and CAD [tr_180605051f30]. Traces localise the only large stall to cartservice's Redis operations: GetCart's HGET (~301ms) and EmptyCart's HMSET (~305ms) in a 640ms outlier against a 22-25ms norm, each carrying its duration as self-time, with checkout parent spans inflating purely by waiting and all other legs at a few milliseconds [tr_138e08c49752]. GetCart sits before the payment step, exactly where the log sequence now truncates. Most probable cause: cartservice's Redis-backed cart operations became slow and checkout orders hang in the cart phase. No change record supports a competing trigger on checkoutservice [tr_56d2719f6cfa] or paymentservice [tr_1f627744be3e].
+  OPEN        : No dispatch was run against cartservice or its Redis: no cartservice metrics, logs, or change history exist in this evidence, so blame rests entirely on span attribution seen from checkoutservice's side.
+  OPEN        : Every returned trace predates onset (23:14-23:34) and only 5 of 30 were returned, truncated [tr_138e08c49752]; the onset mechanism is inferred, not directly observed.
+  OPEN        : Why the Redis calls slowed is unsettled (memory pressure, connection pool, persistence stall), which also means restart may not be the correct fix; 7 of 10 blast-radius services and 4 unmeasured edges were never examined.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-quote-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T233733Z-shipping-quote-misconfig/df434452-30dc-494f-a79c-676f82740f10-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T233733Z-shipping-quote-misconfig/df434452-30dc-494f-a79c-676f82740f10-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 12823.95it/s]

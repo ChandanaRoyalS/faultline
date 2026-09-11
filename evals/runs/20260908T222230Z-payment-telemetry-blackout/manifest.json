@@ -1,0 +1,465 @@
+{
+  "run_id": "20260908T222230Z-payment-telemetry-blackout",
+  "scenario_id": "payment-telemetry-blackout",
+  "split": "dev",
+  "scenario_fingerprint": "b8a2668299f1d3b1e5ee9b928e292f5994a1ac3c4292989ae70bb5ccb3f2b8b9",
+  "started_at": "2026-09-08T22:22:30.871214+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "73477ceb1a0bfdbfe979f0db4215ed1e030c090a",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 62121,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-08T22:22:30.936883+00:00",
+    "reason": "faultline-eval payment-telemetry-blackout",
+    "token": "62121-1788906150.936826"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 4110,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "frauddetection-service",
+      619
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 56.61,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 2.4325,
+      "runs_remaining": 7,
+      "uptime_seconds": 14964,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 367.3,
+      "projected_percent": 74.54,
+      "threshold_percent": 72.07,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "world_continuity": {
+    "kafka_uptime_seconds": 14964,
+    "kafka_uptime_seconds_previous_run": 13659,
+    "previous_run_id": "20260908T220045Z-frauddetection-memory-squeeze",
+    "kafka_restarted_since_previous_run": false,
+    "cause": "continuous - same kafka instance as the previous run",
+    "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
+  },
+  "freeze": {
+    "frozen_for": "dev 20260908T222230Z-payment-telemetry-blackout",
+    "runtime_version": "faultline/0.0.1+prompts:06f24e827915",
+    "prompts": {
+      "constants": [
+        "PLANNER_SYSTEM",
+        "PROPOSER_SYSTEM",
+        "SCRIBE_SYSTEM",
+        "SPECIALIST_SYSTEM",
+        "SYNTHESIZER_SYSTEM",
+        "TRIAGER_SYSTEM"
+      ],
+      "sha256": "f7ede43b3bcb96a1abfb0c072b9dc22e5bfa04e6071ab8ce895660434f4945c5",
+      "chars": 13136
+    },
+    "corpus": {
+      "rows": 103,
+      "sha256": "5e372dd5955d6f9fa1ecd25582b18cc9296122e255875004116c1bbf85338546",
+      "documents": [
+        "runbook:action-restart-service",
+        "runbook:action-revert-config",
+        "runbook:action-rollback-image",
+        "runbook:action-scale-unavailable",
+        "runbook:alert-high-error-rate",
+        "runbook:alert-high-latency",
+        "runbook:alert-no-traffic",
+        "runbook:class-bad-config",
+        "runbook:class-bad-deploy",
+        "runbook:class-dependency-latency",
+        "runbook:class-resource-exhaustion",
+        "runbook:world-saturation-is-invisible",
+        "runbook:world-tracing-artifact-edges",
+        "runbook:world-uninstrumented-services",
+        "runbook:world-warm-up-latency",
+        "scenario:ad-memory-squeeze",
+        "scenario:cart-bad-image-tag",
+        "scenario:cart-dependency-latency",
+        "scenario:cart-redis-misconfig",
+        "scenario:frauddetection-memory-squeeze",
+        "scenario:payment-telemetry-blackout",
+        "scenario:product-catalog-flag-failure",
+        "scenario:redis-cart-dependency-latency",
+        "scenario:shipping-quote-misconfig",
+        "scenario:shipping-wrong-image"
+      ],
+      "holdout_chunks": 0
+    },
+    "model_map": {
+      "models": {
+        "changes": "claude-opus-5",
+        "logs": "claude-opus-5",
+        "metrics": "claude-opus-5",
+        "planner": "claude-opus-5",
+        "proposer": "claude-opus-5",
+        "scribe": "claude-opus-5",
+        "synthesizer": "claude-opus-5",
+        "traces": "claude-opus-5",
+        "triage": "claude-opus-5"
+      },
+      "effort_default": "high",
+      "role_efforts": {}
+    },
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0
+    },
+    "tool_layer": {
+      "git_sha": "73477ceb1a0bfdbfe979f0db4215ed1e030c090a",
+      "git_dirty": true
+    },
+    "judge": {
+      "model": null,
+      "prompt_sha256": "244108af996ad2a5138f6632a297941dd26643d806c73dfa9e24bc7d51392b54",
+      "allow_shared_lineage": false
+    },
+    "world": {
+      "compose_digest": "90e9f29e578e7e98232ec89e92f2f5844a45482721acb52360010b97b387b7a5",
+      "observability_digest": "f3011ba830219b3f530b0d954867924c9b4afe78fa42949335257f04a5d28410",
+      "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+      "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994",
+      "capability_version": "cap:dd651ccc",
+      "host_platform": "Darwin/arm64",
+      "unverifiable_fields": []
+    }
+  },
+  "baseline": null,
+  "ablation": [],
+  "repeat_count": 3,
+  "tier": "weekly",
+  "seed_policy": "unseeded: non-deterministic model, live world",
+  "comparability": {
+    "generation": "90e9f29e578e",
+    "provenance": "observed",
+    "previous_run": "20260908T220045Z-frauddetection-memory-squeeze",
+    "previous_generation": "90e9f29e578e",
+    "previous_provenance": "observed",
+    "new_generation": false
+  },
+  "injected_at": "2026-09-08T22:22:35.251948+00:00",
+  "incident_id": "02b997d8-b288-4121-b002-5680417641a5",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-09-08T22:34:26.389420+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 3832,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "payment-service",
+      323
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 56.67,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 16002,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 122.1,
+      "projected_percent": 62.63,
+      "threshold_percent": 84.04,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "unexpected_fields": {},
+  "score": {
+    "run_id": "20260908T222230Z-payment-telemetry-blackout",
+    "scenario_id": "payment-telemetry-blackout",
+    "trajectory_id": "3f357bf3-c49d-458e-87b2-b85fee6e9ce3",
+    "runtime_version": "faultline/0.0.1+prompts:06f24e827915",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0,
+      "per_specialist_tool_calls": {}
+    },
+    "reached_a_class": true,
+    "reachability": {
+      "answers_idle_or_absent": [
+        "logs"
+      ],
+      "derived_from": "the bundle's own captures (T7.5)",
+      "none_can_answer": false,
+      "runtime_series": 0,
+      "target_log_lines": 340
+    },
+    "service_visibility": {
+      "target": "paymentservice",
+      "presence": "in_graph",
+      "nameable": true,
+      "reason": null
+    },
+    "triage": {
+      "recall": 1.0,
+      "precision": 0.3333333333333333,
+      "matched": [
+        "paymentservice"
+      ],
+      "missed_alerted_not_predicted": [],
+      "predicted_not_alerted": [
+        "checkoutservice",
+        "frontend"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 2,
+      "n_alerted": 1,
+      "n_predicted": 3
+    },
+    "fault_class": {
+      "truth": "bad_config",
+      "returned": "bad_config",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "config_revert",
+      "returned": "config_revert",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "service": {
+      "truth": "paymentservice",
+      "returned": "paymentservice",
+      "correct": true,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "ranked_class": {
+      "truth": "bad_config",
+      "ranked": [
+        "bad_config",
+        "unknown",
+        "dependency_latency"
+      ],
+      "depth": 3,
+      "top_1": true,
+      "top_3": true,
+      "gained_by_ranking": false
+    },
+    "ranked_service": {
+      "truth": "paymentservice",
+      "ranked": [
+        "paymentservice",
+        "checkoutservice"
+      ],
+      "depth": 2,
+      "top_1": true,
+      "top_3": true,
+      "gained_by_ranking": false
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 66443,
+    "tokens_out": 12974,
+    "cost_usd": 0.6566,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-09-08T22:39:52.950579+00:00",
+  "leave_one_out": {
+    "retrievals": 2,
+    "excluding": 2,
+    "filtered": {
+      "1": 5,
+      "14": 5
+    },
+    "silent": [],
+    "unassessable": [],
+    "enforced": true
+  },
+  "metrics": {
+    "latency": {
+      "investigation_ms": 233501,
+      "investigation_seconds": 233.5,
+      "tool_ms": 181,
+      "model_ms": 0,
+      "steps": 18,
+      "within_gate4_threshold": false
+    },
+    "tool_calls": {
+      "total": 5,
+      "valid": 5,
+      "errored": 0,
+      "empty": 1,
+      "truncated": 2,
+      "redundant": 0,
+      "validity_rate": 1.0,
+      "redundancy_rate": 0.0
+    },
+    "context": {
+      "briefings": 5,
+      "over_budget": 3,
+      "overflow_rate": 0.6,
+      "dropped_sections": 2,
+      "largest_estimated_tokens": 7475,
+      "budget": 4000
+    },
+    "citations": {
+      "violations": 0,
+      "regenerated": false,
+      "escalated": false
+    }
+  },
+  "judge": {
+    "scenario_id": "payment-telemetry-blackout",
+    "run_id": "20260908T222230Z-payment-telemetry-blackout",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: the OTLP trace exporter endpoint was pointed at a loopback address (127.0.0.1:4317) with nothing listening, causing spans to be dropped while the payment service continued processing charges normally.",
+    "dead_ends_closed": [
+      "crash or restart",
+      "cascade of alerts across dependent services",
+      "error spike in payment or checkout"
+    ],
+    "dead_ends_missed": [
+      "label mismatch in metrics (explicitly noted as open by agent)",
+      "undated hostname change as alternative explanation (agent leaves open)"
+    ],
+    "traps": [
+      {
+        "trap": "trace query showing healthy payment spans in completed checkouts",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "absence of error ratio samples as evidence of service death",
+        "outcome": "avoided"
+      }
+    ],
+    "notes": "Agent narrative is thorough and cautious, explicitly flagging its own confidence level as 'medium' and remaining open about span absence being inferred rather than directly observed post-T-6m. It correctly identifies the same mechanism as the recorded narrative.",
+    "tokens_in": 5521,
+    "tokens_out": 304
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 27,
+    "depth": 28,
+    "elapsed_ms": 121338,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 27 identifies that the OTLP traces endpoint was set to a loopback address (http://127.0.0.1:4317) which has no collector listening, causing spans to be exported into a black hole and span-derived metrics to become unavailable, while the payment service itself continued serving normally\u2014exactly matching the recorded narrative's root cause.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
+  }
+}

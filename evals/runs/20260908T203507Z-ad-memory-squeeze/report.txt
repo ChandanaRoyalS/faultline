@@ -1,0 +1,42 @@
+run 20260908T203507Z-ad-memory-squeeze   scenario ad-memory-squeeze
+trajectory 2c66a4e0-6962-45a9-8102-15d6f725bdb8   runtime faultline/0.0.1+prompts:06f24e827915
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (3/3 alerted services predicted)
+  precision 0.43  (3/7 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): cartservice, checkoutservice, productcatalogservice, recommendationservice
+  unmeasured edges crossed: 1 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: runtime, logs
+  fault class bad_config vs resource_exhaustion - WRONG
+    disputed boundary, ADR-0022 addendum, T4.3: A memory cap was lowered onto the service, and the service then exhausted it. The label set names the symptom; the agent named the artifact the change touched. The fix tiebreak cannot settle this one - both readings give `config_revert` - which is precisely why the register is defined on the readings and not on the tiebreak.
+  fix class   config_revert vs config_revert - correct
+  service     frontend vs adservice - WRONG
+  ranked class top1 miss, top3 miss, depth 2  gained by ranking: no
+    ranked: bad_config > bad_deploy
+  ranked service top1 miss, top3 miss, depth 2  gained by ranking: no
+    ranked: frontend > shippingservice
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 60539 / out 15582 tokens   $0.6922
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        231.4s (OVER G4's 3-minute per-run comparison) tools 0.1s  models 0.0s  steps 22
+  tool calls     7 total, 7 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 3 empty, 3 truncated
+  context budget 5 briefing(s), 3 over budget (0.60), 2 section(s) dropped, largest 8434 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false

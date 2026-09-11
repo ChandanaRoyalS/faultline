@@ -54,6 +54,21 @@ class IncidentStore(Protocol):
         done and the row said otherwise.
 
         The runner changes two fields. It should write two fields.
+
+        **And it must not write `state` over a terminal one** - the same bug, one column further
+        in, found by dev sweep 12's arm B on 2026-09-10. The narrow write fixed the columns it
+        stopped touching and left the one it still writes. A run froze for 1h50m; the orchestrator
+        resolved both episodes and closed the incident at 01:44:15; the runner then thawed and
+        walked `PLANNING -> INVESTIGATING -> SYNTHESIZING -> PROPOSING`, writing each phase from an
+        in-memory copy loaded before any of that happened. The row ended as `state = proposing`
+        with `resolved_at` set and both episodes resolved - a closed incident wearing an open
+        state - and the baseline gate then correctly refused **nineteen consecutive runs**.
+
+        So a terminal incident keeps its state and the phase goes to `state_before_resolution`
+        instead, which is the column ADR-0016 already has for exactly this: *"the state it was in
+        is remembered so a reopen puts it back."* The investigation is not cancelled - *"the fault
+        is over, the question of what caused it is not"* - it simply stops being able to resurrect
+        the incident it was investigating.
         """
 
     def get(self, incident_id: str) -> Incident | None: ...
@@ -105,14 +120,19 @@ class InMemoryIncidentStore:
 
         The dict would otherwise hand back the caller's object and hide the very aliasing the
         Postgres store had to be fixed for - a double that cannot reproduce the bug is a double
-        that lets it back in.
+        that lets it back in. **The terminal guard is here for the same reason**: the Postgres
+        store enforces it in one `CASE`, and a double without it would let arm B's lost update
+        back in silently.
         """
         stored = self.incidents.get(incident.id)
         if stored is None:
             self.incidents[incident.id] = incident
             return
-        stored.state = incident.state
         stored.investigation_id = incident.investigation_id
+        if stored.is_terminal:
+            stored.state_before_resolution = incident.state
+            return
+        stored.state = incident.state
         stored.state_before_resolution = incident.state_before_resolution
 
     def get(self, incident_id: str) -> Incident | None:
@@ -176,12 +196,26 @@ class PostgresIncidentStore:
         self._conn.commit()
 
     def save_investigation_state(self, incident: Incident) -> None:
-        """Two columns, by id. **Touches no episode row** - see the protocol for why."""
+        """Two columns, by id. **Touches no episode row** - see the protocol for why.
+
+        **The terminal test is in the statement, not around it.** Reading the state and then
+        writing it is two round trips with the orchestrator's close free to land between them,
+        which is the race this exists to close rather than narrow. One `UPDATE`, one `CASE`, and
+        the row the runner read is never the row it decides on.
+        """
+        terminal = sorted(state.value for state in TERMINAL)
         with self._conn.cursor() as cur:
             cur.execute(
-                "UPDATE incidents SET state = %s, state_before_resolution = %s, "
+                "UPDATE incidents SET "
+                # A closed incident keeps its state; the phase the investigation reached is
+                # remembered where a reopen will look for it.
+                "state = CASE WHEN state = ANY(%s) THEN state ELSE %s END, "
+                "state_before_resolution = CASE WHEN state = ANY(%s) THEN %s ELSE %s END, "
                 "investigation_id = COALESCE(%s, investigation_id) WHERE id = %s",
                 (
+                    terminal,
+                    incident.state.value,
+                    terminal,
                     incident.state.value,
                     None
                     if incident.state_before_resolution is None

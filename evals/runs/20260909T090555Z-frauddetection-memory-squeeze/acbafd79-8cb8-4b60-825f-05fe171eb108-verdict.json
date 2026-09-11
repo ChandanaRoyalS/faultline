@@ -1,0 +1,164 @@
+{
+  "incident_id": "acbafd79-8cb8-4b60-825f-05fe171eb108",
+  "trajectory_id": "2689c65d-114c-41e7-8d07-aefb25f17064",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origin": "scenario:frauddetection-memory-squeeze",
+  "verdict": {
+    "root_cause": "At 09:06:01 platform-automation lowered the memory limit on frauddetection-service to 200m and, unlike the two earlier instances of the same automated lower/revert cycle, no revert followed [tr_b8cb8d8fc042]. Within roughly a minute of that change the service's own output ceases: routine order-consumption lines run every few seconds with a monotonically climbing counter up to ~09:05:57 and then stop outright for the remaining ~8 minutes of the window, with no slowdown, no error text and no restart/startup banner beforehand [tr_f2e43c376c06]. Traces corroborate the same cut-off from the outside \u2014 frauddetectionservice appears only as a sub-millisecond, error-free 'orders process' consumer span fanned out from the checkoutservice publish, present up to 09:04:23 and absent thereafter, while checkout traffic itself continues at 09:05:04 [tr_ddde08b71ab1]. The pattern is a healthy process that was abruptly terminated rather than one that degraded or errored: the 200m ceiling was too low for the running JVM/consumer working set, so the container exceeded it and was killed, ending message consumption. The failure mechanism is running out of memory headroom; the limit edit is how it started.",
+    "service": "frauddetectionservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_b8cb8d8fc042",
+      "tr_f2e43c376c06",
+      "tr_ddde08b71ab1",
+      "tr_884eb4f3a7cf",
+      "tr_db71023b261e"
+    ],
+    "reasoning": "Three independent signals line up in time. The change record puts an un-reverted memory limit reduction to 200m at 09:06:01, five minutes before the alert, and establishes that the same actor has performed this lower/revert cycle twice before in the window [tr_b8cb8d8fc042]. The service's log stream shows a single continuously running process (counter 476->633, never reset) working at normal pace until ~09:05:57 and then emitting nothing at all \u2014 an abrupt stop, not a stall, not an error, not a crash-loop [tr_f2e43c376c06]. Traces confirm the stop is real and specific to this service rather than a whole-pipeline outage: fraud spans are fast and clean until 09:04:23 then vanish, while a frontend->checkout->cartservice trace still lands at 09:05:04 [tr_ddde08b71ab1]. Nothing in the fraud spans is on checkout's critical path, and the only recurring slow hop in the traces is shipping->quote, which is unrelated [tr_ddde08b71ab1] \u2014 so this is a consumer that stopped, not a latency source. A code deploy, a flag flip and an ad-hoc human change are all excluded by the change history [tr_b8cb8d8fc042]. Metrics could not adjudicate: the error-ratio series is empty in both incident and baseline windows, which is a standing instrumentation/naming gap rather than an incident symptom, and no memory working-set, OOM-kill or restart series was returned at all [tr_db71023b261e][tr_884eb4f3a7cf]. That leaves the kill itself inferred from the coincidence of the limit reduction with the abrupt cessation, which is why confidence is medium rather than high. The mechanism at the moment of failure is the process exceeding an available-memory ceiling and being terminated \u2014 resource exhaustion \u2014 and the action that would resolve it is restoring the prior limit (the automation's own previous reverts show that is the intended steady state).",
+    "open_questions": [
+      "No OOM-kill event, container memory working-set, or pod restart-count series was ever retrieved [tr_884eb4f3a7cf], so the kill is inferred from timing rather than directly observed; a kubelet/OOM query would settle it.",
+      "The actual working-set of frauddetection-service under normal load is unknown, so it is unproven that 200m is below its requirement rather than the stop having another cause.",
+      "Whether the pod restarted and crash-looped after 09:06 is unobserved \u2014 the log result was truncated and ends before onset, and no restart metric was returned [tr_f2e43c376c06][tr_884eb4f3a7cf].",
+      "Roughly 08:42:39-09:03:14 of the log stream was dropped by truncation [tr_f2e43c376c06], so an earlier warning or pressure signal in that gap cannot be excluded.",
+      "Why platform-automation performs this recurring lower/revert cycle, and why the 09:06 reduction was not reverted, is unexplained [tr_b8cb8d8fc042].",
+      "The shipping->quote hop consuming 19-26% of checkout trace self-time [tr_ddde08b71ab1] is unexplained and may be a separate concurrent issue.",
+      "Downstream impact of the halted order consumption (message backlog, unprocessed orders) was never measured."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The observed silence after ~09:06 is a telemetry/collection gap for frauddetection-service rather than a stopped process, and the service may still have been running.",
+        "service": "frauddetectionservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Two independent pipelines stop at the same moment \u2014 Loki log lines and Tempo spans [tr_f2e43c376c06][tr_ddde08b71ab1] \u2014 while other services' spans keep landing at 09:05:04, so the gap is service-specific rather than a collector-wide outage; the known Prometheus emptiness is separately shown to predate onset in the baseline windows [tr_db71023b261e][tr_884eb4f3a7cf].",
+        "confidence": "low"
+      },
+      {
+        "root_cause": "The 200m memory limit value is itself simply the wrong setting for this workload, making the misconfiguration the failure.",
+        "service": "frauddetectionservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Same upstream act, but the mechanism now breaking requests is the process exceeding available memory and being terminated, not a value naming a wrong address, credential or endpoint; a limit lowered until a process dies for exceeding it classifies as resource exhaustion.",
+        "confidence": "low"
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. From the first restart after the change, the runtime could not complete a startup\ninside the new limit: it",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m50s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **2**. Over the"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 20883,
+    "pulled_tokens": 6892,
+    "pull_rate": 0.2481,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 365,
+        "content_tokens": 368,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1307,
+        "content_tokens": 1311,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6247,
+        "content_tokens": 6223,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5956,
+        "content_tokens": 5958,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7008,
+        "content_tokens": 6985,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "frauddetectionservice",
+    "rests_on": [
+      "tr_b8cb8d8fc042",
+      "tr_f2e43c376c06",
+      "tr_ddde08b71ab1"
+    ],
+    "expected_effect": "Reverting the 09:06 resource_limits change (memory=200m) and recreating the container should restore order consumption: within ~2 minutes Loki should again show 'Consumed record with orderId ... updated total count to: N' lines for {service=\"frauddetection-service\"} every few seconds (counter restarting low, then climbing), and Tempo should again show a sub-millisecond 'orders process' span fanned out from the checkoutservice publish, absent since ~09:04:23. Prometheus cannot confirm this: the call-count series for this service name is empty in every window.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if after 5 minutes Loki still shows no lines and checkout traces still carry no 'orders process' span \u2014 the halt then had another cause and the limit edit was coincidental. Also falsified if output resumes but ceases again with the counter resetting, meaning the working set exceeds even the restored limit or leaks. If platform-automation re-applies 200m and output stops again, the durable fix lies outside this system.",
+    "risk": "The OOM kill is inferred from timing alone \u2014 no OOM event, working-set, or restart-count series was ever retrieved. If wrong, this recreates a healthy-ish container for nothing: in-process state and the broker session are dropped, so order messages may be redelivered or missed, and the real cause is masked. If the true problem is a leak rather than an undersized ceiling, removing the 200m cap trades a contained container kill for node-level memory pressure.",
+    "blast_radius": "frauddetectionservice only. It is an async consumer off the checkoutservice orders publish, so checkout/frontend latency should not move and accountingservice's branch is untouched; consumption pauses briefly during the recreate, extending any order backlog."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A single critical alert on frauddetectionservice with no open incident to attribute it to and no recovery signal cannot be dismissed. Nothing in one seed alert suggests a fault class, so the prior stays unknown."
+  }
+}

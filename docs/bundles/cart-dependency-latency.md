@@ -9,26 +9,26 @@
 | expected remediation | `restart` |
 | split | `dev` |
 | injected at | `cart-service` via `cart-dependency-latency` |
-| time to page | 3m19s |
+| time to page | 3m35s |
 | steady state captured | 300s |
-| capture window | 2026-09-08T05:23:59+00:00 → 2026-09-08T05:41:35+00:00 |
+| capture window | 2026-09-09T03:25:56+00:00 → 2026-09-09T03:44:02+00:00 |
 
 The clock below runs from the moment the fault went in.
 
 | | |
 |---|---|
 | `t_inject` | T+0m00s |
-| first alert firing | T+3m19s |
-| `t_revert` | T+8m19s |
-| all clear | T+10m36s |
+| first alert firing | T+3m35s |
+| `t_revert` | T+8m35s |
+| all clear | T+11m06s |
 
 ## What fired, and when
 
 | when | service | alert | firing for | |
 |---|---|---|---:|---|
-| T+3m30s | `cartservice` | ServiceHighLatency | 7.2 min | **paged** |
-| T+3m45s | `checkoutservice` | ServiceHighLatency | 6.8 min | joined later |
-| T+3m45s | `frontend` | ServiceHighLatency | 6.8 min | joined later |
+| T+3m30s | `cartservice` | ServiceHighLatency | 7.5 min | **paged** |
+| T+3m45s | `checkoutservice` | ServiceHighLatency | 6.5 min | joined later |
+| T+3m45s | `frontend` | ServiceHighLatency | 7.0 min | joined later |
 | T+3m45s | `loadgenerator` | ServiceHighLatency | 6.8 min | joined later |
 
 ## What the bundle contains
@@ -48,18 +48,18 @@ The clock below runs from the moment the fault went in.
 From `logs/cart-service.txt` (500 lines):
 
 ```
-2026-09-08T05:24:01+00:00  AddItemAsync called with userId=8031c3c4-ab45-11f1-b359-b6ed2071a170, productId=OLJCESPC7Z, quantity=10
-2026-09-08T05:24:01+00:00  GetCartAsync called with userId=8031c3c4-ab45-11f1-b359-b6ed2071a170
-2026-09-08T05:24:01+00:00  GetCartAsync called with userId=8031c3c4-ab45-11f1-b359-b6ed2071a170
-2026-09-08T05:24:01+00:00  EmptyCartAsync called with userId=8031c3c4-ab45-11f1-b359-b6ed2071a170
-2026-09-08T05:24:03+00:00  AddItemAsync called with userId=811bb952-ab45-11f1-b359-b6ed2071a170, productId=9SIQT8TOJO, quantity=4
-2026-09-08T05:24:03+00:00  GetCartAsync called with userId=811bb952-ab45-11f1-b359-b6ed2071a170
-2026-09-08T05:24:03+00:00  GetCartAsync called with userId=811bb952-ab45-11f1-b359-b6ed2071a170
-2026-09-08T05:24:03+00:00  EmptyCartAsync called with userId=811bb952-ab45-11f1-b359-b6ed2071a170
-2026-09-08T05:24:07+00:00  AddItemAsync called with userId=8383bd98-ab45-11f1-b359-b6ed2071a170, productId=0PUK6V6EV0, quantity=3
-2026-09-08T05:24:07+00:00  GetCartAsync called with userId=8383bd98-ab45-11f1-b359-b6ed2071a170
-2026-09-08T05:24:10+00:00  GetCartAsync called with userId=
-2026-09-08T05:24:11+00:00  AddItemAsync called with userId=8611f048-ab45-11f1-b359-b6ed2071a170, productId=LS4PSXUNUM, quantity=4
+2026-09-09T03:25:58+00:00  AddItemAsync called with userId=2c639cc2-abfe-11f1-b359-b6ed2071a170, productId=1YMWWN1N4O, quantity=3
+2026-09-09T03:25:58+00:00  GetCartAsync called with userId=2c639cc2-abfe-11f1-b359-b6ed2071a170
+2026-09-09T03:25:58+00:00  GetCartAsync called with userId=2c639cc2-abfe-11f1-b359-b6ed2071a170
+2026-09-09T03:25:58+00:00  EmptyCartAsync called with userId=2c639cc2-abfe-11f1-b359-b6ed2071a170
+2026-09-09T03:25:59+00:00  GetCartAsync called with userId=
+2026-09-09T03:25:59+00:00  GetCartAsync called with userId=
+2026-09-09T03:25:59+00:00  GetCartAsync called with userId=
+2026-09-09T03:26:00+00:00  GetCartAsync called with userId=
+2026-09-09T03:26:01+00:00  AddItemAsync called with userId=2e626774-abfe-11f1-b359-b6ed2071a170, productId=2ZYFJ3GM2N, quantity=4
+2026-09-09T03:26:01+00:00  GetCartAsync called with userId=2e626774-abfe-11f1-b359-b6ed2071a170
+2026-09-09T03:26:01+00:00  GetCartAsync called with userId=2e626774-abfe-11f1-b359-b6ed2071a170
+2026-09-09T03:26:01+00:00  EmptyCartAsync called with userId=2e626774-abfe-11f1-b359-b6ed2071a170
 ```
 
 _488 further lines are in the bundle._
@@ -79,7 +79,7 @@ bundle are the tiebreak.
 
 ### What was observed
 
-The page was `ServiceHighLatency` on **cartservice** alone, 3m19s after things started
+The page was `ServiceHighLatency` on **cartservice** alone, 3m35s after things started
 slowing. **frontend**, **loadgenerator** and **checkoutservice** followed fifteen seconds
 later, for four alerts across four services. The slow service alerted first, which is not
 what the other latency scenarios in this catalog do.
@@ -139,7 +139,7 @@ p95 to rise by exactly 300ms would have doubted a correct measurement.
 ### Resolution
 
 Recreating the cart container cleared the shaping — the rule is bound to the container
-instance, so a new one comes up on a clean network path. Everything was quiet 2m17s
+instance, so a new one comes up on a clean network path. Everything was quiet 2m31s
 later.
 
 Class of fix: **restart**. Nothing was deployed and no configuration was wrong, so
@@ -147,7 +147,7 @@ there was nothing to roll back or revert; the container simply needed replacing.
 
 ### Detection notes
 
-- Onset to first page: **3m19s**, against a three-minute persistence clause. Detection
+- Onset to first page: **3m35s**, against a three-minute persistence clause. Detection
   is dominated by the clause, not by how long the signal took to appear — the underlying
   measurement crossed the threshold almost immediately.
 - Services alerting at the page: **2**. Over the whole incident: **4**. The blast radius

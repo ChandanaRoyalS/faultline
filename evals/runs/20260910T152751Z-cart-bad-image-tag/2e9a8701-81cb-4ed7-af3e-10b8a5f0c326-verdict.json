@@ -1,0 +1,181 @@
+{
+  "incident_id": "2e9a8701-81cb-4ed7-af3e-10b8a5f0c326",
+  "trajectory_id": "da9dcaa1-6214-4284-b512-d6ffff5193c0",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:cart-bad-image-tag",
+  "verdict": {
+    "root_cause": "checkoutservice is stalling, not erroring. It continues to accept PlaceOrder requests through the end of the window and logs no error or warning text, but from ~15:30 onward each order emits only its entry line \u2014 the payment, confirmation-email and order-message-write lines that followed every order earlier are simply absent [tr_44e356406471]. That is the signature of a synchronous downstream call in the PlaceOrder path that never returns, so requests occupy handlers indefinitely. The metric picture matches: mean error ratio is flat (~1.04x) while variance doubles, a single change point fires at 15:30:30, and two 2-minute intervals record no calls at all \u2014 checkout stopped completing work rather than starting to fail it [tr_901d1f42767a][tr_1737543b4c48]. No checkoutservice deploy, config edit or flag flip exists in the preceding 24h to explain a local regression [tr_f4ee40922f92][tr_917c94b6a060]. The blame therefore sits on a checkout dependency on the order path; paymentservice is the stage where the log trail first goes dark, but its RED metrics are absent in both baseline and incident windows, so it cannot be confirmed as the blocked hop [tr_c5d2633b4d50]. The fan-out of later alerts (currency, email, fraud, shipping, accounting at 15:33\u201315:34) is consistent with propagation from a stalled checkout rather than independent failures.",
+    "service": "checkoutservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_44e356406471",
+      "tr_1737543b4c48",
+      "tr_901d1f42767a",
+      "tr_f4ee40922f92",
+      "tr_917c94b6a060",
+      "tr_c5d2633b4d50"
+    ],
+    "reasoning": "Silent truncation of a previously complete per-order log sequence, with inbound traffic continuing and no error text, means requests are waiting rather than failing \u2014 that is dependency latency, and the wait is the failure. Flat mean error ratio with doubled variance and novel no-traffic intervals rules out both a sustained error regression and a gradual resource leak. The empty 24h change log for checkoutservice removes bad_deploy and bad_config for the seed service itself; no dependency change history was ever queried, so the upstream act remains unknown. paymentservice is the most likely blocked hop by log position alone, but its metrics are empty in the baseline too, which is a standing instrumentation or naming gap and not incident evidence.",
+    "open_questions": [
+      "No dependency was ever queried for changes or latency \u2014 paymentservice, productcatalogservice, currencyservice, cartservice and the Kafka/order-message path are all unexamined, so the specific blocked hop is unidentified.",
+      "Why paymentservice emits no calls_total samples under that service_name in either window: instrumentation gap, different metric label, or genuinely off the measured path.",
+      "The log result was truncated to the oldest 8 and newest 32 lines, so the 15:02\u201315:30 transition containing the first stalled order was never read; the true onset and its first failing stage are unconfirmed.",
+      "No trace or latency data was collected at all, so the inference of a blocking call is from log-shape only."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A dependency of checkoutservice received a deploy or config change shortly before 15:30 that made its order-path RPC hang.",
+        "service": "paymentservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Change history was run at zero hops and never covered any dependency, so no such change record has been seen; naming a rollback target would be pure inference."
+      },
+      {
+        "root_cause": "checkoutservice exhausted its handler/connection pool as stalled PlaceOrder requests accumulated, producing the two no-traffic intervals.",
+        "service": "checkoutservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "This is the downstream consequence of the blocked calls, not the origin; no saturation metric (threads, connections, memory, CPU) was ever queried, and restarting checkout would not stop the stall from recurring."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five",
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "checkoutservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26142,
+    "pulled_tokens": 3362,
+    "pull_rate": 0.114,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 473,
+        "content_tokens": 476,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1812,
+        "content_tokens": 1816,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7840,
+        "content_tokens": 7815,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7466,
+        "content_tokens": 7468,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8551,
+        "content_tokens": 8529,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_f4ee40922f92",
+      "tr_917c94b6a060",
+      "tr_44e356406471",
+      "tr_c5d2633b4d50",
+      "tr_1737543b4c48"
+    ],
+    "expected_effect": "No action is proposed, so no change in system behaviour should be observed. What should happen next is investigation, not remediation: query traces or per-dependency latency for the PlaceOrder path, and re-read the checkoutservice log stream between 15:02 and 15:30 untruncated to find the first stalled order and the last stage it completed. The observable that would identify a target is a latency histogram or span duration on one of checkoutservice's downstream hops (paymentservice, productcatalogservice, currencyservice, cartservice, or the order-message write) showing a step change at ~15:30:30 while checkoutservice's own error ratio stays flat.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a dependency-side change or a process-state signal exists that was simply never queried \u2014 for example, a change-history query at one hop out returning a deploy or config edit on paymentservice/productcatalogservice inside the window, which would make rollback_image or revert_config on that dependency a legitimate proposal. It is also wrong if trace data shows the stall originates inside checkoutservice's own process (thread-pool or connection-pool exhaustion with no downstream hop pending), which would meet restart_service's precondition of process state. Until one of those is observed, no permitted action's preconditions are met.",
+    "risk": "The risk being avoided is acting on a diagnosis that names no mechanism. restart_service on checkoutservice is the tempting move \u2014 it would clear the stalled handlers and briefly restore completed orders \u2014 but its precondition is unmet: the evidence points at a blocked downstream call, not at process state [tr_44e356406471]. If the blocking dependency is still blocking, handlers refill within minutes and the only durable effects are the in-flight orders killed mid-PlaceOrder (payment possibly taken with no order-message write, i.e. money captured against no record) and the destruction of the live stalled state that the trace query still needs to identify the culprit hop. rollback_image and revert_config are refused outright: the change log is empty for checkoutservice across 24h [tr_f4ee40922f92][tr_917c94b6a060], so there is no prior tag or config to restore and nothing in the window they could be correlated with. scale_service is unavailable per ADR-0029.",
+    "blast_radius": "Nobody sees anything, because nothing changes. For contrast, the restart that is being declined would be seen by frontend (and through it loadgenerator) as reset PlaceOrder connections, and by paymentservice, productcatalogservice, currencyservice, cartservice and shippingservice as the abrupt disappearance of in-flight checkout calls; the currency/email/fraud/shipping/accounting alerts firing at 15:33-15:34 would likely re-fire on the recreate. The cost of abstaining is that checkout continues to accept orders it cannot complete for as long as the investigation takes, which is a real and ongoing customer-facing outage, not a neutral state.",
+    "target_note": "no target selected; the only defensible targets would be a dependency not yet examined"
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Ten services alerting critical in a staged fan-out from checkout/frontend is a live, broad failure that cannot be dismissed. Origin is ambiguous between a shared downstream (payment/productcatalog) and a checkout-path change, so fault class stays unknown."
+  }
+}

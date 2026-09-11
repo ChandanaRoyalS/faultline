@@ -1,0 +1,47 @@
+incident 64dbe44f-ec97-46c3-9845-124e261c847a  state triaging  anchor 00:02:30
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: c493cb26-9628-4fe6-b0db-6a0e46b99799
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service failure starting at checkoutservice and spreading to its downstream consumers (shipping, quote, accounting) plus loadgenerator, which is consistent with a real checkout-path outage rather than noise. No open incidents to attribute it to, and nothing in the alerts distinguishes a deploy, config, or dependency cause yet.
+investigation: 2 round(s), 6 dispatch(es), 21 step(s)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : shippingservice
+  expect      : Redeploying shippingservice at the image tag it ran before the 23:59:34Z update should put the Rust shipping binary back under the shipping label. Observable in two places: (1) the {service="shipping-service"} Loki stream stops emitting the JVM/OTel-agent boot banner on its ~65s cadence and resumes GetQuoteRequest / quote-reply / ShipOrder tracking-ID lines within one container start; (2) the {service="checkout-service"} stream returns to its healthy shape, where each PlaceOrder entry is followed within tens of milliseconds by a payment transaction line, an order-confirmation email line, and a message-write line with incrementing offset — the three lines absent from every entry after 00:02:41. Because PlaceOrder entries continue every 3-13s, two or three completed sequences are enough to confirm. Note that shippingservice calls_total has had no samples for at least four hours [tr_c1a5792875b8], so Prometheus error-ratio or latency for shipping cannot be used as the confirming signal; logs are the only channel that can show this.
+  within      : 300s
+  risk        : Not the durable fix. The change history shows the same four-step cycle (bad QUOTE_SERVICE_ADDR, revert, image swap, image revert) repeating every 4-5 hours from platform-automation, and prior cycles self-reverted the image 10-12 minutes after applying it. So this rollback may race the automation's own revert, and will be undone again on the next cycle; disabling that automation is the real remediation and is outside what this system may do. If the diagnosis is wrong and shipping was already recovering on its own, the recreate adds an avoidable restart. If the prior image reference is not a valid shipping build, this leaves shipping down in a new way rather than the current one, though the action is reversible. This action also does nothing about the QUOTE_SERVICE_ADDR key that the same automation flips, and does not address the four-hour shippingservice telemetry gap, which will keep this service unobservable by metrics after the fix.
+  blast radius: One service recreated: shippingservice. Its named callers see the connection reset during recreate — checkoutservice directly (and through it frontend and loadgenerator), plus quoteservice which shipping calls downstream, and accountingservice. In practice the reset costs little, since the pod under this label has served no shipping request since 23:59:31Z and is restarting every ~65s already. Anyone watching shipping's log stream will see the JVM banner replaced by Rust request handling, which is the intended signal.
+  if wrong    : Three falsifiers. (a) The shipping stream resumes GetQuote/ShipOrder lines but checkoutservice PlaceOrder entries still have no payment/email/message-write follow-ups — then the checkout stall is not the shipping quote call; the checkout->shipping edge was never observed in trace or latency data, and checkout metrics were only queried in aggregate with no per-dependency breakdown, so a concurrent fault on cart, currency, payment or productcatalog would look identical from here. (b) The JVM boot loop continues on the ~65s cadence after the recreate — then the previous tag recorded in change history is not a working shipping image, or the automation re-applied the pinned tag immediately. (c) The shipping label goes silent entirely rather than resuming Rust lines — the recorded prior value for this image field reads as absent in the change log, so the rollback may target a tag that does not resolve.
+  rests on    : tr_3fff7fa32c0a, tr_bca40051a706, tr_0eca1a02289d
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 24225 pushed / 7010 pulled (pull rate 0.2244), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : tr_3fff7fa32c0a, tr_bca40051a706, tr_0eca1a02289d, tr_e4e7255a1eef, tr_12f2caa5f52b, tr_c1a5792875b8
+  root cause  : At 23:59:34Z platform-automation updated shippingservice's container image reference to a pinned demo image tagged for adservice (ghcr.io/open-telemetry/demo:v1.2.1-adservice) [tr_3fff7fa32c0a]. From 00:00:46Z onward the shipping-service log stream stops containing any Rust GetQuote/ShipOrder handling and instead shows only JVM/OpenTelemetry-agent boot output repeating on a ~65s cadence with no application-ready or request-serving line [tr_bca40051a706]. The pod under the shipping label is therefore running the wrong artifact and never reaches a serving state, so shipping's gRPC surface is effectively dead. checkoutservice is alive and still accepting PlaceOrder requests at normal cadence, but every late-window request stops after the entry line — the payment, email and message-write completion lines that followed every healthy request are absent [tr_0eca1a02289d] — i.e. checkout is blocking in the pre-payment portion of PlaceOrder, which is where the shipping quote call sits, and it is doing so without emitting errors [tr_e4e7255a1eef]. checkoutservice itself had no change of any kind in the window [tr_12f2caa5f52b]. The fix is to restore the correct shippingservice image (roll back the 23:59:34Z image update) and to stop the automated cycle that keeps re-applying it.
+  OPEN        : No trace or latency evidence was gathered on the checkout->shipping edge; the link between the checkout stall and shipping is inferred from call-order and log-absence, not directly observed.
+  OPEN        : The Java process under the shipping label is identified only by a JVM/agent banner [tr_bca40051a706]; it is not positively confirmed to be adservice, and no pod/container status, exit code or OOM evidence was collected to explain why it restarts every ~65s.
+  OPEN        : quoteservice, accountingservice and loadgenerator alerts were never dispatched on; their symptoms are assumed to be downstream consequences of shipping being unserviceable but were not verified.
+  OPEN        : Prior cycles reverted the image 10-12 minutes after applying it [tr_3fff7fa32c0a]. Whether the automation has since self-reverted, and whether the incident is therefore self-clearing and recurring on a 4-5h cadence, is unsettled — and the durable fix may be disabling that automation rather than a one-off rollback.
+  OPEN        : shippingservice call telemetry is missing for at least four hours [tr_c1a5792875b8]; whether that instrumentation gap predates and is independent of this incident was not established.
+  OPEN        : checkoutservice metrics were only queried in aggregate with no per-dependency breakdown [tr_e4e7255a1eef], so an additional concurrent fault on another checkout dependency cannot be excluded.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T235926Z-shipping-wrong-image/64dbe44f-ec97-46c3-9845-124e261c847a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T235926Z-shipping-wrong-image/64dbe44f-ec97-46c3-9845-124e261c847a-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10617.71it/s]

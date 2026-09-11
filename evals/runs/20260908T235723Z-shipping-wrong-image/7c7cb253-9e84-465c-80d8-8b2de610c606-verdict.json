@@ -1,0 +1,161 @@
+{
+  "incident_id": "7c7cb253-9e84-465c-80d8-8b2de610c606",
+  "trajectory_id": "ea92db7e-dbea-49ab-a7b3-36832cc27c99",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:shipping-wrong-image",
+  "verdict": {
+    "root_cause": "checkoutservice began failing ~23:38Z with an intermittent error ratio around 12% (peaks 30%), while its own logs show orders still being accepted but downstream steps (payment confirmation, email, message write) no longer logging completion [tr_570864ccda49][tr_05f23f43430f]. That pattern is silent non-completion of in-flight calls \u2014 a wait, not a loud rejection \u2014 so checkoutservice is the service that noticed, not the service that broke. No change record exists for checkoutservice [tr_9c194b234664], and the changes on cartservice, productcatalogservice and paymentservice are all matched automated apply/revert pairs that closed 1.4h or more before onset [tr_fa609aeb7e14][tr_3d7a8b232fad][tr_64ac25ba73d6]. Best-supported reading: a downstream dependency in the checkout fan-out (payment/email/message-write path) became slow and checkoutservice failed on timeout. The specific dependency was never measured \u2014 the change budget was exhausted before any per-peer metrics or downstream logs were pulled \u2014 so the blamed service is checkoutservice's failing dependency path, named provisionally as paymentservice, the first step to stop completing.",
+    "service": "checkoutservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_570864ccda49",
+      "tr_05f23f43430f",
+      "tr_9c194b234664",
+      "tr_fa609aeb7e14",
+      "tr_64ac25ba73d6"
+    ],
+    "reasoning": "Onset is bounded inside the window at 23:38:15Z against a clean 35-minute baseline, so this is new behaviour, not chronic [tr_570864ccda49]. Partial failure (min 0, max 0.3) rules out a hard-down dependency and fits timeout-on-slow-peer [tr_570864ccda49]. Logs show the service alive and accepting traffic throughout with no error, panic, or restart lines, but the later slice loses the payment/email/write completion entries that the earlier slice has \u2014 orders enter and do not finish [tr_05f23f43430f]. That excludes bad_deploy and crash-loop for checkoutservice, as does the empty change log [tr_9c194b234664]. bad_config is excluded for the three services checked because every edit was reverted to baseline well before onset [tr_fa609aeb7e14][tr_64ac25ba73d6][tr_3d7a8b232fad]. What remains is a dependency that slowed; the evidence localises the symptom to the fan-out but not to a named peer.",
+    "open_questions": [
+      "Which downstream peer actually slowed \u2014 no per-dependency latency or error breakdown was retrieved, the metric aggregated by service_name only [tr_570864ccda49].",
+      "No changes were queried for emailservice, shippingservice, quoteservice, frauddetectionservice, accountingservice or the message broker; the changes budget was exhausted at 4 of 4.",
+      "Why the five downstream services alerted three minutes after checkoutservice \u2014 whether they are victims of the same slow dependency or the source of it.",
+      "Whether the message-broker write path (the missing offset lines) is the stall point rather than payment.",
+      "Whether an unmeasured infrastructure factor (broker, Redis, node-level saturation) underlies this; no resource metrics were collected."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A downstream service in the checkout fan-out exhausted a bounded resource (connection pool, threads) and stopped completing calls, with checkoutservice timing out on it.",
+        "service": "paymentservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "No resource metrics were ever collected for any downstream service; exhaustion and plain slowness produce the same partial-timeout signature at the caller, so nothing in the board distinguishes them. Demoted only because 'waiting on a slow peer' is the directly observed symptom while exhaustion is an inferred mechanism."
+      },
+      {
+        "root_cause": "One of the automated fault-injection pairs (latency sidecar or endpoint override) did not fully revert, leaving residual degradation that surfaced later.",
+        "service": "cartservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Every apply has a matching revert recorded, the nearest closing 1.4h before onset, and an identical earlier pair caused no incident [tr_fa609aeb7e14][tr_64ac25ba73d6]. Requires the change log to be wrong about the revert, and it also fails to explain onset timing."
+      }
+    ]
+  },
+  "flags": [
+    "budget exhausted: changes tool calls: 4 of 4 used"
+  ],
+  "retrieved": [
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 21617,
+    "pulled_tokens": 4416,
+    "pull_rate": 0.1696,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 458,
+        "content_tokens": 460,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7021,
+        "content_tokens": 6997,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "incompleteness"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6481,
+        "content_tokens": 6483,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7657,
+        "content_tokens": 7634,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_9c194b234664",
+      "tr_570864ccda49",
+      "tr_05f23f43430f",
+      "tr_64ac25ba73d6"
+    ],
+    "expected_effect": "No action is proposed, so no change in any series is expected. The observable state should remain as measured: checkoutservice error ratio oscillating around 0.12 with peaks near 0.30, order-placement log lines continuing at a few-second cadence with payment/email/message-write completion lines still absent. Any change in those series while this proposal stands is attributable to the incident's own evolution, not to us.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "This abstention is wrong if per-dependency evidence, not yet collected, names a specific peer and a permitted action's preconditions. Concretely: a latency or error breakdown of checkoutservice's outbound calls split by peer that isolates one downstream service, or error-severity logs from that peer, or a change record inside 23:20-23:40Z for emailservice, shippingservice, quoteservice, frauddetectionservice, accountingservice or the broker. Absent those, nothing here distinguishes payment from email from the message-broker write path, and the named blame target (paymentservice) is explicitly provisional. Note also that a slow-dependency stall may not be visible in checkoutservice's own logs at all, since that service emits no error-severity lines in the whole window [tr_05f23f43430f] \u2014 so a fix's success could not be confirmed from the seed service's logs, only from its error-ratio series.",
+    "risk": "The risk being avoided. rollback_image and revert_config both fail their preconditions: checkoutservice has no change of any kind in the window [tr_9c194b234664], and paymentservice's only recorded changes are two matched OTLP-endpoint set/revert pairs whose final event 1.4h before onset restored the prior state, leaving no prior configuration to return to and no change inside the incident window [tr_64ac25ba73d6]. Reverting paymentservice would therefore either be a no-op or would re-apply a loopback trace endpoint \u2014 actively harmful. restart_service fails its precondition too: the evidence points at a downstream wait, not at checkoutservice process state, and the service is demonstrably alive and serving [tr_05f23f43430f]. Restarting checkoutservice on a low-confidence guess would drop every in-flight order that is currently hanging rather than failing, converting silent slowness into confirmed lost orders, and would destroy the log continuity that is the best remaining lead. scale_service is unavailable by ADR-0029.",
+    "blast_radius": "None from this proposal. For contrast, the action not taken: restarting or rolling back checkoutservice would reset connections for frontend, which calls it, and would disturb the fan-out to paymentservice, emailservice, shippingservice, quoteservice, frauddetectionservice, accountingservice, cartservice, currencyservice and productcatalogservice \u2014 the five services that alerted three minutes after checkoutservice would see a second disturbance whose cause is us, making the original three-minute lag unreadable."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Checkout alerted first and its downstream consumers followed three minutes later, a fan-out pattern consistent with a real failure originating at or beneath checkout. No open incidents to attribute it to and nothing here is dismissible."
+  }
+}

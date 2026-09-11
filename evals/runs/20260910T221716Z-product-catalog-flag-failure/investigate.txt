@@ -1,0 +1,7 @@
+incident 0bc3f39e-3798-440e-9fa8-3da633ed0512  state triaging  anchor 22:20:30
+triage: 7 services, severity critical, start from productcatalogservice, 1 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: earliest alerting service (no error-ratio series available)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T221716Z-product-catalog-flag-failure/0bc3f39e-3798-440e-9fa8-3da633ed0512-verdict.json

@@ -1,0 +1,43 @@
+incident fdd89423-af39-4ad4-8890-ca332028f827  state triaging  anchor 14:53:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 71a07407-8bad-4f78-82cf-d57f051d7bd6
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alert on frontend with the load generator following shortly after indicates user-facing impact, not a lone synthetic-probe artifact. No open incidents to attribute it to, and the fault could sit in any of several first-hop dependencies, so specialists are warranted.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s) 2 failed dispatch(es)
+  FAILED DISPATCH planner: dispatch service 'frontend,adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice.
+  FAILED DISPATCH planner: dispatch service 'adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice.
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Three things would have to change for an action to be justified. (1) shippingservice becomes a legal target — then rollback_image on shippingservice, whose change history records a prior image tag and an in-window image override at 14:24:15 [tr_af048c7f3e68], is the indicated proposal. (2) Direct observation of shippingservice at onset shows the adservice-tagged image running and nothing bound to 50050 — the verdict itself concedes this was never observed and that the bad image was recorded as reverted 19m before onset [tr_af048c7f3e68]. (3) The trace/log contradiction is resolved: the 14:55:25-14:55:50 sample shows the shipping GetQuote path completing successfully in ~7ms with zero errored spans [tr_07959bffd11b], which directly conflicts with 'nothing is listening on 50050' during the same seconds. Until that is explained, acting on the shipping-image hypothesis is acting on an unverified mechanism. Nothing here justifies touching a service that is a legal target: frontend has no changes to revert [tr_eed7e45b0514], its own logs rule it out as the faulty component, and the error ratio never departs sustainably from baseline [tr_71c3c01b8f1a], so restarting or rolling back frontend or any fan-out candidate would be a guess against the evidence.
+  rests on    : tr_af048c7f3e68, tr_eed7e45b0514, tr_07959bffd11b, tr_71c3c01b8f1a
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 19818 pushed / 5275 pulled (pull rate 0.2102), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_ebfa7a07f037, tr_af048c7f3e68, tr_71c3c01b8f1a
+  root cause  : Frontend's shipping-quote gRPC calls fail at connection setup: refused dial to 172.18.0.7:50050 early, then raw UNAVAILABLE 'no connection established' at 14:55:42-46 [tr_ebfa7a07f037]. Nothing is listening on shippingservice's serving port. The shippingservice change log shows platform-automation repeatedly overriding the container image to an adservice-tagged demo image and reverting it, cycling ~5 times over 19 hours [tr_af048c7f3e68]; the first frontend refusal (~14:24:18) follows the 14:24:15 image override by seconds. So the wrong artifact is running in the shippingservice slot and does not bind port 50050. Frontend has no changes and no local faults [tr_eed7e45b0514, tr_ebfa7a07f037]. The chronic flapping explains the mild, unsustained frontend error-ratio shift with baseline maxima near incident maxima [tr_71c3c01b8f1a].
+  OPEN        : Which image and port state shippingservice actually had at 14:53:45 was never observed directly - the changes specialist ruled the bad-image override reverted 19m before onset, so an unrecorded re-application or a stale pod is assumed, not proven.
+  OPEN        : The late 14:55:xx UNAVAILABLE lines carry no target address or method [tr_ebfa7a07f037], so the callee at onset time is inferred from the earlier lines rather than identified.
+  OPEN        : No dispatch reached shippingservice or quoteservice logs/metrics, and planner errors dropped the adservice/cartservice/checkoutservice/productcatalogservice/recommendationservice fan-out entirely - a broader infrastructure or network cause remains untested.
+  OPEN        : Traces sampled only 14:55:25-14:55:50 with zero errors [tr_07959bffd11b], which is in tension with the log evidence and unexplained.
+
+=== FLAGGED ===
+  planner produced no valid findings: dispatch service 'frontend,adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice.
+  planner produced no valid findings: dispatch service 'adservice,cartservice,checkoutservice,productcatalogservice,recommendationservice' names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice.
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T145020Z-ad-memory-squeeze/fdd89423-af39-4ad4-8890-ca332028f827-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T145020Z-ad-memory-squeeze/fdd89423-af39-4ad4-8890-ca332028f827-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10349.61it/s]

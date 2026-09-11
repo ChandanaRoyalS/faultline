@@ -1,0 +1,176 @@
+{
+  "incident_id": "b8f15113-f3ca-4b35-b021-f833c60cacfe",
+  "trajectory_id": "2262b002-3224-4a21-bbfa-354ff412b406",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-bad-image-tag",
+  "verdict": {
+    "root_cause": "At 20:55:21 cartservice logged an orderly hosting-lifetime shutdown and then emitted nothing for the remaining five minutes of the window [tr_aef3c0d8efc6]; one second later the change log records an image-reference update on cartservice to `...v1.2.1-cartservice-hotfix.2` by platform-automation [tr_43e2b50377c9]. The replacement never resumed serving: cart logs stay silent while every one of 10 sampled failing checkout traces terminates with the error flag on the leaf CartService/GetCart span, with near-zero self time in checkoutservice's own spans [tr_35955453bf63], and checkoutservice logs show orders entering PlaceOrder from ~20:56:49 onward without the payment/email/message-write completion lines that accompanied earlier successful orders [tr_161a559ef3a0]. checkoutservice itself has no changes in the window [tr_d6b858e8bc87], no error-severity logs [tr_161a559ef3a0], and no service-wide error step-up at onset [tr_e19a0159dcc4] \u2014 it is the caller reporting a dead dependency. The failing artifact is the cartservice hotfix image that took the place of a healthy process and did not come back up; checkout and frontend errors follow mechanically from GetCart being unavailable.",
+    "service": "cartservice",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_43e2b50377c9",
+      "tr_aef3c0d8efc6",
+      "tr_35955453bf63",
+      "tr_161a559ef3a0",
+      "tr_d6b858e8bc87",
+      "tr_e19a0159dcc4",
+      "tr_d7bc36981895"
+    ],
+    "reasoning": "Three independent signals converge on the same second. The change log puts an image swap on cartservice at 20:55:22 [tr_43e2b50377c9]; cartservice's own logs show a clean SIGTERM-style shutdown at 20:55:21 followed by five minutes of total silence, with normal traffic served right up to 20:55:17 and no exception or stack trace beforehand [tr_aef3c0d8efc6] \u2014 i.e. the process was stopped for the rollout, not killed by an in-process fault. What distinguishes this from a routine rolling update is that nothing came back: no startup banner, no further cart operation traces. The failure mode seen from above matches exactly \u2014 all 10 failing traces share one shape and die at the CartService/GetCart leaf, with checkoutservice spans carrying near-zero self time, so checkout is not the author of the error, it is propagating one [tr_35955453bf63]. checkoutservice log lines corroborate: order entry continues but the downstream completion sequence stops after ~20:56:49 [tr_161a559ef3a0]. Ownership is settled negatively too: checkoutservice has zero recorded changes in a 24-hour window [tr_d6b858e8bc87] and its aggregate error ratio actually fell relative to baseline with only a late brief spike [tr_e19a0159dcc4], so nothing about checkoutservice explains the onset. The two configuration hypotheses on cartservice that could have produced a bad_config verdict are excluded by their own revert records: REDIS_ADDR was reverted ~2.2h before onset and the traffic-shaping container removed ~2.5h before onset [tr_43e2b50377c9]. Fast failures of 1.5-4.5ms at the deepest error span rule out a latency/timeout mechanism [tr_35955453bf63]. That leaves the running artifact itself as the wrong thing: the fix is to revert the image reference to the pre-hotfix tag, which the automation's own history shows it has done three times before [tr_43e2b50377c9].",
+    "open_questions": [
+      "No container or pod state was ever queried \u2014 we infer the new cartservice image failed to start from log silence alone. Whether it is crash-looping, stuck pulling the image, failing a readiness probe, or was simply never scheduled is unestablished, and each implies a slightly different fix.",
+      "cartservice emits no calls_total series under that service_name label in either window [tr_d7bc36981895], so there is no server-side confirmation of cart errors at all; the entire cart-side failure picture rests on log absence plus client-side trace spans.",
+      "The pre-existing nonzero checkoutservice error ratio in the baseline window [tr_e19a0159dcc4] is unexplained and may indicate a second, unrelated degradation predating 20:55 \u2014 the earlier revert cycles of this same hotfix may be its source.",
+      "The change record shows the prior image value as null rather than a concrete previous tag [tr_43e2b50377c9], so the exact artifact to roll back to is not named in the evidence.",
+      "Only checkoutservice and cartservice were investigated. Of 12 services in the blast radius with 4 unmeasured edges crossed, no evidence rules out a concurrent independent failure elsewhere that the cart outage is masking.",
+      "Whether cartservice recovered after 21:00:36 is outside every queried window; if the automation loop reverted the hotfix as it has previously, the incident may have self-resolved."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The new cartservice container starts but is killed for exceeding a memory or CPU limit, so cart is repeatedly down rather than statically broken.",
+        "service": "cartservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "rollback",
+        "why_not": "No memory, CPU or restart-count metric was ever collected for cartservice [tr_d7bc36981895], so this is unfalsified rather than supported. It also predicts intermittent recovery windows with fresh startup logs between kills, and the logs show flat, unbroken silence after a single clean shutdown [tr_aef3c0d8efc6]. Note the remediation is the same either way, which lowers the operational cost of this ambiguity.",
+        "confidence": "low"
+      },
+      {
+        "root_cause": "cartservice's Redis/cache backend became unavailable at ~20:55, and the cart process exited or failed to re-establish its connection on restart.",
+        "service": "cartservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "cartservice logged no cache endpoint, connection failure or timeout text in the 20:54:51-20:55:21 lines immediately preceding shutdown [tr_aef3c0d8efc6], and both REDIS_ADDR edits were reverted hours before onset [tr_43e2b50377c9]. The coincidence of shutdown with the image update to within one second is a far tighter explanation than an unlogged backend failure. Redis was never directly queried, however, so this is not fully closed.",
+        "confidence": "low"
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **3m18s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25888,
+    "pulled_tokens": 6771,
+    "pull_rate": 0.2073,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 483,
+        "content_tokens": 485,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1550,
+        "content_tokens": 1554,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7830,
+        "content_tokens": 7806,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7340,
+        "content_tokens": 7342,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8685,
+        "content_tokens": 8662,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_43e2b50377c9",
+      "tr_aef3c0d8efc6",
+      "tr_35955453bf63"
+    ],
+    "expected_effect": "Redeploying cartservice at its pre-20:55:22 image should restore a serving cart process: cart-service logs in Loki resume routine GetCartAsync/AddItemAsync lines, ending the silence since 20:55:21; sampled checkout traces stop terminating on an error-flagged leaf CartService/GetCart span; checkoutservice logs resume the payment/email/message-write completion lines after each PlaceOrder entry. No cart-side error-ratio metric exists (cartservice emits no calls_total series), so confirmation must come from cart logs plus client-side traces.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if cart logs are still silent 5 minutes after the recreate (failure is image-pull, scheduling, or readiness rather than the artifact), or if cart logs resume but checkout traces still error at the GetCart leaf (fault is on the cart-to-Redis path), or if failing traces had already stopped before the action landed (the automation loop self-reverted).",
+    "risk": "The prior image is recorded as null, so the rollback may resolve to no valid tag and leave cartservice down longer. A concurrent platform-automation apply/revert cycle on the same hotfix could flap the container. If the real defect is process/environment state rather than the image, this restart-equivalent may mask it briefly and it will recur. The unexplained pre-existing checkoutservice error ratio would remain untouched.",
+    "blast_radius": "cartservice only during the recreate; its inbound callers frontend and checkoutservice see connection resets for the recreate duration, and loadgenerator-driven checkout requests in flight will fail."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on checkout and frontend plus the load generator, all simultaneous, describe user-facing order-path failure that cannot be dismissed. No open incidents to attribute it to, and the alert pattern alone does not distinguish a bad deploy from a failing downstream dependency."
+  }
+}

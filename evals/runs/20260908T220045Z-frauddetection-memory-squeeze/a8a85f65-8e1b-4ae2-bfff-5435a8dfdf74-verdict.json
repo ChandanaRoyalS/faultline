@@ -1,0 +1,164 @@
+{
+  "incident_id": "a8a85f65-8e1b-4ae2-bfff-5435a8dfdf74",
+  "trajectory_id": "d6cca38c-a685-4d2d-bffe-cbd6c1dd6c68",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origin": "scenario:frauddetection-memory-squeeze",
+  "verdict": {
+    "root_cause": "About five minutes before onset, platform-automation reapplied a resource_limits change that constrained frauddetection-service to a 200m memory limit where previously no explicit limit was set [tr_c4ec650eee6e]. The service had been consuming Kafka order records normally and monotonically right up to 22:00:48 [tr_6aa7098319b9], essentially coincident with that change, and then went completely silent \u2014 no further log output for the remaining ~8 minutes of the window, with no error, exception, OOM or dependency-failure lines preceding the silence [tr_6aa7098319b9]. The failure mode is loss of output rather than error output, and the fraud consumer spans immediately before the cutoff were flat and healthy at ~0.1-0.2ms with no ramp [tr_2ef732b65192]. The most coherent reading is that the newly reintroduced 200m limit is below the container's steady-state working set, so the process was killed for exceeding it shortly after the limit took effect and has not stayed up since; the same limit reduction had been applied and reverted ~15.7h earlier [tr_c4ec650eee6e], which is consistent with it being known-unsurvivable. Because the fraud hop is an async Kafka consumer hanging off a fire-and-forget 'orders send' producer span, the outage is contained to unprocessed fraud checks and does not break user-facing checkout [tr_2ef732b65192], which explains why only this one service alerted.",
+    "service": "frauddetectionservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_c4ec650eee6e",
+      "tr_6aa7098319b9",
+      "tr_2ef732b65192",
+      "tr_2c74fe8b5805",
+      "tr_229206830158"
+    ],
+    "reasoning": "Three independent strands line up on one moment. Changes place an automated memory-limit reduction to 200m at 22:00:50, moving from unlimited to constrained [tr_c4ec650eee6e]. Logs show healthy, steady, monotonic order consumption through 22:00:48 and then total silence for the rest of the window, with zero error or exception text anywhere [tr_6aa7098319b9] \u2014 an abrupt stop, not a degradation, which is the signature of the process being terminated rather than failing requests. Traces corroborate the abruptness: pre-cutoff consumer spans are flat at ~0.1-0.2ms with no errors and no latency creep [tr_2ef732b65192], ruling out a slow dependency or a building internal fault as the mechanism. I classify this as resource_exhaustion rather than bad_config because the failing mechanism is the process being killed for exceeding the memory it needs; the limit edit is how it started, exhaustion is what is happening. Remediation is config_revert because the limit reduction is what must be undone (there is precedent: the identical reduction was reverted ~15.7h before onset [tr_c4ec650eee6e]) \u2014 a bare restart would return the pod to the same 200m ceiling. I name frauddetectionservice rather than a caller because the change landed on this service, the silence is on this service, and the trace topology shows the caller cannot fail or time out on fraud unavailability [tr_2ef732b65192], so no other service's symptoms need to follow from it. Confidence is medium, not high, because the kill itself was never directly observed.",
+    "open_questions": [
+      "No container-level evidence was ever retrieved: container_memory_working_set_bytes against the 200m limit, kube_pod_container_status_restarts_total increments, and OOMKilled termination reasons were not queried [tr_229206830158]. The OOMKill is inferred from timing and silence, not confirmed.",
+      "Log silence begins at 22:00:48, marginally before the recorded change timestamp of 22:00:50 [tr_6aa7098319b9][tr_c4ec650eee6e]. Whether that is clock skew, change-record lag, or genuine precedence (silence starting before the limit landed) is unsettled and matters for causal ordering.",
+      "The error-ratio series returned no samples in both the incident and baseline windows [tr_2c74fe8b5805], so call-derived metrics could neither confirm nor deny anything here. Whether this reflects a service_name/telemetry naming gap or genuinely absent instrumentation was not determined, and it means the alert's own trigger signal is unexplained.",
+      "Only 5 of 10 matching traces were rendered and the result is truncated, so whether any frauddetectionservice spans exist between 21:52:14 and 22:08:44 is unknown [tr_2ef732b65192] \u2014 the trace evidence cannot independently confirm the cutoff moment.",
+      "Whether upstream checkoutservice order production continued past 22:00:48 was not verified; if it stopped, the fraud consumer's silence could be a downstream artefact rather than a local kill.",
+      "Why platform-automation reapplied a limit it had already reverted 15.7h earlier is unknown; without that, a revert may be undone again by the same actor.",
+      "The one anomalous trace at 21:52:14 lacking an 'orders send' producer span and a shipping/quote leg [tr_2ef732b65192], and the separately flagged shipping->quoteservice hop consuming 19-23% of trace self-time, were not investigated and may be unrelated background degradation."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Upstream order production (checkoutservice or the Kafka broker) stopped at ~22:00:48, so the fraud consumer had nothing to log and is idle rather than dead.",
+        "service": "checkoutservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "A local change landed on frauddetection-service within seconds of the silence [tr_c4ec650eee6e], which is a far tighter coincidence than an unexplained upstream stall; no dispatch found any producer-side fault, and the checkout path and root frontend requests complete normally in the traces examined [tr_2ef732b65192]. It remains admissible only because producer activity after 21:52:14 was never verified.",
+        "confidence": "low"
+      },
+      {
+        "root_cause": "The 200m value is itself simply the wrong limit for this workload, making the misconfiguration the failure rather than any exhaustion event.",
+        "service": "frauddetectionservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Same upstream act, but the taxonomy asks what is happening now: the service is not mis-addressing a dependency or inserting delay, it is being terminated for exceeding memory it needs, which is resource_exhaustion. This distinction changes the fault_class label but not the fix, so it is a low-stakes runner-up.",
+        "confidence": "medium"
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Root cause: adservice's container memory limit was reduced below the footprint its JVM was\nconfigured for. Nothing about the service changed \u2014 only the ceiling it was allowed to\noccupy. From the first restart after the change, the runtime could not complete a startup\ninside the new limit: it",
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m50s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **2**. Over the"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 20862,
+    "pulled_tokens": 6764,
+    "pull_rate": 0.2448,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 365,
+        "content_tokens": 368,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1285,
+        "content_tokens": 1289,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6106,
+        "content_tokens": 6082,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6027,
+        "content_tokens": 6029,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7079,
+        "content_tokens": 7056,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "frauddetectionservice",
+    "rests_on": [
+      "tr_c4ec650eee6e",
+      "tr_6aa7098319b9",
+      "tr_2ef732b65192"
+    ],
+    "expected_effect": "Restoring the pre-22:00:50 config (no explicit memory limit, the state that held for the prior ~15.7h) and recreating the container should end the log silence: Loki {service=\"frauddetection-service\"} should show 'Consumed record ... updated total count to: N' lines resuming within a few minutes, advancing monotonically from ~1508, likely with a backlog burst. Restart counters should stop incrementing. Error-ratio metrics cannot confirm anything here \u2014 both windows were empty [tr_2c74fe8b5805] \u2014 so log resumption is the only readable signal.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "No log lines within ~5 minutes falsifies it. Alternatives: checkoutservice stopped producing past 22:00:48 (never verified), making fraud silence a downstream artefact; or the 22:00:48 silence genuinely precedes the 22:00:50 change, breaking causal order. Logs resuming then stopping again with no limit in force points at a leak or broker/consumer-group fault instead.",
+    "risk": "The recreate discards in-process state and uncommitted Kafka offsets, so fraud checks near the cutoff may be re-processed or dropped. If the 200m limit was deliberate and the process leaks, removing it lets memory grow unbounded and pressures the host. The OOMKill is inferred from timing and silence only \u2014 no working-set, restart or OOMKilled series was ever queried [tr_229206830158] \u2014 so this may be a restart in config_revert clothing, leaving the cause unresolved. Platform-automation may reapply the limit again; that actor is outside this system's reach.",
+    "blast_radius": "One service. frauddetectionservice is a leaf Kafka consumer off checkoutservice's fire-and-forget 'orders send' span [tr_2ef732b65192], so checkout and frontend see no reset. Sibling accountingservice consumer is unaffected. Only unprocessed fraud checks are at stake."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A single critical alert on frauddetectionservice with no open incidents to attribute it to; critical severity is not dismissible without evidence."
+  }
+}

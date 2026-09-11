@@ -42,7 +42,7 @@ from pathlib import Path
 from typing import Any
 
 from evalharness.evaldb import outcome_of
-from evalharness.generations import WORLD_90E, generation_of
+from evalharness.generations import CURRENT_OBSERVABILITY, WORLD_90E, generation_of
 from evalharness.run import counts_toward_aggregates
 from evalharness.scenario import Scenario
 
@@ -116,16 +116,52 @@ def _manifests(runs: Path) -> list[dict[str, Any]]:
     ]
 
 
-def _qualifies(manifest: dict[str, Any], world: str) -> bool:
+def _qualifies(manifest: dict[str, Any], world: str, observability: str | None = None) -> bool:
     return (
         counts_toward_aggregates(manifest)
         # The pipeline arm only. A B0 baseline run (`manifest["baseline"]`, stamp
         # `+baseline:B0`) is scored on the same axes and would otherwise be summed in as if
         # the control were the system - RESULTS.md gives the baselines their own column.
         and not manifest.get("baseline")
+        # **And the full arm only.** A `--without traces` run is a different pipeline in exactly
+        # the sense the line above means it: T6.1 put `ablation` in `evaldb.FINGERPRINT_INPUTS`
+        # *"so an ablation run can never pool with a full run"*, and this table has its own filter
+        # that did not know about it. Arm B's first six runs landed straight into arm A's column
+        # on 2026-09-10 - `ad-memory-squeeze` read `n = 5` and `3 / 5` on the service axis, four
+        # of those runs being an arm measuring the opposite thing. **Third time**: the same hole
+        # took `observability_digest` two days earlier and the B0 arm before that. A key joining
+        # the fingerprint is not the same as a key joining this filter, and the fingerprint is not
+        # what a reader of README sees.
+        and not (manifest.get("ablation") or [])
         and outcome_of(manifest) == "scored"
         and generation_of(manifest).world == world
+        and _observability_agrees(manifest, observability)
     )
+
+
+def _observability(manifest: dict[str, Any]) -> str | None:
+    return ((manifest.get("freeze") or {}).get("world") or {}).get("observability_digest")
+
+
+def _observability_agrees(manifest: dict[str, Any], expected: str | None) -> bool:
+    """Whether this run's observability config is the one the current figures describe.
+
+    **A generation is named by `compose_digest` alone, and that is not the whole world (T6.1).** On
+    2026-09-08 fifteen runs were scored against a Tempo whose search was blind to the last five
+    minutes; the fix moved `observability_digest` and left `compose_digest` where it was, so those
+    runs and every run made after carry the same generation name. They are not the same world to an
+    agent, and this table's headline figures are about what an agent got right.
+
+    **A manifest that never recorded the digest is not excluded.** Absent means unknown, not
+    different - the same rule `evaldb.fingerprint` applies through `missing`, and the reason the
+    first version of this function was wrong: it dropped every run whose freeze predates T7.15,
+    which is most of the record. Only a *recorded and differing* digest excludes a run, and it
+    excludes it from the at-stamp figures alone; `evals/runs/` and the pooled column keep it.
+
+    Naming the generation properly is `docs/QUEUE.md` Q31.
+    """
+    recorded = _observability(manifest)
+    return expected is None or recorded is None or recorded == expected
 
 
 def rows(
@@ -133,6 +169,7 @@ def rows(
     runs: Path = RUNS,
     scenarios: Path = SCENARIOS,
     world: str = CURRENT_WORLD,
+    observability: str | None = CURRENT_OBSERVABILITY,
 ) -> list[ScenarioRow]:
     """One row per unblocked scenario, dev first, then holdout, alphabetical within each."""
     # The top-level files only: `evals/scenarios/examples/` is the schema's worked example and
@@ -140,15 +177,21 @@ def rows(
     loaded = (Scenario.from_yaml(p) for p in sorted(scenarios.glob("*.yaml")))
     catalog = [s for s in loaded if not s.blocked]
     catalog.sort(key=lambda s: (s.split != "dev", s.id))
-    qualifying = [m for m in _manifests(runs) if _qualifies(m, world)]
+    on_world = [m for m in _manifests(runs) if _qualifies(m, world)]
+    qualifying = [m for m in on_world if _qualifies(m, world, observability)]
 
     out: list[ScenarioRow] = []
     for scenario in catalog:
-        mine = [m for m in qualifying if m.get("scenario_id") == scenario.id]
+        # **The two columns ask different questions, so they filter differently.** The pooled
+        # column is context - every stamp on this compose world - and keeps runs whose
+        # observability differs, because dropping them would hide runs that happened.
+        # The at-stamp columns are the figures, and ask for both digests.
+        mine = [m for m in on_world if m.get("scenario_id") == scenario.id]
         at_stamp = [
             m
-            for m in mine
-            if str((m.get("score") or {}).get("runtime_version", "")).endswith(f"prompts:{stamp}")
+            for m in qualifying
+            if m.get("scenario_id") == scenario.id
+            and str((m.get("score") or {}).get("runtime_version", "")).endswith(f"prompts:{stamp}")
         ]
         out.append(ScenarioRow(scenario.id, scenario.split, Tally.over(at_stamp), Tally.over(mine)))
     return out
@@ -158,18 +201,44 @@ def _cell(correct: int, answered: int) -> str:
     return "—" if answered == 0 else f"{correct} / {answered}"
 
 
+def _repeats_sentence(table: list[ScenarioRow]) -> str:
+    """How many runs each dev scenario got at this stamp, read off the rows rather than asserted.
+
+    **Because the hand-written version went stale the moment it mattered.** The preamble said
+    *"R=1 everywhere, so no row is reproducible to ±1"* through every sweep in this repository, and
+    then arm A of dev sweep 12 landed thirty runs at R = 3 beside a sentence still saying R = 1.
+    A generated block that carries a hand-maintained claim about its own contents has one claim
+    nobody regenerates.
+    """
+    counts = sorted({r.at_stamp.n for r in table if r.split == "dev" and r.at_stamp.n})
+    if not counts:
+        return "No dev scenario has a run at this stamp."
+    if len(counts) == 1:
+        n = counts[0]
+        if n == 1:
+            return "R = 1 on every dev scenario with a run, so no row is reproducible to +/-1."
+        return (
+            f"R = {n} on every dev scenario with a run, which is what makes a row a small\n"
+            "sample rather than a single observation (RESULTS.md)."
+        )
+    return (
+        f"**Dev scenarios got different numbers of runs at this stamp ({counts}).** That is a "
+        "sweep the world did not complete, not a design - see the sweep's own divergence report."
+    )
+
+
 def render(stamp: str, table: list[ScenarioRow], world: str = CURRENT_WORLD) -> str:
     """The Markdown README embeds, markers included. Deterministic for a given tree."""
     lines = [
         BEGIN,
         f"Per scenario. The first four columns are at `prompts:{stamp}`, the stamp this",
-        f"repository ships, on the current world (`{world}`): scored runs only, demos and the B0",
-        "arm excluded. `class` and `service` are correct / answered; abstentions are counted in",
-        "`abst`, not as wrong. The last two columns pool every stamp on this world - **context,",
-        "not a figure**: a prompt change is a different pipeline, and the pooled column is here so",
-        "a reader can see how thin `n` is at any one stamp. Holdout scenarios have no run on this",
-        "world at all; the zeros are the record. R=1 everywhere, so no row is reproducible to ±1",
-        "(RESULTS.md).",
+        f"repository ships, on the current world (`{world}`): scored runs only, demos, the B0",
+        "arm and ablation arms excluded. `class` and `service` are correct / answered;",
+        "abstentions are counted in `abst`, not as wrong. The last two columns pool every stamp",
+        "on this world - **context, not a figure**: a prompt change is a different pipeline, and",
+        "the pooled column is here so a reader can see how thin `n` is at any one stamp. Holdout",
+        "scenarios have no run on this world at all; the zeros are the record.",
+        _repeats_sentence(table),
         "",
         "| scenario | split | n | class | abst | service | n, all stamps | class, all stamps |",
         "|---|---|---:|---:|---:|---:|---:|---:|",

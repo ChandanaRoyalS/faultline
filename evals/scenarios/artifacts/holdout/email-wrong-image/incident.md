@@ -2,29 +2,29 @@
 origin: scenario:email-wrong-image
 split: holdout
 fault_class: bad_deploy
-recorded_from: 2026-09-08T07:47:58+00:00
+recorded_from: 2026-09-09T05:45:08+00:00
 capability: cap:dd651ccc
-onset_to_page: 3m46s
+onset_to_page: 4m01s
 page_to_fix: 5m00s
-fix_to_all_clear: 1m16s
+fix_to_all_clear: 1m01s
 ---
 
 # Email service deployed with another service's image
 
 ## What was observed
 
-The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m46s after
+The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 4m01s after
 onset.
 
 On the storefront, browsing, search and basket operations were normal. Checkout failed.
 
 **emailservice did alert — but late, quietly, and not on anything resembling failure.**
-`ServiceNoTraffic` fired on it at **T+6m15s**, two and a half minutes after the page
-and more than six minutes after onset, and it is the only alert the broken service
+`ServiceNoTraffic` fired on it at **T+6m00s**, two minutes after the page
+and six minutes after onset, and it is the only alert the broken service
 produced. It never showed an error rate and never showed latency: a container that
 cannot finish starting serves nothing, so the only rule it can eventually trip is the
-one that notices an absence. Two alerts across two services, and for the first two and a
-quarter minutes the entire signal was one caller failing.
+one that notices an absence. Two alerts across two services, and for the first two
+minutes the entire signal was one caller failing.
 
 ## What was checked
 
@@ -74,7 +74,7 @@ should not be running run slightly further.
 ## Resolution
 
 The image reference was restored. emailservice came up on the next reconciliation and
-checkout succeeded immediately. Everything was clear **1m16s** after the fix —
+checkout succeeded immediately. Everything was clear **1m01s** after the fix —
 nothing had to drain or reconnect, and the checkout path recovered as soon as its
 dependency answered.
 
@@ -83,13 +83,13 @@ fix was to put the previous one back.
 
 ## Detection notes
 
-- Onset to first page: **3m46s**.
+- Onset to first page: **4m01s**.
 - Services alerting at the page: **1**. Over the whole incident: **2**, across 2 alerts.
 - Alerts that fired only during recovery: **none**.
 - **The broken service alerted last, and on absence rather than failure.** Its only alert
-  was `ServiceNoTraffic` at T+6m15s — no error rate, no latency, because a container that
+  was `ServiceNoTraffic` at T+6m00s — no error rate, no latency, because a container that
   cannot finish starting serves nothing and so fails nothing. A responder working from
-  the alert stream alone gets the caller first and the culprit two and a half minutes
+  the alert stream alone gets the caller first and the culprit two minutes
   later, in a form that says only "this stopped being called" and not "this is broken".
 - **Do not wait for the broken service to announce itself.** It did here, eventually, and
   the announcement carried less information than the dependency graph did — following

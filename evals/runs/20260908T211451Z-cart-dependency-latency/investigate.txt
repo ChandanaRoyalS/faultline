@@ -1,0 +1,45 @@
+incident 69b33bef-57d9-4957-be9e-f2d00d1f2be1  state triaging  anchor 21:18:15
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 4c414ea4-9ebc-4be4-a4e6-5bfa76b39ff1
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Four services alerted within 15s starting at cartservice and fanning out through checkoutservice and frontend to the load generator, which is a propagating user-facing failure rather than a single quiet warning. Cart being first and its dependents following suggests a downstream dependency or resource issue in cartservice.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Restoring cartservice's recorded pre-21:15 config and recreating the container destroys the network namespace the traffic-shaping sidecar attached to, removing the fixed eth0 delay=300ms/jitter=0ms. In Tempo (Prometheus has no usable cartservice series): HGET/HMSET self-time falls from ~300ms to single-digit ms, the ~300ms caller-client-to-server gap disappears, frontend GetCart drops from ~600ms to tens of ms and checkout paths from ~2.4s to under 100ms; the checkoutservice/frontend/loadgenerator latency alerts clear. cartservice logs resume routine add/get/empty cadence after one restart boundary.
+  within      : 300s
+  risk        : If the 300ms tax is not actually namespace-scoped to this container, the recreate buys nothing and costs a cold cartservice: in-process cache discarded, in-flight cart RPCs reset, and any concurrent redis-cart or checkoutservice contribution (never directly inspected) is left in place while attention moves on. Reverting config could also unwind an intended setting if the recorded prior config predates other legitimate changes.
+  blast radius: cartservice for the seconds of recreate; its inbound callers frontend and checkoutservice see connection resets on cart RPCs, which surfaces to loadgenerator as failed checkouts. redis-cart sees cart connections drop and re-open. Non-cart dependencies are untouched.
+  if wrong    : Falsified if traces 2-5 min after the recreate still show ~300ms self-time on cart Redis spans and the same caller-to-server gap - meaning the delay is re-applied by the recurring automation cycle or lives outside cartservice's config, and the real fix (disabling the fault-injection schedule) is outside this system's actions. Note the change record only names a container attach, not a config/flag edit, so the revert_config precondition is met only loosely; if change history holds no prior cartservice configuration, do not proceed. The frontend 14 UNAVAILABLE bursts before onset are unexplained by this diagnosis and will not clear.
+  rests on    : tr_3a9397b64997, tr_be586d4230a8, tr_09b630f058ba
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 25883 pushed / 7800 pulled (pull rate 0.2316), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_3a9397b64997, tr_be586d4230a8, tr_09b630f058ba, tr_9491d023980c, tr_1651701e75b5
+  root cause  : A platform-automation fault-injection sidecar attached to cart-service's network namespace ~3 minutes before onset and still in place at onset applies a fixed 300ms, zero-jitter delay to eth0 [tr_3a9397b64997]. Every packet in and out of the cartservice pod therefore pays that tax: traces show ~300ms of self-time on cartservice's Redis leaf spans (HGET/HMSET) and a second ~300ms gap between caller client spans and the cartservice server span, additive per round trip, so single-call frontend paths run ~600ms and checkout paths ~2.4s [tr_be586d4230a8]. cartservice itself is healthy — handler self-time is sub-millisecond, logs show uninterrupted routine cart operations with no errors, restarts or Redis failures, and non-cart dependencies in the same traces complete in single-digit ms [tr_09b630f058ba][tr_be586d4230a8]. checkoutservice, frontend and loadgenerator alerted 15s after cartservice because they are the waiters, not the source. The failing mechanism is injected wait on the cart call path, not a broken artifact, a wrong address, or exhausted capacity.
+  OPEN        : The frontend gRPC 14 UNAVAILABLE bursts at ~20:56:33 and ~21:04:33-34 carry no callee identifier and stop before onset [tr_9491d023980c]; they are unexplained by a 300ms delay and may be a separate, earlier fault (possibly tied to the image revert at ~21:04) rather than part of this incident.
+  OPEN        : cartservice call/error-ratio series do not exist in either incident or baseline windows [tr_7f00d2b84c4f][tr_1651701e75b5], so whether the latency actually converted into user-facing errors (deadline exceeded at checkoutservice/frontend) or only slow success is not settled; no request-rate, p95, readiness or restart metrics were retrieved.
+  OPEN        : The attach/remove pattern recurs on a cycle (attached and removed ~3h and ~15.8h earlier) [tr_3a9397b64997], so it is unknown whether the automation will self-remove the delay, and which experiment or owner scheduled this injection.
+  OPEN        : Triage crossed 4 unmeasured edges; no direct evidence was gathered from redis-cart or checkoutservice, so a concurrent contribution from either is uninspected.
+  OPEN        : Three fragmented cart cache traces with unattached spans [tr_be586d4230a8] leave a small amount of the cart call path without parent context.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T211451Z-cart-dependency-latency/69b33bef-57d9-4957-be9e-f2d00d1f2be1-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T211451Z-cart-dependency-latency/69b33bef-57d9-4957-be9e-f2d00d1f2be1-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10575.08it/s]

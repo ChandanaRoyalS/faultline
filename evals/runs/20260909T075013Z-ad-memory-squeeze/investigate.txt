@@ -1,0 +1,42 @@
+incident 2c562d8d-40e5-47f5-bf43-a1db1f1e9276  state triaging  anchor 07:53:15
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 43cc773a-0ef3-4c0f-89c6-f136f03c3b0e
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity at the frontend with the load generator also alerting indicates user-facing impact, not a lone synthetic-only signal. No open incident covers it and any of several downstream dependencies could be the cause, so it warrants investigation.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s) BUDGET EXHAUSTED (changes tool calls: 4 of 4 used)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if adservice is in fact simply dead and a container recreate would restore it - in that case the cost of waiting is continued ad-panel failure for every frontend request, visible as the same code 14 lines persisting. It is also wrong if the ~10% peak error ratio [tr_664069326583] is understating real user harm. Concretely: if an adservice pod-state or log query comes back showing a crash-looping or exited container with no in-window image or config change, restart_service on adservice becomes the correct proposal and this abstention should be overridden immediately.
+  rests on    : tr_71fa3376d57b, tr_d8e3a177e302
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22268 pushed / 3301 pulled (pull rate 0.1291), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_71fa3376d57b, tr_d8e3a177e302, tr_664069326583, tr_8c54913ce706, tr_eae1db565371
+  root cause  : Frontend's gRPC client calls to adservice are failing continuously with code 14 UNAVAILABLE, and the late-window lines name DNS name resolution of the adservice target on port 9555 as the failure surface [tr_71fa3376d57b]. No connection is ever established, so this is not slowness on an established path and not a frontend handler fault. Frontend itself is change-quiet [tr_d8e3a177e302], and the recorded changes on productcatalogservice and cartservice are matched platform-automation attach/revert pairs that all closed hours before onset [tr_8c54913ce706][tr_eae1db565371]. The most probable mechanism is that the adservice endpoint is not resolvable/registered - the service's pods or its DNS record are absent - so frontend's ad-panel calls fail for every request. Because the adservice change log was never queried (changes budget exhausted after four services), whether that unavailability stems from a bad rollout, a wrong target address, or crashed instances is not settled; the class is therefore reported as unknown rather than guessed.
+  OPEN        : adservice was never dispatched: its change log, logs, pod state and readiness at onset are entirely unobserved.
+  OPEN        : Whether the adservice DNS record/endpoint is missing because pods are down (crash, OOM, failed rollout) or because the target address configured in frontend is wrong.
+  OPEN        : Why frontend's aggregate error ratio is only ~10% at peak and below baseline on average if a whole dependency is unreachable - suggests ad calls are a minority path or partially degraded gracefully.
+  OPEN        : Whether the log-onset time (~07:26) versus the metric change point (07:52) reflect two distinct events or one ongoing failure.
+  OPEN        : Whether loadgenerator's alert is purely downstream of frontend or independent.
+  OPEN        : Whether the same platform-automation experiment cycle also touched adservice, which would make this an injected fault rather than an organic one.
+
+=== FLAGGED ===
+  budget exhausted: changes tool calls: 4 of 4 used
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T075013Z-ad-memory-squeeze/2c562d8d-40e5-47f5-bf43-a1db1f1e9276-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T075013Z-ad-memory-squeeze/2c562d8d-40e5-47f5-bf43-a1db1f1e9276-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8367.81it/s]

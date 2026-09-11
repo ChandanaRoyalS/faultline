@@ -1,0 +1,175 @@
+{
+  "incident_id": "d2558c36-ad5d-42ba-842c-beaf0d06005d",
+  "trajectory_id": "a2a1b2a1-5f37-46dd-9dd2-1cf4d7981a20",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:ad-memory-squeeze",
+  "verdict": {
+    "root_cause": "Frontend is not itself broken: every error it emits is a client-side gRPC status propagated from outbound calls that never established a connection [tr_bcae65308ea6]. At onset the failing call is a shipping-quote RPC to 172.18.0.7:50050 returning TCP connection refused \u2014 the name resolved but no listener was accepting, which is the signature of a shipping backend process that is down or not bound. Later in the window a second, distinct failure appears: DNS name resolution failure for adservice:9555. No change record explains either: frontend and checkoutservice have empty change logs [tr_e23a4a5dfbd5][tr_2321fe80a532], and the only mutations on productcatalogservice and cartservice are automation apply/revert pairs, all reverted 1.9-18.5 hours before onset [tr_665283141e69][tr_ca3b26de3bf8]. Frontend's aggregate error ratio moved only 1.8%->2.6% with no sustained departure [tr_740317c61dd9], consistent with a minority-of-traffic path (shipping quotes, ads) failing rather than a service-wide outage. The best-supported blame is the shipping service being unavailable at its listening endpoint; the fault class is left unknown because no dispatch reached shippingservice to determine whether it crashed, was never started, or is exhausted.",
+    "service": "shippingservice",
+    "fault_class": "unknown",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_bcae65308ea6",
+      "tr_740317c61dd9",
+      "tr_e23a4a5dfbd5",
+      "tr_665283141e69",
+      "tr_ca3b26de3bf8",
+      "tr_2321fe80a532"
+    ],
+    "reasoning": "The log dispatch is the only evidence that names a mechanism: connection refused at a concrete IP:port means resolution succeeded and the listener was absent, so the failure lives in the callee, not in frontend [tr_bcae65308ea6]. That same dispatch rules out frontend-local faults, auth/quota rejection, and slow-upstream timeouts. The metrics dispatch shows a small, non-sustained error-ratio rise, which fits a dependency on a minority path rather than a core-path outage [tr_740317c61dd9]. All four change dispatches were spent on services that turn out to have either empty logs or fully reverted automation experiments [tr_e23a4a5dfbd5][tr_2321fe80a532][tr_665283141e69][tr_ca3b26de3bf8], so no deploy or config edit is available as an explanation and the change budget is exhausted. Because no dispatch ever touched shippingservice or adservice directly, the mechanism behind the missing listener is unestablished \u2014 hence fault_class unknown and low confidence.",
+    "open_questions": [
+      "No dispatch examined shippingservice itself: whether it crashed, OOMed, crash-looped, or was never scheduled is entirely unestablished, and that determines the real fault class.",
+      "The adservice DNS resolution failures late in the window are unexplained and may be an independent fault, a shared control-plane/DNS problem, or a downstream effect; one unmeasured edge was crossed in triage.",
+      "Whether both symptoms share a single upstream cause (node, network namespace, or service-discovery plane) was never tested \u2014 no infrastructure-level dispatch was made.",
+      "The change budget was exhausted on services with no relevant changes; shippingservice's own change history was never queried and could still contain the trigger."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A shared service-discovery or DNS control-plane failure is making endpoints unreachable, producing refused connections to a stale IP and unresolvable names for adservice.",
+        "service": "frontend",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "The earliest failure resolved to a concrete IP and failed at TCP connect, so resolution was working at onset; DNS-only explanations were explicitly ruled out for the start of the window [tr_bcae65308ea6]."
+      },
+      {
+        "root_cause": "Shippingservice is up but out of connection/thread capacity, so the listener backlog rejects new TCP connections.",
+        "service": "shippingservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "Plausible and would produce the same refusal, but no metrics or logs from shippingservice were ever collected to show saturation; it is speculation on top of the same single log line."
+      },
+      {
+        "root_cause": "A residual effect of the automation-driven fault-injection cycles left a dependency in a bad state after the final revert.",
+        "service": "cartservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Every applied change has a matching revert with values returned to baseline, the last 1.9 hours before onset, and none of the injected changes involve the shipping endpoint [tr_ca3b26de3bf8]."
+      }
+    ]
+  },
+  "flags": [
+    "budget exhausted: changes tool calls: 4 of 4 used"
+  ],
+  "retrieved": [
+    " / Summary: Network delay injected into a container's namespace, so calls across that boundary take longer\nwhile both processes remain healthy.\n\n**Resolves by `restart`.** Every `dependency_latency` scenario in the catalog carries\n`expected_remediation_class: restart`, because the delay live",
+    "shipping-wrong-image / Resolution: The image reference was restored. shippingservice came up on the next reconciliation and\ncheckout succeeded immediately. The no-traffic alerts cleared as those services resumed.\nA brief `ServiceHighErrorRate` appeared on frontend fifteen seconds *after* the fix and\nlasted half a ",
+    "payment-telemetry-blackout / Resolution: The exporter endpoint was set back to the collector, and the traffic metric recovered within about a\nminute of the service picking the setting up. **Class of fix: `config_revert`** - a setting was\nreturned to its previous value. Nothing was rolled back, restarted for its own sake"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 23757,
+    "pulled_tokens": 3614,
+    "pull_rate": 0.132,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 425,
+        "content_tokens": 427,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2350,
+        "content_tokens": 2353,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6926,
+        "content_tokens": 6903,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board",
+          "incompleteness"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6512,
+        "content_tokens": 6514,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7544,
+        "content_tokens": 7547,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_bcae65308ea6",
+      "tr_740317c61dd9",
+      "tr_e23a4a5dfbd5"
+    ],
+    "expected_effect": "No action is proposed, so no change in any metric or log stream is expected. The observable that would matter next is a per-dependency error series or a direct dispatch against shippingservice; until one exists there is nothing this system can act on and expect to see move.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a dispatch against shippingservice shows a crash-looping or exited process AND shippingservice becomes a legal target \u2014 then restart_service on shippingservice is the correct proposal and the delay cost real minutes. It is also wrong if adservice is found to have exited (not merely unresolvable), since a restart there would restore the DNS A record and stop the status-14 name-resolution lines at frontend within about 60s. Neither is established by anything on this board: no dispatch reached shippingservice or adservice, so the distinction between 'process down', 'never scheduled', and 'service-discovery plane broken' is unmeasured.",
+    "risk": "The risk of abstaining is continued partial degradation: shipping quotes and ads keep failing on a minority of frontend traffic (error ratio ~2.6% vs ~1.8% baseline [tr_740317c61dd9]), so checkout paths that require a shipping quote stay broken while the investigation continues. The risk of the alternative \u2014 proposing restart_service against a service in the blast radius as a proxy for the real culprit \u2014 is worse: restart_service is irreversible, and recreating frontend or adservice on a diagnosis that names neither would discard their caches, reset connections for their callers, and destroy the process-state evidence that the still-open questions depend on.",
+    "blast_radius": "None from this proposal. For the record of what was declined: the mechanism named by the evidence sits on shippingservice, which is not among the services this incident reached (frontend, loadgenerator, adservice, cartservice, checkoutservice, productcatalogservice, recommendationservice), so no permitted action can target it. Any action taken instead would land on frontend \u2014 whose callers include loadgenerator and every browsing path \u2014 or on adservice, whose only named caller here is frontend.",
+    "_reasoning": "Three independent grounds, any one sufficient. (1) Target illegality: the verdict blames a shipping backend at 172.18.0.7:50050 refusing TCP [tr_bcae65308ea6], but shippingservice is not in the blast radius, so no legal target carries the mechanism. (2) Preconditions unmet: restart_service requires evidence pointing at process state; no dispatch examined shippingservice or adservice, so 'crashed vs never started vs exhausted' is entirely unestablished \u2014 connection-refused at frontend is consistent with all three plus a network-namespace fault. rollback_image and revert_config both require a change inside the window, and the change logs are empty for frontend and checkoutservice [tr_e23a4a5dfbd5][tr_2321fe80a532] with all other mutations reverted hours before onset. scale_service is unavailable. (3) Confidence is low and the fault class is unknown by the synthesizer's own account, with two distinct failure modes (TCP refusal on shipping, DNS resolution failure on adservice) not yet shown to share a cause."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical-severity alert on frontend with loadgenerator confirming user-visible impact, not a lone synthetic or single warning latency alert. No open incidents to attribute it to, and any of five direct dependencies could be the cause, so evidence is needed before naming a class."
+  }
+}

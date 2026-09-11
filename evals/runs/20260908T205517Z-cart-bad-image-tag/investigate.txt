@@ -1,0 +1,46 @@
+incident b8f15113-f3ca-4b35-b021-f833c60cacfe  state triaging  anchor 20:58:45
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 2262b002-3224-4a21-bbfa-354ff412b406
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on checkout and frontend plus the load generator, all simultaneous, describe user-facing order-path failure that cannot be dismissed. No open incidents to attribute it to, and the alert pattern alone does not distinguish a bad deploy from a failing downstream dependency.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : cartservice
+  expect      : Redeploying cartservice at its pre-20:55:22 image should restore a serving cart process: cart-service logs in Loki resume routine GetCartAsync/AddItemAsync lines, ending the silence since 20:55:21; sampled checkout traces stop terminating on an error-flagged leaf CartService/GetCart span; checkoutservice logs resume the payment/email/message-write completion lines after each PlaceOrder entry. No cart-side error-ratio metric exists (cartservice emits no calls_total series), so confirmation must come from cart logs plus client-side traces.
+  within      : 300s
+  risk        : The prior image is recorded as null, so the rollback may resolve to no valid tag and leave cartservice down longer. A concurrent platform-automation apply/revert cycle on the same hotfix could flap the container. If the real defect is process/environment state rather than the image, this restart-equivalent may mask it briefly and it will recur. The unexplained pre-existing checkoutservice error ratio would remain untouched.
+  blast radius: cartservice only during the recreate; its inbound callers frontend and checkoutservice see connection resets for the recreate duration, and loadgenerator-driven checkout requests in flight will fail.
+  if wrong    : Falsified if cart logs are still silent 5 minutes after the recreate (failure is image-pull, scheduling, or readiness rather than the artifact), or if cart logs resume but checkout traces still error at the GetCart leaf (fault is on the cart-to-Redis path), or if failing traces had already stopped before the action landed (the automation loop self-reverted).
+  rests on    : tr_43e2b50377c9, tr_aef3c0d8efc6, tr_35955453bf63
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 25888 pushed / 6771 pulled (pull rate 0.2073), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : tr_43e2b50377c9, tr_aef3c0d8efc6, tr_35955453bf63, tr_161a559ef3a0, tr_d6b858e8bc87, tr_e19a0159dcc4, tr_d7bc36981895
+  root cause  : At 20:55:21 cartservice logged an orderly hosting-lifetime shutdown and then emitted nothing for the remaining five minutes of the window [tr_aef3c0d8efc6]; one second later the change log records an image-reference update on cartservice to `...v1.2.1-cartservice-hotfix.2` by platform-automation [tr_43e2b50377c9]. The replacement never resumed serving: cart logs stay silent while every one of 10 sampled failing checkout traces terminates with the error flag on the leaf CartService/GetCart span, with near-zero self time in checkoutservice's own spans [tr_35955453bf63], and checkoutservice logs show orders entering PlaceOrder from ~20:56:49 onward without the payment/email/message-write completion lines that accompanied earlier successful orders [tr_161a559ef3a0]. checkoutservice itself has no changes in the window [tr_d6b858e8bc87], no error-severity logs [tr_161a559ef3a0], and no service-wide error step-up at onset [tr_e19a0159dcc4] — it is the caller reporting a dead dependency. The failing artifact is the cartservice hotfix image that took the place of a healthy process and did not come back up; checkout and frontend errors follow mechanically from GetCart being unavailable.
+  OPEN        : No container or pod state was ever queried — we infer the new cartservice image failed to start from log silence alone. Whether it is crash-looping, stuck pulling the image, failing a readiness probe, or was simply never scheduled is unestablished, and each implies a slightly different fix.
+  OPEN        : cartservice emits no calls_total series under that service_name label in either window [tr_d7bc36981895], so there is no server-side confirmation of cart errors at all; the entire cart-side failure picture rests on log absence plus client-side trace spans.
+  OPEN        : The pre-existing nonzero checkoutservice error ratio in the baseline window [tr_e19a0159dcc4] is unexplained and may indicate a second, unrelated degradation predating 20:55 — the earlier revert cycles of this same hotfix may be its source.
+  OPEN        : The change record shows the prior image value as null rather than a concrete previous tag [tr_43e2b50377c9], so the exact artifact to roll back to is not named in the evidence.
+  OPEN        : Only checkoutservice and cartservice were investigated. Of 12 services in the blast radius with 4 unmeasured edges crossed, no evidence rules out a concurrent independent failure elsewhere that the cart outage is masking.
+  OPEN        : Whether cartservice recovered after 21:00:36 is outside every queried window; if the automation loop reverted the hotfix as it has previously, the incident may have self-resolved.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T205517Z-cart-bad-image-tag/b8f15113-f3ca-4b35-b021-f833c60cacfe-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T205517Z-cart-bad-image-tag/b8f15113-f3ca-4b35-b021-f833c60cacfe-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 13758.82it/s]

@@ -1,0 +1,43 @@
+incident 4a88f40d-0f87-4124-88e6-53b22d5cac47  state triaging  anchor 14:05:15
+triage: 12 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 0ee406f2-29fe-4305-9deb-bda9b59055df
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service failure starting at checkoutservice and fanning out to its downstream consumers within three minutes; nothing here can be dismissed and no open incident covers it. Fault class is not evident from the alert pattern alone, though checkoutservice is the natural first target.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : shippingservice
+  expect      : Reverting shippingservice's config drops QUOTE_SERVICE_ADDR=http://quoteservice-gone:8090, set at 14:02:13 and never reverted [tr_87a2126c167b]. Expect shipping-service logs to resume the full 13:35 sequence (GetQuoteRequest, then quote-value, ship-order, tracking-ID) instead of bare request receipts [tr_239a7a606a6c]; checkout-service logs to resume payment/email/message-write lines after order start; and checkoutservice's error ratio to fall from ~4% back toward its ~1% baseline, with the ShippingService/GetQuote client span no longer marked ERROR [tr_4c3989b6e8d3].
+  within      : 300s
+  risk        : Restores the whole prior environment, not just one variable, so other intended env changes are silently undone. The recreate resets in-flight calls, briefly worsening checkout failures. If quoteservice is itself unhealthy, traffic returns to a broken dependency and fast clean errors may become slow timeouts. Live fault state is destroyed, leaving the unresolved status-code question unanswerable.
+  blast radius: shippingservice is down for the recreate; checkoutservice sees resets, and through it frontend and loadgenerator. quoteservice sees traffic return to it, with its own health unestablished.
+  if wrong    : Falsified if, 5 minutes after recreate, shipping-service still logs no quote-response lines, checkout-service still stops at order start, and checkoutservice's error ratio stays near 4%. Note shippingservice emits no calls_total samples, so callee-side confirmation is only available from logs and caller spans, not its own metrics.
+  rests on    : tr_87a2126c167b, tr_239a7a606a6c, tr_4c3989b6e8d3
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 28908 pushed / 13812 pulled (pull rate 0.3233), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_87a2126c167b, tr_239a7a606a6c, tr_4c3989b6e8d3, tr_92fe6efb6816, tr_184ca8359959, tr_6f5d83fc954b
+  root cause  : At 14:02:13, three minutes before onset, platform-automation set QUOTE_SERVICE_ADDR on shippingservice to a host whose name indicates it no longer exists, and unlike the four earlier occurrences of the same edit it was never reverted [tr_87a2126c167b]. With that value in effect shippingservice accepts well-formed GetQuoteRequests but never emits a quote response, ship-order or tracking line, a clear departure from the complete sequence logged an hour earlier [tr_239a7a606a6c]. checkoutservice consequently fails on the shipping-quote branch: in 10/10 sampled failing traces the deepest, earliest error span is its client call to ShippingService/GetQuote, with all sibling dependencies clean [tr_4c3989b6e8d3], and checkouts stall at or before payment [tr_92fe6efb6816], which explains the later alerts from accounting, email, fraud-detection and quoteservice. The mechanism is a configuration value naming an unreachable quote endpoint; the wrongness of that value is what breaks the request.
+  OPEN        : shippingservice's server span for GetQuote and its outbound HTTP child both complete without error status while only checkoutservice's client span errors [tr_4c3989b6e8d3]; the actual status code checkoutservice receives, and whether shippingservice returns a degraded/empty quote, is unsettled.
+  OPEN        : shippingservice emits no calls_total samples in either window [tr_bbe073ff1d98], so its error ratio, request rate and GetQuote latency are unmeasured and there is no metric-side confirmation of onset at the callee.
+  OPEN        : quoteservice alerted independently at 14:08:00 but was never dispatched against, so whether it is separately unhealthy or merely starved of traffic is unknown.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-quote-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T140204Z-shipping-quote-misconfig/4a88f40d-0f87-4124-88e6-53b22d5cac47-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T140204Z-shipping-quote-misconfig/4a88f40d-0f87-4124-88e6-53b22d5cac47-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10987.39it/s]

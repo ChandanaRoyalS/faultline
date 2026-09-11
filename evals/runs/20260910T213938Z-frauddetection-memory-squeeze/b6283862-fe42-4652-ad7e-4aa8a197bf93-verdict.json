@@ -1,0 +1,36 @@
+{
+  "incident_id": "b6283862-fe42-4652-ad7e-4aa8a197bf93",
+  "trajectory_id": "c269c031-7b1f-4c37-9dc4-b4cb4f2f19ef",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origin": "frauddetection-memory-squeeze",
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "summary": "suspect: service of the most recent pre-onset change in the window (21:39:42); class: that change was to resource_limits; remediation: table lookup from resource_exhaustion",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "frauddetectionservice",
+    "fault_class": "resource_exhaustion",
+    "fix_class": "config_revert",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (21:39:42)",
+      "class: that change was to resource_limits",
+      "remediation: table lookup from resource_exhaustion"
+    ]
+  }
+}

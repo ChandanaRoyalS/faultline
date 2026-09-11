@@ -33,8 +33,8 @@ benchmark** — see [RESULTS.md](../RESULTS.md).
 | [`payment-telemetry-blackout`](payment-telemetry-blackout.md) | `bad_config` | Payment service healthy, serving, and invisible in the traffic metric — 1 alerts over the window |
 | [`product-catalog-flag-failure`](product-catalog-flag-failure.md) | `bad_config` | A feature flag turned on at the flag service makes product catalog fail one product — 3 alerts over the window |
 | [`redis-cart-dependency-latency`](redis-cart-dependency-latency.md) | `dependency_latency` | Cart is slow because its datastore is, and the datastore has no spans — 4 alerts over the window |
-| [`shipping-quote-misconfig`](shipping-quote-misconfig.md) | `bad_config` | Checkout failed a quarter of its orders, and the service at fault reported nothing — 6 alerts over the window |
-| [`shipping-wrong-image`](shipping-wrong-image.md) | `bad_deploy` | Shipping service deployed with another service's image — 6 alerts over the window |
+| [`shipping-quote-misconfig`](shipping-quote-misconfig.md) | `bad_config` | Checkout failed a quarter of its orders, and the service at fault reported nothing — 5 alerts over the window |
+| [`shipping-wrong-image`](shipping-wrong-image.md) | `bad_deploy` | Shipping service deployed with another service's image — 8 alerts over the window |
 
 ## Holdout split
 

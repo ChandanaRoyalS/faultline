@@ -52,6 +52,14 @@ T7_28_FIRST_CAPTURE = "20260829T225404Z"
 T7_28_LAST_CAPTURE = "20260830T013651Z"
 T6_1_FIRST_CAPTURE = "20260908T045847Z"
 T6_1_LAST_CAPTURE = "20260908T140000Z"
+T6_1B_FIRST_CAPTURE = "20260909T025640Z"
+T6_1B_LAST_CAPTURE = "20260909T070000Z"
+"""**A second re-record, six hours after the first, and the reason is worth the extra window.**
+The first was made against a Tempo whose `max_block_duration` left its search blind to the last
+0-5 minutes - the window an investigation asks about. `compose/tempo.yaml` records the
+measurement. Fixing it moved `observability_digest` and left `compose_digest` alone, so this is
+the same world *era* and a different world to an agent; `evaldb.FINGERPRINT_INPUTS` is where that
+distinction is enforced."""
 """T6.1's re-record: thirteen bundles from 04:58:47Z, then one confirmation re-record of
 `cart-bad-image-tag` at 13:25Z (its first reading, 181s, was 61s below its historical minimum;
 the confirmation read 272s and both are published). The window's upper bound is rounded up past
@@ -63,6 +71,7 @@ RECORD_WINDOWS = (
     (T7_1_FIRST_CAPTURE, T7_1_LAST_CAPTURE, "T7.1"),
     (T7_28_FIRST_CAPTURE, T7_28_LAST_CAPTURE, "T7.28"),
     (T6_1_FIRST_CAPTURE, T6_1_LAST_CAPTURE, "T6.1"),
+    (T6_1B_FIRST_CAPTURE, T6_1B_LAST_CAPTURE, "T6.1b"),
 )
 
 WORLD_4A = "4a7690c6fdda"
@@ -70,7 +79,24 @@ WORLD_299 = "299d791c5e0d"
 WORLD_F5B = "f5bd108f4f70"
 WORLD_90E = "90e9f29e578e"
 """T6.1's world: Tempo beside Jaeger, and the collector exporting traces to both (ADR-0037).
-`observability_digest` moved with it, to `f3011ba83021`."""
+`observability_digest` moved with it, to `f3011ba83021`, and again to `7aaba3818737` when the
+trace store's block duration was fixed - see `CURRENT_OBSERVABILITY`."""
+
+CURRENT_OBSERVABILITY = "7aaba3818737582359ef74b125ae107096b2a8d90fc94d57c7af5ccc2fc676c8"
+"""The observability digest a figure at the current world is expected to carry.
+
+**Pinned rather than computed, for the same reason `WORLD_F5B` and its siblings are.** The first
+version of this read `provenance.observability_digest()` off the repository, which returns `None`
+when `world/` is not cloned - so README's generated table would have counted fifteen runs in CI and
+excluded them on the development Mac, and `test_readme_carries_exactly_what_the_tree_generates`
+would have passed in exactly one of the two places. A published figure's membership must not depend
+on whether the reader has cloned somebody else's repository.
+
+**Why it exists at all.** A generation is named by `compose_digest` alone, so the world whose Tempo
+was blind to the last five minutes and the world whose Tempo is not are one generation (Q31). This
+constant is what the scenario table's at-stamp columns compare against so that runs from the first
+cannot be printed as figures about the second. Move it when the observability files move, in the
+same commit that re-records the bundles."""
 
 WORLD_ERAS = (
     (T7_1_FIRST_CAPTURE, WORLD_4A),

@@ -1,0 +1,127 @@
+{
+  "alerts_at_fire": [
+    "ServiceHighErrorRate/checkoutservice"
+  ],
+  "alerts_over_window": [
+    {
+      "alert": "ServiceHighErrorRate",
+      "began_after_revert": false,
+      "first_seen": "2026-09-08T07:35:49+00:00",
+      "last_seen": "2026-09-08T07:42:19+00:00",
+      "minutes_firing": 6.8,
+      "service": "checkoutservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-08T07:38:34+00:00",
+      "last_seen": "2026-09-08T07:41:04+00:00",
+      "minutes_firing": 2.8,
+      "service": "accountingservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-08T07:38:34+00:00",
+      "last_seen": "2026-09-08T07:41:04+00:00",
+      "minutes_firing": 2.8,
+      "service": "emailservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-08T07:38:34+00:00",
+      "last_seen": "2026-09-08T07:41:04+00:00",
+      "minutes_firing": 2.8,
+      "service": "frauddetectionservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-08T07:38:34+00:00",
+      "last_seen": "2026-09-08T07:41:04+00:00",
+      "minutes_firing": 2.8,
+      "service": "quoteservice"
+    },
+    {
+      "alert": "ServiceNoTraffic",
+      "began_after_revert": false,
+      "first_seen": "2026-09-08T07:38:34+00:00",
+      "last_seen": "2026-09-08T07:41:04+00:00",
+      "minutes_firing": 2.8,
+      "service": "shippingservice"
+    }
+  ],
+  "baseline_clear_at": "2026-09-08T07:32:34+00:00",
+  "bundle_schema_version": 2,
+  "capture_set": 2,
+  "expected_remediation_class": "rollback",
+  "fault_class": "bad_deploy",
+  "injection": {
+    "method": "shipping-wrong-image",
+    "params": {
+      "expect_start": "yes",
+      "image": "ghcr.io/open-telemetry/demo:v1.2.1-adservice"
+    },
+    "target": "shippingservice"
+  },
+  "origin": "scenario:shipping-wrong-image",
+  "reachability": {
+    "answers_idle_or_absent": [
+      "logs"
+    ],
+    "derived_from": "the bundle's own captures (T7.5)",
+    "none_can_answer": false,
+    "runtime_series": 0,
+    "target_log_lines": 326
+  },
+  "recorded_by": "evalharness.rehearse",
+  "recorder": {
+    "git_dirty": true,
+    "git_sha": "9e2097767bfe3ceab21adf0faaab3204fb864655",
+    "tool": "evalharness.rehearse"
+  },
+  "scenario_fingerprint": "e223160aeb185a2c1c58488648b2817093d307f839a7940fe36e4f9d7fb3ccd6",
+  "scenario_id": "shipping-wrong-image",
+  "seconds_of_steady_state": 300,
+  "seconds_to_alert": 198,
+  "seconds_to_settle": 106,
+  "split": "dev",
+  "t_alert_firing": "2026-09-08T07:35:52+00:00",
+  "t_clear": "2026-09-08T07:42:38+00:00",
+  "t_inject": "2026-09-08T07:32:34+00:00",
+  "t_revert": "2026-09-08T07:40:52+00:00",
+  "title": "Shipping service deployed with the ad service's image",
+  "window": {
+    "end": "2026-09-08T07:44:38+00:00",
+    "start": "2026-09-08T07:27:34+00:00"
+  },
+  "world": {
+    "compose_digest": "90e9f29e578e7e98232ec89e92f2f5844a45482721acb52360010b97b387b7a5",
+    "docker_arch": "arm64",
+    "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
+    "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+    "host_platform": "Darwin/arm64",
+    "observability_digest": "f3011ba830219b3f530b0d954867924c9b4afe78fa42949335257f04a5d28410",
+    "observability_files": {
+      "compose/otelcol-extras.yml": "c3abca6bfdbab4a093de0c209a30f552a7c60d4cddd5a8cd1bed5bfea95db3b4",
+      "compose/prometheus/alert-rules.yml": "ae69d142bc571db5bd697f31368b8e7d5e533a3d0eecd4661ea2b29b7ea8672e",
+      "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
+      "compose/prometheus/prometheus-config.yaml": "230505c37ddc4f95aa9ec1b085bf1ea32a98346e27e5f6f813aef230f3def749",
+      "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
+      "compose/tempo.yaml": "7a9a7a455fd1581931a168ba9ae43a3dcf451328d192391244fbbfdc494dfcda",
+      "world/src/otelcollector/otelcol-config-extras.yml": "7f3afd57cd82f28d5c5948e843d7d594e60dfb0133611c540ff31fa31804ee92",
+      "world/src/otelcollector/otelcol-config.yml": "cf1645d90cc88effcb493edd196238bf73a14d1b30dc654325d25045be0377e5"
+    },
+    "otel_demo_image": "ghcr.io/open-telemetry/demo:v1.2.1-cartservice",
+    "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994"
+  },
+  "world_lock": {
+    "acquired": true,
+    "host": "chandanas-MacBook-Air.local",
+    "pid": 50108,
+    "reason": "rehearse shipping-wrong-image",
+    "since": "2026-09-08T07:32:29.076635+00:00",
+    "token": "50108-1788852749.076278"
+  }
+}

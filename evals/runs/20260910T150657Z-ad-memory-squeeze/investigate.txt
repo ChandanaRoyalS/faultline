@@ -1,0 +1,43 @@
+incident b475bd21-7bb1-4ce9-8c37-6e86580b8bbe  state triaging  anchor 15:10:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 491c1fdb-ed05-4ddf-aae2-44331fd2a159
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend plus the load generator simultaneously indicate a user-facing failure, not an isolated synthetic blip, and no open incident covers it. Cause is unclear at this stage; frontend's several dependencies are all viable candidates.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : adservice
+  expect      : Restoring ad-service's prior resource_limits state (memory uncapped, the value in force before the 15:07:02 edit) and recreating the container should end the crash-loop. Observable as: (1) in Loki {service="ad-service"}, the repeating three-line JVM/OpenTelemetry startup banner stops recurring — one final boot sequence and then no new banner at the ~60s backoff cadence seen at 15:08:17/15:09:11/15:10:14/15:11:18/15:12:20; (2) application-level 'received ad request' lines reappear in that same stream, as they did at 14:40-14:41; (3) frontend stops emitting gRPC code 14 UNAVAILABLE with DNS-resolution detail for the adservice target on port 9555.
+  within      : 300s
+  risk        : Two real risks. First, the reverted-to state is 'uncapped': if the true fault is an adservice memory leak or a genuine over-consumption that the cap was placed to contain, removing the ceiling lets the JVM grow without bound and shifts the failure from a contained crash-loop to host-level memory pressure, which can degrade services co-located on the same host rather than just adservice. Second, the revert fights an automated actor — platform-automation has oscillated this value eleven times in 24h — so the change may be silently re-applied, producing a flapping adservice and a confusing recovery signal. The recreate itself also discards the in-process cache and drops any in-flight ad calls.
+  blast radius: adservice directly. Within the traversed graph, frontend is the caller of adservice and is the service that sees the change: during the recreate its outbound ad calls continue to fail (they already are), and on success its code 14 UNAVAILABLE lines for :9555 should cease. loadgenerator sees it only indirectly through frontend. cartservice, checkoutservice, productcatalogservice and recommendationservice are not touched by this action, and the frontend aggregate error ratio is a poor witness here — it ran at ~0.4x baseline through the incident [tr_e05c7ecd11f7] and has no per-dependency dimension, so do not expect it to move.
+  if wrong    : Falsified if, more than ~2 minutes after the recreate, the ad-service stream still shows only startup banners repeating at backoff spacing with no request-handling lines, or frontend keeps logging code 14 UNAVAILABLE for adservice:9555. That would mean the container is dying for a reason other than the 256m ceiling — plausible, because no direct kill evidence was ever retrieved (no OOMKilled reason, no exit 137, no kubelet event, no memory-usage series) [tr_45865e0db755]. Note also two things this action is not predicted to fix and which must not be read as confirmation or refutation: the 13:18 payment-path failure (code 13 INTERNAL, refused dial to :50051) is a separate unexplained signature, and adservice's own error-ratio series is empty in both incident and baseline windows, so it cannot be used to confirm recovery — only logs can. Additionally, six prior lower/revert cycles by platform-automation are on record; if the automation re-applies the 256m cap the banners will resume, which falsifies durability rather than the diagnosis.
+  rests on    : tr_83587b9c5868, tr_45865e0db755, tr_12bd90c32996
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 25660 pushed / 4541 pulled (pull rate 0.1504), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_83587b9c5868, tr_45865e0db755, tr_12bd90c32996, tr_fba95be7a9b8, tr_e05c7ecd11f7, tr_182b1d3d5a80
+  root cause  : At 15:07:02 platform-automation lowered the ad-service memory limit from uncapped to a 256m cap, and this is the only lowering in a 17-hour oscillating sequence with no matching revert on record [tr_83587b9c5868]. Seconds later adservice entered a crash-loop: from 15:07:09 its stdout holds only repeating JVM/OpenTelemetry-agent startup banners, first every few seconds then at ~60s restart-backoff spacing through 15:12:20, with no request-handling lines and no exception or clean-shutdown text [tr_45865e0db755]. The container is being killed for exceeding the new ceiling before it reaches a serving state, so the adservice Service carries no ready endpoints and frontend's outbound ad calls fail at DNS name resolution for the adservice target on port 9555 with gRPC code 14 UNAVAILABLE at 15:12:35-15:12:37 [tr_12bd90c32996]. Frontend has no recorded change at onset [tr_fba95be7a9b8] and its own error ratio fell below baseline [tr_e05c7ecd11f7], so it is the service that noticed, not the one that broke.
+  OPEN        : No direct kill evidence was retrieved — no OOMKilled reason, exit code 137, kubelet events or memory-usage series; exhaustion is inferred from the edit plus restart cadence [tr_45865e0db755][tr_182b1d3d5a80].
+  OPEN        : The 13:18 payment-path failure (code 13 INTERNAL wrapping a refused dial to port 50051) is a second, unexplained signature; paymentservice was never dispatched [tr_12bd90c32996][tr_5c94d70e3097].
+  OPEN        : Severity was critical yet frontend's error ratio fell to ~0.4x baseline; the user-facing signal behind that rating was never measured, so blast radius is unquantified [tr_e05c7ecd11f7].
+
+flags: none
+
+retrieval: exclude_origin='scenario:ad-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T150657Z-ad-memory-squeeze/b475bd21-7bb1-4ce9-8c37-6e86580b8bbe-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T150657Z-ad-memory-squeeze/b475bd21-7bb1-4ce9-8c37-6e86580b8bbe-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9546.62it/s]

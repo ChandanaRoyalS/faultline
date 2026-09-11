@@ -1,0 +1,95 @@
+{
+  "run_id": "20260910T023313Z-cart-bad-image-tag",
+  "scenario_id": "cart-bad-image-tag",
+  "split": "dev",
+  "scenario_fingerprint": "d4b9a16337b55bfe9feb260c5e6c3173f6cf8b23fec2724198a472bd26481ada",
+  "started_at": "2026-09-10T02:33:13.020478+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "47179af247758a9142d174fa89e870557aabb277",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 99816,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-10T02:33:13.105858+00:00",
+    "reason": "faultline-eval cart-bad-image-tag",
+    "token": "99816-1789007593.105792"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": false,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 3231,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "ad-service",
+      623
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [
+      "d2558c36-ad5d-42ba-842c-beaf0d06005d"
+    ],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 28.71,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 3.1275,
+      "runs_remaining": 9,
+      "uptime_seconds": 8200,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 472.3,
+      "projected_percent": 51.77,
+      "threshold_percent": 66.94,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [
+      "1 non-terminal incident(s) in the store: d2558c36-ad5d-42ba-842c-beaf0d06005d - a new alert would correlate into one rather than opening its own"
+    ]
+  },
+  "refused": {
+    "reason": "baseline gate refused",
+    "at": "2026-09-10T02:33:19.559668+00:00"
+  }
+}

@@ -1,0 +1,171 @@
+{
+  "incident_id": "bd354f94-1820-4d8d-8a0d-70d53fe27265",
+  "trajectory_id": "d275b125-24e4-478e-8c47-c35b43c5a550",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "productcatalogservice is the only service with a genuinely new failure signal: its error ratio moved from an exactly-zero three-hour baseline (728 samples, sd 0) to bursty non-zero errors peaking near 8.9%, with the single change point at 13:41:30, roughly two minutes before the 13:43:30 onset [tr_66199bb75bba][tr_48a560fb07ca]. Frontend alerted first but was erroring five times less during the incident window than in its own baseline, so it noticed rather than caused [tr_4965971b05ec]. The two chaos-style mechanisms that could have explained it \u2014 cartservice's REDIS_ADDR/port-6380 override plus a 300ms egress-delay sidecar, and adservice's 256m memory squeeze \u2014 were fully reverted 57 minutes to 1.9 hours before onset and recur harmlessly on a schedule [tr_31b780db50dd][tr_daa248316d73], and productcatalogservice has no recorded deploy, config edit or flag flip in 24 hours [tr_fe8ce76e2a90]. The mechanism is unresolved: no latency, CPU, memory or restart series was returned [tr_48a560fb07ca][tr_66199bb75bba] and the one log query used a non-matching label and retrieved nothing [tr_638267373223]. I name the service but not the fault class.",
+    "service": "productcatalogservice",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_66199bb75bba",
+      "tr_48a560fb07ca",
+      "tr_4965971b05ec",
+      "tr_fe8ce76e2a90",
+      "tr_638267373223",
+      "tr_31b780db50dd"
+    ],
+    "reasoning": "Direction of blame rests on the only measured error-ratio change from a flat-zero baseline being productcatalogservice's [tr_48a560fb07ca][tr_66199bb75bba], while frontend's fell to a fifth of baseline with no sustained departure [tr_4965971b05ec]. I disagree with the specialist reading in [tr_66199bb75bba] that a 13:41:30 change point makes productcatalogservice a late symptom \u2014 the query window closed at 13:45, so 13:41:30 is coincident with onset, not at the tail of a long degradation. Mechanism is not established: bursty partial errors (minima at zero, ~8.9% peak) fit a flaky downstream call, an intermittently OOM-killed replica, or a data-dependent path equally well, and none of those signals were collected [tr_48a560fb07ca][tr_638267373223]. Both candidate mechanisms offered by change records had expired before onset [tr_31b780db50dd][tr_daa248316d73], and the blamed service has no local change at all [tr_fe8ce76e2a90], so assigning bad_config or resource_exhaustion would mean reading a class off a reverted record. Remediation is 'none' because no revertible or restartable state has been identified; the next act is measurement.",
+    "open_questions": [
+      "No latency, CPU/memory or restart data for productcatalogservice was ever returned, so OOM-kill or crash-loop remains untested.",
+      "No logs were read for productcatalogservice \u2014 the selector used a non-matching hyphenated label [tr_638267373223] \u2014 so panics and dependency errors are unexamined.",
+      "The unmeasured edge was never crossed: productcatalogservice's own downstream datastore/peers have no evidence, and four of seven blast-radius services got no dispatch."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A downstream dependency of productcatalogservice became intermittently slow and its errors are timeouts on that wait.",
+        "service": "productcatalogservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "No latency series or trace data was collected for the service or its peers, and the unmeasured edge was never crossed, so this is consistent with the error pattern but wholly unevidenced.",
+        "service_note": ""
+      },
+      {
+        "root_cause": "A memory limit squeeze from the recurring platform-automation experiment starved a productcatalogservice replica, killing requests as it was OOM-killed.",
+        "service": "productcatalogservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "config_revert",
+        "why_not": "The observed limit-squeeze automation targeted adservice, not productcatalogservice, and its last cycle was restored ~1.8h before onset [tr_daa248316d73]; productcatalogservice's own change log is empty [tr_fe8ce76e2a90] and no memory or restart metric was returned.",
+        "service_note": ""
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **3m30s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 3\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence two and a\n  half minutes la",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "productcatalogservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26485,
+    "pulled_tokens": 2933,
+    "pull_rate": 0.0997,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 415,
+        "content_tokens": 417,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1436,
+        "content_tokens": 1439,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8256,
+        "content_tokens": 8231,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7608,
+        "content_tokens": 7610,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8770,
+        "content_tokens": 8773,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_fe8ce76e2a90",
+      "tr_48a560fb07ca",
+      "tr_66199bb75bba",
+      "tr_638267373223"
+    ],
+    "expected_effect": "No action is proposed, so no change in any series is expected. The observable that matters next is diagnostic, not remedial: productcatalogservice's error ratio is bursty around a ~1% mean with an ~8.9% peak and a minimum still at zero [tr_48a560fb07ca][tr_66199bb75bba], i.e. the service is serving the large majority of calls, and frontend's own error ratio is five times below its baseline. Under no intervention the expectation is that this partial, intermittent error signal persists at roughly the same level and that no caller-visible availability drop appears \u2014 which is exactly the state in which the correct next step is a re-query (Loki with the unhyphenated label, plus latency/CPU/memory/restart series for productcatalogservice) rather than a container action.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "Abstention is falsified if the error ratio stops being bursty and climbs to a sustained level (min departing from zero, mean approaching the peak), or if restart-count data \u2014 once actually collected \u2014 shows productcatalogservice restarting repeatedly across 13:41:30 onward, or if a corrected log query returns panic/OOM lines. Any of those would name a mechanism and, for restarts or panics, would meet restart_service's precondition that evidence point at process state. Note also that the effect of a restart here could not be cleanly observed as things stand: with a mean error ratio near 1% and a minimum of zero, a 15-minute post-restart window of zeros is indistinguishable from the many all-zero windows already present in the incident data, so a restart would produce an unfalsifiable claim of success.",
+    "risk": "The risk of abstaining is that a real degradation continues for the length of another diagnostic round-trip; because the fault is partial (~99% of calls succeed) and checkoutservice and recommendationservice are only reached from productcatalogservice rather than shown to be failing, that cost is bounded. The risk of the action not taken is larger and is why it is not taken: restart_service on productcatalogservice discards its in-process cache and drops in-flight gRPC calls from frontend, checkoutservice and recommendationservice, converting an ~8.9%-peak intermittent error into a brief total unavailability for that service \u2014 and if the mechanism is downstream of productcatalogservice (its datastore or peers, for which there is no evidence at all), the restart clears nothing while the cold cache raises load on the very dependency that may be failing. rollback_image and revert_config are not merely risky but impermissible: the 24-hour change log for productcatalogservice is empty [tr_fe8ce76e2a90], so there is no prior image tag and no prior configuration to restore, and no deploy or config change inside the window to justify either. scale_service is unavailable per ADR-0029.",
+    "blast_radius": "Nobody sees a change, because nothing changes. The services that would have seen a restart are the named inbound callers of productcatalogservice \u2014 frontend (and loadgenerator's traffic through it), checkoutservice and recommendationservice \u2014 plus any user-facing checkout path that depends on catalog lookups; they retain the current partial-error behaviour instead of a short hard outage. The chaos-automation targets cartservice and adservice are untouched either way, their apply/revert cycles having completed 57 minutes and 1.8 hours before onset [tr_31b780db50dd][tr_daa248316d73]."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity with three simultaneous seed alerts spanning frontend and productcatalogservice plus the load generator indicates a real user-facing failure, not a single quiet warning. No open incidents to attribute it to, and the alert pattern does not favor one fault class yet."
+  }
+}

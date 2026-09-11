@@ -89,6 +89,8 @@ def _manifest(
     demo: bool = False,
     baseline: bool = False,
     world: str = st.CURRENT_WORLD,
+    observability: str | None = None,
+    ablation: list[str] | None = None,
     abstained: bool = False,
     correct: bool = True,
     service: bool | None = True,
@@ -99,10 +101,18 @@ def _manifest(
         "scenario_id": scenario,
         "injected_at": "2026-09-07T00:00:00+00:00",
         "demo": demo,
-        "freeze": {"world": {"compose_digest": world + "0" * 52, "host_platform": "Darwin/arm64"}},
+        "freeze": {
+            "world": {
+                "compose_digest": world + "0" * 52,
+                "host_platform": "Darwin/arm64",
+                **({"observability_digest": observability} if observability else {}),
+            }
+        },
     }
     if baseline:
         m["baseline"] = "b0"
+    if ablation is not None:
+        m["ablation"] = ablation
     if discarded:
         m["discarded"] = {"reason": "no-alert"}
         return m
@@ -188,3 +198,103 @@ def test_every_unblocked_scenario_is_a_row_and_no_blocked_or_example_one_is(tmp_
     assert not any(i.startswith("example") for i in ids)
     dev_then_holdout = [r.split for r in rows]
     assert dev_then_holdout == sorted(dev_then_holdout, key=lambda s: s != "dev")
+
+
+# --- a world is more than its compose files (T6.1, Q31) -----------------------------------------
+
+
+def test_a_run_on_a_different_observability_config_is_context_not_a_figure(tmp_path: Path) -> None:
+    """**A generation is named by `compose_digest` alone, and that is not the whole world.** On
+    2026-09-08 fifteen runs were scored against a Tempo whose search was blind to the last five
+    minutes; the fix moved `observability_digest` and left `compose_digest` where it was. Without
+    this the two would print as one set of figures about one world.
+
+    They stay in the pooled column, which is context and says so, and in `evals/runs/` entire.
+    """
+    scenario = "cart-redis-misconfig"
+    old, new = "0" * 64, st.CURRENT_OBSERVABILITY
+    runs = _tree(
+        tmp_path,
+        [
+            _manifest(scenario, observability=new),
+            _manifest(scenario, observability=old),
+        ],
+    )
+
+    row = next(r for r in st.rows("b6837dd449ca", runs=runs) if r.scenario_id == scenario)
+
+    assert row.at_stamp.n == 1, "only the run on this observability config is a figure"
+    assert row.on_world.n == 2, "both are context: the compose world is the same"
+
+
+def test_a_run_that_never_recorded_the_digest_is_unknown_rather_than_different(
+    tmp_path: Path,
+) -> None:
+    """**Absent means unknown, not different** - the rule `evaldb.fingerprint` applies through
+    `missing`. No freeze before T7.15 carries the field, which is most of the record, and the first
+    version of this filter dropped every one of them."""
+    scenario = "ad-memory-squeeze"
+    runs = _tree(tmp_path, [_manifest(scenario), _manifest(scenario, observability="0" * 64)])
+
+    row = next(r for r in st.rows("b6837dd449ca", runs=runs) if r.scenario_id == scenario)
+
+    assert row.at_stamp.n == 1, "the one with no digest counts; the one that differs does not"
+
+
+def test_the_expected_digest_is_pinned_rather_than_read_off_the_repository() -> None:
+    """**A published figure's membership must not depend on whether the reader cloned `world/`.**
+    Computing it meant `provenance.observability_digest()` returned `None` without the clone, so
+    README's table counted fifteen runs in CI and excluded them on the development Mac, and the
+    byte-for-byte guard above would have passed in exactly one of the two places."""
+    from evalharness import generations
+
+    assert len(generations.CURRENT_OBSERVABILITY) == 64
+    assert "observability_digest()" not in Path(st.__file__).read_text(), (
+        "the table must not compute the digest; move the constant when the files move"
+    )
+
+
+def test_an_ablation_arm_is_not_pooled_with_the_full_arm(tmp_path: Path) -> None:
+    """**Found on 2026-09-10, and it is the third of these.** T6.1 put `ablation` into
+    `evaldb.FINGERPRINT_INPUTS` so the two arms could never pool, and this table has its own
+    filter which did not know about it. Arm B's first six `--without traces` runs landed straight
+    into arm A's column: `ad-memory-squeeze` read `n = 5` with `3 / 5` on the service axis, four of
+    those runs measuring the opposite thing.
+
+    A key joining the fingerprint is not a key joining this filter. `observability_digest` was the
+    same hole two days earlier and the B0 arm was it before that.
+    """
+    scenario = "cart-redis-misconfig"
+    runs = _tree(
+        tmp_path,
+        [
+            _manifest(scenario, ablation=[]),
+            _manifest(scenario, ablation=None),
+            _manifest(scenario, ablation=["traces"], correct=False, service=False),
+        ],
+    )
+    row = next(r for r in st.rows("b6837dd449ca", runs=runs) if r.scenario_id == scenario)
+
+    assert row.at_stamp.n == 2, "the full arm only - an explicit [] and an absent key both count"
+    assert row.at_stamp.service_correct == 2
+    assert row.on_world.n == 2, "and the pooled column excludes it too: still a different pipeline"
+
+
+def test_the_repeats_sentence_is_read_off_the_rows(tmp_path: Path) -> None:
+    """The preamble said *"R=1 everywhere"* through every sweep in this repository and was still
+    saying it when arm A landed thirty runs at R = 3. A generated block may not carry a
+    hand-maintained claim about its own contents."""
+    scenario = "cart-redis-misconfig"
+    runs = _tree(tmp_path, [_manifest(scenario) for _ in range(3)])
+    rows = st.rows("b6837dd449ca", runs=runs)
+
+    assert "R = 3 on every dev scenario with a run" in st.render("b6837dd449ca", rows)
+
+    uneven = st.rows(
+        "b6837dd449ca",
+        runs=_tree(
+            tmp_path / "b",
+            [_manifest(scenario), _manifest(scenario), _manifest("cart-bad-image-tag")],
+        ),
+    )
+    assert "different numbers of runs at this stamp" in st.render("b6837dd449ca", uneven)

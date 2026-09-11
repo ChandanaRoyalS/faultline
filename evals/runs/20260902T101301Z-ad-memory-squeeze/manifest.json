@@ -315,5 +315,59 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-09-02T10:29:05.529312+00:00"
+  "finished_at": "2026-09-02T10:29:05.529312+00:00",
+  "judge": {
+    "scenario_id": "ad-memory-squeeze",
+    "run_id": "20260902T101301Z-ad-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both identify the memory limit being reduced below the JVM's working set, causing repeated process kills during startup.",
+    "dead_ends_closed": [
+      "frontend, cartservice, productcatalogservice code changes",
+      "ad service's own error metrics (confirmed as non-existent series, not disappeared)",
+      "the ad service errored on upstream calls"
+    ],
+    "dead_ends_missed": [
+      "change history for blast radius (acknowledged as still open)",
+      "kill event confirmation / restart-count series",
+      "the earlier code 14 error forty-five minutes before onset"
+    ],
+    "traps": [
+      {
+        "trap": "reading metrics series disappearance as pod death timing",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "ad service error ratio series vanishing means telemetry died with pods",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "the process is crashing, not being killed from outside",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "Agent explicitly acknowledges truncated log windows and missing direct kill confirmation, matching the recorded narrative's caution about what the evidence can and cannot show.",
+    "tokens_in": 5195,
+    "tokens_out": 319
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 34,
+    "depth": 35,
+    "elapsed_ms": 117353,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "Entry 34 (the synthesizer verdict) commits to the mechanism: the container memory limit was lowered to 256m, the JVM cannot hold its working set under that ceiling, and the container is killed and restarted repeatedly as a result\u2014exactly matching the narrative's root cause that 'adservice's container memory limit was reduced below the footprint its JVM was configured for.'",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
+  }
 }

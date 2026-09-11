@@ -475,7 +475,7 @@ def test_without_is_passed_through_to_every_run(monkeypatch: pytest.MonkeyPatch)
     """T6.1's arm B: one flag on the sweep, the same flag on every `faultline-eval` it launches, so
     a pass is an ablation pass whole or not at all."""
     seen: list[list[str]] = []
-    monkeypatch.setattr(sweep, "runnable", lambda: ["a", "b"])
+    monkeypatch.setattr(sweep, "runnable", lambda **_: ["a", "b"])
     monkeypatch.setattr(
         sweep, "sweep", lambda ids, **kw: seen.append(kw["extra"]) or sweep.SweepResult()
     )
@@ -483,3 +483,153 @@ def test_without_is_passed_through_to_every_run(monkeypatch: pytest.MonkeyPatch)
     sweep.main(["--tier", "weekly", "--without", "traces"])
 
     assert seen == [["--tier", "weekly", "--without", "traces"]]
+
+
+# --- what dev sweep 12 cost, closed three ways ---------------------------------------------------
+
+
+def test_the_catalog_is_dev_only_unless_a_driver_means_the_holdout() -> None:
+    """**Nine refusals and a poisoned projection (dev sweep 12).** `faultline-eval` refuses a
+    holdout scenario without `--holdout`, so a catalog sweep attempted three it could never run.
+    The refusals cost nothing; their place in `--runs-remaining` cost the sweep its first pass."""
+    dev = sweep.runnable()
+    both = sweep.runnable(holdout=True)
+
+    assert len(dev) == 10, "the ten dev scenarios PREREGISTRATION-T6.1.md section 4 registered"
+    assert set(both) - set(dev) == {
+        "email-wrong-image",
+        "productcatalog-dependency-latency",
+        "recommendation-memory-squeeze",
+    }
+
+
+def test_the_countdown_spans_one_pass_when_the_world_is_recycled_between_them() -> None:
+    """The gate projects kafka's growth over `--runs-remaining`. Told about 39 runs it forecast
+    124 % and refused fifteen slots at 24 % actual; told about one pass, it is being told the truth
+    - because the recycler clears kafka between passes."""
+    seen: list[list[str]] = []
+
+    def run(argv: list[str]) -> int:
+        seen.append(argv)
+        return 0
+
+    recycles: list[int] = []
+    sweep.sweep(["a", "b"], repeats=3, runner=run, recycler=lambda: recycles.append(1))
+
+    remaining = [argv[argv.index("--runs-remaining") + 1] for argv in seen]
+    assert remaining == list("212121"), "each pass counts down from its own length"
+    assert len(recycles) == 3, (
+        "before every pass, including the first. Arm B of dev sweep 12 began on the world arm A "
+        "had just exhausted and lost five of pass 1's ten slots to a projection that was right"
+    )
+
+
+def test_without_a_recycler_the_countdown_still_spans_the_whole_job() -> None:
+    """A driver that does not clear kafka must not tell the gate that it did."""
+    seen: list[list[str]] = []
+    sweep.sweep(["a", "b"], repeats=3, runner=lambda argv: seen.append(argv) or 0)
+
+    assert [argv[argv.index("--runs-remaining") + 1] for argv in seen] == list("654321")
+
+
+def test_a_sweep_that_scored_fewer_passes_than_it_declared_says_so() -> None:
+    """**The line dev sweep 12 did not print.** Fifteen runs wrote `repeat_count: 3` on a world
+    that gave five scenarios two runs and five one. The count `15/39 scored` is true and hides it;
+    the fingerprint on every one of those runs is a claim the world never honoured."""
+    codes = {"a": 0, "b": 3}
+    seen, run = recorder(codes)
+    result = sweep.sweep(["a", "b"], repeats=3, runner=run)
+    result.declared_repeats = 3
+
+    assert result.divergence == {"b": 0}, "a scored three times; b never did"
+    rendered = "\n".join(result.render())
+    assert "DECLARED R = 3, OBSERVED FEWER" in rendered
+    assert "b                                  scored 0" in rendered
+    assert len(seen) == 6
+
+
+def test_no_divergence_line_when_every_scenario_got_its_repeats() -> None:
+    _, run = recorder({})
+    result = sweep.sweep(["a", "b"], repeats=3, runner=run)
+    result.declared_repeats = 3
+
+    assert result.divergence == {}
+    assert "DECLARED R" not in "\n".join(result.render())
+
+
+# --- a condition no scenario can clear -------------------------------------------------------
+
+
+def test_a_catalog_of_refusals_in_a_row_aborts_instead_of_asking_again() -> None:
+    """**Arm B of dev sweep 12, 2026-09-10.** A closed incident wearing an open state made the
+    gate refuse, correctly, every run that followed. The driver launched nineteen of them over two
+    and a half hours - settling 300s between each - to be told the same sentence nineteen times.
+
+    `standing_refusal` had already stopped the *retries*; it kept marching, because a refusal one
+    scenario's world can clear is worth re-asking about. This one no scenario could."""
+    seen, run = recorder({"a": 3, "b": 3, "c": 3})
+    result = sweep.sweep(["a", "b", "c"], repeats=3, runner=run)
+
+    assert len(seen) == 3, "one catalog's worth, then it stops - not nine"
+    assert result.aborted is not None
+    rendered = "\n".join(result.render())
+    assert "SWEEP ABORTED - THIS IS NOT THE CATALOG" in rendered
+    assert "6 slot(s) were not attempted" in rendered
+    assert result.exit_code == 1
+
+
+def test_one_scored_run_resets_the_count_so_an_unlucky_sweep_runs_out() -> None:
+    """Arm B's own pass 1 alternated five scored and five refused. That is a bad afternoon, not a
+    broken world, and a driver that gave up on it would be worse than one that marched."""
+    seen, run = recorder({"b": 3, "d": 3})
+    result = sweep.sweep(["a", "b", "c", "d"], repeats=2, runner=run)
+
+    assert result.aborted is None
+    assert len(seen) == 8, "every slot attempted"
+
+
+# --- resuming a sweep something outside the world stopped --------------------------------------
+
+
+def test_start_pass_runs_only_the_remaining_passes_and_numbers_them_as_the_whole() -> None:
+    """**Dev sweep 12, arm B, 2026-09-10.** Pass 1 of 3 scored ten of ten; then the API credit
+    balance ran out and every gate after it refused. The only way to finish was `--tier weekly`
+    again: thirty runs for a twenty-run hole, ten of them surplus and every scenario at four.
+
+    The slots are numbered as the whole sweep's would be - `[11/30]`, not `[1/20]` - because the
+    record they join is the thirty-slot one."""
+    seen: list[list[str]] = []
+    recycles: list[int] = []
+    result = sweep.sweep(
+        ["a", "b"],
+        repeats=3,
+        runner=lambda argv: seen.append(argv) or 0,
+        recycler=lambda: recycles.append(1),
+        start_pass=2,
+    )
+    result.declared_repeats = 3
+
+    assert len(seen) == 4, "passes 2 and 3 only"
+    assert len(recycles) == 2, "a recycle before each pass that ran"
+    assert result.passes_run == 2
+    assert result.divergence == {}, "two of two in this invocation is not a divergence"
+    rendered = "\n".join(result.render())
+    assert "RESUMED: this invocation ran passes 2-3 of a declared 3" in rendered
+    assert "DECLARED R" not in rendered
+
+
+def test_a_resumed_sweep_still_reports_a_scenario_it_could_not_finish() -> None:
+    _, run = recorder({"b": 3})
+    result = sweep.sweep(["a", "b"], repeats=3, runner=run, start_pass=2)
+    result.declared_repeats = 3
+
+    assert result.divergence == {"b": 0}
+    assert "b                                  scored 0" in "\n".join(result.render())
+
+
+def test_the_cli_refuses_a_start_pass_outside_the_tier(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(sweep, "runnable", lambda **_: ["a"])
+    assert sweep.main(["--tier", "weekly", "--start-pass", "4"]) == 3
+    assert "outside this tier's 1..3 passes" in capsys.readouterr().out

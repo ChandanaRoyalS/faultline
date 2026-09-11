@@ -1,0 +1,47 @@
+incident a8a85f65-8e1b-4ae2-bfff-5435a8dfdf74  state triaging  anchor 22:06:45
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: d6cca38c-a685-4d2d-bffe-cbd6c1dd6c68
+triage judged: investigate (low confidence, suspects unknown)
+  A single critical alert on frauddetectionservice with no open incidents to attribute it to; critical severity is not dismissible without evidence.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Restoring the pre-22:00:50 config (no explicit memory limit, the state that held for the prior ~15.7h) and recreating the container should end the log silence: Loki {service="frauddetection-service"} should show 'Consumed record ... updated total count to: N' lines resuming within a few minutes, advancing monotonically from ~1508, likely with a backlog burst. Restart counters should stop incrementing. Error-ratio metrics cannot confirm anything here — both windows were empty [tr_2c74fe8b5805] — so log resumption is the only readable signal.
+  within      : 300s
+  risk        : The recreate discards in-process state and uncommitted Kafka offsets, so fraud checks near the cutoff may be re-processed or dropped. If the 200m limit was deliberate and the process leaks, removing it lets memory grow unbounded and pressures the host. The OOMKill is inferred from timing and silence only — no working-set, restart or OOMKilled series was ever queried [tr_229206830158] — so this may be a restart in config_revert clothing, leaving the cause unresolved. Platform-automation may reapply the limit again; that actor is outside this system's reach.
+  blast radius: One service. frauddetectionservice is a leaf Kafka consumer off checkoutservice's fire-and-forget 'orders send' span [tr_2ef732b65192], so checkout and frontend see no reset. Sibling accountingservice consumer is unaffected. Only unprocessed fraud checks are at stake.
+  if wrong    : No log lines within ~5 minutes falsifies it. Alternatives: checkoutservice stopped producing past 22:00:48 (never verified), making fraud silence a downstream artefact; or the 22:00:48 silence genuinely precedes the 22:00:50 change, breaking causal order. Logs resuming then stopping again with no limit in force points at a leak or broker/consumer-group fault instead.
+  rests on    : tr_c4ec650eee6e, tr_6aa7098319b9, tr_2ef732b65192
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 20862 pushed / 6764 pulled (pull rate 0.2448), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_c4ec650eee6e, tr_6aa7098319b9, tr_2ef732b65192, tr_2c74fe8b5805, tr_229206830158
+  root cause  : About five minutes before onset, platform-automation reapplied a resource_limits change that constrained frauddetection-service to a 200m memory limit where previously no explicit limit was set [tr_c4ec650eee6e]. The service had been consuming Kafka order records normally and monotonically right up to 22:00:48 [tr_6aa7098319b9], essentially coincident with that change, and then went completely silent — no further log output for the remaining ~8 minutes of the window, with no error, exception, OOM or dependency-failure lines preceding the silence [tr_6aa7098319b9]. The failure mode is loss of output rather than error output, and the fraud consumer spans immediately before the cutoff were flat and healthy at ~0.1-0.2ms with no ramp [tr_2ef732b65192]. The most coherent reading is that the newly reintroduced 200m limit is below the container's steady-state working set, so the process was killed for exceeding it shortly after the limit took effect and has not stayed up since; the same limit reduction had been applied and reverted ~15.7h earlier [tr_c4ec650eee6e], which is consistent with it being known-unsurvivable. Because the fraud hop is an async Kafka consumer hanging off a fire-and-forget 'orders send' producer span, the outage is contained to unprocessed fraud checks and does not break user-facing checkout [tr_2ef732b65192], which explains why only this one service alerted.
+  OPEN        : No container-level evidence was ever retrieved: container_memory_working_set_bytes against the 200m limit, kube_pod_container_status_restarts_total increments, and OOMKilled termination reasons were not queried [tr_229206830158]. The OOMKill is inferred from timing and silence, not confirmed.
+  OPEN        : Log silence begins at 22:00:48, marginally before the recorded change timestamp of 22:00:50 [tr_6aa7098319b9][tr_c4ec650eee6e]. Whether that is clock skew, change-record lag, or genuine precedence (silence starting before the limit landed) is unsettled and matters for causal ordering.
+  OPEN        : The error-ratio series returned no samples in both the incident and baseline windows [tr_2c74fe8b5805], so call-derived metrics could neither confirm nor deny anything here. Whether this reflects a service_name/telemetry naming gap or genuinely absent instrumentation was not determined, and it means the alert's own trigger signal is unexplained.
+  OPEN        : Only 5 of 10 matching traces were rendered and the result is truncated, so whether any frauddetectionservice spans exist between 21:52:14 and 22:08:44 is unknown [tr_2ef732b65192] — the trace evidence cannot independently confirm the cutoff moment.
+  OPEN        : Whether upstream checkoutservice order production continued past 22:00:48 was not verified; if it stopped, the fraud consumer's silence could be a downstream artefact rather than a local kill.
+  OPEN        : Why platform-automation reapplied a limit it had already reverted 15.7h earlier is unknown; without that, a revert may be undone again by the same actor.
+  OPEN        : The one anomalous trace at 21:52:14 lacking an 'orders send' producer span and a shipping/quote leg [tr_2ef732b65192], and the separately flagged shipping->quoteservice hop consuming 19-23% of trace self-time, were not investigated and may be unrelated background degradation.
+
+flags: none
+
+retrieval: exclude_origin='scenario:frauddetection-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T220045Z-frauddetection-memory-squeeze/a8a85f65-8e1b-4ae2-bfff-5435a8dfdf74-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T220045Z-frauddetection-memory-squeeze/a8a85f65-8e1b-4ae2-bfff-5435a8dfdf74-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10256.73it/s]

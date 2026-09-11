@@ -1,0 +1,39 @@
+incident 662ba26d-15b3-4af8-9b45-ec4293fa4306  state triaging  anchor 14:03:00
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: cbacb64e-3c42-46b4-aacc-2567f3c767d0
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four services alerted within 30 seconds spanning cart, frontend and checkout — that is a multi-service pattern I cannot dismiss as a single quiet warning. Cartservice alerting first with fanout to its consumers suggests a shared downstream dependency, but the class is a weak prior only.
+investigation: 2 round(s), 4 dispatch(es), 17 step(s)
+  WITHHELD traces on cartservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention would be wrong if a per-dependency error breakdown, or the unexamined 13:33:10-14:04:54 cart-service log interval, named a specific service and mechanism that one of the permitted actions addresses. Concretely: if the truncated log interval turned out to contain a restart or Redis-connection-failure banner, restart_service on cartservice would become arguable; if change history showed an apply still outstanding at 13:41:30, rollback_image or revert_config would become arguable. Neither holds on current evidence. Note also that the leading remediation candidate, cartservice, cannot be verified after any action: its error/latency/saturation series are empty in both incident and baseline windows including the denominator [tr_9c4e7f094d00], so an effect on cartservice is not observable in this system's metrics and could only be inferred indirectly from frontend's aggregate ratio - which is itself unattributed. Acting on an unobservable target is not a prediction.
+  rests on    : tr_dd2ff7204302, tr_a2db3adb0a37, tr_a4e370be1a5a, tr_9c4e7f094d00
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 18553 pushed / 3103 pulled (pull rate 0.1433), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_dd2ff7204302, tr_a4e370be1a5a, tr_a2db3adb0a37, tr_9c4e7f094d00
+  root cause  : Not established. The only confirmed fault is a caller-visible error regression at frontend: error ratio rose from ~0.017% baseline to ~2.3% mean with peaks near 11.5%, and its single change point sits at 13:41:30 — about 21 minutes before the 14:03 cartservice alert [tr_dd2ff7204302]. The pattern is bursty and partial (minimum still zero, sd above mean), consistent with a fraction of requests failing rather than any dependency being hard down [tr_dd2ff7204302]. Nothing implicates cartservice: its logs show dense, error-free cart operations at both window edges through 14:05:09, with no restart or Redis-failure lines [tr_a4e370be1a5a], and its automated apply-then-revert change cycle (hotfix image, egress-delay sidecar, REDIS_ADDR on a non-default port) had its last apply reverted ~1.3h before onset, roughly an hour before the frontend change point [tr_a2db3adb0a37]. cartservice's own error/latency/saturation telemetry is unmeasurable — the queried series is empty in both windows, including the denominator, so the labels do not match what it exports [tr_9c4e7f094d00]. The erroring hop is unidentified and four graph edges went unmeasured.
+  OPEN        : Which frontend dependency carries the erroring calls — the error ratio was queried unfiltered, with no per-dependency or per-route breakdown [tr_dd2ff7204302].
+  OPEN        : What happened to cartservice between 13:33:10 and 14:04:54; that interval, containing both 14:03 and the 13:41:30 change point, was truncated out of the log result [tr_a4e370be1a5a].
+  OPEN        : checkoutservice alerted at 14:03:30 and was never dispatched to; its errors, latency and dependency edges are wholly unmeasured, as are the four edges triage flagged.
+
+flags: none
+
+retrieval: exclude_origin='scenario:redis-cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T135926Z-redis-cart-dependency-latency/662ba26d-15b3-4af8-9b45-ec4293fa4306-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T135926Z-redis-cart-dependency-latency/662ba26d-15b3-4af8-9b45-ec4293fa4306-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9663.00it/s]

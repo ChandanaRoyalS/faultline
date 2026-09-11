@@ -1,0 +1,43 @@
+incident 40dd03a2-185e-41a8-8555-306d9174efe8  state triaging  anchor 12:22:15
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: e5091b39-7372-46f3-be5d-1e7d1714a973
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend and checkoutservice within seconds of each other span the user-facing checkout path, which is not dismissible and no open incident covers it. The shared timing across two independent seeds suggests a common downstream dependency, but nothing in the alerts pins a class yet.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Restoring cartservice's pre-12:19:29 environment (REDIS_ADDR back to unset/default) and recreating the container should end the startup crash loop: in Loki {service="cart-service"} the repeating redis-cart:6380 connect failure plus unhandled Redis-cart-store-init exception lines cease and normal AddItemAsync/GetCartAsync lines resume as at 10:22; in {service="frontend"} the code 14 UNAVAILABLE dials to :7070 and the code 13 INTERNAL naming cart stop; frontend error ratio falls from ~0.075 back toward the ~0.020 baseline with no new crossings; checkout-service PlaceOrder starts are again followed by payment/email/queue-write lines.
+  within      : 300s
+  risk        : If the intended endpoint really is 6380, this revert keeps cart crash-looping and burns the recovery window. The recreate is unconditional and discards cart's in-process state; if the true exit is an external kill (OOM only inferred from logs, liveness/resource series unusable) the container dies again for an untouched reason. Reverting also races the live automation harness's next write.
+  blast radius: cartservice is recreated. Callers frontend (cart/checkout paths), checkoutservice PlaceOrder and loadgenerator traffic already see total cart failure, so added harm is small. redis-cart sees cart traffic move off 6380 to the default endpoint; paymentservice, emailservice and accountingservice see order volume resume.
+  if wrong    : Falsified if cart-service still logs connect-failure-plus-startup-exception after the recreate, meaning redis-cart really listens only on 6380 (never verified directly, no redis-cart dispatch run) or redis-cart is itself down. Falsified as a full explanation if cart recovers but frontend crossings continue, since errors began ~11:22-11:23 inside the 08:55-11:41 cart change-free gap, an hour before this override. Also not durable if the ~4-5h automation cycle re-applies the override with no operator action.
+  rests on    : tr_92f99225aba3, tr_fbc86148aeb9, tr_dad74a47ac9a
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 32206 pushed / 7044 pulled (pull rate 0.1795), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_92f99225aba3, tr_fbc86148aeb9, tr_dad74a47ac9a
+  root cause  : cartservice is not running: its process dies during startup while initializing the Redis cart store, because the Redis endpoint it is configured with (redis-cart on the non-default port 6380) refuses the connection, and the exception is unhandled at the entrypoint so the container never reaches a listening state [tr_92f99225aba3]. Automation wrote exactly that value — REDIS_ADDR set to redis-cart:6380, previously unset — at 12:19:29, two minutes before the checkout alert, as part of a recurring override/revert cycle [tr_fbc86148aeb9]. With nothing bound on cart's port, frontend's checkout path gets TCP-refused dials at :7070 and reports gRPC 14 UNAVAILABLE plus a code 13 INTERNAL naming the cart dependency [tr_dad74a47ac9a], and checkoutservice's PlaceOrder requests start but never reach a completion stage [tr_c5b5317af34a]. The wrong address value is itself the failure mechanism.
+  OPEN        : Frontend error crossings begin at 11:23:30 and cart-refused errors already appear at ~11:22 [tr_5c2a944a87e6][tr_dad74a47ac9a], an hour before the 12:19 REDIS_ADDR override and inside a change-free cart gap from 08:55 to 11:41 [tr_fbc86148aeb9] — an earlier, distinct cause of cart unavailability may have preceded this one.
+  OPEN        : Whether redis-cart actually listens on 6380 or only 6379 was never verified directly; no redis-cart dispatch was run.
+  OPEN        : cartservice liveness/restart and resource series returned nothing usable [tr_333036e98333], so crash-loop is inferred from logs alone and OOM/external kill is not absolutely excluded.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T121922Z-cart-redis-misconfig/40dd03a2-185e-41a8-8555-306d9174efe8-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T121922Z-cart-redis-misconfig/40dd03a2-185e-41a8-8555-306d9174efe8-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8469.69it/s]

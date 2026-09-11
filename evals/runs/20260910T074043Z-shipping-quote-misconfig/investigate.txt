@@ -1,0 +1,40 @@
+incident 72f9fdae-bc41-400e-8ede-c1d2c1290191  state triaging  anchor 07:43:30
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 4cb504b5-aa98-4d46-a24e-5933095f77d1
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service failure fanning out from checkoutservice within minutes, touching downstream consumers and frontend; nothing here can be dismissed as a working system. No open incidents to attribute it to, and the alerts alone don't distinguish a deploy, config, or dependency cause.
+investigation: 2 round(s), 5 dispatch(es), 19 step(s)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if the missing evidence would have been cheap and the incident is actively burning orders: ~3.9% mean and ~27.8% peak PlaceOrder error ratio persisting [tr_c5f5bea387ac] is real customer harm, and waiting has a cost. It would also be shown wrong if a targeted dispatch quickly reveals, say, a cartservice fault-injection sidecar still attached at 07:41:45 that the change log did not record - in which case revert_config on cartservice becomes the correct proposal and this abstention delayed it. Falsifier for the abstention's premise: any trace-level or callee-side latency evidence naming a single slow downstream would immediately supersede it.
+  rests on    : tr_0bb613f4937e, tr_7bebc6f2bf4e, tr_2b5e71e89dd5, tr_41901647c03a, tr_c5f5bea387ac
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 20313 pushed / 4366 pulled (pull rate 0.1769), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : none
+  confidence  : low
+  evidence    : tr_7bebc6f2bf4e, tr_c5f5bea387ac, tr_0bb613f4937e, tr_2b5e71e89dd5, tr_41901647c03a
+  root cause  : checkoutservice is failing a minority of PlaceOrder requests because a synchronous downstream call inside PlaceOrder stopped completing, not because of anything wrong in its own artifact or config. Its logs show intake continuing at a steady cadence with well-formed requests, but from 07:43:42 order-start entries are no longer followed by the payment/confirmation/queue-write completions that accompanied every start in the healthy baseline, so requests hang at or before the payment step [tr_7bebc6f2bf4e]. The error ratio steps from ~1.5% to ~3.9% with peaks near 28% and one change point at 07:41:45 - partial degradation consistent with timeouts on a slow dependency rather than a crash or hard outage [tr_c5f5bea387ac]. No checkoutservice change exists in the window [tr_0bb613f4937e], and the only nearby change activity is an automated fault-injection harness on cartservice whose latency sidecar, hotfix image and REDIS_ADDR override were all reverted 1.6-2.2h before onset [tr_2b5e71e89dd5]. The specific slow downstream is not identified by the dispatches performed.
+  OPEN        : Which downstream is slow: no trace-level or callee-side latency evidence was gathered for paymentservice, cartservice, currencyservice or shippingservice.
+  OPEN        : paymentservice has no error-ratio samples in either window - instrumentation gap, so its health is genuinely unknown.
+  OPEN        : The checkoutservice log result was silently truncated (07:13:50-07:43:42 unobserved) and the change query started at onset, so a change or error just before 07:41:45 is not excluded.
+  OPEN        : Whether the cartservice fault-injection harness fired again near 07:41:45 in a way the change log did not record.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-quote-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T074043Z-shipping-quote-misconfig/72f9fdae-bc41-400e-8ede-c1d2c1290191-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T074043Z-shipping-quote-misconfig/72f9fdae-bc41-400e-8ede-c1d2c1290191-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8575.61it/s]

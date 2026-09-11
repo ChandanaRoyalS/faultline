@@ -1,0 +1,39 @@
+incident 30db0ca0-4b5f-4aee-9bb1-2ba10aae1610  state triaging  anchor 16:52:15
+triage: 3 services, severity critical, start from paymentservice, 2 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 9a7d7390-5b99-49aa-ae8e-60388a7d1990
+triage judged: investigate (medium confidence, suspects unknown)
+  A single critical alert on paymentservice sitting upstream of checkout and frontend is not dismissible, and no open incident could account for it. Nothing in the alert points to a specific cause yet.
+investigation: 2 round(s), 5 dispatch(es), 19 step(s)
+  WITHHELD traces on paymentservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Revisit if a calls_total query without the service_name selector (or with service_name="payment-service") shows samples that stop at 16:46 - that would make the loopback endpoint the real mechanism and revert_config checkable. Also revisit if paymentservice logs after 16:54 show exporter connection-refused lines or charge requests without completions.
+  rests on    : tr_325c5d8c71bb, tr_c051aabba503, tr_da570bd78bc4
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22738 pushed / 6113 pulled (pull rate 0.2119), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_325c5d8c71bb, tr_c051aabba503, tr_da570bd78bc4
+  root cause  : The only change touching paymentservice in the window is an automated, flapping edit to one key — the OTLP traces endpoint — and the final set at 16:46, five minutes before onset, left it pointed at a loopback address with no matching revert [tr_325c5d8c71bb]. With the exporter aimed where no collector listens, paymentservice's span-derived call counters are absent entirely, so the metric the alert rests on has no samples in either window [tr_c051aabba503]. Meanwhile the service is serving normally: every observed charge request, including those bracketing 16:52:15, completes in ~1ms with a transaction id and there are no error, warning or exception lines [tr_da570bd78bc4]. Both callers are error-free through the window, with error ratios falling relative to baseline rather than rising [tr_3264013da097, tr_c1ab5ef493db]. The visible 'onset' is a ~28s output gap with a changed reporting host [tr_da570bd78bc4], consistent with the 16:46 environment edit rolling the replica. The failing mechanism is the configuration value itself: a traces endpoint naming the wrong address, which breaks telemetry export and blinds alerting.
+  OPEN        : Whether the empty calls_total series stems from the loopback endpoint or from a label/naming mismatch (service=payment-service in logs vs service_name=paymentservice in metrics), since the baseline window is equally empty [tr_c051aabba503].
+  OPEN        : What actually tripped the 16:52:15 alert — no signal was found that departed from baseline at that timestamp in any of the three services [tr_c051aabba503, tr_3264013da097, tr_c1ab5ef493db].
+  OPEN        : Latency and saturation were never measured for any service, and ~16:22:41–16:52:04 of paymentservice logs is unobserved [tr_c051aabba503, tr_da570bd78bc4].
+
+flags: none
+
+retrieval: exclude_origin='scenario:payment-telemetry-blackout', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T164611Z-payment-telemetry-blackout/30db0ca0-4b5f-4aee-9bb1-2ba10aae1610-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T164611Z-payment-telemetry-blackout/30db0ca0-4b5f-4aee-9bb1-2ba10aae1610-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8245.32it/s]

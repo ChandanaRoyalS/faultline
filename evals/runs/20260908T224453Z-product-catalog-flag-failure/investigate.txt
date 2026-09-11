@@ -1,0 +1,38 @@
+incident ab460c0b-57f7-4add-856e-9c17521f2088  state triaging  anchor 22:48:15
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: b108d238-8228-493b-a939-ffc62dc041aa
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with three simultaneous seeds including frontend and productcatalogservice, plus loadgenerator reflecting user-visible impact — not dismissible. Nothing in the alert pattern distinguishes a deploy, config, or downstream latency cause yet.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Falsified if featureflagservice change history shows a recorded prior flag value that is materialised into productcatalogservice's own environment, or if productcatalogservice logs read with a corrected (non-hyphenated) selector name a local config source [tr_441f94b6fe9a] — either makes revert_config valid. Also falsified if the error ratio returns to zero unaided, meaning the condition was transient.
+  rests on    : tr_52ddbb1a47d0, tr_3e27ef5433f4, tr_6535606ca4c9
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 29516 pushed / 5092 pulled (pull rate 0.1471), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_3e27ef5433f4, tr_6535606ca4c9, tr_052539fa47ec, tr_10633b596234, tr_52ddbb1a47d0, tr_7ac3e89dc0a4
+  root cause  : productcatalogservice is deliberately failing a subset of GetProduct calls because its "ProductCatalogService Fail" feature flag is enabled. Every frontend error line is the same gRPC status 13 INTERNAL whose detail names ProductCatalogService and attributes the failure to an enabled failure flag, with stack frames entirely in the gRPC client receive-status path [tr_3e27ef5433f4]. Traces localise the origin: the deepest ERROR-marked span in every failing trace is productcatalogservice's own GetProduct handler, while its FeatureFlagService/GetFlag child and the cart, redis and recommendation subtrees complete cleanly [tr_6535606ca4c9]. Failures are sub-millisecond rejections, so no timeout or saturation is involved [tr_6535606ca4c9]. Both services moved from exactly-zero baselines to a late abrupt burst with a single change point at 22:46:30 and ~8-9% peaks [tr_052539fa47ec][tr_10633b596234]. The wrong configuration value is itself the mechanism: the request is rejected because the flag says to reject it.
+  OPEN        : No change record shows the flag being flipped, by whom or when; the flag state is inferred from error detail text and trace topology, and featureflagservice's change history was never queried.
+  OPEN        : productcatalogservice's own logs were never read — the Loki selector used a hyphenated label and returned zero lines over four hours including healthy periods [tr_441f94b6fe9a].
+  OPEN        : Timing and scope are unsettled: frontend errors appear at ~22:45:05 while metric change points are at 22:46:30 with the intervening logs dropped [tr_3e27ef5433f4], and why only ~8-9% of calls and only GetProduct fail is unexplained; 4 of the 7 in-radius services were never measured.
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T224453Z-product-catalog-flag-failure/ab460c0b-57f7-4add-856e-9c17521f2088-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T224453Z-product-catalog-flag-failure/ab460c0b-57f7-4add-856e-9c17521f2088-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10420.00it/s]

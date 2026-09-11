@@ -1,161 +1,147 @@
 # target container: ad-service
 # loki labels: service, stream
 # selector: {service="ad-service"}
-# 156 lines
+# 142 lines
 
-2026-09-08T04:58:48+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:58:48+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T04:58:48+00:00  [otel.javaagent 2026-09-08 04:58:48:693 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T04:58:52+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:58:52+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T04:58:53+00:00  [otel.javaagent 2026-09-08 04:58:53:003 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T04:58:57+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:58:57+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T04:58:57+00:00  [otel.javaagent 2026-09-08 04:58:57:615 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T04:59:05+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:59:05+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T04:59:05+00:00  [otel.javaagent 2026-09-08 04:59:05:875 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T04:59:13+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:59:14+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T04:59:14+00:00  [otel.javaagent 2026-09-08 04:59:14:267 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T04:59:22+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:59:22+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T04:59:23+00:00  [otel.javaagent 2026-09-08 04:59:23:010 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T04:59:34+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:59:34+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T04:59:34+00:00  [otel.javaagent 2026-09-08 04:59:34:560 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T04:59:44+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:59:44+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T04:59:44+00:00  [otel.javaagent 2026-09-08 04:59:44:913 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T04:59:59+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T04:59:59+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:00:00+00:00  [otel.javaagent 2026-09-08 05:00:00:068 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:00:03+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:00:03+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:00:03+00:00  [otel.javaagent 2026-09-08 05:00:03:633 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:00:06+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:00:07+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:00:07+00:00  [otel.javaagent 2026-09-08 05:00:07:259 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:00:11+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:00:12+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:00:12+00:00  [otel.javaagent 2026-09-08 05:00:12:269 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:00:16+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:00:16+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:00:17+00:00  [otel.javaagent 2026-09-08 05:00:17:094 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:00:26+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:00:26+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:00:26+00:00  [otel.javaagent 2026-09-08 05:00:26:697 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:00:35+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:00:36+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:00:36+00:00  [otel.javaagent 2026-09-08 05:00:36:245 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:00:51+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:00:52+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:00:52+00:00  [otel.javaagent 2026-09-08 05:00:52:276 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:01:20+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:01:20+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:01:20+00:00  [otel.javaagent 2026-09-08 05:01:20:929 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:02:14+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:02:15+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:02:15+00:00  [otel.javaagent 2026-09-08 05:02:15:136 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:03:17+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:03:18+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:03:18+00:00  [otel.javaagent 2026-09-08 05:03:18:141 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:04:20+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:04:21+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:04:21+00:00  [otel.javaagent 2026-09-08 05:04:21:323 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:05:23+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:05:24+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:05:24+00:00  [otel.javaagent 2026-09-08 05:05:24:351 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:06:27+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:06:27+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:06:27+00:00  [otel.javaagent 2026-09-08 05:06:27:540 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T05:07:30+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
-2026-09-08T05:07:30+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
-2026-09-08T05:07:30+00:00  [otel.javaagent 2026-09-08 05:07:30:603 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
-2026-09-08T04:53:47+00:00  2026-09-08 04:53:47 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=4446c59db40b67b1c2fdda65dc95a154 span_id=ac4382ca4caac9ab trace_flags=01 
-2026-09-08T04:53:49+00:00  2026-09-08 04:53:49 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=85671212091ed5bc980028283ef4cb5f span_id=8a3d30b79be72ba5 trace_flags=01 
-2026-09-08T04:53:51+00:00  2026-09-08 04:53:51 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=cfdeecb17943d44fba276c1959cb8335 span_id=416b221fab577f90 trace_flags=01 
-2026-09-08T04:53:55+00:00  2026-09-08 04:53:55 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=506f77429bcb6fe38f499a895932b09b span_id=7d30840512bcb2bb trace_flags=01 
-2026-09-08T04:53:58+00:00  2026-09-08 04:53:58 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=d8436c18d3c614cb62ac58d2deaec8df span_id=eddcbe8fff4abc2e trace_flags=01 
-2026-09-08T04:53:59+00:00  2026-09-08 04:53:59 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=99207c0aafc69b58822fcd6905d09650 span_id=9bf79cfd0a806c25 trace_flags=01 
-2026-09-08T04:54:03+00:00  2026-09-08 04:54:03 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=e6922ee4b558d78992cd2f828def5754 span_id=328e8d8b876610c6 trace_flags=01 
-2026-09-08T04:54:05+00:00  2026-09-08 04:54:05 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=77b48774fae6873c01be3d1939745984 span_id=760a6a9ae84fac58 trace_flags=01 
-2026-09-08T04:54:06+00:00  2026-09-08 04:54:06 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=be0fb921e2bafbe4a3192fffdcc7fd3a span_id=5910baceaa579eff trace_flags=01 
-2026-09-08T04:54:07+00:00  2026-09-08 04:54:07 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=b7f51a01f5aa60d419609eb6ada4ea82 span_id=ccf0ba9f4699ad59 trace_flags=01 
-2026-09-08T04:54:15+00:00  2026-09-08 04:54:15 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=1babe5d97c46b67799f593fcd6f0e666 span_id=efe068bf56f3bcec trace_flags=01 
-2026-09-08T04:54:19+00:00  2026-09-08 04:54:19 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=dfb6a5aab121dfec966df3f19c307176 span_id=2ed2b14c3281fc91 trace_flags=01 
-2026-09-08T04:54:21+00:00  2026-09-08 04:54:21 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=7b5fe9da507cb440b37e9d30823c1cc2 span_id=59a0a15b842f66b5 trace_flags=01 
-2026-09-08T04:54:23+00:00  2026-09-08 04:54:23 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=b630848d5cc25360780b792501ff424a span_id=7f8b38c4d6637486 trace_flags=01 
-2026-09-08T04:54:24+00:00  2026-09-08 04:54:24 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=d26dff5b70d47a3cdf0c00fb4b4f81c9 span_id=7af5807e87686347 trace_flags=01 
-2026-09-08T04:54:26+00:00  2026-09-08 04:54:26 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=a9017f84b780f27e9e35f3e8a6f5e55e span_id=1b12c914de10714b trace_flags=01 
-2026-09-08T04:54:29+00:00  2026-09-08 04:54:29 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=076aafa4f88d318a34ce53962d4ef1c2 span_id=c23d60cd769d0393 trace_flags=01 
-2026-09-08T04:54:34+00:00  2026-09-08 04:54:34 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=4b3f71548d4fb47c7401cb64b9380280 span_id=a4259754fe94154b trace_flags=01 
-2026-09-08T04:54:46+00:00  2026-09-08 04:54:46 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=02ae62a9d323d8a2822734a7f052f742 span_id=6aec9dfeccf72244 trace_flags=01 
-2026-09-08T04:54:48+00:00  2026-09-08 04:54:48 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=ad25edc7e8f95b4a7aa3dc7e19f8a317 span_id=e68ba8a8605fcf34 trace_flags=01 
-2026-09-08T04:55:00+00:00  2026-09-08 04:55:00 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=e8d0283f865ae8e48aa959c8e6c3b3d4 span_id=c3e92bc122cdd656 trace_flags=01 
-2026-09-08T04:55:10+00:00  2026-09-08 04:55:10 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=f05cb009aa5ad16411f0369719405345 span_id=88dc22b921056036 trace_flags=01 
-2026-09-08T04:55:13+00:00  2026-09-08 04:55:13 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=5adc1ac6116d8d51c331631139b079d7 span_id=2a77db0d7730900a trace_flags=01 
-2026-09-08T04:55:28+00:00  2026-09-08 04:55:28 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=40661cad7e730877dbdf1fcbcaf112de span_id=f240a1c2586e9edf trace_flags=01 
-2026-09-08T04:55:30+00:00  2026-09-08 04:55:30 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=1e64795470044bbb13d08efbf25a2d23 span_id=788ca34227afcd99 trace_flags=01 
-2026-09-08T04:55:34+00:00  2026-09-08 04:55:34 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=f7e40c85ba0ccfac6098f85a3b4ef1c3 span_id=f0f5cb4e18f44e12 trace_flags=01 
-2026-09-08T04:55:35+00:00  2026-09-08 04:55:35 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=75eba2b9ccd3d1e9a5c98839061674de span_id=3ff817a15650a617 trace_flags=01 
-2026-09-08T04:55:36+00:00  2026-09-08 04:55:36 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=fd5c6baf4974de62a6fb76256319f319 span_id=5f2d6ff3c563a388 trace_flags=01 
-2026-09-08T04:55:37+00:00  2026-09-08 04:55:37 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=0353393fba4ef8a35c4afdcae4ae0c05 span_id=f4c899d5d257380c trace_flags=01 
-2026-09-08T04:55:37+00:00  2026-09-08 04:55:37 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=9d616f8b4a6d6c9032367fca120774d4 span_id=d3b97c36ae5286cb trace_flags=01 
-2026-09-08T04:55:49+00:00  2026-09-08 04:55:49 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=0e0d309f44db038b8f0d058b008dd996 span_id=0ea55b50a96784fa trace_flags=01 
-2026-09-08T04:56:00+00:00  2026-09-08 04:56:00 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=3ae499108dfb0932a7d3e421e60ffd98 span_id=bbb91685b70f6d58 trace_flags=01 
-2026-09-08T04:56:01+00:00  2026-09-08 04:56:01 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=52f8cf8de569da5ea5d85224419a4002 span_id=467e8b06a31d72c6 trace_flags=01 
-2026-09-08T04:56:02+00:00  2026-09-08 04:56:02 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=0cf00edc06c6c2e5c29717912a2a01dc span_id=4aecbd6a061061eb trace_flags=01 
-2026-09-08T04:56:06+00:00  2026-09-08 04:56:06 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=f669235c7278380eda30d2bc26b3bd1d span_id=b5efb1f16029251b trace_flags=01 
-2026-09-08T04:56:13+00:00  2026-09-08 04:56:13 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=83cca491a59108fc29a0ca1ff17864fa span_id=a1f0e8bc3a0033c6 trace_flags=01 
-2026-09-08T04:56:26+00:00  2026-09-08 04:56:26 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=6c4dcae5f852e43dd266808c10ebdc75 span_id=f863ca3bd2511455 trace_flags=01 
-2026-09-08T04:56:31+00:00  2026-09-08 04:56:31 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=6a1a79c5ad3a2000ff561a7072d93041 span_id=4ad6c212164c15a2 trace_flags=01 
-2026-09-08T04:56:38+00:00  2026-09-08 04:56:38 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=2a2452c5268f5c58e368cfdf92266caf span_id=d540280bc675580a trace_flags=01 
-2026-09-08T04:56:43+00:00  2026-09-08 04:56:43 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=8a0274abb66e860e45c8a6f3defcf65a span_id=66ea9a148d1f664b trace_flags=01 
-2026-09-08T04:56:43+00:00  2026-09-08 04:56:43 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=5a9672adaccf83bf906ba4cc9cf04740 span_id=b3c5468d04ee84f0 trace_flags=01 
-2026-09-08T04:56:51+00:00  2026-09-08 04:56:51 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=fec1d110d42bbd127e52d8a923cde713 span_id=13e3adcaaa18465c trace_flags=01 
-2026-09-08T04:57:04+00:00  2026-09-08 04:57:04 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=83bd09212ac3764b476c67dc28f4fc8a span_id=808308f0bc150046 trace_flags=01 
-2026-09-08T04:57:08+00:00  2026-09-08 04:57:08 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=ecb46761242196839bcceaa6fb105a89 span_id=d90f55433af9c586 trace_flags=01 
-2026-09-08T04:57:12+00:00  2026-09-08 04:57:12 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=55055897c4e50e35ac42c27b5727e27f span_id=11b9fe4293446258 trace_flags=01 
-2026-09-08T04:57:13+00:00  2026-09-08 04:57:13 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=6e1660ab2ae5d5b6463b2605c0c98958 span_id=5c74f4e313be03f4 trace_flags=01 
-2026-09-08T04:57:16+00:00  2026-09-08 04:57:16 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=5dc4e9e3f5d85fa8a206bc1463cac068 span_id=13a6057bd2017934 trace_flags=01 
-2026-09-08T04:57:17+00:00  2026-09-08 04:57:17 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=d1526b4c30bceadefb654a353587c7fc span_id=939983403a4cca30 trace_flags=01 
-2026-09-08T04:57:21+00:00  2026-09-08 04:57:21 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=496c0eab03c537364edc22089115f1b8 span_id=1985c3ff795ff6d0 trace_flags=01 
-2026-09-08T04:57:24+00:00  2026-09-08 04:57:24 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=988b07fe1c6f7652114e892ba1d6f359 span_id=e19096c333824bfc trace_flags=01 
-2026-09-08T04:57:26+00:00  2026-09-08 04:57:26 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=e6cf1ebfa04e2a59268a94c00cc73b14 span_id=9130b90f2d55ea55 trace_flags=01 
-2026-09-08T04:57:36+00:00  2026-09-08 04:57:36 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=a3d9486ab5ae6067fab41fd977ad9071 span_id=bbe23a350b734a84 trace_flags=01 
-2026-09-08T04:57:37+00:00  2026-09-08 04:57:37 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=54482ba4b633aa72863066c82f21b23e span_id=a1f9bcd8cda0d5bb trace_flags=01 
-2026-09-08T04:57:41+00:00  2026-09-08 04:57:41 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=ef7f4d60fc2917a6b50c574c0a204886 span_id=bd28037fb493cf92 trace_flags=01 
-2026-09-08T04:57:44+00:00  2026-09-08 04:57:44 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=c81ae1ca31b16d4bab69eaa5e13122f7 span_id=6c44bd6e7cf7bfac trace_flags=01 
-2026-09-08T04:57:56+00:00  2026-09-08 04:57:56 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=149a1473fcb7b855c5a2545b7efff88f span_id=45967a4abd7a9b73 trace_flags=01 
-2026-09-08T04:57:56+00:00  2026-09-08 04:57:56 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=8acfef50753e00c3c65b1c73cd1adefc span_id=319910681ba3a31f trace_flags=01 
-2026-09-08T04:57:57+00:00  2026-09-08 04:57:57 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=d0a228be01b164bc4614112eec5f3d57 span_id=fe93e05ab3fceab4 trace_flags=01 
-2026-09-08T04:58:05+00:00  2026-09-08 04:58:05 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=0afb628821dcbe0f72bc0cb32266d6e2 span_id=32f106f383445ed8 trace_flags=01 
-2026-09-08T04:58:10+00:00  2026-09-08 04:58:10 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=0a901440f3c4343849840761ce33a4e8 span_id=82c4b013f2359b28 trace_flags=01 
-2026-09-08T04:58:15+00:00  2026-09-08 04:58:15 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=871ebc343b21d12cc806d8e80700c9e8 span_id=1c5beab2989d30d9 trace_flags=01 
-2026-09-08T04:58:16+00:00  2026-09-08 04:58:16 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=aa96cf493578481cd400129766b2d10f span_id=5697313e4c531301 trace_flags=01 
-2026-09-08T04:58:20+00:00  2026-09-08 04:58:20 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=0e8b7c808e8ab534f99646f37271900a span_id=c3a7ec5e264c59f2 trace_flags=01 
-2026-09-08T04:58:30+00:00  2026-09-08 04:58:30 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=11fea211e904fecffdfb6c0aff46ffd7 span_id=063bd1198f8c59eb trace_flags=01 
-2026-09-08T04:58:34+00:00  2026-09-08 04:58:34 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=4186eac334a8b036d87c9f5ac973204b span_id=85d9fff6a840e589 trace_flags=01 
-2026-09-08T04:58:37+00:00  2026-09-08 04:58:37 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=aa94e3f49acbd4b26282fea5d585da5b span_id=235e5066ace5adb0 trace_flags=01 
-2026-09-08T04:58:39+00:00  2026-09-08 04:58:39 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=edf80f5a070af97b61aa37165e258071 span_id=7dd1e7a583f13f1d trace_flags=01 
-2026-09-08T04:58:41+00:00  2026-09-08 04:58:41 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=962f3ef9012deac28c06943633fb677d span_id=daec0c0ff82fefb6 trace_flags=01 
-2026-09-08T04:58:43+00:00  2026-09-08 04:58:43 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=2401569d146b5e62ca5891f441f30b3f span_id=830067981f6e88ef trace_flags=01 
-2026-09-08T04:58:46+00:00  2026-09-08 04:58:46 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=ea64bb899994db46b6d6ad8ae65fbd92 span_id=859a47d9421b70b5 trace_flags=01 
-2026-09-08T05:07:33+00:00  2026-09-08 05:07:33 - hipstershop.AdService - AdService starting. trace_id= span_id= trace_flags= 
-2026-09-08T05:07:34+00:00  2026-09-08 05:07:34 - hipstershop.AdService - Ad Service started, listening on 9555 trace_id= span_id= trace_flags= 
-2026-09-08T05:07:40+00:00  2026-09-08 05:07:40 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=4d546ff2d95cb817440f35a05940ff88 span_id=b62ffaa7aeeb7da1 trace_flags=01 
-2026-09-08T05:07:40+00:00  2026-09-08 05:07:40 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=25d211b5d8ac1ddcf5c752119c784f62 span_id=77c13b8c4afdc16d trace_flags=01 
-2026-09-08T05:07:43+00:00  2026-09-08 05:07:43 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=618b6cc216ccc2fdb4e27d87c67848c8 span_id=17bbbdd032757ddf trace_flags=01 
-2026-09-08T05:07:45+00:00  2026-09-08 05:07:45 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=e563d291c7a184401e3e1879e58b2078 span_id=f4915a7135492a04 trace_flags=01 
-2026-09-08T05:07:53+00:00  2026-09-08 05:07:53 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=2dd66e51ebc7ec16bc876cf53242c8ca span_id=5d6e315f79b8da3c trace_flags=01 
-2026-09-08T05:07:53+00:00  2026-09-08 05:07:53 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=ff1f1a141636ba0433953860d7e61675 span_id=afae5cd43afbcfd0 trace_flags=01 
-2026-09-08T05:07:54+00:00  2026-09-08 05:07:54 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=b83f8a1f33b33b19c02c9897fce8681e span_id=c61a4758179008dd trace_flags=01 
-2026-09-08T05:07:55+00:00  2026-09-08 05:07:55 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=d81dcde577ed60a4758f87b44c01889c span_id=f611248895729212 trace_flags=01 
-2026-09-08T05:08:08+00:00  2026-09-08 05:08:08 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=725157e31507d7bfbf74a9b0ace1240d span_id=cba6be0d2211fb09 trace_flags=01 
-2026-09-08T05:08:12+00:00  2026-09-08 05:08:12 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=2ec9de37f47ba44c39b5cfc631fe19f8 span_id=b2fa7f59ba776b1b trace_flags=01 
-2026-09-08T05:08:16+00:00  2026-09-08 05:08:16 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=991c976d7874205d119650e0d6fb6c71 span_id=8ac66312a9ab7217 trace_flags=01 
-2026-09-08T05:08:23+00:00  2026-09-08 05:08:23 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=c828614ed5b4816fe43bd9f36d49acb9 span_id=94074800dc9e8f4c trace_flags=01 
-2026-09-08T05:08:26+00:00  2026-09-08 05:08:26 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=ec258c689effa166fb838f12d7ed9b65 span_id=c2a3eee883b5da6f trace_flags=01 
-2026-09-08T05:08:29+00:00  2026-09-08 05:08:29 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=894ceda3f9312336579b8e4f771cb1b3 span_id=f0cb5f9a4538e9df trace_flags=01 
-2026-09-08T05:08:29+00:00  2026-09-08 05:08:29 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=91deffc5f9b9401a54d93c790a99e74f span_id=9803255d58a80e08 trace_flags=01 
+2026-09-09T02:56:50+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:56:50+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:56:50+00:00  [otel.javaagent 2026-09-09 02:56:50:450 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:56:53+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:56:53+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:56:53+00:00  [otel.javaagent 2026-09-09 02:56:53:722 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:56:56+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:56:57+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:56:57+00:00  [otel.javaagent 2026-09-09 02:56:57:210 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:57:00+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:57:01+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:57:01+00:00  [otel.javaagent 2026-09-09 02:57:01:163 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:57:05+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:57:05+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:57:05+00:00  [otel.javaagent 2026-09-09 02:57:05:901 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:57:11+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:57:12+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:57:12+00:00  [otel.javaagent 2026-09-09 02:57:12:124 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:57:21+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:57:21+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:57:21+00:00  [otel.javaagent 2026-09-09 02:57:21:516 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:57:36+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:57:37+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:57:37+00:00  [otel.javaagent 2026-09-09 02:57:37:309 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:58:05+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:58:05+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:58:05+00:00  [otel.javaagent 2026-09-09 02:58:05:893 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:58:59+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T02:59:00+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T02:59:00+00:00  [otel.javaagent 2026-09-09 02:59:00:181 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T03:00:02+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T03:00:03+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T03:00:03+00:00  [otel.javaagent 2026-09-09 03:00:03:200 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T03:01:05+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T03:01:06+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T03:01:06+00:00  [otel.javaagent 2026-09-09 03:01:06:261 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T03:02:08+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T03:02:09+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T03:02:09+00:00  [otel.javaagent 2026-09-09 03:02:09:299 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T03:03:11+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T03:03:12+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T03:03:12+00:00  [otel.javaagent 2026-09-09 03:03:12:383 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T03:04:14+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T03:04:15+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T03:04:15+00:00  [otel.javaagent 2026-09-09 03:04:15:285 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T03:05:17+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T03:05:18+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T03:05:18+00:00  [otel.javaagent 2026-09-09 03:05:18:391 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T03:06:20+00:00  Picked up JAVA_TOOL_OPTIONS: -javaagent:/app/opentelemetry-javaagent.jar
+2026-09-09T03:06:21+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended
+2026-09-09T03:06:21+00:00  [otel.javaagent 2026-09-09 03:06:21:420 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 1.19.1
+2026-09-09T02:51:50+00:00  2026-09-09 02:51:50 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=4281067198c16be7a9f63ee75a157ed6 span_id=817cec4b8e796de6 trace_flags=01 
+2026-09-09T02:51:58+00:00  2026-09-09 02:51:58 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=37fd36bae89c595a70b5b55ffe23b2cc span_id=a2c919b41a1972b1 trace_flags=01 
+2026-09-09T02:52:05+00:00  2026-09-09 02:52:05 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=29344b2372fb88eed3097711055a5b49 span_id=edc42abf847fb38e trace_flags=01 
+2026-09-09T02:52:05+00:00  2026-09-09 02:52:05 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=4381c95bcf54b105c5fede92fcd07bec span_id=30a23a3aa5e524b1 trace_flags=01 
+2026-09-09T02:52:06+00:00  2026-09-09 02:52:06 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=111e077a278747c2b4de29043ef3c35b span_id=ddc24f93a6ee5f18 trace_flags=01 
+2026-09-09T02:52:06+00:00  2026-09-09 02:52:06 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=f0b6bae5ef40f76a7f9fa2c0cb8a36b6 span_id=37729ca81423e0b9 trace_flags=01 
+2026-09-09T02:52:18+00:00  2026-09-09 02:52:18 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=ea7abd0d913e9c8f9119b3d40cc41219 span_id=f095e6bed6efb1f2 trace_flags=01 
+2026-09-09T02:52:25+00:00  2026-09-09 02:52:25 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=9492f24d5ff5f56b596c5324e08601cc span_id=b937c4d112e312c7 trace_flags=01 
+2026-09-09T02:52:25+00:00  2026-09-09 02:52:25 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=9ae46b3f47ff3e5d95adf491bb6662d2 span_id=b57535f17028b838 trace_flags=01 
+2026-09-09T02:52:31+00:00  2026-09-09 02:52:31 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=9131a45ec4349b7d78277e5ac1ab58fb span_id=edae9b9a60493fe0 trace_flags=01 
+2026-09-09T02:52:40+00:00  2026-09-09 02:52:40 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=85bf3c99f5ea369e4bb2fa77eda8dca7 span_id=a4a7ab2e2cd04b0f trace_flags=01 
+2026-09-09T02:52:43+00:00  2026-09-09 02:52:43 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=82080f196f3cac8bb21f90bef0e4cc5b span_id=fdabc6fa8b9de5ad trace_flags=01 
+2026-09-09T02:52:49+00:00  2026-09-09 02:52:49 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=3036b0c2603f29d0807619a0e5954c0b span_id=b6073e7f8b78af9b trace_flags=01 
+2026-09-09T02:52:51+00:00  2026-09-09 02:52:51 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=e19f8bc030aa461fc5910e29eb14243c span_id=0035017b60955b35 trace_flags=01 
+2026-09-09T02:52:54+00:00  2026-09-09 02:52:54 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=c6ed16128aebf1657af0126dc1102862 span_id=fc71f7bf656e2c02 trace_flags=01 
+2026-09-09T02:53:02+00:00  2026-09-09 02:53:02 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=a8911461cefbbce75716f06226cb6f7e span_id=9db734de5b013ded trace_flags=01 
+2026-09-09T02:53:05+00:00  2026-09-09 02:53:05 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=bb8b4ee4ce93a6643e5b9696edfd923a span_id=8be08f6a08d1e490 trace_flags=01 
+2026-09-09T02:53:13+00:00  2026-09-09 02:53:13 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=c998e8ff085df877b0c2e4e2128f0954 span_id=094f846b59c908e4 trace_flags=01 
+2026-09-09T02:53:24+00:00  2026-09-09 02:53:24 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=0227a63537fe63e2f47bb7833d1c67fd span_id=1c01b003daabfdbc trace_flags=01 
+2026-09-09T02:53:33+00:00  2026-09-09 02:53:33 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=f3df8aa011d388d167993d0ba7b9dfa3 span_id=68717f101d2b85c5 trace_flags=01 
+2026-09-09T02:53:39+00:00  2026-09-09 02:53:39 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=9c1515c78dda4b4ca63df7947c9d54ae span_id=188f8393725ea2a5 trace_flags=01 
+2026-09-09T02:53:47+00:00  2026-09-09 02:53:47 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=342df83104f412ba315c5a033ebcca16 span_id=56323cfdefe7ea6a trace_flags=01 
+2026-09-09T02:53:47+00:00  2026-09-09 02:53:47 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=1776131ca0cb47c79534344534e64202 span_id=1ea660834cda1d2c trace_flags=01 
+2026-09-09T02:54:00+00:00  2026-09-09 02:54:00 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=5e24f766ef00153aa793382dfecb716c span_id=b4d8eeb3efdd53e1 trace_flags=01 
+2026-09-09T02:54:02+00:00  2026-09-09 02:54:02 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=99a80d06140e401b5c33bfa3aeea31cd span_id=afd222ecd0993d95 trace_flags=01 
+2026-09-09T02:54:04+00:00  2026-09-09 02:54:04 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=71d4bdfdef7c173cd0444e9d918b915d span_id=d50272854276116e trace_flags=01 
+2026-09-09T02:54:09+00:00  2026-09-09 02:54:09 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=7c30d5a2c800e91d59f5d1db954fd209 span_id=323e4dbdbff78744 trace_flags=01 
+2026-09-09T02:54:09+00:00  2026-09-09 02:54:09 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=f7f8c9892fb0716ac46098382356cd91 span_id=e14ff84156fc84d8 trace_flags=01 
+2026-09-09T02:54:13+00:00  2026-09-09 02:54:13 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=7fbfcbd20488ce95112e12d450aaa08a span_id=c1b50c66e59bfd04 trace_flags=01 
+2026-09-09T02:54:15+00:00  2026-09-09 02:54:15 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=fcc9b40ad3d4c016a2efc71b5ba76c55 span_id=f099706549277016 trace_flags=01 
+2026-09-09T02:54:17+00:00  2026-09-09 02:54:17 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=8f2aeb6cca2fa1fe91d723a926376efb span_id=13a647aa34aa6b12 trace_flags=01 
+2026-09-09T02:54:17+00:00  2026-09-09 02:54:17 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=97fe86045bf2e686ddbdfe2344997985 span_id=868bee55c9e04767 trace_flags=01 
+2026-09-09T02:54:18+00:00  2026-09-09 02:54:18 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=b268030f38c22e66f0337af51384ffb6 span_id=58df52b27932293d trace_flags=01 
+2026-09-09T02:54:35+00:00  2026-09-09 02:54:35 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=f9f47d90c26cb90881af69747f618679 span_id=00cab08e5d87ad84 trace_flags=01 
+2026-09-09T02:54:37+00:00  2026-09-09 02:54:37 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=9638735bb513da6edbbc41f187cb03d2 span_id=ee335eeb9e8d4424 trace_flags=01 
+2026-09-09T02:54:41+00:00  2026-09-09 02:54:41 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=72bbe27eb3fd249e208387c303d3f921 span_id=ca861a167e8133cb trace_flags=01 
+2026-09-09T02:54:41+00:00  2026-09-09 02:54:41 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=772fc4f31cecfdf955556a7d63ba2454 span_id=44287ce22c38967f trace_flags=01 
+2026-09-09T02:54:44+00:00  2026-09-09 02:54:44 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=eec4b5e1d0e659cd7b8fda8b26af8f1b span_id=e95bf01ccc5c7532 trace_flags=01 
+2026-09-09T02:54:46+00:00  2026-09-09 02:54:46 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=b48793e52989c2b6015e03388a403945 span_id=1d8fb9d941162de5 trace_flags=01 
+2026-09-09T02:55:00+00:00  2026-09-09 02:55:00 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=15f640177706a4717fb6443a56222cbd span_id=609c9a317508985c trace_flags=01 
+2026-09-09T02:55:01+00:00  2026-09-09 02:55:01 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=987a0baa0572ac081a21ad0e731122d8 span_id=eff7a000fc471ee6 trace_flags=01 
+2026-09-09T02:55:06+00:00  2026-09-09 02:55:06 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=176de401512b5bd1dfe2c561370b9973 span_id=c9b6a3f61e0ed206 trace_flags=01 
+2026-09-09T02:55:06+00:00  2026-09-09 02:55:06 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=50ef655468233c68695c66a3f28441e7 span_id=66431b9ee72a3673 trace_flags=01 
+2026-09-09T02:55:13+00:00  2026-09-09 02:55:13 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=8cc5668987dc0ee73e15ea6a3790d8a2 span_id=0b1f8b21a15d22f4 trace_flags=01 
+2026-09-09T02:55:15+00:00  2026-09-09 02:55:15 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=d567f0a2e2bcf2c4c9c87bfc1ab0a663 span_id=bd2b50768d1aac60 trace_flags=01 
+2026-09-09T02:55:17+00:00  2026-09-09 02:55:17 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=2a94dcba0e89dca403e6d84f8f1b9304 span_id=ea0cc4bcab48592d trace_flags=01 
+2026-09-09T02:55:25+00:00  2026-09-09 02:55:25 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=1db4d0c9c2a6da032be279e938068fa2 span_id=2821e9de471ef9cf trace_flags=01 
+2026-09-09T02:55:25+00:00  2026-09-09 02:55:25 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=1f5a4c64a64d752ae8c6f2a35123be3f span_id=e16c31d7340c0410 trace_flags=01 
+2026-09-09T02:55:25+00:00  2026-09-09 02:55:25 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=ddc068183be4eaabd8e0d27dcce8265f span_id=8b5cbcdf7896f863 trace_flags=01 
+2026-09-09T02:55:29+00:00  2026-09-09 02:55:29 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=e347a298966fccbcaea545b74f02e6ef span_id=1a6d38e16bdbea76 trace_flags=01 
+2026-09-09T02:55:35+00:00  2026-09-09 02:55:35 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=5909b49841f7384c02db4234fe4f5f7a span_id=d316bcef4071d3fb trace_flags=01 
+2026-09-09T02:55:41+00:00  2026-09-09 02:55:41 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=499f038dc92f823eeaa556d45d0858fd span_id=114a7da57369e916 trace_flags=01 
+2026-09-09T02:55:43+00:00  2026-09-09 02:55:43 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=2e876e6283489604e793f494329238ac span_id=ac3520587b9b56ac trace_flags=01 
+2026-09-09T02:55:45+00:00  2026-09-09 02:55:45 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=117b3c267c0894e145ac8a51913fd351 span_id=a51e5c693d1dd3d6 trace_flags=01 
+2026-09-09T02:55:47+00:00  2026-09-09 02:55:47 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=0e02dd59b42a49660d55e4f7f3c89495 span_id=232ea24bef1ecaed trace_flags=01 
+2026-09-09T02:55:50+00:00  2026-09-09 02:55:50 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=e48d6903b1df8db4a9060df895d52b1a span_id=c80ce00faa4eddf6 trace_flags=01 
+2026-09-09T02:55:57+00:00  2026-09-09 02:55:57 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=da59d438ba8249e0b51691ab8e0c7b03 span_id=e56fc532b2dca645 trace_flags=01 
+2026-09-09T02:56:03+00:00  2026-09-09 02:56:03 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=df7738d34304e96ce67aaaf40043094a span_id=42688d77e89782c8 trace_flags=01 
+2026-09-09T02:56:06+00:00  2026-09-09 02:56:06 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=bd959091b3127b7c3059147d12707d22 span_id=e98646f0afd05ee1 trace_flags=01 
+2026-09-09T02:56:12+00:00  2026-09-09 02:56:12 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=72ad1b5c9d620dd2b14c32bdb19dcd3b span_id=d10a17ff05054c0f trace_flags=01 
+2026-09-09T02:56:13+00:00  2026-09-09 02:56:13 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=8fa66969b5c2dfeb677a2abae2790661 span_id=9937c2d0dec98954 trace_flags=01 
+2026-09-09T02:56:17+00:00  2026-09-09 02:56:17 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=c9afde79104ce892c1e5fe307b372555 span_id=f5ed280093b56850 trace_flags=01 
+2026-09-09T02:56:24+00:00  2026-09-09 02:56:24 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=09ef7922068853ccbb50af68defc4ac6 span_id=b8021e4988d7998e trace_flags=01 
+2026-09-09T02:56:27+00:00  2026-09-09 02:56:27 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=1078eb2f625014d56dbaf63f381dec6f span_id=f19c24a16323dea1 trace_flags=01 
+2026-09-09T02:56:27+00:00  2026-09-09 02:56:27 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=b69363f17d4178bdaeeefcca1d75db9d span_id=82b7110aabf90946 trace_flags=01 
+2026-09-09T02:56:37+00:00  2026-09-09 02:56:37 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=15b603e3037b1ee96b82d8fab149a7b3 span_id=8db6a10603bcc90d trace_flags=01 
+2026-09-09T02:56:37+00:00  2026-09-09 02:56:37 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=74912ce0db59312633013b39b45766b8 span_id=d7a878178c3c86a7 trace_flags=01 
+2026-09-09T02:56:43+00:00  2026-09-09 02:56:43 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=c10f5548b61777556d1da634647fa17e span_id=7b05a184f6cd0eb8 trace_flags=01 
+2026-09-09T02:56:47+00:00  2026-09-09 02:56:47 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=c0b9f68f5da305a1cadcf4aff1bf7acd span_id=952fabbd03686f1a trace_flags=01 
+2026-09-09T03:06:24+00:00  2026-09-09 03:06:24 - hipstershop.AdService - AdService starting. trace_id= span_id= trace_flags= 
+2026-09-09T03:06:25+00:00  2026-09-09 03:06:25 - hipstershop.AdService - Ad Service started, listening on 9555 trace_id= span_id= trace_flags= 
+2026-09-09T03:06:39+00:00  2026-09-09 03:06:39 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=2eebfd3699fddc1a3d39fd1499b7247a span_id=f8ff70d2a7200e9c trace_flags=01 
+2026-09-09T03:06:43+00:00  2026-09-09 03:06:43 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=3b0fb0677b9c696c5096e820a8bbb707 span_id=5d8a629564013c63 trace_flags=01 
+2026-09-09T03:06:43+00:00  2026-09-09 03:06:43 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=81ea0264ffbb2e1f8ca7b5e5f34d3300 span_id=9f08046a6d7953b9 trace_flags=01 
+2026-09-09T03:06:45+00:00  2026-09-09 03:06:45 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=ecfe156d02d969b5e507e6168985c0dc span_id=5f3f390d76c56c37 trace_flags=01 
+2026-09-09T03:06:45+00:00  2026-09-09 03:06:45 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=82e79d93e20c4714732b582735392f48 span_id=5604f317a04889b0 trace_flags=01 
+2026-09-09T03:06:53+00:00  2026-09-09 03:06:53 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=721fa8adf6eb8302a67c04451c466699 span_id=702807f12f8d794f trace_flags=01 
+2026-09-09T03:06:54+00:00  2026-09-09 03:06:54 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=c4f4c34e22d7d4c23dee01b755b9ec95 span_id=686841430ad047c8 trace_flags=01 
+2026-09-09T03:06:58+00:00  2026-09-09 03:06:58 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=b78e9cd7511d8d776b2a631bc922cbe6 span_id=f2203014c9b45fbe trace_flags=01 
+2026-09-09T03:07:07+00:00  2026-09-09 03:07:07 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=877afc711503007b175ab30a3dd0187f span_id=f9242513534693b5 trace_flags=01 
+2026-09-09T03:07:10+00:00  2026-09-09 03:07:10 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=0dc3676523dd95c8af8c6303cfbca487 span_id=02697a9669580bab trace_flags=01 
+2026-09-09T03:07:15+00:00  2026-09-09 03:07:15 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=c3a430ddd320d1c9e854f1f1bedd530b span_id=390dcc896aa92273 trace_flags=01 
+2026-09-09T03:07:16+00:00  2026-09-09 03:07:16 - hipstershop.AdService - received ad request (context_words=[assembly]) trace_id=57b576cff8e48a3f37dae13194f184b7 span_id=a2dd70066ae3ef4d trace_flags=01 
+2026-09-09T03:07:19+00:00  2026-09-09 03:07:19 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=5875a009b7dda79cdafd766aee8f1107 span_id=3fc17dc5a05d087e trace_flags=01 
+2026-09-09T03:07:24+00:00  2026-09-09 03:07:24 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=fb6cc785385858cde106a8cb730ddf54 span_id=059b773abbeecef3 trace_flags=01 
+2026-09-09T03:07:28+00:00  2026-09-09 03:07:28 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=9106c0a9522f20e05a338732d35823b6 span_id=f7404be656fd69cc trace_flags=01 
+2026-09-09T03:07:33+00:00  2026-09-09 03:07:33 - hipstershop.AdService - received ad request (context_words=[travel]) trace_id=7faedebd89ced2cc03eb39ebdda5f8af span_id=8d3c1722f53437d3 trace_flags=01 
+2026-09-09T03:07:41+00:00  2026-09-09 03:07:41 - hipstershop.AdService - received ad request (context_words=[telescopes]) trace_id=f430e979c8690fb37fc7b087974b9a41 span_id=c945b346d9680c03 trace_flags=01 
+2026-09-09T03:07:56+00:00  2026-09-09 03:07:56 - hipstershop.AdService - received ad request (context_words=[binoculars]) trace_id=ef693a7075cf4cd8299a75664168863a span_id=6307ab7399686b24 trace_flags=01 
+2026-09-09T03:07:58+00:00  2026-09-09 03:07:58 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=baa48b859aa103d797dfa96ffddfb3e1 span_id=44b1ba202480ffbc trace_flags=01 
+2026-09-09T03:08:03+00:00  2026-09-09 03:08:03 - hipstershop.AdService - received ad request (context_words=[accessories]) trace_id=8d461c2d4da093a9c7346c0f29e88946 span_id=46609965160b115d trace_flags=01 

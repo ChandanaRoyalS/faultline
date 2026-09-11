@@ -1,0 +1,167 @@
+{
+  "incident_id": "350a0925-dae5-48df-83ed-d5dc98740a72",
+  "trajectory_id": "f3eca6d9-b04b-472a-9a32-45fcfbe0a760",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:shipping-wrong-image",
+  "verdict": {
+    "root_cause": "checkoutservice is the caller that noticed, not the fault. Every sampled PlaceOrder trace fails on one hop - the checkoutservice client span for ShippingService/GetQuote - with no server-side shippingservice span beneath it and durations of 0.4-2.5ms, the signature of a call rejected at connect before the callee handles it [tr_07ea98356fa4]. On the shippingservice side, the newest portion of the log stream carries no quote or ship-order handling at all, only JVM and OpenTelemetry Java agent startup lines repeating every 30-60 seconds, in a stream that earlier the same window carried a healthy Rust-style server [tr_e151438f74bf]. The change log explains the mismatch: at 14:24:15 platform-automation updated the shippingservice image reference to a demo tag whose name denotes adservice [tr_625b05302b69]. The artifact running under the shippingservice identity is the wrong one, so its gRPC port never serves GetQuote and checkout aborts in the prepare/shipping-quote phase before payment and email [tr_07ea98356fa4, tr_119f459f6067]. The 14:25:30 error re-crossing follows that update [tr_c23b2d629e51]. The earlier phase - QUOTE_SERVICE_ADDR pointed at a non-existent host at 14:02:13, matching the 14:03:30 onset - was reverted at 14:13:37 and cannot explain failures still occurring at 14:29-14:30 [tr_625b05302b69].",
+    "service": "shippingservice",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_07ea98356fa4",
+      "tr_e151438f74bf",
+      "tr_625b05302b69",
+      "tr_c23b2d629e51",
+      "tr_119f459f6067"
+    ],
+    "reasoning": "Traces localize the error to the shipping hop and positively clear cart/Redis, productcatalog/featureflag, currency, payment, email and checkoutservice's own compute, whose self-times are sub-millisecond [tr_07ea98356fa4]. checkoutservice has no changes of its own [tr_2d896171db16] and logs requests arriving and starting but never completing, with no internal error [tr_119f459f6067]. Fast failure with no callee span rules out a slow-dependency wait and indicates no correct listener; the Java runtime booting in a loop where a Rust server used to log corroborates a wrong artifact [tr_e151438f74bf], and the 14:24:15 adservice-tagged image reference names it [tr_625b05302b69]. It is bad_deploy rather than bad_config because the mechanism is that the running artifact is not the shipping service; the fix is restoring the correct image. The specialist dismissed the image update on timing, but that ruling targeted the 14:03:30 onset and does not survive failures persisting eleven minutes after the config revert.",
+    "open_questions": [
+      "What checkoutservice error ratio did between 14:13:37 and 14:24:15 - recovery there confirms two phases; no recovery admits one sustained cause.",
+      "Both log queries were truncated, leaving 14:03-14:24 unobserved, and no gRPC status code for the failing GetQuote calls was retrieved.",
+      "Whether the late JVM lines truly belong to shippingservice (rated low confidence) and whether the automation's 4-5 hour cycle will revert the 14:24:15 image on its own."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The QUOTE_SERVICE_ADDR variable pointing shippingservice's quote dependency at a non-existent host broke the quote path.",
+        "service": "shippingservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "It was reverted at 14:13:37, yet all sampled traces at 14:29-14:30 still fail on the same hop, so it cannot be what is failing now."
+      },
+      {
+        "root_cause": "shippingservice is crashlooping for a resource reason (OOM or limit) and so refuses connections.",
+        "service": "shippingservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "No memory, CPU or restart metric was ever queried for shippingservice, and the repeated startups coincide exactly with a wrong-image change that already explains them."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28784,
+    "pulled_tokens": 9922,
+    "pull_rate": 0.2563,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 465,
+        "content_tokens": 467,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1731,
+        "content_tokens": 1734,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8874,
+        "content_tokens": 8850,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8194,
+        "content_tokens": 8195,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9520,
+        "content_tokens": 9498,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "shippingservice",
+    "rests_on": [
+      "tr_625b05302b69",
+      "tr_e151438f74bf",
+      "tr_07ea98356fa4"
+    ],
+    "expected_effect": "Within ~5 minutes of the recreate: shipping-service logs stop the repeating JVM/OTel-agent startup lines and resume Rust-style GetQuote/ShipOrder handling with prices and tracking IDs; sampled PlaceOrder traces again show a server-side shippingservice span under the checkoutservice ShippingService/GetQuote client span with OK status; checkoutservice error ratio falls from ~0.12 toward the ~0.01 baseline and its logs resume the full order/payment/email/message-write sequence.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if error ratio stays near 0.12 and GetQuote client spans still error with no callee span after the recreate, or if the JVM startup lines persist in the shipping-service stream - the latter would mean those lines were never shippingservice (rated low confidence) and the wrong artifact was replaced. Also: the prior image value is recorded as 'None' [tr_625b05302b69]; if no concrete prior tag resolves, do not execute.",
+    "risk": "If the mechanism is the address/config path rather than the image, this recreates the container with the same broken config and extends the shipping outage by the recreate window. Automation has cycled image update-and-revert every 4-5 hours, so this rollback may be overwritten by the next cycle and relief may be temporary.",
+    "blast_radius": "shippingservice container only. checkoutservice (its inbound caller) sees connection resets during the recreate, propagating to frontend and loadgenerator as PlaceOrder failures - the same requests already failing. No other callee is touched."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on checkoutservice followed by the load generator indicates real user-facing checkout failure, not a lone warning. No open incidents to attribute it to, and the fan-out of unverified dependencies gives no clear prior cause."
+  }
+}

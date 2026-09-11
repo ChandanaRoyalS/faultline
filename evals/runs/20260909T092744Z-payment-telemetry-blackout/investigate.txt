@@ -1,0 +1,40 @@
+incident c445b050-49d1-40d5-8807-fca819c29f5a  state triaging  anchor 09:33:45
+triage: 3 services, severity critical, start from paymentservice, 2 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 326dcc34-842f-4c1b-9127-d39174839358
+triage judged: investigate (medium confidence, suspects unknown)
+  A critical alert on paymentservice with checkout and frontend downstream is not dismissible, and no open incident could account for it. Nothing in the single seed alert points to a specific fault class yet.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Falsified if a trace query scoped to 09:27-09:35 shows paymentservice spans absent while 09:03-09:27 shows them present, dating export loss to the edit and making revert_config correct; or if calls_total is found under a different label set with a real excursion at 09:33:45. Note that with the derived series absent, a successful revert would have no metric to confirm it - part of why I withhold it.
+  rests on    : tr_38a280485320, tr_0076d8bf5cfd, tr_d69ff6028ed5
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 24121 pushed / 11914 pulled (pull rate 0.3306), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_d69ff6028ed5, tr_38a280485320, tr_3dd82d1dd4a4, tr_42e1086a8f96, tr_84bf1c40f945
+  root cause  : paymentservice's request path was healthy throughout - charges completed sub-millisecond with no error lines [tr_3dd82d1dd4a4] and checkoutservice recorded successful payments with advancing offsets [tr_42e1086a8f96], errors at flat zero [tr_84bf1c40f945]. What is actually wrong is paymentservice's telemetry: platform-automation set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT to http://127.0.0.1:4317 about five minutes before onset and left it applied [tr_d69ff6028ed5], pointing span export at loopback where no collector listens. The span-derived calls_total series for paymentservice is absent from Prometheus in both incident and baseline windows [tr_38a280485320], so the alert at 09:33:45 fired on missing telemetry rather than on failing requests. Reverting the endpoint value restores span delivery and the derived metrics.
+  OPEN        : The trace query that found paymentservice spans intact covered 21:33-03:33, six hours before onset, so it does not test whether export was working after the 09:27 edit; the loopback hypothesis is inferred, not directly observed at incident time.
+  OPEN        : Two earlier identical set/revert cycles did not produce this onset [tr_d69ff6028ed5], so either a second condition coincided or the alert threshold was reached only this time - unexplained.
+  OPEN        : No request-rate, latency, CPU, memory or saturation data was retrieved for paymentservice [tr_38a280485320], so a real but silent degradation cannot be fully excluded.
+  OPEN        : checkoutservice's baseline half-hour averaged ~15% errors that vanished at the window boundary [tr_84bf1c40f945]; that transition is unexplained and may indicate an earlier, separate fault.
+  OPEN        : The paymentservice hostname change mid-window [tr_3dd82d1dd4a4] suggests a pod replacement whose timing was never dated.
+
+flags: none
+
+retrieval: exclude_origin='scenario:payment-telemetry-blackout', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T092744Z-payment-telemetry-blackout/c445b050-49d1-40d5-8807-fca819c29f5a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T092744Z-payment-telemetry-blackout/c445b050-49d1-40d5-8807-fca819c29f5a-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9332.96it/s]

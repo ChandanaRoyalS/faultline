@@ -1,0 +1,42 @@
+incident 432db9af-3fd1-4e74-9b4b-1ce91e661a21  state triaging  anchor 23:39:45
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: aaf82bb1-da99-4bdd-88b5-e51e3b171126
+triage judged: investigate (medium confidence, suspects unknown)
+  Checkout alerts first and its downstream consumers follow three minutes later, spreading to frontend and the load generator - a real critical fan-out, not a quiet world. Origin at checkout is plausible but the trigger could equally be one of its unmeasured dependencies, so no fault class is warranted yet.
+investigation: 2 round(s), 7 dispatch(es), 24 step(s)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a dispatch against paymentservice returns a p95/p99 step change or a saturation signal aligned with the ~23:41:50 log stop, or if a change record for paymentservice (image or config) inside the window surfaces - either would meet a rollback_image or revert_config precondition that the current board does not. It is also wrong if checkoutservice's own resource state shows exhausted threads or connection pool, which would make restart_service defensible on process-state grounds. Note that the effect of any restart here is only weakly observable: with no latency series returned for any service [tr_1575d9d26299] and error ratio already below baseline [tr_1575d9d26299], recovery could only be confirmed by the reappearance of payment-success and message-write log lines - which is exactly the signal that is truncated and unreliable.
+  rests on    : tr_fb44839c21d4, tr_1575d9d26299, tr_ab815e19d831, tr_674659df4315
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 27864 pushed / 5766 pulled (pull rate 0.1715), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : none
+  confidence  : low
+  evidence    : tr_fb44839c21d4, tr_766519f01883, tr_1575d9d26299, tr_1539009e3c6e, tr_674659df4315, tr_ab815e19d831
+  root cause  : checkoutservice keeps accepting PlaceOrder requests at a steady cadence but, from roughly 23:41:50 onward, none of them reach the payment-success, email-dispatch or order-message-write stages that were completing normally at the start of the window [tr_fb44839c21d4]. Requests are therefore blocking inside checkout's first downstream call rather than failing: the aggregate error ratio actually fell below baseline and flags no sustained departure [tr_766519f01883][tr_1575d9d26299], and no error or warning lines are emitted at all [tr_fb44839c21d4]. cartservice is healthy and serving through the window end [tr_1539009e3c6e], and every injected cartservice change was reverted well before onset [tr_674659df4315], with no changes at all on checkoutservice [tr_ab815e19d831] or on any peer dependency [tr_674659df4315]. The mechanism is a downstream call that became slow rather than errored, and the stage at which the log trail stops points at the payment call path; the fan-out of secondary alerts to the order-consuming services (accounting, email, frauddetection) follows from checkout no longer emitting completed orders.
+  OPEN        : No dispatch ever touched paymentservice, so its latency, saturation and health are entirely unmeasured - the attribution rests on log-sequence position alone.
+  OPEN        : No latency or request-rate series was returned for any service; both metric dispatches returned only aggregate error ratio [tr_1575d9d26299], so the stall duration and its onset time are not directly measured.
+  OPEN        : checkoutservice logs are truncated between ~23:10 and ~23:41:50 [tr_fb44839c21d4], so the transition from healthy to stalled was never observed and cannot be timed against the 23:39:45 alert.
+  OPEN        : The Kafka/order-message path shared by accountingservice, emailservice and frauddetectionservice was never queried, so it is untested as a common upstream of those three alerts.
+  OPEN        : checkoutservice's own resource state (threads, connections, memory) was never sampled, leaving self-inflicted blocking unexcluded.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-quote-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T233647Z-shipping-quote-misconfig/432db9af-3fd1-4e74-9b4b-1ce91e661a21-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T233647Z-shipping-quote-misconfig/432db9af-3fd1-4e74-9b4b-1ce91e661a21-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9549.37it/s]

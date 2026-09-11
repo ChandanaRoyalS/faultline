@@ -1,0 +1,40 @@
+incident 2e9a8701-81cb-4ed7-af3e-10b8a5f0c326  state triaging  anchor 15:32:30
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: da9dcaa1-6214-4284-b512-d6ffff5193c0
+triage judged: investigate (medium confidence, suspects unknown)
+  Ten services alerting critical in a staged fan-out from checkout/frontend is a live, broad failure that cannot be dismissed. Origin is ambiguous between a shared downstream (payment/productcatalog) and a checkout-path change, so fault class stays unknown.
+investigation: 2 round(s), 6 dispatch(es), 21 step(s)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a dependency-side change or a process-state signal exists that was simply never queried — for example, a change-history query at one hop out returning a deploy or config edit on paymentservice/productcatalogservice inside the window, which would make rollback_image or revert_config on that dependency a legitimate proposal. It is also wrong if trace data shows the stall originates inside checkoutservice's own process (thread-pool or connection-pool exhaustion with no downstream hop pending), which would meet restart_service's precondition of process state. Until one of those is observed, no permitted action's preconditions are met.
+  rests on    : tr_f4ee40922f92, tr_917c94b6a060, tr_44e356406471, tr_c5d2633b4d50, tr_1737543b4c48
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 26142 pushed / 3362 pulled (pull rate 0.114), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : none
+  confidence  : low
+  evidence    : tr_44e356406471, tr_1737543b4c48, tr_901d1f42767a, tr_f4ee40922f92, tr_917c94b6a060, tr_c5d2633b4d50
+  root cause  : checkoutservice is stalling, not erroring. It continues to accept PlaceOrder requests through the end of the window and logs no error or warning text, but from ~15:30 onward each order emits only its entry line — the payment, confirmation-email and order-message-write lines that followed every order earlier are simply absent [tr_44e356406471]. That is the signature of a synchronous downstream call in the PlaceOrder path that never returns, so requests occupy handlers indefinitely. The metric picture matches: mean error ratio is flat (~1.04x) while variance doubles, a single change point fires at 15:30:30, and two 2-minute intervals record no calls at all — checkout stopped completing work rather than starting to fail it [tr_901d1f42767a][tr_1737543b4c48]. No checkoutservice deploy, config edit or flag flip exists in the preceding 24h to explain a local regression [tr_f4ee40922f92][tr_917c94b6a060]. The blame therefore sits on a checkout dependency on the order path; paymentservice is the stage where the log trail first goes dark, but its RED metrics are absent in both baseline and incident windows, so it cannot be confirmed as the blocked hop [tr_c5d2633b4d50]. The fan-out of later alerts (currency, email, fraud, shipping, accounting at 15:33–15:34) is consistent with propagation from a stalled checkout rather than independent failures.
+  OPEN        : No dependency was ever queried for changes or latency — paymentservice, productcatalogservice, currencyservice, cartservice and the Kafka/order-message path are all unexamined, so the specific blocked hop is unidentified.
+  OPEN        : Why paymentservice emits no calls_total samples under that service_name in either window: instrumentation gap, different metric label, or genuinely off the measured path.
+  OPEN        : The log result was truncated to the oldest 8 and newest 32 lines, so the 15:02–15:30 transition containing the first stalled order was never read; the true onset and its first failing stage are unconfirmed.
+  OPEN        : No trace or latency data was collected at all, so the inference of a blocking call is from log-shape only.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T152751Z-cart-bad-image-tag/2e9a8701-81cb-4ed7-af3e-10b8a5f0c326-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T152751Z-cart-bad-image-tag/2e9a8701-81cb-4ed7-af3e-10b8a5f0c326-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10085.52it/s]

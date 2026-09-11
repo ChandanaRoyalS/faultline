@@ -23,71 +23,95 @@ shows is `20260907T103142Z-cart-redis-misconfig`: `bad_config` against `bad_conf
 
 ## Results at a glance
 
-**Culprit service 0 / 0, fault class 0 / 0.** The table below is empty on purpose, and that is
-the honest state of this repository today.
-T6.1 (2026-09-08) added Tempo to the world and re-recorded all thirteen bundles against it, which
-moved the world generation to `90e9f29e578e` and the stamp to `prompts:06f24e827915`. **A figure
-belongs to the world it was measured on**, so nothing measured before today can appear in either
-column — not because those runs were wrong, but because they describe a world that no longer
+**Culprit service 23 / 30, fault class 26 / 27, three abstentions.** Arm A of dev sweep 12 —
+thirty runs on 2026-09-09 at `prompts:06f24e827915` on world `90e9f29e578e`, ten dev scenarios
+three times each, pre-registered before a line of T6.1 was written. **The first figure in this
+repository at R = 3**, which is the only reason a row here is more than an observation.
+**All seven service misses are two scenarios**, each missed on all three passes:
+`redis-cart-dependency-latency` named `cartservice`, and `product-catalog-flag-failure` named
+`productcatalogservice` — the two structural targets prediction 6 named, and Q27's catalog entry
+alone moved neither.
+The pooled column adds the **fifteen runs from the sweep's first attempt**, which are context
+rather than a figure: that attempt declared R = 3 and the world gave each scenario one or two, and
+it ran against a trace store whose search was blind to the last five minutes of every incident
+([ADR-0037](docs/adr/0037-the-trace-analyst.md) §2). They are in
+[`evals/runs/`](evals/runs/) entire.
+Nothing measured before T6.1 (2026-09-08) appears in either column, because it added Tempo to the
+world and re-recorded all thirteen bundles against it. **A figure
+belongs to the world it was measured on**, so those runs cannot appear here — not because they
+were wrong, but because they describe a world that no longer
 exists. The same thing happened at T7.1 and again at T7.28; ADR-0014 is why it is handled this way
 rather than by carrying the old numbers forward.
 
-**The last published figures, and the world they belong to.** Dev sweeps 10 and 11, at
+**The previous generation, and the world it belongs to.** Dev sweeps 10 and 11, at
 `prompts:b6837dd449ca` on world `f5bd108f4f70`: **24 of 26 on the culprit service, 17 of 18 where a
 class was named, eight abstentions**, R=1 throughout. They are in [Results](#results) below and in
-[`docs/RESULTS.md`](docs/RESULTS.md), under the generation they were measured on.
+[`docs/RESULTS.md`](docs/RESULTS.md), under the generation they were measured on. The numbers above
+are not an improvement on them and are not offered as one: different world, different stamp.
 
-**What fills this table, and when.** Dev sweep 12, pre-registered before a line of the world
-changed — [`PREREGISTRATION-T6.1.md`](evals/runs/PREREGISTRATION-T6.1.md): ten dev scenarios,
-**R = 3**, two arms (with the traces specialist and `--without traces`) plus the B0 baseline. It is
-the first sweep in this project with a variance component, and the first on which the A/A check can
-run.
+**The table is arm A. The delta is measured against arm B, and it is in
+[`SWEEP-2026-09-11-sweep12.md`](evals/runs/SWEEP-2026-09-11-sweep12.md).** Dev sweep 12 was
+pre-registered before a line of the world changed — [`PREREGISTRATION-T6.1.md`](evals/runs/PREREGISTRATION-T6.1.md):
+ten dev scenarios, **R = 3**, **two arms** — with the traces specialist and `--without traces` — plus
+the B0 baseline. Without traces: fault class **20 / 27** with **7 abstentions** (against 26 / 27 and
+3), culprit service **18 / 34** (against 23 / 30), judge agreement on the mechanism 18 / 34 (against
+26 / 30). As `faultline-compare` computes it, **+20.0 pp on fault class** [95 % CI −5.0, +46.7] at
+n = 10, R = 3 — above the pre-registered 16.2 pp MDE on the point estimate, with an interval that
+reaches zero — and **+\$0.10 a run**, the one delta whose interval excludes zero. **The A/A check
+passed.** The effect is not where the pre-registration said it would be: the two `dependency_latency`
+scenarios show no gap (one at the ceiling in both arms, one at the floor), and it sits instead on
+the three deploy and config faults downstream of checkout, where without a span tree the
+synthesizer names the next hop by position — nine of nine with traces, three of eleven without.
+Ablation runs are excluded from the table above because they are a different pipeline, the same
+way the B0 arm is.
 
 <!-- scenario-table:begin -->
 Per scenario. The first four columns are at `prompts:06f24e827915`, the stamp this
-repository ships, on the current world (`90e9f29e578e`): scored runs only, demos and the B0
-arm excluded. `class` and `service` are correct / answered; abstentions are counted in
-`abst`, not as wrong. The last two columns pool every stamp on this world - **context,
-not a figure**: a prompt change is a different pipeline, and the pooled column is here so
-a reader can see how thin `n` is at any one stamp. Holdout scenarios have no run on this
-world at all; the zeros are the record. R=1 everywhere, so no row is reproducible to ±1
-(RESULTS.md).
+repository ships, on the current world (`90e9f29e578e`): scored runs only, demos, the B0
+arm and ablation arms excluded. `class` and `service` are correct / answered;
+abstentions are counted in `abst`, not as wrong. The last two columns pool every stamp
+on this world - **context, not a figure**: a prompt change is a different pipeline, and
+the pooled column is here so a reader can see how thin `n` is at any one stamp. Holdout
+scenarios have no run on this world at all; the zeros are the record.
+R = 3 on every dev scenario with a run, which is what makes a row a small
+sample rather than a single observation (RESULTS.md).
 
 | scenario | split | n | class | abst | service | n, all stamps | class, all stamps |
 |---|---|---:|---:|---:|---:|---:|---:|
-| `ad-memory-squeeze` | dev | 0 | — | 0 | — | 0 | — |
-| `cart-bad-image-tag` | dev | 0 | — | 0 | — | 0 | — |
-| `cart-dependency-latency` | dev | 0 | — | 0 | — | 0 | — |
-| `cart-redis-misconfig` | dev | 0 | — | 0 | — | 0 | — |
-| `frauddetection-memory-squeeze` | dev | 0 | — | 0 | — | 0 | — |
-| `payment-telemetry-blackout` | dev | 0 | — | 0 | — | 0 | — |
-| `product-catalog-flag-failure` | dev | 0 | — | 0 | — | 0 | — |
-| `redis-cart-dependency-latency` | dev | 0 | — | 0 | — | 0 | — |
-| `shipping-quote-misconfig` | dev | 0 | — | 0 | — | 0 | — |
-| `shipping-wrong-image` | dev | 0 | — | 0 | — | 0 | — |
+| `ad-memory-squeeze` | dev | 3 | 1 / 2 | 1 | 2 / 3 | 4 | 1 / 3 |
+| `cart-bad-image-tag` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 4 | 4 / 4 |
+| `cart-dependency-latency` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 5 | 5 / 5 |
+| `cart-redis-misconfig` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 5 | 4 / 4 |
+| `frauddetection-memory-squeeze` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 4 | 4 / 4 |
+| `payment-telemetry-blackout` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 4 | 4 / 4 |
+| `product-catalog-flag-failure` | dev | 3 | 2 / 2 | 1 | 0 / 3 | 4 | 3 / 3 |
+| `redis-cart-dependency-latency` | dev | 3 | 3 / 3 | 0 | 0 / 3 | 5 | 5 / 5 |
+| `shipping-quote-misconfig` | dev | 3 | 2 / 2 | 1 | 3 / 3 | 5 | 3 / 4 |
+| `shipping-wrong-image` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 5 | 3 / 4 |
 | `email-wrong-image` | holdout | 0 | — | 0 | — | 0 | — |
 | `productcatalog-dependency-latency` | holdout | 0 | — | 0 | — | 0 | — |
 | `recommendation-memory-squeeze` | holdout | 0 | — | 0 | — | 0 | — |
-| **all** | | **0** | **—** | **0** | **—** | **0** | **—** |
+| **all** | | **30** | **26 / 27** | **3** | **23 / 30** | **45** | **36 / 40** |
 
 Regenerate with `uv run python -m evalharness.scenario_table --write`; `tests/test_scenario_table.py` fails when this block and the tree disagree.
 <!-- scenario-table:end -->
 
-**Read the abstentions before the accuracy.** 0 of 0 runs at this stamp named no class — on the
+**Read the abstentions before the accuracy.** 3 of 30 runs at this stamp named no class — on the
 previous world it was 8 of 26 — and the system is built to say `unknown` rather than guess:
 coverage and accuracy are reported apart on purpose
-([ADR-0022](docs/adr/0022-evaluation-harness.md)). On both runs of dev sweep 11 that abstained it
-still named the culprit service correctly, which is the shape of abstention worth having.
+([ADR-0022](docs/adr/0022-evaluation-harness.md)). Two of the three still named the culprit service
+correctly, which is the shape of abstention worth having.
 
-**Both service misses on the previous world were structural, and T6.1 changes one of them.** The
-targets were `featureflagservice`, which is in the service catalog and emits no spans, and
-`redis-cart`, which was not in the catalog at all — so no blast radius could contain either
-([`SWEEP-2026-09-07-sweep11.md`](evals/runs/SWEEP-2026-09-07-sweep11.md) §3). `redis-cart` is in
-the catalog now (Q27, an `INFRASTRUCTURE` node with no telemetry of its own); `featureflagservice`
-is deliberately untouched as the control, and the pre-registration's prediction 6 says what each
-is expected to do.
+**The two service misses are structural, and Q27 did not fix either.** The targets are
+`featureflagservice`, which is in the service catalog and emits no spans, and `redis-cart`, which
+was not in the catalog at all — so no blast radius could contain either
+([`SWEEP-2026-09-07-sweep11.md`](evals/runs/SWEEP-2026-09-07-sweep11.md) §3). T6.1 put `redis-cart`
+in the catalog (Q27, an `INFRASTRUCTURE` node with no telemetry of its own) and left
+`featureflagservice` alone as the control. **Prediction 6 failed on both sides**: the catalogued
+node was still missed 0 / 3, and so was the control, which says the catalog entry alone does not
+move the culprit axis and points at Q28 — a prompt-side change, and Phase 7's.
 
-**0 of the 10 dev scenarios carry a run at this stamp; 0 of the 3 holdout scenarios do**, and the
+**10 of the 10 dev scenarios carry a run at this stamp; 0 of the 3 holdout scenarios do**, and the
 holdout never will: the set has been entered three times and a fourth entry is blocked by
 [ADR-0029](docs/adr/0029-four-fault-classes-and-why-there-is-no-fifth.md) — a three-scenario holdout
 read four times is not a holdout. Every one of the 13 has been scored at least once across the four

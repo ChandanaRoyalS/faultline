@@ -1,0 +1,7 @@
+incident 2dfd9cd4-410a-44ff-8da3-01437a3a4a64  state triaging  anchor 23:06:00
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: earliest alerting service (no error-ratio series available)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T230309Z-shipping-wrong-image/2dfd9cd4-410a-44ff-8da3-01437a3a4a64-verdict.json

@@ -1,0 +1,43 @@
+incident 72d6cdee-6851-4554-9e89-9ce9c4438fac  state triaging  anchor 12:39:45
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 780cb577-f101-44bc-9d8b-017c29883397
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service alerting on frontend and checkoutservice within a minute, spanning the user-facing checkout path, is not dismissible. No open incident to attribute it to, and the alert pattern alone doesn't distinguish a shared downstream dependency from a deploy or resource issue.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Reverting cartservice's environment removes the REDIS_ADDR=redis-cart:6380 value set at 12:37:19 and recreates the container. In Loki, {service="cart-service"} should stop emitting the EnsureRedisConnected connect-timeout exception and the 30-50s restart cycle, and GetCartAsync/AddItemAsync request lines should resume. Downstream, frontend should stop logging gRPC 13 INTERNAL wrapping 'failed to get user cart' and 'dial tcp 172.18.0.8:7070 connection refused', and checkoutservice PlaceOrder lines should again be followed by payment-success and message-write lines. Note there is no Prometheus series for cartservice, so verification is by log lines and restart count only.
+  within      : 300s
+  risk        : If the diagnosis is inverted, this swaps in another unreachable address and adds a recreate to an already-restarting service, delaying the real fix. The revert restores the whole prior environment snapshot, not just REDIS_ADDR, so other bundled values move too. It does not stop the platform-automation cycle that has set and reverted this variable four times in ~21 hours, so the fault can return.
+  blast radius: cartservice only. Its callers — frontend (cart reads) and checkoutservice (cart fetch during PlaceOrder) — see a brief connection reset during recreate, on top of an already-refused endpoint. redis-cart sees cart traffic return.
+  if wrong    : Falsified if cartservice still crash-loops on Redis connect after the revert, now naming the default port — that means 6380 was correct and redis-cart itself is not listening, shifting the fix to redis-cart. Also falsified if cartservice recovers but frontend keeps emitting the 14 UNAVAILABLE signature, which already appears at 12:09:51, ~28 minutes before the edit.
+  rests on    : tr_90a970cde810, tr_fc5703a328a7, tr_cc66783452dd
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 27478 pushed / 6466 pulled (pull rate 0.1905), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_90a970cde810, tr_fc5703a328a7, tr_cc66783452dd, tr_2d543d3e7bcc, tr_0239c6cc38bd
+  root cause  : At 12:37:19, two minutes before onset, platform-automation set REDIS_ADDR on cartservice to redis-cart:6380, a non-default Redis port [tr_90a970cde810]. From then cartservice cannot finish initialization: it dials redis-cart:6380, times out, throws an unhandled exception from RedisCartStore.EnsureRedisConnected via Program.Main, and restarts every 30-50s without ever opening its gRPC listener [tr_fc5703a328a7]. With nothing listening on the cart port, checkoutservice's dial to 172.18.0.8:7070 is refused at TCP connect and surfaces at frontend as gRPC 13 INTERNAL wrapping a failed cart fetch plus bare 14 UNAVAILABLE [tr_cc66783452dd]. Checkout keeps accepting PlaceOrder requests that never reach completion lines [tr_2d543d3e7bcc]. The wrong port value is itself the mechanism: the address names an endpoint that refuses connection.
+  OPEN        : No one checked the redis-cart service definition, so it is unconfirmed whether 6380 is wrong or whether redis-cart itself stopped listening — that would shift the fix to restarting redis-cart.
+  OPEN        : Frontend shows the same UNAVAILABLE signature at 12:09:51, ~28 minutes before the 12:37 edit [tr_cc66783452dd], unexplained by this cause alone.
+  OPEN        : Only 3 of 12 affected services were examined and 4 unmeasured edges were crossed; cartservice has no Prometheus series at all [tr_114d3aa288a4], so there is no metric confirmation of when cart traffic ceased.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T123714Z-cart-redis-misconfig/72d6cdee-6851-4554-9e89-9ce9c4438fac-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T123714Z-cart-redis-misconfig/72d6cdee-6851-4554-9e89-9ce9c4438fac-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9092.53it/s]

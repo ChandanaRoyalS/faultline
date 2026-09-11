@@ -1,0 +1,486 @@
+{
+  "run_id": "20260910T120047Z-cart-bad-image-tag",
+  "scenario_id": "cart-bad-image-tag",
+  "split": "dev",
+  "scenario_fingerprint": "d4b9a16337b55bfe9feb260c5e6c3173f6cf8b23fec2724198a472bd26481ada",
+  "started_at": "2026-09-10T12:00:47.186224+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "5c60640c2979943df21a991b4dd8b79fb2ec1465",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 18624,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-10T12:00:47.222695+00:00",
+    "reason": "faultline-eval cart-bad-image-tag",
+    "token": "18624-1789041647.222636"
+  },
+  "preflight": {
+    "checked": true,
+    "model": "claude-opus-5",
+    "ok": true,
+    "detail": "20 token(s) billed",
+    "skipped_because": ""
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 1797,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "ad-service",
+      442
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 27.62,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 3.1275,
+      "runs_remaining": 9,
+      "uptime_seconds": 1216,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 472.3,
+      "projected_percent": 50.68,
+      "threshold_percent": 66.94,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "world_continuity": {
+    "kafka_uptime_seconds": 1216,
+    "kafka_uptime_seconds_previous_run": 1153,
+    "previous_run_id": "20260910T115941Z-cart-bad-image-tag",
+    "kafka_restarted_since_previous_run": false,
+    "cause": "continuous - same kafka instance as the previous run",
+    "note": "A sweep spanning a restart did not run every scenario against the same kafka instance. That is a resource level, not a code or config change - no digest moves and the runs describe the same world (T7.33)."
+  },
+  "freeze": {
+    "frozen_for": "dev 20260910T120047Z-cart-bad-image-tag",
+    "runtime_version": "faultline/0.0.1+prompts:06f24e827915",
+    "prompts": {
+      "constants": [
+        "PLANNER_SYSTEM",
+        "PROPOSER_SYSTEM",
+        "SCRIBE_SYSTEM",
+        "SPECIALIST_SYSTEM",
+        "SYNTHESIZER_SYSTEM",
+        "TRIAGER_SYSTEM"
+      ],
+      "sha256": "f7ede43b3bcb96a1abfb0c072b9dc22e5bfa04e6071ab8ce895660434f4945c5",
+      "chars": 13136
+    },
+    "corpus": {
+      "rows": 103,
+      "sha256": "5e372dd5955d6f9fa1ecd25582b18cc9296122e255875004116c1bbf85338546",
+      "documents": [
+        "runbook:action-restart-service",
+        "runbook:action-revert-config",
+        "runbook:action-rollback-image",
+        "runbook:action-scale-unavailable",
+        "runbook:alert-high-error-rate",
+        "runbook:alert-high-latency",
+        "runbook:alert-no-traffic",
+        "runbook:class-bad-config",
+        "runbook:class-bad-deploy",
+        "runbook:class-dependency-latency",
+        "runbook:class-resource-exhaustion",
+        "runbook:world-saturation-is-invisible",
+        "runbook:world-tracing-artifact-edges",
+        "runbook:world-uninstrumented-services",
+        "runbook:world-warm-up-latency",
+        "scenario:ad-memory-squeeze",
+        "scenario:cart-bad-image-tag",
+        "scenario:cart-dependency-latency",
+        "scenario:cart-redis-misconfig",
+        "scenario:frauddetection-memory-squeeze",
+        "scenario:payment-telemetry-blackout",
+        "scenario:product-catalog-flag-failure",
+        "scenario:redis-cart-dependency-latency",
+        "scenario:shipping-quote-misconfig",
+        "scenario:shipping-wrong-image"
+      ],
+      "holdout_chunks": 0
+    },
+    "model_map": {
+      "models": {
+        "changes": "claude-opus-5",
+        "logs": "claude-opus-5",
+        "metrics": "claude-opus-5",
+        "planner": "claude-opus-5",
+        "proposer": "claude-opus-5",
+        "scribe": "claude-opus-5",
+        "synthesizer": "claude-opus-5",
+        "traces": "claude-opus-5",
+        "triage": "claude-opus-5"
+      },
+      "effort_default": "high",
+      "role_efforts": {}
+    },
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0
+    },
+    "tool_layer": {
+      "git_sha": "5c60640c2979943df21a991b4dd8b79fb2ec1465",
+      "git_dirty": true
+    },
+    "judge": {
+      "model": null,
+      "prompt_sha256": "244108af996ad2a5138f6632a297941dd26643d806c73dfa9e24bc7d51392b54",
+      "allow_shared_lineage": false
+    },
+    "world": {
+      "compose_digest": "90e9f29e578e7e98232ec89e92f2f5844a45482721acb52360010b97b387b7a5",
+      "observability_digest": "7aaba3818737582359ef74b125ae107096b2a8d90fc94d57c7af5ccc2fc676c8",
+      "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
+      "otel_demo_image_digest": "ghcr.io/open-telemetry/demo@sha256:97d55955ecfd51988a29d15d66a4d281c86af5b2b40ac94445a617d66f3f9994",
+      "capability_version": "cap:dd651ccc",
+      "host_platform": "Darwin/arm64",
+      "unverifiable_fields": []
+    }
+  },
+  "baseline": null,
+  "ablation": [
+    "traces"
+  ],
+  "repeat_count": 3,
+  "tier": "weekly",
+  "seed_policy": "unseeded: non-deterministic model, live world",
+  "comparability": {
+    "generation": "90e9f29e578e",
+    "provenance": "observed",
+    "previous_run": "20260910T115941Z-cart-bad-image-tag",
+    "previous_generation": "90e9f29e578e",
+    "previous_provenance": "reconstructed",
+    "new_generation": false
+  },
+  "injected_at": "2026-09-10T12:00:51.481846+00:00",
+  "incident_id": "eb3ee689-cc98-43bf-9960-e2d4a2444d69",
+  "investigate_exit_code": 0,
+  "investigate_attempts": [
+    {
+      "attempt": 1,
+      "waited_seconds": 0,
+      "exit_code": 0,
+      "transient_signal": null
+    }
+  ],
+  "reverted_at": "2026-09-10T12:09:27.031869+00:00",
+  "recovery": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 1546,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "cart-service",
+      325
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 27.84,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 0.8083,
+      "runs_remaining": null,
+      "uptime_seconds": 2060,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 122.1,
+      "projected_percent": 33.8,
+      "threshold_percent": 84.04,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "unexpected_fields": {},
+  "score": {
+    "run_id": "20260910T120047Z-cart-bad-image-tag",
+    "scenario_id": "cart-bad-image-tag",
+    "trajectory_id": "6b5a8ba2-41db-4543-8a1c-234e59f21acd",
+    "runtime_version": "faultline/0.0.1+prompts:06f24e827915",
+    "budget": {
+      "max_tool_calls_per_specialist": 4,
+      "max_tokens": 120000,
+      "wall_clock_seconds": 600,
+      "max_dispatch_rounds": 2,
+      "briefing_tokens": 4000,
+      "max_usd": 2.0,
+      "usd_per_mtok_in": 5.0,
+      "usd_per_mtok_out": 25.0,
+      "per_specialist_tool_calls": {}
+    },
+    "reached_a_class": true,
+    "reachability": {
+      "answers_idle_or_absent": [
+        "runtime",
+        "logs"
+      ],
+      "derived_from": "the bundle's own captures (T7.5)",
+      "none_can_answer": false,
+      "runtime_series": 20,
+      "target_log_lines": 500
+    },
+    "service_visibility": {
+      "target": "cartservice",
+      "presence": "in_graph",
+      "nameable": true,
+      "reason": null
+    },
+    "triage": {
+      "recall": 0.8,
+      "precision": 0.6666666666666666,
+      "matched": [
+        "accountingservice",
+        "cartservice",
+        "checkoutservice",
+        "currencyservice",
+        "emailservice",
+        "frontend",
+        "loadgenerator",
+        "shippingservice"
+      ],
+      "missed_alerted_not_predicted": [
+        "frauddetectionservice",
+        "quoteservice"
+      ],
+      "predicted_not_alerted": [
+        "adservice",
+        "paymentservice",
+        "productcatalogservice",
+        "recommendationservice"
+      ],
+      "excluded_began_after_revert": [],
+      "unmeasured_edges_crossed": 4,
+      "n_alerted": 10,
+      "n_predicted": 12
+    },
+    "fault_class": {
+      "truth": "bad_deploy",
+      "returned": "dependency_latency",
+      "correct": false,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "fix_class": {
+      "truth": "rollback",
+      "returned": "restart",
+      "correct": false,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "service": {
+      "truth": "cartservice",
+      "returned": "paymentservice",
+      "correct": false,
+      "correct_by_alternative": false,
+      "also_correct": [],
+      "abstained": false,
+      "dispute": null
+    },
+    "ranked_class": {
+      "truth": "bad_deploy",
+      "ranked": [
+        "dependency_latency",
+        "resource_exhaustion"
+      ],
+      "depth": 2,
+      "top_1": false,
+      "top_3": false,
+      "gained_by_ranking": false
+    },
+    "ranked_service": {
+      "truth": "cartservice",
+      "ranked": [
+        "paymentservice",
+        "checkoutservice"
+      ],
+      "depth": 2,
+      "top_1": false,
+      "top_3": false,
+      "gained_by_ranking": false
+    },
+    "categories": {
+      "flagged": [],
+      "n_flagged": 0,
+      "failed_alone": [],
+      "n_failed_alone": 0,
+      "contradictions": [],
+      "n_contradictions": 0,
+      "budget_exhausted": false,
+      "budget_exhausted_reason": null,
+      "narrative_refused": false,
+      "narrative_refused_reason": null
+    },
+    "tokens_in": 52813,
+    "tokens_out": 13606,
+    "cost_usd": 0.6042,
+    "models": {
+      "changes": "claude-opus-5",
+      "logs": "claude-opus-5",
+      "metrics": "claude-opus-5",
+      "planner": "claude-opus-5",
+      "scribe": "claude-opus-5",
+      "synthesizer": "claude-opus-5",
+      "traces": "claude-opus-5"
+    }
+  },
+  "finished_at": "2026-09-10T12:14:54.945877+00:00",
+  "leave_one_out": {
+    "retrievals": 2,
+    "excluding": 2,
+    "filtered": {
+      "1": 5,
+      "17": 5
+    },
+    "silent": [],
+    "unassessable": [],
+    "enforced": true
+  },
+  "metrics": {
+    "latency": {
+      "investigation_ms": 218538,
+      "investigation_seconds": 218.5,
+      "tool_ms": 90,
+      "model_ms": 0,
+      "steps": 21,
+      "within_gate4_threshold": false
+    },
+    "tool_calls": {
+      "total": 6,
+      "valid": 6,
+      "errored": 0,
+      "empty": 2,
+      "truncated": 1,
+      "redundant": 0,
+      "validity_rate": 1.0,
+      "redundancy_rate": 0.0
+    },
+    "context": {
+      "briefings": 5,
+      "over_budget": 3,
+      "overflow_rate": 0.6,
+      "dropped_sections": 2,
+      "largest_estimated_tokens": 7566,
+      "budget": 4000
+    },
+    "citations": {
+      "violations": 0,
+      "regenerated": false,
+      "escalated": false
+    }
+  },
+  "judge": {
+    "scenario_id": "cart-bad-image-tag",
+    "run_id": "20260910T120047Z-cart-bad-image-tag",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies cartservice deployment to a non-existent image tag as the root cause; the agent narrative suspects paymentservice is stalled and requests are hanging, without identifying cartservice at all.",
+    "dead_ends_closed": [
+      "frontend being in total outage",
+      "frontend masking a downstream problem cleanly",
+      "paymentservice deployment or config changes as cause",
+      "validation or currency bug in checkoutservice"
+    ],
+    "dead_ends_missed": [
+      "cartservice logs and runtime series",
+      "cartservice image reference validity",
+      "seven services going quiet simultaneously",
+      "gap between error alerts and silence alerts as timing artifact"
+    ],
+    "traps": [
+      {
+        "trap": "zero error rate as evidence of health",
+        "outcome": "took"
+      },
+      {
+        "trap": "loudest/first-alerted service being the culprit",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "ordering of completion lines identifies payment as stalled dependency",
+        "outcome": "took"
+      }
+    ],
+    "notes": "The agent never examined cartservice itself\u2014its logs, runtime metrics, or deployment history\u2014despite having access to broad investigative tools. It locked onto paymentservice attribution based on which log line disappeared first, which the recorded narrative explicitly identifies as a trap: the actual culprit (cartservice) stopped entirely and left no logs to contradict the ordering inference.",
+    "tokens_in": 6231,
+    "tokens_out": 371
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 27,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "No entry commits to the actual mechanism: cartservice's image tag was changed to one that does not exist in the registry, causing the service to fail to start or run. The investigator examined frontend, checkoutservice, and paymentservice, but never identified cartservice as the broken service or the image-tag problem.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
+  }
+}

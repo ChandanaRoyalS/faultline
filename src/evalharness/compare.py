@@ -67,7 +67,7 @@ class Metric:
 
 
 BASELINE_REASONS: dict[str, str] = {
-    "B0": "v1's single run is superseded; B0.2 has not run",
+    "B0": "v1's single run is superseded; no B0.2 configuration with scored runs is loaded",
     "B1": "built and tested; runs need credits",
     "B2": "built and tested; runs need credits",
 }
@@ -162,14 +162,26 @@ def compare_metric(
     if not deltas:
         return None
     r = min(int(a.declared_r or 1), int(b.declared_r or 1))
+    figure = variance.figure(f"{metric.label} ({scope})", deltas, r=r, unit=metric.unit)
+    if metric.unit == "pp":
+        verdict = variance.verdict(sum(deltas.values()) / len(deltas), n=len(deltas), r=r)
+    else:
+        # **The interval is the verdict for a figure with no MDE.** Until 2026-09-11 this branch
+        # said only *"MDE applies to proportions; this figure is reported with its interval
+        # only"*, and `aa.Result.passed` looks for the words *"no measurable effect"* in every
+        # verdict - so the first A/A check ever run (dev sweep 12, R = 3, the first R above 1 in
+        # this repository) **failed on cost and latency by construction**, with both intervals
+        # containing zero. A check that fails on a string it can never be given is not a check.
+        # Whether zero is inside the interval is exactly the question the MDE answers for a
+        # proportion, and it is answerable here.
+        verdict = (
+            "no measurable effect: the 95% interval includes zero (interval only; the MDE is "
+            "for proportions)"
+            if figure.low <= 0 <= figure.high
+            else "the 95% interval excludes zero (interval only; the MDE is for proportions)"
+        )
     return Comparison(
-        metric=metric,
-        scope=scope,
-        figure=variance.figure(f"{metric.label} ({scope})", deltas, r=r, unit=metric.unit),
-        verdict=variance.verdict(sum(deltas.values()) / len(deltas), n=len(deltas), r=r)
-        if metric.unit == "pp"
-        else "MDE applies to proportions; this figure is reported with its interval only",
-        scenarios=sorted(deltas),
+        metric=metric, scope=scope, figure=figure, verdict=verdict, scenarios=sorted(deltas)
     )
 
 

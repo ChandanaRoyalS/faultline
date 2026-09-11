@@ -1,0 +1,45 @@
+incident cc103d59-e19f-4a05-87e6-9522a54ea558  state triaging  anchor 05:27:00
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: eb04c6db-d734-4143-8c59-d7b0a2a7f8fd
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with simultaneous checkout, frontend, and loadgenerator alerts indicates a user-facing failure across the request path, not a single quiet warning. No open incidents to attribute it to, and the alerts alone do not distinguish a bad deploy from a failing downstream dependency.
+investigation: 2 round(s), 8 dispatch(es), 25 step(s)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : cartservice
+  expect      : After redeploying cartservice at its pre-05:23:37 image tag, checkoutservice logs should again show payment, email and queue-write lines following each PlaceOrder entry [tr_36f27ffc828b], and the checkoutservice error-ratio series should fall from ~7% bursty back to flat zero as in baseline [tr_dc3a850e378d]. Confirmation must come from checkoutservice telemetry, since cartservice's own error-ratio series returns no samples.
+  within      : 600s
+  risk        : If the fault is in payment, currency, shipping or checkout's own state, this reverts a healthy service, reintroduces whatever the hotfix fixed, and delays the real fix by the confirmation window. Cartservice has no error or latency series [tr_5e42d6b73fe2], so a rollback that worsens it is only visible indirectly.
+  blast radius: One service recreated; frontend and checkoutservice see cart RPC connection resets for the recreate duration, and loadgenerator sessions on those paths register errors. Cart contents live in redis-cart, so persisted state should survive.
+  if wrong    : If ten minutes after the recreate checkoutservice error ratio is still bursty and PlaceOrder lines still have no following stage line, the stall is not in the cart call and the hotfix is exonerated. Also: the change entry records 'None -> hotfix.2' [tr_08a3daab77f0]; if no concrete prior tag exists for cartservice, the precondition fails and this must be withdrawn. The stalling callee was inferred, never observed [tr_dc3a850e378d].
+  rests on    : tr_08a3daab77f0, tr_36f27ffc828b, tr_dc3a850e378d
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 29761 pushed / 4745 pulled (pull rate 0.1375), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_08a3daab77f0, tr_36f27ffc828b, tr_dc3a850e378d
+  root cause  : At ~05:25 checkoutservice began failing intermittently while still up: PlaceOrder requests enter and stall before the payment and email stages, with no error lines and no downstream status code emitted [tr_36f27ffc828b], and its error ratio moved from an exactly-flat zero baseline to bursty failures averaging ~7% [tr_dc3a850e378d]. Nothing changed on checkoutservice itself [tr_f65e8090bef6], and productcatalogservice emitted zero errors with no change near onset [tr_bcbd00cddb24, tr_997255ac4ee2]. The only change in the onset window across every service inspected is an unreverted cartservice image-reference update to a hotfix build at 05:23:37, ~3 minutes before onset, unlike earlier image updates which all carried reverts [tr_08a3daab77f0]. Cartservice sits early in the order path, upstream of payment, which is where checkout's requests die; the running cartservice artifact is the most likely cause.
+  OPEN        : No per-dependency or per-RPC breakdown was collected for checkoutservice, so the stalling callee is inferred, not observed [tr_dc3a850e378d].
+  OPEN        : Cartservice and shippingservice error-ratio series returned no samples at all, so neither is measured; empty is not healthy [tr_5e42d6b73fe2, tr_c7753157fef4].
+  OPEN        : No latency data was gathered for any service, and no cartservice logs were queried to confirm the new image is misbehaving.
+  OPEN        : Change history for payment, currency, email, ad and recommendation was never inspected [tr_f65e8090bef6].
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-bad-image-tag', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T052332Z-cart-bad-image-tag/cc103d59-e19f-4a05-87e6-9522a54ea558-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T052332Z-cart-bad-image-tag/cc103d59-e19f-4a05-87e6-9522a54ea558-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8645.28it/s]

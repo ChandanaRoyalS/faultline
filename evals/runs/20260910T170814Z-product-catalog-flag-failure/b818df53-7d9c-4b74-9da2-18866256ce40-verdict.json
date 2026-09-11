@@ -1,0 +1,176 @@
+{
+  "incident_id": "b818df53-7d9c-4b74-9da2-18866256ce40",
+  "trajectory_id": "5914d114-2309-40ff-9a63-f1931c8bd53c",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "The dispatches do not establish a root cause. The only positive signal is a discrete error-ratio change point on productcatalogservice at 17:09:45Z, ~2 minutes before the 17:11:45 alert cluster [tr_d0eda8695241, tr_6ce6e3b4e413]. Against a 32-minute baseline that spike looks novel (baseline flat at zero, sd=0) [tr_d0eda8695241], but against a 3-hour baseline the service shows comparable double-digit bursts beforehand and a lower mean during the incident window [tr_6ce6e3b4e413] \u2014 timing-consistent with onset, not clearly abnormal in magnitude. Frontend, the triage entry point, is not erroring: its ratio fell to ~0.26x baseline with no sustained departure [tr_6c869edbed84], ruling it out as origin. Everything that could name a mechanism came back empty or unusable: the change log was queried over the ~24h *after* onset rather than before, so its emptiness says nothing about a pre-onset deploy or config edit [tr_3f6d7fe4a640, tr_5678a768cd70]; the Loki selector used a label value not matching the in-scope service name, making zero rows a selector artifact [tr_09a585c3129e]; no latency, CPU, memory or per-dependency series were retrieved for any service [tr_d0eda8695241, tr_6ce6e3b4e413, tr_6c869edbed84]. I name productcatalogservice on timing alone and have no evidence for what is wrong inside it. checkoutservice (alerted 17:12:00) and the four unmeasured edges were never examined.",
+    "service": "productcatalogservice",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_d0eda8695241",
+      "tr_6ce6e3b4e413",
+      "tr_6c869edbed84",
+      "tr_3f6d7fe4a640",
+      "tr_09a585c3129e"
+    ],
+    "reasoning": "One measured departure aligns with onset: the 17:09:45Z change point on productcatalogservice [tr_d0eda8695241, tr_6ce6e3b4e413]. Its shape is spiky and intermittent (min at zero, sd > mean), arguing against a smooth exhaustion ramp and against a hard-down or crash-looping process [tr_d0eda8695241]. Frontend's error ratio moved down, not up, so it is the noticer, not the origin [tr_6c869edbed84]. Each candidate class lacks affirmative support: bad_deploy and bad_config both rest on a change record, and the change queries covered the wrong side of onset, so they neither exclude nor support a pre-onset change [tr_3f6d7fe4a640, tr_5678a768cd70]; dependency_latency needs latency or per-dependency data, and none was returned [tr_6ce6e3b4e413, tr_6c869edbed84]; resource_exhaustion needs CPU/memory series, explicitly absent, and the spiky distribution cuts against it [tr_d0eda8695241]. Logs, where a panic or named dependency would surface, are uninformative rather than exculpatory due to the label mismatch [tr_09a585c3129e]. With one weak timing correlation and no observed mechanism, unknown is the honest class, and no remediation is justified without knowing an artifact or value to revert.",
+    "open_questions": [
+      "What does the change log show for the ~24h *preceding* 17:11:45, for productcatalogservice and its dependencies? Both queries covered only the period after onset [tr_3f6d7fe4a640, tr_5678a768cd70].",
+      "What do productcatalogservice logs contain when queried with a verified label value? The selector used did not match the in-scope service name [tr_09a585c3129e].",
+      "Is the 17:09:45 spike accompanied by latency, CPU or memory movement, and why did checkoutservice alert at 17:12:00? No such series and no checkoutservice dispatch exist on this board [tr_6ce6e3b4e413]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The incident originates in checkoutservice or another unexamined service, with productcatalogservice's spike a downstream co-symptom.",
+        "service": "checkoutservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Entirely unmeasured \u2014 no dispatch touched checkoutservice or the four unmeasured edges \u2014 so it is a live possibility with zero supporting evidence, below a candidate that at least has a timing-aligned change point.",
+        "confidence": "low"
+      },
+      {
+        "root_cause": "There is no real fault: the alert cluster is a threshold artifact on productcatalogservice's normal spiky error variation.",
+        "service": "productcatalogservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Supported by the 3-hour baseline showing comparable bursts and a lower incident-window mean [tr_6ce6e3b4e413], but four services alerting within 15 seconds and a critical severity across 12 services are hard to explain as pure noise.",
+        "confidence": "low"
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **3m30s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 3\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence two and a\n  half minutes la",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "productcatalogservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 22634,
+    "pulled_tokens": 1348,
+    "pull_rate": 0.0562,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 473,
+        "content_tokens": 475,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1529,
+        "content_tokens": 1532,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6738,
+        "content_tokens": 6713,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6440,
+        "content_tokens": 6442,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7454,
+        "content_tokens": 7457,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_d0eda8695241",
+      "tr_6ce6e3b4e413",
+      "tr_3f6d7fe4a640",
+      "tr_5678a768cd70",
+      "tr_09a585c3129e"
+    ],
+    "expected_effect": "No action proposed, so no effect is predicted. The observable state to preserve is the current one: productcatalogservice is serving the large majority of its traffic successfully (peak error ratio ~12.5%, floor at zero, mean below the 3-hour baseline mean) [tr_d0eda8695241, tr_6ce6e3b4e413], and frontend error ratio is at ~0.26x its own baseline with no sustained departure. Any remediation taken now would have to be measured against a target whose aggregate error ratio is already at or below baseline, which means success could not be distinguished from the metric's own spiky variance (sd several times the mean in both windows) [tr_6ce6e3b4e413].",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the next dispatches produce what is currently missing: (a) a change-log query over the ~24h *preceding* 17:11:45 that names a deploy, image change or config edit on productcatalogservice or a dependency \u2014 both existing queries covered only the ~24h *after* onset, so their emptiness is uninformative about the lead-up [tr_3f6d7fe4a640, tr_5678a768cd70] \u2014 which would make rollback_image or revert_config eligible; or (b) a Loki query with a verified label value (the selector used was service=\"product-catalog-service\", which does not match the in-scope name productcatalogservice, so zero rows is a selector artifact, not silence) [tr_09a585c3129e] returning restart loops, OOM kills or panics, which would make restart_service eligible on process-state grounds; or (c) latency/CPU/memory series showing saturation coincident with 17:09:45, none of which were retrieved [tr_d0eda8695241, tr_6ce6e3b4e413]. Also unexamined: checkoutservice, which alerted at 17:12:00 and has no dispatch on this board.",
+    "risk": "The risk being avoided is acting on a target named by timing alone. Every permitted action has a precondition the evidence fails. rollback_image requires a recorded prior image tag and an in-window deploy: no change records exist for this service in any queried window, and the queried windows were the wrong side of onset, so there is no tag to roll back to and no change to undo \u2014 the action would either error or redeploy the current tag, causing a connection reset for no diagnostic gain. revert_config requires a recorded prior configuration and a named config change in the window: neither exists. restart_service requires evidence pointing at process state; the only process-state source, Loki, returned an uninterpretable empty result under a mismatched selector, and a restart is irreversible, discards cache, and would destroy the very in-process state that a corrected log query might explain. scale_service is unavailable per ADR-0029. Worse, a restart that coincided with the spike decaying on its own \u2014 plausible, since the 17:09:45 spike is transient and of a magnitude the 3-hour baseline already contains [tr_6ce6e3b4e413] \u2014 would manufacture false evidence of a fixed root cause and close an incident whose mechanism is still unknown.",
+    "blast_radius": "No one, because nothing is being changed. For reference, had an action been proposed against productcatalogservice, its recorded inbound callers in this incident are frontend (seed, alerted) and recommendationservice (also_affected, reached from productcatalogservice); both would see connection resets during a container recreate, and recommendationservice has no measurements of its own on this board, so the effect on it could not currently be observed."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Multiple core services alerted near-simultaneously at critical severity with checkoutservice following seconds later, which is not dismissible. No open incidents to attribute it to, and the fan-in pattern could equally fit a shared dependency, a deploy, or resource pressure."
+  }
+}

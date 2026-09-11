@@ -2,9 +2,9 @@
 origin: scenario:redis-cart-dependency-latency
 split: dev
 fault_class: dependency_latency
-recorded_from: 2026-09-08T07:01:12+00:00
+recorded_from: 2026-09-09T04:57:58+00:00
 capability: cap:dd651ccc
-onset_to_page: 3m35s
+onset_to_page: 3m50s
 page_to_fix: 5m00s
 fix_to_all_clear: 2m16s
 ---
@@ -36,20 +36,20 @@ fix_to_all_clear: 2m16s
      followed it, and how long the gap was. A reader looking this up months later needs
      the shape of the cascade, not only its final size. -->
 
-The page went out **T+3m35s** after onset. Times below are relative
+The page went out **T+3m50s** after onset. Times below are relative
 to the page.
 
 | When | Alert | Service | Started | Firing for |
 |---|---|---|---|---|
-| **on the page** | ServiceHighLatency | cartservice | T+10s | 7.2m |
-| **on the page** | ServiceHighLatency | checkoutservice | T+10s | 7.0m |
-| **on the page** | ServiceHighLatency | frontend | T+10s | 7.0m |
-| **on the page** | ServiceHighLatency | loadgenerator | T+10s | 7.0m |
+| **on the page** | ServiceHighLatency | cartservice | T-5s | 7.2m |
+| **on the page** | ServiceHighLatency | frontend | T-5s | 7.2m |
+| later | ServiceHighLatency | loadgenerator | T+10s | 6.8m |
+| later | ServiceHighLatency | checkoutservice | T+25s | 6.8m |
 
-The page named 4 service(s), all in the same evaluation. No alert fired after it: **the
-responder saw the whole blast radius at once**, which is the opposite of what earlier
-recordings of this fault showed and is worth knowing before reading the radius as a clue to
-ordering.
+The page named 2 service(s); the other two followed within half a minute. **Which services
+land on the page and which arrive after it is not stable across recordings of this fault** -
+the previous one put all four on the page together, the one before that put cartservice alone -
+so the radius at page time is worth reading as a sample rather than as a clue to ordering.
 
 ## What was checked
 
@@ -96,7 +96,7 @@ any point, because nothing about cartservice was wrong.
 
 ## Detection notes
 
-- Onset to first firing alert: 3m35s
+- Onset to first firing alert: 3m50s
 - Services alerting on the page: 1
 - Services alerting by the end of the fault: 4
 - Alerts that fired only during recovery: 0

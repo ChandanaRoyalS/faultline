@@ -328,5 +328,60 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-09-02T15:10:34.073888+00:00"
+  "finished_at": "2026-09-02T15:10:34.073888+00:00",
+  "judge": {
+    "scenario_id": "cart-bad-image-tag",
+    "run_id": "20260902T133126Z-cart-bad-image-tag",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "different",
+    "agreement_reason": "The recorded narrative identifies cartservice as completely absent due to a nonexistent image tag; the agent narrative proposes cartservice as one of three possible slow dependencies blocking checkout's pre-payment path, with the specific failure mechanism unidentified.",
+    "dead_ends_closed": [
+      "paymentservice was healthy",
+      "no in-window deploy or rollback",
+      "not a crash or restart"
+    ],
+    "dead_ends_missed": [
+      "cartservice image tag change",
+      "cartservice logs stopping at onset",
+      "runtime series stale tail",
+      "distinction between service never created vs. continuously failing"
+    ],
+    "traps": [
+      {
+        "trap": "cartservice showing zero error rate as evidence it was healthy",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "the two-minute gap between error alerts and silence as failure spreading outward",
+        "outcome": "not_engaged"
+      },
+      {
+        "trap": "change history queries after onset, missing pre-onset changes",
+        "outcome": "took"
+      }
+    ],
+    "notes": "The agent narrative collected reasonable evidence but never acquired the critical data source\u2014cartservice's own logs showing orderly shutdown at T+0 and never resuming\u2014that would have closed the investigation. It left the root cause as one of three unknowns and proposed further investigation rather than identifying a deployed nonexistent image.",
+    "tokens_in": 6223,
+    "tokens_out": 363
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": false,
+    "index": null,
+    "depth": 34,
+    "elapsed_ms": null,
+    "role": null,
+    "kind": null,
+    "reason": "The investigator never identifies that cartservice's image tag pointed to a non-existent registry entry, causing the service to fail to start; instead it identifies a blocking dependency issue in the pre-payment path and attributes the failure to slow upstream services (cart, currency, shipping).",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
+  }
 }

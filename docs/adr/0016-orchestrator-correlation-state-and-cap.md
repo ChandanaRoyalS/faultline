@@ -593,3 +593,58 @@ Six of the fourteen states have no runtime writer: `PROPOSING`, `AWAITING_APPROV
 happening quietly. Wiring budget exhaustion in particular is a behaviour change and belongs
 in its own commit — a transition table and a change to what the system *does* should not ride
 in together.
+
+## Addendum 3 (2026-09-10) — a closed incident wearing an open state
+
+Dev sweep 12's arm B scored 6 of 30. One run froze for 1 h 50 m; the baseline gate then refused
+**nineteen consecutive runs** over two and a half hours, correctly, on this row:
+
+```
+d2558c36-…  state=proposing  resolved 2026-09-10 01:44:15
+    loadgenerator  ServiceHighErrorRate  resolved=2026-09-10 01:44:15
+    frontend       ServiceHighErrorRate  resolved=2026-09-10 01:44:15
+```
+
+Every episode resolved. `resolved_at` set. `resolution` set. State `proposing`. The orchestrator
+closed the incident at 01:44:15 and something wrote it back open afterwards.
+
+### What happened
+
+Two processes write `incidents`. The orchestrator applies alert resolves and, when
+`all_resolved`, calls `_close` — `state_before_resolution = state`, `transition(..., RESOLVED)`,
+`resolved_at`, then `save`. The investigation runner holds an `Incident` it loaded **before** the
+run and calls `save_investigation_state` at each phase boundary, walking `PLANNING →
+INVESTIGATING → SYNTHESIZING → PROPOSING`.
+
+`PROPOSING → RESOLVED` is a legal transition and `transition` did not raise, because
+`save_investigation_state` never goes through the machine: it writes the `state` column from the
+caller's object. Ordinarily the runner finishes in about 200 s and the resolves arrive long after,
+so the second writer never lands on a closed row. The frozen run inverted the order and the lost
+update became visible.
+
+**This is the same defect as T4.5's, one column further in.** That one had `save` upserting
+episodes from the runner's stale copy, overwriting `resolved_at` on episodes the orchestrator had
+resolved; the fix was the narrow write. The narrow write fixed the columns it stopped touching and
+left the one it kept writing. Both failures present identically from outside — an incident that can
+never reach `resolved`, and a gate that refuses everything after it — which is worth remembering
+the next time a sweep stalls on a non-terminal incident.
+
+### The rule
+
+**A terminal incident is never moved by a phase write.** `save_investigation_state` writes the
+phase to `state_before_resolution` instead, which is the column this ADR already defined for it:
+*the state it was in is remembered so a reopen puts it back*. A reopen therefore resumes at the
+phase the investigation actually reached rather than the one it was in when the alerts cleared,
+which is strictly better information than the guard replaces.
+
+The investigation is still not cancelled — the fault being over does not settle what caused it,
+and the harness scores exactly that answer. What stops is the investigation's ability to resurrect
+the incident it is investigating.
+
+In Postgres the test is inside the statement (`state = CASE WHEN state = ANY(terminal) THEN state
+ELSE … END`), not around it: reading the state and then writing it is two round trips with the
+close free to land between them, which narrows the race rather than closing it. The in-memory
+double carries the same guard, for the reason its docstring already gives — a double that cannot
+reproduce the bug is a double that lets it back in — and it is where the two tests live, because
+`PostgresIncidentStore` is still not exercised by `make check`. That is the same hole Addendum 2's
+*"two latent bugs"* section names, now for the third time.

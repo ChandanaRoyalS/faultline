@@ -1,0 +1,174 @@
+{
+  "incident_id": "561814ef-3a9b-4393-adb4-b8616ba44f1a",
+  "trajectory_id": "58a578a5-81df-44ca-9634-58f87531ab06",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "productcatalogservice began returning gRPC status 13 INTERNAL to its callers because a product-catalog failure feature flag was enabled. Frontend's late-window outbound errors carry a callee-supplied details string naming that flag, and the grpc-js frames are client-side status-receipt frames, so the failure is generated in the callee and merely surfaced at the caller [tr_43523bfab685]. Independently, productcatalogservice's own error ratio was flat at exactly zero across a 3-hour baseline (n=440, sd=0) and then crossed 5% at 07:05:00Z with a peak near 11% \u2014 a discrete zero-to-nonzero transition roughly 105 seconds before the 07:06:45 alert reference, i.e. the catalog errors lead the alert rather than follow it [tr_45c62bb85445]. The failing mechanism is a configuration value that is itself wrong: the flag's enabled state is what makes the request fail, so the fix is to turn it off, not to restart, roll back, or scale anything.",
+    "service": "productcatalogservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_43523bfab685",
+      "tr_45c62bb85445",
+      "tr_9eb4b888ea57",
+      "tr_fb55115e9618",
+      "tr_2f2afdbbe325",
+      "tr_1ebf001ca2cc"
+    ],
+    "reasoning": "Two independent signals converge on productcatalogservice as the origin rather than the observer. The caller-side log evidence names the dependency explicitly and locates the error in the callee's response, and it rules out the two other plausible dependencies (adservice, cartservice) and a frontend-local bug on the strength of the stack frames and details string [tr_43523bfab685]. The callee-side metric evidence supplies the timing and the shape: an absolute-zero baseline broken by a single change point at 07:05:00Z, which excludes a chronic error floor, a gradual leak-style ramp, and productcatalogservice being a downstream victim of the 07:06:45 event [tr_45c62bb85445]. The class follows from the named mechanism: an enabled failure flag is a configuration value whose wrongness is the failure itself \u2014 requests fail on receipt of an application-level INTERNAL, not after waiting (excludes dependency_latency), not from a wrong artifact (no deploy is recorded, and no image or version anomaly appears anywhere), and not from running out of anything. The empty change log does not contradict this: both change dispatches queried a window that begins at the incident timestamp and runs 24 hours forward, so they cover the incident and after, not the hours before, when a flag flip would have been recorded [tr_9eb4b888ea57][tr_fb55115e9618]. Confidence is held to medium rather than high because the flag flip itself was never observed in a change record, the callee's own logs were unreachable (the selector returned zero lines, most likely a label-value mismatch rather than a silent process) [tr_2f2afdbbe325], and frontend's aggregate error ratio actually fell to about a quarter of its baseline over the queried window with no per-dependency dimension, so the caller metrics neither corroborate nor attribute the blast radius [tr_1ebf001ca2cc].",
+    "open_questions": [
+      "The flag flip was never directly observed: both change-log queries covered onset-forward only, so the pre-onset hours where a feature-flag enable would appear remain unqueried [tr_9eb4b888ea57][tr_fb55115e9618].",
+      "productcatalogservice's own logs were never read \u2014 the selector {service=\"product-catalog-service\"} returned nothing, so a compact or differently-hyphenated label value must be tried before the callee's error text can confirm the flag [tr_2f2afdbbe325].",
+      "Latency, CPU, and memory for productcatalogservice were not returned; three of four requested signals are unmeasured, so a resource-driven contribution is unexcluded rather than excluded [tr_45c62bb85445].",
+      "Frontend's error ratio being roughly a quarter of baseline while it emits catalog INTERNAL errors is unexplained \u2014 possibly a traffic-mix or window-alignment artifact, possibly the catalog failures affect only a fraction of routes [tr_1ebf001ca2cc].",
+      "The 06:41:59 connection-refused failure against 172.18.0.15:50051 on the card-charge path is a distinct failure mode predating the catalog errors and was never attributed to a service [tr_43523bfab685].",
+      "Four of the seven services in the blast radius received no dispatch, and triage reports one unmeasured edge crossed, so propagation to loadgenerator and the untouched services is inferred rather than measured."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A separate failure on the payment/checkout path \u2014 a backend at 172.18.0.15:50051 refusing connections \u2014 is the real driver of the severity, with the catalog flag errors a late and minor overlay.",
+        "service": "paymentservice",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "The connection-refused evidence is a single early line at 06:41:59, well before the 07:05 change point, and no dispatch identified which service owns that peer address; the only errors that coincide with onset and with the callee-side zero-to-nonzero shift name the product catalog dependency [tr_43523bfab685][tr_45c62bb85445]."
+      },
+      {
+        "root_cause": "productcatalogservice failed because something further downstream of it (a data source or dependency of its own) broke, and the flag string in the details is incidental rather than causal.",
+        "service": "productcatalogservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "The late-window status is an application-level code 13 INTERNAL carrying a details string about a deliberately enabled failure flag, not an Unavailable or deadline-exceeded shape that a slow or dead downstream would produce; and no latency data for productcatalogservice was retrieved to support a waiting-based mechanism [tr_43523bfab685][tr_45c62bb85445]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **3m30s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 3\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence two and a\n  half minutes la",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "productcatalogservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 21452,
+    "pulled_tokens": 2203,
+    "pull_rate": 0.0931,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 415,
+        "content_tokens": 417,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1554,
+        "content_tokens": 1557,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6311,
+        "content_tokens": 6286,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6102,
+        "content_tokens": 6104,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7070,
+        "content_tokens": 7048,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_9eb4b888ea57",
+      "tr_fb55115e9618",
+      "tr_43523bfab685",
+      "tr_2f2afdbbe325"
+    ],
+    "expected_effect": "No action is proposed, so nothing should change: productcatalogservice's error ratio should continue to show the same intermittent bursts (peaks near 11%, incident-window mean ~0.23%) and frontend should keep emitting gRPC status 13 INTERNAL lines whose details name the product-catalog failure flag. The correct next step is investigative, not remedial: re-run change_history for productcatalogservice over a window that *precedes* 07:05:00Z (e.g. 2026-09-10T00:00Z..07:10Z) and re-run the Loki query with a corrected label value (e.g. {service=\"productcatalogservice\"} or {service=\"product-catalogservice\"}). Success of that step is observable as a non-empty change-log result naming a flag/config entry with a prior value, plus callee-side log lines carrying the flag name.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "This abstention is wrong if a pre-onset change-history query returns a recorded prior configuration for productcatalogservice containing the product-catalog failure flag \u2014 at that point revert_config on productcatalogservice meets both preconditions and should be proposed immediately. It is also wrong if the catalog error ratio is climbing rather than bursty and customer impact is escalating faster than the ~15 minutes this investigative step costs; the evidence here shows a late burst, not a sustained outage, and frontend's own error ratio is *below* baseline [tr_1ebf001ca2cc], so the impact does not justify acting on an unmet precondition.",
+    "risk": "The risk of abstaining is continued partial failure of catalog-dependent routes for as long as the flag stays enabled, and the risk that the flag was set by a path this system cannot see, so the investigative step returns empty again and time is lost. The risk of the action I am declining to propose is concrete: revert_config recreates the container and restores a 'previous configuration' that, per [tr_9eb4b888ea57] and [tr_fb55115e9618], is not recorded anywhere \u2014 so the revert would either no-op or restore an unknown environment, potentially including a stale dependency address, on a service whose latency, CPU and memory were never measured [tr_45c62bb85445] and whose own logs have never been read [tr_2f2afdbbe325].",
+    "blast_radius": "None from this proposal, since no action is taken. For reference, the action being declined would touch productcatalogservice alone, and its inbound callers \u2014 frontend, checkoutservice, and recommendationservice \u2014 would see connection resets during the container recreate, with loadgenerator seeing the resulting user-facing failures."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Three simultaneous critical alerts spanning frontend and productcatalogservice with loadgenerator impact indicate real user-facing failure, not a quiet warning. No open incidents to attribute it to, and the alert pattern alone does not distinguish a bad deploy from downstream latency."
+  }
+}

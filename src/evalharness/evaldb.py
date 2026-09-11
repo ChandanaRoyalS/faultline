@@ -58,6 +58,7 @@ FINGERPRINT_INPUTS = (
     "repeat_count",
     "seed_policy",
     "ablation",
+    "observability_digest",
 )
 """The behaviour-relevant settings, in the order T4.4 and T4.6 name them.
 
@@ -68,11 +69,53 @@ before it. `ablation` is T6.1's - the specialists withheld from the agent, `[]` 
 and is absent from every run recorded before it, which `missing` records; an ablation run and a
 full run therefore never share a fingerprint, and neither pools with a run made before the switch
 existed without the difference being visible.
+
+**`observability_digest` is T6.1's too, and closes a hole this table had from the start.**
+A run's generation is named by `compose_digest` alone (`generations.world_key`), so **two
+worlds differing only in what the agent can observe were one configuration here.** Harmless
+until it was not: on 2026-09-08 fifteen runs were scored against a Tempo whose
+`max_block_duration` made its search blind to the last five minutes - the window an investigation
+asks about - and the fix moved
+`observability_digest` and left `compose_digest` untouched. Without this input those fifteen runs
+would share a fingerprint with every run made after the fix, which is the silent pooling the whole
+table exists to prevent.
+
+**Read off the freeze, which has recorded it since T7.15** - not a new measurement, a recorded
+one that nothing was reading. `None` for the runs whose freeze predates the field, which
+`missing` reports rather than defaulting. **The generation *name* still under-specifies the world**;
+naming it properly would rename every generation in README, RESULTS and PLAN, and belongs in a
+change of its own rather than in this docstring - `docs/QUEUE.md` Q31.
 """
 
 
 class ConflictingOutcomeError(RuntimeError):
     """A manifest's outcome disagrees with the row already stored for that run."""
+
+
+def outcome_reread(stored: str, manifest: dict[str, Any]) -> str | None:
+    """Whether a stored outcome may be replaced by the manifest's current reading, and why.
+
+    Returns the name of the correction that explains the disagreement, or `None` when nothing
+    does - in which case the loader stops, because the realistic cause is a directory edited by
+    hand and a benchmark's record must not absorb that quietly.
+
+    **The one correction this recognises is `outcome_of`'s own (2026-09-04).** Gate refusals were
+    written as discards until that day, and the fix was a *reading* of the record rather than an
+    edit to it: a `discarded` manifest with no `injected_at` never started and reads `refused`.
+    Rows loaded before that reading existed say `discarded`. The loader met one on 2026-09-11,
+    at the end of dev sweep 12, and refused to load anything - correctly, given what it knew,
+    and wrongly, given what the repository knew. The signature is exact: the manifest still
+    carries the `discarded` block it was written with and has no `injected_at`. Anything else
+    that disagrees is still a conflict.
+    """
+    if (
+        stored == "discarded"
+        and outcome_of(manifest) == "refused"
+        and manifest.get("discarded")
+        and not manifest.get("injected_at")
+    ):
+        return "a discard that never injected reads as a refusal (2026-09-04 correction)"
+    return None
 
 
 @dataclass(frozen=True, slots=True)
@@ -147,6 +190,9 @@ def _setting(manifest: dict[str, Any], key: str) -> Any:
         return (manifest.get("freeze") or {}).get("runtime_version")
     if key == "world_generation":
         return (manifest.get("comparability") or {}).get("generation")
+    if key == "observability_digest":
+        # The freeze's, not the repository's: the question is what this run executed against.
+        return ((manifest.get("freeze") or {}).get("world") or {}).get("observability_digest")
     if key == "judge_version":
         return (manifest.get("judge") or {}).get("judge_model")
     if key == "baseline":
@@ -326,16 +372,20 @@ def load(dsn: str, rows: list[Row]) -> dict[str, int]:
     """
     import psycopg
 
-    written = {"configs": 0, "runs": 0}
+    written = {"configs": 0, "runs": 0, "reread": 0}
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
         for row in rows:
             cur.execute("SELECT outcome FROM eval_runs WHERE run_id = %s", (row.run_id,))
             found = cur.fetchone()
             if found and found[0] != row.outcome:
-                raise ConflictingOutcomeError(
-                    f"{row.run_id} is stored as {found[0]} and its manifest now reads "
-                    f"{row.outcome}. One of the two is wrong and this loader will not choose."
-                )
+                why = outcome_reread(found[0], row.manifest)
+                if why is None:
+                    raise ConflictingOutcomeError(
+                        f"{row.run_id} is stored as {found[0]} and its manifest now reads "
+                        f"{row.outcome}. One of the two is wrong and this loader will not choose."
+                    )
+                print(f"  reread {row.run_id}: {found[0]} -> {row.outcome} - {why}")
+                written["reread"] += 1
 
             cur.execute(
                 "INSERT INTO eval_configs (fingerprint, first_seen, runtime_version, settings, "
@@ -446,7 +496,8 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - console en
         print(f"\nREFUSED: the database is not reachable - {unreachable}")
         print("The summary above needed no database. `docker compose up -d postgres` and retry.")
         return 2
-    print(f"\nloaded {written['runs']} run(s), {written['configs']} new configuration(s)")
+    reread = f", {written['reread']} outcome(s) reread" if written.get("reread") else ""
+    print(f"\nloaded {written['runs']} run(s), {written['configs']} new configuration(s){reread}")
     return 0
 
 

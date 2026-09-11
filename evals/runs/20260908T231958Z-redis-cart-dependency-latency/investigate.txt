@@ -1,0 +1,38 @@
+incident 9d8af521-f1ef-4d61-893b-36450c5123e9  state triaging  anchor 23:23:15
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: a3d19a4a-ec02-4bf4-9216-b7e5893aa492
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Multiple services alerting within seconds along the cart/checkout/frontend path, not a single isolated warning, so it cannot be dismissed. The fan-out pattern starting at cartservice and spreading upstream suggests a shared dependency slowdown, though the class is only a prior.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if evidence appears that a cartservice configuration or environment value was applied and left in effect inside the incident window - for example a change-history entry showing a REDIS_ADDR override or traffic-shaper attach after 22:25 with no matching revert, or a redis-cart dispatch showing sub-millisecond server-side command latency while client spans stay at ~300ms and a namespace attachment is confirmed live. Any of those would meet revert_config's second precondition and make a config_revert on cartservice the right call. It is also wrong if the delay is still active and each minute of it is costing checkout conversion badly enough that acting on a medium-confidence read beats waiting for two cheap queries - that is a judgement for the reader, not for me.
+  rests on    : tr_b19a0cf4a3a4, tr_28516a3e7b4d, tr_ac10a806d663, tr_34b8a8ef0ecb
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22341 pushed / 5456 pulled (pull rate 0.1963), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_28516a3e7b4d, tr_b19a0cf4a3a4, tr_ac10a806d663
+  root cause  : cartservice requests are blocked on Redis: HGET and HMSET client spans each cost ~300-306ms with almost no variance while cartservice handler self-time is under ~1.5ms [tr_28516a3e7b4d]. Reads and writes are equally affected and cost scales with operation count, not load, which is the signature of a fixed delay inserted into the cartservice-to-redis-cart network path. The change record documents exactly that mechanism as recurring automation on this service: a traffic-shaping container attached to the cart-service network namespace with a fixed egress delay [tr_b19a0cf4a3a4]. cartservice itself is healthy, serving cart operations continuously with no errors or lifecycle events [tr_ac10a806d663], and no span carries an error status [tr_28516a3e7b4d]. The latency propagates upward into frontend GET (~305-310ms) and POST (~906-921ms) flows, which explains why frontend, checkoutservice and loadgenerator alerted 15 seconds later without error-rate rises of their own [tr_330cf881f56b].
+  OPEN        : Whether the traffic shaper was re-attached after its recorded removal - the change log's claim of no change in the hour before onset contradicts the observed delay at 23:24.
+  OPEN        : redis-cart was never dispatched against, so no server-side latency, memory or connection evidence exists to exclude a ~300ms Redis-side floor.
+  OPEN        : Trace coverage is a single ~14-second slice at 23:24:21-23:24:34, so onset time and whether the delay has cleared are unestablished; cartservice also has no call metrics in either window [tr_34b8a8ef0ecb], leaving no latency baseline.
+
+flags: none
+
+retrieval: exclude_origin='scenario:redis-cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T231958Z-redis-cart-dependency-latency/9d8af521-f1ef-4d61-893b-36450c5123e9-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260908T231958Z-redis-cart-dependency-latency/9d8af521-f1ef-4d61-893b-36450c5123e9-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9180.83it/s]

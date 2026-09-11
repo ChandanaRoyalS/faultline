@@ -1,0 +1,172 @@
+{
+  "incident_id": "961cb1ad-1136-4919-b461-91d5b1909899",
+  "trajectory_id": "471f6dd5-a835-497a-8ec9-73abe5120480",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:shipping-wrong-image",
+  "verdict": {
+    "root_cause": "Two minutes before onset, platform-automation updated shippingservice's image reference to a demo artifact whose tag names a different service (adservice), with no revert recorded unlike the four prior apply/revert cycles [tr_9febbf74c6c7]. The container that came up is not the shipping binary: shipping's logs shift from normal Rust/tonic GetQuote handler pairs earlier in the window to a repeating JVM/OTel bootstrap block every ~60s with zero handler activity from 17:53 to 18:00 \u2014 a process that never reaches serving state [tr_0c02ff9adc51]. With nothing listening, checkoutservice's GetQuote client calls fail fast: in every failing trace the deepest error span is checkout's ShippingService/GetQuote client span with no shippingservice server child at ~2ms, while cart, currency, product-catalog and Redis spans are clean [tr_f999417a9398]. Checkout aborts order preparation before payment, matching order-start log lines with no payment/email/message-write completions [tr_a635f5787293], producing the ~19x error-ratio rise that alerted first [tr_9e757c00ecde]. Nothing changed on checkoutservice itself [tr_06ea24e3898c].",
+    "service": "shippingservice",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_9febbf74c6c7",
+      "tr_0c02ff9adc51",
+      "tr_f999417a9398",
+      "tr_a635f5787293",
+      "tr_9e757c00ecde",
+      "tr_06ea24e3898c"
+    ],
+    "reasoning": "Three independent lines converge on a wrong artifact running in shippingservice: a change record placing a mis-tagged image 2 minutes before onset with no revert [tr_9febbf74c6c7], shipping's own logs showing a bootstrap-only restart loop in a Java runtime where the healthy service logged in Rust/tonic format [tr_0c02ff9adc51], and caller-side traces where the error terminates on checkout's side of the hop with no shipping server span and sub-3ms duration \u2014 the signature of nothing listening, not a slow or erroring handler [tr_f999417a9398]. checkoutservice alerted first but is the noticer: it has no changes at all [tr_06ea24e3898c] and only the shipping hop errors [tr_f999417a9398]. The wider fan-out follows \u2014 frontend and loadgenerator are callers above checkout; quoteservice loses inbound traffic from a dead shipping; email, accounting and frauddetection see no order messages because checkout never reaches the message-write stage [tr_a635f5787293]. The mechanism is a running artifact that is not the one that should be running, so restoring the correct image reference is the fix; a bare restart would re-pull the same wrong image.",
+    "open_questions": [
+      "The earliest metric change point is ~17:31:30, ~25 minutes before the image update and coincident with the QUOTE_SERVICE_ADDR override being set [tr_9e757c00ecde, tr_9febbf74c6c7]; whether the incident is one continuous failure with two successive causes, or partially recovered after the 17:42 revert, is unsettled.",
+      "Errors are bursty with intervals at zero and max ~0.30 [tr_9e757c00ecde], while a fully crash-looping shipping should fail every quote; whether some replicas still ran the correct image is unresolved, and shippingservice emits no calls_total series to confirm server-side onset [tr_f7bdd49397be].",
+      "The shipping log selector returns two runtimes under one label and the 15:58-17:53 interval is truncated [tr_0c02ff9adc51], so it is not fully excluded that the JVM restart loop belongs to a co-labelled workload; pod/image inspection would settle it."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The QUOTE_SERVICE_ADDR override pointed shipping's GetQuote at a non-existent quote host, so shipping failed every quote request.",
+        "service": "shippingservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The override was reverted ~13 minutes before onset with no re-application [tr_9febbf74c6c7], and a live shipping process failing an upstream call would still emit a server span under checkout's GetQuote client span, which no failing trace contains [tr_f999417a9398]. It may still explain the earlier 17:31 change point."
+      },
+      {
+        "root_cause": "shippingservice is being killed and restarted by the platform (OOM or failing probe) independent of the image change, so it cannot stay up to serve quotes.",
+        "service": "shippingservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "The restart loop starts within minutes of a recorded change to a wrong-service image, and the bootstrap output is a different runtime than the healthy service used [tr_9febbf74c6c7, tr_0c02ff9adc51]; no OOM, kill, or limit evidence was found, and the wrong-artifact story explains both timing and runtime mismatch."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 30937,
+    "pulled_tokens": 11255,
+    "pull_rate": 0.2668,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 482,
+        "content_tokens": 485,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1996,
+        "content_tokens": 2000,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9477,
+        "content_tokens": 9453,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8832,
+        "content_tokens": 8834,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10150,
+        "content_tokens": 10128,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "shippingservice",
+    "rests_on": [
+      "tr_9febbf74c6c7",
+      "tr_0c02ff9adc51",
+      "tr_f999417a9398"
+    ],
+    "expected_effect": "Shipping's logs stop the ~60s JVM/OTel bootstrap block and resume Rust/tonic GetQuote handler pairs; checkoutservice's GetQuote client spans regain a shippingservice server child and stop erroring; checkoutservice error ratio falls from ~0.136 mean toward the ~0.007 baseline. Shipping emits no calls_total series, so confirm from caller-side traces/metrics and logs only.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if checkout error ratio stays elevated while shipping logs look healthy (points instead at the unresolved ~17:31:30 change point / QUOTE_SERVICE_ADDR), or if the JVM bootstrap loop continues after rollback (confirming that loop belongs to a co-labelled Java workload, not the shipping binary).",
+    "risk": "Prior image reference is recorded as 'None' rather than a concrete tag, so the recreate may land on an unexpected artifact and leave shipping broken. The recreate also destroys the container that pod/image inspection would need to settle the co-label doubt. If some replicas still ran the correct image (bursty errors, min 0, max ~0.30), those are taken down too and errors spike to near-total during the recreate. Does not stop platform-automation from re-applying the bad image next cycle.",
+    "blast_radius": "shippingservice during the recreate; checkoutservice sees resets, propagating to frontend and loadgenerator checkout traffic. quoteservice sees GetQuote traffic resume; paymentservice and emailservice see order completions resume."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service fanout originating at checkoutservice and spreading to frontend and its downstream consumers within minutes; nothing here can be dismissed. Fault class is unclear without evidence, though checkoutservice's lead position makes it the natural first dispatch."
+  }
+}

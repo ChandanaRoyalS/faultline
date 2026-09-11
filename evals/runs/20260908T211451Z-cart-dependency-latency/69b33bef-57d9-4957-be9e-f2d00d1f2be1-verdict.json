@@ -1,0 +1,171 @@
+{
+  "incident_id": "69b33bef-57d9-4957-be9e-f2d00d1f2be1",
+  "trajectory_id": "4c414ea4-9ebc-4be4-a4e6-5bfa76b39ff1",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-dependency-latency",
+  "verdict": {
+    "root_cause": "A platform-automation fault-injection sidecar attached to cart-service's network namespace ~3 minutes before onset and still in place at onset applies a fixed 300ms, zero-jitter delay to eth0 [tr_3a9397b64997]. Every packet in and out of the cartservice pod therefore pays that tax: traces show ~300ms of self-time on cartservice's Redis leaf spans (HGET/HMSET) and a second ~300ms gap between caller client spans and the cartservice server span, additive per round trip, so single-call frontend paths run ~600ms and checkout paths ~2.4s [tr_be586d4230a8]. cartservice itself is healthy \u2014 handler self-time is sub-millisecond, logs show uninterrupted routine cart operations with no errors, restarts or Redis failures, and non-cart dependencies in the same traces complete in single-digit ms [tr_09b630f058ba][tr_be586d4230a8]. checkoutservice, frontend and loadgenerator alerted 15s after cartservice because they are the waiters, not the source. The failing mechanism is injected wait on the cart call path, not a broken artifact, a wrong address, or exhausted capacity.",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_3a9397b64997",
+      "tr_be586d4230a8",
+      "tr_09b630f058ba",
+      "tr_9491d023980c",
+      "tr_1651701e75b5"
+    ],
+    "reasoning": "Two independent signals agree on both magnitude and shape. The change record places a 300ms/0-jitter netem-style delay on cart-service's network namespace 3 minutes before onset with no matching removal [tr_3a9397b64997]; the traces show latency of 300.4-307.7ms across 157 spans with essentially no variance, appearing on both Redis leaves and on the caller-to-server hop into cartservice [tr_be586d4230a8]. That double-charging is exactly what a namespace-level eth0 delay produces (once on the inbound gRPC connection, once on each outbound Redis round trip), and it explains the additive scaling by operation count. Competing mechanisms are excluded on evidence rather than assumption: queueing/saturation is ruled out by the near-zero variance, cartservice compute by sub-ms handler self-time, cache-cold or read-only theories by writes being equally slow, and cluster-wide regression by healthy sibling dependencies [tr_be586d4230a8]. The v1.2.1 hotfix image and the REDIS_ADDR:6380 override were both reverted well before onset, so neither the running artifact nor the Redis address was wrong at 21:18 [tr_3a9397b64997], and cart logs show no connection or auth failures [tr_09b630f058ba]. The correct fix is removal of the injected traffic-shaping container, not a rollback of any application version.",
+    "open_questions": [
+      "The frontend gRPC 14 UNAVAILABLE bursts at ~20:56:33 and ~21:04:33-34 carry no callee identifier and stop before onset [tr_9491d023980c]; they are unexplained by a 300ms delay and may be a separate, earlier fault (possibly tied to the image revert at ~21:04) rather than part of this incident.",
+      "cartservice call/error-ratio series do not exist in either incident or baseline windows [tr_7f00d2b84c4f][tr_1651701e75b5], so whether the latency actually converted into user-facing errors (deadline exceeded at checkoutservice/frontend) or only slow success is not settled; no request-rate, p95, readiness or restart metrics were retrieved.",
+      "The attach/remove pattern recurs on a cycle (attached and removed ~3h and ~15.8h earlier) [tr_3a9397b64997], so it is unknown whether the automation will self-remove the delay, and which experiment or owner scheduled this injection.",
+      "Triage crossed 4 unmeasured edges; no direct evidence was gathered from redis-cart or checkoutservice, so a concurrent contribution from either is uninspected.",
+      "Three fragmented cart cache traces with unattached spans [tr_be586d4230a8] leave a small amount of the cart call path without parent context."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The cart cache (redis-cart) itself became slow, adding ~300ms to every cart operation.",
+        "service": "redis-cart",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "A genuinely slow Redis would not also delay the frontend/checkoutservice client-to-server hop into cartservice, which carries its own separate ~300ms [tr_be586d4230a8], and would not produce sub-millisecond variance; the namespace-level delay change explains both increments and the timing [tr_3a9397b64997]."
+      },
+      {
+        "root_cause": "The traffic-shaping parameter itself (delay=300ms, jitter=0) is a wrong configuration value applied to a production namespace.",
+        "service": "cartservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Same underlying act, but the mechanism breaking requests is the wait it inserts into the call path, not a value naming a wrong address, port or limit; per the taxonomy an injected delay classifies as dependency_latency."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "redis-cart-dependency-latency / Resolution: The delay was removed from the Redis container's interface and latency returned to baseline as the\nalert windows drained. **Class of fix: `restart`** - the intervention was on the container carrying\nthe fault, not a revert of any application configuration. Nothing about cartservi",
+    "redis-cart-dependency-latency / Root cause: Redis, the cart service's datastore, had a 300ms network delay applied to its interface, so every\nresponse it sent back arrived late. Cart was not broken and was not doing anything differently - it\nwas blocking on a datastore that had become slow, and everything that calls cart i",
+    "cart-redis-misconfig / Resolution: `REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and\nthe no-traffic alerts cleared \u2014 those six services had never been broken, only starved.\nEverything was clear at **T+10m32s**, 3m01s after the fix.\n\nClass of fix: **config_revert**. Nothing had"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25883,
+    "pulled_tokens": 7800,
+    "pull_rate": 0.2316,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 472,
+        "content_tokens": 474,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1764,
+        "content_tokens": 1767,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7776,
+        "content_tokens": 7752,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7276,
+        "content_tokens": 7279,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8595,
+        "content_tokens": 8573,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_3a9397b64997",
+      "tr_be586d4230a8",
+      "tr_09b630f058ba"
+    ],
+    "expected_effect": "Restoring cartservice's recorded pre-21:15 config and recreating the container destroys the network namespace the traffic-shaping sidecar attached to, removing the fixed eth0 delay=300ms/jitter=0ms. In Tempo (Prometheus has no usable cartservice series): HGET/HMSET self-time falls from ~300ms to single-digit ms, the ~300ms caller-client-to-server gap disappears, frontend GetCart drops from ~600ms to tens of ms and checkout paths from ~2.4s to under 100ms; the checkoutservice/frontend/loadgenerator latency alerts clear. cartservice logs resume routine add/get/empty cadence after one restart boundary.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if traces 2-5 min after the recreate still show ~300ms self-time on cart Redis spans and the same caller-to-server gap - meaning the delay is re-applied by the recurring automation cycle or lives outside cartservice's config, and the real fix (disabling the fault-injection schedule) is outside this system's actions. Note the change record only names a container attach, not a config/flag edit, so the revert_config precondition is met only loosely; if change history holds no prior cartservice configuration, do not proceed. The frontend 14 UNAVAILABLE bursts before onset are unexplained by this diagnosis and will not clear.",
+    "risk": "If the 300ms tax is not actually namespace-scoped to this container, the recreate buys nothing and costs a cold cartservice: in-process cache discarded, in-flight cart RPCs reset, and any concurrent redis-cart or checkoutservice contribution (never directly inspected) is left in place while attention moves on. Reverting config could also unwind an intended setting if the recorded prior config predates other legitimate changes.",
+    "blast_radius": "cartservice for the seconds of recreate; its inbound callers frontend and checkoutservice see connection resets on cart RPCs, which surfaces to loadgenerator as failed checkouts. redis-cart sees cart connections drop and re-open. Non-cart dependencies are untouched."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "medium",
+    "reasoning": "Four services alerted within 15s starting at cartservice and fanning out through checkoutservice and frontend to the load generator, which is a propagating user-facing failure rather than a single quiet warning. Cart being first and its dependents following suggests a downstream dependency or resource issue in cartservice."
+  }
+}

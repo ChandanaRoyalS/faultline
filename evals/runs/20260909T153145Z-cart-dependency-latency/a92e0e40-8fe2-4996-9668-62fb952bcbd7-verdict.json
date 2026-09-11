@@ -1,0 +1,170 @@
+{
+  "incident_id": "a92e0e40-8fe2-4996-9668-62fb952bcbd7",
+  "trajectory_id": "9d9f6090-137e-4b4e-8ba7-b3fa5b341479",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-dependency-latency",
+  "verdict": {
+    "root_cause": "At 15:31:54, ~3 minutes before onset, platform-automation attached a traffic-shaping (netem) sidecar to cartservice's network namespace imposing a fixed 300ms egress delay with zero jitter on eth0, and unlike every prior iteration of the same automated experiment cycle no matching removal followed, so the delay was live at onset [tr_f948a9e2be42]. Traces show the mechanism precisely: every cartservice Redis leaf sits at a tight 300-310ms floor and each caller's client span into cartservice carries an extra ~300ms of self-time, while cartservice's own in-process work is under ~1.2ms and non-cart dependencies in the same traces stay sub-millisecond to ~18ms [tr_bf5a5d442083]. The penalty is additive per network crossing, inflating AddItem hops to ~904ms and frontend requests to ~1.5s. Checkout, frontend and loadgenerator alerted because they wait on cartservice: checkout logs are error-free but each order step is separated by ~1.2s instead of tens of ms [tr_8394851a34a1], and its error ratio rises ~9.5x in bursty fashion [tr_eefdb339da98], consistent with deadline expiry on the cart hop. Removing the orphaned netem sidecar resolves it.",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_f948a9e2be42",
+      "tr_bf5a5d442083",
+      "tr_eefdb339da98",
+      "tr_8394851a34a1",
+      "tr_0fde65ed948b"
+    ],
+    "reasoning": "The change record isolates the one thing distinguishing this cycle from five identical prior cycles: an unterminated netem attachment at 15:31:54; the hotfix image and the REDIS_ADDR override were both reverted before onset [tr_f948a9e2be42]. The traces give that change a signature only network-layer injection produces - a fixed ~300ms floor with almost no spread across ~20 operations, appearing at both Redis leaves and caller-side gaps, which rules out application code, cluster-wide network degradation, and contention-driven queuing [tr_bf5a5d442083]. Caller symptoms follow from a slow cartservice rather than caller-side faults: checkout shows pure slowdown with no error, DNS or refused-connection text while payments, emails and sequential queue offsets continue [tr_8394851a34a1], and cartservice serves cart operations uninterrupted with no restart or Redis failure [tr_0fde65ed948b]. Checkout's error spike [tr_eefdb339da98] is propagation - requests exceeding the caller's deadline - not origin. The class is dependency_latency because the failure mechanism is waiting, not a value naming a wrong address or limit; the fix is removal of the injected shaping rule.",
+    "open_questions": [
+      "Checkout's error-ratio change point is ~15:13:15, roughly 19 minutes before the netem attachment [tr_eefdb339da98, tr_f948a9e2be42]; that gap is unexplained and overlaps the hotfix image apply/revert window.",
+      "No latency or request-rate series were returned for either service [tr_eefdb339da98, tr_c6e73bad0992], and traces cover only 15:36:31-15:37:08 with both log queries truncated across ~15:05-15:36, so nothing directly observed the 15:31-15:35 transition.",
+      "Why checkoutservice's client spans to cartservice carry ~905ms of self-time (three 300ms units) above a ~305ms server span [tr_bf5a5d442083] is unaccounted for by a single egress delay."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The cartservice v1.2.1 hotfix.2 image introduced a latency regression that persisted after its revert, explaining the ~15:13 error onset.",
+        "service": "cartservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The image reference was reverted ~13 minutes before onset [tr_f948a9e2be42], and the observed latency is a uniform per-network-hop 300ms floor including caller-side gaps, which application code cannot produce [tr_bf5a5d442083].",
+        "confidence": "low"
+      },
+      {
+        "root_cause": "The redis-cart backend itself became slow, and cartservice failed because it waited on Redis.",
+        "service": "redis-cart",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "The ~300ms unit appears not only in Redis leaf spans but independently in callers' self-time on the hop into cartservice, so at least two injection points exist rather than one slow downstream [tr_bf5a5d442083].",
+        "confidence": "low"
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "redis-cart-dependency-latency / Resolution: The delay was removed from the Redis container's interface and latency returned to baseline as the\nalert windows drained. **Class of fix: `restart`** - the intervention was on the container carrying\nthe fault, not a revert of any application configuration. Nothing about cartservi",
+    "redis-cart-dependency-latency / Root cause: Redis, the cart service's datastore, had a 300ms network delay applied to its interface, so every\nresponse it sent back arrived late. Cart was not broken and was not doing anything differently - it\nwas blocking on a datastore that had become slow, and everything that calls cart i",
+    "cart-redis-misconfig / Resolution: `REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and\nthe no-traffic alerts cleared \u2014 those six services had never been broken, only starved.\nEverything was clear at **T+10m32s**, 3m01s after the fix.\n\nClass of fix: **config_revert**. Nothing had"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26753,
+    "pulled_tokens": 9206,
+    "pull_rate": 0.256,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 472,
+        "content_tokens": 474,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1913,
+        "content_tokens": 1917,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8089,
+        "content_tokens": 8065,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7483,
+        "content_tokens": 7485,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8796,
+        "content_tokens": 8774,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_f948a9e2be42",
+      "tr_bf5a5d442083"
+    ],
+    "expected_effect": "None - abstaining. The fix the evidence names is removal of the orphaned netem sidecar attached to cartservice's network namespace at 15:31:54 [tr_f948a9e2be42], and no permitted action does that. revert_config's preconditions are not met: the only config change on cartservice in the window is the REDIS_ADDR pair, which was reverted ~3.1h before onset, so reverting config would restore an already-current state and leave the 300ms floor in the Redis leaves and caller self-time untouched [tr_bf5a5d442083]. rollback_image is also unmet: the hotfix image was already reverted ~13m before onset. If an operator removes the sidecar out of band, confirmation is cartservice Redis leaf spans dropping off the 300-310ms floor to sub-millisecond and checkout's per-order log steps returning to tens of ms within ~120s.",
+    "confirm_within_seconds": 120,
+    "if_wrong": "Abstention is wrong if change history holds a cartservice config entry that actually carries the netem/eth0 delay as reverted configuration, or if the unexplained 15:13:15 checkout error change point traces to a config or image state that a listed action could restore. Both are checkable in change history before acting.",
+    "risk": "Doing nothing leaves ~1.5s frontend latency and ~18% checkout error ratio in place until an operator removes the sidecar; that delay is the cost of abstaining. Acting instead would recreate cartservice's container on a false diagnosis - the netem attachment is to the network namespace and may survive or be reapplied by the automation loop, so callers absorb a reset for no gain.",
+    "blast_radius": "No change, so nobody sees anything new. The ongoing impact continues to be seen by frontend, checkoutservice and loadgenerator, which wait on cartservice."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "low",
+    "reasoning": "Four simultaneous alerts spanning cart, checkout, and frontend plus the load generator is not a single quiet warning; the shared-path pattern points at a common downstream dependency. No open incident could absorb it, so it warrants investigation."
+  }
+}

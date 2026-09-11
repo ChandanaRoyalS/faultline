@@ -1,0 +1,41 @@
+incident 23610719-be0b-4498-99b7-cf6a36aa79c2  state triaging  anchor 09:54:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 068131a8-50e6-4fa6-bda8-ba221acd5bdf
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Critical multi-service alert with frontend and productcatalogservice both firing simultaneously and load generator seeing impact — not dismissible as a quiet world. Shared-dependency or catalog latency fanning out to frontend is the cheapest prior, but no evidence exists yet.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention would be shown wrong if a re-run of the missing measurements produced a change-linked mechanism inside the incident window - for example a productcatalogservice latency percentile stepping up at 09:52:30, a nonzero restart count, or a log line naming a config or dependency failure. It would also be wrong if a change record surfaced that landed at or after 09:54:30; every record examined is an automation apply/revert pair already reverted 59m to 3.9h before onset [tr_e73b121534f4, tr_aa8e88568e6d, tr_33dc51ae9c26], which is precisely why no rollback or config_revert has its precondition met. Note that the strongest available signal cuts against acting on the callee at all: productcatalogservice's handler is 0.0-0.1ms with all self-time on frontend's client span [tr_c5283e9f3bf8], and frontend's own error ratio fell to a third of baseline [tr_21ff2ac82ba1].
+  rests on    : tr_e73b121534f4, tr_aa8e88568e6d, tr_33dc51ae9c26, tr_ed1ee63295f5, tr_0b3a50bad024, tr_c5283e9f3bf8
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 30788 pushed / 4251 pulled (pull rate 0.1213), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_ed1ee63295f5, tr_21ff2ac82ba1, tr_c5283e9f3bf8, tr_e73b121534f4, tr_aa8e88568e6d, tr_33dc51ae9c26, tr_0b3a50bad024, tr_8e6a19a2a12d
+  root cause  : The evidence does not establish a working fault mechanism. The strongest positive signal is a late, modest error-ratio rise on productcatalogservice beginning at ~09:52:30 (baseline flat zero, incident mean ~1.2%, peak ~10%) [tr_ed1ee63295f5], while frontend's error ratio actually fell to about a third of its baseline [tr_21ff2ac82ba1]. Traces show a shallow 3-span shape in which the productcatalogservice handler is essentially instantaneous (0.0-0.1ms) and all self-time sits on frontend's gRPC client span, with no downstream child spans at all [tr_c5283e9f3bf8] - consistent with cost on the client side of the frontend->productcatalogservice hop rather than inside the callee. Every change record examined is an automation apply/revert pair that had already been reverted well before onset: productcatalogservice's 300ms traffic-shaping container removed ~3.8h prior [tr_e73b121534f4], cartservice's image tag, shaping container and REDIS_ADDR override all reverted ~59m prior [tr_aa8e88568e6d], and adservice's 256m memory limit reverted ~1.9h prior [tr_33dc51ae9c26]. Logs returned nothing, and the selector used a hyphenated label that does not match the service name, so log silence is likely an artifact [tr_0b3a50bad024]. No latency, CPU, memory or restart series were retrieved for any service [tr_ed1ee63295f5, tr_8e6a19a2a12d], and one metric dispatch was run against a window a full day off the incident [tr_8e6a19a2a12d]. I cannot responsibly name a mechanism on this basis.
+  OPEN        : Was productcatalogservice's request latency elevated at all? No latency series was retrieved in any dispatch, leaving the single most load-bearing hypothesis unmeasured.
+  OPEN        : What do productcatalogservice's logs actually say? The only log query used the label service="product-catalog-service" while the service under investigation is productcatalogservice, so the empty result is probably a label mismatch and must be re-run [tr_0b3a50bad024].
+  OPEN        : Why did all three services alert at 09:54:30 when frontend errors were below baseline [tr_21ff2ac82ba1]? The alert trigger was never identified, and loadgenerator was never investigated at all.
+  OPEN        : One triage edge was unmeasured and adservice, cartservice, checkoutservice and loadgenerator received no metrics, logs or traces - so an origin outside productcatalogservice remains open.
+  OPEN        : tr_8e6a19a2a12d queried 2026-09-08, a day before onset; its flat-zero finding describes the wrong day and should not be read as incident-window evidence.
+  OPEN        : Do the failing spans carry error tags, and did any traces exist between 09:52:30 and 09:56:24? Neither is answered by the trace sample [tr_c5283e9f3bf8].
+
+flags: none
+
+retrieval: exclude_origin='scenario:product-catalog-flag-failure', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T095029Z-product-catalog-flag-failure/23610719-be0b-4498-99b7-cf6a36aa79c2-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T095029Z-product-catalog-flag-failure/23610719-be0b-4498-99b7-cf6a36aa79c2-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 12532.30it/s]

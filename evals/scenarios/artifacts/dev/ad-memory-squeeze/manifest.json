@@ -7,45 +7,45 @@
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-09-08T05:02:02+00:00",
-      "last_seen": "2026-09-08T05:02:02+00:00",
-      "minutes_firing": 0.2,
+      "first_seen": "2026-09-09T03:00:49+00:00",
+      "last_seen": "2026-09-09T03:07:34+00:00",
+      "minutes_firing": 7.0,
       "service": "frontend"
     },
     {
       "alert": "ServiceHighErrorRate",
       "began_after_revert": false,
-      "first_seen": "2026-09-08T05:02:02+00:00",
-      "last_seen": "2026-09-08T05:02:02+00:00",
-      "minutes_firing": 0.2,
-      "service": "loadgenerator"
-    },
-    {
-      "alert": "ServiceHighErrorRate",
-      "began_after_revert": false,
-      "first_seen": "2026-09-08T05:04:32+00:00",
-      "last_seen": "2026-09-08T05:08:17+00:00",
-      "minutes_firing": 4.0,
-      "service": "frontend"
-    },
-    {
-      "alert": "ServiceHighErrorRate",
-      "began_after_revert": false,
-      "first_seen": "2026-09-08T05:04:32+00:00",
-      "last_seen": "2026-09-08T05:08:17+00:00",
-      "minutes_firing": 4.0,
+      "first_seen": "2026-09-09T03:00:49+00:00",
+      "last_seen": "2026-09-09T03:05:34+00:00",
+      "minutes_firing": 5.0,
       "service": "loadgenerator"
     },
     {
       "alert": "ServiceNoTraffic",
       "began_after_revert": false,
-      "first_seen": "2026-09-08T05:04:47+00:00",
-      "last_seen": "2026-09-08T05:07:32+00:00",
-      "minutes_firing": 3.0,
+      "first_seen": "2026-09-09T03:02:49+00:00",
+      "last_seen": "2026-09-09T03:06:34+00:00",
+      "minutes_firing": 4.0,
       "service": "adservice"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-09T03:05:04+00:00",
+      "last_seen": "2026-09-09T03:07:34+00:00",
+      "minutes_firing": 2.8,
+      "service": "frontend"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "began_after_revert": false,
+      "first_seen": "2026-09-09T03:05:04+00:00",
+      "last_seen": "2026-09-09T03:05:34+00:00",
+      "minutes_firing": 0.8,
+      "service": "loadgenerator"
     }
   ],
-  "baseline_clear_at": "2026-09-08T04:58:47+00:00",
+  "baseline_clear_at": "2026-09-09T02:56:49+00:00",
   "bundle_schema_version": 2,
   "capture_set": 2,
   "expected_remediation_class": "config_revert",
@@ -66,28 +66,28 @@
     "derived_from": "the bundle's own captures (T7.5)",
     "none_can_answer": false,
     "runtime_series": 48,
-    "target_log_lines": 156
+    "target_log_lines": 142
   },
   "recorded_by": "evalharness.rehearse",
   "recorder": {
     "git_dirty": true,
-    "git_sha": "9e2097767bfe3ceab21adf0faaab3204fb864655",
+    "git_sha": "e7b7a5052eac80f52ad2ef12267f5323fd758bfd",
     "tool": "evalharness.rehearse"
   },
   "scenario_fingerprint": "c56097be739ca910cb2605047af78a2f11ca78cc1b4a6e43e22c20f33a8eff42",
   "scenario_id": "ad-memory-squeeze",
   "seconds_of_steady_state": 300,
-  "seconds_to_alert": 196,
-  "seconds_to_settle": 90,
+  "seconds_to_alert": 256,
+  "seconds_to_settle": 120,
   "split": "dev",
-  "t_alert_firing": "2026-09-08T05:02:03+00:00",
-  "t_clear": "2026-09-08T05:08:33+00:00",
-  "t_inject": "2026-09-08T04:58:47+00:00",
-  "t_revert": "2026-09-08T05:07:03+00:00",
+  "t_alert_firing": "2026-09-09T03:01:05+00:00",
+  "t_clear": "2026-09-09T03:08:05+00:00",
+  "t_inject": "2026-09-09T02:56:49+00:00",
+  "t_revert": "2026-09-09T03:06:05+00:00",
   "title": "Ad service memory limit cut below the working set its JVM was sized for",
   "window": {
-    "end": "2026-09-08T05:10:33+00:00",
-    "start": "2026-09-08T04:53:47+00:00"
+    "end": "2026-09-09T03:10:05+00:00",
+    "start": "2026-09-09T02:51:49+00:00"
   },
   "world": {
     "compose_digest": "90e9f29e578e7e98232ec89e92f2f5844a45482721acb52360010b97b387b7a5",
@@ -95,14 +95,14 @@
     "ffs_stub_image_id": "sha256:90f2fc6f5806a8914ef2740ff7c6348a1ddd4225bccc8f3398e58d03b3c1a512",
     "ffs_stub_source_digest": "8defed3104c42adffb16b77e85396e1796f2681652d0771b99d3632358c37fde",
     "host_platform": "Darwin/arm64",
-    "observability_digest": "f3011ba830219b3f530b0d954867924c9b4afe78fa42949335257f04a5d28410",
+    "observability_digest": "7aaba3818737582359ef74b125ae107096b2a8d90fc94d57c7af5ccc2fc676c8",
     "observability_files": {
       "compose/otelcol-extras.yml": "c3abca6bfdbab4a093de0c209a30f552a7c60d4cddd5a8cd1bed5bfea95db3b4",
       "compose/prometheus/alert-rules.yml": "ae69d142bc571db5bd697f31368b8e7d5e533a3d0eecd4661ea2b29b7ea8672e",
       "compose/prometheus/alertmanager.yml": "cec8f9f623152c001d14a53c8c3a6930ad35665d5ee093117ff17cf0d09d61f1",
       "compose/prometheus/prometheus-config.yaml": "230505c37ddc4f95aa9ec1b085bf1ea32a98346e27e5f6f813aef230f3def749",
       "compose/promtail-config.yml": "2d43bc91f78cf65504a1091e406a7e97bcece0a194dc5f27cf1fd4c49edb72ec",
-      "compose/tempo.yaml": "7a9a7a455fd1581931a168ba9ae43a3dcf451328d192391244fbbfdc494dfcda",
+      "compose/tempo.yaml": "e9009f1c4a9f2d186d9fb5ba0f39df96d2f8430f12524f3dd1782d016a5280e8",
       "world/src/otelcollector/otelcol-config-extras.yml": "7f3afd57cd82f28d5c5948e843d7d594e60dfb0133611c540ff31fa31804ee92",
       "world/src/otelcollector/otelcol-config.yml": "cf1645d90cc88effcb493edd196238bf73a14d1b30dc654325d25045be0377e5"
     },
@@ -112,9 +112,9 @@
   "world_lock": {
     "acquired": true,
     "host": "chandanas-MacBook-Air.local",
-    "pid": 46085,
+    "pid": 67250,
     "reason": "rehearse ad-memory-squeeze",
-    "since": "2026-09-08T04:58:42.659648+00:00",
-    "token": "46085-1788843522.659368"
+    "since": "2026-09-09T02:56:44.403102+00:00",
+    "token": "67250-1788922604.402793"
   }
 }

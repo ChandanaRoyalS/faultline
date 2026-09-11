@@ -64,6 +64,16 @@ whole rather than the tail of a flat list. `max_traces` (default 10) bounds the 
 arrives as a name or an OTLP code and is stored as a name. `TraceResult.source` is `"tempo"`, and
 `traces` says how many were fetched.
 
+**A store is only as useful as its freshest searchable trace, and the first configuration got that
+wrong.** `ingester.max_block_duration` was 5m, and nothing in Tempo is searchable until a block is
+cut: measured on 2026-09-09, the newest searchable trace froze at one instant for five minutes and
+then jumped to 14s behind, so **at any moment the tool was blind to the last 0-5 minutes** - the
+window an investigation asks about. Two dev sweep 12 verdicts reported exactly that (*"every
+returned trace predates onset"*) and both were wrong. At 30s the lag is 6-88s with a median around
+14s, and memory falls rather than rises. `compose/tempo.yaml` records the measurement. **This is
+why a delta measured on the first configuration would have been a measurement of the config**, and
+why the sweep was not run on it.
+
 `ALLOWED_PATHS` gains `/api/search` and `/api/traces/` and loses Jaeger's; the read-only guard is
 otherwise unchanged. **Every recorded bundle's `traces/` capture stays what it was**: a recording is
 not re-sourced, and the thirteen bundles re-record on the new world anyway (§5).
@@ -127,6 +137,12 @@ provided it before, which is why the delta had never been measured.
 - `compose_digest` and `observability_digest` move: every published figure becomes a figure about
   generation `f5bd108f4f70`, which is what it always was. Thirteen bundles re-record, narratives
   preserved (T7.28's rule), about two hours on the reference platform.
+- **No second `TOOL_BEHAVIOUR_REVISION` bump for the block-duration fix**, and the reason is worth
+  stating rather than assuming: `CAPTURE_SET` holds metric files and logs and **no bundle holds a
+  trace**, so how fresh Tempo's search index is cannot falsify a claim in any narrative. It changes
+  what the *agent* sees at runtime, which the sweep measures directly. It does move
+  `observability_digest`, because `compose/tempo.yaml` is under it - so the thirteen bundles record
+  again, and that is the whole cost.
 - `TOOL_BEHAVIOUR_REVISION` 2 → 3, `cap:c4d52d00` → `cap:dd651ccc`. The fifteen narrative stamps
   were **reviewed, not re-stamped**: `docs/design/t6.1-capability-review.md` names the three claim
   shapes the three changes could falsify, the hits, and why each is unaffected.
@@ -144,3 +160,40 @@ Whether the tree helps. Prediction 5 says where it should - the two `dependency_
 and what it means if it does not: *"the span tree is not doing what §2.2 says and T6.1 is not
 delivered, whatever the totals say."* This ADR records a design; `SWEEP-<date>-sweep12.md` records
 whether it worked.
+
+## Addendum 1 (2026-09-11) — what dev sweep 12 settled, and what §7 got wrong about where to look
+
+§7 said this ADR records a design and `SWEEP-<date>-sweep12.md` records whether it worked.
+[`SWEEP-2026-09-11-sweep12.md`](../../evals/runs/SWEEP-2026-09-11-sweep12.md) does. Three things
+belong here because they change how §3 should be read.
+
+**The tree helps, and by more than the class axis was expected to show.** With traces, fault class
+26 / 27 and culprit service 23 / 30; without, 20 / 27 with seven abstentions and 18 / 34. The
+comparison tool reports +20.0 pp on fault class at n = 10, R = 3 — above the 16.2 pp MDE on the point
+estimate, with an interval that reaches zero — and the A/A check, running for the first time,
+passed with a largest within-arm delta of 10 pp. Prediction 4 (*no detectable class difference*)
+failed in the direction the registration called welcome.
+
+**It helps on the hop §3 did not name.** §3's worked example is the datastore client span inside
+cartservice, and prediction 5 named the two `dependency_latency` scenarios as where the gap would
+be. Neither moved: `cart-dependency-latency` is 3 / 3 in both arms because cartservice's own
+histogram shows the fault, and `redis-cart-dependency-latency` is 0 / 3 on service in both because
+the nearest instrumented node is cartservice and that is what the rule prints and the verdict names.
+The gap is on `shipping-quote-misconfig` (3 / 3 against 0 / 4), `cart-bad-image-tag` (3 / 3 against
+1 / 3) and `shipping-wrong-image` (3 / 3 against 2 / 4): deploy and config faults **downstream of
+checkout**, where the failing hop is `checkoutservice/PlaceOrder -> shippingservice/GetQuote`
+carrying an error status — rule 1, the deepest erroring span — and where, without it, the
+synthesizer reads checkout's log trail stopping and names the next hop by position. **The hop that
+matters in this world is the erroring one between two instrumented services, not the slow one
+inside a single service.** §3's rule was right; §3's example pointed at the wrong scenario class,
+and the pre-registration followed it.
+
+**Prediction 5 therefore fails as written**, and its consequence clause says *"T6.1 is not
+delivered, whatever the totals say."* The sweep document puts that sentence beside the plan's
+deliverable — *"eval accuracy delta measured"* — and recommends *delivered, with the failure
+recorded and the reason it was mis-aimed recorded beside it*, on the ground that the mechanism the
+clause exists to catch is visible working in the per-run verdicts. That is the owner's reading to
+make, and this addendum records that the ADR's author would make it that way.
+
+**Q26 is retired**, as prediction 8 said it would be if it held: zero NaN-shaped failures across the
+sweep. **Q27 is landed and is not the fix** for `redis-cart`; prediction 6's own reading — Q28 — applies.

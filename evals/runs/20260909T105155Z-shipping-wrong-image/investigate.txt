@@ -1,0 +1,46 @@
+incident ebce928f-1837-491f-bb38-dcb5d1ac9758  state triaging  anchor 10:54:30
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 46de770d-8a17-4eea-b4a4-aebac09a38c6
+triage judged: investigate (medium confidence, suspects unknown)
+  Checkout alerts first, then its downstream consumers fan out minutes later, which is consistent with a checkout-centric failure rather than a benign blip. No open incidents to fold this into and the pattern is not dismissible, so it warrants specialists; the trigger (deploy, config, or a dependency) is not yet distinguishable.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : shippingservice
+  expect      : Redeploying shippingservice at its pre-10:52:03Z image should restore the Rust shipping binary: the shipping-service log stream stops the repeating JVM/javaagent startup sequences and resumes INFO GetQuoteRequest/ShipOrder handling lines as at 10:24:36; checkoutservice traces show a server-side shippingservice child under hipstershop.ShippingService/GetQuote with no STATUS_CODE_ERROR, and frontend roots stop inheriting the error. Note shippingservice's own error-ratio series is empty in both windows, so confirmation must come from logs and caller-side traces, not target metrics.
+  within      : 300s
+  risk        : If the diagnosis is wrong, this is a needless container recreate that drops shipping in-process state and extends the outage by the recreate duration. If the automation cycle re-applies the bad image, the rollback flaps and the service restarts repeatedly. Rolling back to a stale tag could reintroduce an older shipping defect.
+  blast radius: shippingservice only. During recreate, checkoutservice sees GetQuote/ShipOrder connection resets, which propagates to frontend as failed PlaceOrder; quoteservice sees shipping's outbound traffic return. Recovery of orders reaching payment/queue stages should relieve the accounting, email and frauddetection alerts.
+  if wrong    : Falsified if after 5 minutes the JVM startup sequences still repeat (wrong prior tag recovered, or platform-automation re-applied the adservice image), or if GetQuote spans still error with a healthy-looking Rust shipping process running — which would mean the mechanism is not the image swap. Also unresolved: the change record shows 'None -> ...', so the correct prior tag must be read from deployment config before executing; if no prior tag exists there, this action's precondition is not met and it should not be run.
+  rests on    : tr_1cb128a4a1c2, tr_805b5a83eb83, tr_9ad90e426eb5
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 28742 pushed / 10360 pulled (pull rate 0.2649), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : tr_1cb128a4a1c2, tr_805b5a83eb83, tr_9ad90e426eb5, tr_55c59e9f5ddd, tr_0cb74cf61e9e, tr_8b49d40eb91d, tr_a8b5ce8362bc
+  root cause  : At 10:52:03Z — about two minutes before onset — platform-automation updated the shippingservice container image reference to ghcr.io/open-telemetry/demo:v1.2.1-adservice, an artifact belonging to a different service, and unlike the four earlier update/revert cycles this one was never reverted [tr_1cb128a4a1c2]. From roughly 10:52:25 onward the shipping-service log stream contains only JVM/OpenTelemetry-javaagent process-startup sequences repeating at short intervals, with the earlier Rust-style request-handling logger gone and no GetQuote or ShipOrder handling at all [tr_805b5a83eb83] — i.e. the wrong (Java) artifact is starting under the shippingservice identity and never serving the shipping gRPC surface. Consequently every checkoutservice call to hipstershop.ShippingService/GetQuote fails fast (0.4–2.4ms) with no server-side child span, and that single erroring child terminates PlaceOrder and propagates to the frontend root [tr_9ad90e426eb5]. checkoutservice itself is healthy: no changes recorded against it [tr_8b49d40eb91d], no error-ratio departure from baseline [tr_0cb74cf61e9e], no error lines and continued order acceptance, but with the payment/email/queue-write completion steps missing after the onset [tr_55c59e9f5ddd] — the signature of a caller blocked at an upstream step, not an origin of failure. The downstream alerts (accounting, email, frauddetection, quote) follow from orders never reaching the payment/queue stages and from shippingservice no longer calling quoteservice.
+  OPEN        : No dispatch confirmed what the correct/prior shippingservice image reference was; the change record shows 'None -> ghcr.io/.../demo:v1.2.1-adservice', so the rollback target has to be recovered from deployment config rather than from this evidence.
+  OPEN        : Why the process restarts repeatedly is not established — the startup sequences complete with no exception, parse error, or fatal line [tr_805b5a83eb83], so whether it is a crash loop, a liveness-probe kill against a service that never opens the shipping port, or something else is unknown.
+  OPEN        : Log coverage for shippingservice is missing roughly 10:24:44–10:52:25, and checkoutservice logs skip the minutes on either side of 10:54:30 [tr_805b5a83eb83, tr_55c59e9f5ddd], so the precise transition from healthy to failing was never directly observed.
+  OPEN        : The declared checkoutservice dependencies other than shippingservice were never checked for changes (radius=seed, hops=0) [tr_8b49d40eb91d]; a concurrent change elsewhere cannot be excluded, only made unnecessary as an explanation.
+  OPEN        : quoteservice, emailservice, accountingservice and frauddetectionservice were never dispatched on; their alerts are inferred to be downstream consequences, not verified as such.
+  OPEN        : The change record is attributed to platform-automation on a repeating set/revert cycle [tr_1cb128a4a1c2]; whether the automation will re-apply or self-revert the image, and whether it must be paused before a manual rollback holds, is unsettled.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T105155Z-shipping-wrong-image/ebce928f-1837-491f-bb38-dcb5d1ac9758-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T105155Z-shipping-wrong-image/ebce928f-1837-491f-bb38-dcb5d1ac9758-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8974.48it/s]

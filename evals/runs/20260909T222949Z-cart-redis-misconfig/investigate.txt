@@ -1,0 +1,48 @@
+incident 7f880d4f-2ba6-4ca4-a199-ab0478216f49  state triaging  anchor 22:32:30
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 4ab13b83-d9ba-4e70-b302-f6c1a9d4cd65
+triage judged: investigate (medium confidence, suspects unknown)
+  Simultaneous critical alerts on checkout, frontend, and the load generator indicate a user-facing failure path rather than a quiet warning. No open incidents to attribute it to, and the alerts alone don't distinguish a bad deploy from a failing downstream dependency.
+investigation: 2 round(s), 5 dispatch(es), 20 step(s)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Restoring cartservice's prior environment (dropping REDIS_ADDR=redis-cart:6380 back to the default address that was in effect through the flat-zero baseline) and recreating the container should, within a few minutes: (1) return the checkoutservice error ratio measured by sum by(service_name)(rate(calls_total{service_name="checkoutservice",status_code="STATUS_CODE_ERROR"}[2m]))/sum by(service_name)(rate(calls_total{service_name="checkoutservice"}[2m])) from its ~6.4% bursty level to the zero it held for all 83 baseline samples, and (2) restore the full per-order log sequence in {service="checkout-service"} — order-start followed again by payment, confirmation-email and message-write records, as seen at ~22:02 — instead of the order-start-only shape present from ~22:30 onward. A short spike of checkout/frontend errors during the container recreate is expected and is not a failure of the fix.
+  within      : 300s
+  risk        : If the diagnosis is wrong, this restarts a healthy cartservice for nothing: the recreate drops its in-process cache and resets live cart connections, briefly adding checkout failures on top of the existing ones. Worse case: if redis-cart genuinely moved to port 6380 and the 22:29 edit was the correct forward fix that simply lost its pairing entry, reverting points cartservice at a port where Redis no longer listens and converts an intermittent ~6.4% failure into a hard cart outage — the log evidence cannot distinguish these because cartservice was never queried. This is reversible: the 6380 value is recorded and can be re-applied. Also, if platform-automation is mid-cycle, a manual revert may race the automation's own revert or be overwritten by it.
+  blast radius: One service is changed, but its callers notice. frontend calls cartservice directly and will see connection resets and cart-page errors for the duration of the recreate; checkoutservice calls cart early in PlaceOrder and will see a corresponding burst of PlaceOrder failures, which propagates to loadgenerator's success rate. The reverted value is a dependency address, so redis-cart sees traffic move from :6380 back to its default port. accountingservice, currencyservice, emailservice, paymentservice, shippingservice, adservice, productcatalogservice and recommendationservice are untouched except insofar as fewer checkout requests reach them during the recreate.
+  if wrong    : Falsified if, more than ~5 minutes after the recreate, checkoutservice's error ratio is still bursty above zero and its logs still show order-start records with no downstream payment/email/message-write lines. That would mean either redis-cart does in fact serve on 6380 (making the edit benign) or the stall is in an unqueried downstream — payment, currency, email or shipping — none of which were measured. Note also the weakest link in this proposal: cartservice itself was never measured (no cart error ratio, latency or logs), so the causal edge from REDIS_ADDR to checkout's stall is inferred, not observed. A secondary falsifier: platform-automation re-applies REDIS_ADDR=redis-cart:6380 after the revert, in which case the fix is transient and the automation loop, not the config value, is the thing to stop.
+  rests on    : tr_715d2a4a3f17, tr_1696857f43cb, tr_593c894955c5, tr_cf3277e888d1
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 20730 pushed / 4437 pulled (pull rate 0.1763), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_715d2a4a3f17, tr_593c894955c5, tr_1696857f43cb, tr_de141567f5c4, tr_cf3277e888d1
+  root cause  : Roughly two minutes before onset, platform-automation set REDIS_ADDR on cartservice to redis-cart:6380 — a non-default port — and, unlike every prior instance of the same automation cycle, this edit was never reverted and was still in effect when checkoutservice began failing [tr_715d2a4a3f17]. With cartservice pointed at an address where its Redis backend does not serve, cart operations fail or stall, and checkoutservice — which calls cart early in PlaceOrder — accepts requests, logs the order-start record, and then produces none of the downstream payment/email/message-write records that were present in the healthy earlier part of the same window [tr_593c894955c5]. checkoutservice itself has no recorded change in the incident window, keeps serving traffic, and emits no error-level line naming a culprit, so the failure enters it from a dependency rather than originating in it [tr_cf3277e888d1, tr_1696857f43cb, tr_593c894955c5]. The failing mechanism is the configuration value itself: the address names a port that is wrong, and that wrongness is what breaks the request path.
+  OPEN        : No dispatch measured cartservice itself — no cart error ratio, latency, or logs — so the causal link from the REDIS_ADDR value to checkout's failures is inferred across unmeasured edges, not observed.
+  OPEN        : It was never confirmed that redis-cart does not listen on 6380; if it does, the edit is benign and the real trigger is elsewhere.
+  OPEN        : Why the checkout error ratio is only ~6.4% and bursty rather than near-total: a hard wrong-address would be expected to fail every cart-touching request, so either only some paths hit cart, retries mask most failures, or the mechanism is timeout-driven.
+  OPEN        : Checkout's stalled log sequence does not name which downstream step it stops at; payment, email and currency were never queried and remain unexcluded.
+  OPEN        : The checkoutservice change query ran forward 24h from onset and did not cover the hours before 22:32:30, so a pre-onset change on checkoutservice itself is not ruled out [tr_cf3277e888d1].
+  OPEN        : Whether the automation loop will eventually emit its own revert (as all 24 prior cycles did) or whether the change is genuinely stuck.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-redis-misconfig', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T222949Z-cart-redis-misconfig/7f880d4f-2ba6-4ca4-a199-ab0478216f49-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T222949Z-cart-redis-misconfig/7f880d4f-2ba6-4ca4-a199-ab0478216f49-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11430.44it/s]

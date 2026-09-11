@@ -1,0 +1,178 @@
+{
+  "incident_id": "949efd34-ae19-4e3c-a731-a70b1bbd7ccd",
+  "trajectory_id": "d7c65bb7-ac03-4856-9322-7c5f5d3e3c7a",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:shipping-wrong-image",
+  "verdict": {
+    "root_cause": "Not established by the evidence in hand. checkoutservice began returning errors on a subset of requests at 07:42:00Z, stepping from ~1.4% to ~11% mean error ratio with a second escalation near 08:02:45, bursty and dipping back to zero [tr_aeae36a96ac2]. The failure is not in checkoutservice's own process: logs run continuously through 08:07 at info severity only, with no exceptions, no crash signature, and complete end-to-end orders logged at window start [tr_00b87ec6cc67]. Span-status errors with no locally logged cause is the signature of a failure returned by or waited on downstream, but no downstream service was actually measured: the one dependency probed returned no error-ratio samples in either window, an instrumentation gap rather than a clean bill of health [tr_908f56a96829]. Both change queries were scoped to checkoutservice alone and windowed from 08:04:30 forward, so they never covered the hours before the 07:42 onset nor any dependency [tr_4b712b262c69, tr_d96704f00c56]. No evidence names a failing mechanism.",
+    "service": "checkoutservice",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_aeae36a96ac2",
+      "tr_00b87ec6cc67",
+      "tr_908f56a96829",
+      "tr_4b712b262c69",
+      "tr_d96704f00c56"
+    ],
+    "reasoning": "The dispatches localized where the failure is visible and excluded several causes on checkoutservice itself, but never reached the mechanism. Errors are genuinely on checkoutservice spans and far outside baseline variation, so this is neither noise nor slow drift, and not a total outage [tr_aeae36a96ac2]. Crash, restart, log-pipeline loss and pre-window breakage are excluded by continuous logging and healthy complete orders at 07:34 [tr_00b87ec6cc67]. Post-onset changes to checkoutservice are excluded, but for the wrong interval - both queries start at 08:04:30 and run forward, leaving the 07:42 onset and all dependency change history unexamined [tr_4b712b262c69, tr_d96704f00c56]. Partial bursty errors with no local error text point outward, yet the sole dependency measured yielded an empty series on both sides of onset and five other sync dependencies plus the four unmeasured triage edges were never touched [tr_908f56a96829]. Distinguishing dependency latency, downstream errors, or a pre-onset change to a dependency would require evidence that does not exist here.",
+    "open_questions": [
+      "What does checkoutservice's change history show before 07:42:00Z? Both queries began at 08:04:30 and ran forward, missing the onset entirely.",
+      "Which downstream call is failing or slow? No traces or peer-service logs were pulled, and checkoutservice's logs name no RPC target, deadline, or status.",
+      "Are the errors returned failures or timed-out waits? No latency percentiles were collected for checkoutservice or any dependency."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A dependency of checkoutservice became slow at 07:42, and checkout requests failed on deadline expiry while waiting.",
+        "service": "checkoutservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "Consistent with partial errors and silent local logs, but no latency data or trace exists for any dependency; the only dependency measured returned no samples at all [tr_908f56a96829]."
+      },
+      {
+        "root_cause": "A pre-onset change to checkoutservice or one of its dependencies landed near 07:42 and broke a subset of the order pipeline.",
+        "service": "checkoutservice",
+        "fault_class": "unknown",
+        "remediation_class": "config_revert",
+        "why_not": "The change log was never queried over the pre-onset interval or for dependencies, so this is an untested hypothesis rather than a supported one [tr_4b712b262c69, tr_d96704f00c56]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "checkoutservice"
+    ],
+    [
+      "traces",
+      "checkoutservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 19527,
+    "pulled_tokens": 3077,
+    "pull_rate": 0.1361,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 483,
+        "content_tokens": 485,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1432,
+        "content_tokens": 1435,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 5763,
+        "content_tokens": 5739,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5431,
+        "content_tokens": 5434,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 6418,
+        "content_tokens": 6421,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_aeae36a96ac2",
+      "tr_00b87ec6cc67",
+      "tr_908f56a96829",
+      "tr_4b712b262c69",
+      "tr_d96704f00c56"
+    ],
+    "expected_effect": "No action is proposed, so no change in any metric should be expected. The observable state remains: checkoutservice error ratio elevated near 11% mean with bursts to ~29% and dips to zero [tr_aeae36a96ac2], info-only logs continuing through 08:07 [tr_00b87ec6cc67]. The next step is measurement, not remediation: re-run change_history for checkoutservice and its dependencies over 06:30-07:50Z (before the 07:42 onset), and pull error-ratio and latency percentiles for productcatalogservice, shippingservice, paymentservice, emailservice, currencyservice, and accountingservice across the same baseline/incident split used for checkoutservice.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention would be shown wrong if a re-scoped change query covering the hours before 07:42:00Z returns a deploy, image, or config record on checkoutservice or a named dependency inside the onset window \u2014 that would satisfy rollback_image or revert_config preconditions and make a targeted action proposable. It would also be wrong if dependency error-ratio or latency series show one service stepping at 07:42:00Z in lockstep with checkoutservice. Neither is available now: no dependency was successfully measured (the single probe, cartservice, returned no samples in either window and is an instrumentation gap, not a clean result [tr_908f56a96829]), and both change queries were windowed from 08:04:30 forward, missing the onset entirely [tr_4b712b262c69, tr_d96704f00c56].",
+    "risk": "The risk of abstaining is that the elevated error ratio persists and customer-visible checkout failures continue for as long as investigation takes; if the cause is a self-clearing transient this costs nothing, but if it is a degrading dependency the error ratio may climb past the ~29% peak already seen. The risk of the alternative \u2014 acting anyway \u2014 is worse and is why I abstain: rollback_image and revert_config both require a recorded prior image or configuration and evidence naming a change inside the window, and the change log is empty for the only service queried, over a window that does not even cover the onset, so neither precondition is met and there is nothing to roll back to. restart_service requires evidence pointing at process state, and the logs positively contradict that: the process is alive, logging continuously at info severity with no exceptions or crash signature through 08:07 [tr_00b87ec6cc67], so a restart would discard cache, add a cold-start error burst on top of an active incident, and destroy the in-process state that might have explained the failure. scale_service is unavailable per ADR-0029.",
+    "blast_radius": "None from this proposal, since no action is taken. For context on what a wrong action would have touched: checkoutservice is called by frontend and loadgenerator, both alerted seeds, so any container recreate on it resets their connections and would be visible as a fresh error spike at the frontend during the recreate; checkoutservice's own calls to accountingservice, cartservice, currencyservice, emailservice, paymentservice, productcatalogservice, and shippingservice would pause for the same interval."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service failure starting at checkout and reaching frontend and the load generator within a minute \u2014 a user-facing failure that cannot be dismissed. No open incident to fold it into, and the alert pattern alone does not favor any one fault class."
+  }
+}

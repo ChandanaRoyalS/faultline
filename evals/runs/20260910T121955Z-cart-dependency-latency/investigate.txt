@@ -1,0 +1,39 @@
+incident 32f2d9b3-1903-42b6-9b7b-d5ab7dac0d2c  state triaging  anchor 12:23:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: cc07682a-1e7f-4876-8005-3b4a79228952
+triage judged: investigate (medium confidence, suspects unknown)
+  Four services alerted simultaneously along the cart/checkout/frontend path, which is more than a lone warning latency blip and cannot be dismissed. No open incident covers it and the alerts don't point to a specific mechanism yet.
+investigation: 2 round(s), 5 dispatch(es), 19 step(s)
+  WITHHELD traces on cartservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Wrong if recreating cartservice via revert_config would itself drop the foreign shaping sidecar — unestablished here — or if a latency query showed p95 stepping ~300ms exactly at 12:20:04, raising confidence above medium. Reinforced by checkoutservice's unexplained 12:02:30 change point, 18 minutes before the attach [tr_091795de4d3f, tr_1a6b4ecd47ad].
+  rests on    : tr_1a6b4ecd47ad, tr_091795de4d3f, tr_eb7e3f4ea605
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22788 pushed / 4945 pulled (pull rate 0.1783), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_1a6b4ecd47ad, tr_091795de4d3f, tr_40505355587d, tr_eb7e3f4ea605, tr_d9521161aa64
+  root cause  : A scheduled platform-automation fault-injection routine attached a traffic-shaping container to cartservice's network namespace at 12:20:04, imposing a fixed 300ms egress delay with no jitter, and unlike every earlier attachment in the window this one was never paired with a removal, so it was still in force at the 12:23:30 alerts [tr_1a6b4ecd47ad]. Every cart call therefore pays a synthetic delay, propagating up the checkout path: checkoutservice's error ratio steps ~125x above baseline while still serving most requests [tr_091795de4d3f], and both cartservice and checkoutservice logs show per-step gaps growing from milliseconds to about a second with no error, timeout or startup text [tr_eb7e3f4ea605, tr_40505355587d]. The mechanism is waiting on a slowed dependency, not a broken artifact or a wrong value in cart's own config.
+  OPEN        : checkoutservice's change point is 12:02:30, ~18 minutes before the shaping attach at 12:20:04, so the shaping cannot explain the earlier elevation — possibly a separate earlier injection or a change-point artifact [tr_091795de4d3f, tr_1a6b4ecd47ad].
+  OPEN        : No latency metric was queried for either service; the 300ms figure comes from the change record and is corroborated only by log timestamp gaps, a weak proxy [tr_eb7e3f4ea605, tr_40505355587d].
+  OPEN        : Both log queries were truncated across the entire 12:02-12:23 interval, so onset behaviour and any peer-named error were never observed, and checkout's metric has no peer dimension to confirm the failing calls are cart calls [tr_40505355587d, tr_091795de4d3f].
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T121955Z-cart-dependency-latency/32f2d9b3-1903-42b6-9b7b-d5ab7dac0d2c-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T121955Z-cart-dependency-latency/32f2d9b3-1903-42b6-9b7b-d5ab7dac0d2c-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 19945.21it/s]

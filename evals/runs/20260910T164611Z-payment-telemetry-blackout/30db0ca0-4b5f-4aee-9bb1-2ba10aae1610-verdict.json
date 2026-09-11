@@ -1,0 +1,163 @@
+{
+  "incident_id": "30db0ca0-4b5f-4aee-9bb1-2ba10aae1610",
+  "trajectory_id": "9a7d7390-5b99-49aa-ae8e-60388a7d1990",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "frontend",
+    "paymentservice"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origin": "scenario:payment-telemetry-blackout",
+  "verdict": {
+    "root_cause": "The only change touching paymentservice in the window is an automated, flapping edit to one key \u2014 the OTLP traces endpoint \u2014 and the final set at 16:46, five minutes before onset, left it pointed at a loopback address with no matching revert [tr_325c5d8c71bb]. With the exporter aimed where no collector listens, paymentservice's span-derived call counters are absent entirely, so the metric the alert rests on has no samples in either window [tr_c051aabba503]. Meanwhile the service is serving normally: every observed charge request, including those bracketing 16:52:15, completes in ~1ms with a transaction id and there are no error, warning or exception lines [tr_da570bd78bc4]. Both callers are error-free through the window, with error ratios falling relative to baseline rather than rising [tr_3264013da097, tr_c1ab5ef493db]. The visible 'onset' is a ~28s output gap with a changed reporting host [tr_da570bd78bc4], consistent with the 16:46 environment edit rolling the replica. The failing mechanism is the configuration value itself: a traces endpoint naming the wrong address, which breaks telemetry export and blinds alerting.",
+    "service": "paymentservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_325c5d8c71bb",
+      "tr_c051aabba503",
+      "tr_da570bd78bc4"
+    ],
+    "reasoning": "No request-path failure exists to explain: paymentservice logs show only successful charge/completion pairs on both sides of the alert time [tr_da570bd78bc4], and checkoutservice and frontend error ratios are identically zero across 128 incident samples, below their own pre-incident baselines [tr_3264013da097, tr_c1ab5ef493db]. The one demonstrably broken thing is paymentservice telemetry: its calls_total series returns nothing [tr_c051aabba503], and the sole change class is repeated automation edits to the traces endpoint, last set to loopback and unreverted [tr_325c5d8c71bb], which also excludes deploys, flags, dependency bumps and credential rotations. A loopback exporter address is wrong on its face and its wrongness is the mechanism, so bad_config fits better than bad_deploy or exhaustion. Confidence is medium because the metric gap predates onset and a label/naming mismatch was left open [tr_c051aabba503].",
+    "open_questions": [
+      "Whether the empty calls_total series stems from the loopback endpoint or from a label/naming mismatch (service=payment-service in logs vs service_name=paymentservice in metrics), since the baseline window is equally empty [tr_c051aabba503].",
+      "What actually tripped the 16:52:15 alert \u2014 no signal was found that departed from baseline at that timestamp in any of the three services [tr_c051aabba503, tr_3264013da097, tr_c1ab5ef493db].",
+      "Latency and saturation were never measured for any service, and ~16:22:41\u201316:52:04 of paymentservice logs is unobserved [tr_c051aabba503, tr_da570bd78bc4]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "No real service fault; the incident is a monitoring artifact from a label/instrumentation mismatch that makes paymentservice's metrics unqueryable.",
+        "service": "paymentservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "It does not account for the unreverted loopback exporter edit landing five minutes before onset, which independently explains missing span metrics [tr_325c5d8c71bb]."
+      },
+      {
+        "root_cause": "The 16:46 environment edit rolled the paymentservice replica and the brief restart gap at 16:52:15 is the whole user-visible impact.",
+        "service": "paymentservice",
+        "fault_class": "bad_config",
+        "remediation_class": "restart",
+        "why_not": "A restart does not fix the still-wrong endpoint value or the recurring automation loop that keeps resetting it [tr_325c5d8c71bb]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    " / Confirming it: The change record shows the variable and both values. A configuration pointing at an address\nthat no longer answers usually produces connection errors in the service's own logs with the\naddress quoted verbatim - the fastest confirmation available, because the wrong value appears\n",
+    " / Blast radius: One service - with one exception worth naming explicitly. Where the reverted value is a\ndependency address, the services it was pointing at see traffic move. That is a second-order\neffect on a service nobody alerted on, and it belongs in the proposal.",
+    " / Blast radius, and the one irreversible property: One service, for the duration of the recreate. **This action is not reversible** - it discards\nin-process state, which for this world's services is cache only. Say so in the proposal rather\nthan leaving the approver to know it."
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "paymentservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 22738,
+    "pulled_tokens": 6113,
+    "pull_rate": 0.2119,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 386,
+        "content_tokens": 388,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1772,
+        "content_tokens": 1775,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6798,
+        "content_tokens": 6774,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6351,
+        "content_tokens": 6353,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7431,
+        "content_tokens": 7408,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_325c5d8c71bb",
+      "tr_c051aabba503",
+      "tr_da570bd78bc4"
+    ],
+    "expected_effect": "No action proposed. A config_revert on paymentservice would predict the calls_total{service_name=\"paymentservice\"} series reappearing in Prometheus, but that series was equally empty during 16:22-16:46 when the key was already in the reverted state after the 13:29 revert [tr_325c5d8c71bb, tr_c051aabba503]. So the intended effect is not observable and probably not real. Doing nothing predicts: charges keep completing in ~1ms with transaction ids and no error lines, caller error ratios stay at zero.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "Revisit if a calls_total query without the service_name selector (or with service_name=\"payment-service\") shows samples that stop at 16:46 - that would make the loopback endpoint the real mechanism and revert_config checkable. Also revisit if paymentservice logs after 16:54 show exporter connection-refused lines or charge requests without completions.",
+    "risk": "Acting would recreate a container the logs show is healthy, causing a second self-inflicted output gap and cache loss for no observable gain, and would likely be re-broken within minutes by the same platform-automation loop - leaving an operator believing it was fixed. Abstaining leaves telemetry export broken and paymentservice unalertable until the label-vs-endpoint question is settled.",
+    "blast_radius": "No change, so nobody sees one. Had revert_config run, paymentservice's callers checkoutservice and frontend would see resets during the recreate, and the collector at the reverted address would see trace traffic move."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A single critical alert on paymentservice sitting upstream of checkout and frontend is not dismissible, and no open incident could account for it. Nothing in the alert points to a specific cause yet."
+  }
+}

@@ -1,0 +1,41 @@
+run 20260909T102938Z-shipping-quote-misconfig   scenario shipping-quote-misconfig
+trajectory c3792b48-1997-4404-b7d1-3ac0932873c3   runtime faultline/0.0.1+prompts:06f24e827915
+
+TRIAGE (blast radius vs alerts_over_window)
+  recall    1.00  (5/5 alerted services predicted)
+  precision 0.36  (5/14 predicted services alerted)
+  reported as a pair and never combined - ADR-0017's under-reach question rides on recall alone
+  missed (alerted, not predicted): none
+  extra  (predicted, not alerted): adservice, cartservice, currencyservice, frontend, loadgenerator, paymentservice, productcatalogservice, recommendationservice, shippingservice
+  unmeasured edges crossed: 5 - membership reached through one is not evidence at the same strength
+
+VERDICT
+  reachability answerable by: logs
+  fault class bad_config vs bad_config - correct
+  fix class   config_revert vs config_revert - correct
+  service     shippingservice vs shippingservice - correct
+  ranked class top1 hit, top3 hit, depth 3  gained by ranking: no
+    ranked: bad_config > dependency_latency > unknown
+  ranked service top1 hit, top3 hit, depth 2  gained by ranking: no
+    ranked: shippingservice > checkoutservice
+  coverage: reached a class
+
+REPORTED SEPARATELY (never averaged into the above)
+  flagged verdicts        0
+  specialists failed alone 0
+  contradiction firings   0 (check retired)
+  budget exhausted        no
+  narrative refused       no
+
+COST  in 94418 / out 16901 tokens   $0.8946
+MODELS {'changes': 'claude-opus-5', 'logs': 'claude-opus-5', 'metrics': 'claude-opus-5', 'planner': 'claude-opus-5', 'scribe': 'claude-opus-5', 'synthesizer': 'claude-opus-5', 'traces': 'claude-opus-5'}
+BUDGET {'max_tool_calls_per_specialist': 4, 'max_tokens': 120000, 'wall_clock_seconds': 600, 'max_dispatch_rounds': 2, 'briefing_tokens': 4000, 'max_usd': 2.0, 'usd_per_mtok_in': 5.0, 'usd_per_mtok_out': 25.0, 'per_specialist_tool_calls': {}}
+
+n=1. A single run is an observation, not a rate (CLAUDE.md rule 6).
+
+METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it
+  latency        241.8s (OVER G4's 3-minute per-run comparison) tools 0.2s  models 0.0s  steps 24
+  tool calls     8 total, 8 valid, 0 errored, 0 redundant  validity 1.00  redundancy 0.00
+    a query that ran and found nothing is valid - an empty result is evidence (ADR-0019); 2 empty, 2 truncated
+  context budget 5 briefing(s), 3 over budget (0.60), 2 section(s) dropped, largest 10522 est. tokens against a 4000 cap
+  citations      0 violation(s), regenerated false, escalated false

@@ -1,0 +1,40 @@
+incident 949efd34-ae19-4e3c-a731-a70b1bbd7ccd  state triaging  anchor 08:04:30
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: d7c65bb7-ac03-4856-9322-7c5f5d3e3c7a
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service failure starting at checkout and reaching frontend and the load generator within a minute — a user-facing failure that cannot be dismissed. No open incident to fold it into, and the alert pattern alone does not favor any one fault class.
+investigation: 2 round(s), 5 dispatch(es), 20 step(s)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+  WITHHELD traces on checkoutservice: ablation (--without traces)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention would be shown wrong if a re-scoped change query covering the hours before 07:42:00Z returns a deploy, image, or config record on checkoutservice or a named dependency inside the onset window — that would satisfy rollback_image or revert_config preconditions and make a targeted action proposable. It would also be wrong if dependency error-ratio or latency series show one service stepping at 07:42:00Z in lockstep with checkoutservice. Neither is available now: no dependency was successfully measured (the single probe, cartservice, returned no samples in either window and is an instrumentation gap, not a clean result [tr_908f56a96829]), and both change queries were windowed from 08:04:30 forward, missing the onset entirely [tr_4b712b262c69, tr_d96704f00c56].
+  rests on    : tr_aeae36a96ac2, tr_00b87ec6cc67, tr_908f56a96829, tr_4b712b262c69, tr_d96704f00c56
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 19527 pushed / 3077 pulled (pull rate 0.1361), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_aeae36a96ac2, tr_00b87ec6cc67, tr_908f56a96829, tr_4b712b262c69, tr_d96704f00c56
+  root cause  : Not established by the evidence in hand. checkoutservice began returning errors on a subset of requests at 07:42:00Z, stepping from ~1.4% to ~11% mean error ratio with a second escalation near 08:02:45, bursty and dipping back to zero [tr_aeae36a96ac2]. The failure is not in checkoutservice's own process: logs run continuously through 08:07 at info severity only, with no exceptions, no crash signature, and complete end-to-end orders logged at window start [tr_00b87ec6cc67]. Span-status errors with no locally logged cause is the signature of a failure returned by or waited on downstream, but no downstream service was actually measured: the one dependency probed returned no error-ratio samples in either window, an instrumentation gap rather than a clean bill of health [tr_908f56a96829]. Both change queries were scoped to checkoutservice alone and windowed from 08:04:30 forward, so they never covered the hours before the 07:42 onset nor any dependency [tr_4b712b262c69, tr_d96704f00c56]. No evidence names a failing mechanism.
+  OPEN        : What does checkoutservice's change history show before 07:42:00Z? Both queries began at 08:04:30 and ran forward, missing the onset entirely.
+  OPEN        : Which downstream call is failing or slow? No traces or peer-service logs were pulled, and checkoutservice's logs name no RPC target, deadline, or status.
+  OPEN        : Are the errors returned failures or timed-out waits? No latency percentiles were collected for checkoutservice or any dependency.
+
+flags: none
+
+retrieval: exclude_origin='scenario:shipping-wrong-image', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T080115Z-shipping-wrong-image/949efd34-ae19-4e3c-a731-a70b1bbd7ccd-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260910T080115Z-shipping-wrong-image/949efd34-ae19-4e3c-a731-a70b1bbd7ccd-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 12246.32it/s]

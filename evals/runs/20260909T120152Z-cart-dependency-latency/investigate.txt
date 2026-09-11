@@ -1,0 +1,38 @@
+incident 74adf003-817e-42ae-88ba-c1de1889a11b  state triaging  anchor 12:05:15
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: f4e1cfd1-a437-4811-8102-3d4bd04fa799
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Multiple services alerted near-simultaneously across the checkout path, not a single isolated warning, so this cannot be dismissed as noise. The fan-in pattern at cartservice/checkoutservice with frontend following suggests a shared downstream dependency slowdown.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : If change history actually records a cartservice configuration entry in the incident window that carries the shaping rule (i.e. the netem attach is modelled as config rather than a sibling container), revert_config on cartservice becomes viable and abstaining was too cautious. Confirmation would be Redis client spans dropping from the ~300 ms floor to single-digit ms after the revert.
+  rests on    : tr_cb602d1af2c1, tr_a7d576a32ef6, tr_eb93ab5d8384
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22364 pushed / 5815 pulled (pull rate 0.2064), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_cb602d1af2c1, tr_a7d576a32ef6, tr_6b7bfb1ca61f, tr_425aee5c5bc0
+  root cause  : A traffic-shaping (netem) sidecar attached to cartservice's network namespace ~3 minutes before onset applied a fixed 300 ms egress delay with zero jitter and was still in effect at incident time [tr_cb602d1af2c1]. Every cartservice Redis client span sits on a hard ~300 ms floor with near-zero handler self-time, so all elapsed time is waiting on egress-delayed cache calls [tr_a7d576a32ef6]. The penalty is charged per call, so checkoutservice accrues ~900 ms per cart call and its error ratio rose from ~1.7% to ~18.2% as calls exceeded deadlines [tr_6b7bfb1ca61f]. cartservice itself served traffic continuously with no crashes or dependency errors [tr_425aee5c5bc0]. The mechanism is induced wait on a dependency call path, not a broken artifact or a wrong endpoint value.
+  OPEN        : checkoutservice's error change point is at 11:43, ~19 minutes before the netem attach [tr_6b7bfb1ca61f]; an earlier chaos cycle or a separate contributing fault was never measured.
+  OPEN        : Trace coverage is only 12:06:45-12:07:14 and logs drop ~11:35-12:06:45 [tr_a7d576a32ef6, tr_425aee5c5bc0], so the delay's onset was inferred from parameter match, not observed.
+  OPEN        : No cartservice latency or request-rate series exists; the only metric attempted returned no samples in either window [tr_eb93ab5d8384], and whether the sidecar is still attached was not verified.
+
+flags: none
+
+retrieval: exclude_origin='scenario:cart-dependency-latency', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T120152Z-cart-dependency-latency/74adf003-817e-42ae-88ba-c1de1889a11b-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T120152Z-cart-dependency-latency/74adf003-817e-42ae-88ba-c1de1889a11b-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10757.04it/s]

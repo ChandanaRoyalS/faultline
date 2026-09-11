@@ -323,5 +323,62 @@
       "traces": "claude-opus-5"
     }
   },
-  "finished_at": "2026-09-02T10:54:57.169463+00:00"
+  "finished_at": "2026-09-02T10:54:57.169463+00:00",
+  "judge": {
+    "scenario_id": "ad-memory-squeeze",
+    "run_id": "20260902T104002Z-ad-memory-squeeze",
+    "agent_model": "claude-opus-5",
+    "judge_model": "claude-haiku-4-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "scored": true,
+    "not_scored_because": null,
+    "root_cause_agreement": "same_mechanism",
+    "agreement_reason": "Both narratives identify the same root cause: adservice's memory limit was reduced to 256 MiB below the JVM's configured footprint (~350 MiB steady state), causing repeated process kills during startup before any listener could bind.",
+    "dead_ends_closed": [
+      "frontend's own changes or code",
+      "loadgenerator as a source rather than victim",
+      "shared network or DNS-wide problem",
+      "scheduling or image-pull problems",
+      "port-bind conflicts",
+      "GC pauses"
+    ],
+    "dead_ends_missed": [
+      "whether backend was crash-looping continuously or only during discrete lowered-limit intervals",
+      "why the automation is flapping the limit",
+      "whether users should see errors when ads are unavailable"
+    ],
+    "traps": [
+      {
+        "trap": "frontend logs would name the broken downstream",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "adservice's own error rate would show the failure",
+        "outcome": "avoided"
+      },
+      {
+        "trap": "service's runtime metrics disappearing is soft-edged and up to five minutes late",
+        "outcome": "not_engaged"
+      }
+    ],
+    "notes": "The agent narrative correctly identifies the mechanism with slightly lower confidence (medium vs. high) due to missing direct heap-exhaustion/memory-kill evidence in logs, but traces and change history provide compelling corroboration. Agent explicitly notes several open questions the recorded narrative treats as settled by holistic evidence.",
+    "tokens_in": 5715,
+    "tokens_out": 395
+  },
+  "first_correct": {
+    "measured": true,
+    "reached": true,
+    "index": 33,
+    "depth": 34,
+    "elapsed_ms": 109002,
+    "role": "synthesizer",
+    "kind": "verdict",
+    "reason": "The verdict at entry 33 commits to the mechanism: adservice's JVM is being terminated for exceeding a 256m memory limit during startup before the listener can bind, causing connection refusal.",
+    "judge_model": "claude-haiku-4-5",
+    "agent_model": "claude-opus-5",
+    "shared_lineage": true,
+    "lineage_note": "the judge (claude-haiku-4-5) and the agent under test (claude-opus-5) are both anthropic models, so they share a tuning lineage",
+    "truncated": false
+  }
 }

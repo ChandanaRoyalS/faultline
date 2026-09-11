@@ -1,0 +1,45 @@
+incident ec770519-5378-4dee-bbaf-2c24e6ff2bb4  state triaging  anchor 12:45:45
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 18a8f6c2-8cff-404f-8776-1fc5b53f9e2b
+triage judged: investigate (low confidence, suspects unknown)
+  A single critical alert on frauddetectionservice with no open incidents and no other signal to dismiss it; a critical label alone warrants a look. Nothing in the alert pattern points to a specific fault class yet.
+investigation: 2 round(s), 4 dispatch(es), 16 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Restoring the pre-12:39:46 memory limit (the same value the three earlier lower-then-revert cycles restored) and recreating the container should bring the process back up under a ceiling it fits inside. Observable in Loki under the hyphenated selector {service="frauddetection-service"}: new lines appear within a couple of minutes of the recreate, starting with startup/initialization and consumer-group join messages, followed by 'Consumed record with orderId ... updated total count to: N' lines resuming at the pre-incident cadence of a few seconds apart. The counter will restart from a low number rather than continuing from 623, which is itself the signal that a fresh process instance is running. Note that the two metric probes for this service returned empty in both incident and baseline windows under the unhyphenated label, so Prometheus error-ratio, restart-count and memory series cannot be used to confirm this — logs are the only confirming surface available, and that is a weakness of this proposal, not a strength.
+  within      : 300s
+  risk        : If the process did not die of memory exhaustion, this recreate destroys a running-but-quiet process for nothing and discards its in-process state (cache, and any uncommitted Kafka consumer position — the consume counter resets, so a small number of records may be reprocessed or the group may rebalance). The prior configuration recorded in change history shows the memory limit as unset (None) before the lowering; reverting therefore removes the ceiling entirely, so if this service genuinely has a memory leak, the unbounded process can grow and put pressure on other containers on the same host — the very condition the automation loop may have been built to contain. This is a one-shot fix against an actor that has applied and withdrawn this same limit four times in the window; it does not stop the loop and will likely be undone by it.
+  blast radius: One service: frauddetectionservice, the only service in this incident's blast radius. Its container is recreated, so anything holding a connection to it sees a reset during the recreate, and its Kafka consumer group rebalances on rejoin. Triage never dispatched on dependencies or callers, so no downstream consumer of fraud-detection results has been checked — whoever reads fraud verdicts has already been getting nothing since 12:39:41 and should see that resume, but the identity of those consumers is unverified in this brief. The reverted value is a resource limit, not a dependency address, so no traffic moves to other services.
+  if wrong    : No log lines at all under {service="frauddetection-service"} within 5 minutes of the recreate, or startup lines appear and then silence returns within a minute or two. Either would mean the memory ceiling was not the thing keeping the process down — the kill mechanism was never directly observed (no OOM-kill event, no restart count, no memory working-set or limit metric was ever retrieved), so the whole causal step from 'limit lowered at 12:39:46' to 'process killed at 12:39:41+' is inferred from timing alone. A second falsifier on a longer horizon: logs resume and then stop again roughly 10 minutes later, which would mean the platform-automation loop re-applied the constraint and the durable fix is to disable or correct that loop, not to edit the limit once. Also unexplained and not addressed here: why the alert fired at 12:45:45 when the service went silent at 12:39:41; if that six-minute gap has a different cause, this revert may leave the alerting condition standing.
+  rests on    : tr_89bc77785074, tr_15c794e4c603
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 18334 pushed / 2713 pulled (pull rate 0.1289), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_89bc77785074, tr_15c794e4c603, tr_5aa7ff6cd322, tr_f44a263a2767
+  root cause  : At 12:39:46, roughly five minutes before the alert, platform-automation lowered the memory limit on frauddetection-service to 200m and, unlike the three preceding lower-then-revert cycles in the same window, never reverted it [tr_89bc77785074]. The service's Kafka consume log runs at steady, healthy throughput up to 12:39:41 and then stops dead, with nothing at all through the end of the window and no startup or consumer-rejoin lines to indicate a recovered process [tr_15c794e4c603]. The silence begins within seconds of the limit being applied, which is what happens when a running JVM-style consumer is killed for exceeding a newly constrained memory ceiling and cannot come back up under it. The mechanism now in play is memory exhaustion against a ceiling the process cannot fit inside — the container is being killed for using more than it is allowed — so the failing service is frauddetectionservice itself, and the blast radius is confined to it.
+  OPEN        : No OOM-kill event, container restart count, memory working-set or memory-limit metric was ever retrieved — the kill mechanism is inferred from the timing of the limit change against log silence, not directly observed [tr_5aa7ff6cd322] [tr_f44a263a2767].
+  OPEN        : Why the alert fired at 12:45:45 when the service went silent at 12:39:41 — roughly six minutes earlier — is unexplained; the alerting rule's evaluation delay or the actual detection path was never examined [tr_15c794e4c603].
+  OPEN        : Whether metrics exist for this service under the hyphenated label 'frauddetection-service'; every metric query used the unhyphenated form and returned empty, so no saturation evidence was actually attempted against a resolving selector [tr_f44a263a2767].
+  OPEN        : What the platform-automation loop is and why it repeatedly applies and withdraws this same limit every few hours [tr_89bc77785074] — a plain revert may be re-applied by the same loop, so the durable fix may require disabling or correcting the automation rather than editing the limit once.
+  OPEN        : Whether any downstream consumer of fraud-detection results is degraded; triage scoped the incident to one service and no dependency or caller was dispatched on.
+
+flags: none
+
+retrieval: exclude_origin='scenario:frauddetection-memory-squeeze', 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T123941Z-frauddetection-memory-squeeze/ec770519-5378-4dee-bbaf-2c24e6ff2bb4-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260909T123941Z-frauddetection-memory-squeeze/ec770519-5378-4dee-bbaf-2c24e6ff2bb4-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8842.77it/s]

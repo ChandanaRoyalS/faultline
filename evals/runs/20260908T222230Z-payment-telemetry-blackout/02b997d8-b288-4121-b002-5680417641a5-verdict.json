@@ -1,0 +1,160 @@
+{
+  "incident_id": "02b997d8-b288-4121-b002-5680417641a5",
+  "trajectory_id": "3f357bf3-c49d-458e-87b2-b85fee6e9ce3",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "frontend",
+    "paymentservice"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origin": "scenario:payment-telemetry-blackout",
+  "verdict": {
+    "root_cause": "At 22:22:36, five minutes before the 22:28:30 alert, platform-automation set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT on paymentservice to http://127.0.0.1:4317 [tr_6fa03767e678]. That value names an address where no collector listens, so paymentservice spans are exported into a black hole and its span-derived call metrics cannot be computed [tr_a34fb3d22c34], while the service itself keeps serving: charges are received and completed successfully through 22:30:16 with no error lines [tr_12485e04056c], and caller checkoutservice shows a flat-zero error ratio across the whole incident window [tr_c2d711c2f9d0]. The wrong endpoint value is the mechanism. The traces specialist's rule-out of this hypothesis does not hold: its window (04:28-10:28, samples 08:02-08:16) sits after the 06:40 revert and ~14h before the 22:22 re-application [tr_037f29f680c2], so it shows healthy export under the correct value, not the post-onset state. The identical edit applied and reverted ~16h earlier indicates an automation loop re-injecting it [tr_6fa03767e678].",
+    "service": "paymentservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_6fa03767e678",
+      "tr_a34fb3d22c34",
+      "tr_12485e04056c",
+      "tr_037f29f680c2"
+    ],
+    "reasoning": "The request path is demonstrably intact: paymentservice logs are info-level charge successes to window close with no failing callee named [tr_12485e04056c], and checkoutservice's total error ratio is zero for 129 incident-window samples, which upper-bounds caller-side payment errors at zero [tr_c2d711c2f9d0]. What is absent is measurement, not health [tr_a34fb3d22c34]. The only onset-proximate change is the loopback OTLP endpoint [tr_6fa03767e678]; a loopback exporter target is wrong in itself and its wrongness is what breaks span delivery, so bad_config rather than bad_deploy (no release or image event recorded) or resource_exhaustion (no saturation data gathered). Fix is reverting the value and stopping the reconciliation loop that reapplies it.",
+    "open_questions": [
+      "No post-22:22 trace query was run for paymentservice, so span absence after the re-application is inferred from the change record rather than observed.",
+      "What the 22:28:30 alert actually fired on is unknown; no latency, throughput, or saturation series was retrieved for either service.",
+      "paymentservice call metrics were empty in the two-hour baseline too, which may reflect a service_name label mismatch [tr_a34fb3d22c34] and would weaken metric silence as an onset signal.",
+      "The hostname change between log blocks [tr_12485e04056c] is undated - a pod replacement near onset is neither confirmed nor excluded."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "No real service fault occurred; the alert is an artifact of a monitoring/label gap for paymentservice that predates the incident.",
+        "service": "paymentservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "The metric series is empty in both windows [tr_a34fb3d22c34], which supports a pre-existing gap, but it does not explain a change landing five minutes before onset [tr_6fa03767e678]; that coincidence is too tight to discard."
+      },
+      {
+        "root_cause": "checkoutservice's ProductCatalogService/GetProduct hop is slow and dragged checkout latency, with paymentservice merely the alerting neighbour.",
+        "service": "checkoutservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "The ~906-916ms GetProduct self-time was observed around 08:03-08:08 [tr_037f29f680c2], fourteen hours before onset, and no latency series was retrieved for the incident window [tr_c2d711c2f9d0]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m18s after the first failing\nrequest. **loadgenerator** joined briefly. Later in the fault, five services fell silent together as\norders stopped completing \u2014 accounting, email, fraud detection, quote and shipping itself",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **3m18s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 22540,
+    "pulled_tokens": 10069,
+    "pull_rate": 0.3088,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 386,
+        "content_tokens": 388,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1423,
+        "content_tokens": 1426,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6860,
+        "content_tokens": 6837,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6396,
+        "content_tokens": 6398,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7475,
+        "content_tokens": 7453,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "paymentservice",
+    "rests_on": [
+      "tr_6fa03767e678",
+      "tr_037f29f680c2",
+      "tr_12485e04056c"
+    ],
+    "expected_effect": "Restoring paymentservice's prior environment removes OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4317 (the recorded prior value for that key is unset, per the 06:40 revert entry in tr_6fa03767e678) and recreates the container. Observable within one recreate plus one export interval: a Tempo trace query for service=paymentservice over the post-action window returns traces again, each completed checkout trace containing a paymentservice `Charge` server span with its `charge` child, correctly parented under checkoutservice/hipstershop.PaymentService/Charge \u2014 the exact shape tr_037f29f680c2 recorded under the correct endpoint value. Secondary, weaker signal: calls_total{service_name=\"paymentservice\"} may begin returning samples in Prometheus. Payment-path logs should be unchanged \u2014 charge-received / transaction-completed info lines resuming at their prior cadence after a short gap for the recreate (tr_12485e04056c).",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if, 10 minutes after the recreate, a Tempo query for paymentservice over the post-action window still returns no spans (or checkout traces still show a gap where the Charge span belongs) \u2014 that would mean the loopback endpoint was not the reason spans are missing, or that spans were never actually missing post-22:22 and the alert fired on something else entirely. Also falsified in the other direction if paymentservice charge logs do NOT resume within ~60s of the recreate, or if checkoutservice's error ratio, currently flat zero (tr_c2d711c2f9d0), rises above zero and stays there. Note the honest gap: no post-22:22 trace query was ever run, so span absence is inferred from the change record, not observed. If the operator can run that query first, do that before acting \u2014 it costs nothing and converts this proposal from inference to measurement. Separately, if the config reappears within ~15 minutes (the automation reverted-then-reapplied this same key before), the revert has been overwritten by the platform-automation loop and the durable fix is upstream of this system.",
+    "risk": "If the diagnosis is wrong, this is a container recreate on a service that the logs show is currently healthy and completing charges through 22:30:16 \u2014 that is, it converts a telemetry-visibility defect into a real, if brief, payment outage for no gain. In-flight charge RPCs at the moment of recreate are dropped; paymentservice holds cache-only state so nothing durable is lost, but a customer checkout in flight can fail. Because the 22:28:30 alert's actual trigger is unknown and no latency, throughput, or saturation series was ever retrieved, there may be a second, unaddressed fault that this action neither fixes nor reveals \u2014 and the recreate will muddy timelines for whoever investigates it next. Reverting the endpoint also moves span export traffic back onto the real collector; if that collector is itself unhealthy, this restores load to it.",
+    "blast_radius": "One service directly: paymentservice. checkoutservice is its named caller and will see connection resets or failed Charge RPCs for the duration of the recreate; frontend sits behind checkoutservice and will see those as failed or slow PlaceOrder calls, so the blast radius reaches end-user checkout for seconds to tens of seconds. Because the reverted value is a dependency address, the OTLP collector previously named by the correct endpoint will see paymentservice span traffic return. The action is reversible."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A critical alert on paymentservice, a payment-path service with downstream checkout and frontend exposure, is not something to dismiss without evidence. Nothing in the alert pattern points to a specific fault class yet."
+  }
+}

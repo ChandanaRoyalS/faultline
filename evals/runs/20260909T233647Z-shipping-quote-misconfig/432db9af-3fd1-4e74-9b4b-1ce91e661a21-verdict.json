@@ -1,0 +1,184 @@
+{
+  "incident_id": "432db9af-3fd1-4e74-9b4b-1ce91e661a21",
+  "trajectory_id": "aaf82bb1-da99-4bdd-88b5-e51e3b171126",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "scenario:shipping-quote-misconfig",
+  "verdict": {
+    "root_cause": "checkoutservice keeps accepting PlaceOrder requests at a steady cadence but, from roughly 23:41:50 onward, none of them reach the payment-success, email-dispatch or order-message-write stages that were completing normally at the start of the window [tr_fb44839c21d4]. Requests are therefore blocking inside checkout's first downstream call rather than failing: the aggregate error ratio actually fell below baseline and flags no sustained departure [tr_766519f01883][tr_1575d9d26299], and no error or warning lines are emitted at all [tr_fb44839c21d4]. cartservice is healthy and serving through the window end [tr_1539009e3c6e], and every injected cartservice change was reverted well before onset [tr_674659df4315], with no changes at all on checkoutservice [tr_ab815e19d831] or on any peer dependency [tr_674659df4315]. The mechanism is a downstream call that became slow rather than errored, and the stage at which the log trail stops points at the payment call path; the fan-out of secondary alerts to the order-consuming services (accounting, email, frauddetection) follows from checkout no longer emitting completed orders.",
+    "service": "paymentservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_fb44839c21d4",
+      "tr_766519f01883",
+      "tr_1575d9d26299",
+      "tr_1539009e3c6e",
+      "tr_674659df4315",
+      "tr_ab815e19d831"
+    ],
+    "reasoning": "Two independent error-ratio baselines rule out a hard-error failure mode at the checkout boundary, and the logs rule out crash, silence and post-payment-only failure. What remains is stalling: entry lines without completion lines, no errors, steady arrival. That is the signature of waiting on a dependency. Payment is the first missing stage in the previously complete sequence, so the wait localises at or before that call. cartservice is excluded as the stalling dependency by its own healthy tail logs, and the change surface offers no live injected change at onset, so this is not a change-driven class.",
+    "open_questions": [
+      "No dispatch ever touched paymentservice, so its latency, saturation and health are entirely unmeasured - the attribution rests on log-sequence position alone.",
+      "No latency or request-rate series was returned for any service; both metric dispatches returned only aggregate error ratio [tr_1575d9d26299], so the stall duration and its onset time are not directly measured.",
+      "checkoutservice logs are truncated between ~23:10 and ~23:41:50 [tr_fb44839c21d4], so the transition from healthy to stalled was never observed and cannot be timed against the 23:39:45 alert.",
+      "The Kafka/order-message path shared by accountingservice, emailservice and frauddetectionservice was never queried, so it is untested as a common upstream of those three alerts.",
+      "checkoutservice's own resource state (threads, connections, memory) was never sampled, leaving self-inflicted blocking unexcluded."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The order-message broker path became slow, stalling checkout's write and starving the downstream order consumers that alerted three minutes later.",
+        "service": "checkoutservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "The late-window logs are missing the payment-success line too, which precedes the message write, so the break appears earlier in the sequence than the broker call - though log truncation leaves this only weakly demoted."
+      },
+      {
+        "root_cause": "checkoutservice exhausted a bounded resource (connection or thread pool) so requests are admitted and then queue indefinitely without erroring.",
+        "service": "checkoutservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "No resource or saturation metric was collected for checkoutservice, and the pattern is equally explained by blocking on a slow callee; exhaustion would more usually eventually surface deadline or rejection errors, which are absent."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m18s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\nFor three and a half minutes it was the only alert. Then five",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron"
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "checkoutservice"
+    ],
+    [
+      "traces",
+      "checkoutservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 27864,
+    "pulled_tokens": 5766,
+    "pull_rate": 0.1715,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 486,
+        "content_tokens": 489,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1655,
+        "content_tokens": 1658,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8560,
+        "content_tokens": 8535,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7914,
+        "content_tokens": 7916,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9249,
+        "content_tokens": 9227,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_fb44839c21d4",
+      "tr_1575d9d26299",
+      "tr_ab815e19d831",
+      "tr_674659df4315"
+    ],
+    "expected_effect": "No action is proposed, so no change in observed behaviour is expected: checkoutservice should continue to emit PlaceOrder entry lines with no following payment/email/message-write lines, and its aggregate error ratio should stay at or below baseline. The next step is measurement, not remediation - a latency/saturation dispatch against paymentservice and an untruncated checkoutservice log pull across 23:10-23:41:50 would produce the series that would justify an action.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "This abstention is wrong if a dispatch against paymentservice returns a p95/p99 step change or a saturation signal aligned with the ~23:41:50 log stop, or if a change record for paymentservice (image or config) inside the window surfaces - either would meet a rollback_image or revert_config precondition that the current board does not. It is also wrong if checkoutservice's own resource state shows exhausted threads or connection pool, which would make restart_service defensible on process-state grounds. Note that the effect of any restart here is only weakly observable: with no latency series returned for any service [tr_1575d9d26299] and error ratio already below baseline [tr_1575d9d26299], recovery could only be confirmed by the reappearance of payment-success and message-write log lines - which is exactly the signal that is truncated and unreliable.",
+    "risk": "The risk being avoided is acting on a target chosen by log-sequence position alone. paymentservice was never dispatched against - its latency, saturation and health are entirely unmeasured - so a restart there would be a guess; if the true blocker is checkoutservice's own connection pool or the Kafka order-message path (never queried), restarting paymentservice discards its state and resets connections for no benefit while the stall continues, and the wasted cycle delays the correct fix. Rolling back or reverting config on any service in the blast radius would be worse: no change is recorded on checkoutservice at all [tr_ab815e19d831], every cartservice injection was reverted ~1.0h before onset [tr_674659df4315], and no peer dependency has any change record [tr_674659df4315], so there is no prior state to restore and the action would introduce a change into a system whose change surface is currently clean.",
+    "blast_radius": "None, since nothing is changed. Had an action been taken on paymentservice, the callers seeing the connection reset would be checkoutservice directly, and through it frontend and loadgenerator, with the order-consuming services accountingservice, emailservice and frauddetectionservice affected downstream of checkout no longer emitting completed orders. A restart of checkoutservice itself would be seen by frontend, loadgenerator and all three order consumers, and would drop every request currently blocked in flight."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Checkout alerts first and its downstream consumers follow three minutes later, spreading to frontend and the load generator - a real critical fan-out, not a quiet world. Origin at checkout is plausible but the trigger could equally be one of its unmeasured dependencies, so no fault class is warranted yet."
+  }
+}

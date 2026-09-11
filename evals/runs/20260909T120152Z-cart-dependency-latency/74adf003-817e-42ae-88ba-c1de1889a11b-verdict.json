@@ -1,0 +1,168 @@
+{
+  "incident_id": "74adf003-817e-42ae-88ba-c1de1889a11b",
+  "trajectory_id": "f4e1cfd1-a437-4811-8102-3d4bd04fa799",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-dependency-latency",
+  "verdict": {
+    "root_cause": "A traffic-shaping (netem) sidecar attached to cartservice's network namespace ~3 minutes before onset applied a fixed 300 ms egress delay with zero jitter and was still in effect at incident time [tr_cb602d1af2c1]. Every cartservice Redis client span sits on a hard ~300 ms floor with near-zero handler self-time, so all elapsed time is waiting on egress-delayed cache calls [tr_a7d576a32ef6]. The penalty is charged per call, so checkoutservice accrues ~900 ms per cart call and its error ratio rose from ~1.7% to ~18.2% as calls exceeded deadlines [tr_6b7bfb1ca61f]. cartservice itself served traffic continuously with no crashes or dependency errors [tr_425aee5c5bc0]. The mechanism is induced wait on a dependency call path, not a broken artifact or a wrong endpoint value.",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_cb602d1af2c1",
+      "tr_a7d576a32ef6",
+      "tr_6b7bfb1ca61f",
+      "tr_425aee5c5bc0"
+    ],
+    "reasoning": "The change record names a netem attach at 12:02 with delay=300ms jitter=0ms as the only change still active at onset, and rules out the hotfix image and REDIS_ADDR override as both reverted beforehand [tr_cb602d1af2c1]. Traces match that parameter numerically and structurally: a ~6 ms band above 300 ms, identical on reads and writes, repeating per outbound call, with sub-millisecond cartservice self-time \u2014 excluding queueing, CPU work, and write-path stalls [tr_a7d576a32ef6]. Checkout's error surge follows from multiplying that per-call penalty across several cart calls, while all non-cart checkout dependencies finish in 0-14 ms [tr_6b7bfb1ca61f, tr_a7d576a32ef6]. Logs confirm a live, non-restarting cartservice, eliminating crash-loop and startup-misconfiguration stories [tr_425aee5c5bc0]. Removing the shaping rule is the fix, hence config_revert.",
+    "open_questions": [
+      "checkoutservice's error change point is at 11:43, ~19 minutes before the netem attach [tr_6b7bfb1ca61f]; an earlier chaos cycle or a separate contributing fault was never measured.",
+      "Trace coverage is only 12:06:45-12:07:14 and logs drop ~11:35-12:06:45 [tr_a7d576a32ef6, tr_425aee5c5bc0], so the delay's onset was inferred from parameter match, not observed.",
+      "No cartservice latency or request-rate series exists; the only metric attempted returned no samples in either window [tr_eb93ab5d8384], and whether the sidecar is still attached was not verified."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A separate fault at checkoutservice beginning ~11:43 drives the error surge, with cart latency only aggravating it.",
+        "service": "checkoutservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Traces attribute ~2.4 s of a 2.45 s checkout root to two cart calls while all other dependencies finish in 0-14 ms [tr_a7d576a32ef6]."
+      },
+      {
+        "root_cause": "The Redis cache backing cartservice slowed on its own, adding ~300 ms per operation.",
+        "service": "cartservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "A loaded cache yields a right-skewed spread and read/write asymmetry; the observed floor is flat at exactly the injected 300 ms on both HGET and HMSET [tr_a7d576a32ef6, tr_cb602d1af2c1]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "redis-cart-dependency-latency / Resolution: The delay was removed from the Redis container's interface and latency returned to baseline as the\nalert windows drained. **Class of fix: `restart`** - the intervention was on the container carrying\nthe fault, not a revert of any application configuration. Nothing about cartservi",
+    "redis-cart-dependency-latency / Root cause: Redis, the cart service's datastore, had a 300ms network delay applied to its interface, so every\nresponse it sent back arrived late. Cart was not broken and was not doing anything differently - it\nwas blocking on a datastore that had become slow, and everything that calls cart i",
+    "cart-redis-misconfig / Resolution: `REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and\nthe no-traffic alerts cleared \u2014 those six services had never been broken, only starved.\nEverything was clear at **T+10m32s**, 3m01s after the fix.\n\nClass of fix: **config_revert**. Nothing had"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 22364,
+    "pulled_tokens": 5815,
+    "pull_rate": 0.2064,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 472,
+        "content_tokens": 474,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1507,
+        "content_tokens": 1510,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6767,
+        "content_tokens": 6743,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6211,
+        "content_tokens": 6213,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7407,
+        "content_tokens": 7384,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_cb602d1af2c1",
+      "tr_a7d576a32ef6",
+      "tr_eb93ab5d8384"
+    ],
+    "expected_effect": "No action proposed. The mechanism is an external netem sidecar attached to cartservice's network namespace [tr_cb602d1af2c1]; no permitted action removes it. revert_config would restore cartservice env/config, but no config or flag change on cartservice was in effect at onset (REDIS_ADDR was reverted ~3.2h earlier), so its precondition is not met. rollback_image is ruled out because the hotfix image was already reverted ~13m before onset. restart_service is wrong because the evidence points at a change, not process state, and logs show continuous healthy serving.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "If change history actually records a cartservice configuration entry in the incident window that carries the shaping rule (i.e. the netem attach is modelled as config rather than a sibling container), revert_config on cartservice becomes viable and abstaining was too cautious. Confirmation would be Redis client spans dropping from the ~300 ms floor to single-digit ms after the revert.",
+    "risk": "Abstaining leaves the 300 ms per-call egress delay in place, so checkoutservice keeps failing ~18% of calls and cart/checkout latency stays elevated until a human detaches the sidecar. Also leaves the unexplained 11:43 error change point [tr_6b7bfb1ca61f] uninvestigated.",
+    "blast_radius": "No service is changed. Continued user-visible impact for frontend, checkoutservice and loadgenerator, which are the callers on the cart path; cartservice itself stays up."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "medium",
+    "reasoning": "Multiple services alerted near-simultaneously across the checkout path, not a single isolated warning, so this cannot be dismissed as noise. The fan-in pattern at cartservice/checkoutservice with frontend following suggests a shared downstream dependency slowdown."
+  }
+}

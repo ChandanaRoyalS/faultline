@@ -1,0 +1,176 @@
+{
+  "incident_id": "509e616a-0776-44d7-a6ea-9e654c17f4b3",
+  "trajectory_id": "de938250-fd65-47a5-b3c9-7ff792ca2ced",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "scenario:cart-dependency-latency",
+  "verdict": {
+    "root_cause": "An automated chaos/experiment harness (the platform-automation actor) attached a traffic-shaping container to cart-service's network namespace roughly three minutes before alert onset, imposing a fixed 300ms egress delay with zero jitter on eth0, and no matching detach is recorded, so the delay was still in force when the alerts fired [tr_e19992e3a664]. Every cart call therefore paid a flat added latency; cartservice itself kept serving normally with no errors or restarts [tr_5b17d6adec75], while its callers absorbed the wait \u2014 the frontend's error ratio rose ~3.2x over baseline with bursty peaks near 0.42, i.e. partial degradation consistent with a fraction of upstream calls exceeding deadlines rather than a hard failure [tr_4b078c000e35], and checkoutservice (another cart consumer) alerted 15 seconds later. The two earlier prior-artifact changes in the same harness cycle (hotfix image applied ~15:28, reverted ~15:38; REDIS_ADDR override reverted ~3h prior) were not in effect at onset [tr_e19992e3a664], though the hotfix window plausibly explains the earlier frontend change point around 15:30.",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_e19992e3a664",
+      "tr_4b078c000e35",
+      "tr_5b17d6adec75",
+      "tr_ad6970c02872"
+    ],
+    "reasoning": "The only impairment demonstrably active at onset is the injected 300ms fixed delay on cartservice's egress path, attached ~3 minutes before onset with no recorded removal [tr_e19992e3a664]. That mechanism predicts exactly the observed shape: a healthy, request-serving cartservice with no error, crash, or backend-connection lines through the end of the window [tr_5b17d6adec75], combined with caller-side error elevation that is partial rather than total \u2014 frontend mean 0.018 -> 0.057, peaks ~0.42, most calls still succeeding [tr_4b078c000e35]. Errors surfacing at the caller while the callee logs clean is the signature of waiting on a slow dependency, not of the caller being broken; that is why frontend, which alerted first, is not the service blamed. The competing cartservice changes are excluded on timing: the hotfix image was reverted ~14 minutes before onset and the Redis endpoint override ~3 hours before, leaving the baseline artifact and default dependency address in place at onset [tr_e19992e3a664]. cartservice's own span-derived error metric is unusable \u2014 empty in both incident and baseline windows, an instrumentation gap rather than a dropout \u2014 so it neither confirms nor contradicts and cannot be read as a healthy zero [tr_ad6970c02872]. The failing mechanism is inserted delay in the call path, so the fix is removing the shaping sidecar / halting the experiment, not rolling back an artifact.",
+    "open_questions": [
+      "No cartservice or frontend latency series was measured at all, so the 300ms shift is inferred from the change record and the caller's error shape rather than observed directly.",
+      "The frontend change points at ~15:11 and ~15:30 precede the shaping attachment at 15:48:46; the 15:30 step may belong to the hotfix-image phase of the same harness cycle, but nothing here confirms that, and the ~15:11 step is unexplained.",
+      "cartservice logs for the 15:52 minute itself were never returned (truncation left a gap from ~12:52 to 15:54:10), so behaviour at onset is extrapolated from the window edges.",
+      "checkoutservice and loadgenerator were never investigated; their symptoms are assumed to follow from cart latency rather than shown to.",
+      "Whether the shaping container was detached after the window (as prior cycles did) and whether frontend errors recovered on that detach \u2014 the cleanest confirmation available and not yet collected.",
+      "Four unmeasured edges were crossed by triage; a slow dependency behind cartservice (e.g. its cache/store) contributing additional latency has not been directly excluded, only made unnecessary as an explanation."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The cartservice hotfix image applied ~15:28 degraded cart responses and the frontend error elevation that began at ~15:30 is its lingering effect, with the alert firing late.",
+        "service": "cartservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "That image reference was already reverted to baseline ~14 minutes before onset [tr_e19992e3a664], so the wrong artifact was not running when the alerts fired, whereas the shaping sidecar was still attached; it may explain the earlier 15:30 change point but not the state at onset."
+      },
+      {
+        "root_cause": "Frontend errors originate in a different, unexamined dependency or in the frontend's own call handling, and the cartservice shaping change is coincident but not causal.",
+        "service": "frontend",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "It requires ignoring an active, latency-injecting change inside cartservice's network namespace minutes before onset and offers no mechanism for checkoutservice \u2014 another cart consumer \u2014 alerting 15 seconds after the frontend; cartservice's clean logs also point the failure at the callers of a slow callee rather than at the callers themselves."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / Resolution: `REDIS_ADDR` restored to `redis-cart:6379`. cartservice came up on its next restart and\nthe no-traffic alerts cleared \u2014 those six services had never been broken, only starved.\nEverything was clear at **T+10m32s**, 3m01s after the fix.\n\nClass of fix: **config_revert**. Nothing had",
+    "redis-cart-dependency-latency / Resolution: The delay was removed from the Redis container's interface and latency returned to baseline as the\nalert windows drained. **Class of fix: `restart`** - the intervention was on the container carrying\nthe fault, not a revert of any application configuration. Nothing about cartservi",
+    "cart-bad-image-tag / Root cause: cartservice was pointed at an image tag that had never been published, and the service\nceased to exist. Redis was fine, the network was fine, the code was fine \u2014 there was no\nrunning copy of the code for any of that to matter to.\n\nIts apparent zero error rate was an absence of da"
+  ],
+  "failed_dispatches": [],
+  "withheld": [
+    [
+      "traces",
+      "cartservice"
+    ]
+  ],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 18052,
+    "pulled_tokens": 3105,
+    "pull_rate": 0.1468,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 472,
+        "content_tokens": 474,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1514,
+        "content_tokens": 1518,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 5102,
+        "content_tokens": 5078,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 4945,
+        "content_tokens": 4948,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 6019,
+        "content_tokens": 5997,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_e19992e3a664",
+      "tr_5b17d6adec75",
+      "tr_ad6970c02872"
+    ],
+    "expected_effect": "No action taken. The named fix class does not address the mechanism: the impairment is a separate traffic-shaping container in cart-service's network namespace [tr_e19992e3a664], and revert_config only restores cartservice's own env and recreates its container - it cannot detach that sidecar. Worse, the latest recorded config transition on this service is the REDIS_ADDR override being reverted ~3h pre-onset, so 'restore previous config' risks re-applying the known-bad Redis endpoint. Confirmation should instead come from observation: when the harness detaches the shaper (as prior cycles do), frontend error ratio should fall from its ~0.057 incident mean toward the ~0.018 baseline within minutes.",
+    "confirm_within_seconds": 1800,
+    "if_wrong": "Falsified if no detach appears in the change log and frontend error ratio stays above ~0.03 for 30 minutes - then waiting is not a fix and direct removal of the shaping, which this system cannot do, is required. Note the 300ms shift was never observed: no latency series was measured, cartservice's error-ratio series is empty in both windows [tr_ad6970c02872], and its logs for 15:52 were truncated [tr_5b17d6adec75].",
+    "risk": "Abstaining costs time: frontend and checkoutservice stay partially degraded until the harness detaches. But revert_config could re-point cartservice at a non-default Redis and turn a flat latency penalty into a hard cart outage; restart_service fails its precondition (evidence names a change, not process state) and would discard cache for no diagnosed fault.",
+    "blast_radius": "No one sees a change from this proposal. Frontend, checkoutservice and loadgenerator continue to absorb cart latency until the shaping is removed by whoever owns the harness."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Four services alerted simultaneously across cart, frontend and checkout paths, which is more than a single warning-latency blip and cannot be dismissed without evidence. No open incident to fold this into, and the alerts alone do not favor a particular fault class; cartservice as a shared dependency is a plausible starting point."
+  }
+}

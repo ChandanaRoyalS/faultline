@@ -317,3 +317,27 @@ def test_the_correction_holds_on_the_committed_record() -> None:
     assert counts["discarded"] / started == pytest.approx(sweep.DISCARD_RATE, abs=0.02), (
         "the constant sweeps budget against must track the record it is derived from"
     )
+
+
+# --- the loader and the 2026-09-04 reading of the record ---------------------------------------
+
+
+def test_a_discard_that_never_injected_may_be_reread_as_a_refusal() -> None:
+    """**2026-09-11, the end of dev sweep 12.** `faultline-eval-db load` met a run it had stored
+    as `discarded` before the 2026-09-04 correction, whose manifest now reads `refused` under it,
+    and refused to load anything: *"one of the two is wrong and this loader will not choose."*
+    Right, given what the loader knew; wrong, given what the repository knew. The signature of
+    that correction is exact and nothing else is accepted."""
+    written_as_discard = {"discarded": {"reason": "baseline gate refused"}}
+    assert evaldb.outcome_of(written_as_discard) == "refused"
+    assert evaldb.outcome_reread("discarded", written_as_discard) is not None
+
+    really_discarded = {"discarded": {"reason": "no-alert"}, "injected_at": "2026-09-01T00:00:00Z"}
+    assert evaldb.outcome_of(really_discarded) == "discarded"
+    assert evaldb.outcome_reread("discarded", really_discarded) is None
+
+    scored = {"injected_at": "2026-09-01T00:00:00Z", "score": {"fault_class": {}}}
+    assert evaldb.outcome_reread("discarded", scored) is None, "a hand edit, not a reading"
+    assert evaldb.outcome_reread("refused", written_as_discard) is None, (
+        "no disagreement to explain"
+    )

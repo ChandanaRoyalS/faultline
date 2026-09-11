@@ -1,0 +1,173 @@
+{
+  "incident_id": "23610719-be0b-4498-99b7-cf6a36aa79c2",
+  "trajectory_id": "068131a8-50e6-4fa6-bda8-ba221acd5bdf",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origin": "scenario:product-catalog-flag-failure",
+  "verdict": {
+    "root_cause": "The evidence does not establish a working fault mechanism. The strongest positive signal is a late, modest error-ratio rise on productcatalogservice beginning at ~09:52:30 (baseline flat zero, incident mean ~1.2%, peak ~10%) [tr_ed1ee63295f5], while frontend's error ratio actually fell to about a third of its baseline [tr_21ff2ac82ba1]. Traces show a shallow 3-span shape in which the productcatalogservice handler is essentially instantaneous (0.0-0.1ms) and all self-time sits on frontend's gRPC client span, with no downstream child spans at all [tr_c5283e9f3bf8] - consistent with cost on the client side of the frontend->productcatalogservice hop rather than inside the callee. Every change record examined is an automation apply/revert pair that had already been reverted well before onset: productcatalogservice's 300ms traffic-shaping container removed ~3.8h prior [tr_e73b121534f4], cartservice's image tag, shaping container and REDIS_ADDR override all reverted ~59m prior [tr_aa8e88568e6d], and adservice's 256m memory limit reverted ~1.9h prior [tr_33dc51ae9c26]. Logs returned nothing, and the selector used a hyphenated label that does not match the service name, so log silence is likely an artifact [tr_0b3a50bad024]. No latency, CPU, memory or restart series were retrieved for any service [tr_ed1ee63295f5, tr_8e6a19a2a12d], and one metric dispatch was run against a window a full day off the incident [tr_8e6a19a2a12d]. I cannot responsibly name a mechanism on this basis.",
+    "service": "productcatalogservice",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_ed1ee63295f5",
+      "tr_21ff2ac82ba1",
+      "tr_c5283e9f3bf8",
+      "tr_e73b121534f4",
+      "tr_aa8e88568e6d",
+      "tr_33dc51ae9c26",
+      "tr_0b3a50bad024",
+      "tr_8e6a19a2a12d"
+    ],
+    "reasoning": "productcatalogservice is named only because it is the one service with a real, dated departure from a clean baseline at a time adjacent to onset [tr_ed1ee63295f5]; it is not a confident attribution. The classes each fail a test. bad_deploy and bad_config are unsupported: no deployment, image or config change to productcatalogservice exists anywhere in the 24h window [tr_e73b121534f4], and the injected conditions on the other services were all torn down by their own reverts long before onset [tr_aa8e88568e6d, tr_33dc51ae9c26]. dependency_latency has the most suggestive shape - client-side self-time on the frontend hop with an instantaneous callee handler [tr_c5283e9f3bf8] - but the observed durations are single-digit to ~12.7ms, far too small to be a user-visible fault, no latency series was ever measured, and the 10 sampled traces all fall in the last 7 seconds of the window, so they may not represent the incident at all [tr_c5283e9f3bf8]. resource_exhaustion has no supporting measurement whatsoever: CPU, memory, connection and restart metrics were never retrieved [tr_ed1ee63295f5, tr_8e6a19a2a12d]. Frontend's error ratio moving down rather than up [tr_21ff2ac82ba1] is actively inconsistent with a severe backend failure propagating to the caller, which argues that the critical severity and the three simultaneous 09:54:30 alerts are not explained by anything on this board. Recommending a rollback or revert here would target an automation loop that had already reverted itself, so remediation_class is none pending better measurement.",
+    "open_questions": [
+      "Was productcatalogservice's request latency elevated at all? No latency series was retrieved in any dispatch, leaving the single most load-bearing hypothesis unmeasured.",
+      "What do productcatalogservice's logs actually say? The only log query used the label service=\"product-catalog-service\" while the service under investigation is productcatalogservice, so the empty result is probably a label mismatch and must be re-run [tr_0b3a50bad024].",
+      "Why did all three services alert at 09:54:30 when frontend errors were below baseline [tr_21ff2ac82ba1]? The alert trigger was never identified, and loadgenerator was never investigated at all.",
+      "One triage edge was unmeasured and adservice, cartservice, checkoutservice and loadgenerator received no metrics, logs or traces - so an origin outside productcatalogservice remains open.",
+      "tr_8e6a19a2a12d queried 2026-09-08, a day before onset; its flat-zero finding describes the wrong day and should not be read as incident-window evidence.",
+      "Do the failing spans carry error tags, and did any traces exist between 09:52:30 and 09:56:24? Neither is answered by the trace sample [tr_c5283e9f3bf8]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Latency on the frontend->productcatalogservice gRPC hop, with time spent client-side rather than in the callee's handler, delayed frontend request completion.",
+        "service": "frontend",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "The trace shape fits [tr_c5283e9f3bf8], but the measured client self-time is only 0.7-12.7ms - nowhere near a critical fault - and no latency metric was ever retrieved to confirm elevation. The sampled traces also cluster in the final 7 seconds of the window, so they may not cover the degraded period.",
+        "confidence": "low"
+      },
+      {
+        "root_cause": "An automation loop repeatedly applying and reverting injected faults across services left a residual effect, or a further cycle landed after the last observed revert.",
+        "service": "productcatalogservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Every recorded injection is explicitly paired with its own revert, completed 59m to 3.9h before onset [tr_e73b121534f4, tr_aa8e88568e6d, tr_33dc51ae9c26], so no wrong value was in force at 09:54:30. Residual effect is speculation with no measurement behind it.",
+        "confidence": "low"
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    " / Summary: Network delay injected into a container's namespace, so calls across that boundary take longer\nwhile both processes remain healthy.\n\n**Resolves by `restart`.** Every `dependency_latency` scenario in the catalog carries\n`expected_remediation_class: restart`, because the delay live",
+    "ad-memory-squeeze / What was observed: The page was `ServiceHighErrorRate` on **frontend** and **loadgenerator** together,\n3m30s after onset. No service between them and the edge was named, and both alerts then\nstayed up continuously for the rest of the incident.\n\nTwo and a half minutes later, at **T+6m00s**, `Service",
+    "cart-dependency-latency / What was observed: The page named three services in the same evaluation: `ServiceHighLatency` on\n**cartservice**, **frontend** and **loadgenerator**, 3m50s after things started slowing.\n**checkoutservice** followed fifteen seconds later, for four alerts across four services.\n\nNo errors. Not one. Ev"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 30788,
+    "pulled_tokens": 4251,
+    "pull_rate": 0.1213,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 415,
+        "content_tokens": 417,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1470,
+        "content_tokens": 1473,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9616,
+        "content_tokens": 9592,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8954,
+        "content_tokens": 8957,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10333,
+        "content_tokens": 10336,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_e73b121534f4",
+      "tr_aa8e88568e6d",
+      "tr_33dc51ae9c26",
+      "tr_ed1ee63295f5",
+      "tr_0b3a50bad024",
+      "tr_c5283e9f3bf8"
+    ],
+    "expected_effect": "No action is proposed, so no change in any metric or log series should be expected or attributed to this system. The correct next step is measurement, not remediation: re-run the productcatalogservice log query with the correct label (service=\"productcatalogservice\" rather than the hyphenated form that returned nothing [tr_0b3a50bad024]), retrieve the latency, CPU, memory and restart series that no dispatch returned [tr_ed1ee63295f5], and query span-level status codes and trace coverage for 09:52:30-09:56:24 [tr_c5283e9f3bf8].",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention would be shown wrong if a re-run of the missing measurements produced a change-linked mechanism inside the incident window - for example a productcatalogservice latency percentile stepping up at 09:52:30, a nonzero restart count, or a log line naming a config or dependency failure. It would also be wrong if a change record surfaced that landed at or after 09:54:30; every record examined is an automation apply/revert pair already reverted 59m to 3.9h before onset [tr_e73b121534f4, tr_aa8e88568e6d, tr_33dc51ae9c26], which is precisely why no rollback or config_revert has its precondition met. Note that the strongest available signal cuts against acting on the callee at all: productcatalogservice's handler is 0.0-0.1ms with all self-time on frontend's client span [tr_c5283e9f3bf8], and frontend's own error ratio fell to a third of baseline [tr_21ff2ac82ba1].",
+    "risk": "The risk here is the risk of the actions not taken, and it is why they are not taken. rollback_image and revert_config both fail their preconditions: no deploy, image change, or config edit is recorded inside the incident window for any service in the blast radius - the only candidate values (a 300ms shaping container, a REDIS_ADDR override, a 256m memory limit) were each already reverted well before onset, so 'reverting' would mean re-applying or re-cycling a known-bad state onto a service whose error ratio is 1.2% mean and whose handler is measurably fast. restart_service fails its precondition too: nothing points at process state, since no restart count, memory series or log line was ever retrieved [tr_ed1ee63295f5, tr_0b3a50bad024], and a restart would discard the very in-process state and container-lifetime counters that a correct diagnosis needs, while destroying the 09:52:30 onset as a reproducible condition. scale_service is unavailable by ADR-0029. Acting on a low-confidence unknown would also consume the incident's attention on the callee when the trace shape points at the client side of the frontend->productcatalogservice hop.",
+    "blast_radius": "Nobody, by design - no service is touched and no caller sees a reset. For contrast, the action being declined would have reached: productcatalogservice itself, its callers frontend, checkoutservice and recommendationservice (all of whom would see connection resets during a container recreate), and, in the frontend case, loadgenerator and every downstream it fans out to including adservice and cartservice. Seven services are in scope for this incident and all remain unperturbed."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service alert with frontend and productcatalogservice both firing simultaneously and load generator seeing impact \u2014 not dismissible as a quiet world. Shared-dependency or catalog latency fanning out to frontend is the cheapest prior, but no evidence exists yet."
+  }
+}
