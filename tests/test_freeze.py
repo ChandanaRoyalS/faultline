@@ -65,6 +65,11 @@ def test_the_world_item_covers_the_whole_provenance_family_not_only_compose() ->
     different hardware, and the first fresh-machine rehearsal measured it - both memory-squeeze
     scenarios kill their target under emulation and neither can on native x86. Something the harness
     observes rather than constructs, which is exactly this item's criterion.
+
+    `host_overrides` joined at T4.5 (2026-09-11): the compose files the Makefile layers outside
+    the digest for this host - none on the Mac, the host-gateway shim on Linux, plus the kafka JVM
+    flag on a GitHub runner. Not hashed, by each file's own argument; recorded, because a manifest
+    silent about a file that changed a container's command line is not a record of what ran.
     """
     world = freeze.world_state()
     assert set(world) == {
@@ -74,9 +79,11 @@ def test_the_world_item_covers_the_whole_provenance_family_not_only_compose() ->
         "otel_demo_image_digest",
         "capability_version",
         "host_platform",
+        "host_overrides",
         "unverifiable_fields",
     }
     assert "/" in world["host_platform"], "system/machine, e.g. Darwin/arm64"
+    assert isinstance(world["host_overrides"], list), "the files layered outside the digest"
     assert world["capability_version"].startswith("cap:")
     assert "ffs_stub_image_id" not in world, (
         "ADR-0014 refuses to compare it; freezing it would fire on nothing"

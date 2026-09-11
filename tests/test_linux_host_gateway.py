@@ -55,7 +55,10 @@ def test_the_makefile_layers_it_fourth_and_only_on_linux(tmp_path: Path) -> None
         fake_bin.mkdir()
         (fake_bin / "uname").write_text(f"#!/bin/sh\necho {kernel}\n")
         (fake_bin / "uname").chmod(0o755)
-        env = {**os.environ, "PATH": f"{fake_bin}:{os.environ.get('PATH', '')}"}
+        # `GITHUB_ACTIONS` cleared: on a runner it is `true` and layers a fifth file (T4.5,
+        # tests/test_actions_kafka_override.py); this test is about the fourth.
+        env = {k: v for k, v in os.environ.items() if k != "GITHUB_ACTIONS"}
+        env["PATH"] = f"{fake_bin}:{env.get('PATH', '')}"
         out = subprocess.run(
             ["make", "-n", "world-ps"], cwd=REPO_ROOT, env=env, capture_output=True, text=True
         )

@@ -1,0 +1,137 @@
+# T4.5: does the world come up on a GitHub-hosted runner, and would the gate admit a run?
+#
+# **No key, no model call, no cost.** This is the half of the eval workflows that failed on
+# 2026-09-04 - kafka's JDK threw in its cgroup-v2 parser eight seconds after starting and every
+# dependant refused - split out so it can be proved on its own, on a pull request, before a
+# scheduled workflow spends money finding out. `compose/actions-kafka-jvm.override.yml` is the
+# fix; this is the check that it is one.
+#
+# It goes further than a boot. A world whose containers are all `running` is not yet a world the
+# harness will run against: ingest has to answer, the orchestrator's consumer has to be attached
+# to the Redis group, nothing may be firing, every service must be serving traffic, and the
+# containers must have settled for the gate's 300s. The nightly's first scored run will be refused
+# on any of those, so `faultline-gate` asks the same question here, with the same thresholds -
+# which is also how the two servers the eval workflows never started get started, and that
+# omission gets found before it costs a night.
+#
+# Runs on pull requests that touch the world's definition or how it is layered, and by hand.
+name: world-boot
+
+on:
+  pull_request:
+    paths:
+      - "compose/**"
+      - "Makefile"
+      - "src/evalharness/gate.py"
+      - "src/evalharness/rehearse.py"
+      - ".github/workflows/world-boot.yml"
+  workflow_dispatch:
+
+concurrency:
+  # The same lock as eval-smoke and eval-nightly: one world at a time on the shared runner pool
+  # is a convention, but the harness's own world lock is the real one and two jobs in one
+  # repository can still race a scheduled run. Queue rather than collide.
+  group: eval-world
+  cancel-in-progress: false
+
+jobs:
+  boot:
+    runs-on: ubuntu-latest
+    # A fifteen-service boot with cold image pulls (1m12s measured on the VM), two servers, one
+    # 300s settle, the gate, and a teardown. 30 leaves room for a slow pull without hiding a hang.
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install
+        # No extras: the gate, the receiver and the orchestrator import neither the model client
+        # nor the embedding model. The eval workflows install both because a run needs them.
+        run: uv sync --all-groups
+
+      - name: Bring up the platform and the world
+        id: boot
+        # `GITHUB_ACTIONS=true` is what layers the kafka flag (Makefile). Nothing is set here,
+        # deliberately: the check is that the runner's own environment is enough.
+        run: make eval-up
+
+      - name: kafka is running and carries the flag
+        # Both halves, because either alone proves nothing: the flag present on a container that
+        # died is the 2026-09-04 failure with a decoration, and a live kafka without the flag
+        # means the runner changed and this file is now unexplained.
+        run: |
+          docker inspect kafka --format '{{range .Config.Env}}{{println .}}{{end}}' \
+            | grep -x 'KAFKA_OPTS=-XX:-UseContainerSupport'
+          docker inspect kafka --format 'kafka: {{.State.Status}}, health {{.State.Health.Status}}, restarts {{.RestartCount}}'
+          test "$(docker inspect kafka --format '{{.State.Status}}')" = running
+          test "$(docker inspect kafka --format '{{.RestartCount}}')" = 0
+
+      - name: Migrate, then start the receiver and the orchestrator
+        # The two processes every scored run needs and neither eval workflow started - found by
+        # writing this probe. Backgrounded; a job's processes live until its last step.
+        run: |
+          uv run faultline-migrate
+          nohup uv run faultline-ingest > ingest.log 2>&1 &
+          nohup uv run faultline-orchestrate > orchestrate.log 2>&1 &
+          for i in $(seq 1 30); do
+            curl -fsS http://localhost:8000/healthz >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://localhost:8000/healthz
+          echo
+          tail -n 5 ingest.log orchestrate.log
+
+      - name: Settle, then ask the gate
+        # `MIN_CONTAINER_UPTIME_SECONDS` is the gate's own bar, read rather than copied. Fifteen
+        # is the runnable catalog - the horizon the nightly's first run hands the gate.
+        run: |
+          settle=$(uv run python -c 'from evalharness.rehearse import MIN_CONTAINER_UPTIME_SECONDS as s; print(s + 15)')
+          echo "settling ${settle}s"
+          sleep "$settle"
+          uv run faultline-gate --runs-remaining 15
+
+      - name: Every container, after the settle
+        # A container that exited or is restarting is a fault nobody injected. Listed on success
+        # too, so a green run leaves a record of what "up" looked like.
+        if: always() && steps.boot.outcome == 'success'
+        run: |
+          docker ps -a --format 'table {{.Names}}\t{{.Status}}'
+          bad=$(docker ps -a --format '{{.Names}} {{.Status}}' | grep -Ei 'exited|restarting|unhealthy|dead' || true)
+          if [ -n "$bad" ]; then
+            echo "::error::containers not healthy after the settle:"
+            echo "$bad"
+            exit 1
+          fi
+
+      - name: Why the world did not come up
+        # The 2026-09-04 rule: a boot that fails is recorded with its reason before the teardown
+        # removes it. `docker logs kafka` by container name - the demo pins `container_name`.
+        if: failure() && steps.boot.outcome == 'failure'
+        run: |
+          echo "::group::containers"
+          docker ps -a
+          echo "::endgroup::"
+          echo "::group::kafka"
+          docker logs --tail 200 kafka || echo "kafka has no logs to give"
+          echo "::endgroup::"
+          echo "::group::memory and disk"
+          free -m || true
+          df -h / || true
+          nproc || true
+          echo "::endgroup::"
+
+      - name: The servers' logs
+        if: always() && steps.boot.outcome == 'success'
+        run: |
+          echo "::group::ingest"
+          cat ingest.log || true
+          echo "::endgroup::"
+          echo "::group::orchestrator"
+          cat orchestrate.log || true
+          echo "::endgroup::"
+
+      - name: Tear down
+        if: always() && steps.boot.outcome != 'skipped'
+        run: make eval-down

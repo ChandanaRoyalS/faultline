@@ -104,3 +104,49 @@ point moving the mount into `telemetry.yml` costs nothing extra and removes the
 inconsistency recorded above. Also revisit if anything other than a Grafana dashboard is
 ever proposed for this path — that is the moment the guard is protecting, and the answer
 should be no.
+
+## Addendum (T4.5, 2026-09-11): the second thing proposed for this path, and why the answer was not no
+
+*Revisit if* above says that anything other than a Grafana dashboard proposed for the
+outside-the-digest path is *"the moment the guard is protecting, and the answer should be no."*
+T5.4c crossed it once for `compose/linux-host-gateway.override.yml`, on the argument that the
+file describes how a host reaches the world and moves nothing a bundle records. This addendum
+records the second crossing, `compose/actions-kafka-jvm.override.yml`, because it is a harder
+case than the first and deserves to be argued rather than assumed under T5.4c's precedent.
+
+**The case is harder** because the file changes a world process, not a DNS entry: kafka's JVM
+starts with `-XX:-UseContainerSupport` on a GitHub-hosted runner, and without it kafka does not
+start there at all (docs/GATES.md, 2026-09-04). The plan's T4.5 table priced four routes on
+2026-09-04 and took none; the row for this one read *"worse — runs would claim the recorded
+world's digest while running a different world."*
+
+**Two things changed between that table and this addendum, and they are what make the answer
+yes.** First, the freeze has recorded `host_platform` since T5.4c (2026-09-07), and
+`generations.world_key` names a run's world `<digest>@Linux/x86_64` when the platform is not the
+reference. A run from a runner is therefore a different generation *by construction*: README's
+table filters on the generation, the eval database's fingerprint carries it, and no reader can
+pool a runner's run with a Mac run without a code change that the tests for both would catch. The
+row's premise - that the runner's run would claim the recorded world - was true when written and
+is not true now. Second, the freeze now records `world.host_overrides`: the manifest of a run made
+with this file says so, by name. The digest's job is to make a change to the world *visible from
+inside a bundle*; a change that the bundle names is visible.
+
+**What the flag touches, so that "moves nothing measurable" is a checked claim and not a hope.**
+The JVM stops sizing itself from the cgroup. Kafka's heap is fixed by `KAFKA_HEAP_OPTS` in the
+hashed override; the container carries no CPU limit; the memory limit the gate reads is the
+cgroup's, enforced by the kernel with or without the JVM's knowledge. The header of the file
+carries this paragraph and `tests/test_actions_kafka_override.py` requires it to keep carrying it.
+
+**The guard, extended rather than relaxed.** The file may contain one service, one variable and
+this value; it may not join `compose_files`; the Makefile may layer it only when `GITHUB_ACTIONS`
+is `true`; and `provenance.host_overrides` must return exactly what `make -n` layers under every
+combination of platform and runner, asserted by running both. A run that carries this file in its
+manifest is a runner's run, and a runner's run is never a published figure - `variance.TIERS`
+gives the nightly R = 1 and *"not a finding on its own"*.
+
+**What this does not do.** It does not unblock the eval workflows on its own; it removes the
+one obstacle that was measured. `.github/workflows/world-boot.yml` is the check that it did, run
+on a pull request with no key and no cost before a scheduled workflow spends money finding out.
+The third thing proposed for this path, whenever it comes, should read this addendum as the bar:
+a recorded, generation-separated, one-line change that turns *no world* into *a world*, argued in
+the file's own header. Anything less than that is the moment the original text was written for.

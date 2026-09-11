@@ -3454,6 +3454,24 @@ reason is now a captured log rather than the sentence *"neither is true today"* 
 this document for two days without anyone knowing which of the two conditions was the real one.
 **It was the world, not the key.**
 
+***2026-09-11: the second route is taken, and the reason its row read "worse" no longer holds.***
+The owner chose to make the nightly run rather than silence it. The route is a fifth compose file,
+`compose/actions-kafka-jvm.override.yml` — one service, one variable, `KAFKA_OPTS:
+-XX:-UseContainerSupport` — layered by the Makefile outside the digest only when `GITHUB_ACTIONS`
+is `true`. The 2026-09-04 row called this worse because a runner's run would claim the recorded
+world's digest. Two things have changed since: the freeze records `host_platform` (T5.4c) and
+`generations` names a runner's world `<digest>@Linux/x86_64`, so the run is a separate generation
+by construction and README's table and the eval database's fingerprint both already keep it apart;
+and the freeze now records `world.host_overrides`, so the manifest names the file. ADR-0030's
+addendum argues the case against its own *"the answer should be no"*, and
+`tests/test_actions_kafka_override.py` holds the file to that size and the Makefile and the freeze
+to one another. **Proved before it is spent on:** `.github/workflows/world-boot.yml` boots the
+world on a pull request with no key, starts the receiver and the orchestrator — which neither
+eval workflow ever did, found by writing the probe — settles, and asks `faultline-gate` whether
+a scored run would be admitted. The nightly's wiring, the secret and where its results land
+follow in a second PR once the probe is green. `faultline-gate` is the operator's pre-flight as a
+command; README names it.
+
 The diagnostic that produced this is now part of both workflows and ordered ahead of the
 teardown, because the first boot failure deleted its own evidence: kafka went unhealthy, the
 container was removed, and diagnosing it would have required failing again. That is ADR-0022

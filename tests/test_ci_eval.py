@@ -300,3 +300,81 @@ def test_the_timeout_clears_the_settle_windows_it_now_honours() -> None:
     assert job["timeout-minutes"] > settles * 2, (
         "the timeout must leave room for the runs themselves, not only for the waits"
     )
+
+
+# --- the world-boot probe (T4.5, 2026-09-11) ---------------------------------------------------
+
+
+def test_the_probe_needs_no_key_and_spends_nothing() -> None:
+    """The point of splitting it out: the half of the eval workflows that failed on 2026-09-04 was
+    the world, not the key, and a check on the world must not wait for a secret or a balance. No
+    `secrets.`, no model client, no `faultline-eval`, no `faultline-sweep`."""
+    text = (WORKFLOWS / "world-boot.yml").read_text()
+    assert "secrets." not in text
+    assert "ANTHROPIC_API_KEY" not in text
+    runs = " ".join(str(s.get("run", "")) for s in workflow("world-boot")["jobs"]["boot"]["steps"])
+    assert "faultline-eval " not in runs
+    assert "faultline-sweep" not in runs
+
+
+def test_the_probe_asks_the_gate_the_nightlys_first_question() -> None:
+    """A world whose containers are `running` is not a world the harness will run against.
+    `faultline-gate` reads what `gate.require` reads - ingest, the consumer, alerts, traffic,
+    uptime, headroom - so the probe is green only when a scored run would be admitted, and
+    `--runs-remaining` is the runnable catalog the nightly's first run will hand it."""
+    steps = workflow("world-boot")["jobs"]["boot"]["steps"]
+    runs = " ".join(str(s.get("run", "")) for s in steps)
+
+    assert "faultline-gate --runs-remaining" in runs
+    assert "faultline-ingest" in runs and "faultline-orchestrate" in runs, (
+        "the two servers every scored run needs, which neither eval workflow started"
+    )
+    assert "MIN_CONTAINER_UPTIME_SECONDS" in runs, (
+        "the settle is the gate's number, read not copied"
+    )
+
+
+def test_the_probe_proves_the_flag_is_on_the_container_that_lived() -> None:
+    """Either half alone proves nothing: the flag on a dead kafka is the 2026-09-04 failure with
+    a decoration, and a live kafka without the flag means the runner changed and the override is
+    now unexplained. The value checked is the one the guard test pins on the file."""
+    runs = " ".join(str(s.get("run", "")) for s in workflow("world-boot")["jobs"]["boot"]["steps"])
+
+    assert "KAFKA_OPTS=-XX:-UseContainerSupport" in runs
+    assert "docker inspect kafka" in runs
+    assert "RestartCount" in runs
+
+
+def test_the_probe_keeps_the_eval_workflows_cleanup_discipline() -> None:
+    """The same three rules the eval workflows learned by failing: a boot step with an id, every
+    `always()` step conditioned on it, the diagnostic before the teardown, and one world lock."""
+    wf = workflow("world-boot")
+    assert wf["concurrency"]["group"] == "eval-world"
+    steps = wf["jobs"]["boot"]["steps"]
+    assert any(s.get("id") == "boot" for s in steps)
+    names = [str(s.get("name") or s.get("uses")) for s in steps]
+    for step in steps:
+        condition = str(step.get("if", ""))
+        if "always()" in condition:
+            assert "steps.boot.outcome" in condition, step.get("name")
+    diagnostic = next(
+        s
+        for s in steps
+        if "docker ps -a" in str(s.get("run", "")) and "failure()" in str(s.get("if", ""))
+    )
+    assert names.index(str(diagnostic["name"])) < names.index("Tear down")
+    assert "logs" in str(diagnostic["run"])
+
+
+def test_the_probe_runs_when_the_worlds_layering_changes() -> None:
+    """Every path whose change can alter what `make eval-up` brings up: the compose files, the
+    Makefile that layers them, the gate that judges the result, and the probe itself."""
+    paths = set(workflow("world-boot")[True]["pull_request"]["paths"])
+    for expected in (
+        "compose/**",
+        "Makefile",
+        ".github/workflows/world-boot.yml",
+        "src/evalharness/gate.py",
+    ):
+        assert expected in paths, expected
+    assert "workflow_dispatch" in workflow("world-boot")[True]

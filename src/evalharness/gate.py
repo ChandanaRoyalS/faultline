@@ -723,3 +723,61 @@ def require(
             f"{MIN_CONTAINER_UPTIME_SECONDS}s."
         )
     return reading
+
+
+def run_cli(argv: list[str] | None = None) -> int:
+    """`faultline-gate`: take the readings a scored run would face, print them, exit by verdict.
+
+    **The pre-flight, as a command rather than a paragraph.** Before every sweep the operator has
+    asked this module the same question by hand - *would the gate admit the first run?* - and the
+    answer decided whether to launch. In Actions the question is the whole point of the
+    `world-boot` probe (T4.5): a world that boots is not a world the harness will run against
+    until ingest answers, the orchestrator's consumer is attached, nothing is firing, every
+    service is serving and the containers have settled. This reads exactly what `require` reads,
+    with the same thresholds, and writes nothing.
+
+    Incidents are not consulted: the store is the harness's, and a probe that reached into it
+    would be a probe of the database rather than the world. On a fresh CI database there are none.
+
+    Exit 0 when the gate would admit a run; 1 when it would refuse, with every refusal printed.
+    """
+    import argparse
+    import json
+
+    p = argparse.ArgumentParser(
+        prog="faultline-gate",
+        description="Read the baseline gate without injecting anything.",
+    )
+    p.add_argument(
+        "--runs-remaining",
+        type=int,
+        default=None,
+        help="how many runs the sweep about to start will make; sets the headroom horizon "
+        "exactly as faultline-sweep would. Omitted: one run at the harness's worst-case bound.",
+    )
+    p.add_argument("--json", action="store_true", help="print the reading as JSON")
+    args = p.parse_args(argv)
+
+    reading = read(runs_remaining=args.runs_remaining)
+    if args.json:
+        print(json.dumps(reading.as_dict(), indent=2, sort_keys=True))
+    else:
+        print(
+            f"ingest accepting: {reading.ingest_accepting}; consumer idle: "
+            f"{reading.consumer_idle_ms}ms; services reporting: {reading.services_reporting}; "
+            f"youngest container: {reading.youngest_container}"
+        )
+        if reading.headroom is not None:
+            h = reading.headroom
+            print(
+                f"{HEADROOM_CONTAINER}: {h.percent_now:.1f}% of {h.limit_mb:.0f}MB, projected "
+                f"{h.projected_percent:.1f}% (threshold {h.threshold_percent:.1f}%), up "
+                f"{h.uptime_seconds}s"
+            )
+    if reading.passed:
+        print("GATE WOULD ADMIT a scored run.")
+        return 0
+    print("GATE WOULD REFUSE:")
+    for why in reading.refusals:
+        print(f"  - {why}")
+    return 1

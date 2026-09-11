@@ -180,6 +180,11 @@ def world_state(reference_container: str = "cart-service") -> dict[str, Any]:
       table. Absent on every manifest written before 2026-09-07, all of which were made on the
       development Mac; `generations.generation_of` treats absence as the reference platform for
       that reason and says so.
+    - `host_overrides` - the compose files the Makefile layered **outside** the digest for this
+      host (T4.5): the Linux host-gateway shim, the GitHub-runner kafka JVM flag, or neither. Not
+      in the digest by each file's own argument; recorded because a manifest silent about a file
+      that changed a container's command line is not a record of what ran. `[]` on the reference
+      platform, and absent on every manifest written before 2026-09-11.
 
     **`ffs_stub_image_id` is deliberately excluded.** ADR-0014 records it and refuses to compare it:
     a rebuild churns the id from unchanged source, so it would fire on nothing. Freezing a field
@@ -189,6 +194,7 @@ def world_state(reference_container: str = "cart-service") -> dict[str, Any]:
     from evalharness.provenance import (
         compose_digest,
         ffs_stub_source_digest,
+        host_overrides,
         image_content_digest,
         observability_digest,
     )
@@ -200,6 +206,7 @@ def world_state(reference_container: str = "cart-service") -> dict[str, Any]:
         "otel_demo_image_digest": image_content_digest(reference_container),
         "capability_version": capability_version(),
         "host_platform": host_platform(),
+        "host_overrides": host_overrides(),
     }
     state["unverifiable_fields"] = sorted(k for k, v in state.items() if v is None)
     return state

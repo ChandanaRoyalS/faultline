@@ -18,8 +18,10 @@ from __future__ import annotations
 
 import hashlib
 import json
+import os
 import platform
 import subprocess
+from collections.abc import Mapping
 from pathlib import Path
 from typing import Any
 
@@ -96,6 +98,38 @@ def compose_digest(settings: InjectorSettings | None = None) -> str | None:
     """
     settings = settings or InjectorSettings()
     return _digest_of([(settings.world_dir / name).resolve() for name in settings.compose_files])
+
+
+LINUX_HOST_GATEWAY_OVERRIDE = "linux-host-gateway.override.yml"
+ACTIONS_KAFKA_JVM_OVERRIDE = "actions-kafka-jvm.override.yml"
+
+
+def host_overrides(
+    system: str | None = None, environ: Mapping[str, str] | None = None
+) -> list[str]:
+    """The compose files the Makefile layers **outside** the digest for this host, in its order.
+
+    Two, both conditional, both describing the host rather than the world: the Linux
+    host-gateway shim (T5.4c - Docker Engine has no `host.docker.internal`) and the
+    GitHub-runner kafka JVM flag (T4.5 - the demo's kafka JDK cannot start there). Neither joins
+    `compose_digest`, on the argument each file's header makes; this function exists so a run's
+    freeze can still say which of them were in force, because a manifest that is silent about a
+    file that changed a container's command line is not a complete record of what ran.
+
+    **Mirrors the Makefile's two `ifeq` blocks, and a test holds the mirror** -
+    `tests/test_actions_kafka_override.py` asks `make -n` under both conditions and compares. The
+    conditions are the same facts make consults: `uname -s` and the `GITHUB_ACTIONS` variable the
+    runner sets. `system` and `environ` are parameters so the test can exercise every branch from
+    one machine.
+    """
+    system = system or platform.system()
+    environ = os.environ if environ is None else environ
+    layered: list[str] = []
+    if system == "Linux":
+        layered.append(LINUX_HOST_GATEWAY_OVERRIDE)
+    if environ.get("GITHUB_ACTIONS") == "true":
+        layered.append(ACTIONS_KAFKA_JVM_OVERRIDE)
+    return layered
 
 
 def ffs_stub_source_digest(directory: Path = FFS_STUB_DIR) -> str | None:
