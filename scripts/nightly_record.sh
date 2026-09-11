@@ -38,7 +38,12 @@ cd "$root"
 # Tonight's run directories: whatever is under evals/runs/ that git does not know about. A run
 # directory is `evals/runs/<stamp>-<scenario>/`; INVALID.md and the sweep documents are tracked
 # and are not touched here.
-mapfile -t new_dirs < <(git ls-files --others --exclude-standard evals/runs | cut -d/ -f1-3 | sort -u)
+# A read loop, not `mapfile`: the development Mac runs Apple's bash 3.2, which has no `mapfile`,
+# and the script must run there (tests/test_nightly_record.py runs it) as well as on the runner.
+new_dirs=()
+while IFS= read -r run_dir; do
+  new_dirs+=("$run_dir")
+done < <(git ls-files --others --exclude-standard evals/runs | cut -d/ -f1-3 | sort -u)
 if [ "${#new_dirs[@]}" -eq 0 ]; then
   echo "nothing to record: no new directory under evals/runs/"
   exit 0
