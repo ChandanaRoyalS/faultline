@@ -445,17 +445,18 @@ recorded before this table existed and are not invented for it.
 
 | image sha (`FAULTLINE_IMAGE`) | built (UTC) | what it carried | status |
 |---|---|---|---|
-| `4dfcc53e0fc6877ab3c5404a2aafc4012ac12753` | 2026-09-11 04:46 | T6.1: the trace analyst and Tempo — the VM's first world with traces; the orchestrator's terminal-state guard (ADR-0016 Addendum 3); dev sweep 12's write-up; T4.5's Actions work (#247–#249). Deployed 2026-09-11 ~05:15 UTC, after the reboot below, with the world re-applied from the current three files | **running** |
-| `28fcaf7f3bd14eeceeffe8d0ce7c8063c14fca93` | 2026-09-07 22:57 | T5.6's audit: the proposal card and open questions on the incident screen, `GET /ui/incidents` and the `/` redirect, the demo's `remediation_class` fix; T5.7's visibility reporting; sweep 11's table | previous — §3.7's argument |
+| `7f2edff48b13ae7924ca6a9035cd1db34e2e4f20` | 2026-09-11 (CI, #255) | T6.2: the executor container — the only one with the Docker socket, joining the docker group by id, **kill switch on** — plus the repair replay's write-up and the running-state drift fix. Deployed 2026-09-11 22:07 UTC with three new `.env` values (§3.1); prediction 9 measured against it: `/healthz` reports `kill_switch: true`, a token is refused as `kill_switch` and recorded in the VM's `action_audit`, the orchestrator unaffected | **running** |
+| `4dfcc53e0fc6877ab3c5404a2aafc4012ac12753` | 2026-09-11 04:46 | T6.1: the trace analyst and Tempo — the VM's first world with traces; the orchestrator's terminal-state guard (ADR-0016 Addendum 3); dev sweep 12's write-up; T4.5's Actions work (#247–#249). Deployed 2026-09-11 ~05:15 UTC, after the reboot below, with the world re-applied from the current three files | previous — §3.7's argument |
+| `28fcaf7f3bd14eeceeffe8d0ce7c8063c14fca93` | 2026-09-07 22:57 | T5.6's audit: the proposal card and open questions on the incident screen, `GET /ui/incidents` and the `/` redirect, the demo's `remediation_class` fix; T5.7's visibility reporting; sweep 11's table | superseded |
 | `b310bd9f2b1adfb69cb3016a60371314421dca0e` | 2026-09-07 08:43 | the image the video's part 3 shows: the first incident the deployment opened and investigated itself (T5.5c) | superseded |
 | `eb486066f99dadd30cad3ea9c1beed2d1a8abdef` | 2026-09-07 08:16 | T5.5c's forward deploys while findings twenty-three to thirty-one were being closed on the machine the procedure was written for | superseded |
 | `691caef6ebf1b8aa3a3d68d5f729dd20b0060620` | 2026-09-07 07:25 | ″ | superseded |
 | `4ff5e0f170e1a021afd335da51fc7b3607bdc852` | 2026-09-07 07:12 | ″ | superseded |
 | `25ad0a08f4295098bc682ad115d2c996977b7c5c` | 2026-09-07 06:01 | the first image ever deployed: the snapshot-only deployment, before the orchestrator ran investigations (T5.5b/c) | superseded |
 
-All seven are still in the registry and in the VM's cache, so any row is a §3.7 target in seconds.
+All eight are still in the registry and in the VM's cache, so any row is a §3.7 target in seconds.
 The schema constraint in §3.7 still applies across rows: no migration between `25ad0a08` and
-`4dfcc53e` dropped or renamed anything (`faultline-migrate` reported `schema at 0004` before and
+`7f2edff4` dropped or renamed anything (0005 adds `action_audit`; nothing is dropped) (`faultline-migrate` reported `schema at 0004` before and
 after the 2026-09-11 deploy), so today every row is a safe target.
 
 ### 3.10 Rebooting the VM

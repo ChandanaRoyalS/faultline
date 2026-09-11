@@ -172,3 +172,15 @@ single-use or scope were reached. Three refusals fired and two demonstrated the 
 driver now presents them while the incident is `EXECUTING`; the tests hold the order; the second
 attempt is pre-registered in the same document. §5's order itself is unchanged - a terminal incident
 *should* refuse before anything else is considered - what changed is when the demonstration asks.
+
+## Addendum 2 (2026-09-11) — one action per incident is the executor's rule too
+
+The proof's second run minted a fresh approval for an incident already `EXECUTING`, and the state
+machine refused it: no `EXECUTING → AWAITING_APPROVAL` row. That refusal was ADR-0028 §5 - *one
+proposal per incident, executed at most once* - being enforced by the only layer that happened to
+be asked. It should not depend on which layer is asked. §5's order gains a clause at the single-use
+step, after scope: an incident with an executed or errored action in `action_audit` refuses a second
+token, naming the first action and its row. `faultline-approve` refuses to mint for an `EXECUTING`
+or terminal incident and is idempotent for one awaiting approval - several tokens, each single-use,
+no second transition. A second remediation goes through rejection and re-investigation (T6.3), never
+through a second token.
