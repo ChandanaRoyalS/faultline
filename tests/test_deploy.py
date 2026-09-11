@@ -648,6 +648,33 @@ def test_every_service_the_world_overlay_touches_exists_under_that_key() -> None
     assert not unknown, f"compose.world.yml names services the world does not define: {unknown}"
 
 
+REBOOT_CASUALTIES = (
+    "alertmanager",
+    "prometheus",
+    "grafana",
+    "loki",
+    "tempo",
+    "promtail",
+    "frontendproxy",
+)
+"""The seven containers the VM's first deliberate reboot did not bring back (2026-09-11)."""
+
+
+@pytest.mark.parametrize("service", REBOOT_CASUALTIES)
+def test_every_telemetry_container_survives_a_reboot(world: dict, service: str) -> None:
+    """**A reboot took alerting down and left the shop up.** Every service the demo gives
+    `restart: always` came back on its own; these seven have no policy in the demo or in
+    compose/telemetry.yml and stayed down until `make world-up` was run by hand. The page answered,
+    the world served traffic, and nothing could fire an alert - the silent kind of outage.
+
+    The policy lives in this overlay rather than in the hashed telemetry.yml because it is how the
+    host keeps the world running, not what the world is; a `restart:` key moves nothing a bundle
+    records and would move the world generation for it."""
+    assert world["services"][service].get("restart") == "always", (
+        f"{service} will not come back after a reboot"
+    )
+
+
 # --- the rehearsal changes only what it claims to ------------------------------------------------
 
 

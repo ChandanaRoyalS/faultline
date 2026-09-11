@@ -427,16 +427,52 @@ recorded before this table existed and are not invented for it.
 
 | image sha (`FAULTLINE_IMAGE`) | built (UTC) | what it carried | status |
 |---|---|---|---|
-| `28fcaf7f3bd14eeceeffe8d0ce7c8063c14fca93` | 2026-09-07 22:57 | T5.6's audit: the proposal card and open questions on the incident screen, `GET /ui/incidents` and the `/` redirect, the demo's `remediation_class` fix; T5.7's visibility reporting; sweep 11's table | **running** |
-| `b310bd9f2b1adfb69cb3016a60371314421dca0e` | 2026-09-07 08:43 | the image the video's part 3 shows: the first incident the deployment opened and investigated itself (T5.5c) | previous — §3.7's argument |
+| `4dfcc53e0fc6877ab3c5404a2aafc4012ac12753` | 2026-09-11 04:46 | T6.1: the trace analyst and Tempo — the VM's first world with traces; the orchestrator's terminal-state guard (ADR-0016 Addendum 3); dev sweep 12's write-up; T4.5's Actions work (#247–#249). Deployed 2026-09-11 ~05:15 UTC, after the reboot below, with the world re-applied from the current three files | **running** |
+| `28fcaf7f3bd14eeceeffe8d0ce7c8063c14fca93` | 2026-09-07 22:57 | T5.6's audit: the proposal card and open questions on the incident screen, `GET /ui/incidents` and the `/` redirect, the demo's `remediation_class` fix; T5.7's visibility reporting; sweep 11's table | previous — §3.7's argument |
+| `b310bd9f2b1adfb69cb3016a60371314421dca0e` | 2026-09-07 08:43 | the image the video's part 3 shows: the first incident the deployment opened and investigated itself (T5.5c) | superseded |
 | `eb486066f99dadd30cad3ea9c1beed2d1a8abdef` | 2026-09-07 08:16 | T5.5c's forward deploys while findings twenty-three to thirty-one were being closed on the machine the procedure was written for | superseded |
 | `691caef6ebf1b8aa3a3d68d5f729dd20b0060620` | 2026-09-07 07:25 | ″ | superseded |
 | `4ff5e0f170e1a021afd335da51fc7b3607bdc852` | 2026-09-07 07:12 | ″ | superseded |
 | `25ad0a08f4295098bc682ad115d2c996977b7c5c` | 2026-09-07 06:01 | the first image ever deployed: the snapshot-only deployment, before the orchestrator ran investigations (T5.5b/c) | superseded |
 
-All six are still in the registry and in the VM's cache, so any row is a §3.7 target in seconds.
+All seven are still in the registry and in the VM's cache, so any row is a §3.7 target in seconds.
 The schema constraint in §3.7 still applies across rows: no migration between `25ad0a08` and
-`28fcaf7f` dropped or renamed anything, so today every row is a safe target.
+`4dfcc53e` dropped or renamed anything (`faultline-migrate` reported `schema at 0004` before and
+after the 2026-09-11 deploy), so today every row is a safe target.
+
+### 3.10 Rebooting the VM
+
+A reboot is a deployment event, not a maintenance chore, and the first deliberate one (2026-09-11
+04:53 UTC, kernel 6.8.0-138 → 139, for a pending `*** System restart required ***`) is why this
+section exists. **Everything with `restart: always` came back on its own and nothing else did.**
+The shop, kafka, the platform and Caddy were up within a minute; `prometheus`, `alertmanager`,
+`grafana`, `loki`, `tempo`, `promtail` and `frontend-proxy` were not, because the demo declares no
+policy on three of them and `compose/telemetry.yml` declared none on the other four. The public
+page answered and the world could not alert — the silent kind of outage. `compose.world.yml` now
+gives all seven `restart: always` (the header there says why the overlay and not the hashed file)
+and `tests/test_deploy.py` holds it; a VM running an overlay from before that change needs §3.4's
+two commands after any reboot.
+
+The procedure, then:
+
+```bash
+sudo reboot                                     # from an ssh session; it drops you
+# wait a minute, ssh back in
+uptime && (cat /var/run/reboot-required 2>/dev/null || echo "no reboot pending")
+docker ps --format '{{.Names}}\t{{.Status}}' | sort   # 32 containers; anything missing is a finding
+cd ~/faultline && make world-up && cd world && docker compose -f docker-compose.yml -f ../compose/world-arm64.override.yml -f ../compose/telemetry.yml -f ../deploy/compose.world.yml up -d --no-build
+```
+
+The last line is idempotent and re-provisions the dashboard; run it whether or not everything came
+back. Then §3.6's checks from **another machine**, because the reboot re-created the DOCKER-USER
+chain too — on 2026-09-11 both `:3000` and Tempo's new `:3200` timed out from outside, which is the
+answer. The baseline gate refuses containers younger than 300 s, so nothing investigates for the
+first five minutes; that is the design, not a defect.
+
+**Paste one command at a time into an ssh session.** A block that begins with `ssh …` hands the
+terminal to the VM on its first line, and every line after it runs wherever the cursor happens to
+be — on 2026-09-11 that was `sudo reboot` typed into the development Mac, caught at the password
+prompt. Type the `ssh` line alone, wait for `deploy@ubuntu:~$`, then paste.
 
 ---
 

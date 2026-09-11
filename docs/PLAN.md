@@ -1435,6 +1435,19 @@ nothing for a funded key to do, and an unset one makes an accidental dispatch fr
 alone, so the record never holds two proposal policies at one stamp. The VM's pending reboot is
 recorded as a deployment event for `deploy/README.md` §3.9 when it is done, not before.
 
+***Closed 2026-09-11, for nothing.*** The owner's rule for these three was zero spend, and all
+three met it. **T4.5:** the world boots in Actions (#247), the eval workflow is wired end to end
+and unscheduled (#248, #249), and the free control arm was dispatched the same afternoon — the
+first catalog ever run on a GitHub runner, at $0. **The reboot:** done at 04:53 UTC, and it found
+a defect the plan did not know it had — seven telemetry containers with no restart policy, so the
+deployment came back serving a shop that could not alert; `deploy/compose.world.yml` now gives all
+seven `restart: always`, `deploy/README.md` §3.10 is the procedure, and a test holds it. **The
+redeploy:** `4dfcc53e` — T6.1's trace analyst and Tempo running on the VM for the first time —
+with the §3.9 row in the same PR, and §3.6's checks plus the new `:3200` port verified from
+outside. **The Slack webhook** stays unset: the notifier renders a marked absence by design, and
+the owner has not chosen to create one. The proposal card on the running image is the owner's
+browser check, made before this PR merged.
+
 ## Phase 6 — audited 2026-09-07 against the specification, before any Phase 6 task starts
 
 Read the way the Phase 5 rows were: each task's *deliverable* column in

@@ -57,8 +57,19 @@ networks:
     name: faultline-deploy-net
 
 services:
+  # **`restart: always` on every telemetry container, because a reboot took them all down and
+  # left the shop up (2026-09-11).** The VM's first deliberate reboot brought back every service
+  # the demo gives `restart: always` - the shop, kafka, the platform - and not one of these seven:
+  # the demo declares no policy on grafana, prometheus and frontendproxy, and compose/telemetry.yml
+  # declared none on loki, promtail, tempo and alertmanager. The public page answered, the world
+  # served traffic, and nothing could alert. A policy is deployment configuration - how this host
+  # keeps the world running - so it belongs in this overlay and not in the hashed telemetry.yml,
+  # where it would move the world generation for a change no bundle can observe. `tests/test_deploy.py`
+  # holds the seven to it.
+
   # Where alerts go. The world fires them; the platform is what listens.
   alertmanager:
+    restart: always
     networks:
       - default
       - faultline
@@ -78,12 +89,14 @@ services:
 
   # Queried by the metrics specialist as `http://prometheus:9090`.
   prometheus:
+    restart: always
     networks:
       - default
       - faultline
 
   # Queried by the logs specialist as `http://loki:3100`.
   loki:
+    restart: always
     networks:
       - default
       - faultline
@@ -91,6 +104,7 @@ services:
   # Queried by the traces specialist as `http://tempo:3200` (T6.1). This repository's service, not
   # the demo's, so it is defined in compose/telemetry.yml and only joins the network here.
   tempo:
+    restart: always
     networks:
       - default
       - faultline
@@ -107,6 +121,14 @@ services:
   # on a machine where the world was never brought up under this file (T5.5c). The guard in
   # `tests/test_deploy.py` now checks every key here against `injector.world.SERVICE_CONTAINERS`.
   frontendproxy:
+    restart: always
     networks:
       - default
       - faultline
+
+  # Not on the platform's network - nothing queries them across projects - but they did not survive
+  # the reboot either. Grafana is what a citation click lands in; promtail is how logs reach Loki.
+  grafana:
+    restart: always
+  promtail:
+    restart: always
