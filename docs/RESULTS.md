@@ -72,6 +72,31 @@ which measured a world broken for two hours and is excluded from this table but 
 tool's (`SWEEP-2026-09-11-sweep12.md` §6, §8). The holdout has no run on this world and is blocked
 at three entries (ADR-0029).
 
+## Repair replay — dev sweep 12's proposals, executed (T6.2, 2026-09-11)
+
+**A different benchmark from everything else on this page, and kept apart on purpose.** Every
+fix-class figure above and below means *the agent named a fix* (ADR-0028 §4). This section asks
+whether the fix works when a human approves it and the action plane performs it — T7.50 §4's design
+C, registered in [`PREREGISTRATION-T6.2.md`](../evals/runs/PREREGISTRATION-T6.2.md) §4 and reported
+in full in [`REPLAY-2026-09-11-t6.2.md`](../evals/runs/REPLAY-2026-09-11-t6.2.md). It is not a loop:
+the agent that wrote each proposal had finished days before, no agent ran, and nothing observed
+re-entered any context. **No model call was made; $0.00.** R = 1 on a deterministic operation.
+
+The nine distinct (scenario, action, target) proposals arm A recorded, each executed once against a
+fresh injection of its fault: **recovered 6 of 7 executed; 2 refused; 0 errors.** Every recovery
+cleared its alerts inside the proposal's own `confirm_within_seconds` (30–123 s), and after every one
+the injector had nothing left to revert. The refusals are listed beside the figure, never folded in,
+because a refusal is a fact about the executor's model of the world and not about the fix:
+`cart-dependency-latency → revert_config` refused on *no drift* — the fault is a network sidecar
+and the agent's fix was wrong in kind, as T6.1's prediction 5 saw from the other side; and
+`cart-bad-image-tag → rollback_image` refused on *no drift* because the executor did not count a
+stopped service as drift — a defect in the executor, fixed, with a pre-registered second attempt.
+`redis-cart-dependency-latency → restart_service` executed and did not recover: the first measured
+*remediation proposed for the wrong service*.
+
+Predicted 7 of 8, 1 refused, 0 errors. Six predictions held, two failed on the executor's side, and
+**zero errors** — the executor never broke the world it was asked to fix — is the one that mattered.
+
 ## The current-world result
 
 > **Superseded 2026-09-08 (T6.1): this section describes `f5bd108f4f70`, which is no longer the

@@ -75,6 +75,7 @@ class FakeSteps:
         return {"id": "a1", "outcome": self._executor_outcome, "reason": ""}
 
     def firing_alerts(self) -> list[str]:
+        self.calls.append("alerts")
         if self._clear_after is None or self._executed_at is None:
             return ["ServiceHighErrorRate"]
         if self.clock >= self._executed_at + timedelta(seconds=self._clear_after):
@@ -216,6 +217,9 @@ def test_the_proof_presents_exactly_three_refusals_after_the_first_execution(
     assert steps.kill_switch_seen == [False, False, True, False]
     assert "approve paymentservice" in steps.calls
     assert (tmp_path / "e" / "refusals.json").exists()
+    # Before the recovery wait, while the incident is still EXECUTING - the first run presented
+    # them after the world had recovered and both were refused as "incident is resolved".
+    assert steps.calls.index("execute tok3") < steps.calls.index("alerts")
 
 
 def test_the_proof_is_skipped_when_nothing_executed(tmp_path: Path) -> None:
