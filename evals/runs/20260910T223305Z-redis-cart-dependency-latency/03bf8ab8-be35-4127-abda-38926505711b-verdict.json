@@ -1,0 +1,47 @@
+{
+  "incident_id": "03bf8ab8-be35-4127-abda-38926505711b",
+  "trajectory_id": "ba42184a-61db-4176-b94c-47999d81c69f",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "accountingservice",
+    "adservice",
+    "currencyservice",
+    "emailservice",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "redis-cart-dependency-latency",
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "summary": "suspect: service of the most recent pre-onset change in the window (21:29:10); class: that change was to environment; remediation: table lookup from bad_config",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "cartservice",
+    "fault_class": "bad_config",
+    "fix_class": "config_revert",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (21:29:10)",
+      "class: that change was to environment",
+      "remediation: table lookup from bad_config"
+    ]
+  }
+}

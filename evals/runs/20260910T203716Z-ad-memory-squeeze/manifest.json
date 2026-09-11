@@ -1,0 +1,91 @@
+{
+  "run_id": "20260910T203716Z-ad-memory-squeeze",
+  "scenario_id": "ad-memory-squeeze",
+  "split": "dev",
+  "scenario_fingerprint": "c56097be739ca910cb2605047af78a2f11ca78cc1b4a6e43e22c20f33a8eff42",
+  "started_at": "2026-09-10T20:37:16.707026+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "50c5595cd7792a06341175f59cec872b0e95639e",
+    "git_dirty": false
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 30480,
+    "host": "chandanas-MacBook-Air.local",
+    "since": "2026-09-10T20:37:16.798344+00:00",
+    "reason": "faultline-eval ad-memory-squeeze",
+    "token": "30480-1789072636.798285"
+  },
+  "preflight": {
+    "checked": false,
+    "model": "",
+    "ok": false,
+    "detail": "",
+    "skipped_because": "b0 makes no model call"
+  },
+  "baseline_gate": {
+    "passed": true,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 2734,
+    "pipeline_down": [],
+    "silent_services": [
+      "frontend-proxy"
+    ],
+    "unexpected_silent": [],
+    "services_reporting": 15,
+    "youngest_container": [
+      "checkout-service",
+      300
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 26.27,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 3.475,
+      "runs_remaining": 10,
+      "uptime_seconds": 353,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 524.7,
+      "projected_percent": 51.89,
+      "threshold_percent": 64.38,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": []
+  },
+  "refused": {
+    "reason": "baseline gate refused",
+    "at": "2026-09-10T20:37:21.505184+00:00"
+  }
+}
