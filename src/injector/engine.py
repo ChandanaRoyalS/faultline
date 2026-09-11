@@ -147,23 +147,32 @@ class Engine:
         what it did, and the injector drops the entries whose restore was exactly that recreate,
         removes their override files, and emits the stop record change history would have carried.
 
-        Only compose-override restores for this service are affected. A traffic-shaping sidecar on
-        the same service is a different restore kind and a different fault, and it stays active -
-        the executor did not touch it, and saying otherwise would be the lie this method exists to
-        prevent in the other direction.
+        Override restores (config, image, CPU quota) and the live memory limit for this service are
+        affected - a recreate from the declared definition undoes all three. A traffic-shaping
+        sidecar on the same service is a different restore kind and a different fault, and it stays
+        active - the executor did not touch it, and saying otherwise would be the lie this method
+        exists to prevent in the other direction.
         """
-        from injector.models import ComposeServiceRestore
+        from injector.models import ComposeServiceRestore, CpuQuotaRestore, MemoryLimitRestore
         from injector.world import canonical_service
 
         wanted = canonical_service(service)
         forgotten: list[str] = []
         for fault_id, injection in sorted(self.active().items()):
             restore = injection.restore
-            if not isinstance(restore, ComposeServiceRestore):
+            # Three restore kinds a recreate-from-declared makes moot: the two that drop an
+            # override file (config, image, CPU quota) and the memory limit set live with
+            # `docker update`, which a recreate resets to the declared limit. A sidecar (Pumba)
+            # is not among them - the recreate did not touch it.
+            if isinstance(restore, ComposeServiceRestore | CpuQuotaRestore):
+                if canonical_service(restore.service) != wanted:
+                    continue
+                Path(restore.override_file).unlink(missing_ok=True)
+            elif isinstance(restore, MemoryLimitRestore):
+                if canonical_service(restore.container) != wanted:
+                    continue
+            else:
                 continue
-            if canonical_service(restore.service) != wanted:
-                continue
-            Path(restore.override_file).unlink(missing_ok=True)
             self._store.remove(fault_id)
             self._emit(record_for_stop(injection.definition, at=self._clock()))
             forgotten.append(fault_id)

@@ -34,6 +34,7 @@ the token whether or not the command succeeded.
 from __future__ import annotations
 
 import hashlib
+import json
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -143,17 +144,17 @@ class World:
         return self._docker.running_definition(SERVICE_CONTAINERS.get(service, service))
 
     def active_override_files(self, service: str) -> list[str]:
-        from injector.models import ComposeServiceRestore
+        from injector.models import ComposeServiceRestore, CpuQuotaRestore
         from injector.world import canonical_service
 
         return sorted(
             injection.restore.override_file
             for injection in self._engine.active().values()
-            if isinstance(injection.restore, ComposeServiceRestore)
+            if isinstance(injection.restore, ComposeServiceRestore | CpuQuotaRestore)
             and canonical_service(injection.restore.service) == canonical_service(service)
         )
 
-    def recreate_declared(self, service: str) -> Performed:
+    def recreate_declared(self, service: str, drift: dict[str, Any] | None = None) -> Performed:
         """`rollback_image` and `revert_config`: the service comes back as the world defines it.
         The inverse is the override files that were in force, copied into the record so the
         fault can be put back for a re-test; then the injector is told
@@ -165,12 +166,21 @@ class World:
                 inverse_parts.append(f"--- {path}\n{Path(path).read_text()}")
             except OSError:
                 inverse_parts.append(f"--- {path} (unreadable at execution time)")
-        inverse = (
-            "re-apply the override(s) below and recreate the service:\n" + "\n".join(inverse_parts)
-            if inverse_parts
-            else "no override was in force; the inverse is whatever change produced the drift, "
-            "which this world did not record"
-        )
+        if inverse_parts:
+            inverse = "re-apply the override(s) below and recreate the service:\n" + "\n".join(
+                inverse_parts
+            )
+        elif drift:
+            # A live change (`docker update`) leaves no file. The running values that differed
+            # are the inverse - `docker update --memory <running>` puts them back.
+            inverse = "no override was in force; re-apply the running values that differed: " + (
+                json.dumps(drift, sort_keys=True)
+            )
+        else:
+            inverse = (
+                "no override was in force and no drift was recorded; the inverse is whatever "
+                "change produced the state this world did not record"
+            )
         performed = self._recreate(service, overrides=())
         if performed.exit_code == 0:
             forgotten = self._engine.acknowledge_external_restore(service)
@@ -328,7 +338,7 @@ class Executor:
             if action.id == "restart_service":
                 performed = self._world.recreate_as_is(claims.target)
             else:
-                performed = self._world.recreate_declared(claims.target)
+                performed = self._world.recreate_declared(claims.target, drift.fields)
             record = AuditRecord(
                 incident_id=incident.id,
                 proposal_id=claims.proposal_id,
