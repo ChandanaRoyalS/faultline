@@ -1427,7 +1427,11 @@ name, and whether one exists at environment level (`gh secret list --env <name>`
 reasoning stands as the intent: the two workflows that read it (`eval-smoke`, `eval-nightly`) are
 blocked on the runner's kafka JDK (GATES, 2026-09-04) and refuse cleanly without it, and a funded
 key on a scheduled workflow that could one day unblock itself is the wrong default. It is set when
-T4.5 is unblocked — which is this same world move, so the decision has a date. Q29 goes into T6.1's batch rather than landing
+T4.5 is unblocked — which is this same world move, so the decision has a date. ***2026-09-11:
+unblocked by a different route than the world move*** — `compose/actions-kafka-jvm.override.yml`,
+outside the digest (T4.5 section, ADR-0030 addendum) — and the secret stays **unset**, because the
+owner took the schedule off the same day for cost (T4.5 section): with nothing scheduled there is
+nothing for a funded key to do, and an unset one makes an accidental dispatch free. Q29 goes into T6.1's batch rather than landing
 alone, so the record never holds two proposal policies at one stamp. The VM's pending reboot is
 recorded as a deployment event for `deploy/README.md` §3.9 when it is done, not before.
 
@@ -3471,6 +3475,48 @@ eval workflow ever did, found by writing the probe — settles, and asks `faultl
 a scored run would be admitted. The nightly's wiring, the secret and where its results land
 follow in a second PR once the probe is green. `faultline-gate` is the operator's pre-flight as a
 command; README names it.
+
+***The probe was green on its first run*** (world-boot 34560051796, PR #247): sixteen containers
+up, kafka `running, health healthy, restarts 0` with the flag on its command line, fourteen
+services reporting, and the gate's own words — *"GATE WOULD ADMIT a scored run"* — with kafka at
+**17.1 %** of 2048 MB after the settle, against 24–26 % freshly recycled on the Mac. Native x86 is
+a lighter world for kafka, which is one more reason its runs are a separate generation.
+
+***The second PR wires the nightly.*** Both eval workflows start the receiver and the orchestrator
+through one composite action (`.github/actions/start-pipeline`) — neither ever had, and every
+fault would have recorded `no-alert` for it; the probe's gate reading is what said so. Both settle
+for the gate's own bar before the sweep. **Where the night lands:** the job's Postgres dies with
+the job, so `scripts/nightly_record.sh` (tested against a real bare remote in
+`tests/test_nightly_record.py`) puts the night's run directories on the `nightly-results` branch,
+on top of main and never on it, authored as main's last commit is authored, and the workflow
+opens one pull request from that branch that accumulates nights until the owner squash-merges it.
+README's table does not move on that merge — a runner's run is generation `<digest>@Linux/x86_64`
+and `_qualifies` filters on the generation — and `variance.TIERS["nightly"]` is R = 1, *"not a
+finding on its own"*. The token has `contents: write` and `pull-requests: write` and nothing else.
+At dev sweep 12's median of $0.71 a night costs about **$10.70**, which every night is about
+**$320 a month** — and asked that number, ***the owner chose zero standing cost for Phase 5's
+loose ends.*** So the schedule is off: `eval-nightly.yml` has `workflow_dispatch` and no `cron`,
+the `ANTHROPIC_API_KEY` secret stays unset (an accidental dispatch refuses in fifteen seconds at
+no cost, as it does today), and the repository switch that lets Actions open pull requests is
+flipped only on the day a run is wanted. **T4.5's cadence clause is delivered as a capability,
+not a schedule**: the world boots in Actions, the pipeline starts, the catalog runs, the night
+lands on a branch — proven for free by the probe, and fired by hand with `gh workflow run
+eval-nightly.yml` when a signal is worth $10.70. The earlier sentence in this section, *"the owner
+chose to make the nightly run rather than silence it"*, was the choice between fixing and
+silencing, and fixing is what happened; the cadence was decided after, with the price in front of
+her. Putting a schedule back is one line in the workflow and a cost decision here.
+
+***And the free half of it runs today.*** The workflow takes an `arm` input: `B0` — T4.7's
+control, which makes no model call (its ten runs on 2026-09-10 cost $0.00; `evalharness.preflight`
+skips the model check for it) — is the default and needs no secret; `pipeline` is the agent and
+needs the key for the occasion. One dispatch of the B0 arm proves the whole path in Actions at no
+cost: gate, injection, scorer, `eval-db load`, the results branch and its pull request, with fifteen
+recorded control runs at generation `<digest>@Linux/x86_64` landing in `evals/runs/` when the owner
+merges them. A control that should not move is also a world-drift detector, whenever it is run
+again. **T4.5 closes on that run**: built, proven in Actions on both halves (the probe for the
+world, the B0 dispatch for the harness), the pipeline arm one command away, and the cadence on
+demand by a priced decision — the deviation from *"the full catalog nightly"* stated here, not
+hidden.
 
 The diagnostic that produced this is now part of both workflows and ordered ahead of the
 teardown, because the first boot failure deleted its own evidence: kafka went unhealthy, the

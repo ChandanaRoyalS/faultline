@@ -2,9 +2,11 @@
 #
 # **This workflow is not a required check and must not be made one until it can pass.** It boots
 # the world and makes real model calls, so it needs both a working world in Actions and an
-# ANTHROPIC_API_KEY with credit. Neither is true today. It is landed running rather than
-# commented out, because a workflow that has never executed is a workflow nobody knows is broken,
-# and its first red run is information.
+# ANTHROPIC_API_KEY with credit. Neither was true until 2026-09-11: the world needed
+# `compose/actions-kafka-jvm.override.yml` (world-boot.yml is the proof) and the key is a
+# repository secret the owner sets. It was landed running rather than commented out, because a
+# workflow that has never executed is a workflow nobody knows is broken, and its first red run
+# was information - it is how the kafka failure was found.
 #
 # What it is for: change detection. Four scenarios at R=1 has an MDE near 44pp (evals/MDE.md), so
 # this cannot tell anyone whether a prompt edit helped. It tells them the pipeline still completes
@@ -67,10 +69,21 @@ jobs:
         id: boot
         run: make eval-up
 
-      - name: Migrate and seed
+      - name: Start the alert pipeline
+        # Migrate, then the receiver and the orchestrator - the two processes every scored run
+        # needs, which this workflow never started until world-boot asked the gate (2026-09-11).
+        uses: ./.github/actions/start-pipeline
+
+      - name: Seed the retrieval corpus
+        run: uv run faultline-seed --create-schema
+
+      - name: Let the containers settle
+        # The gate's own bar, read not copied; see eval-nightly.yml for why once here beats six
+        # retries in the sweep.
         run: |
-          uv run faultline-migrate
-          uv run faultline-seed --create-schema
+          settle=$(uv run python -c 'from evalharness.rehearse import MIN_CONTAINER_UPTIME_SECONDS as s; print(s + 15)')
+          echo "settling ${settle}s"
+          sleep "$settle"
 
       - name: Smoke subset
         env:
@@ -120,11 +133,7 @@ jobs:
           docker ps -a
           echo "::endgroup::"
           echo "::group::kafka"
-          (cd world && docker compose --progress plain \
-            -f docker-compose.yml \
-            -f ../compose/world-arm64.override.yml \
-            -f ../compose/telemetry.yml \
-            logs --no-color --tail 200 kafka) || echo "kafka has no logs to give"
+          docker logs --tail 200 kafka || echo "kafka has no logs to give"
           echo "::endgroup::"
           echo "::group::memory and disk"
           free -m || true

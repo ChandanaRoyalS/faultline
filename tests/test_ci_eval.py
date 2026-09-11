@@ -21,6 +21,10 @@ def workflow(name: str) -> dict:
     return yaml.safe_load((WORKFLOWS / f"{name}.yml").read_text())
 
 
+START_PIPELINE = "./.github/actions/start-pipeline"
+ACTIONS = WORKFLOWS.parent / "actions"
+
+
 # --- the smoke subset ------------------------------------------------------------------------
 
 
@@ -186,8 +190,14 @@ def test_the_smoke_workflow_triggers_on_prompt_context_and_model_paths() -> None
     assert "src/faultline/agents/settings.py" in paths, "the model map"
 
 
-def test_the_nightly_runs_on_a_schedule_and_the_smoke_does_not() -> None:
-    assert "schedule" in workflow("eval-nightly")[True]
+def test_neither_eval_workflow_runs_on_a_schedule_and_the_nightly_can_be_fired_by_hand() -> None:
+    """**The nightly has no schedule, by decision.** Every night at ~$10.70 is ~$320 a month, and
+    on 2026-09-11 the owner chose zero standing cost for Phase 5's loose ends. The capability is
+    whole - the world boots in Actions, the pipeline starts, the night lands on a branch - and it
+    is fired by hand. This test is where a schedule coming back gets noticed, because it is a
+    spending decision and docs/PLAN.md has to move with it."""
+    assert "schedule" not in workflow("eval-nightly")[True]
+    assert "workflow_dispatch" in workflow("eval-nightly")[True]
     assert "schedule" not in workflow("eval-smoke")[True]
 
 
@@ -326,7 +336,7 @@ def test_the_probe_asks_the_gate_the_nightlys_first_question() -> None:
     runs = " ".join(str(s.get("run", "")) for s in steps)
 
     assert "faultline-gate --runs-remaining" in runs
-    assert "faultline-ingest" in runs and "faultline-orchestrate" in runs, (
+    assert any(s.get("uses") == START_PIPELINE for s in steps), (
         "the two servers every scored run needs, which neither eval workflow started"
     )
     assert "MIN_CONTAINER_UPTIME_SECONDS" in runs, (
@@ -378,3 +388,128 @@ def test_the_probe_runs_when_the_worlds_layering_changes() -> None:
     ):
         assert expected in paths, expected
     assert "workflow_dispatch" in workflow("world-boot")[True]
+
+
+# --- the alert pipeline, started once and the same way everywhere (T4.5, 2026-09-11) -----------
+
+
+def test_every_world_workflow_starts_the_alert_pipeline_from_one_action() -> None:
+    """**Neither eval workflow started the receiver or the orchestrator**, and both would have
+    recorded every fault as `no-alert` for it - the gate's "pipeline is not assembled" refusal is
+    what world-boot surfaced. One composite action, used by all three, so there is one copy of how
+    the servers come up rather than three that drift."""
+    for name, job in (("eval-smoke", "smoke"), ("eval-nightly", "nightly"), ("world-boot", "boot")):
+        steps = workflow(name)["jobs"][job]["steps"]
+        names = [str(s.get("name") or s.get("uses")) for s in steps]
+        assert any(s.get("uses") == START_PIPELINE for s in steps), name
+        boot = names.index("Bring up the platform and the world")
+        start = next(i for i, s in enumerate(steps) if s.get("uses") == START_PIPELINE)
+        assert boot < start, f"{name}: the pipeline needs the platform's Postgres and Redis first"
+
+    action = yaml.safe_load((ACTIONS / "start-pipeline" / "action.yml").read_text())
+    script = " ".join(str(s.get("run", "")) for s in action["runs"]["steps"])
+    assert "faultline-migrate" in script
+    assert "faultline-ingest" in script and "faultline-orchestrate" in script
+    assert "/healthz" in script, "wait for ingest to answer, not for a sleep to elapse"
+
+
+def test_both_eval_workflows_settle_before_the_first_run_using_the_gates_own_number() -> None:
+    """A fresh boot's containers are younger than the gate allows; the sweep would retry through
+    it six times a minute apart. Once, before the sweep, and the number is read from the module
+    that refuses, not typed here."""
+    for name, job in (("eval-smoke", "smoke"), ("eval-nightly", "nightly")):
+        steps = workflow(name)["jobs"][job]["steps"]
+        names = [str(s.get("name") or s.get("uses")) for s in steps]
+        settle = next(s for s in steps if "MIN_CONTAINER_UPTIME_SECONDS" in str(s.get("run", "")))
+        sweep = next(i for i, s in enumerate(steps) if "faultline-sweep" in str(s.get("run", "")))
+        assert names.index(str(settle["name"])) < sweep, name
+
+
+# --- where the night lands (T4.5, 2026-09-11) --------------------------------------------------
+
+
+def test_the_nightly_records_its_runs_through_the_tested_script_and_never_pushes_main() -> None:
+    """The job's Postgres dies with the job; `evals/runs/` in git is the durable eval database.
+    The recording is a script with tests behind it (tests/test_nightly_record.py), not shell in
+    the workflow, and it targets the results branch by name. Nothing in this workflow may push
+    to main: main advances only by the owner's squash-merge."""
+    steps = workflow("eval-nightly")["jobs"]["nightly"]["steps"]
+    record = next(s for s in steps if "nightly_record.sh" in str(s.get("run", "")))
+    assert "nightly-results" in record["run"]
+    assert "steps.boot.outcome == 'success'" in str(record["if"])
+
+    text = (WORKFLOWS / "eval-nightly.yml").read_text()
+    assert "git push" not in text, "pushing is the script's job, and the script never names main"
+    script = (Path(__file__).parent.parent / "scripts" / "nightly_record.sh").read_text()
+    assert script.count('git push -q "$remote" "$branch"') == 1
+    assert 'push -q "$remote" "$base"' not in script
+
+
+def test_the_nightly_opens_one_pull_request_and_reuses_it() -> None:
+    """One PR accumulates nights until the owner merges it. The step looks for an open PR by head
+    branch before creating, and creation is tolerant of a night that recorded nothing."""
+    steps = workflow("eval-nightly")["jobs"]["nightly"]["steps"]
+    names = [str(s.get("name") or s.get("uses")) for s in steps]
+    pr = next(s for s in steps if "gh pr create" in str(s.get("run", "")))
+
+    assert "gh pr list --head nightly-results --state open" in pr["run"]
+    assert "--base main --head nightly-results" in pr["run"]
+    assert "not a finding" in pr["run"], "the PR body must say what R = 1 is"
+    assert names.index(str(pr["name"])) > names.index("Record the night on the results branch")
+    assert names.index(str(pr["name"])) < names.index("Tear down")
+
+
+def test_the_nightlys_token_can_do_exactly_the_recording_and_nothing_more() -> None:
+    """`contents: write` to push the results branch, `pull-requests: write` to open the PR.
+    No `actions`, `id-token`, `packages` or `issues` - a token with more scope than the job has a
+    use for is the surprise-invoice pattern applied to permissions."""
+    wf = workflow("eval-nightly")
+    assert wf["permissions"] == {"contents": "write", "pull-requests": "write"}
+    assert "permissions" not in workflow("eval-smoke"), "the smoke pushes nothing"
+    assert "permissions" not in workflow("world-boot"), "the probe pushes nothing"
+
+    checkout = next(
+        s
+        for s in wf["jobs"]["nightly"]["steps"]
+        if str(s.get("uses", "")).startswith("actions/checkout")
+    )
+    assert checkout["with"]["fetch-depth"] == 0, "the recording merges main; a shallow clone cannot"
+
+
+def test_the_kafka_diagnostic_reads_the_container_not_a_stale_file_list() -> None:
+    """The diagnostic used to spell out three compose files; the Makefile now layers up to five,
+    and a diagnostic that names the wrong set reads the wrong project. The demo pins
+    `container_name: kafka`, so `docker logs kafka` needs no file list at all."""
+    for name, job in (("eval-smoke", "smoke"), ("eval-nightly", "nightly"), ("world-boot", "boot")):
+        steps = workflow(name)["jobs"][job]["steps"]
+        diagnostic = next(
+            s
+            for s in steps
+            if "docker ps -a" in str(s.get("run", "")) and "failure()" in str(s.get("if", ""))
+        )
+        assert "docker logs --tail 200 kafka" in diagnostic["run"], name
+        assert "world-arm64.override.yml" not in diagnostic["run"], name
+
+
+def test_the_control_arm_is_the_default_and_needs_no_key() -> None:
+    """**One arm is free, and it is the default.** B0 makes no model call (T4.7;
+    `evalharness.preflight` skips the model check for it), so the eval workflow can prove the whole
+    path in Actions - gate, injection, scorer, load, results branch - on a repository with no
+    secret at all. The key check is skipped for it and only for it; the pipeline arm still refuses
+    before booting when there is no key. Default B0 means an accidental dispatch costs nothing."""
+    wf = workflow("eval-nightly")
+    arm = wf[True]["workflow_dispatch"]["inputs"]["arm"]
+    assert arm["default"] == "B0"
+    assert set(arm["options"]) == {"B0", "pipeline"}
+
+    steps = wf["jobs"]["nightly"]["steps"]
+    refuse = next(s for s in steps if "Refuse early" in str(s.get("name", "")))
+    assert refuse["if"] == "inputs.arm == 'pipeline'"
+
+    catalog = next(s for s in steps if s.get("name") == "The catalog")
+    assert "--baseline b0" in catalog["run"]
+    assert "inputs.arm == 'B0'" in catalog["run"]
+    assert "faultline-sweep --tier nightly" in catalog["run"]
+
+    record = next(s for s in steps if "nightly_record.sh" in str(s.get("run", "")))
+    assert "inputs.arm" in record["run"], "the recording commit must say which arm ran"

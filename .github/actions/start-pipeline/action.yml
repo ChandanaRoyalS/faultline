@@ -1,0 +1,31 @@
+# T4.5: the two processes every scored run needs, and neither eval workflow started.
+#
+# `faultline-ingest` receives Alertmanager's webhook; `faultline-orchestrate` consumes the Redis
+# stream and opens incidents. Without them a fault fires into nothing: the world alerts correctly,
+# no incident opens, and the run records `no-alert` as though it were a fact about the scenario
+# (T7.24). The baseline gate refuses on exactly this - *"the alert pipeline is not assembled"* -
+# which is how the omission was found: `world-boot.yml` asked `faultline-gate` and the gate said
+# so. One copy here rather than three in the workflows, for the reason the sweep driver exists:
+# logic reachable only by GitHub is logic nobody tests, and three copies drift.
+#
+# Backgrounded with nohup; a job's processes live until its last step. The logs land in the
+# workspace as `ingest.log` and `orchestrate.log` for a later step to print.
+name: Start the alert pipeline
+description: Migrate the schema, then start faultline-ingest and faultline-orchestrate in the background and wait for ingest to answer.
+
+runs:
+  using: composite
+  steps:
+    - name: Migrate, then start the receiver and the orchestrator
+      shell: bash
+      run: |
+        uv run faultline-migrate
+        nohup uv run faultline-ingest > ingest.log 2>&1 &
+        nohup uv run faultline-orchestrate > orchestrate.log 2>&1 &
+        for i in $(seq 1 30); do
+          curl -fsS http://localhost:8000/healthz >/dev/null 2>&1 && break
+          sleep 1
+        done
+        curl -fsS http://localhost:8000/healthz
+        echo
+        tail -n 5 ingest.log orchestrate.log
