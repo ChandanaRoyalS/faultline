@@ -147,17 +147,32 @@ class DockerCli:
                 "inspect",
                 "--format",
                 "{{json .Config.Image}}\t{{json .Config.Env}}\t"
-                "{{.HostConfig.Memory}}\t{{.HostConfig.NanoCpus}}",
+                "{{.HostConfig.Memory}}\t{{.HostConfig.NanoCpus}}\t{{.State.Running}}",
                 container,
-            ]
+            ],
+            check=False,
         )
-        image, env, memory, nano_cpus = result.stdout.strip().split("\t")
+        if result.returncode != 0:
+            # No container at all is the deepest drift a declared service can have. Found by the
+            # repair replay (2026-09-11): `cart-bad-image-tag` stops the container and fails the
+            # recreate, so nothing wearing the bad tag ever exists to inspect.
+            return {
+                "image": None,
+                "environment": {},
+                "memory": 0,
+                "nano_cpus": 0,
+                "running": False,
+                "exists": False,
+            }
+        image, env, memory, nano_cpus, running = result.stdout.strip().split("\t")
         pairs = (item.split("=", 1) for item in json.loads(env) or [])
         return {
             "image": json.loads(image),
             "environment": {k: (v[0] if v else "") for k, *v in pairs},
             "memory": int(memory),
             "nano_cpus": int(nano_cpus),
+            "running": running.strip() == "true",
+            "exists": True,
         }
 
     def container_exists(self, name: str) -> bool:
@@ -236,6 +251,8 @@ class ComposeCli:
             "environment": {k: ("" if v is None else str(v)) for k, v in environment.items()},
             "memory": _compose_bytes(limits.get("memory")),
             "nano_cpus": round(float(limits["cpus"]) * 1_000_000_000) if "cpus" in limits else 0,
+            # A declared service is declared to run. Compose has no vocabulary for "stopped".
+            "running": True,
         }
 
     def recreate(self, service: str, *, overrides: Sequence[Path] = ()) -> None:

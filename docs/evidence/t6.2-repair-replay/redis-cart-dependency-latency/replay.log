@@ -1,0 +1,9 @@
+2026-09-11T07:52:59.354195+00:00 gate admitted
+2026-09-11T07:52:59.354579+00:00 injecting redis-cart-dependency-latency
+2026-09-11T07:57:04.094657+00:00 incident d9aba0ac-3d7b-4150-b876-ba55a6db1cee opened; no investigation is run
+2026-09-11T07:57:04.114545+00:00 approved restart_service -> cartservice; token 4d9eb936ff2719db
+2026-09-11T07:57:04.690486+00:00 executor: executed
+2026-09-11T08:00:04.805365+00:00 window of 180s elapsed; still firing: ['ServiceHighLatency/cartservice', 'ServiceHighLatency/checkoutservice', 'ServiceHighLatency/frontend', 'ServiceHighLatency/loadgenerator']
+2026-09-11T08:00:04.812112+00:00 scored not-recovered alerts still firing after 180s; fault still in force
+2026-09-11T08:00:06.009105+00:00 stop --all reverted: ['redis-cart-dependency-latency']
+2026-09-11T08:00:06.009220+00:00 settling 300s

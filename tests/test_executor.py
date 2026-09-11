@@ -586,3 +586,63 @@ def test_the_served_executor_has_no_route_that_mints_lists_or_revokes() -> None:
     assert not any(
         p for p in paths if "approve" in p or "mint" in p or "revoke" in p or "audit" in p
     )
+
+
+# --- running state is drift (2026-09-11, from the repair replay's second triple) ------------------
+
+
+def test_a_stopped_container_is_drift_for_both_rollback_and_revert(tmp_path: Any) -> None:
+    """`cart-bad-image-tag` refused as *no drift*: the injector stops the container and fails the
+    recreate, so the only container is the old one, stopped, wearing the declared image. A declared
+    service that is not running has drifted whatever else matches."""
+    stopped = {**DECLARED, "running": False, "exists": True}
+    declared = {**DECLARED, "running": True}
+    for action in ("rollback_image", "revert_config"):
+        store, audit = InMemoryIncidentStore(), InMemoryAuditStore()
+        inc = incident(IncidentState.AWAITING_APPROVAL)
+        store.save(inc)
+        token, _ = token_for(inc, action_id=action)
+        world = FakeWorld(running=stopped, declared=declared)
+
+        record = make_executor(store, audit, world=world).execute(token, caller="t")
+
+        assert record.outcome == "executed", (action, record.reason)
+        assert record.drift["drift"]["running"] == {"running": False, "declared": True}
+
+
+def test_a_missing_container_is_drift_too() -> None:
+    drift = drift_between(
+        {"image": None, "running": False, "exists": False},
+        {"image": "shop:good", "running": True},
+        ("image", "running"),
+    )
+    assert set(drift.fields) == {"image", "running"}
+
+
+def test_the_docker_client_reports_a_missing_container_as_not_running() -> None:
+    from injector.docker import DockerCli
+    from tests.fakes import FakeRunner
+
+    runner = FakeRunner(returncodes={"inspect": 1})
+    definition = DockerCli(runner).running_definition("ghost")
+    assert definition == {
+        "image": None,
+        "environment": {},
+        "memory": 0,
+        "nano_cpus": 0,
+        "running": False,
+        "exists": False,
+    }
+
+
+def test_the_docker_client_reads_running_state_with_the_rest() -> None:
+    from injector.docker import DockerCli
+    from tests.fakes import FakeRunner
+
+    runner = FakeRunner(stdout={"inspect": '"shop:v1"\t["A=1","PATH=/bin"]\t419430400\t0\tfalse\n'})
+    definition = DockerCli(runner).running_definition("cart-service")
+    assert definition["image"] == "shop:v1" and definition["environment"] == {
+        "A": "1",
+        "PATH": "/bin",
+    }
+    assert definition["memory"] == 419430400 and definition["running"] is False

@@ -151,3 +151,24 @@ pre-registration §4 describes is a different benchmark under a different name.
 T6.3 lands (the kill switch, the approval surface, the rejection loop); a real CD system ever
 exists in this world (then §2's "declared definition" is not the previous state and
 `rollback_image` needs an argument); or a second executor is proposed for a second world.
+
+## Addendum 1 (2026-09-11) — the replay's two corrections: a stopped service is drift, and the proof's order
+
+**Running state joins the drift check.** The repair replay's second triple, `cart-bad-image-tag →
+rollback_image`, was refused as *no drift on image*. The injector stops the container first and
+fails the recreate with a tag that resolves nowhere, so the only cartservice container is the old
+healthy one, stopped, wearing the declared image - and §2's drift model compared image,
+environment and limits and never asked whether the service was up. `DockerCli.running_definition`
+now reads `State.Running` and reports a missing container as not running and not existing;
+`ComposeCli.declared_definition` declares `running: True`, because compose has no vocabulary for
+"stopped"; `running` is a drift field for both `rollback_image` and `revert_config`. The agent's
+proposal had been right; the executor's model of the world was one field short, and the measurement
+is what found it. `REPLAY-2026-09-11-t6.2.md` §3 pre-registers the second attempt.
+
+**The proof's refusals are presented before the recovery wait.** The first live proof presented the
+replayed token and the wrong-target token after the world had recovered; the orchestrator had
+resolved the incident by then and §5's order refused both at step 3 - *incident is resolved* - before
+single-use or scope were reached. Three refusals fired and two demonstrated the wrong property. The
+driver now presents them while the incident is `EXECUTING`; the tests hold the order; the second
+attempt is pre-registered in the same document. §5's order itself is unchanged - a terminal incident
+*should* refuse before anything else is considered - what changed is when the demonstration asks.

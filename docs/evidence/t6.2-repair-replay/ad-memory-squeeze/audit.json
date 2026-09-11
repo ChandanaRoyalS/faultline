@@ -1,0 +1,39 @@
+{
+  "action_id": "revert_config",
+  "at": "2026-09-11T07:37:49.249956+00:00",
+  "caller": "repair replay",
+  "command": [
+    "docker",
+    "compose",
+    "-f",
+    "docker-compose.yml",
+    "-f",
+    "../compose/world-arm64.override.yml",
+    "-f",
+    "../compose/telemetry.yml",
+    "up",
+    "-d",
+    "--no-build",
+    "--no-deps",
+    "--force-recreate",
+    "adservice"
+  ],
+  "drift": {
+    "drift": {
+      "memory": {
+        "declared": 734003200,
+        "running": 268435456
+      }
+    }
+  },
+  "exit_code": 0,
+  "id": "cdb3d529-21c6-447a-ba84-e3cbc678d0c9",
+  "incident_id": "702ca7f8-9029-4047-ab3b-03ea4a968be4",
+  "inverse": "no override was in force; re-apply the running values that differed: {\"memory\": {\"declared\": 734003200, \"running\": 268435456}}",
+  "outcome": "executed",
+  "output_sha256": "1a21697d26ef907c48c9d6ca651ae8b14c9c249bd5577c2abb5b1f9a5eeb5825",
+  "proposal_id": "20260909T111957Z-ad-memory-squeeze",
+  "reason": "",
+  "target": "adservice",
+  "token_id": "73ed28b2ade5a945"
+}

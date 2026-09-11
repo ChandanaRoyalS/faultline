@@ -46,11 +46,20 @@ from faultline.orchestrator.machine import is_terminal
 from faultline.orchestrator.models import Incident
 
 DRIFT_FIELDS: dict[str, tuple[str, ...]] = {
-    "rollback_image": ("image",),
-    "revert_config": ("environment", "memory", "nano_cpus"),
+    "rollback_image": ("image", "running"),
+    "revert_config": ("environment", "memory", "nano_cpus", "running"),
     "restart_service": (),
 }
 """Which fields of the running definition each action compares against the declared one.
+
+**`running` joined both on 2026-09-11, from the repair replay's second triple.**
+`cart-bad-image-tag` stops the container first and fails the recreate with a phantom tag, so the
+only cartservice container is the old healthy one, stopped, wearing the declared image - and the
+first version of this table, which compared image, environment and limits and never asked whether
+the service was *up*, refused `rollback_image` as *no drift*. A declared service that is not
+running is the most basic drift there is; the prediction that both `rollback_image` triples recover
+failed on exactly this, and the re-attempt is pre-registered in
+`evals/runs/REPLAY-2026-09-11-t6.2.md`.
 
 `revert_config` covers everything a configuration change can move in this world - environment,
 the memory limit, the CPU quota - because the allowlist's `config_revert` is *"restore the

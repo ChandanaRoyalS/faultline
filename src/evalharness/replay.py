@@ -197,6 +197,18 @@ def replay_one(
         outcome.reason = str(record.get("reason") or "")
     else:
         outcome.executed = True
+        # **The proof's refusals come before the recovery wait, not after it** (2026-09-11). The
+        # first run presented the replayed token and the wrong-target token after the world had
+        # recovered - by which time the orchestrator had resolved the incident, and the executor
+        # refused both at step 3 ("incident is resolved") before single-use or scope were ever
+        # reached. Three refusals fired and two of them demonstrated the wrong property. Presented
+        # here, while the incident is `EXECUTING`, they are refused for the reasons they exist to
+        # show: *already spent* and *outside the incident's scope*.
+        if proof:
+            outcome.refusals = _proof_refusals(steps, incident_id, run_dir, token, log)
+            (evidence_dir / "refusals.json").write_text(
+                json.dumps(outcome.refusals, indent=2, sort_keys=True)
+            )
         cleared = _wait_for_quiet(steps, outcome.confirm_within_seconds, poll_seconds, log)
         outcome.alerts_cleared_after_seconds = (
             None if cleared is None else int((cleared - executed_at).total_seconds())
@@ -211,13 +223,6 @@ def replay_one(
                 f"{'still' if outcome.fault_in_force_after else 'not'} in force"
             )
         log.write(f"scored {outcome.result} {outcome.reason}".rstrip())
-
-    # the proof's three refusals, on the first triple only
-    if proof and outcome.executed:
-        outcome.refusals = _proof_refusals(steps, incident_id, run_dir, token, log)
-        (evidence_dir / "refusals.json").write_text(
-            json.dumps(outcome.refusals, indent=2, sort_keys=True)
-        )
 
     # 5. revert whatever is left, then settle
     outcome.stop_all_reverted = steps.stop_all()
