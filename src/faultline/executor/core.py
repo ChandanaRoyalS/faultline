@@ -15,7 +15,11 @@ The order is the safety argument, so it is written out rather than left to the c
    the same catalog and radius synthesis used. **Before single-use and before the catalog**, which
    is the order the proposal's failure table specifies: *"action-target mismatch hard-rejects
    before the approval is even requested"*.
-6. **Single use.** The audit is asked whether this token id has already been spent.
+6. **Single use, and one action per incident.** The audit is asked whether this token id has
+   already been spent, and whether this incident already has an executed (or errored) action -
+   ADR-0028 §5: *"one proposal per incident, executed at most once."* A second remediation goes
+   through rejection and re-investigation, never through a second token. Added 2026-09-11 when the
+   proof's driver tried exactly that and ADR-0016's table refused it one step later than this does.
 7. **The catalog.** The action exists, is `available` (so `scale_service` refuses with ADR-0029's
    reason), and the token was granted under the catalog version now in force.
 8. **Precondition: drift.** For `rollback_image` and `revert_config`, the running container must
@@ -40,7 +44,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from faultline.executor.audit import AuditRecord, AuditStore
+from faultline.executor.audit import SPENDING_OUTCOMES, AuditRecord, AuditStore
 from faultline.executor.tokens import Claims, TokenError, verify
 from faultline.orchestrator.machine import is_terminal
 from faultline.orchestrator.models import Incident
@@ -315,6 +319,18 @@ class Executor:
                 raise RefusedError(
                     f"token {claims.token_id} was already spent by audit row {spent.id} at "
                     f"{spent.at.isoformat()} ({spent.outcome})"
+                )
+            acted = [
+                row
+                for row in self._audit.for_incident(incident.id)
+                if row.outcome in SPENDING_OUTCOMES
+            ]
+            if acted:
+                first = acted[0]
+                raise RefusedError(
+                    f"incident {incident.id} already had an action executed: {first.action_id} -> "
+                    f"{first.target} (audit row {first.id}, {first.outcome}). One action per "
+                    "incident (ADR-0028 §5); a second goes through rejection and re-investigation."
                 )
             action = self._catalog.by_id(claims.action_id)
             if action is None:

@@ -181,6 +181,16 @@ def replay_one(
     outcome.token_id = approval.get("token_id")
     (evidence_dir / "approval.json").write_text(json.dumps(approval, indent=2, sort_keys=True))
     log.write(f"approved {outcome.action_id} -> {outcome.target}; token {outcome.token_id}")
+    # The proof's two extra tokens are minted **now**, while the incident is AWAITING_APPROVAL and
+    # a further approval is idempotent. The second proof run minted them after the execution, the
+    # incident was EXECUTING, and ADR-0016's table refused EXECUTING -> AWAITING_APPROVAL -
+    # correctly (one action per incident, ADR-0028 §5) - which crashed the driver mid-proof.
+    proof_tokens: tuple[str, str] | None = None
+    if proof:
+        fresh, _ = steps.approve(incident_id, run_dir)
+        wrong, _ = steps.approve(incident_id, run_dir, target_override="paymentservice")
+        proof_tokens = (fresh, wrong)
+        log.write("proof: minted the kill-switch and wrong-target tokens ahead of the execution")
     executed_at = steps.now()
     record = steps.execute(token)
     outcome.audit_id = record.get("id")
@@ -204,8 +214,8 @@ def replay_one(
         # reached. Three refusals fired and two of them demonstrated the wrong property. Presented
         # here, while the incident is `EXECUTING`, they are refused for the reasons they exist to
         # show: *already spent* and *outside the incident's scope*.
-        if proof:
-            outcome.refusals = _proof_refusals(steps, incident_id, run_dir, token, log)
+        if proof and proof_tokens is not None:
+            outcome.refusals = _proof_refusals(steps, token, *proof_tokens, log)
             (evidence_dir / "refusals.json").write_text(
                 json.dumps(outcome.refusals, indent=2, sort_keys=True)
             )
@@ -248,23 +258,25 @@ def _wait_for_quiet(steps: Steps, window: int, poll: int, log: _Log) -> datetime
 
 
 def _proof_refusals(
-    steps: Steps, incident_id: str, run_dir: Path, spent_token: str, log: _Log
+    steps: Steps, spent_token: str, fresh_token: str, wrong_token: str, log: _Log
 ) -> list[dict[str, Any]]:
-    """`PREREGISTRATION-T6.2.md` §3: the same token again, the kill switch, the wrong target."""
+    """`PREREGISTRATION-T6.2.md` §3: the same token again, the kill switch, the wrong target.
+
+    Each presentation is its own try: a refusal step that raises is recorded as an `error` entry
+    and the next one still runs, because a proof that dies on its second check has proved one
+    thing and recorded nothing about the other two - which is what happened on 2026-09-11."""
     refusals: list[dict[str, Any]] = []
-    replayed = steps.execute(spent_token)
-    refusals.append({"check": "replayed token", **replayed})
-    log.write(f"replayed token: {replayed.get('outcome')} - {replayed.get('reason')}")
-
-    fresh, _ = steps.approve(incident_id, run_dir)
-    switched = steps.execute(fresh, kill_switch=True)
-    refusals.append({"check": "kill switch", **switched})
-    log.write(f"kill switch: {switched.get('outcome')} - {switched.get('reason')}")
-
-    wrong, _ = steps.approve(incident_id, run_dir, target_override="paymentservice")
-    mismatch = steps.execute(wrong)
-    refusals.append({"check": "wrong target", **mismatch})
-    log.write(f"wrong target: {mismatch.get('outcome')} - {mismatch.get('reason')}")
+    for check, presented, kill_switch in (
+        ("replayed token", spent_token, False),
+        ("kill switch", fresh_token, True),
+        ("wrong target", wrong_token, False),
+    ):
+        try:
+            result = steps.execute(presented, kill_switch=kill_switch)
+        except Exception as exc:  # recorded, never swallowed
+            result = {"outcome": "error", "reason": f"{type(exc).__name__}: {exc}"}
+        refusals.append({"check": check, **result})
+        log.write(f"{check}: {result.get('outcome')} - {result.get('reason')}")
     return refusals
 
 

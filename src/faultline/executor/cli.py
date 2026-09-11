@@ -75,12 +75,30 @@ def approve(
 ) -> tuple[str, AuditRecord]:
     """Mint a token for `proposal` against `incident_id`, record the approval, and move the
     incident to `AWAITING_APPROVAL`. Returns the token (print it once) and the audit row."""
-    from faultline.orchestrator.machine import ApprovalOutcome, record_approval_outcome
+    from faultline.orchestrator.machine import (
+        ApprovalOutcome,
+        is_terminal,
+        record_approval_outcome,
+    )
+    from faultline.orchestrator.models import IncidentState
     from injector.world import canonical_service
 
     incident = incidents.get(incident_id)
     if incident is None:
         raise ApproveError(f"incident {incident_id} does not exist")
+    if is_terminal(incident.state):
+        raise ApproveError(
+            f"incident {incident_id} is {incident.state.value}; there is no world left to approve "
+            "a change to"
+        )
+    if incident.state is IncidentState.EXECUTING:
+        # ADR-0028 §5: one proposal per incident, executed at most once. The machine has no
+        # EXECUTING -> AWAITING_APPROVAL row and the executor refuses a second action; minting a
+        # token that could only ever be refused would be an approval the approver did not get.
+        raise ApproveError(
+            f"incident {incident_id} is executing an action already; one action per incident "
+            "(ADR-0028 §5). A second remediation goes through rejection and re-investigation."
+        )
     action = catalog.by_id(proposal["action_id"])
     if action is None:
         raise ApproveError(f"action {proposal['action_id']!r} is not in the allowlist catalog")
@@ -110,8 +128,12 @@ def approve(
         at=now or datetime.now(UTC),
     )
     audit.append(record)
-    record_approval_outcome(incident, ApprovalOutcome(kind="approved", audit_id=record.id))
-    incidents.save_investigation_state(incident)
+    # A second approval for an incident already awaiting one is another token, not another
+    # transition: several may be minted (the pre-registration's proof mints three) and each is
+    # single-use on its own.
+    if incident.state is not IncidentState.AWAITING_APPROVAL:
+        record_approval_outcome(incident, ApprovalOutcome(kind="approved", audit_id=record.id))
+        incidents.save_investigation_state(incident)
     return token, record
 
 

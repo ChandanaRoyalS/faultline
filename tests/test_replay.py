@@ -321,3 +321,50 @@ def test_the_driver_never_imports_a_model_client() -> None:
     assert not any("anthropic" in n or "agents.model" in n or "agents.cli" in n for n in names), (
         names
     )
+
+
+def test_the_proof_mints_its_extra_tokens_before_executing(tmp_path: Path) -> None:
+    """The second proof run minted them after the execution, on an EXECUTING incident, and the
+    state machine refused - correctly. All three approvals now precede the execution."""
+    steps = FakeSteps()
+    replay.replay_one(
+        "shipping-wrong-image",
+        RUN,
+        steps,
+        evidence_dir=tmp_path / "e",
+        proof=True,
+        settle_seconds=0,
+    )
+    approvals = [i for i, c in enumerate(steps.calls) if c.startswith("approve")]
+    first_execute = steps.calls.index("execute tok1")
+    assert len(approvals) == 3 and max(approvals) < first_execute
+
+
+def test_a_proof_step_that_raises_is_recorded_and_the_others_still_run(tmp_path: Path) -> None:
+    """A proof that dies on its second check has proved one thing and recorded nothing about the
+    other two - which is what happened on 2026-09-11."""
+    steps = FakeSteps()
+    original = steps.execute
+
+    def flaky(token: str, *, kill_switch: bool = False) -> dict[str, Any]:
+        if kill_switch:
+            raise RuntimeError("the machine refused")
+        return original(token, kill_switch=kill_switch)
+
+    steps.execute = flaky  # type: ignore[method-assign]
+    outcome = replay.replay_one(
+        "shipping-wrong-image",
+        RUN,
+        steps,
+        evidence_dir=tmp_path / "e",
+        proof=True,
+        settle_seconds=0,
+    )
+    assert [r["check"] for r in outcome.refusals] == [
+        "replayed token",
+        "kill switch",
+        "wrong target",
+    ]
+    assert outcome.refusals[1]["outcome"] == "error"
+    assert "RuntimeError" in outcome.refusals[1]["reason"]
+    assert outcome.result == "recovered"

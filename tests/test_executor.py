@@ -646,3 +646,76 @@ def test_the_docker_client_reads_running_state_with_the_rest() -> None:
         "PATH": "/bin",
     }
     assert definition["memory"] == 419430400 and definition["running"] is False
+
+
+# --- one action per incident (2026-09-11, from the proof's second run) ----------------------------
+
+
+def test_a_second_valid_token_for_an_incident_that_already_acted_is_refused() -> None:
+    """ADR-0028 §5: one proposal per incident, executed at most once. The proof's driver minted a
+    second approval on an EXECUTING incident and the state machine refused the transition; the
+    executor now refuses the action itself, naming the first, so the rule does not depend on which
+    layer happens to be asked first."""
+    store, audit = InMemoryIncidentStore(), InMemoryAuditStore()
+    inc = incident(IncidentState.AWAITING_APPROVAL)
+    store.save(inc)
+    first, _ = token_for(inc)
+    second, _ = token_for(inc, action_id="restart_service")
+    executor = make_executor(store, audit)
+
+    done = executor.execute(first, caller="t")
+    assert done.outcome == "executed"
+    again = executor.execute(second, caller="t")
+
+    assert again.outcome == "refused"
+    assert "already had an action executed" in again.reason
+    assert "rollback_image -> shippingservice" in again.reason and done.id in again.reason
+
+
+def test_scope_is_still_checked_before_the_one_action_rule() -> None:
+    """The failure table's order survives: a wrong target is refused as a wrong target, even on an
+    incident that has already acted - the approver is told the real reason."""
+    store, audit = InMemoryIncidentStore(), InMemoryAuditStore()
+    inc = incident(IncidentState.AWAITING_APPROVAL)
+    store.save(inc)
+    first, _ = token_for(inc)
+    wrong, _ = token_for(inc, target="paymentservice")
+    executor = make_executor(store, audit)
+    executor.execute(first, caller="t")
+
+    record = executor.execute(wrong, caller="t")
+    assert "outside the incident's scope" in record.reason
+
+
+def test_approve_is_idempotent_while_awaiting_and_refused_once_executing_or_terminal() -> None:
+    """Several tokens may be minted for an incident awaiting approval - the proof mints three -
+    and none moves it again. Once an action is executing, or the incident is closed, there is
+    nothing to approve a change to, and the approver is told before a token exists."""
+    store, audit = InMemoryIncidentStore(), InMemoryAuditStore()
+    inc = incident(IncidentState.PROPOSING)
+    store.save(inc)
+    kwargs = dict(
+        incidents=store,
+        audit=audit,
+        settings=_settings(),
+        catalog=CATALOG,
+        proposal=PROPOSAL,
+        proposal_id="p",
+        caller="t",
+        now=NOW,
+    )
+    t1, _ = approve(incident_id=inc.id, **kwargs)
+    assert store.get(inc.id).state is IncidentState.AWAITING_APPROVAL
+    t2, _ = approve(incident_id=inc.id, **kwargs)
+    assert t1 != t2 and store.get(inc.id).state is IncidentState.AWAITING_APPROVAL
+    assert [r.outcome for r in audit.for_incident(inc.id)] == ["approved", "approved"]
+
+    make_executor(store, audit).execute(t1, caller="t")
+    assert store.get(inc.id).state is IncidentState.EXECUTING
+    with pytest.raises(ApproveError, match="one action per incident"):
+        approve(incident_id=inc.id, **kwargs)
+
+    closed = incident(IncidentState.RESOLVED)
+    store.save(closed)
+    with pytest.raises(ApproveError, match="no world left"):
+        approve(incident_id=closed.id, **kwargs)
