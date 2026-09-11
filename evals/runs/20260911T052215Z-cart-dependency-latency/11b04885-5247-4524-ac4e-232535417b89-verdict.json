@@ -1,0 +1,47 @@
+{
+  "incident_id": "11b04885-5247-4524-ac4e-232535417b89",
+  "trajectory_id": "1bf88253-34d5-4d9a-a15c-d6baacb0f957",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "accountingservice",
+    "adservice",
+    "currencyservice",
+    "emailservice",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origin": "cart-dependency-latency",
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "summary": "suspect: service of the most recent pre-onset change in the window (05:22:25); class: that change was to container; remediation: table lookup from bad_deploy",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "cartservice",
+    "fault_class": "bad_deploy",
+    "fix_class": "rollback",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (05:22:25)",
+      "class: that change was to container",
+      "remediation: table lookup from bad_deploy"
+    ]
+  }
+}
