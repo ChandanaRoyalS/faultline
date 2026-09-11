@@ -205,3 +205,48 @@ def test_the_cli_separates_failed_from_could_not_be_performed() -> None:
     assert "return 0 if result.passed else 1" in refusal
     assert refusal.count("return 3") == 2, "no runs, and not enough repeats"
     assert "NotEnoughRepeatsError" in refusal
+
+
+# --- the first real A/A check, and the string it could never be given ---------------------------
+
+
+def test_a_cost_or_latency_delta_whose_interval_includes_zero_is_not_a_failure() -> None:
+    """**Dev sweep 12, 2026-09-11: the first A/A check this repository has ever run** - R = 3 had
+    never existed before - reported `FAILED on 2 metric(s)`. The two were cost and latency, both
+    with 95% intervals straddling zero. `passed` looks for *"no measurable effect"* in every
+    verdict, and the non-proportion branch's verdict was a sentence about the MDE not applying,
+    so the check failed on a string it could never have been given. The interval answers the
+    question the MDE answers for a proportion, and it is answered here."""
+    cost = next(m for m in METRICS if m.key == "cost_usd")
+    latency = next(m for m in METRICS if m.key == "latency_ms")
+    runs = []
+    for n in range(6):
+        # Two runs per scenario; which half is the dearer one alternates by scenario, so the
+        # paired deltas are noise around zero rather than a constant offset.
+        for value in (0.60, 0.62) if n % 2 else (0.62, 0.60):
+            runs.append(
+                Run(
+                    scenario_id=f"s{n}",
+                    split="dev",
+                    values={ACCURACY.key: 1.0, cost.key: value, latency.key: value * 100_000},
+                )
+            )
+    result = aa.check(Arm(fingerprint="abc123", runs=runs, declared_r=2))
+
+    assert result.passed is True, [c.verdict for c in result.comparisons]
+    assert all("no measurable effect" in c.verdict for c in result.comparisons)
+    assert any("interval includes zero" in c.verdict for c in result.comparisons)
+
+
+def test_a_cost_delta_whose_interval_excludes_zero_still_fails() -> None:
+    cost = next(m for m in METRICS if m.key == "cost_usd")
+    runs = []
+    for n in range(8):
+        for value in (0.50, 0.90):  # every scenario's second run costs 80% more: a real split
+            runs.append(
+                Run(scenario_id=f"s{n}", split="dev", values={ACCURACY.key: 1.0, cost.key: value})
+            )
+    result = aa.check(Arm(fingerprint="abc123", runs=runs, declared_r=2))
+
+    assert result.passed is False
+    assert any("interval excludes zero" in c.verdict for c in result.failures)

@@ -243,9 +243,17 @@ def baseline_arms(dsn: str) -> dict[str, Any]:  # pragma: no cover - exercised i
     arms: dict[str, Any] = {}
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
         for value, display, _ in BASELINES:
+            # **A configuration with scored runs, not merely the newest configuration.** Configs
+            # are inserted and never deleted, so a fingerprint every run has since moved off -
+            # B0.2's, on 2026-09-11, when a judge pass gave eight runs a `judge_version` and they
+            # joined the other two - still exists with a later `first_seen` and zero runs. The
+            # first version of this query picked it and reported B0.2 as *not run* with ten runs
+            # in the table.
             cur.execute(
-                "SELECT fingerprint FROM eval_configs WHERE settings->>'baseline' = %s "
-                "ORDER BY first_seen DESC LIMIT 1",
+                "SELECT c.fingerprint FROM eval_configs c "
+                "JOIN eval_runs r ON r.config_fingerprint = c.fingerprint "
+                "WHERE c.settings->>'baseline' = %s AND r.outcome = 'scored' "
+                "GROUP BY c.fingerprint, c.first_seen ORDER BY c.first_seen DESC LIMIT 1",
                 (value,),
             )
             row = cur.fetchone()
