@@ -253,3 +253,20 @@ def test_an_external_restore_leaves_a_sidecar_fault_on_the_same_service_alone(
 
     assert forgotten == ["cart-redis-misconfig"]
     assert set(make_engine(settings, runner).active()) == {"cart-dependency-latency"}
+
+
+def test_an_external_restore_also_forgets_a_live_memory_limit_on_the_same_service(
+    settings: InjectorSettings, runner: FakeRunner
+) -> None:
+    """A memory squeeze is `docker update`, not an override file; a recreate from the declared
+    definition resets the limit all the same, so the entry is moot and is dropped without running
+    the update back."""
+    engine = make_engine(settings, runner)
+    engine.start("ad-memory-squeeze")
+    updates_before = sum(1 for c in runner.calls if "update" in c.args)
+
+    forgotten = make_engine(settings, runner, minute=5).acknowledge_external_restore("adservice")
+
+    assert forgotten == ["ad-memory-squeeze"]
+    assert sum(1 for c in runner.calls if "update" in c.args) == updates_before
+    assert "ad-memory-squeeze" not in make_engine(settings, runner).active()

@@ -91,7 +91,7 @@ class FakeWorld:
     def declared(self, service: str) -> dict[str, Any]:
         return self._declared
 
-    def recreate_declared(self, service: str) -> Performed:
+    def recreate_declared(self, service: str, drift: dict[str, Any] | None = None) -> Performed:
         self.recreated.append((service, "declared"))
         return Performed(
             command=["docker", "compose", "up", "-d", "--force-recreate", service],

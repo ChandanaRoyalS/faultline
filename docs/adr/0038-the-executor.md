@@ -62,12 +62,16 @@ same recreate.** Left alone, the injector's state file would still list the faul
 stop --all` would recreate the service a second time and count a revert the executor had already
 performed — a recovery misattributed to the harness. `Engine.acknowledge_external_restore(service)`
 is the seam: after a successful `recreate_declared`, the executor tells the injector, which drops
-the compose-override entries for that service, removes their override files, emits the stop record
-change history would have carried, and **recreates nothing**. A traffic-shaping sidecar on the same
-service is a different restore kind and stays active, because the executor did not touch it.
+the entries a recreate-from-declared made moot - the override-file restores (config, image, CPU
+quota) *and* the live memory limit set by `docker update`, which a recreate resets to the declared
+limit - removes their override files, emits the stop record change history would have carried,
+and **recreates nothing**. A traffic-shaping sidecar on the same service is a different restore
+kind and stays active, because the executor did not touch it.
 
-The inverse the audit records is the override file's contents — the exact document that produced
-the drift — so a re-test can put the fault back with one `docker compose -f <that file> up`.
+The inverse the audit records is the override file's contents where one was in force; for a live
+memory change there is no file, and the inverse is the running values that differed from the
+declared definition, which is what `docker update --memory <running>` would need.
+
 
 ## 4. The token
 
