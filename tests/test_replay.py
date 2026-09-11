@@ -368,3 +368,33 @@ def test_a_proof_step_that_raises_is_recorded_and_the_others_still_run(tmp_path:
     assert outcome.refusals[1]["outcome"] == "error"
     assert "RuntimeError" in outcome.refusals[1]["reason"]
     assert outcome.result == "recovered"
+
+
+def test_a_partial_run_writes_its_own_summary_and_leaves_the_aggregate_alone(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """`--only` on 2026-09-11 overwrote the nine-row REPLAY.md with a one-row one. The full run
+    owns REPLAY.md; a re-attempt is named for what it replayed."""
+    aggregate = tmp_path / "t6.2-repair-replay" / "REPLAY.md"
+    aggregate.parent.mkdir(parents=True)
+    aggregate.write_text("nine rows\n")
+    monkeypatch.setattr(replay, "RealSteps", lambda dsn: FakeSteps())
+    monkeypatch.setattr(replay, "REPO_ROOT", REPO)
+
+    code = replay.run_cli(
+        [
+            "--only",
+            "cart-bad-image-tag",
+            "--evidence-root",
+            str(tmp_path),
+            "--settle",
+            "0",
+            "--postgres-dsn",
+            "postgresql://unused",
+        ]
+    )
+
+    assert code == 0
+    assert aggregate.read_text() == "nine rows\n"
+    partial = tmp_path / "t6.2-repair-replay" / "REPLAY.cart-bad-image-tag.md"
+    assert partial.exists() and "n = 1" in partial.read_text()

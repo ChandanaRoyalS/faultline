@@ -501,7 +501,12 @@ def run_cli(argv: list[str] | None = None) -> int:
         )
         outcomes.append(outcome)
         print(f"    -> {outcome.result} {outcome.reason}".rstrip(), flush=True)
-    (root / "t6.2-repair-replay" / "REPLAY.md").parent.mkdir(parents=True, exist_ok=True)
-    (root / "t6.2-repair-replay" / "REPLAY.md").write_text(summary(outcomes))
+    # **A partial run never rewrites the aggregate.** `--only cart-bad-image-tag` on 2026-09-11
+    # replaced the nine-row REPLAY.md with a one-row one, and only `git status` noticed. The full
+    # replay owns REPLAY.md; a re-attempt writes its own file beside it, named for what it ran.
+    replay_dir = root / "t6.2-repair-replay"
+    replay_dir.mkdir(parents=True, exist_ok=True)
+    name = "REPLAY.md" if not args.only else f"REPLAY.{'+'.join(sorted(args.only))}.md"
+    (replay_dir / name).write_text(summary(outcomes))
     print(summary(outcomes))
     return 0 if all(o.result != "error" for o in outcomes) else 1
