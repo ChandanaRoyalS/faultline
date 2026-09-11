@@ -92,6 +92,32 @@ class ConflictingOutcomeError(RuntimeError):
     """A manifest's outcome disagrees with the row already stored for that run."""
 
 
+def outcome_reread(stored: str, manifest: dict[str, Any]) -> str | None:
+    """Whether a stored outcome may be replaced by the manifest's current reading, and why.
+
+    Returns the name of the correction that explains the disagreement, or `None` when nothing
+    does - in which case the loader stops, because the realistic cause is a directory edited by
+    hand and a benchmark's record must not absorb that quietly.
+
+    **The one correction this recognises is `outcome_of`'s own (2026-09-04).** Gate refusals were
+    written as discards until that day, and the fix was a *reading* of the record rather than an
+    edit to it: a `discarded` manifest with no `injected_at` never started and reads `refused`.
+    Rows loaded before that reading existed say `discarded`. The loader met one on 2026-09-11,
+    at the end of dev sweep 12, and refused to load anything - correctly, given what it knew,
+    and wrongly, given what the repository knew. The signature is exact: the manifest still
+    carries the `discarded` block it was written with and has no `injected_at`. Anything else
+    that disagrees is still a conflict.
+    """
+    if (
+        stored == "discarded"
+        and outcome_of(manifest) == "refused"
+        and manifest.get("discarded")
+        and not manifest.get("injected_at")
+    ):
+        return "a discard that never injected reads as a refusal (2026-09-04 correction)"
+    return None
+
+
 @dataclass(frozen=True, slots=True)
 class Config:
     """One distinct behaviour-relevant configuration."""
@@ -346,16 +372,20 @@ def load(dsn: str, rows: list[Row]) -> dict[str, int]:
     """
     import psycopg
 
-    written = {"configs": 0, "runs": 0}
+    written = {"configs": 0, "runs": 0, "reread": 0}
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
         for row in rows:
             cur.execute("SELECT outcome FROM eval_runs WHERE run_id = %s", (row.run_id,))
             found = cur.fetchone()
             if found and found[0] != row.outcome:
-                raise ConflictingOutcomeError(
-                    f"{row.run_id} is stored as {found[0]} and its manifest now reads "
-                    f"{row.outcome}. One of the two is wrong and this loader will not choose."
-                )
+                why = outcome_reread(found[0], row.manifest)
+                if why is None:
+                    raise ConflictingOutcomeError(
+                        f"{row.run_id} is stored as {found[0]} and its manifest now reads "
+                        f"{row.outcome}. One of the two is wrong and this loader will not choose."
+                    )
+                print(f"  reread {row.run_id}: {found[0]} -> {row.outcome} - {why}")
+                written["reread"] += 1
 
             cur.execute(
                 "INSERT INTO eval_configs (fingerprint, first_seen, runtime_version, settings, "
@@ -466,7 +496,8 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - console en
         print(f"\nREFUSED: the database is not reachable - {unreachable}")
         print("The summary above needed no database. `docker compose up -d postgres` and retry.")
         return 2
-    print(f"\nloaded {written['runs']} run(s), {written['configs']} new configuration(s)")
+    reread = f", {written['reread']} outcome(s) reread" if written.get("reread") else ""
+    print(f"\nloaded {written['runs']} run(s), {written['configs']} new configuration(s){reread}")
     return 0
 
 
