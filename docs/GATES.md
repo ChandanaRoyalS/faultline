@@ -306,6 +306,14 @@ to this project; `docs/PLAN.md`'s T4.5 section prices the four routes and takes 
 freeze as `world.host_overrides`, with the runner's runs a separate generation by construction
 (`host_platform`). ADR-0030's addendum has the argument; `world-boot.yml` is the proof, run before
 any key is spent. This document records the world booting there when the probe says so, not before.
+*Same day, the probe said so:* run 34560051796 on PR #247 — sixteen containers up, kafka healthy
+with the flag and no restarts, fourteen services reporting, **"GATE WOULD ADMIT a scored run"** at
+kafka 17.1 % after a 315 s settle. **The world runs in Actions.** The second condition — a funded
+key — is a repository secret the owner sets on the day she wants a run, and no other day: the
+schedule came off the same afternoon for cost (~$320 a month every night), so the nightly's
+wiring (both servers, the settle, and the `nightly-results` branch its runs land on, the pull
+request after #247) is a capability fired by hand. T4.5's check can pass; whether it does on a
+given run is what the check is for.
 
 **G5 — declared 2026-09-07; the notes below are the history of how it got there.**
 

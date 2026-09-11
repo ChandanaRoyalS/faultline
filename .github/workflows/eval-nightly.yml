@@ -4,9 +4,38 @@
 # for it to gate. Its job is the trend line: every run lands in `eval_runs` under a config
 # fingerprint, and `faultline-compare` reads them.
 #
-# Cost is the reason this is nightly rather than per-push. Fifteen runnable scenarios at dev sweep
-# 8's measured $0.70 is roughly $10.50 a night, which is a real number and belongs here rather
-# than in a surprise invoice.
+# Cost is the reason this was nightly rather than per-push, and **cost is why it now has no
+# schedule at all.** Fifteen runnable scenarios at dev sweep 12's measured median of $0.71 is
+# roughly $10.70 a run - $320 a month every night - and on 2026-09-11 the owner chose zero
+# standing cost for Phase 5's loose ends. The workflow keeps the proposal's name and the tier
+# keeps its name (`variance.TIERS["nightly"]`, recorded in every manifest) because those are the
+# words the deliverable is written in; what changed is the trigger. It runs when somebody runs it:
+#
+#     gh workflow run eval-nightly.yml --ref main
+#
+# **Two arms, one of them free.** `arm: B0` runs the control - T4.7's B0 baseline, which makes no
+# model call; its ten runs on 2026-09-10 cost $0.00 - through the same gate, injection, scorer,
+# database load and results branch. It needs no key and the key check is skipped for it. It is
+# the default, so an accidental dispatch is free, and it is what proves the whole path end to end
+# in Actions without a cent. `arm: pipeline` runs the agent and needs the ANTHROPIC_API_KEY
+# repository secret set for the occasion and removed after, which is what the "refuse early"
+# step below is for. T4.5's cadence clause is therefore delivered as a capability, not a
+# schedule, and docs/PLAN.md says so in those words. Putting a schedule back is one line here and
+# a cost decision there.
+#
+# **Where the night lands.** The Postgres this job loads into is booted by `make eval-up` and torn
+# down with the job, so "appended to the eval database" is only true if the run directories reach
+# `evals/runs/` in git - that is the durable eval database; `faultline-eval-db load` rebuilds every
+# table from it. `scripts/nightly_record.sh` puts them on the `nightly-results` branch, on top of
+# main and never on it, and the step after opens a pull request from that branch if none is open.
+# The owner squash-merges it when she reads it. README's table cannot move on that merge: a
+# runner's run is generation `<digest>@Linux/x86_64` and the table filters on the generation.
+#
+# **The world it runs against is not the recorded world**, and says so in every manifest:
+# `freeze.world.host_platform` is `Linux/x86_64` and `freeze.world.host_overrides` names
+# `actions-kafka-jvm.override.yml` (ADR-0030 addendum, 2026-09-11). Native x86, no emulation, so
+# the memory-squeeze scenarios that kill their target on the Mac may not here - that is a finding
+# about platforms, and the reason these runs are never pooled with the reference platform.
 #
 # R=1, like the smoke suite, and for the same reason: nightly is change detection. The plan's
 # weekly R=3 consolidation is the tier that produces something comparable, and it is not this
@@ -14,14 +43,26 @@
 name: eval-nightly
 
 on:
-  schedule:
-    # 04:00 UTC. After the day's merges, before anyone looks.
-    - cron: "0 4 * * *"
+  # No `schedule`, by the owner's decision on 2026-09-11 (header). It was `0 4 * * *`.
   workflow_dispatch:
+    inputs:
+      arm:
+        description: "B0 - the control, no model call, free (default). pipeline - the agent, needs the key, ~$10.70."
+        type: choice
+        required: true
+        default: B0
+        options: [B0, pipeline]
 
 concurrency:
   group: eval-world
   cancel-in-progress: false
+
+# Exactly what the recording needs and nothing more: to push the results branch and to open the
+# pull request from it. Pushing to main is not a permission this token has a use for - the branch
+# is not protected, so the guard is the script, which never names main as a push target.
+permissions:
+  contents: write
+  pull-requests: write
 
 jobs:
   nightly:
@@ -29,6 +70,10 @@ jobs:
     timeout-minutes: 240
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The recording merges main into the results branch; a shallow clone has no merge base
+          # to do that from.
+          fetch-depth: 0
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
@@ -37,6 +82,9 @@ jobs:
         run: uv sync --all-extras --all-groups
 
       - name: Refuse early if there is no key
+        # The pipeline arm only. B0 makes no model call (evalharness.preflight skips it for the
+        # same reason), so the control runs on a repository with no secret at all.
+        if: inputs.arm == 'pipeline'
         env:
           ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
         run: |
@@ -49,10 +97,22 @@ jobs:
         id: boot
         run: make eval-up
 
-      - name: Migrate and seed
+      - name: Start the alert pipeline
+        # Migrate, then the receiver and the orchestrator - the two processes every scored run
+        # needs, which this workflow never started until world-boot asked the gate (2026-09-11).
+        uses: ./.github/actions/start-pipeline
+
+      - name: Seed the retrieval corpus
+        run: uv run faultline-seed --create-schema
+
+      - name: Let the containers settle
+        # The gate refuses a run against containers younger than MIN_CONTAINER_UPTIME_SECONDS,
+        # and the sweep would retry through it (six times, a minute apart). Waiting once here is
+        # the same wall clock with a cleaner log; the number is the gate's, read not copied.
         run: |
-          uv run faultline-migrate
-          uv run faultline-seed --create-schema
+          settle=$(uv run python -c 'from evalharness.rehearse import MIN_CONTAINER_UPTIME_SECONDS as s; print(s + 15)')
+          echo "settling ${settle}s"
+          sleep "$settle"
 
       - name: The catalog
         env:
@@ -66,7 +126,9 @@ jobs:
         # `|| true` stays. The sweep exits 1 on a partial catalog, deliberately - a night that
         # scored eight of seventeen is not a pass - but the steps after this one load and label
         # what *did* run, and a red step here would skip them.
-        run: uv run faultline-sweep --tier nightly || true
+        #
+        # `--baseline b0` when the control arm was asked for: same tier, same countdown, no model.
+        run: uv run faultline-sweep --tier nightly ${{ inputs.arm == 'B0' && '--baseline b0' || '' }} || true
 
       # **`always()` alone was wrong, and `!= 'skipped'` was wrong one state later.** The key
       # check refusing means nothing was started, and an unconditional `always()` ran the
@@ -93,11 +155,7 @@ jobs:
           docker ps -a
           echo "::endgroup::"
           echo "::group::kafka"
-          (cd world && docker compose --progress plain \
-            -f docker-compose.yml \
-            -f ../compose/world-arm64.override.yml \
-            -f ../compose/telemetry.yml \
-            logs --no-color --tail 200 kafka) || echo "kafka has no logs to give"
+          docker logs --tail 200 kafka || echo "kafka has no logs to give"
           echo "::endgroup::"
           echo "::group::memory and disk"
           free -m || true
@@ -106,8 +164,45 @@ jobs:
           echo "::endgroup::"
 
       - name: Append to the eval database
+        # Into this job's Postgres: proves every manifest the night wrote loads. The durable
+        # append is the step after.
         if: always() && steps.boot.outcome == 'success'
         run: uv run faultline-eval-db load
+
+      - name: Record the night on the results branch
+        if: always() && steps.boot.outcome == 'success'
+        run: scripts/nightly_record.sh nightly-results "eval-nightly ${{ inputs.arm }} run ${{ github.run_id }}"
+
+      - name: Open the pull request if none is open
+        # One pull request accumulates nights until the owner merges it. `gh` finds an open one
+        # by head branch; if the results branch was never pushed (nothing to record) there is
+        # nothing to open from and `pr create` fails quietly into the `|| true`.
+        if: always() && steps.boot.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if git ls-remote --exit-code --heads origin nightly-results >/dev/null 2>&1; then
+            open=$(gh pr list --head nightly-results --state open --json number -q '.[0].number')
+            if [ -z "$open" ]; then
+              gh pr create --base main --head nightly-results \
+                --title "eval-nightly: runs recorded since the last merge" \
+                --body "$(cat <<'BODY'
+          Nightly runs from the GitHub-hosted runner, one commit per night, recorded by
+          `scripts/nightly_record.sh`. Tier `nightly`, R = 1: change detection, not a finding.
+
+          These are generation `<digest>@Linux/x86_64` (`freeze.world.host_platform`) made with
+          `actions-kafka-jvm.override.yml` (`freeze.world.host_overrides`), so they never pool with
+          the reference platform and README's table does not move on this merge.
+
+          Squash-merge to land them in `evals/runs/`; `faultline-eval-db load` then sees them.
+          BODY
+          )" || true
+            else
+              echo "pull request #$open is open and now carries tonight"
+            fi
+          else
+            echo "no results branch: nothing was recorded tonight"
+          fi
 
       - name: Tear down
         if: always() && steps.boot.outcome != 'skipped'

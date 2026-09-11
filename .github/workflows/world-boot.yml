@@ -68,20 +68,10 @@ jobs:
           test "$(docker inspect kafka --format '{{.State.Status}}')" = running
           test "$(docker inspect kafka --format '{{.RestartCount}}')" = 0
 
-      - name: Migrate, then start the receiver and the orchestrator
+      - name: Start the alert pipeline
         # The two processes every scored run needs and neither eval workflow started - found by
-        # writing this probe. Backgrounded; a job's processes live until its last step.
-        run: |
-          uv run faultline-migrate
-          nohup uv run faultline-ingest > ingest.log 2>&1 &
-          nohup uv run faultline-orchestrate > orchestrate.log 2>&1 &
-          for i in $(seq 1 30); do
-            curl -fsS http://localhost:8000/healthz >/dev/null 2>&1 && break
-            sleep 1
-          done
-          curl -fsS http://localhost:8000/healthz
-          echo
-          tail -n 5 ingest.log orchestrate.log
+        # writing this probe. One composite action, shared with eval-smoke and eval-nightly.
+        uses: ./.github/actions/start-pipeline
 
       - name: Settle, then ask the gate
         # `MIN_CONTAINER_UPTIME_SECONDS` is the gate's own bar, read rather than copied. Fifteen
