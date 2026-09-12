@@ -40,7 +40,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Iterable, Sequence
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -160,6 +160,19 @@ class Measurement:
     unanswerable: tuple[QueryResult, ...] = ()
     results: tuple[QueryResult, ...] = field(default=())
 
+    @property
+    def mean_documents_returned(self) -> float:
+        """**How many distinct documents the top `k` chunks actually spanned.**
+
+        The cut is applied to chunks (decision 1), so this is the ceiling on what any
+        document-level recall can see. A value near 1 means the measurement is mostly asking
+        *did the single best-matching document happen to be right*, which is a much harder
+        question than `recall@k` sounds, and the number cannot be read without it.
+        """
+        if not self.results:
+            return 0.0
+        return sum(len(r.documents) for r in self.results) / len(self.results)
+
     def render(self) -> str:
         lines = [self.overall.line(), ""]
         lines += [r.line() for r in self.by_corpus_age]
@@ -173,6 +186,11 @@ class Measurement:
             for result in self.unanswerable:
                 returned = ", ".join(result.documents[:3]) or "nothing"
                 lines.append(f"  {result.query_id}: returned {returned}")
+        lines += [
+            "",
+            f"mean distinct documents in the top {self.overall.k} chunks: "
+            f"{self.mean_documents_returned:.2f}",
+        ]
         return "\n".join(lines)
 
 
@@ -397,10 +415,14 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     score_cmd.add_argument(
         "--k",
         type=int,
-        default=3,
-        help="**production's k, not the setting's.** `Investigation.__init__` and "
-        "`faultline-investigate` both default to 3; `ContextSettings.retrieval_k = 5` is read by "
-        "nothing (§2.5). Measuring 5 would measure a pipeline nobody runs",
+        action="append",
+        default=None,
+        help="repeatable. **Both of this task's k values matter and they are different numbers.** "
+        "3 is production's: `Investigation.__init__` and `faultline-investigate` both default to "
+        "it. 5 is what the registered floor was written against - the pre-registration says "
+        "`recall@5 >= 0.60` and, two sections later, that `retrieval_k` stays 3 for the first "
+        "measurement, which are not the same pipeline. Default: both, so neither can be quoted "
+        "without the other",
     )
     score_cmd.add_argument("--golden", type=Path, default=GOLDEN_SET)
     score_cmd.add_argument("--json", type=Path, default=None)
@@ -410,12 +432,12 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
         from faultline.context.settings import ContextSettings
 
         rows = harvest(args.dsn or ContextSettings().postgres_dsn)
-        payload = json.dumps(rows, indent=2, default=str)
+        dump = json.dumps(rows, indent=2, default=str)
         if args.out:
-            args.out.write_text(payload + "\n")
+            args.out.write_text(dump + "\n")
             print(f"{len(rows)} retrieval(s) -> {args.out}")
         else:
-            print(payload)
+            print(dump)
         return 0
 
     if args.command == "score":
@@ -427,33 +449,36 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
 
         dsn = args.dsn or ContextSettings().postgres_dsn
         golden = load_golden(args.golden)
+        ks = sorted(set(args.k or [3, 5]))
+        rounds: list[dict[str, Any]] = []
         with psycopg.connect(dsn) as conn:
             store = PgVectorPastIncidentStore(conn, SentenceTransformerEmbedder())
-            result = measure(store, golden, k=args.k, predates_task=PREDATES_T6_4)
-        print(result.render())
-        if args.json:
-            args.json.write_text(
-                json.dumps(
+            for k in ks:
+                result = measure(store, golden, k=k, predates_task=PREDATES_T6_4)
+                print(f"===== k={k} =====")
+                print(result.render())
+                print()
+                rounds.append(
                     {
-                        "k": args.k,
-                        "overall": vars(result.overall),
-                        "by_corpus_age": [vars(r) for r in result.by_corpus_age],
-                        "by_role": [vars(r) for r in result.by_role],
+                        "k": k,
+                        "overall": asdict(result.overall),
+                        "by_corpus_age": [asdict(r) for r in result.by_corpus_age],
+                        "by_role": [asdict(r) for r in result.by_role],
+                        "mean_documents_returned": result.mean_documents_returned,
                         "per_query": [
                             {
                                 "id": r.query_id,
                                 "documents": list(r.documents),
                                 "relevant": sorted(r.relevant),
-                                "recall": r.recall_at(args.k),
+                                "recall": r.recall_at(k),
                                 "reciprocal_rank": r.reciprocal_rank,
                             }
                             for r in result.results
                         ],
-                    },
-                    indent=2,
+                    }
                 )
-                + "\n"
-            )
-            print(f"\nper-query detail -> {args.json}")
+        if args.json:
+            args.json.write_text(json.dumps(rounds, indent=2) + "\n")
+            print(f"per-query detail -> {args.json}")
         return 0
     return 1
