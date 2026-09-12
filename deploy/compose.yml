@@ -115,6 +115,14 @@ services:
       # password — see `faultline.api.auth`. Both come from deploy/.env.
       FAULTLINE_API_USER: ${FAULTLINE_API_USER:-faultline}
       FAULTLINE_API_PASSWORD: ${FAULTLINE_API_PASSWORD:?set FAULTLINE_API_PASSWORD in deploy/.env}
+      # **T6.3: this process mints approval tokens**, which is the escalation
+      # `PREREGISTRATION-T6.3.md` §2.1 registered and THREAT-MODEL thesis 2 now records. The same
+      # key the executor verifies with - one secret, two containers, and no third place for it to
+      # leak from. Without it the page still serves and the approve button is simply not mounted
+      # (`api.app.NO_TOKEN_KEY`), because a missing button is not an outage.
+      FAULTLINE_EXECUTOR_TOKEN_KEY: ${FAULTLINE_EXECUTOR_TOKEN_KEY:?set FAULTLINE_EXECUTOR_TOKEN_KEY in deploy/.env}
+      # Where the executor answers. Compose network only; Caddy forwards nothing to it.
+      FAULTLINE_API_EXECUTOR_URL: http://executor:8100
       FAULTLINE_INGEST_REDIS_URL: redis://redis:6379/0
       # **The database password reaches libpq here, not through the DSN below.** Two reasons,
       # and the first was found by running it:
@@ -287,7 +295,12 @@ services:
       # override files the state names resolve inside the container exactly as they do outside.
       - ${FAULTLINE_CHECKOUT:?set FAULTLINE_CHECKOUT in deploy/.env - the absolute path of this clone on the VM}:${FAULTLINE_CHECKOUT:?set FAULTLINE_CHECKOUT in deploy/.env}
     environment:
-      FAULTLINE_EXECUTOR_KILL_SWITCH: "1"
+      # **Off since T6.3** (2026-09-12), which is the PR that landed the approval surface, exactly
+      # as ADR-0038's consequence said it would take: *"it cannot act until T6.3 lands a surface
+      # and the switch is turned off in the same PR."* A click on the screen can now change this
+      # VM's world. Turning it back on is this line and `up -d executor`; README §3.11 is the
+      # drill, and the executor records the refusal of every token presented while it is on.
+      FAULTLINE_EXECUTOR_KILL_SWITCH: "0"
       FAULTLINE_EXECUTOR_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
       PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
       # The HMAC key the approver and the executor share (`faultline.executor.tokens`). Generated,

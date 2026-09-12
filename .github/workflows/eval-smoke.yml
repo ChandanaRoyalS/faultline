@@ -16,19 +16,31 @@
 name: eval-smoke
 
 on:
-  pull_request:
-    paths:
-      # The plan's "prompts/context/models". Every path here is one whose change can move what a
-      # model is asked or what it is given, which is the class of change a smoke run exists for.
-      - "src/faultline/agents/roles.py"
-      - "src/faultline/agents/contracts.py"
-      - "src/faultline/agents/briefing.py"
-      - "src/faultline/agents/evidence.py"
-      - "src/faultline/agents/settings.py"
-      - "src/faultline/agents/investigation.py"
-      - "src/faultline/context/**"
-      - "src/faultline/tools/**"
-      - ".github/workflows/eval-smoke.yml"
+  # **Dispatch only, since 2026-09-12.** It fired on every pull request touching the paths below -
+  # the plan's "prompts/context/models" - and refused in thirteen seconds every time, because this
+  # repository has no `ANTHROPIC_API_KEY` secret and the owner has decided not to set one: model
+  # spend on this project is authorised per run, never standing. The same decision was made for
+  # `eval-nightly.yml`, which has no `schedule` for the same reason.
+  #
+  # A check that is red on every prompt-touching PR forever is a check people learn to ignore, and
+  # T6.3 touches `roles.py` in most of its commits. The alternative - making the no-key path exit 0
+  # - was rejected: a green check that proves nothing about the pipeline is worse than no check,
+  # because the next reader believes it.
+  #
+  # **The trigger is the only thing removed.** The job below is unchanged and still refuses before
+  # booting anything if the key is absent, so the day a key exists this is one `gh workflow run`
+  # away from being the pre-merge check it was designed to be. The path list is kept here as the
+  # record of which changes are worth a smoke run before merging:
+  #
+  #   src/faultline/agents/roles.py
+  #   src/faultline/agents/contracts.py
+  #   src/faultline/agents/briefing.py
+  #   src/faultline/agents/evidence.py
+  #   src/faultline/agents/settings.py
+  #   src/faultline/agents/investigation.py
+  #   src/faultline/context/**
+  #   src/faultline/tools/**
+  #   .github/workflows/eval-smoke.yml
   workflow_dispatch:
 
 concurrency:

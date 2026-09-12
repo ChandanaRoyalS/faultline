@@ -256,7 +256,7 @@ def test_the_theses_are_numbered_without_gaps(threat_model: str) -> None:
 # --- the correction is the point of the rewrite, so it has to stay --------------------------------
 
 
-def test_thesis_two_does_not_claim_an_executor_exists(threat_model: str) -> None:
+def test_thesis_two_describes_the_write_path_that_now_exists(threat_model: str) -> None:
     """**The defect this rewrite fixed.** The old text read *"Write credentials exist only in the
     executor service, which validates actions against an allowlist and a single-use, action-bound
     human-approval token"* - present tense, about a component that is not built (it is T6.2/T6.3).
@@ -266,19 +266,37 @@ def test_thesis_two_does_not_claim_an_executor_exists(threat_model: str) -> None
     reading thesis 2"*) and this file never heard about it. Asserted structurally rather than by
     string match: **if an executor is ever built, this test is what tells you to rewrite thesis 2**,
     and it fails loudly instead of leaving the document describing the old world.
-    """
-    executor_modules = [
-        path
-        for path in (REPO / "src").rglob("*.py")
-        if "executor" in path.stem or "approval" in path.stem
-    ]
 
-    assert executor_modules == [], (
-        "an executor or approval module now exists, so thesis 2's present tense has to change - "
-        "and ADR-0028 §3's argument about the write path being absent rather than disabled has to "
-        "be re-read before it does"
-    )
-    assert "There is no executor" in threat_model
+    **And this guard did not fire when the executor was built.** It matched on module *stems*, and
+    `faultline/executor/` contains `core.py`, `cli.py`, `tokens.py`, `audit.py`, `settings.py` and
+    `app.py` - not one of which has "executor" in its file name. T6.2 rewrote thesis 2 because
+    somebody noticed, which is exactly the thing the test was written to make unnecessary. It
+    fired at T6.3, a day late, on `api/executor_client.py`. A guard that matches file names is a
+    guard about file names.
+
+    Rewritten to watch the **packages**, and to hold what is true now rather than what was: the
+    executor exists, the approval surface exists, and thesis 2 has to describe both - including
+    which process holds the minting key, which is the escalation `PREREGISTRATION-T6.3.md` §2.1
+    registered.
+    """
+    src = REPO / "src"
+    executor_exists = (src / "faultline" / "executor" / "core.py").exists()
+    surface_exists = (src / "faultline" / "api" / "approvals.py").exists()
+
+    if executor_exists:
+        # The sentence stays in the document - struck, dated, with the paragraph it headed kept
+        # underneath, because it was true for the whole of Phases 3-5 and the distinction it drew
+        # still matters. What it must not be is *standing*.
+        assert "~~**There is no executor.**~~" in threat_model, (
+            "the executor package exists, so thesis 2's old claim has to be struck rather than "
+            "left as an assertion (or deleted, which would lose why it was ever true)"
+        )
+        assert "What holds since T6.2" in threat_model
+    if surface_exists:
+        assert "the approval surface holds the minting key" in threat_model, (
+            "a write surface now exists and holds the key that signs approvals; thesis 2 has to "
+            "say so, and say what bounds a compromise of it (PREREGISTRATION-T6.3.md §2.1)"
+        )
 
 
 def test_the_status_line_does_not_claim_the_security_pass_happened(threat_model: str) -> None:

@@ -100,10 +100,35 @@ attempts were needed, and the two that failed failed in the demonstration, not i
 which is itself worth recording here: a safety property that is hard to exhibit on a running system
 is easy to believe you have exhibited.
 
-**What does not hold yet.** On the deployment the kill switch is on and no surface mints: T6.3 is
-the approval loop, and until it lands the executor there can refuse and record and nothing more.
-And the executor's own boundary is the compose network - Caddy forwards nothing to it - which is a
-network property, not a credential; T6.8's re-hardening pass is where that is re-read.
+**What changed at T6.3: the approval surface holds the minting key, and that is an escalation.**
+Registered before the build in `PREREGISTRATION-T6.3.md` §2.1, and recorded here because it is a
+real widening of what a compromise of the web process buys. Until T6.3 the only way to sign an
+approval token was a shell on the host; now `faultline-ingest`'s process reads
+`FAULTLINE_EXECUTOR_TOKEN_KEY` and can sign a claim for **any** incident, action and target.
+
+What bounds it is not the key. The executor re-derives everything from its own sources before it
+acts: the action must be in the catalog snapshot and `available`; the target must fall inside the
+incident's blast radius, recomputed from the incident's own episodes; the drift precondition must
+hold; the token must be unspent; the incident must have no executed action already and must be
+neither terminal nor rejected; and the kill switch must be off. **A key-holder can do what an
+approver can do, on a real incident, and nothing more** - and every attempt is an `action_audit`
+row naming the caller, which is the authenticated username rather than a string the request
+claimed. The alternative - a separate minting process, so that compromising the web app grants
+nothing - was considered and rejected in the pre-registration: the bound it adds is one the
+re-validation already provides, at the cost of a third container and a second credential path.
+
+The write routes are a **different module** from the read ones (`api/approvals.py`, not
+`api/incidents.py`), behind the same credential, and `tests/test_executor_boundary.py` holds both
+halves by AST: the read surface still imports no writer, and the investigation runtime imports
+neither the executor nor the approval router. The severity-1 gate refuses **before** minting, so a
+click the gate stops leaves no token in existence and no `approved` row claiming one was given.
+
+**What does not hold yet.** The executor's own boundary is the compose network - Caddy forwards
+nothing to it - which is a network property, not a credential; T6.8's re-hardening pass is where
+that is re-read. And the process that now holds the minting key is the process that serves a
+public page; it authenticates with HTTP Basic over whatever TLS the edge provides, and the
+strength of an approval is therefore the strength of one password. That is T6.8's to improve and
+is named here so the pass has it in writing.
 
 **Read-only is a property of the tool surface, not of a credential.** In this world Prometheus and
 Loki have no authentication at all — Prometheus runs with `--web.enable-lifecycle`, so

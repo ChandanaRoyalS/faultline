@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import timedelta
 from pathlib import Path
 
-from faultline.agents.cli import announce_report
+from faultline.agents.cli import announce_approval_needed, announce_report
 from faultline.ingest.models import AlertEvent
 from faultline.notify import Announcer, Recorded
 from faultline.orchestrator.cap import InvestigationCap
@@ -225,3 +225,83 @@ def test_the_baselines_return_before_any_notification() -> None:
     source = inspect.getsource(cli.run)
     for baseline in ("_run_b0(", "_run_b1(", "_run_b2("):
         assert source.index(baseline) < source.index("announce_report(")
+
+
+# --- T6.3's third event: a decision is waiting -------------------------------------------------
+
+
+class Proposed:
+    def __init__(self, action_id: str = "rollback_image", target: str = "shippingservice") -> None:
+        self.action_id = action_id
+        self.target = target
+
+
+class Result:
+    def __init__(self, proposal: object | None) -> None:
+        self.proposal = proposal
+
+
+class Proposing(Report):
+    def __init__(self, proposal: object | None) -> None:
+        self.result = Result(proposal)
+
+
+class Inc:
+    id = "inc-1"
+    severity = "critical"
+
+
+def test_a_proposal_waiting_for_a_human_is_announced_with_a_link_and_no_token() -> None:
+    """*"The Slack link that would carry the approve control"* - the link, and not the control.
+    A one-click approve in a channel is an approval given by whoever can post to it, and a token
+    in a message is a bearer credential in a place with no access log."""
+    recorder = Recorded()
+
+    announce_approval_needed(
+        Proposing(Proposed()),
+        Inc(),
+        announcer=Announcer(notifier=recorder, base_url="https://faultline.example.com"),
+    )
+
+    [message] = recorder.messages
+    assert "Approval needed" in message
+    assert "rollback_image" in message and "shippingservice" in message
+    assert "Nothing has been executed" in message
+    assert "https://faultline.example.com/ui/incidents/inc-1" in message
+    # One link, and it is the screen. Nothing in this message performs anything: no second URL
+    # that could be an approve endpoint, and no token - the thing that would make a chat message
+    # sufficient to change the world.
+    assert message.count("http") == 1
+    assert "/approve" not in message
+
+
+def test_an_abstention_announces_nothing() -> None:
+    """`remediation_class: none` is a proposal and a valid one; it is not a decision anybody has
+    to make. *Approval needed: no action* would teach a channel to ignore the ones that matter."""
+    recorder = Recorded()
+
+    announce_approval_needed(
+        Proposing(Proposed(action_id="", target="")), Inc(), announcer=Announcer(notifier=recorder)
+    )
+    announce_approval_needed(Proposing(None), Inc(), announcer=Announcer(notifier=recorder))
+
+    assert recorder.messages == []
+
+
+def test_a_scored_run_asks_nobody_to_approve_anything() -> None:
+    """The same suppression as the report, for a stronger reason: an on-call reader asked to
+    approve a remediation for an injected fault is being asked to change the world to fix
+    something that was never broken."""
+    recorder = Recorded()
+
+    announce_approval_needed(
+        Proposing(Proposed()),
+        Inc(),
+        exclude="ad-memory-squeeze",
+        announcer=Announcer(notifier=recorder),
+    )
+    announce_approval_needed(
+        Proposing(Proposed()), Inc(), suppressed=True, announcer=Announcer(notifier=recorder)
+    )
+
+    assert recorder.messages == []

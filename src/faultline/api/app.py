@@ -56,6 +56,15 @@ from fastapi import FastAPI
 from faultline.api import auth, incidents
 from faultline.ingest.app import app as receiver_app
 
+NO_TOKEN_KEY = (
+    "the approve / reject routes are NOT mounted: FAULTLINE_EXECUTOR_TOKEN_KEY is unset, so this "
+    "process cannot mint an approval token. The screen still serves; approve at a terminal with "
+    "faultline-approve."
+)
+"""Printed once at startup. **Not a refusal to start**, unlike the read surface's missing
+password: a missing button is not an outage, and a deployment that would not serve the page
+because of one would be a worse failure than the one it was avoiding."""
+
 TITLE = "Faultline"
 """Not "Faultline ingest" any more when both halves are mounted. The receiver keeps its own title
 on its own app object; this one describes what it actually serves."""
@@ -78,16 +87,65 @@ def read_surface(app: FastAPI, postgres_dsn: str) -> FastAPI:
     credential = auth.guard()
 
     connection = psycopg.connect(postgres_dsn)
+    incident_store = PostgresIncidentStore(connection)
+    # No archive: `latest_for_incident` and `get` read Postgres only, and handing this a
+    # writer's object-store credentials would put them in a process that never writes.
+    trajectory_store = PostgresTrajectoryStore(connection)
+    app.include_router(incidents.build(incident_store, trajectory_store), dependencies=[credential])
+    app.include_router(incidents.page_router(), dependencies=[credential])
+    write_surface(app, connection, incident_store, trajectory_store, credential)
+    return app
+
+
+def write_surface(
+    app: FastAPI,
+    connection: Any,
+    incident_store: Any,
+    trajectory_store: Any,
+    credential: Any,
+) -> FastAPI:
+    """Mount T6.3's approve, reject and acknowledge routes - **or say why not, and carry on.**
+
+    The read surface refuses to start without its password because serving incident data openly is
+    worse than not serving it. The write surface is the other way round: a deployment whose
+    executor key is unset should still show the screen, and an operator who cannot approve from
+    the browser can still approve at a terminal. A process that refused to serve the page because
+    the approve button would not work would have turned a missing button into an outage.
+
+    So this is **opt-in on the key**, it says which of the two things is missing, and it says it
+    once at startup rather than per request - the same rule `auth.NO_PASSWORD` follows.
+    """
+    from faultline.api import approvals
+    from faultline.api.executor_client import ExecutorClient
+    from faultline.api.settings import ApiSettings
+    from faultline.context.allowlist import load_allowlist
+    from faultline.executor.settings import ExecutorSettings
+    from faultline.orchestrator.acknowledgements import PostgresAcknowledgementStore
+    from faultline.orchestrator.rejections import PostgresRejectionStore
+
+    settings = ExecutorSettings()
+    if not settings.token_key.get_secret_value():
+        print(NO_TOKEN_KEY)
+        return app
+
+    from faultline.executor.audit import PostgresAuditStore
+
+    api = ApiSettings()
     app.include_router(
-        incidents.build(
-            PostgresIncidentStore(connection),
-            # No archive: `latest_for_incident` and `get` read Postgres only, and handing this a
-            # writer's object-store credentials would put them in a process that never writes.
-            PostgresTrajectoryStore(connection),
+        approvals.build(
+            incidents=incident_store,
+            trajectories=trajectory_store,
+            audit=PostgresAuditStore(connection),
+            rejections=PostgresRejectionStore(connection),
+            acknowledgements=PostgresAcknowledgementStore(connection),
+            catalog=load_allowlist(),
+            settings=settings,
+            executor=ExecutorClient(api.executor_url, timeout=api.executor_timeout_seconds),
+            caller=credential,
         ),
         dependencies=[credential],
     )
-    app.include_router(incidents.page_router(), dependencies=[credential])
+    print(f"approve / reject mounted; the executor is at {api.executor_url}")
     return app
 
 

@@ -201,6 +201,39 @@ def opened(incident: Any, base_url: str = "") -> str:
     )
 
 
+def awaiting_approval(incident: Any, proposal: Any, base_url: str = "") -> str:
+    """*"The Slack link that would carry the approve control"* (T6.3), which is the link and not
+    the control: **no button in a notification, and no token in one either.**
+
+    A one-click approve from a chat message would be an approval given by whoever can post to a
+    channel, on the strength of a URL they did not read - and a token in a message is a bearer
+    credential in a place with no access log. What travels is the fact that a decision is waiting,
+    what it would do, and where to go and read it. ADR-0028 §1's sentence applies to this message
+    too: what is described is a claim, and nothing has acted on it.
+
+    The proposer's own prose is **not** included. It is model text about attacker-influenced
+    telemetry (thesis 1), and the place to read it is the screen, where every untrusted string is
+    rendered by a page that escapes.
+    """
+    action = getattr(proposal, "action_id", "") or (
+        proposal.get("action_id", "") if isinstance(proposal, dict) else ""
+    )
+    target = getattr(proposal, "target", "") or (
+        proposal.get("target", "") if isinstance(proposal, dict) else ""
+    )
+    severity = getattr(incident, "severity", "")
+    return "\n".join(
+        [
+            f"*Approval needed* {quote(getattr(incident, 'id', ''))}",
+            f"severity {quote(getattr(severity, 'value', severity))} · proposed: "
+            f"{quote(action) if action else 'no action'} on "
+            f"{quote(target) if target else 'no target'}",
+            "Nothing has been executed. Approve or reject on the screen:",
+            link(base_url, str(getattr(incident, "id", ""))),
+        ]
+    )
+
+
 def report_ready(incident_id: str, report: Any, base_url: str = "") -> str:
     """*"Notifications on ... report ready"*, for every way a run can end.
 

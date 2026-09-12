@@ -115,6 +115,12 @@ class Announcer:
     def incident_opened(self, incident: Any) -> Delivery:
         return self._send(messages.opened(incident, self.base_url), "incident-opened")
 
+    def awaiting_approval(self, incident: Any, proposal: Any) -> Delivery:
+        """T6.3's third event. Carries a link, never a control and never a token."""
+        return self._send(
+            messages.awaiting_approval(incident, proposal, self.base_url), "awaiting-approval"
+        )
+
     def report_ready(self, incident_id: str, report: Any) -> Delivery:
         return self._send(messages.report_ready(incident_id, report, self.base_url), "report-ready")
 

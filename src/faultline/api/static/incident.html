@@ -40,6 +40,18 @@
   .cite.unresolved { border-style: dashed; color: var(--bad); }
   .alt { padding-left: .75rem; border-left: 2px solid var(--line); margin: .5rem 0; }
   code { font-size: .85em; }
+  /* The controls. Deliberately plain and deliberately not side by side in the same weight:
+     approve changes the world and reject does not, so they should not look interchangeable. */
+  .act { margin-top: .75rem; display: flex; gap: .5rem; align-items: flex-start; flex-wrap: wrap; }
+  .act button { font: inherit; padding: .35rem .8rem; border-radius: 5px;
+                border: 1px solid var(--line); background: transparent; color: inherit;
+                cursor: pointer; }
+  .act button.go { border-color: currentColor; font-weight: 600; }
+  .act button[disabled] { opacity: .5; cursor: default; }
+  .act input { font: inherit; padding: .35rem .5rem; border-radius: 5px; flex: 1 1 18rem;
+               border: 1px solid var(--line); background: transparent; color: inherit; }
+  .said { margin-top: .5rem; }
+  .said.bad { color: var(--bad); }
 </style>
 <main>
   <h1 id="title">loading…</h1>
@@ -74,6 +86,69 @@
     const span = text("span", label, c.resolved ? "cite" : "cite unresolved");
     if (!c.resolved) span.title = "this citation resolves to nothing — it may be fabricated";
     return span;
+  }
+
+  // T6.3. The three write routes, from the one screen. Every button is disabled while its
+  // request is in flight: a double-clicked approve is a second token, and while the executor
+  // refuses to spend two on one incident, asking it to is a question this page should not ask.
+  async function post(path, body, say) {
+    const response = await fetch(path, {
+      method: "POST",
+      headers: body ? { "Content-Type": "application/json" } : {},
+      body: body ? JSON.stringify(body) : null,
+    });
+    let detail = "";
+    try { detail = (await response.json()).detail || ""; } catch (_) { /* not every reply is JSON */ }
+    say.className = response.ok ? "said meta" : "said bad";
+    // textContent, like everything else here: `detail` comes back from the server and can carry
+    // a rejection reason a person typed.
+    say.textContent = response.ok ? "done - the page will catch up on the next poll"
+                                  : (detail || `refused (${response.status})`);
+    return response.ok;
+  }
+
+  function controls(v) {
+    const box = document.createElement("div");
+    box.className = "act";
+    const said = text("div", "", "said meta");
+    const why = document.createElement("input");
+    why.type = "text";
+    why.placeholder = "why are you rejecting this? (required)";
+    why.id = "reject-reason";
+    const approve = text("button", "approve and execute", "go");
+    approve.id = "approve";
+    const reject = text("button", "reject");
+    reject.id = "reject";
+    const ack = text("button", "acknowledge");
+    ack.id = "acknowledge";
+    const base = `/api/v1/incidents/${encodeURIComponent(id)}`;
+    const busy = (on) => [approve, reject, ack].forEach(b => { b.disabled = on; });
+
+    approve.onclick = async () => {
+      busy(true);
+      try { await post(`${base}/approve`, null, said); } finally { busy(false); }
+    };
+    reject.onclick = async () => {
+      // Checked here as well as at the route, so the common mistake is answered without a round
+      // trip. The route is what enforces it; this is only politeness.
+      if (!why.value.trim()) {
+        said.className = "said bad";
+        said.textContent = "a rejection needs a reason - the agent is told it, and re-investigates";
+        return;
+      }
+      busy(true);
+      try { await post(`${base}/reject`, { reason: why.value }, said); } finally { busy(false); }
+    };
+    ack.onclick = async () => {
+      busy(true);
+      try { await post(`${base}/acknowledge`, { note: "" }, said); } finally { busy(false); }
+    };
+
+    box.append(approve, reject, why);
+    if (v.severity === "critical") box.append(ack);
+    const wrap = document.createElement("div");
+    wrap.append(box, said);
+    return wrap;
   }
 
   function render(v) {
@@ -142,6 +217,7 @@
       const cites = document.createElement("div");
       p.cites.forEach(c => cites.append(cite(c)));
       card.append(cites);
+      if (p.action_id) card.append(controls(v));
       proposal.append(card);
     } else {
       proposal.append(text("span", v.report ? "the proposer produced nothing" : "none yet"));

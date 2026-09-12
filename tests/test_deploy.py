@@ -706,13 +706,30 @@ def test_exactly_one_service_mounts_the_docker_socket_and_it_is_the_executor(com
     assert holders == ["executor"], holders
 
 
-def test_the_executor_starts_with_the_kill_switch_on_and_the_key_mandatory(compose: dict) -> None:
-    """§2.6: on the deployment the switch is on until T6.3 exists. And the key has no default,
-    like every other credential in this file."""
+def test_the_kill_switch_is_off_only_because_the_surface_exists(compose: dict) -> None:
+    """ADR-0038's consequence: *"it cannot act until T6.3 lands a surface and the switch is turned
+    off in the same PR."* This is that PR, so the assertion inverts - and it is **conditional on
+    the surface**, so a future change that removed the approval routes and left the switch off
+    would fail here rather than leave a deployment that can act with nothing to authorise it."""
     env = compose["services"]["executor"]["environment"]
-    assert env["FAULTLINE_EXECUTOR_KILL_SWITCH"] == "1"
+    surface = Path(__file__).resolve().parents[1] / "src/faultline/api/approvals.py"
+
+    assert env["FAULTLINE_EXECUTOR_KILL_SWITCH"] == ("0" if surface.exists() else "1")
     assert env["FAULTLINE_EXECUTOR_TOKEN_KEY"].startswith("${FAULTLINE_EXECUTOR_TOKEN_KEY:?")
     assert compose["services"]["executor"]["command"][:2] == ["faultline-execute", "serve"]
+
+
+def test_the_api_container_holds_the_minting_key_and_knows_where_the_executor_is(
+    compose: dict,
+) -> None:
+    """T6.3's escalation, asserted where it lives. The web process signs approval tokens now; the
+    key is the same one the executor verifies with, and the URL is a compose service name so the
+    call never leaves the network (`test_caddy_forwards_nothing_to_the_executor` holds the other
+    half)."""
+    env = compose["services"]["faultline"]["environment"]
+
+    assert env["FAULTLINE_EXECUTOR_TOKEN_KEY"].startswith("${FAULTLINE_EXECUTOR_TOKEN_KEY:?")
+    assert env["FAULTLINE_API_EXECUTOR_URL"] == "http://executor:8100"
 
 
 def test_the_executor_joins_the_docker_group_rather_than_running_as_root(compose: dict) -> None:
