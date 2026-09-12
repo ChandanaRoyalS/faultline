@@ -71,6 +71,32 @@ def test_no_runbook_names_a_catalog_scenario() -> None:
         )
 
 
+def test_no_runbook_names_a_scenario_in_any_spelling() -> None:
+    """**ADR-0036's rule, matched harder** (T6.4).
+
+    The check beside this one compares scenario ids against the text with a case-sensitive
+    substring test. That catches `cart-redis-misconfig` and nothing else: not `Cart-Redis-
+    Misconfig`, not `cart_redis_misconfig`, not `cart redis misconfig`. ADR-0036 already records
+    that an id-matching test is weak - two of the first fifteen runbooks cited a holdout
+    scenario's fault *without naming it* and would have passed - and T6.4 adds 25 documents, so
+    the cheap half of that gap is worth closing before they land rather than after.
+
+    What this still cannot catch is a paraphrase, and no test can. The per-document review the
+    pre-registration commits to is the other half, and it is a person reading, not a regex.
+    """
+    scenarios = scenario_ids()
+    assert scenarios, "no scenario catalog found; this test would pass vacuously"
+
+    for runbook in load_runbooks():
+        text = f"{runbook.title}\n{runbook.body}".lower()
+        for scenario in scenarios:
+            for spelling in (scenario, scenario.replace("-", "_"), scenario.replace("-", " ")):
+                assert spelling.lower() not in text, (
+                    f"{runbook.id} contains {spelling!r}. A runbook may say what is true of the "
+                    "world; it may not name a scenario, in any spelling (ADR-0036)."
+                )
+
+
 def test_every_action_names_a_real_allowlist_entry() -> None:
     """A runbook pointing at an action the executor does not have is a dead end."""
     known = {action.id for action in load_allowlist().actions}
