@@ -29,11 +29,12 @@ from faultline.agents.investigation import (
     InvestigationFailedError,
     InvestigationResult,
 )
-from faultline.agents.roles import SchemaValidationError, Triager
+from faultline.agents.roles import OperatorRejection, SchemaValidationError, Triager
 from faultline.agents.triage import TriageResult
 from faultline.archive import Archive, report_key
 from faultline.orchestrator import machine
 from faultline.orchestrator.models import Incident, IncidentState
+from faultline.orchestrator.rejections import RejectionStore
 from faultline.orchestrator.store import IncidentStore
 
 
@@ -129,6 +130,24 @@ def investigable(store: IncidentStore, incident_id: str) -> Incident:
             "See ADR-0016 and faultline.orchestrator.machine.INVESTIGABLE."
         )
     return incident
+
+
+def latest_rejection(store: RejectionStore, incident_id: str) -> OperatorRejection | None:
+    """The rejection a re-investigation is told about: **the most recent one, and no others.**
+
+    An agent handed three rejections is being asked to satisfy a committee, and the earlier
+    reasons are already answered by the proposals that followed them. The full history stays in
+    the ledger, which is what an operator reads and what the cap counts.
+
+    The translation from the stored row to the role's three strings lives here because
+    `faultline.agents.roles` is deliberately ignorant of the orchestrator's stores (ADR-0020 §5's
+    direction of dependency), and because the reason has to be a plain string by the time it
+    reaches a briefing.
+    """
+    row = store.latest(incident_id)
+    if row is None:
+        return None
+    return OperatorRejection(reason=row.reason, action_id=row.action_id, target=row.target)
 
 
 def run_investigation(

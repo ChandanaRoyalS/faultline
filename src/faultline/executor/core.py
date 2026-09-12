@@ -6,8 +6,12 @@ The order is the safety argument, so it is written out rather than left to the c
    and records that it was asked.
 2. **The token's shape.** Signature and expiry (`tokens.verify`). A forged or stale token is
    refused before its claims are believed about anything - including which incident it names.
-3. **The incident the token names.** Must exist and must not be terminal. An incident that has
-   resolved has no world to fix; an approval that arrives after the fact is recorded and refused.
+3. **The incident the token names.** Must exist, must not be terminal, and must not be
+   `REJECTED`. An incident that has resolved has no world to fix; an approval that arrives after
+   the fact is recorded and refused. A **rejected** incident is refused by name rather than by
+   the terminal check it does not fall under (T6.3): a token minted before the rejection is an
+   approval of the very proposal a human said no to, and it would otherwise stay spendable for
+   its remaining TTL.
 4. **Nothing else is trusted from the caller.** The incident, the action and the target all come
    from the verified claims; a caller supplies a token and a name for the audit, and that is all.
 5. **Blast radius.** The canonical target must be inside the incident's scope - the services its
@@ -47,7 +51,7 @@ from typing import Any
 from faultline.executor.audit import SPENDING_OUTCOMES, AuditRecord, AuditStore
 from faultline.executor.tokens import Claims, TokenError, verify
 from faultline.orchestrator.machine import is_terminal
-from faultline.orchestrator.models import Incident
+from faultline.orchestrator.models import Incident, IncidentState
 
 DRIFT_FIELDS: dict[str, tuple[str, ...]] = {
     "rollback_image": ("image", "running"),
@@ -306,6 +310,12 @@ class Executor:
                 raise RefusedError(
                     f"incident {incident.id} is {incident.state.value}; there is no world left "
                     "to fix"
+                )
+            if incident.state is IncidentState.REJECTED:
+                raise RefusedError(
+                    f"incident {incident.id} was rejected by an operator and is awaiting "
+                    "re-investigation; the proposal this token was minted for is the one that "
+                    "was rejected. A new proposal needs a new approval (T6.3)."
                 )
             scope = self._scope_of(incident)
             if claims.target not in scope:

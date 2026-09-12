@@ -177,6 +177,7 @@ def run(argv: list[str] | None = None) -> int:
         Exit,
         NotInvestigableError,
         investigable,
+        latest_rejection,
         run_investigation,
         write_outputs,
     )
@@ -185,6 +186,7 @@ def run(argv: list[str] | None = None) -> int:
     from faultline.context.catalog import ServiceCatalog
     from faultline.context.settings import ContextSettings
     from faultline.orchestrator import machine
+    from faultline.orchestrator.rejections import PostgresRejectionStore
     from faultline.orchestrator.store import PostgresIncidentStore
     from faultline.tools.changelog import PostgresChangeLog
     from faultline.tools.settings import ToolSettings
@@ -223,6 +225,13 @@ def run(argv: list[str] | None = None) -> int:
     except NotInvestigableError as refusal:
         print(f"REFUSED: {refusal}")
         return int(Exit.REFUSED)
+
+    # **The rejection, if a human wrote one** (T6.3). Read here rather than inside the engine so
+    # that the baselines below - which build no proposer - never pay for the query, and so that a
+    # re-investigation is visibly a re-investigation at the point the run is assembled.
+    rejection = latest_rejection(PostgresRejectionStore(psycopg.connect(dsn)), incident.id)
+    if rejection is not None:
+        print(f"re-investigating after an operator rejection: {rejection.reason}")
 
     exclude = args.exclude_origin or os.environ.get("FAULTLINE_EVAL_SCENARIO") or None
     if exclude:
@@ -302,6 +311,7 @@ def run(argv: list[str] | None = None) -> int:
         retrieval_k=args.retrieval_k,
         proposer=Proposer(model),
         withhold=tuple(args.without),
+        rejection=rejection,
     )
 
     report = run_investigation(

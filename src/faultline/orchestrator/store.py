@@ -93,6 +93,11 @@ class IncidentStore(Protocol):
         """Admitted and not yet begun - what `InvestigationRunner` advances (T5.5c)."""
         ...
 
+    def rejected(self) -> list[Incident]:
+        """Rejected and awaiting re-investigation (T6.3). The runner reads this beside
+        `triaging()`; the rejection ledger's count is what stops it being read forever."""
+        ...
+
     def active_count(self) -> int:
         """How many incidents hold a slot against the cap."""
 
@@ -159,6 +164,10 @@ class InMemoryIncidentStore:
 
     def triaging(self) -> list[Incident]:
         found = [i for i in self.incidents.values() if i.state is IncidentState.TRIAGING]
+        return sorted(found, key=lambda i: (i.opened_at is None, i.opened_at))
+
+    def rejected(self) -> list[Incident]:
+        found = [i for i in self.incidents.values() if i.state is IncidentState.REJECTED]
         return sorted(found, key=lambda i: (i.opened_at is None, i.opened_at))
 
     def active_count(self) -> int:
@@ -301,6 +310,9 @@ class PostgresIncidentStore:
 
     def triaging(self) -> list[Incident]:
         return self._load("WHERE state = 'triaging' ORDER BY opened_at", ())
+
+    def rejected(self) -> list[Incident]:
+        return self._load("WHERE state = 'rejected' ORDER BY opened_at", ())
 
     def active_count(self) -> int:
         with self._conn.cursor() as cur:

@@ -23,6 +23,7 @@ from faultline.executor.audit import InMemoryAuditStore
 from faultline.executor.cli import ApproveError, approve
 from faultline.executor.core import Executor, Performed, drift_between
 from faultline.executor.settings import ExecutorSettings
+from faultline.orchestrator import machine
 from faultline.orchestrator.machine import (
     ApprovalOutcome,
     TransitionError,
@@ -258,6 +259,26 @@ def test_a_token_for_a_missing_or_terminal_incident_is_refused() -> None:
     token, _ = token_for(resolved)
     record = make_executor(store, audit).execute(token, caller="t")
     assert record.outcome == "refused" and "no world left to fix" in record.reason
+
+
+def test_a_token_for_a_rejected_incident_is_refused() -> None:
+    """T6.3. A rejected incident is not terminal - it is going back to an agent - so it would
+    otherwise pass step 3, and a token minted *before* the rejection would stay spendable for its
+    remaining fifteen minutes. That token is an approval of the very proposal a human said no to.
+    Named in the refusal rather than folded into the terminal check, because an operator reading
+    the ledger for *why did my approval stop working* should find the answer and not infer it."""
+    store, audit = InMemoryIncidentStore(), InMemoryAuditStore()
+    inc = incident(IncidentState.AWAITING_APPROVAL)
+    store.save(inc)
+    token, _ = token_for(inc)
+    machine.record_rejection(inc, "the latency is on redis-cart, not in this service")
+    store.save(inc)
+
+    record = make_executor(store, audit).execute(token, caller="t")
+
+    assert record.outcome == "refused"
+    assert "was rejected by an operator" in record.reason
+    assert audit.spent(record.token_id or "") is None, "a refusal does not spend the token"
 
 
 def test_a_target_outside_the_incidents_scope_is_refused_before_the_token_is_spent() -> None:

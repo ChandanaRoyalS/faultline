@@ -140,17 +140,25 @@ def run(argv: list[str] | None = None) -> int:
         print(f"applied {len(applied)} event(s)")
         return 0
     if args.investigate:
+        from faultline.orchestrator.rejections import PostgresRejectionStore
         from faultline.orchestrator.runner import InvestigationRunner, investigate_command
 
         runner = InvestigationRunner(
             store,
             settle=timedelta(seconds=settings.investigate_settle_seconds),
             command=investigate_command(settings),
+            # **Its own connection.** The consumer loop's connection is busy with the stream, and
+            # the runner polls from a background thread; psycopg connections are not shared
+            # across threads, and a rejection count read on the wrong one is a deadlock waiting
+            # for a Friday.
+            rejections=PostgresRejectionStore(psycopg.connect(args.postgres_dsn)),
+            max_rejections=settings.max_rejections,
         )
         runner.start_in_background(settings.investigate_poll_seconds)
         print(
             f"investigating what this process admits, {settings.investigate_settle_seconds}s "
-            f"after each incident opens, with {' '.join(settings.investigate_args)}"
+            f"after each incident opens, with {' '.join(settings.investigate_args)}; "
+            f"re-investigating a rejected incident up to {settings.max_rejections} time(s)"
         )
     print(f"consuming {args.stream} as {args.group}/{args.consumer}")
     loop.run_forever()

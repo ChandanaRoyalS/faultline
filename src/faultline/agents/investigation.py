@@ -26,6 +26,7 @@ from faultline.agents.contracts import (
 )
 from faultline.agents.model import LanguageModel
 from faultline.agents.roles import (
+    OperatorRejection,
     Planner,
     Proposer,
     SchemaValidationError,
@@ -229,7 +230,13 @@ class Investigation:
         retrieval_k: int = 3,
         proposer: Proposer | None = None,
         withhold: tuple[SpecialistName, ...] = (),
+        rejection: OperatorRejection | None = None,
     ) -> None:
+        self._rejection = rejection
+        """A human's rejection of this incident's previous proposal (T6.3). Constructor rather
+        than `run()` argument because every other thing the proposer is given arrives this way,
+        and because an investigation with a rejection in it is a different investigation from
+        the outside - it is a re-investigation, and the trajectory it writes is a second one."""
         self._withhold = tuple(withhold)
         self._synthesizer = synthesizer
         self._scribe = scribe
@@ -787,7 +794,11 @@ class Investigation:
         for attempt in (1, 2):
             try:
                 completion = self._proposer.propose(
-                    triage, result.verdict, result.runs, violation=violation
+                    triage,
+                    result.verdict,
+                    result.runs,
+                    violation=violation,
+                    rejection=self._rejection,
                 )
             except SchemaValidationError as failure:
                 state.spend_tokens(failure.response.input_tokens, failure.response.output_tokens)

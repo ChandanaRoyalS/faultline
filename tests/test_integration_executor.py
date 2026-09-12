@@ -16,6 +16,7 @@ from testcontainers.community.postgres import PostgresContainer
 
 from faultline.executor.audit import AuditRecord, PostgresAuditStore
 from faultline.migrate import upgrade_head
+from faultline.orchestrator.rejections import PostgresRejectionStore, Rejection
 
 pytestmark = pytest.mark.integration
 
@@ -99,3 +100,40 @@ def test_spent_finds_the_consuming_row_and_ignores_refusals(conn: psycopg.Connec
     store.append(_record(outcome="executed", id="r2"))
     assert store.spent("tok-1").id == "r2"
     assert store.spent("tok-other") is None
+
+
+def test_the_rejection_ledger_refuses_an_update_and_a_delete(conn: psycopg.Connection) -> None:
+    """T6.3, migration 0006, on the action ledger's pattern and for the same reason: the reason
+    is what an operator told a machine before it spent money on their behalf, and a ledger whose
+    rows can be edited afterwards cannot answer *what were we told at the time*."""
+    store = PostgresRejectionStore(conn)
+    rejection = Rejection(
+        incident_id="inc-1",
+        reason="the latency is on redis-cart's interface, not in cartservice",
+        caller="chandana",
+        proposal_id="tr_1#7",
+        action_id="restart_service",
+        target="cartservice",
+    )
+    store.append(rejection)
+
+    with (
+        pytest.raises(psycopg.errors.InsufficientPrivilege, match="append-only"),
+        conn.cursor() as cur,
+    ):
+        cur.execute(
+            "UPDATE incident_rejections SET reason = 'never mind' WHERE id = %s", (rejection.id,)
+        )
+    conn.rollback()
+    with (
+        pytest.raises(psycopg.errors.InsufficientPrivilege, match="append-only"),
+        conn.cursor() as cur,
+    ):
+        cur.execute("DELETE FROM incident_rejections WHERE id = %s", (rejection.id,))
+    conn.rollback()
+
+    [still] = store.for_incident("inc-1")
+    assert still.reason == rejection.reason
+    assert still.action_id == "restart_service"
+    assert store.count("inc-1") == 1
+    assert store.latest("inc-1") is not None
