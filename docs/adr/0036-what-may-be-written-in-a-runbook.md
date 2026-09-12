@@ -66,3 +66,41 @@ now covers only the seeding, which is one command rather than a project.
 Two services carry a runbook link in `knowledge/services.yaml` — the two with a measured
 property that changes how they are read. The rest link nothing, because a link that exists to
 look complete is a link a proposer will follow to no purpose.
+
+## Addendum 1 (T6.4, 2026-09-12): the rule was not tight enough, and five documents proved it
+
+The rule above forbids **naming** a scenario, its origin service or its root cause. T6.4's first
+five service runbooks named none of those and were contaminated anyway. Two of them jointly
+carried the discriminator that separates a pair of dev scenarios; a third carried a holdout
+scenario's method *and* the service it converges on. `docs/evidence/t6.4-runbook-review/REVIEW.md`
+quotes all of it against the scenario files.
+
+The gap is that a scenario's identity is not the thing worth protecting. **What the scenarios
+score is the discrimination step** — the reader is given a set of signals consistent with more
+than one cause and has to decide which. A runbook that hands over that decision has given away
+the answer without using a single word from the answer key.
+
+**The sharpened rule: a runbook may state what is true of the world. It may not state how to tell
+two possible candidate causes apart.**
+
+- *In*: what a service does, who calls it and whom it calls, what it emits, whether an alert rule
+  can fire for it at all, what a threshold is, what an action's preconditions are, what this
+  world has been measured to do.
+- *Out*: "if X and not Y, look here"; "the question that distinguishes these two is…"; any
+  statement of which cause a given shape of evidence points to; and any prior over how often a
+  service turns out to be at fault, which is a property of the catalog rather than of the world.
+
+The test is not whether the sentence is true — all of the removed ones were — but whether a
+reader who had it would skip a step an investigation is supposed to perform.
+
+**This is a review rule, not a test rule, and pretending otherwise is what went wrong.** All nine
+mechanical guards in `tests/test_runbooks.py` passed on all five removed documents, including the
+scenario-name check added in the same PR. The guards catch the spelling of a scenario id; nothing
+mechanical catches a paraphrase of a method. So the control is a human one and it has a shape:
+**the per-document review happens before merge, and is performed by a reader who did not write
+the document.** The author's own review passed all five.
+
+**Revisit if** a mechanical check for this ever becomes plausible, or if the service runbooks'
+factual half is generated from `knowledge/services.yaml` and `EDGE_KINDS` rather than written by
+hand — six of the errors in the removed batch were restatements of catalog facts that the catalog
+could have supplied.
