@@ -37,6 +37,7 @@ recorded by instrumentation that existed before this measurement wanted it.
 from __future__ import annotations
 
 import base64
+import importlib.util
 import json
 import os
 import time
@@ -349,9 +350,25 @@ class RealSteps:
     # --- the world ---------------------------------------------------------------
 
     def gate_admits(self) -> tuple[bool, list[str]]:
-        from evalharness import gate
+        """**With the open and settling incidents, which is what the harness passes it.**
 
-        reading = gate.read(runs_remaining=1)
+        Found by the second live run (2026-09-12): `gate.read(runs_remaining=1)` takes the open
+        incidents as an *argument*, and a caller that omits them gets a gate that never checks
+        them. The driver's did. A leftover `TRIAGING` incident from the aborted first run was
+        still holding the services this scenario alerts on, the new alerts correlated into it
+        rather than opening anything, and `wait_for_incident` - which asks for an incident opened
+        *after* the injection - correctly found none. The run scored `no-incident` and spent
+        nothing, but it measured nothing either.
+
+        A weaker gate than the harness's is a different experiment. `evalharness.run` passes both
+        lists at every scored run and so does this.
+        """
+        from evalharness import gate
+        from evalharness.run import open_incidents, settling_incidents
+
+        reading = gate.read(
+            open_incidents(self._dsn), settling_incidents(self._dsn), runs_remaining=1
+        )
         return reading.passed, list(reading.refusals)
 
     def inject(self, scenario_id: str) -> str:
@@ -472,10 +489,22 @@ class RealSteps:
     # --- the model call ------------------------------------------------------------
 
     def reinvestigate(self, incident_id: str) -> int:
-        from evalharness.run import _sh
+        """The one model call, invoked the way the harness invokes one - **and with the bounds
+        the harness passes**, so a re-investigation is the same experiment as a scored run rather
+        than an unbounded one (T4.7's configuration, `OrchestratorSettings.investigate_args`).
 
-        code, out = _sh(["faultline-investigate", incident_id])
+        No `--exclude-origin`: that flag is retrieval exclusion for a *scored* run, and this is
+        not one. The corpus is the corpus an operator's re-investigation would see.
+        """
+        from evalharness.run import _sh
+        from faultline.orchestrator.settings import OrchestratorSettings
+
+        code, out = _sh(
+            ["faultline-investigate", incident_id, *OrchestratorSettings().investigate_args]
+        )
         print(out)
+        if code != 0:
+            print(f"  faultline-investigate exited {code}; no proposal will be found")
         return code
 
     def second_proposal(self, incident_id: str, after_trajectory: str | None) -> dict[str, Any]:
@@ -545,6 +574,23 @@ def run_cli(argv: list[str] | None = None) -> int:
         )
 
     from faultline.orchestrator.settings import OrchestratorSettings
+
+    # **The model client, checked before anything is injected.** The second live run reached the
+    # re-investigation and `faultline-investigate` died on `ModuleNotFoundError: No module named
+    # 'anthropic'` - the `agents` extra was not in the active environment. Nothing was spent, but
+    # a fault had been injected, an incident opened and a rejection recorded before the run
+    # learned it could not do the one thing it exists to do. Q20's rule, which this repository
+    # has now re-learned three times: refuse before the world is touched, not after.
+    #
+    # `find_spec`, not an import: this module must stay unable to reach a model client at all
+    # (`test_the_driver_calls_no_model_itself`), and asking whether a package is installed is
+    # not the same act as importing it.
+    if importlib.util.find_spec("anthropic") is None:
+        p.error(
+            "the `agents` extra is not installed in this environment, so faultline-investigate "
+            "cannot reach a model and the re-investigation would produce nothing. Nothing was "
+            "injected. Install it with: uv sync --all-extras --all-groups"
+        )
 
     dsn = args.postgres_dsn or OrchestratorSettings().postgres_dsn
     steps: Steps = RealSteps(dsn, args.api_url, args.api_user, password)
