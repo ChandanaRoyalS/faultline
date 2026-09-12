@@ -24,10 +24,16 @@ that always has an answer. Recall over an empty relevant set is 0/0, so they are
 both means and reported as their own count - with what they returned, so a reader can see whether
 the corpus answers anyway.
 
-**3. The split is by where a query's answer lives**, not by when the query was harvested. §2.3
-registers three numbers: the whole set, the documents that predate this task, and the documents
-written for it, so *documents by the measurement's author are easier to find* shows up as a gap
-rather than as a caveat.
+**3. The split is per label, not per query.** §2.3 registers three numbers - the whole set, the
+documents that predate this task, and the documents written for it - so that *documents by the
+measurement's author are easier to find* shows up as a gap rather than as a caveat. Partitioning
+*queries* by where their answer lives turned out to be degenerate on the harvested set: **no
+query has an answer lying entirely among the fifteen older runbooks**, because the questions the
+pipeline actually asks are about things only the newer documents cover. So the partition is
+applied to the labels instead. A query with both an old and a new relevant document contributes
+to both rows, each asking only whether *that* half was found. The comparison §2.3 wanted is
+preserved; the per-query version of it is not available on this data, and that is itself a
+finding about the corpus.
 """
 
 from __future__ import annotations
@@ -78,6 +84,13 @@ class GoldenQuery:
     role: str
     source_trajectory: str
     seq: int
+    harvested_from: str = "none"
+    """The `exclude_origin` the run carried, i.e. which scenario this query was sent during.
+
+    Carried so the holdout guard below has something to check. `none` is the product case: a live
+    incident has no origin to exclude.
+    """
+
     relevant: tuple[Label, ...] = ()
     note: str = ""
 
@@ -163,9 +176,62 @@ class Measurement:
         return "\n".join(lines)
 
 
+PREDATES_T6_4: frozenset[str] = frozenset(
+    {
+        "runbook:alert-high-error-rate",
+        "runbook:alert-high-latency",
+        "runbook:alert-no-traffic",
+        "runbook:class-bad-config",
+        "runbook:class-bad-deploy",
+        "runbook:class-dependency-latency",
+        "runbook:class-resource-exhaustion",
+        "runbook:action-restart-service",
+        "runbook:action-revert-config",
+        "runbook:action-rollback-image",
+        "runbook:action-scale-unavailable",
+        "runbook:world-saturation-is-invisible",
+        "runbook:world-tracing-artifact-edges",
+        "runbook:world-uninstrumented-services",
+        "runbook:world-warm-up-latency",
+    }
+)
+"""The fifteen runbooks that existed before T6.4 authored a document.
+
+**Written out rather than derived**, and that is §2.3's requirement: the comparison is *are the
+documents written by the measurement's author easier to find*, and a set derived from the corpus
+would move every time a document is added, so the comparison would stop being the same
+comparison. The ten dev narratives are not listed because no query in the golden set has one as
+an answer; a narrative answering a query would need adding here and saying so.
+
+Note that six of these fifteen were repaired at Q35 and three more were edited. They predate the
+task in authorship, which is what the split is about, not in wording.
+"""
+
+
 def load_golden(path: Path = GOLDEN_SET) -> tuple[GoldenQuery, ...]:
+    """Load and **refuse a holdout-derived query**.
+
+    A golden set is not a retrieval corpus, so nothing that guards the corpus looks at it - and a
+    synthesizer query carries four specialist findings in its text. Committing one harvested from
+    a holdout run would put that run's findings into a file in this repository, permanently,
+    where anyone authoring against the golden set would read them. That is ADR-0008 axis 1
+    arriving through a channel no existing guard checks, and it is checked here rather than
+    trusted to whoever next runs the harvest.
+    """
+    from evalharness.freeze import holdout_origins
+
     payload: Any = yaml.safe_load(path.read_text())
-    return tuple(_query_from(entry) for entry in payload["queries"])
+    queries = tuple(_query_from(entry) for entry in payload["queries"])
+
+    held = set(holdout_origins())
+    offenders = sorted(q.id for q in queries if q.harvested_from in held)
+    if offenders:
+        raise ValueError(
+            f"{offenders} were harvested from a holdout run. A holdout scenario's findings travel "
+            "in the query text, and a committed golden set is a permanent, unquarantined copy of "
+            "them (ADR-0008 axis 1)."
+        )
+    return queries
 
 
 def _query_from(entry: dict[str, Any]) -> GoldenQuery:
@@ -175,6 +241,7 @@ def _query_from(entry: dict[str, Any]) -> GoldenQuery:
         role=str(entry["role"]),
         source_trajectory=str(entry["source_trajectory"]),
         seq=int(entry["seq"]),
+        harvested_from=str(entry.get("harvested_from", "none")),
         relevant=tuple(
             Label(document_id=str(item["document_id"]), reason=str(item["reason"]))
             for item in entry.get("relevant", ())
@@ -231,8 +298,20 @@ def measure(
     results = tuple(run_query(store, q, k) for q in golden)
     scored = [r for r in results if r.scored]
 
-    old = [r for r in scored if by_id[r.query_id].relevant_ids <= predates_task]
-    new = [r for r in scored if not (by_id[r.query_id].relevant_ids & predates_task)]
+    def restricted(result: QueryResult, keep: frozenset[str]) -> QueryResult:
+        """The same result scored against only half of its labels."""
+        return QueryResult(result.query_id, result.documents, result.relevant & keep)
+
+    old = [
+        restricted(r, predates_task)
+        for r in scored
+        if by_id[r.query_id].relevant_ids & predates_task
+    ]
+    new = [
+        restricted(r, frozenset(by_id[r.query_id].relevant_ids - predates_task))
+        for r in scored
+        if by_id[r.query_id].relevant_ids - predates_task
+    ]
 
     return Measurement(
         overall=_report("all documents", k, scored),
@@ -313,6 +392,19 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     )
     harvest_cmd.add_argument("--out", type=Path, default=None)
 
+    score_cmd = sub.add_parser("score", help="score the golden set for recall@k and MRR")
+    score_cmd.add_argument("--dsn", default=None)
+    score_cmd.add_argument(
+        "--k",
+        type=int,
+        default=3,
+        help="**production's k, not the setting's.** `Investigation.__init__` and "
+        "`faultline-investigate` both default to 3; `ContextSettings.retrieval_k = 5` is read by "
+        "nothing (§2.5). Measuring 5 would measure a pipeline nobody runs",
+    )
+    score_cmd.add_argument("--golden", type=Path, default=GOLDEN_SET)
+    score_cmd.add_argument("--json", type=Path, default=None)
+
     args = parser.parse_args(argv)
     if args.command == "harvest":
         from faultline.context.settings import ContextSettings
@@ -324,5 +416,44 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
             print(f"{len(rows)} retrieval(s) -> {args.out}")
         else:
             print(payload)
+        return 0
+
+    if args.command == "score":
+        import psycopg
+
+        from faultline.context.embedding import SentenceTransformerEmbedder
+        from faultline.context.settings import ContextSettings
+        from faultline.context.store import PgVectorPastIncidentStore
+
+        dsn = args.dsn or ContextSettings().postgres_dsn
+        golden = load_golden(args.golden)
+        with psycopg.connect(dsn) as conn:
+            store = PgVectorPastIncidentStore(conn, SentenceTransformerEmbedder())
+            result = measure(store, golden, k=args.k, predates_task=PREDATES_T6_4)
+        print(result.render())
+        if args.json:
+            args.json.write_text(
+                json.dumps(
+                    {
+                        "k": args.k,
+                        "overall": vars(result.overall),
+                        "by_corpus_age": [vars(r) for r in result.by_corpus_age],
+                        "by_role": [vars(r) for r in result.by_role],
+                        "per_query": [
+                            {
+                                "id": r.query_id,
+                                "documents": list(r.documents),
+                                "relevant": sorted(r.relevant),
+                                "recall": r.recall_at(args.k),
+                                "reciprocal_rank": r.reciprocal_rank,
+                            }
+                            for r in result.results
+                        ],
+                    },
+                    indent=2,
+                )
+                + "\n"
+            )
+            print(f"\nper-query detail -> {args.json}")
         return 0
     return 1

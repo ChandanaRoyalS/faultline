@@ -1,0 +1,518 @@
+# The golden set (T6.4). `PREREGISTRATION-T6.4.md` §2.2.
+#
+# **The queries are harvested, not invented.** Every `query` below is the exact text this
+# pipeline sent to retrieval during a recorded investigation, read out of
+# `trajectory_retrievals` by `faultline-retrieval harvest`. `source_trajectory` and `seq` are
+# what makes that checkable afterwards. Nothing here was written to be answerable.
+#
+# **Queries harvested from holdout runs are excluded**, and this is a channel nobody had
+# considered: a synthesizer query carries four specialist findings in its text, so committing a
+# holdout-derived query would put a holdout run's findings into a file in this repository,
+# permanently, where anyone authoring against the golden set would read them. That is ADR-0008
+# axis 1 arriving somewhere no existing guard looks, because a golden set is not a retrieval
+# corpus. Seven of 243 distinct queries were dropped for this; `test_golden_set.py` enforces it.
+#
+# **The sample is a deterministic stratified draw, fixed before any query was read**: sort the
+# distinct queries by (role, origin, trajectory, seq), then take the first 3 planner and 2
+# synthesizer per scenario. No RNG and no selection, so "the author picked the queries they
+# could label well" is not available as an explanation of the number.
+#
+# **The labelling rule, applied uniformly**: a document is relevant if a fact stated in it lets a
+# reader answer something the query asks or asserts, *from the query text alone*. Topical
+# adjacency is not relevance. Planner queries get a mechanical label rather than a judgement -
+# the seed service's own runbook, taken from the query's "starting at" clause, plus
+# `alert-high-latency` when the severity is `warning`, which is the only rule carrying it.
+#
+# **The residual weakness, stated rather than caveated**: the labels and 25 of the 40 runbooks
+# have the same author. §2.3's three-way split is the instrument pointed at it, and the label
+# concentration below is the other thing to read before trusting the number.
+
+# Label concentration - 80 labels over 19 documents, of 50 in the corpus:
+#    13  runbook:world-change-records-have-no-prior-value
+#     8  runbook:service-checkoutservice
+#     7  runbook:service-frontend
+#     7  runbook:class-dependency-latency
+#     6  runbook:service-cartservice
+#     5  runbook:world-blast-radius-traversal
+#     5  runbook:class-bad-config
+#     4  runbook:alert-high-latency
+#     4  runbook:world-what-a-recreate-removes
+#     4  runbook:alert-high-error-rate
+#     3  runbook:service-frauddetectionservice
+#     3  runbook:service-paymentservice
+#     3  runbook:class-resource-exhaustion
+#     2  runbook:world-alert-timing
+#     2  runbook:alert-no-traffic
+#     1  runbook:service-adservice
+#     1  runbook:class-bad-deploy
+#     1  runbook:service-productcatalogservice
+#     1  runbook:service-redis-cart
+#
+# **No query in this sample is unanswerable**, and the pre-registration predicted at least
+# two. That clause of prediction 3 fails. It is reported rather than fixed: manufacturing an
+# unanswerable query would be inventing one, which §2.2 forbids, and widening the sample
+# until two appeared would be selecting for a prediction. A golden set with no
+# unanswerable query cannot detect a corpus that always has an answer, and this one cannot.
+
+queries:
+  - id: g00-plan-ad-memory-squeeze
+    role: planner
+    source_trajectory: 23c6eea4-776d-41c5-b8b4-f883f1eac819
+    seq: 1
+    harvested_from: scenario:ad-memory-squeeze
+    query: "frontend, adservice, loadgenerator critical starting at frontend"
+    relevant:
+      - document_id: runbook:service-frontend
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g01-plan-ad-memory-squeeze
+    role: planner
+    source_trajectory: 2c66a4e0-6962-45a9-8102-15d6f725bdb8
+    seq: 1
+    harvested_from: scenario:ad-memory-squeeze
+    query: "frontend, loadgenerator critical starting at frontend"
+    relevant:
+      - document_id: runbook:service-frontend
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g02-plan-ad-memory-squeeze
+    role: planner
+    source_trajectory: a806f7d7-941b-477e-9de0-811057950d26
+    seq: 1
+    harvested_from: scenario:ad-memory-squeeze
+    query: "loadgenerator, frontend critical starting at frontend"
+    relevant:
+      - document_id: runbook:service-frontend
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g03-plan-cart-bad-image-tag
+    role: planner
+    source_trajectory: 0446e65b-9c00-4e5f-b6c1-8cc5c107b09b
+    seq: 1
+    harvested_from: scenario:cart-bad-image-tag
+    query: "frontend, loadgenerator, checkoutservice critical starting at frontend"
+    relevant:
+      - document_id: runbook:service-frontend
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g04-plan-cart-bad-image-tag
+    role: planner
+    source_trajectory: 133f9b2d-5b9c-4b85-aa0a-4884b7a30cb4
+    seq: 1
+    harvested_from: scenario:cart-bad-image-tag
+    query: "loadgenerator, checkoutservice, frontend, accountingservice, cartservice, currencyservice, emailservice, frauddetectionservice, quoteservice, shippingservice critical starting at checkoutservice"
+    relevant:
+      - document_id: runbook:service-checkoutservice
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g05-plan-cart-bad-image-tag
+    role: planner
+    source_trajectory: 2262b002-3224-4a21-bbfa-354ff412b406
+    seq: 1
+    harvested_from: scenario:cart-bad-image-tag
+    query: "checkoutservice, frontend, loadgenerator critical starting at checkoutservice"
+    relevant:
+      - document_id: runbook:service-checkoutservice
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g06-plan-cart-dependency-latency
+    role: planner
+    source_trajectory: 41cda22f-d02e-4fb6-9614-d5e0690bb95c
+    seq: 1
+    harvested_from: scenario:cart-dependency-latency
+    query: "cartservice, loadgenerator, checkoutservice, frontend warning starting at cartservice"
+    relevant:
+      - document_id: runbook:service-cartservice
+        reason: "the query's own seed service, named after 'starting at'"
+      - document_id: runbook:alert-high-latency
+        reason: "severity `warning`, which is the only alert rule carrying it and which this document states"
+  - id: g07-plan-cart-dependency-latency
+    role: planner
+    source_trajectory: 89265b95-95c9-47c0-8e4f-cbcbe147d398
+    seq: 1
+    harvested_from: scenario:cart-dependency-latency
+    query: "cartservice, frontend, checkoutservice, loadgenerator warning starting at cartservice"
+    relevant:
+      - document_id: runbook:service-cartservice
+        reason: "the query's own seed service, named after 'starting at'"
+      - document_id: runbook:alert-high-latency
+        reason: "severity `warning`, which is the only alert rule carrying it and which this document states"
+  - id: g08-plan-frauddetection-memory-squeeze
+    role: planner
+    source_trajectory: 0c8e18bd-ce02-4254-b5f9-f7cf9b5539e7
+    seq: 1
+    harvested_from: scenario:frauddetection-memory-squeeze
+    query: "frauddetectionservice critical starting at frauddetectionservice"
+    relevant:
+      - document_id: runbook:service-frauddetectionservice
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g09-plan-payment-telemetry-blackout
+    role: planner
+    source_trajectory: 109d8ee0-8c8f-47be-bc5c-df81f9efc294
+    seq: 1
+    harvested_from: scenario:payment-telemetry-blackout
+    query: "paymentservice critical starting at paymentservice"
+    relevant:
+      - document_id: runbook:service-paymentservice
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g10-plan-product-catalog-flag-failure
+    role: planner
+    source_trajectory: 068131a8-50e6-4fa6-bda8-ba221acd5bdf
+    seq: 1
+    harvested_from: scenario:product-catalog-flag-failure
+    query: "frontend, loadgenerator, productcatalogservice critical starting at frontend"
+    relevant:
+      - document_id: runbook:service-frontend
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g11-plan-product-catalog-flag-failure
+    role: planner
+    source_trajectory: 5914d114-2309-40ff-9a63-f1931c8bd53c
+    seq: 1
+    harvested_from: scenario:product-catalog-flag-failure
+    query: "frontend, loadgenerator, productcatalogservice, checkoutservice critical starting at frontend"
+    relevant:
+      - document_id: runbook:service-frontend
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g12-plan-product-catalog-flag-failure
+    role: planner
+    source_trajectory: 65c73b3b-bb39-421a-814d-2dad71d49e83
+    seq: 1
+    harvested_from: scenario:product-catalog-flag-failure
+    query: "loadgenerator, frontend, productcatalogservice critical starting at frontend"
+    relevant:
+      - document_id: runbook:service-frontend
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g13-plan-redis-cart-dependency-latency
+    role: planner
+    source_trajectory: 1a811f45-65e9-4036-936e-41d668b84e4d
+    seq: 1
+    harvested_from: scenario:redis-cart-dependency-latency
+    query: "cartservice, checkoutservice, frontend, loadgenerator warning starting at cartservice"
+    relevant:
+      - document_id: runbook:service-cartservice
+        reason: "the query's own seed service, named after 'starting at'"
+      - document_id: runbook:alert-high-latency
+        reason: "severity `warning`, which is the only alert rule carrying it and which this document states"
+  - id: g14-plan-redis-cart-dependency-latency
+    role: planner
+    source_trajectory: 2ee70212-736c-424c-9a3c-5fd7da68b6fe
+    seq: 1
+    harvested_from: scenario:redis-cart-dependency-latency
+    query: "cartservice, frontend, loadgenerator, checkoutservice warning starting at cartservice"
+    relevant:
+      - document_id: runbook:service-cartservice
+        reason: "the query's own seed service, named after 'starting at'"
+      - document_id: runbook:alert-high-latency
+        reason: "severity `warning`, which is the only alert rule carrying it and which this document states"
+  - id: g15-plan-shipping-quote-misconfig
+    role: planner
+    source_trajectory: 0ee406f2-29fe-4305-9deb-bda9b59055df
+    seq: 1
+    harvested_from: scenario:shipping-quote-misconfig
+    query: "checkoutservice, loadgenerator, accountingservice, quoteservice, emailservice, frauddetectionservice critical starting at checkoutservice"
+    relevant:
+      - document_id: runbook:service-checkoutservice
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g16-plan-shipping-quote-misconfig
+    role: planner
+    source_trajectory: 324b8ec4-bc5d-43c0-9244-cd63b8e38a81
+    seq: 1
+    harvested_from: scenario:shipping-quote-misconfig
+    query: "checkoutservice, accountingservice, emailservice, frauddetectionservice, quoteservice critical starting at checkoutservice"
+    relevant:
+      - document_id: runbook:service-checkoutservice
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g17-plan-shipping-quote-misconfig
+    role: planner
+    source_trajectory: 4cb504b5-aa98-4d46-a24e-5933095f77d1
+    seq: 1
+    harvested_from: scenario:shipping-quote-misconfig
+    query: "checkoutservice, loadgenerator, frontend, accountingservice, emailservice, frauddetectionservice, quoteservice critical starting at checkoutservice"
+    relevant:
+      - document_id: runbook:service-checkoutservice
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g18-plan-shipping-wrong-image
+    role: planner
+    source_trajectory: 01add746-c84f-4774-b485-7a45046b2e8d
+    seq: 1
+    harvested_from: scenario:shipping-wrong-image
+    query: "checkoutservice, accountingservice, emailservice, frauddetectionservice, quoteservice, shippingservice, loadgenerator, frontend critical starting at checkoutservice"
+    relevant:
+      - document_id: runbook:service-checkoutservice
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g19-plan-shipping-wrong-image
+    role: planner
+    source_trajectory: 10bbc583-df01-4f63-b6a6-9463a713ed7a
+    seq: 1
+    harvested_from: scenario:shipping-wrong-image
+    query: "checkoutservice, accountingservice, emailservice, frauddetectionservice, quoteservice, shippingservice critical starting at checkoutservice"
+    relevant:
+      - document_id: runbook:service-checkoutservice
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g20-plan-shipping-wrong-image
+    role: planner
+    source_trajectory: 39d767ee-67cf-4c87-b6cf-bbfe127f5858
+    seq: 1
+    harvested_from: scenario:shipping-wrong-image
+    query: "checkoutservice, loadgenerator critical starting at checkoutservice"
+    relevant:
+      - document_id: runbook:service-checkoutservice
+        reason: "the query's own seed service, named after 'starting at'"
+  - id: g21-synt-ad-memory-squeeze
+    role: synthesizer
+    source_trajectory: 0dc908dd-5c17-4e74-b7b0-a5d9bd053f1d
+    seq: 19
+    harvested_from: scenario:ad-memory-squeeze
+    query: "frontend, loadgenerator, adservice. A single change landed on adservice in the queried window: platform-automation lowered the container memory limit to 256m at 03:09:23 UTC, roughly six minutes before the 03:15:30 incident timestamp. There is no prior value recorded, only the new limit. The change was made by an automated actor (platform-automation) rather than a human operator, and it is a resource_limits mutation rather than an application change. The change-history query for frontend over the 15-minute window preceding and surrounding the incident time returned no records at all — no deploys, no config edits, no routing or dependency-version changes were logged for this service in that period. Whatever triggered the incident on frontend originated from something other than a locally-recorded change to this service within the queried window — either an untracked change, a change outside the window, or a change to an upstream/downstream component tracked under a different service name."
+    relevant:
+      - document_id: runbook:class-resource-exhaustion
+        reason: "a lowered container memory limit is this class's mechanism, and the document says it resolves by config_revert rather than restart"
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "the query asserts 'no prior value recorded, only the new limit', which is what this document explains about every change record here"
+      - document_id: runbook:service-adservice
+        reason: "the change landed on adservice and this document carries its container limit and what it exports"
+  - id: g22-synt-ad-memory-squeeze
+    role: synthesizer
+    source_trajectory: 1f0f1baa-3076-48b6-8021-cfb6a4a8ef9f
+    seq: 10
+    harvested_from: scenario:ad-memory-squeeze
+    query: "frontend, loadgenerator. The change-log query for frontend returned no recorded changes at all — no deploys, config edits, or feature-flag flips — within the queried window. The queried window spans only 10:05:30 to 10:20:30 UTC, roughly 10 minutes before the incident timestamp, so it does not cover the full 90-minute lookback that was asked about; changes between 08:45 and 10:05 remain unexamined. The change log has no recorded deploys, configuration edits, or feature-flag changes for checkoutservice within the queried 15-minute window surrounding the incident onset. The queried window covers only 10:05:30 to 10:20:30, so it does not cover the full 90 minutes before 10:15:30 that the question asks about; changes landing between 08:45:30 and 10:05:30 remain unexamined."
+    relevant:
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "the query asserts an empty change log; this document says the injector is the only thing that changes anything and is therefore the log, so empty means no injected change on that service"
+  - id: g23-synt-cart-bad-image-tag
+    role: synthesizer
+    source_trajectory: 0446e65b-9c00-4e5f-b6c1-8cc5c107b09b
+    seq: 22
+    harvested_from: scenario:cart-bad-image-tag
+    query: "frontend, loadgenerator, checkoutservice. The change-history query for checkoutservice over the ~24h window returned no records at all — no deploys, config edits, or feature-flag flips are logged for this service in that period. The queried window begins at 02:14:30 and extends forward ~24h, so it covers changes at and after the incident onset but not the period before it; the question as asked (changes landing before 02:14:30) is not answered by this result. The change log returned no recorded deploys, configuration edits, or feature-flag changes for the frontend service across the queried ~24-hour window beginning at the incident timestamp. The queried window begins at 02:14:30 and extends forward, so it does not actually cover the pre-incident period the question asks about; the emptiness is evidence about the incident and recovery period, not about what landed before onset."
+    relevant:
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "same: what an empty change log is evidence of, and what a record does and does not hold"
+  - id: g24-synt-cart-bad-image-tag
+    role: synthesizer
+    source_trajectory: 11ab1e0a-0fca-4cb1-8ed2-40f1bdc60f0c
+    seq: 17
+    harvested_from: scenario:cart-bad-image-tag
+    query: "checkoutservice, frontend, loadgenerator. The change-log query for checkoutservice returned no recorded changes at all within the queried window, meaning no deploys, config edits, flag flips, or dependency bumps were registered for this service during that interval. The evidence window actually queried spans only ~15 minutes (03:27:15 to 03:42:15), not the two-hour lookback the question asked for, so changes landing between 01:37 and 03:27 remain unexamined. checkoutservice's span error ratio over the window ranges from 0 to roughly 0.667, i.e. at peak about two-thirds of its calls carried an error status; 57 sample points were returned so the series is continuous across the window. The error ratio is not flat: it touches zero at some point(s) in the window and peaks at ~0.667, consistent with an episodic/onset failure rather than a steady background error level."
+    relevant:
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "an empty change log, and what one record carries"
+      - document_id: runbook:world-blast-radius-traversal
+        reason: "the query says the result covered 'only the service'; this document is what the radius would have added and in which direction"
+  - id: g25-synt-cart-dependency-latency
+    role: synthesizer
+    source_trajectory: 07c31477-d791-4e84-951e-088e5e72b885
+    seq: 15
+    harvested_from: scenario:cart-dependency-latency
+    query: "cartservice, frontend, checkoutservice, loadgenerator. A single change landed on cartservice in the queried window: at 03:54:12 UTC, platform-automation created a traffic-shaping container attached to the cart-service network namespace, applying a fixed 300ms egress delay with zero jitter on eth0 — roughly 3 minutes before the 03:57:30 incident timestamp. The injected latency is constant (no jitter), so any resulting symptom should appear as a uniform per-request latency floor added to cartservice network calls rather than a variable or tail-heavy distribution. The change was made by an automation principal (platform-automation) rather than a human operator or a normal release pipeline entry, consistent with a fault-injection/chaos or traffic-management action rather than a product change. cartservice's ratio of error-status calls to total calls is flat at zero for the entire 15-minute window, with continuous sampling (58 points, no gaps)."
+    relevant:
+      - document_id: runbook:class-dependency-latency
+        reason: "a traffic-shaping container applying a fixed egress delay is this class's mechanism, stated with its per-packet arithmetic"
+      - document_id: runbook:world-what-a-recreate-removes
+        reason: "the query asks about a sidecar attached to a network namespace; this document says what survives a recreate and that the shaper applies once without reconciling"
+      - document_id: runbook:service-cartservice
+        reason: "the shaped service, its resting p95 and its datastore edge"
+  - id: g26-synt-cart-dependency-latency
+    role: synthesizer
+    source_trajectory: 1e3c0cc5-4a6a-4e1d-8816-134d7234af6a
+    seq: 15
+    harvested_from: scenario:cart-dependency-latency
+    query: "cartservice, checkoutservice, frontend, loadgenerator. The only change within minutes of onset is a traffic-shaping container attached to cart-service's network namespace roughly 3 minutes before onset, applying a fixed egress delay on eth0 with no jitter — a deliberate network latency injection on the cartservice pod. The magnitude of the injected delay is a constant per-packet 300ms with zero jitter, which predicts a flat, tightly-clustered latency shift on cartservice calls rather than a long-tailed distribution. Earlier in the day cartservice went through two apply/revert cycles of the same hotfix image tag (v1.2.1-cartservice-hotfix.2), the last revert completing about 2.8 hours before onset, leaving the service back on its prior image reference well before the incident. All five recorded changes were made by the platform-automation actor; no human-initiated change is recorded in this window."
+    relevant:
+      - document_id: runbook:class-dependency-latency
+        reason: "the query predicts a flat rather than long-tailed shift from constant per-packet delay; this document carries the mechanism that predicts it"
+      - document_id: runbook:service-cartservice
+        reason: "the shaped service and its 1.9ms baseline, which is what a shift is measured against"
+      - document_id: runbook:class-bad-deploy
+        reason: "the query also reports image-tag apply/revert cycles, which is the other class's mechanism"
+  - id: g27-synt-cart-redis-misconfig
+    role: synthesizer
+    source_trajectory: 021eccc6-7f9e-4c10-beaf-27855a9d1282
+    seq: 23
+    harvested_from: scenario:cart-redis-misconfig
+    query: "checkoutservice, frontend, loadgenerator. The change-log query for checkoutservice returned no recorded changes of any kind (deploys, config edits, feature-flag toggles) within the queried window. The query window actually covered only 03:51:15 to 04:06:15 UTC — roughly the 10 minutes before and 5 minutes after the incident time — not the full 90-minute lookback the question asked for, so the earlier portion of the requested period remains unexamined. A single change landed on cartservice in the queried window: at 03:58:45 UTC, roughly 2.5 minutes before the 04:01:15 incident marker, platform-automation updated the service environment so that the Redis endpoint variable points at redis-cart on port 6380, where no prior value is recorded. The change was made by an automated platform actor rather than a human-initiated deploy, and it is an environment/config mutation only."
+    relevant:
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "an empty change log for the seed service, and what the log is"
+  - id: g28-synt-cart-redis-misconfig
+    role: synthesizer
+    source_trajectory: 07991318-2c68-4333-bf99-a42e6d839e50
+    seq: 17
+    harvested_from: scenario:cart-redis-misconfig
+    query: "checkoutservice, frontend, loadgenerator. The change-log query for checkoutservice returned no recorded changes at all across the queried interval — no deploys, config edits, or feature-flag flips are registered for that service in that period. The query as executed covers only a 15-minute interval (04:26:30–04:41:30) and only the service checkoutservice, so it does not answer the full 90-minute lookback nor cover any of the eight named dependencies. checkoutservice error ratio (errored spans over all spans, 2m rate) is non-zero during the window, rising from 0 to a peak of about 67% across 58 sampled points; the service is clearly degraded, not merely slow. The series covers the full 15-minute window with a minimum of 0, meaning there is at least one healthy period inside the window — the degradation has an onset within the queried interval rather than predating it entirely."
+    relevant:
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "an empty change log, and what a record holds"
+      - document_id: runbook:world-blast-radius-traversal
+        reason: "the query notes the query covered 'only the service', which is the scoping this document describes"
+  - id: g29-synt-frauddetection-memory-squeeze
+    role: synthesizer
+    source_trajectory: 0c8e18bd-ce02-4254-b5f9-f7cf9b5539e7
+    seq: 12
+    harvested_from: scenario:frauddetection-memory-squeeze
+    query: "frauddetectionservice. The only changes recorded for frauddetectionservice in the window are five resource_limits actions, all made by the same actor (platform-automation) — no code deploys, image rollouts, or feature-flag flips appear at all. The most recent change landed roughly five minutes before onset and lowered the container memory limit on frauddetection-service from unset to 200m; unlike the two earlier applications, no matching revert follows it, so the constrained limit was in effect at onset. The same memory-limit lowering had been applied and then reverted twice earlier in the day (applied ~5.3h before onset and reverted ~5.2h before; applied ~3.8h before and reverted ~3.6h before), indicating a repeating automation cycle rather than a one-off operator action. Because the two earlier applications were reverted within roughly 8-11 minutes and no incident is associated with them, the memory limit alone is a plausible but not self-evidently sufficient trigger; the distinguishing factor at onset is that this application persisted."
+    relevant:
+      - document_id: runbook:class-resource-exhaustion
+        reason: "repeated resource_limits actions lowering a container memory limit is this class's mechanism and its narrow usable band"
+      - document_id: runbook:service-frauddetectionservice
+        reason: "the targeted service, its 500M limit and its measured resting usage"
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "'from unset to 200m' is the missing prior value this document accounts for"
+  - id: g30-synt-frauddetection-memory-squeeze
+    role: synthesizer
+    source_trajectory: 14f71e66-b8b2-4217-b49d-5570c5e8ed83
+    seq: 11
+    harvested_from: scenario:frauddetection-memory-squeeze
+    query: "frauddetectionservice. Exactly one change landed on frauddetectionservice in the queried window: a resource_limits update by the platform-automation actor that lowered the container memory limit to 200m, timestamped roughly 11 minutes before the stated onset. The change was machine-originated (platform-automation) rather than an operator- or release-driven push, and the prior limit value is not recorded in the change log, so the magnitude of the reduction cannot be determined from this evidence alone. The tight proximity of the memory-limit reduction to onset makes resource starvation (OOM kills, restart loops, or GC pressure on frauddetectionservice) the leading change-driven hypothesis. The error-ratio query for frauddetectionservice returned no samples in the incident window and no samples in the six-hour baseline window, so no error-rate value can be computed for either period."
+    relevant:
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "the query states outright that the prior limit is not recorded so the magnitude cannot be determined; this document is why"
+      - document_id: runbook:class-resource-exhaustion
+        reason: "the mechanism the query names as its leading hypothesis"
+      - document_id: runbook:service-frauddetectionservice
+        reason: "the query reports no error-ratio samples in the window, and this document carries the service's 0.156 req/s rate"
+      - document_id: runbook:world-alert-timing
+        reason: "why a rate window over a sparse service fills late, which is what an empty sample set over a short window means"
+  - id: g31-synt-none
+    role: synthesizer
+    source_trajectory: af454381-6ffc-4657-bd97-7a9cc1b812f6
+    seq: 16
+    harvested_from: none
+    query: "cartservice, frontend, loadgenerator, checkoutservice. Seven changes landed on cartservice in the window, all by platform-automation; the closest to onset is a traffic-shaping sidecar attached to the cart-service network namespace about 1.1h before onset, imposing a fixed 300ms egress delay with no jitter on eth0. Traffic shaping was applied and removed repeatedly: attached ~20.5h before onset, attached again ~1.6h before, removed ~1.4h before, and re-attached ~1.1h before — the final state going into the alert is shaping active. Two image-reference updates occurred, both to the same tag (v1.2.1-cartservice-hotfix.2), ~21.7h and ~17.3h before onset — i.e. a redeploy of an identical image rather than a version change. One environment edit occurred ~21.5h before onset, repointing REDIS_ADDR to redis-cart on port 6380."
+    relevant:
+      - document_id: runbook:class-dependency-latency
+        reason: "repeated traffic-shaping attachments with a fixed egress delay"
+      - document_id: runbook:class-bad-config
+        reason: "the query also reports an environment edit repointing a dependency address"
+      - document_id: runbook:world-what-a-recreate-removes
+        reason: "attach/remove cycles on a network namespace, and what a recreate does to them"
+  - id: g32-synt-none
+    role: synthesizer
+    source_trajectory: c3f07324-0fbb-4d23-a013-8f3bba80d29c
+    seq: 16
+    harvested_from: none
+    query: "cartservice, loadgenerator, checkoutservice, frontend. The change closest to onset is a platform-automation traffic-shaping container attached to the cart-service network namespace about three minutes prior, introducing a fixed 300ms egress delay with no jitter on eth0. The same traffic-shaping attachment recurs several times across the window (roughly 1.4h, 1.9h and 20.8h before onset), with only one recorded removal (~1.7h before onset), so attachments outnumber removals and injected latency may be compounding or at least repeatedly re-applied. Two image-reference updates on cartservice both land on the same hotfix tag (v1.2.1-cartservice-hotfix.2), at roughly 21.9h and 17.6h before onset — a redeploy of an identical image rather than a new version. The only dependency-config edit is an environment update setting the cartservice Redis endpoint to redis-cart on port 6380, roughly 21.8h before onset."
+    relevant:
+      - document_id: runbook:world-what-a-recreate-removes
+        reason: "the query asks whether repeated attachments compound; this document states the shaper applies its rule once and does not reconcile"
+      - document_id: runbook:class-dependency-latency
+        reason: "the injected delay's mechanism and magnitude arithmetic"
+  - id: g33-synt-payment-telemetry-blackout
+    role: synthesizer
+    source_trajectory: 02497794-ca89-4125-869c-46d92a626a72
+    seq: 15
+    harvested_from: scenario:payment-telemetry-blackout
+    query: "paymentservice. Exactly one change landed on paymentservice within the queried window: at 05:15:10 UTC, actor platform-automation applied an environment-variable update setting the OTLP traces exporter endpoint to a loopback address on port 4317, where previously no such variable was set. This is ~6 minutes before the 05:21:00 incident marker, making it the sole in-window change candidate. The change was automation-driven rather than a human-initiated release, and it altered only telemetry export configuration — it changed where traces are sent, not payment business logic or dependency endpoints. The paymentservice error ratio (errored calls over total calls, 2-minute rate) is flat at zero for every one of the 59 sample points across 05:11-05:26, with both minimum and maximum at zero. The ratio evaluates to a defined value rather than being absent, which implies the denominator (total call rate) was non-zero throughout the sampled window — i.e. paymentservice was still receiving and completing traffic, not silent."
+    relevant:
+      - document_id: runbook:alert-no-traffic
+        reason: "the query reports a telemetry exporter repointed and a flat-zero error ratio; this document says the rule reads the metric rather than the process and cannot separate the two"
+      - document_id: runbook:service-paymentservice
+        reason: "the service in question, what it exports and what it does not"
+      - document_id: runbook:class-bad-config
+        reason: "an environment value changed to something that does not work"
+  - id: g34-synt-payment-telemetry-blackout
+    role: synthesizer
+    source_trajectory: 109d8ee0-8c8f-47be-bc5c-df81f9efc294
+    seq: 16
+    harvested_from: scenario:payment-telemetry-blackout
+    query: "paymentservice. The only changes recorded on paymentservice in the 24h window are nine environment-variable toggles of a single tracing-exporter endpoint variable, all attributed to platform-automation. The change closest to onset landed roughly 5 minutes before it, setting that tracing-exporter endpoint variable to a loopback address after it had previously been unset — making it the most temporally proximate candidate. The same set/revert pair repeats on a regular cadence (roughly every 5-6 hours across the window), indicating an automated flapping loop rather than a one-off operator action. Prior identical set operations (at ~18.2h, ~12.3h, ~7.1h and ~3.6h before onset) were each reverted without an incident being attributed to them, so the change alone is not obviously sufficient to cause the failure."
+    relevant:
+      - document_id: runbook:class-bad-config
+        reason: "repeated environment-variable toggles of one endpoint variable"
+      - document_id: runbook:service-paymentservice
+        reason: "the service, and that it exports no runtime-family series at any time"
+      - document_id: runbook:alert-no-traffic
+        reason: "what a rule reading span-derived metrics can say when the exporter is the thing that changed"
+  - id: g35-synt-product-catalog-flag-failure
+    role: synthesizer
+    source_trajectory: 068131a8-50e6-4fa6-bda8-ba221acd5bdf
+    seq: 20
+    harvested_from: scenario:product-catalog-flag-failure
+    query: "frontend, loadgenerator, productcatalogservice. The change log for productcatalogservice in the window contains exactly two entries, both from platform-automation, and both concern a traffic-shaping container attached to the service's network namespace: one creating it and one removing it. The traffic-shaping container injected a fixed 300ms egress delay with no jitter on eth0, and existed for roughly nine minutes (created ~06:00:32Z, removed ~06:09:03Z on 2026-09-09). Both changes predate incident onset by roughly 3.8-3.9 hours, so no change landed in the immediate pre-onset period. No deployment, image rollout, configuration edit, or feature-flag change to productcatalogservice is recorded anywhere in the ~24h window."
+    relevant:
+      - document_id: runbook:class-dependency-latency
+        reason: "a traffic-shaping container with a fixed egress delay, created and removed"
+      - document_id: runbook:world-what-a-recreate-removes
+        reason: "a sidecar that existed for nine minutes and was removed, and what removal does"
+      - document_id: runbook:service-productcatalogservice
+        reason: "the service the changes landed on, and its three synchronous callers"
+  - id: g36-synt-product-catalog-flag-failure
+    role: synthesizer
+    source_trajectory: 2b7853e8-80a5-4bc0-af52-85d78f630dc5
+    seq: 18
+    harvested_from: scenario:product-catalog-flag-failure
+    query: "frontend, loadgenerator, productcatalogservice. The change log has no recorded changes for productcatalogservice across the queried window, which begins at the incident onset timestamp and extends ~24 hours forward. The query was scoped to the seed service only (radius=seed, 0 hops), so no evidence was gathered about adservice, cartservice, or frontend; the neighbor half of the question remains unanswered. The window covers the period after the incident start rather than before it, so it also does not speak to any change that landed in the lead-up to 15:15:45. The only metric available is an aggregate frontend error-ratio series with no per-dependency dimension and no latency series, so the requested breakdown by downstream dependency cannot be answered from this evidence."
+    relevant:
+      - document_id: runbook:world-blast-radius-traversal
+        reason: "the query says the search was scoped to the seed at zero hops and the neighbour half is unanswered; this document is what a radius would have reached and in which direction"
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "an empty change log across the window, and what the log covers"
+  - id: g37-synt-redis-cart-dependency-latency
+    role: synthesizer
+    source_trajectory: 1a811f45-65e9-4036-936e-41d668b84e4d
+    seq: 16
+    harvested_from: scenario:redis-cart-dependency-latency
+    query: "cartservice, checkoutservice, frontend, loadgenerator. 14 changes are recorded on cartservice in the window, all by platform-automation, and they form paired set/revert cycles rather than a lasting change: six REDIS_ADDR override-then-revert pairs, one image-reference update-then-revert, and one traffic-shaping container attach-then-remove. The most recent change is a REDIS_ADDR revert roughly 4.9h before onset, returning the variable to unset; every override applied during the window was reverted before onset. The three distinct change types touched are the Redis address environment variable (port 6380 instead of the default), the container image reference (a cartservice hotfix tag), and injected egress network delay of 300ms on eth0 — each repeatedly applied and withdrawn, consistent with automated fault-injection cycles. No change of any kind is recorded in the final ~4.9 hours before onset."
+    relevant:
+      - document_id: runbook:class-bad-config
+        reason: "a dependency address environment override set to an alternate port"
+      - document_id: runbook:class-dependency-latency
+        reason: "injected egress delay as one of the three change types named"
+      - document_id: runbook:service-redis-cart
+        reason: "the query names the Redis address and its port; this document is the datastore that address points at"
+  - id: g38-synt-redis-cart-dependency-latency
+    role: synthesizer
+    source_trajectory: 2ee70212-736c-424c-9a3c-5fd7da68b6fe
+    seq: 18
+    harvested_from: scenario:redis-cart-dependency-latency
+    query: "cartservice, frontend, loadgenerator, checkoutservice. 34 changes on cartservice in the window, all attributed to a single actor (platform-automation), arranged in six identical repeating cycles: image reference set to a hotfix tag then reverted, a traffic-shaping container attached to the cart-service network namespace with a fixed egress delay then removed, and a REDIS_ADDR environment override set to an alternate port then reverted. Every mutation is paired with a matching revert within roughly 10-20 minutes, so cartservice's image, network namespace, and environment were back at baseline after each cycle; the last event before onset is a revert, not an apply. The change closest to onset is ~1.3h prior, and it is the REDIS_ADDR revert ending the final cycle; no change lands in the ~78 minutes immediately preceding onset. The pattern is consistent with scheduled fault-injection/experiment activity rather than product delivery: repeated identical apply-revert triples, uniform actor, no incremental version progression (the same hotfix tag each time)."
+    relevant:
+      - document_id: runbook:class-dependency-latency
+        reason: "the shaper attach-then-remove half of each cycle"
+      - document_id: runbook:class-bad-config
+        reason: "the REDIS_ADDR override-then-revert half"
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "the query turns on every mutation being paired with a revert, and this document is what each of those two records holds"
+  - id: g39-synt-shipping-quote-misconfig
+    role: synthesizer
+    source_trajectory: 0ee406f2-29fe-4305-9deb-bda9b59055df
+    seq: 18
+    harvested_from: scenario:shipping-quote-misconfig
+    query: "checkoutservice, loadgenerator, accountingservice, quoteservice, emailservice, frauddetectionservice. The change-log query for checkoutservice returned no recorded changes anywhere in the queried window, which spans from the incident timestamp forward roughly 24 hours. The query was scoped to the seed service only (hops=0), so it covers checkoutservice alone and says nothing about cartservice, productcatalogservice, currencyservice or paymentservice. The window opens at the onset time rather than before it, so any change that landed shortly before onset would fall outside what was searched; the absence of results does not cover the pre-onset interval. checkoutservice error ratio rose about fourfold in the incident window versus the preceding baseline (mean roughly 1% to 4%), with a single detected change point at 14:03:30 UTC, shortly before the 14:05:15 time of interest."
+    relevant:
+      - document_id: runbook:world-blast-radius-traversal
+        reason: "scoped to hops=0 and explicitly silent about four named neighbours"
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "an empty change log over the window"
+      - document_id: runbook:alert-high-error-rate
+        reason: "the query reports a fourfold rise in error ratio; this document is what that ratio is computed over"
+  - id: g40-synt-shipping-quote-misconfig
+    role: synthesizer
+    source_trajectory: 1fc88639-67f9-48d7-8cc3-a51496844853
+    seq: 19
+    harvested_from: scenario:shipping-quote-misconfig
+    query: "checkoutservice, loadgenerator, frontend. The change-history query for checkoutservice returned no recorded changes at all — no deployments, config updates, or feature-flag flips — for the queried interval. The query covered only 20:22:00–20:37:00 UTC (about 15 minutes), not the full two-hour lookback that was asked for, so the interval from roughly 18:32 to 20:22 remains unexamined. checkoutservice's span error ratio over the 15-minute window ranges from none to roughly three in ten calls, sampled across 61 points, indicating intermittent rather than constant failure The requested latency percentiles and per-downstream-call failure/latency breakdown are not covered by the available evidence; only the aggregate error ratio was returned"
+    relevant:
+      - document_id: runbook:alert-high-error-rate
+        reason: "an error ratio ranging from none to three in ten across 61 points, and what the denominator is"
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "an empty change log for the queried interval"
+  - id: g41-synt-shipping-wrong-image
+    role: synthesizer
+    source_trajectory: 01add746-c84f-4774-b485-7a45046b2e8d
+    seq: 16
+    harvested_from: scenario:shipping-wrong-image
+    query: "checkoutservice, accountingservice, emailservice, frauddetectionservice, quoteservice, shippingservice, loadgenerator, frontend. No change records exist for checkoutservice across the queried window; the change log returned empty. The query was scoped to the seed service only (radius=seed, hops=0), so the six declared dependencies were never examined; the empty result says nothing about them. The window begins at the incident timestamp and extends forward roughly 24 hours, so the pre-incident interval the question asks about is outside the queried range. checkoutservice's span error ratio over the incident window is statistically indistinguishable from the preceding hour's baseline (mean slightly lower, ~0.94x), with no sustained departure flagged."
+    relevant:
+      - document_id: runbook:world-blast-radius-traversal
+        reason: "seed-only scoping leaving six declared dependencies unexamined"
+      - document_id: runbook:alert-high-error-rate
+        reason: "an error ratio statistically indistinguishable from baseline, and what the ratio measures"
+      - document_id: runbook:world-change-records-have-no-prior-value
+        reason: "no change records across the window"
+  - id: g42-synt-shipping-wrong-image
+    role: synthesizer
+    source_trajectory: 10bbc583-df01-4f63-b6a6-9463a713ed7a
+    seq: 18
+    harvested_from: scenario:shipping-wrong-image
+    query: "checkoutservice, accountingservice, emailservice, frauddetectionservice, quoteservice, shippingservice. The change-log query for checkoutservice returned no recorded changes of any kind (deploys, config edits, feature flags, dependency-endpoint updates) across the queried window beginning at the incident timestamp and extending roughly 24 hours forward. The checkoutservice aggregate error ratio during the incident window is statistically indistinguishable from the preceding baseline: mean shifted only about 4 percent, with identical minimum and maximum bounds and slightly lower variance in the incident window. A single change point is reported, but it is timestamped exactly at the first sample of the incident window, which makes it an edge artifact of the window boundary rather than evidence of a transition occurring inside the window. The error ratio is spiky in both windows, reaching the same peak value in each; these peaks are consistent with low-denominator sampling intervals (e.g. two of three calls failing) rather than a service-wide fault."
+    relevant:
+      - document_id: runbook:alert-high-error-rate
+        reason: "an aggregate error ratio compared against its preceding baseline"
+      - document_id: runbook:world-alert-timing
+        reason: "the query calls a change point at the first sample an edge artifact of the window boundary; this document is the rate-window and for-clause arithmetic behind it"
