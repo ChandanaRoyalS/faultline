@@ -290,16 +290,25 @@ def test_the_runbooks_are_seeded_by_default_and_carry_the_never_excluded_origin(
     stored documents were `scenario:*` - so T4.1b's *never excluded* branch had nothing to
     not-exclude and T3.9's proposer had no institutional knowledge to retrieve.
 
-    Fifteen runbooks, every one `origin: authored`, which is the one value the exclusion filter
-    never removes (ADR-0008 axis 2, ADR-0036)."""
+    Every runbook, every one `origin: authored`, which is the one value the exclusion filter
+    never removes (ADR-0008 axis 2, ADR-0036).
+
+    **Counted against the directory, not against a constant** (T6.4). This read `== 15` and
+    failed the moment the corpus grew, which is the wrong thing for it to be sensitive to: the
+    property is *every runbook on disk is seeded and none is skipped*, and a hard-coded count
+    tests the size of the corpus in a file about seeding it. `test_runbooks.py` is where the
+    size belongs, and the check there is already a floor rather than an equality."""
     from faultline.context.embedding import HashingEmbedder
+    from faultline.context.runbooks import runbooks_dir
     from faultline.context.seed import seed_runbooks
     from faultline.context.store import InMemoryPastIncidentStore
 
     store = InMemoryPastIncidentStore(HashingEmbedder())
     result = seed_runbooks(store)
 
-    assert result.documents == 15
+    on_disk = len(list(runbooks_dir().glob("*.md")))
+    assert result.documents == on_disk, "a runbook on disk that is not seeded is invisible"
+    assert on_disk >= 15
     assert result.chunks > result.documents, "sectioned, not one chunk per file"
     stored = list(store.chunks.values())
     assert {chunk.origin for chunk in stored} == {"authored"}
