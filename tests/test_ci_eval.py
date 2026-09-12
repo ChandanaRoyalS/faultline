@@ -528,3 +528,39 @@ def test_the_control_arm_is_the_default_and_needs_no_key() -> None:
 
     record = next(s for s in steps if "nightly_record.sh" in str(s.get("run", "")))
     assert "inputs.arm" in record["run"], "the recording commit must say which arm ran"
+
+
+def test_the_integration_job_installs_what_its_tests_import() -> None:
+    """**The gate shipped un-runnable and reported green for one run.**
+
+    T6.4's retrieval gate needs `sentence_transformers`, which lives in the `embeddings`
+    *extra*. The integration job installed `--all-groups`, extras are not groups, and every
+    assertion in that file errored on `ModuleNotFoundError` while the other 29 integration tests
+    passed - so the job went red and the gate measured nothing. It was read as passing because
+    the last green run predated the gate's own commit, which is a mistake elapsed time invited
+    and a run id would have caught.
+
+    This holds the invariant rather than the fix: the job that runs integration tests installs
+    the optional dependencies those tests import. `checks` deliberately stays on `--all-groups`
+    so the fast job stays fast.
+    """
+    ci = workflow("ci")
+    install = [
+        step
+        for step in ci["jobs"]["integration"]["steps"]
+        if isinstance(step.get("run"), str) and "uv sync" in step["run"]
+    ]
+    assert install, "the integration job has no install step"
+    assert all("--all-extras" in step["run"] for step in install), (
+        "tests/test_integration_retrieval_gate.py imports the sentence-transformer embedder, "
+        "which is the `embeddings` extra. Without --all-extras the gate cannot run."
+    )
+
+    checks = [
+        step
+        for step in ci["jobs"]["checks"]["steps"]
+        if isinstance(step.get("run"), str) and "uv sync" in step["run"]
+    ]
+    assert all("--all-extras" not in step["run"] for step in checks), (
+        "`make check` never loads an embedder - extras here would slow the fast job for nothing"
+    )

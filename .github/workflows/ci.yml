@@ -59,8 +59,20 @@ jobs:
       - uses: astral-sh/setup-uv@v5
         with:
           python-version: "3.12"
+      # **`--all-extras`, and only on this job.** T6.4's retrieval gate measures the pipeline
+      # production runs, which means the real sentence-transformer embedder rather than the
+      # hashing one - a gate over a different embedder would pass while an embedder swap
+      # regressed retrieval, and noticing an embedder swap is one of the three things §2.4
+      # names the gate for. `embeddings` is an extra rather than a group, so `--all-groups`
+      # alone leaves it out; the gate shipped un-runnable here and reported green for one run
+      # because the passing run predated it.
+      #
+      # The cost is real and is taken deliberately: torch comes from the CPU index on Linux
+      # (see pyproject's `[tool.uv.sources]`), so this is not the 3 GB CUDA install, but the
+      # job does now download an embedding model from the HF hub at test time. `checks` is
+      # deliberately left on `--all-groups` so the fast job stays fast.
       - name: Install
-        run: uv sync --all-groups
+        run: uv sync --all-groups --all-extras
       # T2.3's deliverable names "integration tests running real Postgres and Redis via
       # testcontainers". They are deselected from the default run so a clean clone with no
       # Docker still passes Gate 0 - which makes this job the only thing that executes them.
