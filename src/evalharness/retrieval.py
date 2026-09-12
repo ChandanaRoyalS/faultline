@@ -396,6 +396,33 @@ def harvest(dsn: str) -> list[dict[str, Any]]:
     ]
 
 
+ARMS_SQL = """
+SELECT count(*) FROM incident_chunks WHERE body_tsv @@ plainto_tsquery('english', %(q)s)
+"""
+"""How many chunks the text arm of the hybrid matches for one query.
+
+**The hybrid has two arms and one of them can return nothing without saying so.**
+`PgVectorPastIncidentStore.search` fuses a dense ranking with a `ts_rank_cd` ranking, and the
+text arm is built with `plainto_tsquery`, which **ANDs every lexeme it parses**. A short query
+conjoins a few terms and can match; a 900-character one conjoins a hundred and cannot. When it
+matches nothing the fusion still succeeds - it just fuses one arm - so a hybrid retriever
+degenerates to dense-only for long queries and nothing in the result says so.
+
+This counts the rows rather than arguing about it.
+"""
+
+
+def text_arm_counts(dsn: str, golden: Sequence[GoldenQuery]) -> list[tuple[GoldenQuery, int]]:
+    import psycopg
+
+    out = []
+    with psycopg.connect(dsn) as conn, conn.cursor() as cur:
+        for query in golden:
+            cur.execute(ARMS_SQL, {"q": query.query})
+            out.append((query, int((cur.fetchone() or [0])[0])))
+    return out
+
+
 def run_cli(argv: Sequence[str] | None = None) -> int:
     import argparse
 
@@ -426,6 +453,12 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     )
     score_cmd.add_argument("--golden", type=Path, default=GOLDEN_SET)
     score_cmd.add_argument("--json", type=Path, default=None)
+
+    arms_cmd = sub.add_parser(
+        "arms", help="how many chunks the hybrid's text arm matches, per golden query"
+    )
+    arms_cmd.add_argument("--dsn", default=None)
+    arms_cmd.add_argument("--golden", type=Path, default=GOLDEN_SET)
 
     args = parser.parse_args(argv)
     if args.command == "harvest":
@@ -480,5 +513,23 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
         if args.json:
             args.json.write_text(json.dumps(rounds, indent=2) + "\n")
             print(f"per-query detail -> {args.json}")
+        return 0
+
+    if args.command == "arms":
+        from faultline.context.settings import ContextSettings
+
+        dsn = args.dsn or ContextSettings().postgres_dsn
+        counts = text_arm_counts(dsn, load_golden(args.golden))
+        by_role: dict[str, list[int]] = {}
+        for query, n in counts:
+            by_role.setdefault(query.role, []).append(n)
+            print(f"{query.id:<44} chars={len(query.query):<6} text-arm rows={n}")
+        print()
+        for role, values in sorted(by_role.items()):
+            empty = sum(1 for v in values if v == 0)
+            print(
+                f"{role:<14} {empty}/{len(values)} queries match NOTHING on the text arm "
+                f"-> the hybrid is dense-only for them"
+            )
         return 0
     return 1
