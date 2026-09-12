@@ -1,0 +1,5 @@
+2026-09-12T02:34:44.007103+00:00 gate admitted
+2026-09-12T02:34:44.007512+00:00 injecting redis-cart-dependency-latency
+2026-09-12T02:38:48.799460+00:00 incident 7306cd15-ef34-4a13-bf95-e246602653f1
+2026-09-12T02:38:48.819094+00:00 seeded the recorded proposal: restart_service -> cartservice
+2026-09-12T02:38:48.832342+00:00 the reject route refused: RuntimeError: 409: {"detail":"incident 7306cd15-ef34-4a13-bf95-e246602653f1 is in state triaging; a proposal can be rejected from awaiting_approval, proposing, synthesizing only. See ADR-0016 and faultline.orchestrator.machine.REJECTABLE."}

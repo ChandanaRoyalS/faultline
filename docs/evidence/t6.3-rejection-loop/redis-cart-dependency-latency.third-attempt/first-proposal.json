@@ -1,0 +1,21 @@
+{
+  "action_id": "restart_service",
+  "blast_radius": "cartservice for the seconds it takes to recreate; frontend (AddItem, GetCart) and checkoutservice (GetCart, EmptyCart) see connection resets and may surface brief user-facing cart errors, which would appear as a short error-ratio blip on both.",
+  "confirm_within_seconds": 180,
+  "expected_effect": "Recreating the container gives cartservice a fresh network namespace, dropping any residual tc/netem qdisc or attached shaping sidecar left by the injection cycles. In Tempo, new cartservice HGET/HMSET spans should fall from the ~300-310ms band to single-digit ms, GetCart from ~305ms and AddItem from ~600-615ms to a few ms, and frontend GET roots from ~306-312ms to low tens of ms.",
+  "if_wrong": "If post-recreate traces still show ~300ms Redis spans, the delay is not in cartservice's namespace - look at redis-cart (never queried) or host/bridge-level shaping. If latency drops then returns on a ~10-20 min cadence, a live injection schedule is still running. cartservice has no usable metric series, so confirmation rests on trace durations only.",
+  "remediation_class": "restart",
+  "rests_on": [
+    "tr_90b319a4de65",
+    "tr_b2edbcc002b7"
+  ],
+  "risk": "Chosen over config_revert because change history shows no net config delta and the final REDIS_ADDR revert was ~1.3h pre-onset, so there is no bad config to restore. If the delay is actually server-side or host-level, this changes nothing and burns time on an unrecoverable action: the recreate discards cartservice's in-process cart cache and is not reversible. It also destroys the namespace evidence needed to confirm the qdisc hypothesis - inspecting the namespace first would be strictly better.",
+  "states": [
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "target": "cartservice",
+  "trajectory_id": "e5741704-48fa-4ded-ba92-43c2665502b9"
+}

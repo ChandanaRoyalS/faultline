@@ -1,0 +1,22 @@
+{
+  "action_id": "revert_config",
+  "blast_radius": "cartservice's inbound callers: frontend and checkoutservice see connection resets during the recreate, and loadgenerator sees the resulting checkout errors. Redis-cart sees a short traffic pause then a return to full-rate cart operations.",
+  "confirm_within_seconds": 600,
+  "expected_effect": "Removing the injected 300ms/0-jitter eth0 shaper should drop cartservice's Redis leaf spans (HGET/HMSET) from ~300ms self-time to single-digit ms, remove the duplicated ~300ms on frontend and checkoutservice client spans, and bring checkout roots down from ~2.45-2.49s. checkoutservice error ratio should decay from ~0.17 toward its ~0.0025 baseline. Judge cartservice via traces and logs, not its error-ratio series, which is empty in both windows.",
+  "if_wrong": "Falsified if fresh traces after 10 minutes still show a ~300ms floor on HGET/HMSET with sub-2ms handler self-time - then the shaper is outside what revert_config restores, or the platform automation re-attached it, and the fix is to stop that automation. Expected partial miss: checkoutservice errors may persist, since its only change point is 08:10:45, ~19 min before the attach and inside the hotfix.2 window.",
+  "remediation_class": "config_revert",
+  "rests_on": [
+    "tr_0e856a4a6361",
+    "tr_302ff7824a9d",
+    "tr_39eb73a5217c"
+  ],
+  "risk": "Recreates the container, so a brief cart outage for no gain if wrong, and it destroys the live shaper as forensic evidence. If 'previous configuration' resolves to a stale generation, it could reintroduce the reverted REDIS_ADDR:6380 endpoint and turn a latency fault into a hard cart failure. In-flight cart calls are dropped.",
+  "states": [
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "target": "cartservice",
+  "trajectory_id": "63d94706-19ef-49e3-8677-539830b36a7e"
+}
