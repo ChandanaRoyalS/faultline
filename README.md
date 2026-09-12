@@ -304,6 +304,7 @@ unable to reproduce one.
 | `faultline-sweep` | the whole catalog, unattended. Counts the runs down for the gate itself |
 | `faultline-gate` | the pre-flight: would the gate admit a scored run right now? Injects nothing; exit code is the answer |
 | `faultline-replay` | the repair benchmark (T6.2): executes dev sweep 12's recorded proposals against fresh injections and scores whether the world recovered. Scored apart from diagnosis; no model call |
+| `faultline-reject-loop` | the rejection benchmark (T6.3): rejects a recorded proposal through the real approve/reject surface and measures what the agent proposes next. Two model calls, n = 2, an existence demonstration and never a rate |
 | `faultline-judge` | grades a run's narrative. Skips anything already judged unless `--rejudge` |
 | `faultline-compare` | two arms side by side — a pipeline sweep against a baseline |
 | `faultline-eval-db` | the run record as a queryable table: outcomes, stamps, costs |
