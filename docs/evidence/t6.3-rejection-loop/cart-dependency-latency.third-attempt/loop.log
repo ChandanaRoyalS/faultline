@@ -1,0 +1,12 @@
+2026-09-12T04:26:50.036128+00:00 gate refused (attempt 1/10): incident 8c86ff8e-b26c-4c43-bf96-2444789ad6d6 resolved at 2026-09-12T04:24:00.139304+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 133s.
+2026-09-12T04:27:52.511695+00:00 gate refused (attempt 2/10): incident 8c86ff8e-b26c-4c43-bf96-2444789ad6d6 resolved at 2026-09-12T04:24:00.139304+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 70s.
+2026-09-12T04:28:55.244315+00:00 gate refused (attempt 3/10): incident 8c86ff8e-b26c-4c43-bf96-2444789ad6d6 resolved at 2026-09-12T04:24:00.139304+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 7s.
+2026-09-12T04:29:57.957215+00:00 gate admitted
+2026-09-12T04:29:57.957961+00:00 injecting cart-dependency-latency
+2026-09-12T04:34:02.644857+00:00 incident b0667cfc-c38b-4ab8-9b5c-315f263bf99c
+2026-09-12T04:34:02.670624+00:00 seeded the recorded proposal: revert_config -> cartservice; incident walked to proposing
+2026-09-12T04:34:02.678976+00:00 rejected through the route: rejected
+2026-09-12T04:37:41.292074+00:00 faultline-investigate exited 0
+2026-09-12T04:37:41.308489+00:00 second proposal: abstained (remediation_class none - no permitted action fits the evidence)
+2026-09-12T04:37:42.077099+00:00 stop --all reverted ['cart-dependency-latency']
+2026-09-12T04:37:42.077215+00:00 settling 300s

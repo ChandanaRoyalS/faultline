@@ -1,0 +1,31 @@
+{
+  "cost_usd": 0.7022,
+  "dropped": [
+    "runbooks"
+  ],
+  "kept": [
+    "verdict-and-radius",
+    "operator-rejection",
+    "allowlist",
+    "evidence-board"
+  ],
+  "proposal": {
+    "action_id": "",
+    "blast_radius": "Nothing changes, so nobody sees anything new. Any action on cartservice would have reset connections for frontend (cart view, AddItem) and checkoutservice (GetCart, EmptyCart in PlaceOrder), and through checkout the PlaceOrder fan-out.",
+    "confirm_within_seconds": 0,
+    "expected_effect": "No action proposed, so nothing should change. The mechanism is a separately-attached traffic-shaping container imposing eth0 delay=300ms jitter=0ms on cartservice's namespace [tr_81b6fb4b958a], visible as a ~300-306ms floor on every Redis leaf span with handler self-time under ~1ms [tr_63cb77b3fba0]. Removing it means detaching that sidecar, which is not a permitted action here. Out of band, the fix would show as Redis leaf spans returning to single-digit ms and frontend cart GETs falling from ~304-323ms to sub-20ms.",
+    "if_wrong": "Wrong if container recreation does drop the shaper \u2014 but the operator already ran restart_service and the latency persisted, and restart, revert_config and rollback_image all share that same recreate mechanic. Also wrong if a prior cartservice config carried the shaping parameters; change history shows the shaper as a container-created event, not a cartservice env value.",
+    "remediation_class": "none",
+    "rests_on": [
+      "tr_81b6fb4b958a",
+      "tr_63cb77b3fba0",
+      "tr_1ceafac45d7e"
+    ],
+    "risk": "revert_config would roll REDIS_ADDR off port 6380, an endpoint serving successfully for 21.5h with normal cart get/add/empty logs [tr_1ceafac45d7e], turning a latency-only incident where every call succeeds into a possible hard cart outage. rollback_image would recreate at the same tag it already runs [tr_81b6fb4b958a] \u2014 a reset for no benefit. Ownership of the shaping (sanctioned experiment vs orphan) is also unresolved.",
+    "target": ""
+  },
+  "states": [],
+  "tokens_in": 66282,
+  "tokens_out": 14830,
+  "trajectory_id": "af454381-6ffc-4657-bd97-7a9cc1b812f6"
+}

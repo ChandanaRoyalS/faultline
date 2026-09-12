@@ -348,3 +348,4 @@ Thirty-six ADRs. The ones to read first are marked ★.
 | [0036](adr/0036-what-may-be-written-in-a-runbook.md) | What may be written in a runbook |
 | [0037](adr/0037-the-trace-analyst.md) | The trace analyst: Tempo beside Jaeger, the span tree, and the degrading hop |
 | [0038](adr/0038-the-executor.md) | The executor: the one process that can change the world, and what building it changed |
+| [0039](adr/0039-the-approval-surface-and-the-rejection-loop.md) | The approval surface, the rejection loop, and what the measurement changed |
