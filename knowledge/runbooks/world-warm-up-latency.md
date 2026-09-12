@@ -29,5 +29,11 @@ a warming service from a degraded one.
 ## The measured baseline, for comparison
 
 Under 50 ms p95 on every service, flat over 45 clean minutes (ADR-0012). Anything between that
-and the 250 ms threshold is neither healthy-by-measurement nor alerting, and warm-up is the
-most common explanation for it.
+and the 250 ms threshold is neither healthy-by-measurement nor alerting.
+
+**That 45-minute window is not the whole story, and a later twelve-hour census says so**
+(ADR-0025). `checkoutservice`, `frontend` and `loadgenerator` spend part of an idle world's time
+far above 250 ms in sustained excursions whose cause is accumulated in-process state, not
+warm-up; the remaining eleven services sit in a 1.9-9.7 ms band with zero samples over
+threshold. Warm-up remains a real transient with a measured shape - a monotonic decay over about
+four minutes after a recreate - and container uptime is what separates it from anything else.
