@@ -65,11 +65,25 @@ def prompts_hash() -> dict[str, Any]:
 
 
 def corpus_state(dsn: str) -> dict[str, Any]:
-    """Row count, a content hash, and **the assertion that no holdout chunk exists**.
+    """Row count, **two** content hashes, and the assertion that no holdout chunk exists.
 
     ADR-0008 axis 1: holdout artifacts never enter any retrieval corpus. This is the one freeze
     item that is also a contamination check, so it reports `holdout_chunks` explicitly rather
     than folding it into the hash - a number that must be zero deserves to be read as a number.
+
+    **Why two hashes** (Q36, opened at T6.4). `sha256` hashes `document_id|section` and nothing
+    else, so **it cannot see a rewrite**: edit a runbook's text under an existing heading and
+    every scored run afterwards reads different words while `rows`, `sha256` and `documents`
+    stay byte-identical. 167 recorded manifests carry a corpus key computed that way. That is
+    ADR-0014's concern one layer up, and ADR-0025 recorded the same shape for the alert rules -
+    *a change would silently alter every future bundle with no digest to show it*.
+
+    `body_sha256` closes it, and it is **added rather than folded in**. Redefining `sha256`
+    would make every recorded manifest incomparable with every future one *without saying so*,
+    which is the same invisibility in a new place. Two fields, each answering one question:
+    `sha256` whether the corpus has the same shape, `body_sha256` whether it says the same
+    things. A manifest written before this carries the first and not the second, and the absence
+    is itself readable.
     """
     import psycopg
 
@@ -81,6 +95,11 @@ def corpus_state(dsn: str) -> dict[str, Any]:
         )
         digest = _sha("\n".join(f"{d}|{s}" for d, s in cur.fetchall()))
         cur.execute(
+            "SELECT document_id, section, body FROM incident_chunks "
+            "ORDER BY document_id, section, body"
+        )
+        body_digest = _sha("\n\x00\n".join(f"{d}|{s}|{b}" for d, s, b in cur.fetchall()))
+        cur.execute(
             "SELECT count(*) FROM incident_chunks WHERE document_id = ANY(%s)",
             (holdout_origins(),),
         )
@@ -90,6 +109,7 @@ def corpus_state(dsn: str) -> dict[str, Any]:
     return {
         "rows": rows,
         "sha256": digest,
+        "body_sha256": body_digest,
         "documents": documents,
         "holdout_chunks": holdout,
     }

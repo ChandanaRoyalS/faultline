@@ -274,3 +274,46 @@ def test_mark_applied_is_idempotent(store: PostgresIncidentStore) -> None:
 
     assert store.already_applied("ep-1", "firing")
     assert not store.already_applied("ep-1", "resolved")
+
+
+def test_a_rewritten_chunk_body_moves_the_corpus_body_hash_and_not_its_shape_hash(
+    virgin_dsn: str,
+) -> None:
+    """**Q36.** `corpus_state`'s original `sha256` hashes `document_id|section` and nothing else,
+    so editing a runbook's text under an existing heading changed what every scored run read and
+    left the corpus key byte-identical. 167 recorded manifests carry a key computed that way.
+
+    This is the test that would have failed before `body_sha256` existed, and it asserts both
+    halves deliberately: the body hash moves, and the shape hash does **not**. Folding the bodies
+    into `sha256` would have made every recorded manifest incomparable with every future one
+    without saying so, which is the same invisibility one layer along.
+    """
+    from evalharness.freeze import corpus_state
+
+    upgrade_head(virgin_dsn)
+    insert = (
+        "INSERT INTO incident_chunks (id, document_id, section, section_index, body, origin, "
+        "split, scenario_id, fault_class, scenario_fingerprint, recorded_from, title, "
+        "source_path, embedder, dimensions, embedding) VALUES (%s, %s, %s, 0, %s, 'authored', "
+        "'none', '', '', '', '', 't', 'p', 'e', 2, '[0,0]')"
+    )
+    with psycopg.connect(virgin_dsn, autocommit=True) as conn:
+        conn.execute(insert, ("c1", "runbook:x", "Overview", "the callee's p95 stays flat"))
+        conn.execute(insert, ("c2", "runbook:x", "Acting on it", "recreate the container"))
+
+    before = corpus_state(virgin_dsn)
+
+    with psycopg.connect(virgin_dsn, autocommit=True) as conn:
+        conn.execute("UPDATE incident_chunks SET body = %s WHERE id = 'c1'", ("corrected",))
+
+    after = corpus_state(virgin_dsn)
+
+    assert after["sha256"] == before["sha256"], (
+        "the shape hash must not move on a rewrite - recorded manifests depend on it meaning "
+        "one thing"
+    )
+    assert after["body_sha256"] != before["body_sha256"], (
+        "a rewrite that no hash can see is the defect this field exists for"
+    )
+    assert after["rows"] == before["rows"] == 2
+    assert after["documents"] == before["documents"] == ["runbook:x"]
