@@ -4,7 +4,7 @@ title: ServiceHighLatency has fired
 origin: authored
 applies_to: [any]
 signals: [ServiceHighLatency]
-actions: [restart_service]
+actions: []
 ---
 
 `histogram_quantile(0.95, sum by (service_name, le) (rate(latency_bucket[2m]))) > 250`, held
@@ -27,15 +27,12 @@ A container recreated in the last few minutes is still warming up, and its p95 i
 baseline reading. Check container uptime before concluding anything from a latency number: a
 service that has just been restarted looks slow for reasons unrelated to the incident.
 
-## What it usually is here
+## What the rule reads
 
-Latency without a matching error-rate alert is most often `dependency_latency` - delay
-injected into a container's network namespace. The signature is that the *caller* slows while
-the callee's own latency stays flat, because the delay is on the wire rather than in the
-handler.
+A p95 over `latency_bucket`, grouped by `service_name` - so it is scoped to a service, not to a
+call path, and a service whose histogram has no series cannot trip it at all. The 2-minute rate
+window must fill before the quantile moves, and the 3-minute `for:` clause runs after that, so
+the alert's `activeAt` lags the onset of whatever caused it by minutes rather than seconds.
 
-## What to propose
-
-`dependency_latency` resolves by **restart**, not by reverting configuration. The delay lives
-in the container's network namespace, so recreating the container removes it. Proposing a
-config revert here fixes nothing and reads as a misdiagnosis.
+`class-dependency-latency` carries what a delay mechanism does to this number, and
+`world-saturation-is-invisible` carries what this world has no rule for at all.

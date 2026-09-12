@@ -104,3 +104,63 @@ the document.** The author's own review passed all five.
 factual half is generated from `knowledge/services.yaml` and `EDGE_KINDS` rather than written by
 hand — six of the errors in the removed batch were restatements of catalog facts that the catalog
 could have supplied.
+
+## Addendum 2 (T6.4, 2026-09-12): the original fifteen were read against Addendum 1, and six failed
+
+Addendum 1 was written to govern documents not yet authored. Applying it to the fifteen that
+already existed was not part of that task and should have been: they were accepted under the
+rule Addendum 1 replaced, so nothing had ever read them against the sharpened one.
+
+An independent sweep found **six failing materially**, a seventh in one section, and three with a
+framing problem this ADR caused (it first said four; see below).
+`docs/evidence/t6.4-runbook-review/ORIGINAL-FIFTEEN.md` records each with the source it collides
+with. Two facts make this heavier than the batch Addendum 1 was
+written about:
+
+- **They are seeded.** 167 of 537 recorded run manifests carry all fifteen at one corpus hash.
+  The removed batch's write-up could say *no measurement is affected*; that sentence is not
+  available here.
+- **Two of the offending sentences were also false of this world.** `class-dependency-latency`
+  and `alert-high-latency` both said the callee's own p95 stays flat under a delay, and every
+  recorded `dependency_latency` measurement in this catalog has the shaped service's own p95
+  move. The corpus was handing over a discriminator *and* the wrong one.
+
+### The framing question this ADR left open, decided
+
+§Decision puts *"fault classes and the remediation class each resolves by"* in bounds, and
+Addendum 1 puts *"a property of the catalog rather than of the world"* out of them. Three
+documents sat in the gap, stating a true mapping as a census of the answer key — *"every
+`resource_exhaustion` scenario carries `expected_remediation_class: config_revert"*. (The sweep
+first listed four; `action-restart-service` was grouped wrongly and never carried a census
+sentence. It says *"That is the whole mechanism"*, which is the framing the other three were
+moved to.)
+
+**The fact is in bounds and the census framing is not.** A runbook says what the mechanism is and
+what undoes it — *the squeeze is a limit applied to the container, so restoring the
+configuration removes it* — because that is true of the world and would be true if the catalog
+were empty. Counting labels in the catalog is a claim about the answer key, and it is also the
+weaker statement: it tells a reader what the scoring expects rather than why.
+
+### What did not change
+
+Five documents were not touched — `action-rollback-image`, `action-restart-service`,
+`world-saturation-is-invisible`, `world-tracing-artifact-edges` and `world-warm-up-latency` as
+edited earlier the same day. Each states a property of the world or of the instrument and none
+tells a reader what a shape of evidence means; they are the model the other ten were repaired
+towards.
+
+**The repair was not only deletion, and saying so matters.** Ten documents lost a sentence and
+**all ten gained new factual claims** — what a rule actually reads, what the `dependency_latency`
+mechanism does and does not do to its target, the measured band a memory squeeze has to fit in.
+That new prose is unreviewed material of exactly the kind this ADR exists to govern, so it went
+through three review rounds of its own, returning **nine blocking findings: four in replacement
+prose, three in the write-ups, one on the removal side, one in text the repair never touched.**
+Not one was in a deletion. **No document lost the world fact it exists to carry**, and that claim
+was checked document by document rather than asserted.
+
+The generalisable lesson is not about runbooks, and it is not the narrow one this paragraph first
+drew. **Deleting a sentence was safe every time. Everything written around the deletion was not**,
+and that includes the record: a third of the findings were in the write-up rather than in the
+corpus, and one was in a sentence nobody edited, which a change elsewhere turned false. So: review
+replacement prose as new authoring, review the write-up as new authoring too, and when a change
+makes a claim somewhere else stale, go and read what you did not touch.

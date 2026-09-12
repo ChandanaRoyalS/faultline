@@ -10,17 +10,21 @@ actions: [revert_config]
 A service is denied the resources it needs - in this world, by squeezing its memory limit
 until the runtime cannot allocate.
 
-**Resolves by `config_revert`, not by restart.** This is the counter-intuitive one, and the
-catalog is unambiguous: every `resource_exhaustion` scenario carries
-`expected_remediation_class: config_revert`. The squeeze *is* a configuration change - a limit
-applied to the container - so reverting that configuration is the fix. A restart recreates the
-container under the same limit and the fault returns.
+**Resolves by `config_revert`, not by restart, and this is the counter-intuitive one.** The
+squeeze *is* a configuration change - a memory limit applied to the container - so restoring
+that configuration is what removes it. A restart recreates the container under the same limit
+and the fault comes back with it.
 
-## Confirming it
+## The mechanism has a narrow usable band, measured
 
-Container logs carry allocation failures or the runtime's own out-of-memory signature. The
-symptom mix varies with how the service dies: it may error, may slow, or may go silent
-entirely, so the class is confirmed from logs rather than from which alert fired.
+T7.20 probed it from both sides. **Too gentle and the container restarts faster than detection**,
+with nothing alerting at all. **Too harsh and it never starts**, alerts far more widely than the
+fault, and stops exporting the runtime evidence that would describe it. CPU was retired as a
+mechanism entirely (ADR-0013), so memory is the only one this world has.
+
+Container logs carry allocation failures or the runtime's own out-of-memory signature. Which of
+the three rules trips depends on how the runtime behaves under the limit, and the mechanism does
+not settle that in advance.
 
 ## What you will not see
 

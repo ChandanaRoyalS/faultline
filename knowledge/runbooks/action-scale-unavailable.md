@@ -23,8 +23,10 @@ an oversight in the catalog. Listing it without the status would let something p
 action the world cannot perform, and a proposal that cannot be executed is worse than no
 proposal, because it consumes an approval decision and returns nothing.
 
-## The consequence for the benchmark
+## The consequence
 
-There is no `scale` scenario in the catalog and there cannot be one until this world can both
-cause and perform scaling. If an investigation concludes that scaling is the fix, the
-conclusion is either wrong or describes a fault this world cannot express.
+**This world can neither cause the fault nor perform the remedy**, and both halves are measured.
+ADR-0024 measured the first: saturation is invisible here - 50x load for twenty minutes with all
+three alert rules blind - so nothing pages when a service is starved of capacity.
+ADR-0029 measured the second, above. A conclusion that scaling is the fix describes something
+this world cannot express.

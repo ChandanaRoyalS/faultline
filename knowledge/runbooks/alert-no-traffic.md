@@ -4,23 +4,22 @@ title: ServiceNoTraffic has fired
 origin: authored
 applies_to: [any]
 signals: [ServiceNoTraffic]
-actions: [restart_service, revert_config]
+actions: []
 ---
 
 No calls recorded for a service over the window, held for 3 minutes. Severity `critical`.
 
-## Silence has two very different causes
+## What the rule measures
 
-**The service stopped serving.** It crashed, is crash-looping, or lost a dependency and never
-accepts a request.
+`sum by (service_name) (rate(calls_total[3m])) == 0`, and a second clause requiring the same
+service to have had traffic in a 30-minute window offset by 10. So it fires only for a service
+that *was* serving and stopped - never for one that has always been quiet, and never for one
+that has no `calls_total` series at all.
 
-**The service is healthy and its telemetry is not arriving.** The process is fine and its
-exporter points somewhere that does not collect. This looks identical on this rule and is
-distinguishable only by looking somewhere other than the metrics: container state, container
-logs, and whether neighbouring services still show calls *to* it.
-
-Checking container liveness first separates the two in one query. Getting it backwards
-produces a confident report about a service that never failed.
+**It reads the metric, not the process.** `calls_total` is span-derived: a sample exists because
+the service emitted a span and that span reached the collector. Every link in that chain is a
+way for the samples to stop. The rule's silence is therefore silence in the telemetry, which is
+a larger category than silence in the service, and nothing in what the rule reads narrows it.
 
 ## Note on coverage
 

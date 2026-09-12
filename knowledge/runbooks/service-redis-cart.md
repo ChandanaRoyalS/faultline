@@ -21,8 +21,8 @@ family the rules read. `ServiceHighErrorRate` and `ServiceNoTraffic` are `sum by
 over `calls_total`, which does not return it; `ServiceHighLatency` is a `service_name`-grouped
 quantile over `latency_bucket`, which it does not export either. **So none of the three can fire
 for redis-cart** - not "did not fire", cannot. Its `signals` list above is empty for that reason
-and not by oversight. `world-uninstrumented-services` describes a service in the same position
-and states the weaker form of this, about the two `calls_total` rules only.
+and not by oversight. `world-uninstrumented-services` describes a service in the same position,
+arriving at it by a different route.
 
 It reaches the telemetry stack only through `cartservice`, whose Redis client emits a span per
 operation (`HGET`, `HMSET`). Those spans belong to cartservice's trace, so they record
