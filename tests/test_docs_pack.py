@@ -306,3 +306,42 @@ def test_the_status_line_does_not_claim_the_security_pass_happened(threat_model:
 
     assert "adversarial testing not done" in opening
     assert "Nothing below has been attacked" in opening
+
+
+# --- the register is the register ----------------------------------------------------------------
+
+
+QUEUE = REPO / "docs/QUEUE.md"
+Q_MENTION = re.compile(r"\bQ(\d{1,3})\b")
+Q_ROW = re.compile(r"^\|\s*(?:~~|\*\*)+Q(\d{1,3})(?:~~|\*\*)+\s*\|", re.MULTILINE)
+
+
+def test_every_queued_change_has_a_row() -> None:
+    """A `Q` number cited anywhere in the record resolves to a row in the register.
+
+    *"A PLAN entry saying 'queued' with no row here is the defect this file exists to prevent."*
+
+    **This test would not have caught the defect that prompted it, and claiming otherwise would be
+    the same optimism four T6.4 write-ups already had to correct.** T6.4 deferred five clauses of
+    its plan row *by name* - "cross-encoder rerank", "recency weighting" - and never assigned them
+    numbers, so there was no `Q` to look up and nothing here to fail. Q41-Q45 exist now; the hole
+    they came through is still open.
+
+    What this does hold is narrower and still real: **once a change has a number, the number
+    resolves.** A struck row counts, because dropping a change is a decision and the register
+    records decisions. Whether a row is any *good* is a reading, and this repository has learned
+    not to assert readings mechanically.
+
+    The uncovered case - a deferral written in prose with no number at all - is caught by a person
+    reading a pre-registration against the register, which is how this one was found.
+    """
+    rows = {int(n) for n in Q_ROW.findall(QUEUE.read_text())}
+    assert rows, "no queue rows parsed; this test would pass vacuously"
+
+    mentioned: dict[int, set[str]] = {}
+    for path in sorted((REPO / "docs").rglob("*.md")) + sorted((REPO / "evals").rglob("*.md")):
+        for number in Q_MENTION.findall(path.read_text()):
+            mentioned.setdefault(int(number), set()).add(str(path.relative_to(REPO)))
+
+    orphans = {n: sorted(where) for n, where in mentioned.items() if n not in rows}
+    assert not orphans, f"cited with no row in QUEUE.md: {orphans}"
