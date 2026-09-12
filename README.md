@@ -309,6 +309,7 @@ unable to reproduce one.
 | `faultline-compare` | two arms side by side — a pipeline sweep against a baseline |
 | `faultline-eval-db` | the run record as a queryable table: outcomes, stamps, costs |
 | `faultline-calibrate` | the human grades that measure whether the judge can be trusted |
+| `faultline-retrieval` | the retrieval benchmark (T6.4): harvests every query the pipeline has ever sent from `trajectory_retrievals`, and scores a labelled golden set for `recall@5` and MRR. No model call |
 | `faultline-render` | a recorded bundle → the readable pages in [docs/bundles/](docs/bundles/) |
 | `faultline-manual-rca` | times a human investigating, for the MTTR comparison's left-hand side |
 | `faultline-blind-rca` | the same, drawn blind from a sealed pool |
