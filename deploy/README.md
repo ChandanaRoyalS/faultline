@@ -195,10 +195,12 @@ The key signs approval tokens and has the standing of the API password. The grou
 executor container reach the Docker socket as `appuser` instead of as root. The checkout path is
 mounted into the container **at the same path**, so the world's compose files and the injector's
 override files resolve inside exactly as they do outside. `compose.yml` refuses to start without
-any of the three. **The executor starts with its kill switch on** (`FAULTLINE_EXECUTOR_KILL_SWITCH:
-"1"` in `compose.yml`): until T6.3 lands an approval surface nothing here can mint a token, so the
-container can refuse and record and cannot act. Turning it off is an edit to that line in the same
-PR as the surface.
+any of the three. The same key is passed to the `faultline` container too, because **T6.3's approve
+button mints the token** and the web process is where the button is - one secret, two containers.
+
+**The kill switch is off since T6.3** (`FAULTLINE_EXECUTOR_KILL_SWITCH: "0"`). Until 2026-09-12 it
+was on and nothing could mint; now an approval on the screen executes an allowlisted action against
+this VM's world. §3.11 is the drill for turning it back on.
 
 ### 3.2 Close the ports the world opens
 
@@ -538,3 +540,27 @@ containers, ~2 GB resident, no world, no orchestrator, no model key, and no open
 serves the record of investigations that already happened, and the record does not depend on the
 world still standing. If the full stack proves noisy or expensive, this is where to retreat to: set
 `FAULTLINE_IMAGE`, skip §3.2 and §3.4, and run `docker compose up -d --wait --scale orchestrator=0`.
+
+## 3.11 Turning the kill switch back on
+
+The switch is the one thing on this deployment that stops an approval becoming a change. Turn it on
+when the world is being worked on by hand, when an operator is not sure what the executor would do,
+or after anything unexpected: **it costs nothing and it interrupts nothing** - investigation is
+unaffected, the screen still serves, the proposal is still produced and shown, and every token
+presented while the switch is on is refused *and recorded* with outcome `kill_switch`.
+
+On the VM (`ssh deploy@...`, then, at the prompt):
+
+```bash
+cd ~/faultline/deploy
+sed -i 's/FAULTLINE_EXECUTOR_KILL_SWITCH: "0"/FAULTLINE_EXECUTOR_KILL_SWITCH: "1"/' compose.yml
+docker compose up -d executor
+curl -s localhost:8100/healthz          # {"status":"ok","kill_switch":true}
+```
+
+`kill_switch: true` in that reply is the confirmation; nothing else needs checking. To turn it off
+again, the same `sed` in reverse and the same `up -d`.
+
+**The edit is to the tracked file**, so `git status` on the VM shows the deployment is not on the
+committed configuration - which is the point: a switch thrown in an emergency should be visible as
+a divergence until somebody decides it is permanent, and then it is a PR.

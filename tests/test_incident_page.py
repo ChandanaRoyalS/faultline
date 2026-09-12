@@ -104,9 +104,23 @@ class Stub(HTTPServer):
     """The page under test fetches `/api/v1/incidents/...`; this answers it and serves the file."""
 
     body: typing.ClassVar[dict[str, Any]] = {}
+    posted: typing.ClassVar[list[tuple[str, str]]] = []
 
 
 class Handler(BaseHTTPRequestHandler):
+    def do_POST(self) -> None:
+        """T6.3's controls post here. The stub records the path and the body and answers 200 -
+        what the routes do with them is `tests/test_approval_routes.py`'s subject."""
+        length = int(self.headers.get("Content-Length") or 0)
+        raw = self.rfile.read(length).decode() if length else ""
+        self.server.posted.append((self.path, raw))  # type: ignore[attr-defined]
+        data = b'{"ok": true}'
+        self.send_response(200)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Content-Length", str(len(data)))
+        self.end_headers()
+        self.wfile.write(data)
+
     def do_GET(self) -> None:
         if self.path.startswith("/api/"):
             data = json.dumps(self.server.body).encode()  # type: ignore[attr-defined]
@@ -130,6 +144,7 @@ class Handler(BaseHTTPRequestHandler):
 def serve(body: dict[str, Any], path: str = "/ui/incidents/inc-1") -> tuple[Stub, str]:
     server = Stub(("127.0.0.1", 0), Handler)
     server.body = body
+    server.posted = []
     threading.Thread(target=server.serve_forever, daemon=True).start()
     return server, f"http://127.0.0.1:{server.server_port}{path}"
 
@@ -222,6 +237,7 @@ def test_a_resolved_citation_is_a_link_and_an_unresolved_one_is_not() -> None:
 
 def proposal(**overrides: Any) -> dict[str, Any]:
     body: dict[str, Any] = {
+        "proposal_id": "t-1#7",
         "action_id": "revert-image-tag",
         "target": "cartservice",
         "remediation_class": "config_revert",
@@ -229,7 +245,7 @@ def proposal(**overrides: Any) -> dict[str, Any]:
         "accepted": True,
         "violations": [],
         "escalated": False,
-        "execution": "not executed - no executor exists; a proposal is a claim, never the change",
+        "execution": "not executed - a proposal is a claim, never the change (ADR-0028 §1)",
         "cites": [],
         "untrusted": {
             "expected_effect": HOSTILE,
@@ -252,7 +268,7 @@ def test_the_proposal_is_rendered_with_its_risk_note_and_the_execution_line() ->
     assert "revert-image-tag on cartservice · config_revert" in html
     assert "risk: a brief restart" in html and "blast radius: cartservice only" in html
     assert "within 300s" in html and "falsified if: errors persist" in html
-    assert "not executed - no executor exists" in html
+    assert "not executed - a proposal is a claim" in html
     assert "&lt;img" in html, "the hostile expected_effect is visible as characters"
 
 
@@ -319,3 +335,88 @@ def test_an_empty_list_says_so() -> None:
     )
 
     assert "no incidents yet" in html
+
+
+# --- T6.3's controls ---------------------------------------------------------------------------
+
+
+def clicked(
+    body: dict[str, Any], steps: str, ready: str = "#approve"
+) -> tuple[list[tuple[str, str]], str]:
+    """Load the page, run `steps` in it, and hand back what the stub was posted."""
+    from playwright.sync_api import sync_playwright
+
+    server, url = serve(body)
+    with sync_playwright() as p:
+        browser = p.chromium.launch(executable_path=CHROME)
+        page = browser.new_page()
+        page.goto(url)
+        page.wait_for_selector(ready, timeout=5000)
+        page.evaluate(steps)
+        page.wait_for_timeout(300)
+        html = page.content()
+        browser.close()
+    posted = list(server.posted)
+    server.shutdown()
+    return posted, html
+
+
+def test_the_screen_can_approve_and_the_request_carries_no_body_it_should_not() -> None:
+    """The approve button posts to the incident's own route and sends nothing: the identity comes
+    from the credential the server verified, and the proposal comes from the incident's own
+    trajectory. A body here would be a second opinion about both."""
+    posted, _ = clicked(
+        payload(proposal=proposal()), "() => document.querySelector('#approve').click()"
+    )
+
+    assert [path for path, _ in posted] == ["/api/v1/incidents/inc-1/approve"]
+    assert posted[0][1] == "", (
+        "nothing the browser claims decides who approved or what was approved"
+    )
+
+
+def test_the_screen_will_not_reject_without_a_reason_and_says_why() -> None:
+    """Prediction 3 at the third layer. The route enforces it and the machine enforces it; the
+    page answers the common mistake without a round trip, and tells the operator what the reason
+    is *for* - it is the only input the re-investigation gets."""
+    posted, html = clicked(
+        payload(proposal=proposal()), "() => document.querySelector('#reject').click()"
+    )
+
+    assert posted == []
+    assert "a rejection needs a reason" in html
+
+
+def test_the_screen_rejects_with_the_typed_reason() -> None:
+    posted, _ = clicked(
+        payload(proposal=proposal()),
+        """() => {
+            document.querySelector('#reject-reason').value = 'the latency is on redis-cart';
+            document.querySelector('#reject').click();
+        }""",
+    )
+
+    assert [path for path, _ in posted] == ["/api/v1/incidents/inc-1/reject"]
+    assert json.loads(posted[0][1]) == {"reason": "the latency is on redis-cart"}
+
+
+def test_the_acknowledge_button_is_there_for_a_critical_incident_and_not_otherwise() -> None:
+    """The gate is on severity 1. A button on every incident would train an operator to click
+    through it, which is the failure an acknowledgment exists to prevent."""
+    _, critical = rendered(payload(proposal=proposal()), ready="#approve")
+    _, warning = rendered(payload(proposal=proposal(), severity="warning"), ready="#approve")
+
+    assert 'id="acknowledge"' in critical
+    assert 'id="acknowledge"' not in warning
+
+
+def test_an_abstention_offers_no_approve_button() -> None:
+    """`remediation_class: none` is a proposal - the proposer read the evidence and declined -
+    and there is nothing to approve. A button that minted a token for an empty action would be
+    refused by the catalog one layer later, which is a worse way to learn it."""
+    _, html = rendered(
+        payload(proposal=proposal(action_id="", target="", remediation_class="none")),
+        ready="#proposal .card",
+    )
+
+    assert 'id="approve"' not in html

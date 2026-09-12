@@ -319,6 +319,7 @@ def run(argv: list[str] | None = None) -> int:
     )
     _print_report(report)
     announce_report(report, incident.id, exclude=exclude, suppressed=args.no_notify)
+    announce_approval_needed(report, incident, exclude=exclude, suppressed=args.no_notify)
     if args.out:
         from pathlib import Path
 
@@ -370,6 +371,40 @@ def announce_report(
 
         announcer = from_settings()
     return announcer.report_ready(incident_id, report)  # type: ignore[attr-defined]
+
+
+def announce_approval_needed(
+    report: object,
+    incident: object,
+    *,
+    exclude: str | None = None,
+    suppressed: bool = False,
+    announcer: object | None = None,
+) -> object:
+    """T6.3's third event: a proposal exists and a human has to decide (`PREREGISTRATION-T6.3.md`
+    §2.8). Sent beside the report, under **exactly** the report's suppression rules - a scored run
+    notifies nobody, and for the stronger reason here: an on-call reader told to approve a
+    remediation for a fault the benchmark injected is being asked to change the world to fix
+    something that was never broken.
+
+    **Nothing is sent for an abstention.** `remediation_class: "none"` is a proposal and a valid
+    one (ADR-0022 §1.2), and it is not a decision anybody has to make: there is nothing to approve.
+    A message saying *approval needed: no action* would teach a channel to ignore the ones that
+    matter.
+    """
+    from faultline.notify import SILENT
+
+    result = getattr(report, "result", None)
+    proposal = getattr(result, "proposal", None) if result is not None else None
+    if proposal is None or not getattr(proposal, "action_id", ""):
+        return SILENT.awaiting_approval(incident, proposal)
+    if suppressed or exclude:
+        return SILENT.awaiting_approval(incident, proposal)
+    if announcer is None:
+        from faultline.notify.slack import from_settings
+
+        announcer = from_settings()
+    return announcer.awaiting_approval(incident, proposal)  # type: ignore[attr-defined]
 
 
 def _print_report(report: object) -> None:

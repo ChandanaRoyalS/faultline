@@ -355,7 +355,7 @@ def incident_view(incident: Any, trajectory: Any | None) -> dict[str, Any]:
             },
         }
 
-    proposal = _proposal(steps, calls)
+    proposal = _proposal(steps, calls, getattr(trajectory, "id", None) if trajectory else None)
     return {
         "incident_id": getattr(incident, "id", ""),
         "state": getattr(getattr(incident, "state", None), "value", ""),
@@ -382,15 +382,19 @@ def incident_view(incident: Any, trajectory: Any | None) -> dict[str, Any]:
     }
 
 
-EXECUTION_NOTE = "not executed - no executor exists; a proposal is a claim, never the change"
-"""What the screen says where an action plane would report execution status. ADR-0028 §4 leaves
-execution success as a reported-not-measured axis until T6.2 builds the plane; the MVP-cut bullets
-say *"remediation as proposals with risk notes"*, and a screen that showed the proposal without
-saying it was not run would be claiming the second half of a sentence the project only owns the
-first half of."""
+EXECUTION_NOTE = "not executed - a proposal is a claim, never the change (ADR-0028 §1)"
+"""What the screen says where an action plane reports execution status.
+
+**Rewritten at T6.3.** Until then it read *"no executor exists"*, which was true when T5.6 wrote it
+and false the moment T6.2 merged - a sentence on the screen asserting the absence of a container
+the deployment was running. What is still true is the half that matters: what is shown is a claim,
+and nothing has acted on it. Whether an action was *then* executed is the audit's answer, not this
+field's, and the timeline carries it."""
 
 
-def _proposal(steps: list[Any], calls: list[Any]) -> dict[str, Any] | None:
+def _proposal(
+    steps: list[Any], calls: list[Any], trajectory_id: str | None = None
+) -> dict[str, Any] | None:
     """The remediation proposal, from the newest `PROPOSAL` step - or `None` before one exists.
 
     **The screen showed a fix class and called it the remediation (T5.6's audit).** The proposer
@@ -419,6 +423,11 @@ def _proposal(steps: list[Any], calls: list[Any]) -> dict[str, Any] | None:
     if not body:
         return None
     return {
+        # **`<trajectory>#<seq>`, which T6.3's approve button needs and T5.6's screen never
+        # carried.** `executor.cli.approve` mints against exactly this identifier, so the audit
+        # row points at the object the approver actually read; a payload without it would make
+        # the button derive the id a second time and the two could disagree.
+        "proposal_id": f"{trajectory_id}#{getattr(step, 'seq', '')}" if trajectory_id else "",
         "action_id": str(body.get("action_id") or ""),
         "target": str(body.get("target") or ""),
         "remediation_class": str(body.get("remediation_class") or ""),

@@ -180,14 +180,28 @@ def test_a_failed_boot_captures_why_before_the_teardown_removes_it() -> None:
 # --- the workflows themselves -----------------------------------------------------------------
 
 
-def test_the_smoke_workflow_triggers_on_prompt_context_and_model_paths() -> None:
-    """The plan's trigger: *"every change touching prompts/context/models"*."""
-    paths = workflow("eval-smoke")[True]["pull_request"]["paths"]
+def test_neither_eval_workflow_can_start_itself() -> None:
+    """**Both are dispatch-only, and both for the same decision.** The plan's smoke trigger is
+    *"every change touching prompts/context/models"*, and it was wired that way - and it refused in
+    thirteen seconds on every such pull request, because this repository has no `ANTHROPIC_API_KEY`
+    and the owner has decided model spend is authorised per run, never standing.
 
-    assert "src/faultline/agents/roles.py" in paths, "prompts"
-    assert "src/faultline/agents/contracts.py" in paths, "the schemas prompts promise"
-    assert any(p.startswith("src/faultline/context/") for p in paths), "context"
-    assert "src/faultline/agents/settings.py" in paths, "the model map"
+    A check that is red on every prompt-touching PR forever is a check people learn to ignore. The
+    trigger came out on 2026-09-12; the path list stays in the workflow as a comment, because it is
+    the record of which changes are worth a smoke run before merging, and the job is otherwise
+    unchanged - one `gh workflow run` away from being the pre-merge check it was designed to be.
+
+    **This test is where either workflow starting itself again gets noticed**, because that is a
+    spending decision and `docs/PLAN.md` has to move with it."""
+    for name in ("eval-smoke", "eval-nightly"):
+        triggers = workflow(name)[True]
+        assert set(triggers) == {"workflow_dispatch"}, (
+            f"{name} can start itself: {sorted(triggers)}. Every run of it spends money, so the "
+            "trigger is a decision for the owner and not a default."
+        )
+    source = (WORKFLOWS / "eval-smoke.yml").read_text()
+    assert "src/faultline/agents/roles.py" in source, "the path list survives as the record"
+    assert "src/faultline/context/**" in source
 
 
 def test_neither_eval_workflow_runs_on_a_schedule_and_the_nightly_can_be_fired_by_hand() -> None:
@@ -199,6 +213,7 @@ def test_neither_eval_workflow_runs_on_a_schedule_and_the_nightly_can_be_fired_b
     assert "schedule" not in workflow("eval-nightly")[True]
     assert "workflow_dispatch" in workflow("eval-nightly")[True]
     assert "schedule" not in workflow("eval-smoke")[True]
+    # And since 2026-09-12 the smoke has no `pull_request` either - see the test above.
 
 
 def test_both_eval_workflows_refuse_before_booting_the_world_when_there_is_no_key() -> None:
