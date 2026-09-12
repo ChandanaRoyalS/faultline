@@ -62,6 +62,7 @@ class FakeSteps:
             "action_id": "restart_service",
             "target": "cartservice",
             "trajectory_id": "tr-first",
+            "states": ["planning", "investigating", "synthesizing", "proposing"],
         }
 
     def reject(self, incident_id: str, reason: str) -> dict[str, Any]:
@@ -340,3 +341,64 @@ def test_the_cli_refuses_without_the_api_password(tmp_path: Path, monkeypatch: A
 
     with pytest.raises(SystemExit):
         rejectloop.run_cli(["--evidence-root", str(tmp_path), "--postgres-dsn", "postgresql://x"])
+
+
+# --- what the first live run found --------------------------------------------
+
+
+def test_seeding_walks_the_incident_to_proposing_as_a_real_investigation_would() -> None:
+    """**2026-09-12, the first live run.** The driver wrote the recorded proposal onto a trajectory
+    and left the incident in `TRIAGING`; the reject route refused it - *a proposal can be rejected
+    from awaiting_approval, proposing, synthesizing only* - and the driver stopped before the model
+    call, which is what it was built to do.
+
+    The route was right. An operator cannot reject a proposal on an incident that has never
+    proposed anything, and adding `TRIAGING -> REJECTED` to ADR-0016's table so the measurement
+    could proceed would be changing the product to fit the instrument. Seeding a proposal has to
+    pretend the **whole** investigation happened."""
+    from faultline.orchestrator.models import Episode, Incident, IncidentState, Severity
+
+    incident = Incident(opened_at=NOW, last_activity_at=NOW)
+    incident.episodes["e0"] = Episode(
+        episode_key="e0",
+        fingerprint="f0",
+        alertname="CartLatency",
+        service="cartservice",
+        severity=Severity.WARNING,
+        starts_at=NOW,
+        attached_at=NOW,
+    )
+    incident.state = IncidentState.TRIAGING
+
+    walked = rejectloop.advance_as_if_investigated(incident, "tr-seeded")
+
+    assert walked == ["planning", "investigating", "synthesizing", "proposing"]
+    assert incident.state is IncidentState.PROPOSING
+    assert incident.investigation_id == "tr-seeded"
+    assert incident.state in machine_rejectable(), "and the route will now accept a rejection"
+
+
+def machine_rejectable() -> set[Any]:
+    from faultline.orchestrator import machine
+
+    return set(machine.REJECTABLE)
+
+
+def test_the_walk_is_the_machines_and_is_not_restated_by_the_driver() -> None:
+    """`INVESTIGATION_PHASES` is `record_agent_outcome`'s walk. A driver with its own copy would
+    be a second definition of what an investigation does to an incident, and the first divergence
+    would be a measurement whose incidents reached states no real run produces."""
+    import inspect
+
+    from faultline.orchestrator import machine
+
+    source = inspect.getsource(rejectloop.advance_as_if_investigated)
+
+    assert "machine.INVESTIGATION_PHASES" in source
+    assert "IncidentState.PLANNING" not in source
+    assert [state.value for state, _ in machine.INVESTIGATION_PHASES] == [
+        "planning",
+        "investigating",
+        "synthesizing",
+        "proposing",
+    ]
