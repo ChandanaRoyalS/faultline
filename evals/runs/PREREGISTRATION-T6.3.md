@@ -221,7 +221,13 @@ chosen after seeing the second proposal would make this an exercise in prompt-fi
 1. Gate, with the repair replay's patience (`faultline-gate`, retry, abort rather than warn).
 2. Inject the scenario's fault; wait for the incident to open.
 3. **Seed the first proposal from dev sweep 12's recorded run** — the same `--from-run` material
-   T6.2's replay approved, written as a proposal step on the incident's trajectory.
+   T6.2's replay approved, written as a proposal step on the incident's trajectory, **and the
+   incident walked to `PROPOSING`** through `machine.INVESTIGATION_PHASES`, which is what a real
+   investigation does to an incident. *(Added 2026-09-12, after the first live run: the driver
+   seeded the trajectory and left the incident in `TRIAGING`, and the route refused the rejection
+   — correctly, because an operator cannot reject a proposal on an incident that has never
+   proposed anything. The driver stopped before the model call, so the correction cost $0.00. §5
+   records it.)*
 4. Reject it through the real `POST …/reject` route with the reason from §4.1.
 5. Let the re-investigation run. **This is the model call.**
 6. Record the second proposal, the proposer's assembled context, the state trail, and the rejection

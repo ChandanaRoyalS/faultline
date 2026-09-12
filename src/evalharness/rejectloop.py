@@ -121,6 +121,34 @@ class Outcome:
         return asdict(self)
 
 
+def advance_as_if_investigated(incident: Any, trajectory_id: str) -> list[str]:
+    """Walk a seeded incident to `PROPOSING`, the way a real investigation would have.
+
+    **Found by the first live run** (2026-09-12): the driver wrote the recorded proposal onto a
+    trajectory and left the incident in `TRIAGING`, and the reject route refused it - *a proposal
+    can be rejected from awaiting_approval, proposing, synthesizing only*. The route was right. An
+    operator cannot reject a proposal on an incident that has never proposed anything, and adding
+    `TRIAGING -> REJECTED` to ADR-0016's table so that a measurement could proceed would be
+    changing the product to fit the instrument.
+
+    What was wrong is that **seeding a proposal has to pretend the whole investigation happened**,
+    not just its last artefact. `machine.INVESTIGATION_PHASES` is that walk and is not restated
+    here: the same four transitions `record_agent_outcome` makes when a real run returns with a
+    verdict and a proposal. The incident also takes the trajectory's id, because an incident whose
+    `investigation_id` names nothing is one the screen cannot explain.
+
+    The driver still spends nothing here. This is state, not a model call.
+    """
+    from faultline.orchestrator import machine
+
+    incident.investigation_id = trajectory_id
+    walked: list[str] = []
+    for state, trigger in machine.INVESTIGATION_PHASES:
+        machine.transition(incident, state, trigger=f"seeded: {trigger}")
+        walked.append(state.value)
+    return walked
+
+
 class Steps(Protocol):
     def gate_admits(self) -> tuple[bool, list[str]]: ...
 
@@ -190,8 +218,12 @@ def run_one(
     outcome.first_action = str(seeded.get("action_id") or "")
     outcome.first_target = str(seeded.get("target") or "")
     first_trajectory = str(seeded.get("trajectory_id") or "") or None
+    outcome.states += [str(s) for s in seeded.get("states") or []]
     (evidence_dir / "first-proposal.json").write_text(json.dumps(seeded, indent=2, sort_keys=True))
-    log.write(f"seeded the recorded proposal: {outcome.first_action} -> {outcome.first_target}")
+    log.write(
+        f"seeded the recorded proposal: {outcome.first_action} -> {outcome.first_target}; "
+        f"incident walked to {outcome.states[-1] if outcome.states else 'nowhere'}"
+    )
 
     try:
         rejected = steps.reject(incident_id, pair.reason)
@@ -406,7 +438,16 @@ class RealSteps:
             )
         )
         PostgresTrajectoryStore(psycopg.connect(self._dsn)).save(trajectory)
-        return {**proposal, "trajectory_id": trajectory.id}
+
+        from faultline.orchestrator.store import PostgresIncidentStore
+
+        incidents = PostgresIncidentStore(psycopg.connect(self._dsn))
+        incident = incidents.get(incident_id)
+        if incident is None:
+            raise RuntimeError(f"incident {incident_id} vanished between opening and seeding")
+        walked = advance_as_if_investigated(incident, trajectory.id)
+        incidents.save_investigation_state(incident)
+        return {**proposal, "trajectory_id": trajectory.id, "states": walked}
 
     # --- the route ---------------------------------------------------------------
 
