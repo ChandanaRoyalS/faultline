@@ -194,3 +194,77 @@ in the retrieval pool and in `body_sha256`, and this measurement ran against the
   running on one arm says little about the floor.
 - **Whether 43 queries is enough.** They are a deterministic stratified draw from 236, which
   bounds selection but not sampling error, and no confidence interval is computed here.
+
+---
+
+## Addendum 1 — the gate was shipped un-runnable, and read as green
+
+**Added 2026-09-12, after the fact. Nothing above is altered.**
+
+§2.4's regression gate landed as an integration test and **errored on every run**:
+`ModuleNotFoundError: No module named 'sentence_transformers'`. It needs the real embedder,
+because a gate over a different one would pass while an embedder swap regressed retrieval — and
+`embeddings` is an *extra*, while `ci/integration` installed `--all-groups`. Extras are not
+groups. The other 29 integration tests passed; all three of the gate's errored, and the job went
+red.
+
+**It was reported here and in conversation as having run and cleared.** The evidence for that was
+the integration job taking 1m1s where it usually takes 35s, which looked like a model download.
+The green run was the one *before* the gate's commit. **Elapsed time is not a run id**, and the
+run list said so plainly the moment anyone looked.
+
+So: main was red for two merges, the gate measured nothing, and the claim that CI had verified
+retrieval against a clean 261-chunk corpus was false. The figures in §1 are unaffected — they
+were measured locally against a live corpus, not by CI — but the sentence saying CI had confirmed
+them was not true when written.
+
+**Fixed** by installing `--all-extras` on the integration job alone, with the cost taken
+deliberately: that job now downloads an embedding model from the HF hub at test time. `checks`
+stays on `--all-groups` so the fast job stays fast. `tests/test_ci_eval.py` holds the invariant —
+the job that runs integration tests installs what those tests import — so the next test with an
+optional dependency fails the guard rather than the build.
+
+**The transferable part**: a gate is not running because a job is green. It is running because a
+run you can name executed it. This document's own §2 argues that a hybrid retriever silently
+running on one arm is worth more as a finding than as a better number; a gate silently running on
+no arms is the same failure, committed by the person who had just written that sentence.
+
+---
+
+## Addendum 2 — prediction 7, resolved: **failed**
+
+**Added 2026-09-12. Nothing above is altered.**
+
+> *"The service runbooks are the hardest documents to discriminate between. Fifteen documents of
+> near-identical shape differing in service name and details. Where retrieval fails, it fails
+> here, returning a sibling service's runbook."*
+
+Computed over the per-query detail at k=5:
+
+| | |
+|---|---|
+| queries that missed | **23** of 43 |
+| misses that wanted a service runbook and returned a **different** service runbook | **0** |
+| misses whose answer was not a service runbook at all | **13** |
+
+**Zero sibling confusions.** The failure mode the registration named as the most likely one does
+not occur here even once, and the deliberate difficulty §2.1 built into the corpus — *fifteen
+near-identical-in-shape documents is a harder discrimination test* — turns out not to be where
+this pipeline fails.
+
+The reasoning behind the prediction was about a discrimination task, and §2's defect says the
+pipeline is not performing one: with the text arm dead, a service name in a query is matched by
+dense similarity alone, and service names are the most distinctive tokens in these documents. The
+remaining ten misses wanted a service runbook and returned neither it nor a sibling, which this
+measurement does not characterise further — the per-query returns would say what they got instead
+and that reading has not been done.
+
+**What it establishes and what it does not.** It establishes that sibling confusion is not this
+pipeline's failure mode *as it currently runs*. It does not establish that the fifteen service
+documents are easy to tell apart, because a one-armed retriever is not the pipeline the
+prediction was about. Q39's repair adds a lexical arm, on which fifteen documents sharing most of
+their vocabulary is exactly the hard case — so this prediction is worth re-reading after the fix
+rather than treating as settled.
+
+**Prediction 8 remains untested.** No in-memory corpus was built, so the ranking comparison it
+names was never set up. Recorded as unresolved rather than dropped.
