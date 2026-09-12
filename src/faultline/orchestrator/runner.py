@@ -38,6 +38,7 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from faultline.orchestrator.models import Incident
+from faultline.orchestrator.rejections import RejectionStore
 from faultline.orchestrator.store import IncidentStore
 
 log = logging.getLogger(__name__)
@@ -63,6 +64,8 @@ class InvestigationRunner:
         max_attempts: int = 2,
         run: RunCommand = _run_subprocess,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
+        rejections: RejectionStore | None = None,
+        max_rejections: int = 2,
     ) -> None:
         self._store = store
         self._settle = settle
@@ -70,23 +73,62 @@ class InvestigationRunner:
         self._max_attempts = max_attempts
         self._run = run
         self._now = now
+        self._rejections = rejections
+        self._max_rejections = max_rejections
+        """**The re-investigation cap** (T6.3, `PREREGISTRATION-T6.3.md` §2.3). Without a ledger
+        this runner cannot count rejections, so without one it re-investigates nothing: a loop
+        that cannot count its own turns is a loop that does not stop, and this one spends a model
+        call per turn."""
         self.attempts: dict[str, int] = {}
         """Per incident, in this process. An investigation that exits before its first state
         transition leaves the incident in TRIAGING, and without this it would be retried on every
         poll forever, billing each time. Two attempts, then it is left where it is and logged - the
         same visibility ADR-0016 asks of `never_started`."""
         self.exit_codes: list[tuple[str, int]] = []
+        self._rounds: dict[str, int] = {}
+        """Per incident, the rejection count this process last gave a fresh attempt budget to."""
 
     def due(self) -> list[Incident]:
-        """Admitted, settled, and not yet given up on - oldest first."""
+        """Admitted or rejected, settled, and not yet given up on - oldest first.
+
+        **A rejected incident is due immediately**, with no settle window: the window exists so
+        that an incident's alerts stop arriving before an agent reads them, and a rejection
+        arrives long after that - what it waits on is a human, who has already acted.
+        """
         cutoff = self._now() - self._settle
-        return [
+        admitted = [
             incident
             for incident in self._store.triaging()
-            if incident.opened_at is not None
-            and incident.opened_at <= cutoff
-            and self.attempts.get(incident.id, 0) < self._max_attempts
+            if incident.opened_at is not None and incident.opened_at <= cutoff
         ]
+        return [
+            incident
+            for incident in [*admitted, *self._reinvestigable()]
+            if self.attempts.get(incident.id, 0) < self._max_attempts
+        ]
+
+    def _reinvestigable(self) -> list[Incident]:
+        """Rejected incidents under the cap. Empty without a ledger - see `_max_rejections`.
+
+        **A new rejection is a new round, and a round gets a fresh attempt budget.** `attempts`
+        counts runs that may have died before their first transition, so that a broken incident
+        is not billed forever; it is not a count of how many times an incident may legitimately
+        be investigated. Without this reset an incident whose first investigation used its two
+        attempts could never be re-investigated at all, and the cap that governs the loop would
+        be the wrong one, silently.
+        """
+        if self._rejections is None:
+            return []
+        due: list[Incident] = []
+        for incident in self._store.rejected():
+            rejections = self._rejections.count(incident.id)
+            if rejections >= self._max_rejections:
+                continue
+            if self._rounds.get(incident.id) != rejections:
+                self._rounds[incident.id] = rejections
+                self.attempts.pop(incident.id, None)
+            due.append(incident)
+        return due
 
     def run_once(self) -> list[str]:
         """Investigate everything due, sequentially. Returns the incident ids that were run."""

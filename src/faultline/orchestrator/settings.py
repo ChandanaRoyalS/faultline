@@ -66,6 +66,14 @@ class OrchestratorSettings(BaseSettings):
 
     investigate_poll_seconds: float = 15.0
 
+    max_rejections: int = 2
+    """How many times one incident may be rejected and re-investigated (T6.3,
+    `PREREGISTRATION-T6.3.md` §2.3). **Two, and the cap is on the loop rather than on the
+    operator**: a third rejection is recorded like any other and the incident stays `REJECTED`;
+    what stops is the spending. A rejection loop is the one path in this system where a human
+    saying *no* costs a model call, so the number that bounds it is configuration an operator can
+    see rather than a constant in a runner."""
+
     investigate_args: tuple[str, ...] = (
         "--max-tool-calls",
         "4",

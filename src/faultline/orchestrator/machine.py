@@ -137,10 +137,17 @@ def transition(incident: Incident, to: IncidentState, *, trigger: str) -> None:
     incident.state = to
 
 
-INVESTIGABLE = frozenset({IncidentState.TRIAGING})
-"""The states an investigation may be started from. **Exactly one, and that is the machine's
-answer rather than a choice made here**: `ALLOWED` lets `PLANNING` be entered from `TRIAGING`
-and from nowhere else, so `TRIAGING` is the only door into the agent lifecycle.
+INVESTIGABLE = frozenset({IncidentState.TRIAGING, IncidentState.REJECTED})
+"""The states an investigation may be started from. **Two, and both are the machine's answer
+rather than a choice made here**: `ALLOWED` lets `PLANNING` be entered from `TRIAGING` and from
+`REJECTED`, and from nowhere else, so those are the two doors into the agent lifecycle.
+
+`REJECTED` is T6.3's, and it was in the table from Phase 2 with nothing able to walk it: T2.3
+wrote *"exits to targeted re-investigation, reason required"*, and until the rejection ledger
+existed there was no reason to require. The re-entry starts at `PLANNING` like any other
+investigation - `phases_for` walks the same four phases - and it reuses the triage it already
+has, because triage is a pure function of the episodes, the catalog and the radius and paying a
+model to recompute it would be paying for a known answer.
 
 An incident already past that door - left in `PLANNING` or `INVESTIGATING` by a crashed run -
 is deliberately not restartable. `record_investigation_failure` moves such a run to `FAILED`
@@ -271,6 +278,45 @@ def record_approval_outcome(incident: Incident, outcome: ApprovalOutcome) -> Non
         return
     else:
         raise ValueError(f"unknown approval outcome kind {outcome.kind!r}")
+
+
+REJECTABLE = frozenset(
+    {IncidentState.PROPOSING, IncidentState.SYNTHESIZING, IncidentState.AWAITING_APPROVAL}
+)
+"""Where a rejection can arrive from, read out of `ALLOWED` rather than written twice: the three
+states with `REJECTED` in their row. A rejection of an incident that has not proposed anything, or
+that is already executing, is a mistake the surface should name rather than a transition."""
+
+
+def record_rejection(incident: Incident, reason: str) -> str:
+    """A human rejected the proposal. **The reason is required and this is where that is true.**
+
+    T2.3's sentence - *"`REJECTED` exits to targeted re-investigation, reason required"* - has
+    been in `ALLOWED`'s comment since Phase 2 as a promise about a function that did not exist.
+    This is it. The reason is cleaned by `rejections.clean_reason`, which raises on whitespace,
+    so an incident cannot reach `REJECTED` without something to re-investigate *with*; the
+    cleaned text is returned for the caller to store, because the machine records states and the
+    ledger records evidence.
+
+    The incident does not move from anywhere else. A rejection arriving for an `EXECUTING`
+    incident is refused here rather than at the route, for the same reason one action per
+    incident moved into the executor (ADR-0038 Addendum 2): a rule enforced only by whichever
+    layer happens to be asked is a rule about that layer.
+    """
+    from faultline.orchestrator.rejections import clean_reason
+
+    cleaned = clean_reason(reason)
+    if incident.state not in REJECTABLE:
+        legal = ", ".join(sorted(s.value for s in REJECTABLE))
+        raise TransitionError(
+            f"incident {incident.id} is in state {incident.state.value}; a proposal can be "
+            f"rejected from {legal} only. "
+            "See ADR-0016 and faultline.orchestrator.machine.REJECTABLE."
+        )
+    transition(
+        incident, IncidentState.REJECTED, trigger=f"operator rejected the proposal: {cleaned}"
+    )
+    return cleaned
 
 
 def is_terminal(state: IncidentState) -> bool:
