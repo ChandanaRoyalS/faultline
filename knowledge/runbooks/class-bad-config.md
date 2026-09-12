@@ -16,7 +16,8 @@ This mechanism does not touch the image.
 
 ## What the change record holds
 
-The variable and both values, with a timestamp.
+The variable and a timestamp, and **the new value only** - no change record in this world carries
+a prior value, which `world-change-records-have-no-prior-value` sets out.
 
 **What the logs hold is not uniform, and this document had it wrong.** An earlier version said a
 service pointed at an address that no longer answers logs connection errors quoting the address

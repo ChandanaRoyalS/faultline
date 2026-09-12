@@ -16,9 +16,10 @@ is untouched by this mechanism, so reverting configuration restores nothing.
 
 ## What the change record holds
 
-An image reference that changed, with both values and a timestamp. The swap is recorded as a
-change when it is made, so evidence for this class exists as a recorded fact rather than only as
-an inference from symptoms.
+An image reference that changed, with a timestamp - and **the new value only**. No change record
+in this world carries a prior value; `world-change-records-have-no-prior-value` is why. The swap
+is recorded as a change when it is made, so evidence for this class exists as a recorded fact
+rather than only as an inference from symptoms.
 
 ## What the mechanism does to the container
 

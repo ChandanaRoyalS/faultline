@@ -36,29 +36,55 @@ runbook files touched (the ten, plus one cross-reference in `service-redis-cart`
 of the fifteen) the change is **150 insertions against 107 deletions**.
 
 That new prose is unreviewed material of exactly the kind this file is about, so it went through
-three review rounds of its own. **Nine blocking findings, and where they fell is the useful part:**
+three review rounds of its own, and two further defects were found afterwards. **Eleven blocking
+findings, and where they fell is the useful part:**
 
 | where the defect was | count |
 |---|---|
-| prose written to replace a removed sentence | **4** |
+| prose written to replace a removed sentence | **6** |
 | these write-ups | **3** |
 | the removal side | **1** |
 | text the repair never touched | **1** |
 
-The four in replacement prose were mine and were written from memory: a mechanism property that
-is actually a property of the target, an ADR cited for a sentence it does not contain, a
-self-correction for an error the document had never made, and an overstatement of what one ADR
-measured. The removal-side one is the three `alert-*` documents left declaring `actions:` front
-matter whose justifying prose had just been deleted. The untouched-text one is a sentence this
-repair left alone which a later edit elsewhere turned into a contradiction between two runbooks.
+The six in replacement prose were mine: a mechanism property that is actually a property of the
+target, an ADR cited for a sentence it does not contain, a self-correction for an error the
+document had never made, an overstatement of what one ADR measured, and **two that were found
+only later** - see below. The removal-side one is the three `alert-*` documents left declaring
+`actions:` front matter whose justifying prose had just been deleted. The untouched-text one is a
+sentence this repair left alone which a later edit elsewhere turned into a contradiction between
+two runbooks.
 
-**And three of the nine were in this file**, which has been corrected three times in the same
+### The two found later, and why they are the most instructive of the eleven
+
+`class-bad-deploy` and `class-bad-config` both said the change record holds **both values** - the
+old and the new. `injector.changelog.describe` returns `None` in the `before` position in every
+one of its six branches. **The record holds the new value only**, and the reverting record holds
+the faulted value with no `after`; neither ever holds two.
+
+Three things make this the worst of the eleven:
+
+- **The correction was already in the tree.** ADR-0032's addendum, landed the day before this
+  repair, says in as many words that *every change record the injector emits carries `before=None`*
+  and names the function.
+- **`class-bad-config`'s repair re-asserted it.** The sentence was rewritten during Q35, two lines
+  from a different correction, and the false half was carried across.
+- **Three review rounds passed it**, and the reviewer's own report listed that sentence under
+  *verified clean*. The reason is precise and generalises: **the review checked new prose against
+  the ADRs it cited and never against the code it described.** A claim about what a function
+  writes is checkable only by reading the function.
+
+Both documents now say the new value only and point at
+`world-change-records-have-no-prior-value`, which is the document that should have existed first.
+
+**And three of the eleven were in this file**, which has been corrected three times in the same
 direction — each time making the repair look smaller or cleaner than it was: *"in every case the
 removal of a sentence"*, then *"five of the eleven gained a new section"*, then a finding split
-that put eight of nine in the replacement prose when the true figure is four. Each correction was
-honest about its predecessor and introduced a smaller version of the same bias. That is the
-pattern to carry forward, because this file exists so a future reader can decide whether the 167
-runs need re-reading, and optimism here is not a style problem.
+that put eight of nine in the replacement prose. Each correction was honest about its predecessor
+and introduced a smaller version of the same bias. The section above is a fourth correction of a
+different kind - not an understated count, but two defects three review rounds passed - and it
+moves the count the other way. That is the pattern to carry forward, because this file exists so
+a future reader can decide whether the 167 runs need re-reading, and optimism here is not a style
+problem.
 
 **No document lost the world fact it exists to carry**, and that claim was checked document by
 document rather than asserted.
