@@ -47,6 +47,15 @@ class ContextSettings(BaseSettings):
     `faultline[embeddings]` and imported lazily, so `make check` never loads it.
     """
 
-    retrieval_k: int = 5
-    """How many chunks a retrieval returns. No measurement behind it - T4.2 owns ranking
-    quality, and this corpus holds seven documents."""
+    retrieval_k: int = 3
+    """How many chunks a retrieval returns.
+
+    **Was 5, read by nothing, and disagreed with production the whole time** (T6.4 §2.5).
+    `Investigation.__init__` and `faultline-investigate` both defaulted to 3 independently, so
+    this field described a pipeline nobody ran. A setting that disagrees with production and is
+    never consulted is worse than no setting: it is a number a reader will quote.
+
+    It is now 3 - production's value, so nothing changes - and `faultline-investigate` reads it,
+    so it is real. That matters beyond tidiness: `retrieval_k` is one of ADR-0018's four
+    parameters recorded as *chosen rather than tuned*, and T6.4 built the golden set that can
+    finally adjudicate it. A parameter nothing reads cannot be tuned on evidence."""

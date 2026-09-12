@@ -39,7 +39,7 @@ from faultline.context.corpus import (
     parse_narrative,
 )
 from faultline.context.runbooks import Runbook, load_runbooks, runbooks_dir
-from faultline.context.store import PastIncidentStore
+from faultline.context.store import PastIncidentStore, chunk_key
 
 DEV_SPLIT = "dev"
 HOLDOUT = "holdout"
@@ -56,6 +56,12 @@ class QuarantineError(RuntimeError):
 class SeedResult:
     documents: int = 0
     chunks: int = 0
+    pruned: int = 0
+    """Orphan chunks removed - sections a document used to have and no longer does.
+
+    Reported rather than silent, because a re-seed that quietly deletes rows and a re-seed that
+    quietly leaves them are equally hard to tell apart from the outside (Q40)."""
+
     seeded: list[str] = field(default_factory=list)
     skipped: list[tuple[str, str]] = field(default_factory=list)
     """(scenario id, why). Skipping is reported, never silent."""
@@ -108,6 +114,24 @@ def bundle_chunks(bundle: Path) -> list[Chunk]:
     )
 
 
+def _reconcile(store: PastIncidentStore, chunks: list[Chunk]) -> int:
+    """Drop rows this document used to produce and no longer does.
+
+    **Add first, then prune.** The other order would empty the document for the duration of the
+    write, and a retrieval running concurrently would see a corpus missing a document rather
+    than a corpus mid-update. Seeding is not transactional across documents, so the window is
+    real even if it is short.
+
+    A document with no chunks at all is not reconciled here: an empty `chunks` means the source
+    produced nothing, which is a parsing failure rather than an instruction to delete a document,
+    and deleting on it would turn one bad parse into a silently missing document.
+    """
+    if not chunks:
+        return 0
+    document_id = chunks[0].document_id
+    return store.prune_document(document_id, {chunk_key(chunk) for chunk in chunks})
+
+
 def seed(store: PastIncidentStore, dev_root: Path) -> SeedResult:
     """Seed every valid dev bundle's narrative. One root, and it is the only argument."""
     root = require_dev_root(dev_root)
@@ -122,6 +146,7 @@ def seed(store: PastIncidentStore, dev_root: Path) -> SeedResult:
             continue
         chunks = bundle_chunks(bundle)
         result.chunks += store.add(chunks)
+        result.pruned += _reconcile(store, chunks)
         result.documents += 1
         result.seeded.append(bundle.name)
 
@@ -160,6 +185,7 @@ def seed_runbooks(
             )
         chunks = chunk_runbook(runbook, directory / f"{runbook.id}.md")
         result.chunks += store.add(chunks)
+        result.pruned += _reconcile(store, chunks)
         result.documents += 1
         result.seeded.append(runbook.id)
     return result
