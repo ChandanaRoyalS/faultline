@@ -35,5 +35,8 @@ and the 250 ms threshold is neither healthy-by-measurement nor alerting.
 (ADR-0025). `checkoutservice`, `frontend` and `loadgenerator` spend part of an idle world's time
 far above 250 ms in sustained excursions whose cause is accumulated in-process state, not
 warm-up; the remaining eleven services sit in a 1.9-9.7 ms band with zero samples over
-threshold. Warm-up remains a real transient with a measured shape - a monotonic decay over about
-four minutes after a recreate - and container uptime is what separates it from anything else.
+threshold. That band is a median p95 over the census window, and a service's mean p95 over a
+shorter window can sit outside it without contradicting either figure.
+
+Warm-up remains a real transient with a measured shape - a monotonic decay over about four
+minutes after a recreate - and container uptime is what separates it from anything else.

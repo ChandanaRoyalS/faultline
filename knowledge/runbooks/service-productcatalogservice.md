@@ -38,7 +38,8 @@ threshold is identical; the confidence behind a reading of it is not.
 
 All three rules, evaluated per `service_name`. SLO: p95 250ms, error ratio 0.05, from
 `compose/prometheus/alert-rules.yml`. Its resting p95 sits in the 1.9-9.7ms band ADR-0025
-measured across the eleven services without a latency tail.
+measured across the eleven services without a latency tail - median p95 over twelve hours, which
+is a different statistic from a mean over a shorter window.
 
 ## Acting on it
 
