@@ -34,3 +34,16 @@ world/
 # T4.2's calibration ledger is a RECORD, not an artifact - it is committed deliberately.
 # Listed here as a negation so nobody adds `evals/*` above and silently stops tracking it.
 !evals/calibration/grades.jsonl
+
+# **The measurement drivers' own stdout.** `faultline-replay`, `faultline-reject-loop` and the
+# processes an operator backgrounds beside them (`faultline-ingest`, `nohup`) write transcripts
+# into the working tree, and the interesting parts of those transcripts are already captured under
+# `docs/evidence/` by the drivers themselves. What was left was ten untracked files in every
+# `git status` for two days - noise that trains a reader to skim the one line that matters.
+#
+# Not a blanket `*.out`: a file matching this pattern that somebody *does* want committed should
+# have to say so, and the four names here are the ones this repository actually produces.
+loop*.out
+replay*.out
+ingest.out
+nohup.out
