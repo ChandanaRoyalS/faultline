@@ -27,8 +27,15 @@ it is being claimed for.
 
 ## Before proposing it
 
-A prior configuration for this service must exist in change history, and the incident's
-evidence must name a configuration or flag change inside its window.
+The allowlist's preconditions are the operator-facing description of when this action is
+appropriate: *a prior configuration for this service is recorded in change history*, and the
+incident's evidence naming a configuration or flag change inside its window.
+
+**What the executor evaluates is drift.** No change record in this world carries a prior value,
+so that first precondition is unmeetable read literally; the executor compares the running
+container's environment, memory limit, CPU quota and running state against the declared
+definition. `world-change-records-have-no-prior-value` sets out why the catalog's prose was
+reinterpreted rather than rewritten.
 
 ## Blast radius
 

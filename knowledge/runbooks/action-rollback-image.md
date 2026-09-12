@@ -12,10 +12,17 @@ container. The allowlist entry is `rollback_image`, remediation class `rollback`
 
 ## Before proposing it
 
-- A prior image tag for this service must exist in change history. Without one there is
-  nothing to roll back *to*, and the proposal is unactionable.
-- The incident's evidence must name a deploy or image change inside its window. An image that
-  has not changed is not the cause, however plausible the service looks.
+The allowlist's preconditions are the operator-facing description of when this action is
+appropriate: *a prior image tag for this service is recorded in change history*, and the
+incident's evidence naming a deploy or image change inside its window.
+
+**What the executor actually evaluates is drift**, and the difference is on the record rather
+than an inconsistency. No change record in this world carries a prior value, so the first
+precondition is unmeetable read literally; the executor compares the running container's **image
+and whether it is running at all** against the declared definition instead. The second field was
+added after a stopped container wearing its declared image read as *no drift* and the action was
+refused. `world-change-records-have-no-prior-value` sets out why,
+and which fields each action compares.
 
 ## Blast radius
 
