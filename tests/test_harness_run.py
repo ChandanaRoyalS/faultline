@@ -180,14 +180,46 @@ def test_the_gate_command_can_print_the_reading_as_json(capsys: Any) -> None:
     assert "headroom" in printed
 
 
-def test_the_gate_command_never_consults_the_incident_store() -> None:
+def test_the_gate_command_consults_no_incident_store_unless_asked() -> None:
     """A probe of the world, not of the harness's database: `read` is called with no incidents,
-    which `test_a_gate_read_with_no_incident_arguments_never_refuses_on_settling` says is safe."""
+    which `test_a_gate_read_with_no_incident_arguments_never_refuses_on_settling` says is safe.
+    `world-boot.yml` runs this against a booted world in Actions with no harness database worth
+    asking, and that is the default this preserves."""
     with patch.object(gate, "read", return_value=reading_with()) as read:
         gate.run_cli([])
 
-    assert read.call_args.args == ()
+    assert read.call_args.args == ([], [])
     assert set(read.call_args.kwargs) == {"runs_remaining"}
+
+
+def test_a_world_only_reading_says_which_checks_it_did_not_make(capsys: Any) -> None:
+    """**What was actually wrong** (2026-09-12). The default reading is fine; the *claim* was not.
+    A reading that never asks about open incidents cannot answer *would the gate admit a scored
+    run* - it can print GATE WOULD ADMIT with an incident open that the real gate refuses on, and
+    T6.3's rejection-loop driver injected into exactly that world and measured nothing. The
+    default is unchanged and now says what it did not look at."""
+    with patch.object(gate, "read", return_value=reading_with()):
+        gate.run_cli([])
+
+    out = capsys.readouterr().out
+    assert "open and settling incidents were NOT checked" in out
+    assert "--incidents" in out
+
+
+def test_the_gate_command_asks_the_database_when_told_to(capsys: Any) -> None:
+    """The two checks a world probe cannot see, offered rather than assumed."""
+    from evalharness import run as harness_run
+
+    with (
+        patch.object(gate, "read", return_value=reading_with()) as read,
+        patch.object(harness_run, "open_incidents", return_value=["inc-1"]) as opened,
+        patch.object(harness_run, "settling_incidents", return_value=[]),
+    ):
+        gate.run_cli(["--incidents", "--postgres-dsn", "postgresql://unused"])
+
+    assert opened.call_args.args == ("postgresql://unused",)
+    assert read.call_args.args == (["inc-1"], [])
+    assert "were NOT checked" not in capsys.readouterr().out
 
 
 # --- the settle window (T4.13) ------------------------------------------------

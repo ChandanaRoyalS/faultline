@@ -746,7 +746,11 @@ def run_cli(argv: list[str] | None = None) -> int:
 
     p = argparse.ArgumentParser(
         prog="faultline-gate",
-        description="Read the baseline gate without injecting anything.",
+        description=(
+            "Read the baseline gate without injecting anything. **By default this probes the "
+            "world only** and does not ask the database whether an incident is open or settling; "
+            "pass --incidents to include those, which is what a scored run applies."
+        ),
     )
     p.add_argument(
         "--runs-remaining",
@@ -756,12 +760,48 @@ def run_cli(argv: list[str] | None = None) -> int:
         "exactly as faultline-sweep would. Omitted: one run at the harness's worst-case bound.",
     )
     p.add_argument("--json", action="store_true", help="print the reading as JSON")
+    p.add_argument(
+        "--incidents",
+        action="store_true",
+        help="also ask the database for open and settling incidents - the two checks a scored "
+        "run applies that a world probe cannot see. Needs Postgres.",
+    )
+    p.add_argument("--postgres-dsn", default=None, help="with --incidents; default: settings")
     args = p.parse_args(argv)
 
-    reading = read(runs_remaining=args.runs_remaining)
+    # **Opt-in, and the default stays a probe of the world.** `world-boot.yml` runs this in
+    # Actions against a booted world with no harness database worth asking, and
+    # `test_the_gate_command_never_consults_the_incident_store` holds that.
+    #
+    # What was wrong was the *claim*: the description said "would the gate admit a scored run",
+    # and a reading that never asks about open incidents cannot answer that - it can print GATE
+    # WOULD ADMIT with an incident open that the real gate refuses on. T6.3's rejection-loop
+    # driver had copied this call and its second live run injected into a world holding a
+    # leftover `TRIAGING` incident; the new alerts correlated into that incident, nothing opened,
+    # and the run measured nothing. The driver now passes both lists always. This offers them,
+    # and says plainly when it did not look.
+    opened: list[str] = []
+    settling: list[tuple[Any, Any]] = []
+    asked = False
+    if args.incidents:
+        from evalharness.run import open_incidents, settling_incidents
+        from faultline.orchestrator.settings import OrchestratorSettings
+
+        dsn = args.postgres_dsn or OrchestratorSettings().postgres_dsn
+        opened, settling = open_incidents(dsn), settling_incidents(dsn)
+        asked = True
+
+    reading = read(opened, settling, runs_remaining=args.runs_remaining)
     if args.json:
-        print(json.dumps(reading.as_dict(), indent=2, sort_keys=True))
+        print(
+            json.dumps({**reading.as_dict(), "incidents_checked": asked}, indent=2, sort_keys=True)
+        )
     else:
+        if not asked:
+            print(
+                "world only: open and settling incidents were NOT checked (pass --incidents). "
+                "A scored run applies both."
+            )
         print(
             f"ingest accepting: {reading.ingest_accepting}; consumer idle: "
             f"{reading.consumer_idle_ms}ms; services reporting: {reading.services_reporting}; "
