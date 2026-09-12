@@ -10,19 +10,24 @@ actions: [revert_config]
 An environment value, connection string, or feature flag was changed to something that does
 not work. The service is running the right code against the wrong world.
 
-**Resolves by `config_revert`.** Every `bad_config` scenario in the catalog is labelled that
-way.
+**Resolves by `config_revert`.** The wrong thing is a value the service was given, so the fix is
+to restore the previous value and recreate the container - which is what `revert_config` does.
+This mechanism does not touch the image.
 
-## Confirming it
+## What the change record holds
 
-The change record shows the variable and both values. A configuration pointing at an address
-that no longer answers usually produces connection errors in the service's own logs with the
-address quoted verbatim - the fastest confirmation available, because the wrong value appears
-in the evidence rather than being inferred from it.
+The variable and both values, with a timestamp.
 
-## Where it overlaps with bad_deploy
+**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a
+service pointed at an address that no longer answers logs connection errors quoting the address
+verbatim, and called that the fastest confirmation available. That is true of some
+configurations in this world and false of others: one recorded capture was corrected precisely
+because the misconfigured service's logs showed normal operation throughout - its logs were
+exculpatory rather than diagnostic. Expect the change record to name the value. Do not rely on
+the logs to.
 
-Both are change-induced and both are found in change history. The distinction is whether the
-*image* moved or a *value* moved, and the remediation classes differ accordingly - rollback
-versus config revert. Reporting the right root cause with the wrong remediation class still
-scores as a miss on the remediation half.
+## Its relationship to bad_deploy
+
+Both mechanisms are changes and both are recorded in change history. They are different changes
+- one moves an image reference, the other moves an environment value - and the actions that undo
+them differ accordingly, `rollback_image` against `revert_config`.

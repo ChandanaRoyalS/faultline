@@ -10,17 +10,22 @@ actions: [rollback_image]
 A service is running an image it should not be. In this world the mechanism is a compose image
 tag changed under the service, and the container recreated.
 
-**Resolves by `rollback`.** Every scenario labelled `bad_deploy` in the catalog carries
-`expected_remediation_class: rollback`, without exception.
+**Resolves by `rollback`.** The wrong thing is the image the container is running, so the fix is
+to run the previous one again - which is what `rollback_image` does. The service's configuration
+is untouched by this mechanism, so reverting configuration restores nothing.
 
-## Confirming it
+## What the change record holds
 
-Change history is the first and usually the only query needed: an image reference that changed
-inside the incident window, on the service the alert names or one hop upstream of it. Logs
-confirm the shape of the failure; they rarely identify it faster than the change record.
+An image reference that changed, with both values and a timestamp. The swap is recorded as a
+change when it is made, so evidence for this class exists as a recorded fact rather than only as
+an inference from symptoms.
 
-## What makes this class easy to get wrong
+## What the mechanism does to the container
 
-A wrong image often produces *no* errors on the service itself - it fails to start, or starts
-and refuses connections, so the errors surface on its callers. The service named by the loudest
-alert is frequently not the service whose image changed.
+**Two shapes, and the injector produces both**: a container that never starts, and one that
+starts and fails on the hot path. Both are the same image swap. A record elsewhere in this
+repository said three for a long time and was corrected at T7.39 - the injector never said so.
+
+A container that is not running emits no spans, so while it is down no `calls_total`,
+`latency_bucket` or error-ratio series exists for it at all. That is the same mechanical
+consequence `world-uninstrumented-services` describes arriving by a different route.

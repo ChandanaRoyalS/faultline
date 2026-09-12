@@ -13,9 +13,17 @@ entry is `revert_config`, remediation class `config_revert`.
 ## It covers two fault classes, which is unusual
 
 `bad_config` obviously. **And `resource_exhaustion`**, because a memory squeeze is applied as a
-limit on the container - configuration, not state. Two of the four fault classes in this world
-resolve through this one action, which makes it the most-proposed entry in the catalog and the
-one worth being most precise about.
+limit on the container - configuration, not state. Two of this world's four fault mechanisms are
+undone by this action as the thing that removes them, which is a fact about the mechanisms and
+not about how often anything proposes it.
+
+**A third has been measured to work on one target, and the scope is the point.** ADR-0027 tested
+deleting a netem qdisc from one service's `eth0`: the delay cleared durably, 3 of 3, container
+never restarted and the traffic shaper still running, because that shaper applies its rule once
+and does not reconcile. ADR-0027's own consequences record the one other scenario it gave
+that field to as **inference, not measurement**, and the repository has refused the
+same generalisation twice more since. A remediation is a claim that it was tested on the thing
+it is being claimed for.
 
 ## Before proposing it
 
