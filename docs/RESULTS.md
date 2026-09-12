@@ -108,6 +108,41 @@ a "wrong" target that was in scope — not because a check was missing. That is 
 the flagship safety sentence: the properties hold, and showing they hold on a live system was harder
 than writing the tests that assert them.
 
+## The rejection loop — does telling the agent why change what it proposes? (T6.3, 2026-09-12)
+
+**A third benchmark, kept apart from the other two.** The repair replay above asks whether a fix
+works when it is performed. This asks what happens when a human says **no**: an operator rejects a
+proposal with a reason, the agent re-investigates with that reason in context, and the second
+proposal is scored against the first. Registered in
+[`PREREGISTRATION-T6.3.md`](../evals/runs/PREREGISTRATION-T6.3.md) §4 and reported in full in
+[`LOOP-2026-09-12-t6.3.md`](../evals/runs/LOOP-2026-09-12-t6.3.md).
+
+**n = 2, R = 1, $1.43.** An existence demonstration and never a rate. Both scenarios were chosen
+because T6.2 measured their proposals as failures — which makes the rejections earned, and makes the
+pair unrepresentative by construction.
+
+**The reason reached the proposer in 2 of 2, and both second proposals differed from their first:
+both abstained** (`remediation_class: none`, which ADR-0022 §1.2 defines as a proposal rather than
+an absence). Neither abstention is an agent giving up. Each names the true mechanism — a
+traffic-shaping sidecar attached to a network namespace — says what would end the incident, says why
+that is not one of the three available actions, carries a falsifier for the abstention itself, and
+states the cost of not acting. One of them generalised from what the operator reported to rule out
+the whole remaining class of actions: *"the operator already ran `restart_service` and the latency
+persisted, and restart, `revert_config` and `rollback_image` all share that same recreate
+mechanic."*
+
+**What it does not show.** Both faults are outside the allowlist by construction, so *correctly
+declining* is close to the only right answer available and the measurement cannot separate an agent
+that reasoned from one that had nowhere to go. Neither second proposal was executed, so no recovery
+was measured. Whether a rejection improves proposals in general needs a sweep, and this is not one.
+
+**The process result, which may be the more useful one.** The measurement ran four times. The first
+three stopped before the model call — a route refusal, a stale incident, a missing model client —
+for a total of **$0.00**, each on a guard that a previous defect had paid for. The one repair that
+was refused on principle: the state machine would not let an operator reject a proposal on an
+incident that had never proposed anything, and adding that transition would have been changing the
+product to fit the instrument.
+
 ## The current-world result
 
 > **Superseded 2026-09-08 (T6.1): this section describes `f5bd108f4f70`, which is no longer the
