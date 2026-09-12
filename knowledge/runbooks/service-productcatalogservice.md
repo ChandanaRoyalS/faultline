@@ -25,7 +25,7 @@ The alert rules are **rate-based, not count-based** - error ratio over a two-min
 over the same. A busy service and a quiet one are held to the same threshold, so volume does
 not make productcatalogservice alert more readily than anything else.
 
-Where volume does matter is the other way round: **a rate computed over 4575 calls settles
+Where volume does matter is the other way round: **a rate computed over ~5470 calls settles
 quickly and a rate computed over 286 does not.** An error ratio here is a sharp measurement
 within a window; the same ratio on a sparse service can take far longer to trip a rule, and
 the catalog notes elsewhere that a sparse service is slower to page for exactly this reason.

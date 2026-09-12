@@ -25,8 +25,10 @@ All five **sync**, and the call counts are the browse path's shape:
 `productcatalogservice` (4575), `cartservice` (1754), `adservice` (463),
 `recommendationservice` (444), and `checkoutservice` (330, `unmeasured`).
 
-productcatalogservice at 4575 calls is the most-called service in this world by a factor of
-two and a half, which is worth knowing before reading anything into its alert frequency.
+**Read those as edge counts, not as service totals.** 4575 is what *frontend* sends
+productcatalogservice; that service also takes 451 from checkoutservice and 444 from
+recommendationservice, so its inbound total is about 5470. The distinction matters whenever a
+number is used to compare services rather than paths.
 
 ## Why it alerts so often, and what that is worth
 
