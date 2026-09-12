@@ -75,6 +75,27 @@ def _asked(result: Any) -> dict[str, Any]:
     return asked
 
 
+def _label(chunk: Any) -> str:
+    """What a retrieved chunk is called in the line the model reads.
+
+    **A runbook has no `scenario_id`** - it belongs to no scenario, deliberately - so the
+    original `f"{scenario_id} / {section}: ..."` rendered every authored document with a leading
+    empty field: `" / Acting on it: ..."`. The model has been reading that wart on every
+    retrieved runbook since runbooks were seeded (T6.4 §2.5).
+
+    Falling back to `document_id` gives the runbook a real name rather than a space, and leaves
+    narratives exactly as they were, so the only lines that change are the ones that were broken.
+
+    **What this does not have is a digest.** The rendered line is recorded per retrieval in
+    `trajectory_retrievals.rendered` (T7.9), so a change is visible after the fact in any run
+    written from here on - but nothing hashes the renderer, and a run recorded before this reads
+    different text from one recorded after with no field to say so. Noted rather than fixed;
+    `world-digests-and-what-they-cover` is where the gap belongs.
+    """
+    label: str = chunk.scenario_id or chunk.document_id
+    return label
+
+
 class InvestigationFailedError(RuntimeError):
     """A run that raised, carrying what it had got to. **The distinction the runner needs.**
 
@@ -402,8 +423,7 @@ class Investigation:
             query = self._retrieval_query(triage, result)
             hits = self._corpus.search(query, k=self._retrieval_k, exclude_origin=exclude)
             result.retrieved = [
-                f"{hit.chunk.scenario_id} / {hit.chunk.section}: {hit.chunk.text[:280]}"
-                for hit in hits
+                f"{_label(hit.chunk)} / {hit.chunk.section}: {hit.chunk.text[:280]}" for hit in hits
             ]
             # **Pulled**: retrieval is the synthesizer's one on-demand channel, and the plan
             # calls the top-3 past incidents part of the *minimal* briefing precisely because
@@ -594,7 +614,7 @@ class Investigation:
         query = self._planner_query(triage)
         hits = self._corpus.search(query, k=self._retrieval_k, exclude_origin=exclude)
         rendered = [
-            f"{hit.chunk.scenario_id} / {hit.chunk.section}: {hit.chunk.text[:280]}" for hit in hits
+            f"{_label(hit.chunk)} / {hit.chunk.section}: {hit.chunk.text[:280]}" for hit in hits
         ]
         meter.pulled("\n".join(rendered))
         seq += 1

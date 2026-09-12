@@ -48,6 +48,19 @@ class PastIncidentStore(Protocol):
 
     def count(self) -> int: ...
 
+    def prune_document(self, document_id: str, keep: set[str]) -> int:
+        """Remove this document's chunks that its current source no longer produces.
+
+        **Seeding was idempotent and not reconciling** (T6.4 §2.5, Q40). A chunk's key is
+        `document_id#section_index`, so deleting or renaming a section leaves the old row behind:
+        `add` upserts the sections that still exist and has nothing to say about the ones that
+        do not. The orphan stays in the retrieval pool, stays inside `body_sha256`, and looks
+        like a legitimate chunk of a legitimate document.
+
+        It is not theoretical. T6.4's first retrieval measurement ran against a corpus holding
+        263 chunks over 50 documents whose seed had just reported 261.
+        """
+
     def excluded_count(self, origin: str) -> int:
         """How many chunks carry `origin`, and are therefore unreachable when it is excluded.
 
@@ -125,6 +138,16 @@ class InMemoryPastIncidentStore:
 
     def count(self) -> int:
         return len(self.chunks)
+
+    def prune_document(self, document_id: str, keep: set[str]) -> int:
+        stale = [
+            key
+            for key, chunk in self.chunks.items()
+            if chunk.document_id == document_id and key not in keep
+        ]
+        for key in stale:
+            del self.chunks[key]
+        return len(stale)
 
     def excluded_count(self, origin: str) -> int:
         return sum(1 for chunk in self.chunks.values() if chunk.origin == origin)
@@ -212,6 +235,14 @@ class PgVectorPastIncidentStore:
             cur.execute("SELECT count(*) FROM incident_chunks")
             row = cur.fetchone()
             return int(row[0]) if row else 0
+
+    def prune_document(self, document_id: str, keep: set[str]) -> int:
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM incident_chunks WHERE document_id = %s AND NOT (id = ANY(%s))",
+                (document_id, list(keep)),
+            )
+            return int(cur.rowcount)
 
     def excluded_count(self, origin: str) -> int:
         with self._conn.cursor() as cur:

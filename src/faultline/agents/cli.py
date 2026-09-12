@@ -15,6 +15,7 @@ from typing import Any
 from faultline.agents.contracts import SPECIALISTS
 from faultline.agents.settings import AgentSettings
 from faultline.archive import connect_or_none
+from faultline.context.settings import ContextSettings
 
 
 def parser() -> argparse.ArgumentParser:
@@ -64,7 +65,12 @@ def parser() -> argparse.ArgumentParser:
             "whole corpus"
         ),
     )
-    p.add_argument("--retrieval-k", type=int, default=3, help="default: %(default)s")
+    p.add_argument(
+        "--retrieval-k",
+        type=int,
+        default=ContextSettings().retrieval_k,
+        help="default: %(default)s, from FAULTLINE_CONTEXT_RETRIEVAL_K",
+    )
     p.add_argument(
         "--baseline",
         choices=("b0", "b1", "b2"),
