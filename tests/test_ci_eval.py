@@ -7,6 +7,8 @@ assertions that keep the smoke suite honest about what it is.
 
 from __future__ import annotations
 
+import inspect
+import re
 from pathlib import Path
 
 import yaml
@@ -564,3 +566,80 @@ def test_the_integration_job_installs_what_its_tests_import() -> None:
     assert all("--all-extras" not in step["run"] for step in checks), (
         "`make check` never loads an embedder - extras here would slow the fast job for nothing"
     )
+
+
+# --- the images the integration job pulls --------------------------------------------------------
+
+
+TESTS_DIR = Path(__file__).parent
+IMAGE_LITERAL = re.compile(r'(?:DockerContainer|PostgresContainer)\(\s*"([^"]+:[^"]+)"')
+
+
+def integration_job_step(name: str) -> dict:
+    steps = workflow("ci")["jobs"]["integration"]["steps"]
+    matching = [step for step in steps if step.get("name") == name]
+    assert len(matching) == 1, f"expected exactly one {name!r} step, found {len(matching)}"
+    return matching[0]
+
+
+def images_the_tests_construct() -> set[str]:
+    """Every container image the integration suite actually asks a registry for.
+
+    Two sources, because the tests have two habits. Most name the image as a literal. The
+    consumer tests use `RedisContainer()` with no argument, so the image is a **default in a
+    third-party signature** - read from there rather than restated, so a testcontainers upgrade
+    that moves the default breaks this loudly instead of leaving one image un-pulled.
+    """
+    from testcontainers.redis import RedisContainer
+
+    found: set[str] = set()
+    for path in sorted(TESTS_DIR.glob("test_integration_*.py")):
+        found.update(IMAGE_LITERAL.findall(path.read_text()))
+
+    default = inspect.signature(RedisContainer.__init__).parameters["image"].default
+    assert isinstance(default, str) and ":" in default
+    found.add(default)
+    return found
+
+
+def images_pulled_by_the_step() -> set[str]:
+    """The images named in the step's `for image in ... do` header.
+
+    Parsed from the loop header rather than sniffed out of the whole script, so a registry host
+    appearing in a comment or an error message cannot be mistaken for an image the step pulls.
+    """
+    script = integration_job_step("Pull test images")["run"]
+    header = re.search(r"for image in(.*?)\bdo\b", script, re.DOTALL)
+    assert header, "the step no longer names its images in a `for image in ... do` header"
+    return set(header.group(1).replace("\\", " ").split())
+
+
+def test_the_prepulled_images_are_the_ones_the_tests_ask_for() -> None:
+    """**A stale pre-pull list is the flap wearing a green step.**
+
+    The `Pull test images` step exists because two registries refused this suite's MinIO image
+    on consecutive days, one of them clearing on a re-run of the same commit. It can only absorb
+    a flap for images it actually names, and it names them in a shell loop that cannot see the
+    tests. An image added to a test and not to the step would be pulled for the first time inside
+    a fixture again - the exact failure the step was added to remove - while the step went green
+    having pulled everything else.
+
+    Equality rather than containment, in both directions: an extra entry here is an image nothing
+    uses, which is a pull nobody needs and a pin nobody will remember to move.
+    """
+    assert images_pulled_by_the_step() == images_the_tests_construct(), (
+        f"the step pulls {sorted(images_pulled_by_the_step())}; "
+        f"the tests ask for {sorted(images_the_tests_construct())}"
+    )
+
+
+def test_the_pull_step_runs_before_the_tests_and_retries() -> None:
+    """Order is the whole point - a pull after the tests pre-pulls nothing - and a single
+    attempt would absorb no flap at all."""
+    steps = workflow("ci")["jobs"]["integration"]["steps"]
+    names = [step.get("name") for step in steps]
+    assert names.index("Pull test images") < names.index("Integration tests")
+
+    script = integration_job_step("Pull test images")["run"]
+    assert "for attempt in" in script
+    assert "docker pull" in script

@@ -78,5 +78,43 @@ jobs:
       # Docker still passes Gate 0 - which makes this job the only thing that executes them.
       # Without it, the marker is a way to write a test that never runs, and the guard in
       # tests/conftest.py would have been loosened for nothing.
+      # **Pull the test images first, with retries, and fail at a step that says so.**
+      #
+      # These images are pulled anonymously from public registries at test time, and that has
+      # now failed twice in two days for the same image: Docker Hub denied anonymous pulls of
+      # `minio/minio` on 2026-09-11 (which is why `docker-compose.yml` moved to Quay, with the
+      # reason in a comment there), and Quay answered 404 for the moved tag on 2026-09-12 and
+      # then served it again two minutes later on a re-run of the same commit. A flap should
+      # cost thirty seconds, not a red build and a re-run nobody records.
+      #
+      # Retries here rather than in the tests: testcontainers pulls inside a fixture, so a
+      # registry failure surfaces as `ImageNotFound` inside a stack trace in four unrelated
+      # archive tests. A named step turns a real removal into a legible failure and keeps the
+      # flap out of the test report entirely.
+      #
+      # **This list is duplicated from the tests on purpose and is held by
+      # `test_the_prepulled_images_are_the_ones_the_tests_ask_for`** - a stale entry here would
+      # pre-pull one image while the tests pulled another, which is the same flap wearing a
+      # green step.
+      #
+      # Not covered: the embedding model this job downloads from the HF hub at test time. Same
+      # failure class, different remedy, and no observed failure yet to justify one.
+      - name: Pull test images
+        run: |
+          for image in \
+            quay.io/minio/minio:RELEASE.2025-04-22T22-12-26Z \
+            pgvector/pgvector:pg16 \
+            redis:latest
+          do
+            for attempt in 1 2 3; do
+              if docker pull --quiet "$image"; then break; fi
+              if [ "$attempt" = 3 ]; then
+                echo "::error::could not pull $image after 3 attempts"
+                exit 1
+              fi
+              echo "pull of $image failed (attempt $attempt); retrying in $((attempt * 10))s"
+              sleep $((attempt * 10))
+            done
+          done
       - name: Integration tests
         run: uv run pytest -m integration -o addopts=-q
