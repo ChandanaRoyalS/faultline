@@ -37,8 +37,9 @@ All three rules, evaluated per `service_name`. SLO: p95 250ms, error ratio 0.05,
 
 Its measured healthy p95 is **1.9ms, flat** - 181 consecutive samples, min and max alike, over a
 clean 45-minute baseline. That is the bottom of the 1.9-9.7ms band ADR-0025 measured across the
-eleven services without a latency tail, and it puts the 250ms threshold two orders of magnitude
-above resting here.
+eleven services without a latency tail - **median p95 over twelve hours**, which is a different
+statistic from the mean over 45 minutes quoted here. It puts the 250ms threshold two orders of
+magnitude above resting.
 
 An earlier baseline called this service bimodal at 353ms and was wrong: every such reading was
 taken inside the warm-up window after a recreate (ADR-0012, third correction, and
