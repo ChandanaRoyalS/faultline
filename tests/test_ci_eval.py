@@ -590,7 +590,7 @@ def images_the_tests_construct() -> set[str]:
     third-party signature** - read from there rather than restated, so a testcontainers upgrade
     that moves the default breaks this loudly instead of leaving one image un-pulled.
     """
-    from testcontainers.redis import RedisContainer
+    from testcontainers.community.redis import RedisContainer
 
     found: set[str] = set()
     for path in sorted(TESTS_DIR.glob("test_integration_*.py")):
@@ -643,3 +643,23 @@ def test_the_pull_step_runs_before_the_tests_and_retries() -> None:
     script = integration_job_step("Pull test images")["run"]
     assert "for attempt in" in script
     assert "docker pull" in script
+
+
+DEPRECATED_TESTCONTAINERS = re.compile(r"from\s+testcontainers\.(postgres|redis|mysql|mongodb)\b")
+
+
+def test_no_test_imports_a_deprecated_testcontainers_shim() -> None:
+    """**Both offenders were introduced by the task that added the retrieval gate**, while every
+    older integration test already used `testcontainers.community.*`. That is the shape of the
+    problem: a deprecation warning in a suite that prints two of them is read as background noise,
+    and the newest code is the code most likely to have copied the old form from somewhere stale.
+
+    The shims still work, so this is not correctness - it is that a warning nobody can act on
+    trains everyone to skip the warnings summary, and the next one will be real.
+    """
+    offenders = {
+        str(path.relative_to(TESTS_DIR)): DEPRECATED_TESTCONTAINERS.findall(path.read_text())
+        for path in sorted(TESTS_DIR.glob("test_*.py"))
+        if DEPRECATED_TESTCONTAINERS.search(path.read_text())
+    }
+    assert not offenders, f"deprecated testcontainers imports: {offenders}"

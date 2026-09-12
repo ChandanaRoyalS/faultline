@@ -25,7 +25,7 @@ from pathlib import Path
 
 import psycopg
 import pytest
-from testcontainers.postgres import PostgresContainer
+from testcontainers.community.postgres import PostgresContainer
 
 from evalharness.retrieval import PREDATES_T6_4, load_golden, measure
 from faultline.context.embedding import SentenceTransformerEmbedder
