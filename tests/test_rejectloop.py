@@ -402,3 +402,59 @@ def test_the_walk_is_the_machines_and_is_not_restated_by_the_driver() -> None:
         "synthesizing",
         "proposing",
     ]
+
+
+def test_the_gate_is_asked_about_open_incidents_the_way_the_harness_asks_it() -> None:
+    """**Second live run, 2026-09-12.** `gate.read()` takes the open incidents as an argument, and
+    a caller that omits them gets a gate that never checks them - which this driver's did. A
+    leftover `TRIAGING` incident from the aborted first run was holding the services the scenario
+    alerts on; the new alerts correlated into it, nothing opened, and the run scored `no-incident`.
+    It spent nothing and measured nothing. A weaker gate than the harness's is a different
+    experiment."""
+    import inspect
+
+    source = inspect.getsource(rejectloop.RealSteps.gate_admits)
+
+    assert "open_incidents" in source and "settling_incidents" in source
+    assert "runs_remaining=1" in source
+
+
+def test_the_re_investigation_carries_the_harnesss_bounds() -> None:
+    """T4.7's configuration, the same `investigate_args` the deployment's runner passes, so a
+    re-investigation is the same experiment as a scored run rather than an unbounded one."""
+    import inspect
+
+    from faultline.orchestrator.settings import OrchestratorSettings
+
+    # **The docstring says `--exclude-origin` and the code must not** - so the docstring comes
+    # off first. `test_the_page_never_uses_innerhtml` records the same mistake in the same words:
+    # a fragment of English is not a property; the property is about code.
+    source = inspect.getsource(rejectloop.RealSteps.reinvestigate)
+    body = source.split('"""')[-1]
+
+    assert "investigate_args" in body
+    assert "--exclude-origin" not in body, "this is not a scored run; the corpus is not excluded"
+    assert "--max-tool-calls" in OrchestratorSettings().investigate_args
+
+
+def test_the_cli_refuses_before_injecting_when_the_model_client_is_missing(
+    tmp_path: Path, monkeypatch: Any
+) -> None:
+    """Q20's rule, re-learned: the second live run injected a fault, opened an incident and
+    recorded a rejection before discovering that `faultline-investigate` could not import
+    `anthropic`. Nothing was spent - and nothing was measured, which is the expensive half."""
+    import inspect
+
+    source = inspect.getsource(rejectloop.run_cli)
+    assert source.index('find_spec("anthropic")') < source.index("RealSteps("), (
+        "the check has to come before the world is touched"
+    )
+
+    monkeypatch.setenv("FAULTLINE_API_PASSWORD", "unused")
+    # `find_spec` rather than an import, so that this module stays unable to reach a model client
+    # at all - the AST guard above is the other half of the same promise.
+    monkeypatch.setattr(rejectloop.importlib.util, "find_spec", lambda name: None)
+    with pytest.raises(SystemExit):
+        rejectloop.run_cli(
+            ["--evidence-root", str(tmp_path), "--postgres-dsn", "postgresql://unused"]
+        )
