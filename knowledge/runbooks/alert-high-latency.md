@@ -13,6 +13,14 @@ for 3 minutes. Severity `warning`.
 **The healthy baseline is under 50 ms on every service**, measured flat over 45 clean minutes
 (ADR-0012). A p95 above 250 ms is five times the ceiling of normal, not a marginal excursion.
 
+**Three services are a measured exception to that, found by a later twelve-hour census**
+(ADR-0025). `checkoutservice`, `frontend` and `loadgenerator` enter multi-minute p95 excursions
+far above 250 ms on a world at rest, sustained past this rule's `for:` clause; every other
+service recorded zero samples over threshold. The rule is not wrong when it fires on them and it
+was deliberately left alone. What handles it is the scoring gate, which refuses to begin a
+recording during an excursion - so this alert inside a recorded incident's window is not the
+tail.
+
 ## Read the clock before the metric
 
 A container recreated in the last few minutes is still warming up, and its p95 is not a
