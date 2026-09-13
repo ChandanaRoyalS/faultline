@@ -1,0 +1,7 @@
+incident 10b526ac-45e2-4bbf-b282-d3d27e4321a7  state triaging  anchor 07:16:00
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+B0: bad_deploy / rollback
+  suspect: service of the most recent pre-onset change in the window (07:13:08)
+  class: that change was to image
+  remediation: table lookup from bad_deploy
+wrote /home/runner/work/faultline/faultline/evals/runs/20260911T071253Z-shipping-wrong-image/10b526ac-45e2-4bbf-b282-d3d27e4321a7-verdict.json

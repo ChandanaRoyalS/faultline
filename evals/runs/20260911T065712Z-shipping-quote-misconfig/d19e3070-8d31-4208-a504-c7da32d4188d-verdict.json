@@ -1,0 +1,46 @@
+{
+  "incident_id": "d19e3070-8d31-4208-a504-c7da32d4188d",
+  "trajectory_id": "d6d6b4c9-e145-4533-95cc-ed46a62ced5d",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "shippingservice",
+    "loadgenerator",
+    "accountingservice",
+    "cartservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origin": "shipping-quote-misconfig",
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "summary": "suspect: service of the most recent pre-onset change in the window (06:57:27); class: that change was to environment; remediation: table lookup from bad_config",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "shippingservice",
+    "fault_class": "bad_config",
+    "fix_class": "config_revert",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (06:57:27)",
+      "class: that change was to environment",
+      "remediation: table lookup from bad_config"
+    ]
+  }
+}

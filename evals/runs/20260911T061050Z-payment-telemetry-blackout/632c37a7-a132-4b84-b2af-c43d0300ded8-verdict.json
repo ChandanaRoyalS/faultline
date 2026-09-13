@@ -1,0 +1,38 @@
+{
+  "incident_id": "632c37a7-a132-4b84-b2af-c43d0300ded8",
+  "trajectory_id": "553a3b7b-9b43-4954-a506-b11cac9416b1",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "paymentservice",
+    "checkoutservice",
+    "frontend"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origin": "payment-telemetry-blackout",
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "summary": "suspect: service of the most recent pre-onset change in the window (06:10:55); class: that change was to environment; remediation: table lookup from bad_config",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "paymentservice",
+    "fault_class": "bad_config",
+    "fix_class": "config_revert",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (06:10:55)",
+      "class: that change was to environment",
+      "remediation: table lookup from bad_config"
+    ]
+  }
+}

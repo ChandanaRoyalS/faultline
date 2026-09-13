@@ -1,0 +1,91 @@
+{
+  "run_id": "20260911T060942Z-payment-telemetry-blackout",
+  "scenario_id": "payment-telemetry-blackout",
+  "split": "dev",
+  "scenario_fingerprint": "b8a2668299f1d3b1e5ee9b928e292f5994a1ac3c4292989ae70bb5ccb3f2b8b9",
+  "started_at": "2026-09-11T06:09:42.860117+00:00",
+  "demo": false,
+  "recorder": {
+    "tool": "evalharness.run",
+    "git_sha": "cbf782eb303471db337539cde9e6ec4af9e16c9d",
+    "git_dirty": true
+  },
+  "models": {
+    "changes": "claude-opus-5",
+    "logs": "claude-opus-5",
+    "metrics": "claude-opus-5",
+    "planner": "claude-opus-5",
+    "scribe": "claude-opus-5",
+    "synthesizer": "claude-opus-5",
+    "traces": "claude-opus-5"
+  },
+  "efforts": {
+    "default": "high"
+  },
+  "budget": {
+    "max_tool_calls_per_specialist": 4,
+    "max_tokens": 120000,
+    "wall_clock_seconds": 600,
+    "max_dispatch_rounds": 2,
+    "briefing_tokens": 4000,
+    "max_usd": 2.0,
+    "usd_per_mtok_in": 5.0,
+    "usd_per_mtok_out": 25.0,
+    "per_specialist_tool_calls": {}
+  },
+  "world_lock": {
+    "acquired": true,
+    "pid": 118865,
+    "host": "runnervmlun5p",
+    "since": "2026-09-11T06:09:42.881477+00:00",
+    "reason": "faultline-eval payment-telemetry-blackout",
+    "token": "118865-1789106982.881367"
+  },
+  "preflight": {
+    "checked": false,
+    "model": "",
+    "ok": false,
+    "detail": "",
+    "skipped_because": "b0 makes no model call"
+  },
+  "baseline_gate": {
+    "passed": false,
+    "firing_alerts": [],
+    "p95_over_ceiling_ms": {},
+    "p95_excursions": {},
+    "ingest_accepting": true,
+    "consumer_idle_ms": 3001,
+    "pipeline_down": [],
+    "silent_services": [],
+    "unexpected_silent": [],
+    "services_reporting": 14,
+    "youngest_container": [
+      "frauddetection-service",
+      297
+    ],
+    "active_injections": "no active injections",
+    "open_incidents": [],
+    "settling_incidents": [],
+    "headroom": {
+      "container": "kafka",
+      "percent_now": 26.26,
+      "limit_mb": 2048.0,
+      "expected_run_hours": 1.7375,
+      "runs_remaining": 5,
+      "uptime_seconds": 5055,
+      "growth_mb_per_hour": 151.0,
+      "growth_mb": 262.4,
+      "projected_percent": 39.07,
+      "threshold_percent": 77.19,
+      "guard_percent": 90.0,
+      "fits": true
+    },
+    "refusals": [
+      "aborting before injection: 1 container(s) have been up for less than 300s and are still settling."
+    ]
+  },
+  "refused": {
+    "reason": "baseline gate refused",
+    "at": "2026-09-11T06:09:50.156334+00:00"
+  }
+}
