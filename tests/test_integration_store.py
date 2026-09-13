@@ -27,6 +27,7 @@ from faultline.agents.trajectory import (
     Trajectory,
     TrajectoryStep,
 )
+from faultline.context.store import TEXT_QUERY
 from faultline.migrate import stamp_head, upgrade_head
 from faultline.orchestrator.models import (
     INVESTIGATING_STATES,
@@ -317,3 +318,74 @@ def test_a_rewritten_chunk_body_moves_the_corpus_body_hash_and_not_its_shape_has
     )
     assert after["rows"] == before["rows"] == 2
     assert after["documents"] == before["documents"] == ["runbook:x"]
+
+
+def test_the_text_arm_matches_when_the_terms_do_not_all_co_occur(virgin_dsn: str) -> None:
+    """**Q39, and the property the old arm failed for every query ever sent.**
+
+    `plainto_tsquery` ANDs every lexeme, so a chunk had to contain *all* of a query's terms to
+    match. Real queries name several services and a symptom, and no single chunk holds all of
+    them: measured over the seeded corpus, **all 43 golden queries matched zero rows on this
+    arm**, which is why every figure in `RETRIEVAL-2026-09-12-t6.4.md` is labelled one-armed.
+
+    Two chunks here, sharing no vocabulary, and a query drawn from both. Under the old arm the
+    text arm returns nothing and the hybrid is whatever the dense arm said. Under the disjunction
+    it returns both, and `ts_rank_cd` orders them.
+
+    The embeddings are `[0,0]`, so the dense arm cannot be what makes this pass - the ordering it
+    produces over a zero vector is arbitrary, and the assertion is about the text arm's rows.
+    """
+    upgrade_head(virgin_dsn)
+    insert = (
+        "INSERT INTO incident_chunks (id, document_id, section, section_index, body, origin, "
+        "split, scenario_id, fault_class, scenario_fingerprint, recorded_from, title, "
+        "source_path, embedder, dimensions, embedding) VALUES (%s, %s, %s, 0, %s, 'authored', "
+        "'none', '', '', '', '', 't', 'p', 'e', 2, '[0,0]')"
+    )
+    with psycopg.connect(virgin_dsn, autocommit=True) as conn:
+        conn.execute(insert, ("c1", "runbook:cart", "Overview", "cartservice holds the basket"))
+        conn.execute(insert, ("c2", "runbook:flags", "Overview", "featureflagservice is a stub"))
+
+        query = "cartservice featureflagservice latency"
+        text_arm = (
+            "WITH tq AS (SELECT " + TEXT_QUERY + " AS q) "
+            "SELECT id FROM incident_chunks, tq WHERE body_tsv @@ tq.q ORDER BY id"
+        )
+        rows = conn.execute(text_arm, {"q": query}).fetchall()
+        assert [row[0] for row in rows] == ["c1", "c2"], (
+            "a query naming two services should reach the chunk for each; the conjunctive arm "
+            "reached neither"
+        )
+
+        conjunctive = (
+            "SELECT id FROM incident_chunks WHERE body_tsv @@ plainto_tsquery('english', %(q)s)"
+        )
+        assert conn.execute(conjunctive, {"q": query}).fetchall() == [], (
+            "this is the defect, asserted so the test fails if someone 'fixes' it by making the "
+            "old form work - the arm was not broken by accident, it was conjunctive by design"
+        )
+
+
+def test_the_text_arm_survives_a_query_with_no_searchable_terms(virgin_dsn: str) -> None:
+    """An empty or stopword-only query must match nothing rather than raise.
+
+    `plainto_tsquery('english', 'the and of')` is an empty `tsquery`; replacing ` & ` in its text
+    leaves it empty, and an empty `tsquery` matches no row. Worth a test because the fix is a
+    string substitution on a cast value, which is exactly the kind of thing that works on the
+    inputs you thought of.
+    """
+    upgrade_head(virgin_dsn)
+    with psycopg.connect(virgin_dsn, autocommit=True) as conn:
+        conn.execute(
+            "INSERT INTO incident_chunks (id, document_id, section, section_index, body, origin, "
+            "split, scenario_id, fault_class, scenario_fingerprint, recorded_from, title, "
+            "source_path, embedder, dimensions, embedding) VALUES ('c1', 'runbook:x', 'S', 0, "
+            "'cartservice holds the basket', 'authored', 'none', '', '', '', '', 't', 'p', 'e', "
+            "2, '[0,0]')"
+        )
+        arm = (
+            "WITH tq AS (SELECT " + TEXT_QUERY + " AS q) "
+            "SELECT id FROM incident_chunks, tq WHERE body_tsv @@ tq.q"
+        )
+        for query in ("", "the and of", "!!!"):
+            assert conn.execute(arm, {"q": query}).fetchall() == [], query
