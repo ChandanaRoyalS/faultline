@@ -38,26 +38,43 @@ pytestmark = pytest.mark.integration
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEV_ROOT = REPO_ROOT / "evals" / "scenarios" / "artifacts" / "dev"
 
-MEASURED_RECALL_AT_5 = 0.465
-MEASURED_MRR_AT_5 = 0.219
-"""What the first measurement returned, 2026-09-12, on a one-armed hybrid.
+MEASURED_RECALL_AT_5 = 0.442
+MEASURED_MRR_AT_5 = 0.311
+"""What the **second** measurement returned, 2026-09-13, on a two-armed hybrid (Q39).
+
+The first, on 2026-09-12 with a text arm that matched nothing, returned **0.465 and 0.219**.
+`recall@5` therefore went *down* and `MRR@5` went sharply up;
+`evals/runs/RETRIEVAL-2026-09-13-q39.md` reports the whole of it, including that the recall
+difference is **one query of 43** and that the registered decision rule said not to adopt.
 
 Recorded here so the margin below is readable as a margin rather than as a number someone chose.
 """
 
 GATE_RECALL_AT_5 = 0.40
-GATE_MRR_AT_5 = 0.18
-"""**Calibrated, not derived.** About 14% and 18% below what was measured.
+GATE_MRR_AT_5 = 0.26
+"""**Calibrated, not derived.** 9.5% and 16.4% below what was measured.
 
 The margin is not a confidence interval - the golden set is fixed and the corpus is fixed, so
 there is no sampling to be noisy about. It is slack for legitimate corpus edits: adding a
 document dilutes the pool slightly, and a gate with no slack would fire on every authoring PR and
 be disabled within a week.
 
+**`GATE_RECALL_AT_5` did not move, and that is a deviation from the registered rule.**
+`PREREGISTRATION-Q39.md` §3.1 registered recalibration at *the same relative margin* - 14.0% below
+the measurement - which would put this at **0.38**. The measurement fell, so the formula lowers the
+gate. **A relative-margin rule loosens the gate exactly when quality drops**, which converts a
+regression into the new baseline and is the one thing a regression gate exists to prevent. So the
+rule applied here is the tighter of the two: the registered formula, or the constant already
+standing. For `MRR` the formula tightens (0.18 → 0.26) and is taken; for `recall` it loosens and
+0.40 stands, still below the 0.442 measured.
+
+**This deviation was decided after seeing the data**, which is normally how a rule gets bent to
+fit. What makes it defensible is direction: it is strictly more demanding than what was registered
+in both cases, so it cannot flatter the change it was chosen alongside. Recorded here rather than
+only in the write-up, because the next person to read these constants is reading this file.
+
 **It certifies nothing.** Clearing it means retrieval has not got materially worse than a pipeline
-already recorded as below its own floor. Q39's fix should move these figures up sharply, and when
-it does these constants are re-calibrated *upwards* in the same commit - a regression gate that
-stays at the broken pipeline's level after the pipeline is fixed is a decoration again.
+still recorded as below its own floor - 0.442 against a registered 0.60, and 0.311 against 0.45.
 """
 
 
@@ -95,12 +112,12 @@ def test_retrieval_has_not_regressed_against_the_calibrated_gate(
 
     assert result.overall.recall_at_k >= GATE_RECALL_AT_5, (
         f"recall@5 {result.overall.recall_at_k:.3f} is below the calibrated gate "
-        f"{GATE_RECALL_AT_5}. Measured at {MEASURED_RECALL_AT_5} on 2026-09-12. This gate notices "
+        f"{GATE_RECALL_AT_5}. Measured at {MEASURED_RECALL_AT_5} on 2026-09-13. This gate notices "
         "change; it does not certify quality."
     )
     assert result.overall.mrr >= GATE_MRR_AT_5, (
         f"MRR@5 {result.overall.mrr:.3f} is below the calibrated gate {GATE_MRR_AT_5}. "
-        f"Measured at {MEASURED_MRR_AT_5} on 2026-09-12."
+        f"Measured at {MEASURED_MRR_AT_5} on 2026-09-13."
     )
 
 
@@ -110,8 +127,12 @@ def test_the_gate_is_below_the_measurement_and_the_measurement_is_below_the_floo
     """The three levels, asserted as an ordering so nobody quietly inverts them.
 
     A gate above the measurement fails every build. A gate at the registered *floor* would do the
-    same, for as long as the pipeline sits under it - which is the situation today and is why the
-    floor is a line in a write-up rather than an assertion in CI.
+    same, for as long as the pipeline sits under it - which is still the situation after Q39 and is
+    why the floor is a line in a write-up rather than an assertion in CI.
+
+    **Both metrics are asserted now.** Before Q39 only `recall` was, and the omission was not
+    noticed until the constants moved: a rule about three levels that checks one of the two numbers
+    it governs is a rule with a hole in it.
     """
-    registered_floor = 0.60
-    assert GATE_RECALL_AT_5 < MEASURED_RECALL_AT_5 < registered_floor
+    assert GATE_RECALL_AT_5 < MEASURED_RECALL_AT_5 < 0.60
+    assert GATE_MRR_AT_5 < MEASURED_MRR_AT_5 < 0.45
