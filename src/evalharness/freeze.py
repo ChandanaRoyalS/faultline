@@ -64,6 +64,19 @@ def prompts_hash() -> dict[str, Any]:
     return {"constants": names, "sha256": _sha(joined), "chars": len(joined)}
 
 
+def body_digest_of(rows: list[tuple[str, str, str]]) -> str:
+    """`body_sha256` over `(document_id, section, body)` triples.
+
+    **Extracted so there is one of it** (Q45). The corpus-drift check hashes the working tree and
+    compares against this number; two implementations of the same digest is a drift checker that
+    can drift, which is the joke this repository does not need to make.
+
+    The ordering is the SQL's - `document_id, section, body` - so a caller hashing chunks off disk
+    sorts the same way or gets a different answer for the same corpus.
+    """
+    return _sha("\n\x00\n".join(f"{d}|{s}|{b}" for d, s, b in sorted(rows)))
+
+
 def corpus_state(dsn: str) -> dict[str, Any]:
     """Row count, **two** content hashes, and the assertion that no holdout chunk exists.
 
@@ -98,7 +111,7 @@ def corpus_state(dsn: str) -> dict[str, Any]:
             "SELECT document_id, section, body FROM incident_chunks "
             "ORDER BY document_id, section, body"
         )
-        body_digest = _sha("\n\x00\n".join(f"{d}|{s}|{b}" for d, s, b in cur.fetchall()))
+        body_digest = body_digest_of([(d, s, b) for d, s, b in cur.fetchall()])
         cur.execute(
             "SELECT count(*) FROM incident_chunks WHERE document_id = ANY(%s)",
             (holdout_origins(),),
