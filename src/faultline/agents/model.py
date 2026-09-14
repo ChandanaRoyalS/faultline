@@ -170,12 +170,16 @@ class Resilient:
         attempts: int = 4,
         base_delay: float = 1.0,
         max_delay: float = 30.0,
+        deadline_seconds: float | None = None,
         sleep: Callable[[float], None] = time.sleep,
         jitter: Callable[[float, float], float] = random.uniform,
+        clock: Callable[[], float] = time.monotonic,
     ) -> None:
         self._primary = primary
         self._fallbacks = tuple(fallbacks)
         self._attempts = max(1, attempts)
+        self._deadline_seconds = deadline_seconds
+        self._clock = clock
         self._base_delay = base_delay
         self._max_delay = max_delay
         self._sleep = sleep
@@ -188,9 +192,23 @@ class Resilient:
         return self._primary.name
 
     def _try(self, model: LanguageModel, request: ModelRequest) -> ModelResponse:
-        """Full jitter, so a sweep's parallel retries do not re-collide on the same schedule."""
+        """Full jitter, so a sweep's parallel retries do not re-collide on the same schedule.
+
+        **Bounded by `deadline_seconds` when one is given (Q33).** Retries alone could outlive the
+        budget they run inside: four attempts against a 600 s per-call timeout is forty minutes of
+        one logical call, and the wall-clock check cannot interrupt a blocked call. Run
+        `20260910T002657Z-ad-memory-squeeze` recorded **6596 s against a 600 s budget**, and
+        neither that budget nor the 1800 s harness kill fired.
+
+        The deadline is checked **before each attempt after the first**, never mid-call: nothing
+        here can interrupt a request already in flight, and pretending otherwise would be a bound
+        that does not bind. What it stops is the compounding - one overrun instead of four.
+        """
+        started = self._clock()
         last: BaseException | None = None
         for attempt in range(self._attempts):
+            if attempt and self._out_of_time(started):
+                break
             try:
                 return model.complete(request)
             except Exception as exc:
@@ -202,6 +220,11 @@ class Resilient:
                     self._sleep(self._jitter(0.0, ceiling))
         assert last is not None
         raise last
+
+    def _out_of_time(self, started: float) -> bool:
+        if self._deadline_seconds is None:
+            return False
+        return (self._clock() - started) >= self._deadline_seconds
 
     def complete(self, request: ModelRequest) -> ModelResponse:
         try:

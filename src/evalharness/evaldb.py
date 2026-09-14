@@ -208,6 +208,36 @@ def _setting(manifest: dict[str, Any], key: str) -> Any:
     return manifest.get(key)
 
 
+def outlived_its_budget(manifest: dict[str, Any]) -> bool:
+    """Did the investigation run longer than the budget the run itself declares? (Q33)
+
+    **A reading of the record, not an edit to it** - the same standing as the `refused` recovery
+    below, and for the same reason: `metrics.latency.investigation_seconds` and
+    `budget.wall_clock_seconds` are both on every manifest that has them, so the comparison was
+    always available and nobody had made it.
+
+    `20260910T002657Z-ad-memory-squeeze` recorded **6596 s against a 600 s budget** and a 1800 s
+    harness kill, and neither fired: the machine slept, and macOS's monotonic clock stops with it.
+    The run is `scored`, it is in arm B's fingerprint, and `faultline-compare`'s latency figure for
+    that arm is distorted by it. A budget that did not bind is the same kind of fact as T4.1b's
+    silent filter, which already reads `invalid`.
+
+    **Measured across every manifest on disk before this rule was written: 1 of 245 scored runs.**
+    That one is the run that motivated the rule, at 11x its budget. This is not a rule that
+    reclassifies a population - it is a rule that catches an outlier nobody had a name for, and
+    knowing the count before writing it is what makes that claim checkable.
+
+    Absent fields mean **no**. A manifest without the latency block or without a budget is not
+    asserted to have overrun; it is a manifest that cannot answer, and defaulting to `invalid`
+    would reclassify the archive on a technicality.
+    """
+    latency = ((manifest.get("metrics") or {}).get("latency") or {}).get("investigation_seconds")
+    declared = (manifest.get("budget") or {}).get("wall_clock_seconds")
+    if latency is None or not declared:
+        return False
+    return float(latency) > float(declared)
+
+
 def outcome_of(manifest: dict[str, Any]) -> str:
     """`scored`, `invalid`, `refused`, `discarded` or `paused`.
 
@@ -240,7 +270,8 @@ def outcome_of(manifest: dict[str, Any]) -> str:
         # mislabelled as a discard is distinguishable now without touching the file.
         return "discarded" if manifest.get("injected_at") else "refused"
     if manifest.get("score"):
-        return "scored"
+        return "invalid" if outlived_its_budget(manifest) else "scored"
+
     # **The fallthrough asks the same question, and it did not.** It read
     # `else "discarded"`, so a manifest carrying no outcome label at all became a discard by
     # default - and the pre-flight refusal path wrote exactly that shape, a manifest with a

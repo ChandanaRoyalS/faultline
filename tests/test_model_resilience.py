@@ -157,3 +157,40 @@ def test_a_healthy_primary_records_no_substitution() -> None:
 def test_the_shipped_configuration_substitutes_nothing() -> None:
     """Scored runs must not quietly change model. Setting this is a decision, not a default."""
     assert AgentSettings().fallback_models == []
+
+
+def test_the_retry_loop_stops_when_the_run_s_budget_is_spent() -> None:
+    """**Q33's other half.** Retries could outlive the budget they run inside.
+
+    Four attempts against a 600 s per-call timeout is forty minutes of one logical call, and the
+    harness's wall-clock check cannot interrupt a call already blocked. That is how
+    `20260910T002657Z-ad-memory-squeeze` recorded 6596 s against a 600 s budget.
+
+    The clock is injected, so this asserts the bound rather than waiting for it. Two attempts get
+    made, not four: the deadline is checked before each attempt after the first, never mid-call -
+    nothing here can interrupt a request in flight, and a bound that claimed to would not bind.
+    """
+    ticks = iter([0.0, 0.0, 700.0, 700.0])
+    stub = _Stub("primary", failures=99)
+
+    with pytest.raises(_OverloadedError):
+        Resilient(
+            stub,
+            attempts=4,
+            deadline_seconds=600.0,
+            sleep=_quiet,
+            clock=lambda: next(ticks),
+        ).complete(REQUEST)
+
+    assert stub.calls == 2, "the third attempt is past the deadline and is not made"
+
+
+def test_no_deadline_leaves_the_retry_count_in_charge() -> None:
+    """The default is unchanged behaviour. Every caller that does not pass a budget keeps the
+    loop it had, so this cannot quietly shorten a retry somewhere nobody was looking."""
+    stub = _Stub("primary", failures=99)
+
+    with pytest.raises(_OverloadedError):
+        Resilient(stub, attempts=3, sleep=_quiet).complete(REQUEST)
+
+    assert stub.calls == 3

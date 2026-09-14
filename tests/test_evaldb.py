@@ -341,3 +341,51 @@ def test_a_discard_that_never_injected_may_be_reread_as_a_refusal() -> None:
     assert evaldb.outcome_reread("refused", written_as_discard) is None, (
         "no disagreement to explain"
     )
+
+
+# --- a budget that did not bind (Q33) -----------------------------------------------------------
+
+
+def _scored(latency: float | None, declared: int | None) -> dict:
+    manifest: dict = {"score": {"fault_class": "bad_deploy"}, "injected_at": "2026-09-10T00:00:00Z"}
+    if latency is not None:
+        manifest["metrics"] = {"latency": {"investigation_seconds": latency}}
+    if declared is not None:
+        manifest["budget"] = {"wall_clock_seconds": declared}
+    return manifest
+
+
+def test_a_run_that_outlived_its_own_budget_reads_invalid() -> None:
+    """**Q33.** `20260910T002657Z-ad-memory-squeeze` recorded 6596 s against a 600 s budget and a
+    1800 s harness kill, and neither fired - the machine slept and macOS's monotonic clock stops
+    with it. It is `scored`, it is in arm B's fingerprint, and it distorts that arm's latency.
+
+    A budget that did not bind is the same kind of fact as T4.1b's silent filter, which already
+    reads `invalid`. Both numbers were on the manifest all along; nobody had compared them.
+    """
+    assert evaldb.outcome_of(_scored(6596.1, 600)) == "invalid"
+    assert evaldb.outcome_of(_scored(412.0, 600)) == "scored"
+
+
+def test_a_manifest_that_cannot_answer_is_not_called_invalid() -> None:
+    """Absent fields mean *no*, not *yes*.
+
+    Older manifests carry no latency block. Defaulting those to `invalid` would reclassify a large
+    part of the archive on a technicality, which is the opposite of what a reading is for - and
+    exactly the failure this function's own docstring records in its fallthrough, where an
+    unlabelled manifest became a discard by default and doubled a published rate.
+    """
+    assert evaldb.outcome_of(_scored(None, 600)) == "scored"
+    assert evaldb.outcome_of(_scored(6596.1, None)) == "scored"
+    assert evaldb.outcome_of(_scored(None, None)) == "scored"
+
+
+def test_an_explicit_label_still_wins_over_the_reading() -> None:
+    """The order in `outcome_of` is deliberate and this keeps it. A discarded run that also
+    overran is discarded - it produced no result, so whether its budget bound is not the question
+    that column answers."""
+    manifest = _scored(6596.1, 600)
+    manifest["discarded"] = {"reason": "no-alert"}
+    manifest.pop("score")
+
+    assert evaldb.outcome_of(manifest) == "discarded"
