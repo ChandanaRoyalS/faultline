@@ -34,6 +34,13 @@ makes that honest: at the retrieval upper bound of 18.6% this sees at least one 
 of the time, at 5% it sees one 40% of the time. So it can falsify *this matters a lot* and cannot
 establish *this never matters*, and **no result from it is reported as a rate**.
 
+**A gate refusal is not a failed attempt** (Q56). The pilot took T6.3's lesson that the gate must
+be re-read before every injection and did not take T6.3's *patience*: `rejectloop` re-reads ten
+times at sixty seconds, this read once. In the ten-pair run **9 of 10 first attempts died on the
+gate**, and Amendment 2's single re-attempt - registered for investigation failures, of which there
+were zero - was spent on worlds that needed another ninety seconds. `await_gate` now waits on
+`gate.GateReading.settle_seconds_remaining`, the world's own clock, rather than on a constant.
+
 **This module calls no model itself.** It shells `faultline-investigate` exactly as the harness
 does, so the two arms are the pipeline rather than a reimplementation of it, and
 `test_the_pilot_calls_no_model_itself` holds the import graph - the same guard `retrieval.py` and
@@ -47,7 +54,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Protocol
+from typing import Any, NamedTuple, Protocol
 
 BASELINE_ARM = "k3-flag0"
 CHANGE_ARM = "k5-flag2"
@@ -127,8 +134,57 @@ Fixed at two before any pair had run, so it is a rule about **run failures** and
 A retry decided after seeing how many pairs completed would be a budget that responds to its own
 outcome, which is the shape this repository refuses everywhere else."""
 
+GATE_RETRIES = 10
+GATE_MIN_WAIT_SECONDS = 30
+GATE_WAIT_MARGIN_SECONDS = 15
+"""**Q56: the pilot took T6.3's gate check and not T6.3's gate patience.**
+
+`rejectloop` re-reads the gate ten times at sixty seconds. This driver read it once and turned a
+refusal into a dead attempt - so in the ten-pair run **9 of 10 first attempts died on the gate**,
+and Amendment 2's re-attempt, registered for *investigation* failures (of which there were zero),
+was consumed by them. Without that retry the run reports `n = 1`.
+
+The wait now comes from `gate.Reading.settle_seconds_remaining`, which is the world's own clock
+rather than a constant of this driver's. `GATE_MIN_WAIT_SECONDS` covers the refusals that are not
+clocks - a firing alert, a p95 excursion - where the gate can say *no* but not *for how long*, and
+the margin exists because a wait computed to the second and slept to the second arrives one second
+early."""
+
 REJECT_PATH = "/api/v1/incidents/{incident_id}/reject"
 """The route the second arm depends on, as FastAPI spells it in the schema."""
+
+
+class GateCheck(NamedTuple):
+    """What the gate said, and how long it says to wait. `wait_seconds` is a floor: waiting less
+    cannot help, and waiting it out is not a promise of admission."""
+
+    admitted: bool
+    refusals: tuple[str, ...] = ()
+    wait_seconds: int = 0
+
+
+def await_gate(steps: Steps, nap: Any, *, retries: int = GATE_RETRIES) -> GateCheck:
+    """Re-read the gate until it admits or patience runs out. **A refusal is not a failed attempt.**
+
+    The pilot's scarce resource is Amendment 2's single re-attempt, and it exists for a pair whose
+    *investigation* died. Spending it on a world that merely needed another ninety seconds is how
+    the ten-pair run nearly reported `n = 1`.
+    """
+    reading = GateCheck(False)
+    for attempt in range(1, retries + 1):
+        reading = steps.gate_admits()
+        if reading.admitted:
+            return reading
+        if attempt == retries:
+            break
+        wait = max(reading.wait_seconds, GATE_MIN_WAIT_SECONDS) + GATE_WAIT_MARGIN_SECONDS
+        print(
+            f"--- gate refused ({attempt}/{retries}), waiting {wait}s: "
+            f"{'; '.join(reading.refusals)[:160]}",
+            flush=True,
+        )
+        nap(wait)
+    return reading
 
 
 def reject_route_is_mounted(schema: dict[str, Any]) -> bool:
@@ -413,7 +469,15 @@ class Steps(Protocol):
     were both in the driver rather than in what it drove.
     """
 
-    def gate_admits(self) -> tuple[bool, list[str]]: ...
+    def gate_admits(self) -> GateCheck:
+        """The harness's own gate, and **the wait it already computed.**
+
+        Q53's pilot took T6.3's lesson that the gate must be re-read before every injection and
+        did not take T6.3's *patience*: `rejectloop` retries the gate ten times at sixty seconds,
+        this refused on the first reading. `wait_seconds` is `gate.Reading.settle_seconds_remaining`
+        so the driver waits on the world's clock rather than on a constant of its own.
+        """
+        ...
 
     def inject(self, scenario_id: str) -> str: ...
 
@@ -500,7 +564,13 @@ def run_pilot(
             started_one = True
 
             pair = _attempt_pair(
-                steps, scenario_id, index, attempt=attempt, result=result, ceiling_usd=ceiling_usd
+                steps,
+                scenario_id,
+                index,
+                attempt=attempt,
+                result=result,
+                ceiling_usd=ceiling_usd,
+                nap=nap,
             )
             result.pairs.append(pair)
             if result.stopped or pair.complete or attempt == ATTEMPTS_PER_SCENARIO:
@@ -518,6 +588,7 @@ def _attempt_pair(
     attempt: int,
     result: PilotResult,
     ceiling_usd: float,
+    nap: Any,
 ) -> PairResult:
     """One injection and its two arms. **The arm order comes from `index`, never from `attempt`** -
     a re-attempt that flipped the order would confound the retry with the arm, which is the exact
@@ -529,9 +600,9 @@ def _attempt_pair(
         pair.skipped = "budget"
         return pair
 
-    admitted, refusals = steps.gate_admits()
-    if not admitted:
-        pair.skipped = f"gate refused: {'; '.join(refusals)}"
+    reading = await_gate(steps, nap)
+    if not reading.admitted:
+        pair.skipped = f"gate refused after {GATE_RETRIES} readings: {'; '.join(reading.refusals)}"
         return pair
 
     started = datetime.now(UTC)
@@ -594,14 +665,14 @@ class LiveSteps:  # pragma: no cover - the paid path; the fakes cover the logic
         """Built once and never logged. The password arrives in the environment and leaves in a
         header; it is in no file this driver writes. The reject-loop driver's rule, verbatim."""
 
-    def gate_admits(self) -> tuple[bool, list[str]]:
+    def gate_admits(self) -> GateCheck:
         from evalharness import gate
         from evalharness.run import open_incidents, settling_incidents
 
         reading = gate.read(
             open_incidents(self._dsn), settling_incidents(self._dsn), runs_remaining=1
         )
-        return reading.passed, list(reading.refusals)
+        return GateCheck(reading.passed, tuple(reading.refusals), reading.settle_seconds_remaining)
 
     def inject(self, scenario_id: str) -> str:
         from evalharness.run import _sh

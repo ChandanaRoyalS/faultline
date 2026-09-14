@@ -2160,3 +2160,46 @@ def test_an_unknown_service_yields_no_callers_rather_than_raising() -> None:
     from evalharness import run as harness
 
     assert harness.caller_reachability("not-a-service-in-this-world")["callers"] == {}
+
+
+# --- Q56: the wait the gate already computed and only ever printed ------------------------------
+
+
+def test_the_gate_reports_the_wait_it_was_already_formatting_into_prose() -> None:
+    """**Both numbers existed before this property and neither was reachable.**
+
+    `require_settled_containers` computes `threshold - min(uptime)` for its *"Wait about Ns"*, and
+    the settle-window loop computes `seconds_remaining` per incident for its *"Wait Ns."* A caller
+    that wanted either had to parse an English sentence, so every driver in this repository guessed
+    a constant instead - and Q53's pilot lost **9 of 10 first attempts** to a 300s guess that was
+    always short by the previous incident's resolve lag.
+    """
+    reading = gate.GateReading()
+    assert reading.settle_seconds_remaining == 0
+
+    reading.settling_incidents = [
+        {"incident_id": "a", "resolved_at": "x", "seconds_remaining": 141},
+        {"incident_id": "b", "resolved_at": "y", "seconds_remaining": 30},
+    ]
+    assert reading.settle_seconds_remaining == 141, "the longest clock governs"
+
+    reading.youngest_container = ("cart-service", 100)
+    assert reading.settle_seconds_remaining == rehearse.MIN_CONTAINER_UPTIME_SECONDS - 100
+
+
+def test_a_settled_container_contributes_no_wait() -> None:
+    """A negative remainder is not a wait. A world whose youngest container is hours old must not
+    report a wait of minus several thousand seconds."""
+    reading = gate.GateReading()
+    reading.youngest_container = ("cart-service", rehearse.MIN_CONTAINER_UPTIME_SECONDS + 4000)
+
+    assert reading.settle_seconds_remaining == 0
+
+
+def test_the_wait_is_carried_in_the_recorded_reading() -> None:
+    """Provenance: a refused attempt should record how long it was told to wait, not only that it
+    was refused."""
+    reading = gate.GateReading()
+    reading.settling_incidents = [{"incident_id": "a", "resolved_at": "x", "seconds_remaining": 75}]
+
+    assert reading.as_dict()["settle_seconds_remaining"] == 75
