@@ -96,13 +96,24 @@ from typing import Any, Protocol
 
 BASELINE_ID = "B0"
 
-BASELINE_VERSION = "2"
+BASELINE_VERSION = "3"
 """**A baseline that changes silently is not a baseline.**
 
 v1 is every run stamped `faultline/0.0.1+baseline:B0` with no version - one run,
 `20260903T031137Z-ad-memory-squeeze`, which answered `dependency_latency` against a truth of
 `resource_exhaustion`. It is kept, wrong, and must never be pooled with a v2 run. The version is
 in the runtime string, so the eval database separates them without anyone remembering to.
+
+**v3, 2026-09-14 (Q34): signal 3 was still not running.** v2 handed `promql_query` a window built
+for `change_history` - 24 hours against a 6-hour telemetry ceiling - so the tool refused **95 of
+95 calls across every B0 run ever recorded** and `error_deltas` was always empty. That is the same
+end state v1 reached by a different mistake, which this module's header records as *"signal 3
+therefore never ran in v1 at all"*. It had not run in v2 either.
+
+**Every v2 run was scored on signals 1 and 2 alone**, and the version moves so those runs stay
+labelled rather than pooling with corrected ones. They are not invalidated: they are an honest
+record of a two-signal heuristic, and `evals/runs/` keeps them. What changes is that a reader can
+tell which B0 answered a given question.
 """
 
 DESCRIPTION = "no-LLM heuristic: alert attribution + most-recent change + largest error delta"
@@ -154,8 +165,16 @@ class Signals:
 
     changes: list[Change] = field(default_factory=list)
     error_deltas: dict[str, float] = field(default_factory=dict)
-    """Service to its error-ratio delta against baseline. Frequently empty, and that is real:
-    several services in this world publish no `calls_total` series."""
+    """Service to its error-ratio delta against baseline.
+
+    **This said "frequently empty, and that is real" and it was neither.** It was *always* empty,
+    on every B0 run ever recorded, because `promql_query` refused the window v2 gave it (Q34).
+    The sentence attributed a defect to the world - several services here genuinely publish no
+    `calls_total` series - and that plausible explanation is exactly why nobody looked. Emptiness
+    with a ready reason is the hardest kind to notice.
+
+    It can still be legitimately empty for the original reason. The difference is that the tool
+    is now asked a question it will answer."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -359,8 +378,30 @@ def error_delta(result: Any) -> float | None:
     return best
 
 
+def windows_for(policy: Any, anchor: datetime, started: datetime) -> tuple[Any, Any]:
+    """The two windows B0 reads with, as one function so the pairing can be tested (Q34).
+
+    It existed as two lines in `faultline.agents.cli` and the second one was wrong for the whole
+    life of v2 - `promql_query` given the 24-hour changes window against its 6-hour ceiling, and
+    refused 95 of 95 times. Nothing failed when that was reintroduced as a mutation, because the
+    call site was three statements in a function that needs Postgres, an incident and a triage
+    before it runs.
+
+    So the pairing moved here, where a test can hold it against `WindowPolicy.refusal` - the same
+    predicate the real tools apply.
+    """
+    return (
+        policy.for_specialist("changes", anchor, started),
+        policy.for_specialist("metrics", anchor, started),
+    )
+
+
 def signals_from_tools(
-    tools: ToolLayer, alerting: list[str], onset: datetime, window: Window
+    tools: ToolLayer,
+    alerting: list[str],
+    onset: datetime,
+    window: Window,
+    metric_window: Window | None = None,
 ) -> tuple[Signals, list[ToolCall]]:
     """Read B0's three signals through the same tool layer the agent uses.
 
@@ -368,7 +409,21 @@ def signals_from_tools(
     a different world than the agent sees - different windows, different caps, different
     refusals - and the comparison would silently be between two observation regimes rather than
     between two methods.
+
+    **Two windows, and v2 had one (Q34).** `change_history`'s ceiling is the change lookback plus
+    the telemetry bound; every other tool's is `max_window_seconds`, twelve times narrower. v2
+    built a single window with `for_specialist("changes")` - 24 hours - and handed it to both
+    tools, so **`promql_query` was refused on every call B0 has ever made**: 95 of 95 in the
+    recorded trajectories, each answering *"window is 24.0h and the ceiling for promql_query is
+    6h, so the read is refused rather than answered in part"*.
+
+    So `error_deltas` was always empty and B0 always took the no-error-series fallback -
+    **which is word for word what v1's defect did**, by a different mechanism, and which this
+    module's header already records as *"signal 3 therefore never ran in v1 at all"*. It has
+    never run in v2 either. `metric_window` is that repair; it defaults to `window` only so the
+    existing call shape stays expressible, and `faultline.agents.cli` passes both.
     """
+    metric_window = window if metric_window is None else metric_window
     from faultline.tools.envelope import render
     from faultline.tools.metrics import MetricTemplate, render_query
 
@@ -389,14 +444,18 @@ def signals_from_tools(
         )
 
         query = render_query(MetricTemplate.ERROR_RATIO, service)
-        result = tools.promql_query(query, window.start, window.end)
+        result = tools.promql_query(query, metric_window.start, metric_window.end)
         delta = error_delta(result)
         if delta is not None:
             deltas[service] = delta
         calls.append(
             ToolCall(
                 tool="promql_query",
-                request={"service": service, "query": query, **window_row},
+                request={
+                    "service": service,
+                    "query": query,
+                    "window": [metric_window.start.isoformat(), metric_window.end.isoformat()],
+                },
                 envelope=render(result),
                 result_id=result.id,
             )
