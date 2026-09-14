@@ -293,3 +293,42 @@ ones, and it displaces a dense hit occasionally — one query, in this measureme
 
 The full result, all ten predictions adjudicated, and the two defects found in Q39's own decision
 rule: [`RETRIEVAL-2026-09-13-q39.md`](RETRIEVAL-2026-09-13-q39.md).
+
+---
+
+## Addendum 4 — prediction 8, resolved (2026-09-14)
+
+Addendum 2 recorded prediction 8 as untested. It is now tested, it **held**, and the gap is far
+wider than *"will not agree on ranking"* suggested.
+
+The in-memory double, seeded from the same files (261 chunks) and scored against the same golden
+set, against `PgVectorPastIncidentStore` on the reconciled corpus:
+
+| | in-memory + hashing | pgvector + sentence-transformer | ratio |
+|---|---:|---:|---:|
+| recall@3 | 0.209 | 0.395 | 0.53 |
+| MRR@3 | 0.109 | 0.233 | 0.47 |
+| recall@5 | 0.279 | 0.442 | 0.63 |
+| MRR@5 | 0.125 | 0.286 | 0.44 |
+| planner recall@3 | 0.429 | 0.619 | 0.69 |
+| **synthesizer recall@3** | **0.000** | 0.182 | — |
+
+**The double answers no synthesizer query at all at k = 3**, and under-reports everything else by
+roughly half. Both arms differ — hashed cosine against a real embedding, token overlap against
+`ts_rank_cd` — and `fuse()` being shared turns out not to matter much when both its inputs are
+different.
+
+### The plan item this kills
+
+`PREREGISTRATION-T6.4.md` §2.4 says: *"`make check` runs the golden set against the in-memory store
+as a fast correctness check; `ci/integration` runs it against pgvector and is the one that gates."*
+
+**The first half was never built.** No test in the default suite measures the golden set against the
+in-memory store; the fast tests use fakes with fixed rankings, which is what `test_retrieval_metrics`
+is for.
+
+That absence turns out to be right, and it is recorded here so nobody builds it as a tidy-up. A
+"fast correctness check" reporting 0.209 where production reports 0.395 would produce a number in
+every local run that means nothing, sits next to numbers that mean something, and differs from them
+by a factor of two. The registration proposed it before anyone knew the ratio. **Q51** carries the
+decision so the unbuilt half of a merged plan sentence is not mistaken for an oversight.
