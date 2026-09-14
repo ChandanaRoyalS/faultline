@@ -333,3 +333,83 @@ def test_a_query_text_sent_under_two_scenarios_takes_one_seat() -> None:
 
     assert drawn.count("shared") == 1
     assert drawn == ["shared", "a-only-1", "a-only-2", "b-only-1", "b-only-2", "b-only-3"]
+
+
+# --- the cross-validation (Q52) ---------------------------------------------------------------
+
+
+def _results(hits: dict[str, float]) -> list[QueryResult]:
+    """One QueryResult per query id, hitting at rank 1 or not at all."""
+    return [
+        QueryResult(
+            qid, ("runbook:right",) if hit else ("runbook:wrong",), frozenset({"runbook:right"})
+        )
+        for qid, hit in hits.items()
+    ]
+
+
+def test_a_flag_that_is_genuinely_better_keeps_its_margin_out_of_sample() -> None:
+    """A real effect survives being selected. Flag 2 answers every query, flag 0 none, so whichever
+    half chooses it the other half agrees."""
+    ids = [f"q{i}" for i in range(20)]
+    per_flag = {
+        0: _results(dict.fromkeys(ids, 0.0)),
+        2: _results(dict.fromkeys(ids, 1.0)),
+    }
+
+    cv = retrieval.cross_validate(per_flag, k=3, splits=50)
+
+    assert cv.in_sample == pytest.approx(1.0)
+    assert cv.out_of_sample == pytest.approx(1.0)
+    assert cv.shrinkage == pytest.approx(0.0)
+    assert cv.selection[2] == 50
+
+
+def test_a_flag_that_only_won_by_noise_loses_its_margin_out_of_sample() -> None:
+    """**The property this exists to measure.**
+
+    Every flag here answers exactly half the queries, but *different* halves - so on any given
+    selection half one of them looks best by chance, and on the other half that advantage is gone.
+    The in-sample margin is positive and the out-of-sample margin is near zero: the difference is
+    the selection bias, which is precisely what Q49's six-flag comparison could not rule out.
+    """
+    ids = [f"q{i}" for i in range(20)]
+    per_flag = {
+        0: _results({q: float(i % 2 == 0) for i, q in enumerate(ids)}),
+        1: _results({q: float(i % 3 == 0) for i, q in enumerate(ids)}),
+        2: _results({q: float(i % 4 == 0) for i, q in enumerate(ids)}),
+    }
+
+    cv = retrieval.cross_validate(per_flag, k=3, splits=200)
+
+    assert cv.shrinkage > 0, "a margin won by noise must not survive the split"
+    assert cv.out_of_sample < cv.in_sample
+
+
+def test_the_cross_validation_is_deterministic() -> None:
+    """A fixed seed, so the number in a write-up can be reproduced by whoever doubts it."""
+    ids = [f"q{i}" for i in range(16)]
+    per_flag = {
+        0: _results({q: float(i % 2 == 0) for i, q in enumerate(ids)}),
+        2: _results({q: float(i % 3 == 0) for i, q in enumerate(ids)}),
+    }
+
+    first = retrieval.cross_validate(per_flag, k=3, splits=100)
+    second = retrieval.cross_validate(per_flag, k=3, splits=100)
+
+    assert first.out_of_sample == second.out_of_sample
+    assert first.selection == second.selection
+
+
+def test_unanswerable_queries_are_excluded_before_splitting() -> None:
+    """`measure` keeps unanswerable queries and does not score them. Splitting over them would put
+    rows in both halves that contribute 0 to every flag, shrinking every margin toward zero by
+    dilution rather than by selection."""
+    answerable = _results({"q1": 1.0, "q2": 0.0})
+    unanswerable = [QueryResult("q3", ("runbook:a",), frozenset())]
+    per_flag = {0: answerable + unanswerable, 2: answerable + unanswerable}
+
+    cv = retrieval.cross_validate(per_flag, k=3, splits=10)
+
+    assert cv.in_sample == pytest.approx(0.0)
+    assert cv.splits == 10
