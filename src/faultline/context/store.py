@@ -181,27 +181,29 @@ def _cosine(left: list[float], right: list[float]) -> float:
     return 0.0 if norm == 0 else dot / norm
 
 
-TEXT_NORMALISATION = 1
-"""`ts_rank_cd`'s normalisation bitmask: divide the rank by `1 + log(document length)` (Q49).
+TEXT_NORMALISATION = 0
+"""`ts_rank_cd`'s normalisation bitmask. **Zero: no length normalisation, and that is a finding
+rather than a default** (Q49, `evals/runs/RETRIEVAL-2026-09-14-q49.md`).
 
-**The defect it answers.** With no normalisation `ts_rank_cd` does not divide by length, so under
-Q39's disjunction a long chunk matches more of a query's terms and ranks higher whether or not it
-is *about* them. Synthesizer queries carry four specialist findings and name several services, so
-they OR into the widest match sets in the corpus and hand the ordering to whichever chunks are
-longest. Q39 cost the synthesizer two queries at `k = 5` while the planner gained everywhere, and
-`PREREGISTRATION-Q39.md`'s prediction 7 named this mechanism in advance as the reason it might.
+`PREREGISTRATION-Q49.md` proposed flag **1** - divide by `1 + log(length)` - to fix the
+synthesizer regression Q39 caused. It was measured and **it did not move the deciding metric**:
+`recall@3` was 0.395 before and 0.395 after, zero queries, inside the one-query band ADR-0040
+clause 5 defines. The rule says the simpler form wins ties, so this stays at 0.
 
-**Why 1 and not the best of six.** Flags 1, 2, 4, 8 and 16 all reorder this corpus - 17, 42, 17, 35
-and 18 of the 43 golden queries get a different top chunk. Measuring all of them against one
-43-query set and adopting the winner is selection on the test set, at a scale where one query is
-0.0233. Flag 1 is the conventional mild length normalisation and the one that addresses the named
-mechanism, so it was chosen on argument; `PREREGISTRATION-Q49.md` §3 records that and the others
-are reported without deciding anything.
+**What the same measurement found, and why it is not acted on here.** All seven flags were scored,
+because §3 registered that the non-candidates would be reported. Flag **2** - divide by raw length -
+reaches `recall@5` **0.605**, restores synthesizer recall to its pre-Q39 0.273, and is the first
+configuration ever measured that **clears the registered floor of 0.60**. Flag 8 matches it at
+`k = 5`.
 
-**Flag 32 is not a candidate and cannot be one.** `fuse` is reciprocal-rank fusion: it reads
-positions, not scores. `rank/(rank + 1)` is monotone, so it cannot move a position - and measuring
-it confirmed 0 of 43 top results change. Any future proposal to "normalise the score to 0..1" is
-the same no-op.
+Adopting it would be choosing the best of six against a single 43-query golden set - selection on
+the test set, which §3 forbade in advance and which ADR-0018 records as the mistake behind its four
+unmeasured parameters. **Q52** registers a second deterministic draw from the harvest remainder, so
+the flag can be settled on queries that had no part in choosing it.
+
+**Flag 32 cannot ever be a candidate.** `fuse` is reciprocal-rank fusion - it reads positions, not
+scores - and `rank/(rank + 1)` is monotone. Predicted, then measured byte-identical to flag 0 on
+every metric at both `k`.
 """
 
 TEXT_QUERY = "replace(plainto_tsquery('english', %(q)s)::text, ' & ', ' | ')::tsquery"
