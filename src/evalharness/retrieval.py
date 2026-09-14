@@ -396,29 +396,126 @@ def harvest(dsn: str) -> list[dict[str, Any]]:
     ]
 
 
-ARMS_SQL = """
-SELECT count(*) FROM incident_chunks WHERE body_tsv @@ plainto_tsquery('english', %(q)s)
-"""
-"""How many chunks the text arm of the hybrid matches for one query.
+PLANNER_PER_SCENARIO = 3
+SYNTHESIZER_PER_SCENARIO = 2
+"""How many of each role the draw takes per scenario. `golden.yaml`'s header states these; until
+Q52 nothing implemented them."""
 
-**The hybrid has two arms and one of them can return nothing without saying so.**
-`PgVectorPastIncidentStore.search` fuses a dense ranking with a `ts_rank_cd` ranking, and the
-text arm is built with `plainto_tsquery`, which **ANDs every lexeme it parses**. A short query
-conjoins a few terms and can match; a 900-character one conjoins a hundred and cannot. When it
-matches nothing the fusion still succeeds - it just fuses one arm - so a hybrid retriever
-degenerates to dense-only for long queries and nothing in the result says so.
 
-This counts the rows rather than arguing about it.
-"""
+def draw(
+    rows: Sequence[dict[str, Any]],
+    *,
+    skip_planner: int = 0,
+    skip_synthesizer: int = 0,
+) -> list[dict[str, Any]]:
+    """The golden set's sampling rule, **as code** (Q52).
+
+    `golden.yaml`'s header states it: *"sort the distinct queries by (role, origin, trajectory,
+    seq), then take the first 3 planner and 2 synthesizer per scenario. No RNG and no selection."*
+    **It was applied by hand and implemented nowhere**, so "the same rule again" was not something
+    anyone could execute - which is a problem for a confirmation set whose entire value is being
+    drawn by the rule that produced the first one.
+
+    `skip_*` is what makes a held-out draw possible and is the reason the original rule taking a
+    **prefix** rather than a sample turned out to matter: the queries after the cut were never
+    drawn and never read, so `skip_planner=3, skip_synthesizer=2` yields a disjoint set chosen by
+    the identical procedure rather than by anybody's judgement.
+
+    Distinct **by query text**, keeping the first occurrence in sort order, because one query text
+    can be sent in several runs and the golden set labels texts rather than sendings.
+
+    **Distinctness is global, and the header does not say so.** Some query texts are sent under
+    more than one scenario - the planner's symptom list for two shipping faults can be identical -
+    and *"sort the distinct queries ... then take the first 3 per scenario"* does not say whether
+    "distinct" means across the harvest or within a scenario. Global is the reading taken here: a
+    shared text occupies **one** seat, credited to the first origin in sort order, and the other
+    scenario's seats shift one deeper.
+
+    **The consequence is measured, not assumed.** Against the live harvest this reproduces **42 of
+    the 43** committed queries. The single disagreement is exactly this case: one
+    `shipping-quote-misconfig` planner query the committed set holds and this does not, against one
+    `shipping-wrong-image` query this takes and the committed set does not. Neither scenario is
+    over its allowance in either version - the committed set is internally consistent with 3-and-2
+    throughout - so this is an ambiguity in the stated rule rather than a defect in the set.
+
+    `golden.yaml` is **not rewritten** to match. It is a captured artefact, every published figure
+    was computed over the 43 queries it actually contains, and a one-query difference in provenance
+    is a thing to document rather than to erase. What matters for Q52 is that the rule is now
+    pinned, so the confirmation draw is reproducible even though the first draw was not.
+
+    **Holdout-derived rows are dropped before anything is sorted**, and leaving that out was the
+    first version's defect. `golden.yaml`'s header states the exclusion and `load_golden` raises on
+    it, so a committed file would have been caught - but a *draw* that emits them hands the next
+    author six synthesizer queries carrying holdout findings and a procedure that says they were
+    selected mechanically. The provenance check found it: six of the seven queries this drew that
+    the committed set does not contain came from `email-wrong-image`,
+    `productcatalog-dependency-latency` and `recommendation-memory-squeeze`.
+    """
+    from evalharness.freeze import holdout_origins
+
+    held = set(holdout_origins())
+    seen: set[str] = set()
+    ordered: list[dict[str, Any]] = []
+    for row in sorted(
+        [r for r in rows if str(r["exclude_origin"] or "") not in held],
+        key=lambda r: (
+            str(r["role"]),
+            str(r["exclude_origin"] or ""),
+            str(r["source_trajectory"]),
+            int(r["seq"]),
+        ),
+    ):
+        text = str(row["query"])
+        if text not in seen:
+            seen.add(text)
+            ordered.append(row)
+
+    wanted = {
+        PLANNER: (skip_planner, skip_planner + PLANNER_PER_SCENARIO),
+        SYNTHESIZER: (skip_synthesizer, skip_synthesizer + SYNTHESIZER_PER_SCENARIO),
+    }
+    taken: dict[tuple[str, str], int] = {}
+    out: list[dict[str, Any]] = []
+    for row in ordered:
+        role = str(row["role"])
+        if role not in wanted:
+            continue
+        key = (role, str(row["exclude_origin"] or ""))
+        seat = taken.get(key, 0)
+        taken[key] = seat + 1
+        low, high = wanted[role]
+        if low <= seat < high:
+            out.append(row)
+    return out
+
+
+def arms_sql() -> str:
+    """How many chunks the hybrid's text arm matches for one query — **the arm as it is now.**
+
+    **This constant was stale from the moment Q39 landed.** It was written with
+    `plainto_tsquery`, which was the defect it existed to expose: that form ANDs every lexeme, so
+    a short query could match and a 900-character one could not, and all 43 golden queries matched
+    **zero** chunks while `fuse()` quietly fused a single arm. That is the finding
+    `RETRIEVAL-2026-09-12-t6.4.md` §2 reports.
+
+    Q39 replaced the arm with a disjunction and this diagnostic kept measuring the old one, so
+    `faultline-retrieval arms` would have reported the historical defect as though it were current
+    - a probe that answers a question nobody is asking any more is worse than no probe, because it
+    answers confidently. It now reads `store.TEXT_QUERY`, so it cannot drift from the arm again.
+    """
+    from faultline.context.store import TEXT_QUERY
+
+    return "SELECT count(*) FROM incident_chunks WHERE body_tsv @@ " + TEXT_QUERY
 
 
 def text_arm_counts(dsn: str, golden: Sequence[GoldenQuery]) -> list[tuple[GoldenQuery, int]]:
     import psycopg
 
     out = []
+    sql = arms_sql()
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
         for query in golden:
-            cur.execute(ARMS_SQL, {"q": query.query})
+            cur.execute(sql, {"q": query.query})
             out.append((query, int((cur.fetchone() or [0])[0])))
     return out
 
@@ -460,6 +557,21 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     arms_cmd.add_argument("--dsn", default=None)
     arms_cmd.add_argument("--golden", type=Path, default=GOLDEN_SET)
 
+    draw_cmd = sub.add_parser(
+        "draw",
+        help="apply the golden set's own sampling rule to the harvest; --skip-* for a held-out set",
+    )
+    draw_cmd.add_argument("--dsn", default=None)
+    draw_cmd.add_argument("--skip-planner", type=int, default=0)
+    draw_cmd.add_argument("--skip-synthesizer", type=int, default=0)
+    draw_cmd.add_argument("--out", type=Path, default=None)
+    draw_cmd.add_argument(
+        "--against",
+        type=Path,
+        default=None,
+        help="a golden file this draw should reproduce exactly; prints the disagreement if not",
+    )
+
     args = parser.parse_args(argv)
     if args.command == "harvest":
         from faultline.context.settings import ContextSettings
@@ -471,6 +583,32 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
             print(f"{len(rows)} retrieval(s) -> {args.out}")
         else:
             print(dump)
+        return 0
+
+    if args.command == "draw":
+        from faultline.context.settings import ContextSettings
+
+        rows = harvest(args.dsn or ContextSettings().postgres_dsn)
+        drawn = draw(
+            rows,
+            skip_planner=args.skip_planner,
+            skip_synthesizer=args.skip_synthesizer,
+        )
+        print(f"{len(drawn)} of {len({str(r['query']) for r in rows})} distinct harvested queries")
+        if args.against:
+            committed = [q.query for q in load_golden(args.against)]
+            drew = [str(r["query"]) for r in drawn]
+            missing = [q for q in committed if q not in set(drew)]
+            extra = [q for q in drew if q not in set(committed)]
+            if missing or extra:
+                print(f"DISAGREES: {len(missing)} committed not drawn, {len(extra)} drawn not in")
+                for q in missing[:3] + extra[:3]:
+                    print(f"  {q[:100]}")
+                return 1
+            print("reproduces the committed set exactly")
+        if args.out:
+            args.out.write_text(json.dumps(drawn, indent=2, default=str) + "\n")
+            print(f"-> {args.out}")
         return 0
 
     if args.command == "score":
