@@ -2099,3 +2099,64 @@ def test_the_ablation_joins_the_fingerprint_and_an_empty_one_is_still_a_value() 
     assert full.fingerprint != without.fingerprint
     assert full.fingerprint != before_the_switch.fingerprint
     assert "ablation" in before_the_switch.missing and "ablation" not in full.missing
+
+
+# --- the caller probe (Q32) ---------------------------------------------------------------------
+
+
+def test_the_caller_probe_records_every_neighbour_and_refuses_nothing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """**Q32, instrumented rather than gated.**
+
+    `confirm_recovery` cannot see a caller still dialling a recreated container's old address.
+    Neither can this: there is no caller-to-callee metric in this world, so reachability is
+    inferred from each caller's own error ratio, and whether that inference shows the condition has
+    never been measured - the race has been observed exactly once, on a live sweep.
+
+    So the probe returns a reading and no verdict. **There is deliberately no `passed` field and
+    nothing in `run.py` branches on it**, because a recovery gate built on an unmeasured signal is
+    a check that may never fire, reads as protection, and gets trusted - which this repository has
+    shipped three times in a fortnight.
+    """
+    from evalharness import run as harness
+
+    monkeypatch.setattr("faultline.telemetry.query_range", lambda *a, **k: {}, raising=False)
+    monkeypatch.setattr(
+        harness.prom, "series_points", lambda payload: {"s": [(0.0, 0.02), (1.0, 0.31)]}
+    )
+
+    reading = harness.caller_reachability("shippingservice")
+
+    assert reading["service"] == "shippingservice"
+    assert reading["callers"], "a service with neighbours must produce readings"
+    assert all(v == 0.31 for v in reading["callers"].values()), "the peak in the window"
+    assert "passed" not in reading and "refusals" not in reading
+    assert "observational" in reading["note"]
+
+
+def test_the_caller_probe_never_fails_the_run_it_only_observes(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """It runs after the revert on every scored run. A probe that could end a run it was only
+    meant to observe would be worse than the gap it documents, so a failing query is caught per
+    caller and recorded by exception name rather than raised."""
+    from evalharness import run as harness
+
+    def explode(*args: object, **kwargs: object) -> dict:
+        raise ConnectionError("prometheus is not answering")
+
+    monkeypatch.setattr("faultline.telemetry.query_range", explode, raising=False)
+
+    reading = harness.caller_reachability("shippingservice")
+
+    assert reading["callers"], "the callers are still enumerated"
+    assert all(v == "ConnectionError" for v in reading["callers"].values())
+
+
+def test_an_unknown_service_yields_no_callers_rather_than_raising() -> None:
+    """`injection.target` comes from a recorded bundle and the graph is a snapshot; the two can
+    disagree, and a disagreement must not end a run after the world has already been reverted."""
+    from evalharness import run as harness
+
+    assert harness.caller_reachability("not-a-service-in-this-world")["callers"] == {}
