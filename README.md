@@ -311,6 +311,7 @@ unable to reproduce one.
 | `faultline-calibrate` | the human grades that measure whether the judge can be trusted |
 | `faultline-retrieval` | the retrieval benchmark (T6.4): harvests every query the pipeline has ever sent from `trajectory_retrievals`, and scores a labelled golden set for `recall@5` and MRR. No model call |
 | `faultline-depth-pilot` | Q53's paired pilot: does retrieval depth change a **verdict**, not just what is reachable. **This one spends money** - ten pairs, one injection each, two investigations, against a hard $25 ceiling. Refuses to start without `--i-have-read-the-registration`, and refuses a ceiling above the registered one |
+| `faultline-change-residue` | **Q57**: how much of the change log an investigation reads is the harness's own leftovers. `injector.changelog` is the only writer, so every record an agent sees is a fault injection, and a 24h lookback over a session returns the whole session. Reads manifests and Postgres; **spends nothing** |
 | `faultline-render` | a recorded bundle → the readable pages in [docs/bundles/](docs/bundles/) |
 | `faultline-manual-rca` | times a human investigating, for the MTTR comparison's left-hand side |
 | `faultline-blind-rca` | the same, drawn blind from a sealed pool |
