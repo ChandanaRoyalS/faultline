@@ -326,8 +326,16 @@ def run(argv: list[str] | None = None) -> int:
         rejection=rejection,
     )
 
+    # **A re-investigation is not gated, because a human has already answered the gate's
+    # question** (Q55). T2.3: *"`REJECTED` exits to targeted re-investigation, reason required"* -
+    # an operator rejected a proposal and typed a reason to get this run. `run_investigation` ends
+    # the run before the planner on a `noise` or `duplicate` disposition, so a gated
+    # re-investigation lets a model decline work a person explicitly asked for, and the operator's
+    # required reason buys nothing. It also stops paying for the judgement ten times over, which is
+    # a side effect and not the argument.
+    gated = should_gate(args.no_gate, rejection)
     report = run_investigation(
-        store, incident, engine, triage, anchor, triager=None if args.no_gate else Triager(model)
+        store, incident, engine, triage, anchor, triager=Triager(model) if gated else None
     )
     _print_report(report)
     announce_report(report, incident.id, exclude=exclude, suppressed=args.no_notify)
@@ -417,6 +425,26 @@ def announce_approval_needed(
 
         announcer = from_settings()
     return announcer.awaiting_approval(incident, proposal)  # type: ignore[attr-defined]
+
+
+def should_gate(no_gate: bool, rejection: object | None) -> bool:
+    """Whether T3.1's triage gate runs. **A re-investigation is never gated** (Q55).
+
+    T2.3: *"`REJECTED` exits to targeted re-investigation, reason required."* An operator rejected
+    a proposal and typed a reason to cause this run, which is the gate's own question already
+    answered by a person - and `run_investigation` ends a run before the planner on a `noise` or
+    `duplicate` disposition, so gating here lets a model decline the work and makes the required
+    reason buy nothing.
+
+    **`duplicate` would not even fail cleanly.** The gate's decline walks the incident to
+    `DUPLICATE_MERGED`, and `ALLOWED[REJECTED]` is `{PLANNING, RESOLVED, FAILED}` - no such
+    transition exists, so a re-investigation judged a duplicate raises after the judgement has
+    been paid for.
+
+    Not gating also stops paying for a judgement once per re-investigation, which Q53's pilot did
+    ten times. That is a side effect and not the argument.
+    """
+    return not no_gate and rejection is None
 
 
 def _print_report(report: object) -> None:

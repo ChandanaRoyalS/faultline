@@ -690,3 +690,59 @@ def test_no_judgement_and_no_triager_are_distinguishable() -> None:
     ungated = run_investigation(store, incident, engine, triage_for(incident), ANCHOR)
 
     assert ungated.judgement is None and ungated.judgement_error is None
+
+
+# --- Q55: a re-investigation is not gated -------------------------------------------------------
+
+
+def test_a_re_investigation_is_never_gated() -> None:
+    """**T2.3: *"`REJECTED` exits to targeted re-investigation, reason required."***
+
+    An operator rejected a proposal and typed a reason to cause the run. That is the gate's own
+    question, already answered by a person - and `run_investigation` ends a run before the planner
+    on a `noise` or `duplicate` disposition, so gating a re-investigation lets a model decline the
+    work and makes the required reason buy nothing.
+    """
+    from faultline.agents.cli import should_gate
+    from faultline.agents.roles import OperatorRejection
+
+    rejection = OperatorRejection(reason="the latency is on redis-cart", action_id="a", target="t")
+
+    assert should_gate(no_gate=False, rejection=None) is True
+    assert should_gate(no_gate=False, rejection=rejection) is False
+    assert should_gate(no_gate=True, rejection=None) is False
+    assert should_gate(no_gate=True, rejection=rejection) is False
+
+
+def test_the_machine_has_no_transition_for_a_re_investigation_judged_duplicate() -> None:
+    """**Why the gate does not merely cost money here.**
+
+    The gate's decline walks the incident to `DUPLICATE_MERGED`. `ALLOWED[REJECTED]` is
+    `{PLANNING, RESOLVED, FAILED}` - there is no such transition - so a gated re-investigation
+    judged a duplicate raises *after* the judgement has been paid for. `noise` happens to be legal
+    from `REJECTED`; `duplicate` is not, and nothing made that a deliberate distinction.
+    """
+    from faultline.orchestrator.machine import ALLOWED
+    from faultline.orchestrator.models import IncidentState
+
+    assert IncidentState.DUPLICATE_MERGED not in ALLOWED[IncidentState.REJECTED]
+    assert IncidentState.RESOLVED in ALLOWED[IncidentState.REJECTED]
+    assert IncidentState.DUPLICATE_MERGED in ALLOWED[IncidentState.TRIAGING]
+
+
+def test_the_machine_no_longer_claims_a_re_entry_reuses_a_stored_triage() -> None:
+    """**There is no stored triage anywhere and there never was** (Q55).
+
+    `Triage` is constructed in `agents.cli` and `executor.core` and persisted in neither, so the
+    docstring described nothing that exists - and Q53's pilot read it, believed it, and said in a
+    merged registration that its second arm worked off a reused triage while it was recomputing
+    one. A guard on the sentence, because the sentence is what did the damage.
+    """
+    from pathlib import Path
+
+    machine = (
+        Path(__file__).resolve().parents[1] / "src" / "faultline" / "orchestrator" / "machine.py"
+    ).read_text()
+
+    assert "reuses the triage it already has, because" not in machine
+    assert "there is no stored triage" in machine

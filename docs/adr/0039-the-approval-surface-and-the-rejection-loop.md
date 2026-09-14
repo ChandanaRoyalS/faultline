@@ -123,3 +123,35 @@ whether the agent named an action would have scored this run as two failures.
 T6.8's hardening re-reads the surface's single Basic credential; a second executor or a second world
 appears; the cap of two is ever reached in practice; or a sweep is funded that could turn §4's
 existence demonstration into a rate.
+
+## Addendum (Q55, 2026-09-14) — a re-investigation is not gated
+
+**T3.1's triage gate no longer runs when an incident carries an operator rejection.**
+
+T2.3 fixed the rule this follows from: *"`REJECTED` exits to targeted re-investigation, reason
+required."* A person rejected a proposal and typed a reason in order to cause the run. That is the
+gate's own question — *is this worth investigating* — already answered, by the one participant whose
+answer the loop exists to honour.
+
+**It was not a preference and it was not free.** `run_investigation` ends a run before the planner
+on a `noise` or `duplicate` disposition. So a gated re-investigation could decline the work outright,
+and the reason the route insists on would buy nothing: the operator would have supplied evidence to a
+run that never read it.
+
+**`duplicate` would not even fail cleanly.** The decline walks the incident to `DUPLICATE_MERGED`,
+and `ALLOWED[REJECTED]` is `{PLANNING, RESOLVED, FAILED}`. No such transition exists, so that path
+raises after the judgement has been paid for. **The missing row is not repaired**, because the gate
+that needed it should not be running here; its absence is now a consequence rather than an oversight,
+and `tests/test_runner.py` says so.
+
+**Two things this does not do.** It does not skip triage — `Triage(...).run(incident)` is pure in the
+episodes, the catalog and the radius, costs no model call, and is recomputed because the episodes
+genuinely change while a first investigation runs (Q53 measured 12 services against 14). And it does
+not touch a first investigation, which is gated exactly as T3.1 built it.
+
+**What was wrong in the record, and it mattered.** `machine.INVESTIGABLE` said a `REJECTED` re-entry
+*"reuses the triage it already has"*. `Triage` is constructed in `agents.cli` and `executor.core` and
+persisted in neither — **there is no stored triage anywhere and there never was**. Q53's pilot read
+that sentence, believed it, and stated in a merged pre-registration that its second arm worked off a
+reused triage while it was in fact recomputing one against a later world. The sentence is corrected
+and a test holds it, because the sentence is what did the damage.

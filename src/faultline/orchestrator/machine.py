@@ -145,9 +145,24 @@ rather than a choice made here**: `ALLOWED` lets `PLANNING` be entered from `TRI
 `REJECTED` is T6.3's, and it was in the table from Phase 2 with nothing able to walk it: T2.3
 wrote *"exits to targeted re-investigation, reason required"*, and until the rejection ledger
 existed there was no reason to require. The re-entry starts at `PLANNING` like any other
-investigation - `phases_for` walks the same four phases - and it reuses the triage it already
-has, because triage is a pure function of the episodes, the catalog and the radius and paying a
-model to recompute it would be paying for a known answer.
+investigation - `phases_for` walks the same four phases.
+
+**This paragraph used to say the re-entry "reuses the triage it already has". It does not, and
+nothing ever did** (Q55, 2026-09-14). `Triage` is constructed in exactly two places -
+`agents.cli` and `executor.core` - and is persisted in none: there is no stored triage for a
+re-entry to reuse, and the orchestrator's own runner never holds one. Q53's pilot is where the
+claim was read and believed, and its second arm was described in a merged registration as working
+off a reused triage when it was recomputing one.
+
+**Recomputing is right, and it is free.** `Triage(...).run(incident)` is pure in the episodes, the
+catalog and the radius - and the episodes *change* while a first investigation runs, so a
+recomputed triage is a correct answer to a different question rather than a wasteful answer to the
+same one. Q53 measured that difference: 12 services against 14, four unmeasured edges against five.
+
+**What is not free, and no longer runs, is the triage *gate*.** The model call the old sentence was
+reaching for is `Triager`'s judgement, not the radius, and `agents.cli` no longer asks for it on a
+re-investigation: `run_investigation` ends a run before the planner on `noise` or `duplicate`, so
+gating here let a model decline work an operator had explicitly asked for with a required reason.
 
 An incident already past that door - left in `PLANNING` or `INVESTIGATING` by a crashed run -
 is deliberately not restartable. `record_investigation_failure` moves such a run to `FAILED`
