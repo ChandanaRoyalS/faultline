@@ -1,0 +1,517 @@
+{
+  "stopped": "",
+  "cost_usd": 14.4265,
+  "ceiling_usd": 25.0,
+  "arms": {
+    "k3-flag0": {
+      "retrieval_k": 3,
+      "text_normalisation": 0
+    },
+    "k5-flag2": {
+      "retrieval_k": 5,
+      "text_normalisation": 2
+    }
+  },
+  "outcome_channel": "fault_class",
+  "rejection_reason": "This incident is part of a paired retrieval measurement and is not being remediated. No judgement is offered about your previous proposal and none should be inferred: read the evidence exactly as you would on a first look.",
+  "amendment": "Amendment 1: the second arm is reachable only through REJECTED, so the outcome is fault_class alone and remediation_class is recorded as contaminated.",
+  "pairs": [
+    {
+      "scenario_id": "ad-memory-squeeze",
+      "incident_id": "3ec97981-9366-4161-8890-412afcbba837",
+      "first_arm": "k3-flag0",
+      "attempt": 1,
+      "skipped": "",
+      "spend_usd": 1.4451,
+      "complete": true,
+      "rejected": true,
+      "differs": true,
+      "remediation_differs": true,
+      "verdicts": {
+        "k3-flag0": {
+          "trajectory_id": "798f7119-8ae1-4b6b-9410-c11a8b347c9f",
+          "fault_class": "bad_deploy",
+          "remediation_class": "rollback",
+          "cost_usd": 0.7379,
+          "documents": [
+            "scenario:ad-memory-squeeze",
+            "scenario:cart-bad-image-tag",
+            "runbook:service-frontend"
+          ]
+        },
+        "k5-flag2": {
+          "trajectory_id": "0bec4eaf-8e01-40be-b234-e6c02be607eb",
+          "fault_class": "resource_exhaustion",
+          "remediation_class": "config_revert",
+          "cost_usd": 0.7073,
+          "documents": [
+            "scenario:ad-memory-squeeze",
+            "runbook:alert-no-traffic",
+            "scenario:ad-memory-squeeze",
+            "runbook:alert-high-error-rate",
+            "scenario:ad-memory-squeeze"
+          ]
+        }
+      }
+    },
+    {
+      "scenario_id": "cart-bad-image-tag",
+      "incident_id": "",
+      "first_arm": "",
+      "attempt": 1,
+      "skipped": "gate refused: aborting before injection: 1 container(s) have been up for less than 300s and are still settling.; incident 3ec97981-9366-4161-8890-412afcbba837 resolved at 2026-09-14T06:33:12.039496+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 75s.",
+      "spend_usd": 0,
+      "complete": false,
+      "rejected": false,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {}
+    },
+    {
+      "scenario_id": "cart-bad-image-tag",
+      "incident_id": "ada07b9d-ca39-4414-aaf3-e20e4d843510",
+      "first_arm": "k5-flag2",
+      "attempt": 2,
+      "skipped": "",
+      "spend_usd": 1.4144,
+      "complete": true,
+      "rejected": true,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {
+        "k3-flag0": {
+          "trajectory_id": "66420848-2fce-4e41-ab01-21251721c82d",
+          "fault_class": "bad_deploy",
+          "remediation_class": "rollback",
+          "cost_usd": 0.7051,
+          "documents": [
+            "runbook:service-frontend",
+            "scenario:cart-bad-image-tag",
+            "scenario:shipping-quote-misconfig"
+          ]
+        },
+        "k5-flag2": {
+          "trajectory_id": "c26bd1de-17dd-4d5f-851c-830841ccc134",
+          "fault_class": "bad_deploy",
+          "remediation_class": "rollback",
+          "cost_usd": 0.7093,
+          "documents": [
+            "runbook:service-frontend",
+            "runbook:world-tracing-artifact-edges",
+            "scenario:shipping-quote-misconfig",
+            "runbook:alert-high-error-rate",
+            "scenario:shipping-wrong-image"
+          ]
+        }
+      }
+    },
+    {
+      "scenario_id": "cart-dependency-latency",
+      "incident_id": "",
+      "first_arm": "",
+      "attempt": 1,
+      "skipped": "gate refused: aborting before injection: 1 container(s) have been up for less than 300s and are still settling.; incident ada07b9d-ca39-4414-aaf3-e20e4d843510 resolved at 2026-09-14T06:56:12.069705+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 125s.",
+      "spend_usd": 0,
+      "complete": false,
+      "rejected": false,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {}
+    },
+    {
+      "scenario_id": "cart-dependency-latency",
+      "incident_id": "65e3b6d8-36e7-4e51-ae30-30ec699343b7",
+      "first_arm": "k3-flag0",
+      "attempt": 2,
+      "skipped": "",
+      "spend_usd": 1.2929,
+      "complete": true,
+      "rejected": true,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {
+        "k3-flag0": {
+          "trajectory_id": "9a64ec58-1b32-4728-9904-8f235c608ff7",
+          "fault_class": "dependency_latency",
+          "remediation_class": "config_revert",
+          "cost_usd": 0.6651,
+          "documents": [
+            "scenario:cart-bad-image-tag",
+            "scenario:cart-bad-image-tag",
+            "scenario:cart-dependency-latency"
+          ]
+        },
+        "k5-flag2": {
+          "trajectory_id": "fe7b5f26-9447-4ec9-9272-8b27967ad78f",
+          "fault_class": "dependency_latency",
+          "remediation_class": "config_revert",
+          "cost_usd": 0.6278,
+          "documents": [
+            "scenario:cart-bad-image-tag",
+            "runbook:alert-no-traffic",
+            "scenario:cart-bad-image-tag",
+            "runbook:class-bad-deploy",
+            "scenario:cart-redis-misconfig"
+          ]
+        }
+      }
+    },
+    {
+      "scenario_id": "cart-redis-misconfig",
+      "incident_id": "",
+      "first_arm": "",
+      "attempt": 1,
+      "skipped": "gate refused: incident 65e3b6d8-36e7-4e51-ae30-30ec699343b7 resolved at 2026-09-14T07:17:57.050968+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 155s.",
+      "spend_usd": 0,
+      "complete": false,
+      "rejected": false,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {}
+    },
+    {
+      "scenario_id": "cart-redis-misconfig",
+      "incident_id": "52c245ec-8d03-4292-a198-ec5b85af5292",
+      "first_arm": "k5-flag2",
+      "attempt": 2,
+      "skipped": "",
+      "spend_usd": 1.4864,
+      "complete": true,
+      "rejected": true,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {
+        "k3-flag0": {
+          "trajectory_id": "16ad662b-0d11-47ce-96da-83918af0aefc",
+          "fault_class": "unknown",
+          "remediation_class": "restart",
+          "cost_usd": 0.8143,
+          "documents": [
+            "runbook:class-bad-config",
+            "scenario:cart-bad-image-tag",
+            "scenario:payment-telemetry-blackout"
+          ]
+        },
+        "k5-flag2": {
+          "trajectory_id": "ca99f7d7-8d07-429d-aef3-1345296fd66d",
+          "fault_class": "unknown",
+          "remediation_class": "restart",
+          "cost_usd": 0.6722,
+          "documents": [
+            "scenario:cart-redis-misconfig",
+            "runbook:world-tracing-artifact-edges",
+            "runbook:service-frontend",
+            "runbook:world-two-names-for-every-service",
+            "scenario:cart-bad-image-tag"
+          ]
+        }
+      }
+    },
+    {
+      "scenario_id": "frauddetection-memory-squeeze",
+      "incident_id": "",
+      "first_arm": "",
+      "attempt": 1,
+      "skipped": "gate refused: aborting before injection: 1 container(s) have been up for less than 300s and are still settling.; incident 52c245ec-8d03-4292-a198-ec5b85af5292 resolved at 2026-09-14T07:40:42.011212+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 207s.",
+      "spend_usd": 0,
+      "complete": false,
+      "rejected": false,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {}
+    },
+    {
+      "scenario_id": "frauddetection-memory-squeeze",
+      "incident_id": "57a5240f-5815-4c66-92b9-2cb5a9180ddf",
+      "first_arm": "k3-flag0",
+      "attempt": 2,
+      "skipped": "",
+      "spend_usd": 1.3042,
+      "complete": true,
+      "rejected": true,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {
+        "k3-flag0": {
+          "trajectory_id": "f64456a2-4c4d-4474-b676-44554f49504f",
+          "fault_class": "resource_exhaustion",
+          "remediation_class": "config_revert",
+          "cost_usd": 0.6314,
+          "documents": [
+            "scenario:frauddetection-memory-squeeze",
+            "scenario:frauddetection-memory-squeeze",
+            "scenario:cart-bad-image-tag"
+          ]
+        },
+        "k5-flag2": {
+          "trajectory_id": "7f8a0a88-cfca-48d3-a093-27c31e4dd95f",
+          "fault_class": "resource_exhaustion",
+          "remediation_class": "config_revert",
+          "cost_usd": 0.6728,
+          "documents": [
+            "scenario:frauddetection-memory-squeeze",
+            "runbook:alert-no-traffic",
+            "runbook:world-emulated-containers",
+            "scenario:shipping-quote-misconfig",
+            "scenario:frauddetection-memory-squeeze"
+          ]
+        }
+      }
+    },
+    {
+      "scenario_id": "payment-telemetry-blackout",
+      "incident_id": "",
+      "first_arm": "",
+      "attempt": 1,
+      "skipped": "gate refused: aborting before injection: 1 container(s) have been up for less than 300s and are still settling.; incident 57a5240f-5815-4c66-92b9-2cb5a9180ddf resolved at 2026-09-14T08:02:12.072514+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 51s.",
+      "spend_usd": 0,
+      "complete": false,
+      "rejected": false,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {}
+    },
+    {
+      "scenario_id": "payment-telemetry-blackout",
+      "incident_id": "b074fea6-1d3e-48fb-b7b6-595e004a227b",
+      "first_arm": "k5-flag2",
+      "attempt": 2,
+      "skipped": "",
+      "spend_usd": 1.3416,
+      "complete": true,
+      "rejected": true,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {
+        "k3-flag0": {
+          "trajectory_id": "68df7342-6057-473a-a089-d9212d50d9a7",
+          "fault_class": "bad_config",
+          "remediation_class": "config_revert",
+          "cost_usd": 0.6931,
+          "documents": [
+            "scenario:payment-telemetry-blackout",
+            "scenario:cart-bad-image-tag",
+            "runbook:service-paymentservice"
+          ]
+        },
+        "k5-flag2": {
+          "trajectory_id": "46a04c24-d755-42b4-845b-96008a47fc65",
+          "fault_class": "bad_config",
+          "remediation_class": "config_revert",
+          "cost_usd": 0.6485,
+          "documents": [
+            "scenario:payment-telemetry-blackout",
+            "scenario:payment-telemetry-blackout",
+            "scenario:shipping-quote-misconfig",
+            "runbook:alert-no-traffic",
+            "runbook:service-paymentservice"
+          ]
+        }
+      }
+    },
+    {
+      "scenario_id": "product-catalog-flag-failure",
+      "incident_id": "",
+      "first_arm": "",
+      "attempt": 1,
+      "skipped": "gate refused: incident b074fea6-1d3e-48fb-b7b6-595e004a227b resolved at 2026-09-14T08:25:42.036800+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 30s.",
+      "spend_usd": 0,
+      "complete": false,
+      "rejected": false,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {}
+    },
+    {
+      "scenario_id": "product-catalog-flag-failure",
+      "incident_id": "f2121f9c-061e-4eb6-a093-d816bf4b4c36",
+      "first_arm": "k3-flag0",
+      "attempt": 2,
+      "skipped": "",
+      "spend_usd": 1.2758,
+      "complete": true,
+      "rejected": true,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {
+        "k3-flag0": {
+          "trajectory_id": "dc27c2c6-91a0-47da-ab46-b0561c9eaed5",
+          "fault_class": "bad_config",
+          "remediation_class": "config_revert",
+          "cost_usd": 0.6892,
+          "documents": [
+            "scenario:product-catalog-flag-failure",
+            "scenario:cart-bad-image-tag",
+            "scenario:ad-memory-squeeze"
+          ]
+        },
+        "k5-flag2": {
+          "trajectory_id": "8ff62b89-be6c-4fac-8a26-80a8d1821aa4",
+          "fault_class": "bad_config",
+          "remediation_class": "config_revert",
+          "cost_usd": 0.5866,
+          "documents": [
+            "scenario:product-catalog-flag-failure",
+            "runbook:alert-no-traffic",
+            "scenario:product-catalog-flag-failure",
+            "runbook:class-bad-deploy",
+            "scenario:ad-memory-squeeze"
+          ]
+        }
+      }
+    },
+    {
+      "scenario_id": "redis-cart-dependency-latency",
+      "incident_id": "",
+      "first_arm": "",
+      "attempt": 1,
+      "skipped": "gate refused: aborting before injection: 1 container(s) have been up for less than 300s and are still settling.; incident f2121f9c-061e-4eb6-a093-d816bf4b4c36 resolved at 2026-09-14T08:47:27.039727+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 72s.",
+      "spend_usd": 0,
+      "complete": false,
+      "rejected": false,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {}
+    },
+    {
+      "scenario_id": "redis-cart-dependency-latency",
+      "incident_id": "a721193f-06a9-466e-beca-bb82535da091",
+      "first_arm": "k5-flag2",
+      "attempt": 2,
+      "skipped": "",
+      "spend_usd": 1.4099,
+      "complete": true,
+      "rejected": true,
+      "differs": false,
+      "remediation_differs": true,
+      "verdicts": {
+        "k3-flag0": {
+          "trajectory_id": "e19a5850-68f2-42be-bc82-78a7a4af5600",
+          "fault_class": "dependency_latency",
+          "remediation_class": "restart",
+          "cost_usd": 0.7045,
+          "documents": [
+            "scenario:redis-cart-dependency-latency",
+            "scenario:cart-bad-image-tag",
+            "scenario:cart-redis-misconfig"
+          ]
+        },
+        "k5-flag2": {
+          "trajectory_id": "0c929d42-bc55-4d82-8ed6-dc743b19c701",
+          "fault_class": "dependency_latency",
+          "remediation_class": "config_revert",
+          "cost_usd": 0.7054,
+          "documents": [
+            "scenario:redis-cart-dependency-latency",
+            "runbook:class-bad-config",
+            "scenario:cart-redis-misconfig",
+            "runbook:world-change-records-have-no-prior-value",
+            "scenario:cart-redis-misconfig"
+          ]
+        }
+      }
+    },
+    {
+      "scenario_id": "shipping-quote-misconfig",
+      "incident_id": "",
+      "first_arm": "",
+      "attempt": 1,
+      "skipped": "gate refused: incident a721193f-06a9-466e-beca-bb82535da091 resolved at 2026-09-14T09:11:57.072944+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 141s.",
+      "spend_usd": 0,
+      "complete": false,
+      "rejected": false,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {}
+    },
+    {
+      "scenario_id": "shipping-quote-misconfig",
+      "incident_id": "0f1f90d4-8e9f-4762-bf60-e6b184c6ab13",
+      "first_arm": "k3-flag0",
+      "attempt": 2,
+      "skipped": "",
+      "spend_usd": 1.8778,
+      "complete": true,
+      "rejected": true,
+      "differs": true,
+      "remediation_differs": true,
+      "verdicts": {
+        "k3-flag0": {
+          "trajectory_id": "62071ff0-204b-42f9-b76c-190496718ebb",
+          "fault_class": "unknown",
+          "remediation_class": "none",
+          "cost_usd": 0.9174,
+          "documents": [
+            "scenario:shipping-quote-misconfig",
+            "scenario:cart-bad-image-tag",
+            "scenario:cart-redis-misconfig"
+          ]
+        },
+        "k5-flag2": {
+          "trajectory_id": "c9f29b82-8924-4d66-a16d-3f0fe1b4b4a8",
+          "fault_class": "bad_config",
+          "remediation_class": "config_revert",
+          "cost_usd": 0.9603,
+          "documents": [
+            "scenario:shipping-quote-misconfig",
+            "runbook:alert-no-traffic",
+            "runbook:service-frontend",
+            "runbook:service-accountingservice",
+            "scenario:cart-redis-misconfig"
+          ]
+        }
+      }
+    },
+    {
+      "scenario_id": "shipping-wrong-image",
+      "incident_id": "",
+      "first_arm": "",
+      "attempt": 1,
+      "skipped": "gate refused: aborting before injection: 1 container(s) have been up for less than 300s and are still settling.; incident 0f1f90d4-8e9f-4762-bf60-e6b184c6ab13 resolved at 2026-09-14T09:35:42.084124+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 91s.",
+      "spend_usd": 0,
+      "complete": false,
+      "rejected": false,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {}
+    },
+    {
+      "scenario_id": "shipping-wrong-image",
+      "incident_id": "c83505d6-beab-4582-8c40-b7e692e0fb86",
+      "first_arm": "k5-flag2",
+      "attempt": 2,
+      "skipped": "",
+      "spend_usd": 1.5783,
+      "complete": true,
+      "rejected": true,
+      "differs": false,
+      "remediation_differs": false,
+      "verdicts": {
+        "k3-flag0": {
+          "trajectory_id": "eba0c473-5c5e-4439-b07e-d46ac41e36f9",
+          "fault_class": "bad_deploy",
+          "remediation_class": "rollback",
+          "cost_usd": 0.8258,
+          "documents": [
+            "scenario:shipping-quote-misconfig",
+            "scenario:cart-bad-image-tag",
+            "runbook:service-frontend"
+          ]
+        },
+        "k5-flag2": {
+          "trajectory_id": "acd56e34-cfd7-4d84-9d98-8ffe26a52157",
+          "fault_class": "bad_deploy",
+          "remediation_class": "rollback",
+          "cost_usd": 0.7524,
+          "documents": [
+            "runbook:class-bad-config",
+            "runbook:class-bad-deploy",
+            "runbook:service-frontend",
+            "runbook:world-tracing-artifact-edges",
+            "scenario:shipping-quote-misconfig"
+          ]
+        }
+      }
+    }
+  ]
+}
