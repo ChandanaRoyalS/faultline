@@ -16,6 +16,22 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 > own headings. Nothing there is wrong — each figure is correct about the world it was measured on,
 > which is the whole reason this document names generations at all (ADR-0014).
 >
+> **Every figure below was measured on a world whose change log is unlike production's, and
+> this term applies to all of them** ([`RESIDUE-2026-09-14-q57.md`](../evals/runs/RESIDUE-2026-09-14-q57.md),
+> 2026-09-14). `injector.changelog` is the only writer to `change_records`, so **100% of the
+> change log is fault injections** — there is no benign change traffic in this world at all —
+> and the harness injects roughly every twenty minutes against a tool whose lookback is 24
+> hours. On `90e9f29e…` the **median investigation reads 12 change records left by earlier runs
+> against 1 of its own**, and the worst reads **37**. `change_history` is the most-called tool
+> in the archive (590 calls against logql 356, metrics 324, promql 308, traces 163), so this
+> lands on the most-consulted evidence source.
+>
+> **No accuracy penalty is published for it, because none has been measured.** Q57's registered
+> comparison was confounded — it halved on scenario but not on world generation, and only one
+> generation has residue — and there is **no zero-residue population left on this world** to
+> form a control (**Q59**). What is claimed here is the density, which is measured; what is not
+> claimed is what it costs.
+
 > **No world has ever held much of the record**, and this one now holds the most: **80 scored
 > pipeline runs** on `90e9f29e…` (65 at the current observability digest, 15 at the blind one),
 > against 49 on `f5bd108f…`. That is the R = 3 design doing what it was bought for.
