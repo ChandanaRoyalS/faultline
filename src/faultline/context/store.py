@@ -181,6 +181,31 @@ def _cosine(left: list[float], right: list[float]) -> float:
     return 0.0 if norm == 0 else dot / norm
 
 
+TEXT_NORMALISATION = 0
+"""`ts_rank_cd`'s normalisation bitmask. **Zero: no length normalisation, and that is a finding
+rather than a default** (Q49, `evals/runs/RETRIEVAL-2026-09-14-q49.md`).
+
+`PREREGISTRATION-Q49.md` proposed flag **1** - divide by `1 + log(length)` - to fix the
+synthesizer regression Q39 caused. It was measured and **it did not move the deciding metric**:
+`recall@3` was 0.395 before and 0.395 after, zero queries, inside the one-query band ADR-0040
+clause 5 defines. The rule says the simpler form wins ties, so this stays at 0.
+
+**What the same measurement found, and why it is not acted on here.** All seven flags were scored,
+because §3 registered that the non-candidates would be reported. Flag **2** - divide by raw length -
+reaches `recall@5` **0.605**, restores synthesizer recall to its pre-Q39 0.273, and is the first
+configuration ever measured that **clears the registered floor of 0.60**. Flag 8 matches it at
+`k = 5`.
+
+Adopting it would be choosing the best of six against a single 43-query golden set - selection on
+the test set, which §3 forbade in advance and which ADR-0018 records as the mistake behind its four
+unmeasured parameters. **Q52** registers a second deterministic draw from the harvest remainder, so
+the flag can be settled on queries that had no part in choosing it.
+
+**Flag 32 cannot ever be a candidate.** `fuse` is reciprocal-rank fusion - it reads positions, not
+scores - and `rank/(rank + 1)` is monotone. Predicted, then measured byte-identical to flag 0 on
+every metric at both `k`.
+"""
+
 TEXT_QUERY = "replace(plainto_tsquery('english', %(q)s)::text, ' & ', ' | ')::tsquery"
 """The text arm's query, **disjunctive** (Q39, `PREREGISTRATION-Q39.md`).
 
@@ -293,7 +318,8 @@ class PgVectorPastIncidentStore:
                 "WITH tq AS (SELECT " + TEXT_QUERY + " AS q) "
                 "SELECT id FROM incident_chunks, tq WHERE body_tsv @@ tq.q"
                 + exclusion
-                + " ORDER BY ts_rank_cd(body_tsv, tq.q) DESC LIMIT %(k)s",
+                + f" ORDER BY ts_rank_cd(body_tsv, tq.q, {TEXT_NORMALISATION}) DESC"
+                + " LIMIT %(k)s",
                 params,
             )
             text = [str(row[0]) for row in cur.fetchall()]
