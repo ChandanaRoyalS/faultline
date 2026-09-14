@@ -1,0 +1,781 @@
+  incident 3ec97981-9366-4161-8890-412afcbba837 with 2 episode(s)
+incident 3ec97981-9366-4161-8890-412afcbba837  state triaging  anchor 06:23:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 798f7119-8ae1-4b6b-9410-c11a8b347c9f
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical-severity alerts on frontend with the load generator confirming user-visible impact; this is not a lone warning and cannot be dismissed. Cause could lie in any of the five downstream dependencies, so no fault class is indicated yet.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Wrong if frontend's error ratio crosses 0.05 again within 15 minutes with no new cartservice change event, or if an endpoint/readiness query shows cartservice with zero ready endpoints — then rollback_image to the hotfix tag should be taken at once.
+  rests on    : tr_eceba875df25, tr_1ada869c2363, tr_175d9b78eb60
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 26210 pushed / 9680 pulled (pull rate 0.2697), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_eceba875df25, tr_a5014812cc5b, tr_072464812cf4
+  root cause  : cartservice was repeatedly redeployed by automation: eight image-reference events form four update/revert pairs toggling the same hotfix tag against an unset reference at 04:43/04:50, 05:00/05:08, 05:41/05:45 and 05:58/06:10, after ~22 quiet hours [tr_eceba875df25]. Each toggle rolls the cartservice pods, and during each roll frontend's gRPC client cannot establish a connection — it emits transport-level status 14 UNAVAILABLE with 'no connection established', not deadline-exceeded or an application error [tr_072464812cf4]. Traces localise the damage to the frontend→cartservice edge: error traces terminate at frontend's CartService/GetCart and AddItem client spans with no cartservice server span and no Redis child, while interleaved healthy traces complete the same path in 1–12ms [tr_a5014812cc5b]. Frontend's error ratio is intermittent with five crossings from a flat-zero baseline, the first four landing shortly after image-reference events [tr_175d9b78eb60]. cartservice itself serves normally between rolls [tr_1ada869c2363] and frontend owns no change [tr_57ce31698cd0]. The mechanism is artifact churn: the deployed image is repeatedly not the one that should be running, and each transition removes serving endpoints from frontend.
+  OPEN        : No pod restart, readiness or endpoint-churn data was collected for cartservice, so the link from each image-reference event to an actual pod roll is inferred from timing rather than observed.
+  OPEN        : The 06:21:30 crossing is ~11 minutes after the last revert and pairs with no change event, leaving a possible second contributing factor near onset.
+  OPEN        : cartservice emits no span metrics under that service_name in either window [tr_0a8f21b495d4] and its logs were returned only at the window edges [tr_1ada869c2363], so saturation or a crash inside the unobserved interior remains untested.
+
+flags: none
+
+retrieval: exclude_origin=None, 3 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-a03_e06n/3ec97981-9366-4161-8890-412afcbba837-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-a03_e06n/3ec97981-9366-4161-8890-412afcbba837-narrative.md
+
+re-investigating after an operator rejection: This incident is part of a paired retrieval measurement and is not being remediated. No judgement is offered about your previous proposal and none should be inferred: read the evidence exactly as you would on a first look.
+incident 3ec97981-9366-4161-8890-412afcbba837  state rejected  anchor 06:23:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: rejected -> planning -> investigating -> synthesizing -> proposing
+trajectory: 0bec4eaf-8e01-40be-b234-e6c02be607eb
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service alerting starting at frontend and spreading to adservice, with loadgenerator affected, indicates a real user-facing failure that cannot be dismissed. No open incidents to attribute it to and no evidence yet favoring a specific fault class.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : adservice
+  expect      : Restoring adservice's prior container configuration removes the 256m memory cap that platform-automation introduced at 06:20:24 (recorded as None -> memory=256m) [tr_f865ce91a3da]. If the cap is what kills the JVM during heap initialization, then within a few restart periods (the loop currently repeats on a ~62s cadence) the Loki stream {service="ad-service"} should stop producing repeated JAVA_TOOL_OPTIONS / CDS-warning / otel-javaagent banner triples and should instead resume application lines of the form 'hipstershop.AdService - received ad request', as it did at 05:53-05:54 [tr_eaea99d4ddba]. Downstream, frontend ad-path traces should no longer show multi-second frontend-side tcp.connect spans with no adservice server span [tr_89ce028048de], and frontend's error ratio should fall from its incident mean of ~11% back toward the ~3% baseline [tr_439cdd107a82] — though only partially, see if_wrong.
+  within      : 300s
+  risk        : Removing the cap restores adservice to unbounded memory. If the real fault is an adservice memory leak or a genuine heap-sizing regression, the service will come up and then grow without a ceiling, moving the failure from a contained restart loop to host-level memory pressure that is harder to attribute and affects neighbours rather than one container. The revert also undoes a deliberate platform-automation policy action; if that sweep exists to protect the host, this reintroduces the condition it was guarding against and may be re-applied automatically, producing a revert/re-apply flap. The container is recreated, so any in-flight GetAds calls are cut and adservice's in-process cache is discarded. The change is reversible, which is the main reason it is worth attempting under medium confidence.
+  blast radius: One service plus its caller. adservice is recreated, so frontend — the only service shown calling AdService/GetAds in the sampled traces [tr_89ce028048de] — sees connection failures on the ad path for the duration of the recreate, which is a continuation of what it already experiences rather than a new symptom. loadgenerator-driven user traffic sees ad slots fail during that interval. cartservice, productcatalogservice, recommendationservice and checkoutservice are untouched by the config itself and were shown fast and error-free [tr_89ce028048de]; they would only notice this change indirectly, via host memory pressure, if the leak risk above is real.
+  if wrong    : Falsified if, 5 minutes after the revert, the Loki stream still shows the same boot-banner sequence repeating with no 'received ad request' lines — that would mean the process dies for a reason other than the memory cap (the kill mechanism was never observed: no container memory-vs-limit, exit code, restart count, or OOM notice was ever returned [tr_9af5e96adad8][tr_6f5286a12d91], so it is inferred from timing and crash shape alone). Partially falsified, and expected to be, if adservice recovers but frontend's error ratio does not return to ~3%: the detected change points sit near 06:00:45 and 06:04:00, roughly 20 minutes before the memory edit [tr_439cdd107a82], and the trace sample has a hole from 05:58:52 to 06:26:50 [tr_89ce028048de], so an earlier bursty condition this proposal does not address may account for part of the elevation. Residual frontend errors after adservice is healthy should reopen the investigation rather than trigger a second action.
+  rests on    : tr_f865ce91a3da, tr_eaea99d4ddba, tr_89ce028048de, tr_439cdd107a82
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 25984 pushed / 5552 pulled (pull rate 0.1761), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_f865ce91a3da, tr_eaea99d4ddba, tr_89ce028048de
+  root cause  : At 06:20:24 platform-automation imposed a 256m memory cap on adservice where none had been enforced before [tr_f865ce91a3da]. Seconds later adservice entered a restart loop: 11+ identical JVM/OTel boot sequences, each reaching the agent banner then dying silently with no exception or request handling [tr_eaea99d4ddba] — the signature of an external kill for exceeding the new cap during heap initialization. With the ad backend never up long enough to accept connections, frontend's GetAds calls fail at connection establishment (frontend-side tcp.connect span, ~8.18s, no adservice server span) [tr_89ce028048de], driving frontend's ~3.4x error-ratio rise [tr_439cdd107a82]. The mechanism is memory exhaustion against the new limit; the edit is how it started.
+  OPEN        : No container memory-vs-limit, exit code or restart-count data was ever returned [tr_9af5e96adad8][tr_6f5286a12d91] and no OOM notice appears in logs, so the kill mechanism is inferred from timing and crash shape, not observed.
+  OPEN        : Frontend's error-ratio change points fall near 06:00:45 and 06:04:00 [tr_439cdd107a82], ~20 minutes before the memory change, suggesting an earlier or separate bursty condition that this verdict does not explain.
+  OPEN        : Sampled traces have a gap from 05:58:52 to 06:26:50 [tr_89ce028048de], so ad-path error onset is bounded, not proven.
+
+flags: none
+
+retrieval: exclude_origin=None, 5 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-ieshzz72/3ec97981-9366-4161-8890-412afcbba837-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-ieshzz72/3ec97981-9366-4161-8890-412afcbba837-narrative.md
+
+--- settling 300s before cart-bad-image-tag #1
+--- settling 300s before cart-bad-image-tag #2
+  incident ada07b9d-ca39-4414-aaf3-e20e4d843510 with 3 episode(s)
+incident ada07b9d-ca39-4414-aaf3-e20e4d843510  state triaging  anchor 06:45:00
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: c26bd1de-17dd-4d5f-851c-830841ccc134
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with simultaneous checkout, frontend, and loadgenerator alerts indicates a real user-facing failure spanning the checkout path. No open incidents to attribute it to, and the alerts alone don't distinguish a deploy, config, or downstream dependency cause.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : cartservice
+  expect      : Redeploying cartservice at its pre-06:42:03 tag should restore a serving process: the {service="cart-service"} Loki stream resumes GetCartAsync/AddItemAsync lines after its 06:42:02 shutdown silence; sampled traces stop ending in a 1.6-4.2ms ERROR on the CartService/GetCart leaf and extend into payment/currency/shipping spans; checkoutservice logs resume payment, email and message-write completion lines, absent since 06:41:57.
+  within      : 300s
+  risk        : If the diagnosis is wrong, this recreates a container for no benefit and discards cartservice's in-memory cart state, dropping live carts. If the prior tag is itself broken, or if automation fights the change, the service may end up in a worse flapping state. It also masks the real defect — the apply/revert loop — for one cycle.
+  blast radius: cartservice only during the recreate; its inbound callers frontend and checkoutservice see connection resets, which users perceive as failed cart views and checkouts, and loadgenerator alarms may briefly worsen before clearing.
+  if wrong    : Falsified if cart-service logs stay silent 5 minutes after recreate (container never starts / image pull fails / crash-loops — pod state was never queried), or if cartservice logs normally but GetCart still fast-fails. Likeliest falsifier: platform-automation re-applies the hotfix tag within its 10-40 minute flip cadence and the outage recurs identically, meaning the reconcile loop is the real target and lies outside this system's actions.
+  rests on    : tr_2053a3bbfe9c, tr_fb0d7f448dc0, tr_01dd93f09326
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 27839 pushed / 6778 pulled (pull rate 0.1958), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_fb0d7f448dc0, tr_2053a3bbfe9c, tr_01dd93f09326, tr_a39aae98a990, tr_906734c9e4aa, tr_c297d7899fe1
+  root cause  : At 06:42:02 cartservice logged a clean hosting-lifetime shutdown and stopped emitting entirely, one second before the change log records an image-reference update pinning cartservice to the v1.2.1-cartservice-hotfix.2 tag — the ninth in a two-hour series of automated apply/revert flips of that same tag by platform-automation. From then cartservice never resumes serving: checkoutservice keeps accepting PlaceOrder requests but stops completing them from ~06:42:42, and every sampled failing trace shows the same 5-span shape terminating in a fast (1.6–4.2ms) ERROR on the CartService/GetCart leaf, with no payment, currency, shipping or catalog spans attempted. The running cartservice artifact is not one that serves traffic; the checkoutservice, frontend and loadgenerator alarms are that absence propagating toward the caller.
+  OPEN        : No pod/container state was queried — whether a cartservice container started after 06:42:03 and crash-looped, failed image pull, or never started is unknown.
+  OPEN        : The actual gRPC status on the erroring GetCart spans was not retrieved; 'no backend' is inferred from fast-fail timing alone.
+  OPEN        : cartservice log coverage is partial (~06:15–06:41 unobserved) and its error-ratio metric had zero samples in both windows, so neither confirms nor contradicts behaviour inside the hotfix image.
+
+flags: none
+
+retrieval: exclude_origin=None, 5 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-iva1r16p/ada07b9d-ca39-4414-aaf3-e20e4d843510-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-iva1r16p/ada07b9d-ca39-4414-aaf3-e20e4d843510-narrative.md
+
+re-investigating after an operator rejection: This incident is part of a paired retrieval measurement and is not being remediated. No judgement is offered about your previous proposal and none should be inferred: read the evidence exactly as you would on a first look.
+incident ada07b9d-ca39-4414-aaf3-e20e4d843510  state rejected  anchor 06:45:00
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: rejected -> planning -> investigating -> synthesizing -> proposing
+trajectory: 66420848-2fce-4e41-ab01-21251721c82d
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service failure starting at checkout/frontend and fanning out to most downstream services minutes later; nothing here can be dismissed and no open incident covers it. Origin is ambiguous between a checkout-path deploy and a shared dependency, so fault class stays unknown.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : If no tenth automation change appears and cart-service logs stay silent past 06:42:02 while checkout still fails at the GetCart leaf, the running hotfix image is itself broken and rollback_image on cartservice becomes supported. If instead logs resume and checkoutservice error ratio returns to ~0.0008, the loop stopped on its own. Cartservice's own error-ratio series cannot confirm anything - it is empty in both windows [tr_abd78ec6978e].
+  rests on    : tr_dd0a3e1ecf1e, tr_d194a4d23d0d, tr_abd78ec6978e
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 26670 pushed / 6622 pulled (pull rate 0.1989), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_dd0a3e1ecf1e, tr_5d176b6ede3f, tr_d194a4d23d0d, tr_c8ac7e4f6370, tr_ff914806b9a1
+  root cause  : cartservice is the failing service. From 04:43 platform-automation cycled cartservice's image reference nine times — five updates and four reverts of the same hotfix tag, the last update 2 minutes before the 06:45 onset [tr_dd0a3e1ecf1e]. cartservice logged an orderly shutdown at ~06:42:02 and emitted nothing through 06:49:46 [tr_d194a4d23d0d], exactly the interval in which every sampled checkout trace fails. Traces show the error originating at the CartService/GetCart leaf and propagating up to the frontend, with checkout self time ~0.1-0.2ms and traces under 5ms [tr_5d176b6ede3f] — fast failure against an absent cart backend, not a slow one. checkoutservice has no changes [tr_ff914806b9a1] and logs no errors [tr_0edac8fbeef5]. The bursty error shape [tr_c8ac7e4f6370] matches the redeploy cadence. The running cartservice artifact is not a stable one.
+  OPEN        : Whether the hotfix image is itself broken when running or the errors come only from restart gaps — cartservice error metrics are empty in both windows, an instrumentation gap predating the incident [tr_abd78ec6978e].
+  OPEN        : What drives platform-automation to alternate update and revert on the same tag; its configuration and triggers were never dispatched against.
+  OPEN        : Why the 06:48 alerters (currency, shipping, email, accounting, fraud, quote) fired at all, given checkout aborts before calling them [tr_5d176b6ede3f]; none was investigated.
+
+flags: none
+
+retrieval: exclude_origin=None, 3 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-ktb84665/ada07b9d-ca39-4414-aaf3-e20e4d843510-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-ktb84665/ada07b9d-ca39-4414-aaf3-e20e4d843510-narrative.md
+
+--- settling 300s before cart-dependency-latency #1
+--- settling 300s before cart-dependency-latency #2
+  incident 65e3b6d8-36e7-4e51-ae30-30ec699343b7 with 4 episode(s)
+incident 65e3b6d8-36e7-4e51-ae30-30ec699343b7  state triaging  anchor 07:07:45
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 9a64ec58-1b32-4728-9904-8f235c608ff7
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Four services alerted simultaneously along the cart/checkout/frontend path, which is more than a single isolated warning and cannot be dismissed. Simultaneity plus a shared downstream dependency set suggests a common dependency slowdown.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention would be wrong if a runbook (withheld from this briefing) maps the traffic-shaping attachment onto revert_config for cartservice with a recorded prior configuration — in which case the precondition I read as unmet is in fact met, and the proposal should be revert_config on cartservice. It would also be wrong if recreating cartservice's container is known in this world to tear down the shared network namespace and thereby drop the shaper; nothing in the evidence establishes that, and it is not what revert_config or restart_service claims to do. Ask for the runbooks and for the change-log entry's teardown handle before treating this as final.
+  rests on    : tr_97624c21a08c, tr_53854273252a, tr_2a1ead58887d
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 22899 pushed / 5844 pulled (pull rate 0.2033), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_97624c21a08c, tr_53854273252a, tr_2a1ead58887d, tr_0f3880560975, tr_d1d62f386174
+  root cause  : A traffic-shaping container was attached to cart-service's network namespace by platform-automation roughly three minutes before onset, imposing a fixed 300ms egress delay with zero jitter on eth0 [tr_97624c21a08c]. Every network hop crossing that namespace therefore pays a constant ~300ms: cartservice's Redis leaf spans (HGET, HMSET) sit at a near-flat 300-310ms floor regardless of command or endpoint, cartservice's own handler self-time is sub-millisecond, and callers (frontend, checkoutservice) carry the same additive penalty on their client spans, so end-to-end latency scales linearly with the number of cart hops (~605ms single GetCart, ~1.5s AddItem+GetCart, ~2.46s PlaceOrder) [tr_53854273252a]. Cartservice itself is not broken — it logs uninterrupted, successful cart reads, writes and deletes straight through 07:07:45 with no restarts or errors [tr_2a1ead58887d] — it is simply waiting on a call path that has been artificially slowed. The frontend/checkoutservice/loadgenerator alerts are the caller-side view of that wait, with checkoutservice's modestly elevated (2.6x, spiky, non-sustained) error ratio consistent with timeouts on the longest cart-bearing path rather than a failure of its own [tr_0f3880560975].
+  OPEN        : Onset timing is not independently confirmed: the traces returned cover only 07:06:57-07:07:40 and nothing before 07:04, so the step-up three minutes prior is inferred from the change record rather than measured [tr_53854273252a]; no latency percentile series was retrieved for either cartservice or checkoutservice [tr_0f3880560975].
+  OPEN        : Whether the traffic-shaping attachment was an authorized chaos/fault-injection experiment or an errant automation action is not established — all eleven changes are attributed to platform-automation with no human record [tr_97624c21a08c].
+  OPEN        : cartservice emitted no calls_total samples in either the incident or baseline window [tr_d1d62f386174], so it is an unexplained instrumentation gap that predates the incident and leaves cartservice's own error rate and request volume unmeasured.
+  OPEN        : Whether checkoutservice's 2.6x error-ratio rise is genuinely timeout-driven by the cart delay is unproven; the same maximum error ratio occurs in baseline, so part of that signal is pre-existing [tr_0f3880560975]. No checkoutservice logs or traces of failing requests were examined.
+  OPEN        : Whether Redis itself contributes any independent latency once the 300ms shaping is removed was not measured; no dispatch targeted the redis/cart backing store directly.
+  OPEN        : Four unmeasured edges were crossed in triage and no specialist examined frontend or loadgenerator directly, so the caller-side symptoms are inferred from trace structure rather than observed at those services.
+
+flags: none
+
+retrieval: exclude_origin=None, 3 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-jqnzrj75/65e3b6d8-36e7-4e51-ae30-30ec699343b7-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-jqnzrj75/65e3b6d8-36e7-4e51-ae30-30ec699343b7-narrative.md
+
+re-investigating after an operator rejection: This incident is part of a paired retrieval measurement and is not being remediated. No judgement is offered about your previous proposal and none should be inferred: read the evidence exactly as you would on a first look.
+incident 65e3b6d8-36e7-4e51-ae30-30ec699343b7  state rejected  anchor 07:07:45
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: rejected -> planning -> investigating -> synthesizing -> proposing
+trajectory: fe7b5f26-9447-4ec9-9272-8b27967ad78f
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four services alerted simultaneously along the cart/checkout/frontend path, which is more than a single benign warning and cannot be dismissed. Shared-dependency latency is the cheap prior given the simultaneous onset across a request chain.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Falsified if change history shows a cartservice env/config mutation in the window with a recorded prior value (revert_config preconditions met — the log records only image changes and the one container attachment [tr_366fb4c5344d]), or if the shaping container is shown to be bound to cartservice's container lifecycle so that recreating it clears the delay. Neither is established here.
+  rests on    : tr_366fb4c5344d, tr_04eeb4648a76
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 23211 pushed / 5455 pulled (pull rate 0.1903), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_366fb4c5344d, tr_04eeb4648a76, tr_cbd45ab04579, tr_1626bb55537e, tr_8fed496ea2ef
+  root cause  : At 07:04:15, roughly three minutes before onset, platform-automation attached a traffic-shaping container to cart-service's network namespace that applied a constant 300ms delay with zero jitter to eth0 [tr_366fb4c5344d]. Every network hop that crosses that interface now pays ~300ms: traces show each Redis leaf span (HGET and HMSET alike) sitting in a tight 300.6–304.7ms band, an AddItem server span with two Redis round trips running ~605ms while a single-op GetCart runs ~302ms, and caller-side client spans in frontend and checkoutservice carrying an additional ~300ms of self-time above their cartservice child [tr_04eeb4648a76]. cartservice's own in-process work is 0.4–1.7ms and its logs show clean startup, a successful Redis self-test and continuous, error-free cart operations right up to the window edge [tr_cbd45ab04579], so nothing in the application is broken — requests are simply waiting on an artificially slowed network path. The symptom propagated to checkoutservice, frontend and loadgenerator because they sit upstream of cart calls, and it is not an availability event: frontend's error ratio is flat at ~1.05x baseline, meaning cart calls still succeed, only slowly [tr_1626bb55537e]. The cure is removal of the injected delay on cartservice's network namespace.
+  OPEN        : No latency series was retrieved for any service; the ~300ms claim rests entirely on 10 traces clustered in a 19-second span at 07:11:17–07:11:36, with no pre-07:04 trace baseline to confirm the penalty was absent before the container was attached [tr_04eeb4648a76].
+  OPEN        : Why the alert fired at 07:07:45 when the delay container was created at 07:04:15 — the ~3.5 minute lag is unexplained and could indicate a threshold crossing, a staged rollout across replicas, or that the delay was applied to only some cart pods [tr_366fb4c5344d].
+  OPEN        : The cartservice log result was truncated to the oldest 8 and newest 32 lines, so the period around 07:07:45 itself was never returned; a restart or transient error in that gap cannot be excluded [tr_cbd45ab04579].
+  OPEN        : Whether this was an authorized chaos experiment or an erroneous automation action is unsettled — all 11 changes are attributed to platform-automation with no human actor or intent recorded [tr_366fb4c5344d].
+  OPEN        : The five-cycle image churn on the hotfix tag over the preceding 2.4 hours is unexplained and may indicate a second, separate problem even though it was reverted before onset [tr_366fb4c5344d].
+  OPEN        : The impact on checkoutservice and loadgenerator was inferred from caller-side span self-time only; neither service was dispatched, and frontend's metrics were aggregated by service_name with no route dimension, so cart-dependent paths could not be isolated [tr_1626bb55537e].
+
+flags: none
+
+retrieval: exclude_origin=None, 5 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-s8ucrfuo/65e3b6d8-36e7-4e51-ae30-30ec699343b7-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-s8ucrfuo/65e3b6d8-36e7-4e51-ae30-30ec699343b7-narrative.md
+
+--- settling 300s before cart-redis-misconfig #1
+--- settling 300s before cart-redis-misconfig #2
+  incident 52c245ec-8d03-4292-a198-ec5b85af5292 with 3 episode(s)
+incident 52c245ec-8d03-4292-a198-ec5b85af5292  state triaging  anchor 07:28:00
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: ca99f7d7-8d07-429d-aef3-1345296fd66d
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend and checkoutservice within seconds of each other point to a real user-facing failure, not a quiet system. No open incidents to attribute it to, and the shared downstream dependencies leave the cause genuinely open.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if cartservice is in fact in a recoverable bad process state and a restart would have cleared it - that would show up as the error-flagged GetCart spans ceasing after a recreate, which nothing will now observe because no recreate happens. It is also wrong if the outage is costing more than the information is worth; in that case the correct escalation is to a human who may accept an unmeasured restart. Note that restart_service is irreversible and discards cartservice's in-process cache, so if the fast error is a cold-cache or backing-cache auth failure a restart could widen the failure rather than end it, and it would destroy the process state that is the only remaining evidence of the mechanism.
+  rests on    : tr_6d80691d6a09, tr_78377a94ef05, tr_6da4cdb49ee0
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 26502 pushed / 5351 pulled (pull rate 0.168), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_6d80691d6a09, tr_b15a204b2f4c, tr_78377a94ef05
+  root cause  : Checkout requests fail immediately inside the cart read. All 10 sampled traces share one shape - frontend HTTP POST -> frontend PlaceOrder -> checkoutservice PlaceOrder -> prepareOrderItemsAndShippingQuoteFromCart -> cartservice GetCart - with the error flag on the cart client span propagating up through checkoutservice to frontend, and the cart span returning in well under a millisecond, so this is a fast rejection from cartservice, not a stall [tr_6d80691d6a09]. checkoutservice logs corroborate: order intake continues at normal cadence while payment, email and message-write completions stop after ~07:25:27 [tr_b15a204b2f4c]. checkoutservice has no changes to blame [tr_78377a94ef05] and paymentservice is excluded by both change history and the total absence of payment spans [tr_6da4cdb49ee0][tr_6d80691d6a09]. cartservice itself was never measured, so the mechanism behind its fast error is not established.
+  OPEN        : cartservice was never measured: no error ratio, latency, memory, restart count or pool-saturation data exists for it.
+  OPEN        : cartservice change history was never queried - both change dispatches were scoped to their seed service only [tr_78377a94ef05][tr_6da4cdb49ee0] - so a ~07:25 cartservice deploy or config edit remains open.
+  OPEN        : The state of the cart's backing cache (availability, memory pressure, auth) is unobserved and is the likeliest proximate source of the fast error.
+
+flags: none
+
+retrieval: exclude_origin=None, 5 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-n7cjo8e2/52c245ec-8d03-4292-a198-ec5b85af5292-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-n7cjo8e2/52c245ec-8d03-4292-a198-ec5b85af5292-narrative.md
+
+re-investigating after an operator rejection: This incident is part of a paired retrieval measurement and is not being remediated. No judgement is offered about your previous proposal and none should be inferred: read the evidence exactly as you would on a first look.
+incident 52c245ec-8d03-4292-a198-ec5b85af5292  state rejected  anchor 07:28:00
+triage: 14 services, severity critical, start from frontend, 5 unmeasured edge(s) crossed
+
+states: rejected -> planning -> investigating -> synthesizing -> proposing
+trajectory: 16ad662b-0d11-47ce-96da-83918af0aefc
+triage judged: investigate (medium confidence, suspects unknown)
+  Ten services critical across checkout's full fan-out within minutes, starting at frontend/checkout; this is a broad live failure that cannot be dismissed and no open incident covers it. Origin is ambiguous between a checkout-path deploy and a shared downstream dependency, so no fault class is asserted.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  action      : restart_service (restart)
+  target      : cartservice
+  expect      : Checkout traces resume showing a cartservice server span (with Redis child) beneath checkoutservice's CartService/GetCart client span, the GetCart span stops carrying error status, and checkoutservice logs resume emitting payment-success, email and message-write/offset lines after each PlaceOrder entry.
+  within      : 300s
+  risk        : If the diagnosis is wrong, the restart discards cartservice's in-process cache for nothing and may mask a recurring crash-loop by resetting restart counters, destroying the evidence that would have identified an OOM or bad artifact. If the true cause is a wrong bind address or wrong image, the recreate reinstates the same broken state and costs another outage interval.
+  blast radius: cartservice only, for the duration of the recreate. Its callers — checkoutservice and frontend — see connection resets on GetCart/AddItem/EmptyCart during that interval, which surfaces to loadgenerator as additional checkout failures on top of the existing ones.
+  if wrong    : Post-restart traces still terminate at the GetCart client span with no cartservice server span, or checkoutservice logs still show order-entry lines with no completion lines. That would mean the fault is not cartservice process state but a config/address mismatch, a bad artifact, or something outside cartservice; cartservice's own logs, restart count and pre-07:28 change history were never examined, so the mechanism is unestablished and a restart may simply be untargeted.
+  rests on    : tr_5ddd98222b02, tr_8860f6bb2591
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 29280 pushed / 11962 pulled (pull rate 0.29), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_5ddd98222b02, tr_8860f6bb2591, tr_776241cbfd19
+  root cause  : After 07:28 checkout requests fail at the checkoutservice -> cartservice RPC boundary. The only sampled post-onset trace is a 1.6ms hard failure whose erroring, terminal span is checkoutservice's CartService/GetCart client span, with no cartservice server span and no Redis child beneath it [tr_5ddd98222b02]. The error propagates up to the frontend HTTP root, which explains why frontend and loadgenerator alerted first, and why payment, shipping, currency, email and the fraud/accounting consumers went silent — checkout aborts before calling any of them [tr_5ddd98222b02, tr_8860f6bb2591, tr_776241cbfd19]. cartservice is the service to blame: it stopped answering GetCart at or before its own handler. No dispatch examined cartservice itself, so the mechanism inside it is not established.
+  OPEN        : cartservice was never dispatched on: its logs, resource metrics, restart count and change history are all unexamined, so the mechanism (OOM, crash, wrong artifact, wrong bind address) is unresolved.
+  OPEN        : Localization rests on one sampled post-07:28 trace; no aggregate confirms the cart hop fails for all traffic.
+  OPEN        : Change history windows all started at 07:28 and never covered the hours before onset, so a pre-onset change anywhere remains possible.
+
+flags: none
+
+retrieval: exclude_origin=None, 3 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-qps11_jf/52c245ec-8d03-4292-a198-ec5b85af5292-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-qps11_jf/52c245ec-8d03-4292-a198-ec5b85af5292-narrative.md
+
+--- settling 300s before frauddetection-memory-squeeze #1
+--- settling 300s before frauddetection-memory-squeeze #2
+  incident 57a5240f-5815-4c66-92b9-2cb5a9180ddf with 1 episode(s)
+incident 57a5240f-5815-4c66-92b9-2cb5a9180ddf  state triaging  anchor 07:53:00
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: f64456a2-4c4d-4474-b676-44554f49504f
+triage judged: investigate (medium confidence, suspects unknown)
+  A single critical alert on frauddetectionservice with no open incidents to attribute it to; critical severity is not dismissible as noise even with a one-service radius.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Restoring the pre-07:47:20 resource config (removing the 200m memory ceiling) and recreating the container should end the crash loop: within a few backoff cycles the Loki stream {service="frauddetection-service"} should stop emitting a fresh JVM/OTel startup banner every ~60s and resume 'Consumed record with orderId: ... updated total count to: N' lines with an incrementing counter. Secondarily, Tempo should again show frauddetectionservice 'orders process' spans as children of checkoutservice 'orders send', and full ~36-span checkout traces. Prometheus cannot confirm: the calls_total series for this service was empty in both incident and baseline windows.
+  within      : 300s
+  risk        : The prior limit is unrecorded, so the revert likely restores an unbounded or much larger ceiling. If the 200m limit was set deliberately to contain a real memory leak, this frees that leak to pressure co-located containers, turning a one-service outage into host-wide degradation. If the diagnosis is wrong, the revert changes nothing but forces another recreate, discarding in-process cache. Reversible: a measured limit can be re-applied.
+  blast radius: frauddetectionservice only. It has processed nothing since 07:47:25, so the recreate costs no live capacity. checkoutservice, whose 'orders send' leg feeds this consumer, would see the fraud consumer spans reappear in its traces; accountingservice is an unaffected sibling consumer.
+  if wrong    : Falsified if after 5 minutes the log still shows only startup banners at ~60s cadence with zero consumption records — the 200m ceiling was then not the binding constraint (something in the 07:23–07:47 log gap, a liveness probe, or a broker fault). Also wrong-in-effect if consumption resumes and the loop returns, since platform-automation may re-apply the limit; the prior value is unrecorded, so the revert target itself is uncertain. The kill mechanism is inferred from the absence of any Java OutOfMemoryError, not measured — no cgroup OOM-kill, working-set-vs-limit, or restart-count series was obtained.
+  rests on    : tr_66fc0b59f26b, tr_5af6436fb06c, tr_21cb6258d751
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 20586 pushed / 6896 pulled (pull rate 0.2509), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_66fc0b59f26b, tr_5af6436fb06c, tr_21cb6258d751, tr_2f050782cc48
+  root cause  : At 07:47:20 platform-automation lowered the memory limit on the frauddetection-service workload to 200m [tr_66fc0b59f26b]. Within seconds the service stopped working: from ~07:47:25 to at least 07:52:30 the log contains only repeated JVM/OTel startup banners with restart intervals tightening into an orchestrator-style ~60s backoff, and no consumption records at all, after having consumed normally earlier in the window [tr_5af6436fb06c]. Each cycle reaches JVM and agent init then dies before the consumer loop, with no Java OutOfMemoryError logged — the signature of an external cgroup kill rather than an in-JVM failure [tr_5af6436fb06c]. Traces fix the last healthy fraud consumer span at 07:46:57, with the final checkout trace truncated and missing the 'orders send' leg entirely [tr_21cb6258d751]. The container cannot fit its startup footprint inside the new ceiling and is repeatedly terminated for exceeding it; the limit edit is the trigger, exhaustion is the mechanism.
+  OPEN        : No cgroup/kubelet evidence was obtained — OOM-kill counters, working-set-vs-limit, and restart counts all returned nothing [tr_2f050782cc48] — so the kill mechanism and the container's termination reason (OOMKilled vs. failed liveness probe) are unconfirmed.
+  OPEN        : The prior memory limit is unrecorded [tr_66fc0b59f26b], so the magnitude of the reduction is unknown, as is why platform-automation applied it and whether a revert would be re-applied.
+  OPEN        : Downstream impact is unmeasured, and whether tracing ceased system-wide at 07:47 or only on the fraud path was explicitly not closed [tr_21cb6258d751]; Loki output is also truncated between ~07:23 and 07:47 [tr_5af6436fb06c].
+
+flags: none
+
+retrieval: exclude_origin=None, 3 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-7soks56j/57a5240f-5815-4c66-92b9-2cb5a9180ddf-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-7soks56j/57a5240f-5815-4c66-92b9-2cb5a9180ddf-narrative.md
+
+re-investigating after an operator rejection: This incident is part of a paired retrieval measurement and is not being remediated. No judgement is offered about your previous proposal and none should be inferred: read the evidence exactly as you would on a first look.
+incident 57a5240f-5815-4c66-92b9-2cb5a9180ddf  state rejected  anchor 07:53:00
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: rejected -> planning -> investigating -> synthesizing -> proposing
+trajectory: 7f8a0a88-cfca-48d3-a093-27c31e4dd95f
+triage judged: investigate (medium confidence, suspects unknown)
+  A critical-severity alert on frauddetectionservice with no open incidents to attribute it to and nothing indicating recovery; a single alert of this severity cannot be dismissed. No signal yet points to a specific fault class.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Removing the 07:47 `memory=200m` limit and recreating the container should end the crash loop: in Loki on {service="frauddetection-service"}, the JVM/OTel startup banner should stop repeating on its ~62s cadence, and 'Consumed record with orderId ... updated total count to: N' lines should resume as at 04:53. Secondary: a checkout trace should again show a fraud-detection consumer span on the orders stream.
+  within      : 300s
+  risk        : If the startup failure is not caused by the limit, this buys an extra restart and consumes the one clean revert, while leaving the real startup fault untouched and the diagnosis falsely closed. The prior value is unrecorded, so the revert could also restore an unbounded or stale config that fails differently.
+  blast radius: frauddetectionservice alone; it is the only service in scope. It is already down, so the recreate costs nothing in-flight. Checkout publishes fine and accountingservice consumes normally, so no caller sees a change until the consumer returns and resumes draining the order stream.
+  if wrong    : Banners still recurring at ~62s and no consumption lines within 5 minutes falsifies it. The kill mechanism is inferred from timing only - no working-set, restart-count or OOMKilled data was ever queried, and no OOM/heap log line exists. Also the change record shows no prior value (None -> 200m), so the revert may have nothing to restore and simply no-op.
+  rests on    : tr_98f0bc1b0856, tr_3d5a291ba429
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 25021 pushed / 7143 pulled (pull rate 0.2221), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_98f0bc1b0856, tr_3d5a291ba429, tr_4682e24b5248
+  root cause  : At 07:47 platform automation lowered the memory limit on the frauddetection-service workload to `200m`, a milli-unit quantity that is malformed or effectively near-zero for a JVM [tr_98f0bc1b0856]. From 07:47 the container enters a ~62s restart loop: each cycle emits only JVM/OTel startup banners and dies before any application work, whereas the service consumed order records normally at 04:53 [tr_3d5a291ba429]. The JVM is terminated during heap initialisation for exceeding its new allowance and never reaches steady state; the 07:53 alert is one iteration of a loop that began with the limit change. Downstream, the fraud-detection consumer is simply absent from the order stream while checkout publishes successfully and accountingservice consumes, with PlaceOrder completing in 22-37ms [tr_4682e24b5248]; checkout's error-ratio shift is high-variance and explicitly not a sustained departure [tr_04d7d86be6b0].
+  OPEN        : No memory working-set, restart-count or OOMKilled/termination-reason data was ever queried [tr_4323c4422b2b][tr_6c3881e679c8]; the kill mechanism is inferred from timing and cadence, not observed.
+  OPEN        : frauddetectionservice's call metrics are empty in baseline windows too [tr_6c3881e679c8], so it is unclear whether the service is instrumented under that label at all.
+  OPEN        : Consumer lag and the real upstream impact of the stalled consumer are unmeasured; checkout's error elevation [tr_04d7d86be6b0] remains unattributed.
+
+flags: none
+
+retrieval: exclude_origin=None, 5 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-08a4tbyn/57a5240f-5815-4c66-92b9-2cb5a9180ddf-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-08a4tbyn/57a5240f-5815-4c66-92b9-2cb5a9180ddf-narrative.md
+
+--- settling 300s before payment-telemetry-blackout #1
+--- settling 300s before payment-telemetry-blackout #2
+  incident b074fea6-1d3e-48fb-b7b6-595e004a227b with 1 episode(s)
+incident b074fea6-1d3e-48fb-b7b6-595e004a227b  state triaging  anchor 08:17:30
+triage: 3 services, severity critical, start from paymentservice, 2 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 46a04c24-d755-42b4-845b-96008a47fc65
+triage judged: investigate (medium confidence, suspects unknown)
+  A single critical alert on paymentservice cannot be dismissed, and it sits upstream of checkout and frontend on the revenue path. No open incidents to fold into and no signal yet distinguishing deploy, config, or resource causes.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Falsified if a trace query under service="payment-service" shows spans across 07:17-08:11 that cease at 08:11:27 - that would make the blackout onset-aligned to the edit and justify revert_config at once. Also falsified if restart or uptime series, never queried, show a container recreate near 08:11-08:17.
+  rests on    : tr_9fc3f1c80717, tr_53b2fe6f440f, tr_60d445806864
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 24506 pushed / 6051 pulled (pull rate 0.198), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_9fc3f1c80717, tr_53b2fe6f440f, tr_60d445806864, tr_6e6f74b4bdf5, tr_b8ba3edfc03c
+  root cause  : Platform-automation set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT on paymentservice to a loopback address (127.0.0.1:4317) about six minutes before onset, a variable previously unset [tr_9fc3f1c80717]. If no collector listens in that pod's namespace, span export fails locally — matching the total absence of paymentservice spans in Tempo and of span-derived calls_total series in Prometheus [tr_53b2fe6f440f][tr_28d1c87d2d43][tr_b8ba3edfc03c]. Meanwhile the service is demonstrably healthy: Loki shows charge requests each paired with a completion at info severity, continuing past 08:17:30 with no panic or shutdown lines [tr_60d445806864], and caller checkoutservice's error ratio is flat zero across the incident window, with the elevated period sitting in the earlier baseline [tr_6e6f74b4bdf5]. The failure is an observability blackout caused by a configuration value naming an endpoint with no listener behind it; the wrongness of that value is the mechanism, so this is bad_config and the fix is reverting the variable or provisioning the local collector it assumes.
+  OPEN        : Is anything actually listening on 127.0.0.1:4317 in the paymentservice pod? Never checked, and the verdict turns on it.
+  OPEN        : Do Tempo/Prometheus index this service as 'payment-service' rather than 'paymentservice'? If so some emptiness is a query artifact.
+  OPEN        : Why were spans absent for ~50 minutes before the 08:11 edit, and what did the 08:17:30 alert actually fire on? No alert rule, latency, or saturation series was queried.
+
+flags: none
+
+retrieval: exclude_origin=None, 5 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-s3hgxixe/b074fea6-1d3e-48fb-b7b6-595e004a227b-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-s3hgxixe/b074fea6-1d3e-48fb-b7b6-595e004a227b-narrative.md
+
+re-investigating after an operator rejection: This incident is part of a paired retrieval measurement and is not being remediated. No judgement is offered about your previous proposal and none should be inferred: read the evidence exactly as you would on a first look.
+incident b074fea6-1d3e-48fb-b7b6-595e004a227b  state rejected  anchor 08:17:30
+triage: 3 services, severity critical, start from paymentservice, 2 unmeasured edge(s) crossed
+
+states: rejected -> planning -> investigating -> synthesizing -> proposing
+trajectory: 68df7342-6057-473a-a089-d9212d50d9a7
+triage judged: investigate (medium confidence, suspects unknown)
+  A critical alert on paymentservice, a payment-path service with downstream checkout and frontend exposure, is not dismissible without evidence. Nothing in the alert pattern points to a specific fault class yet.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : A narrow re-query of 08:14-08:19 logs showing OTLP connection-refused or crash-loop lines tied to the loopback endpoint, or paymentservice spans found under a different service_name label, would make revert_config testable and this abstention wrong.
+  rests on    : tr_48211e4224f8, tr_72fbfd7c3f58, tr_546a59ed6dcb
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 25367 pushed / 10300 pulled (pull rate 0.2888), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_b204e004fc90, tr_48211e4224f8, tr_546a59ed6dcb
+  root cause  : Six minutes before the 08:17:30 alert, platform automation set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT to a loopback address on paymentservice where no value was previously set [tr_b204e004fc90]. In a containerised pod, 127.0.0.1:4317 names a collector that does not exist there, so the value itself is wrong and the span exporter has no valid destination. This is the only recorded change in 24 hours - no deploy, image, flag or secret change [tr_b204e004fc90] - and it coincides with a container replacement inside the unobserved log gap that contains onset (hostname differs before/after, pid unchanged) [tr_546a59ed6dcb, tr_62a90402c7a1]. The request path recovered on its own: paymentservice serves clean charge/transaction pairs at info severity through 08:21:34 [tr_546a59ed6dcb] and checkoutservice's error ratio is flat against baseline [tr_4fedbfb614a1]. Important caveat: Tempo held zero paymentservice spans for the full 90 minutes before the change [tr_48211e4224f8] and the span-derived counters were empty in the baseline window too [tr_72fbfd7c3f58], so the telemetry blackhole is partly pre-existing and cannot be wholly pinned on this edit.
+  OPEN        : The 08:14-08:19 log interval containing onset was never read - a narrow re-query is needed to confirm SIGTERM/startup/exporter-connection-refused lines.
+  OPEN        : Why Tempo and the calls_total series were empty for paymentservice 90 minutes BEFORE the change - a service-name label mismatch or pre-existing instrumentation gap is unexcluded.
+  OPEN        : What symptom actually fired the 08:17:30 alert: no paymentservice error-rate, latency, CPU, memory or restart metric was ever retrieved [tr_72fbfd7c3f58].
+
+flags: none
+
+retrieval: exclude_origin=None, 3 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-isex114g/b074fea6-1d3e-48fb-b7b6-595e004a227b-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-isex114g/b074fea6-1d3e-48fb-b7b6-595e004a227b-narrative.md
+
+--- settling 300s before product-catalog-flag-failure #1
+--- settling 300s before product-catalog-flag-failure #2
+  incident f2121f9c-061e-4eb6-a093-d816bf4b4c36 with 2 episode(s)
+incident f2121f9c-061e-4eb6-a093-d816bf4b4c36  state triaging  anchor 08:38:45
+triage: 5 services, severity critical, start from productcatalogservice, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: dc27c2c6-91a0-47da-ab46-b0561c9eaed5
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerting on productcatalogservice with the load generator alerting simultaneously points at a real serving failure, not a synthetic-only artifact, and no open incident covers it. Fault class is unclear from alerts alone since productcatalogservice trouble could be a deploy, config, or resource issue.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Two things would show this abstention was the wrong call. First, if featureflagservice is in fact within scope for this system's revert_config action and the blast-radius list is simply incomplete - then a config_revert there was available and I declined a correct, reversible fix while errors continued. Second, if productcatalogservice turns out to carry its own copy of the flag in its environment: the change-history query for it covered only incident-time forward and zero hops [tr_808016f83625], so a pre-onset config change at productcatalogservice or a shared config source is unqueried, and a prior configuration may exist that I am asserting does not.
+  rests on    : tr_83514441bede, tr_808016f83625, tr_293d3116d65e, tr_66e9b614da69
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 27404 pushed / 4357 pulled (pull rate 0.1372), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_83514441bede, tr_293d3116d65e, tr_66e9b614da69, tr_3c25044284d1, tr_808016f83625
+  root cause  : At 08:35:21, about three minutes before onset, platform-automation set a previously-unset environment variable on featureflagservice (FAULTLINE_ENABLED_FLAGS=productCatalogFailure), enabling a product-catalog failure-injection flag [tr_83514441bede]. productcatalogservice reads that flag on the GetProduct path - the failing trace uniquely contains a GetFlag child span that itself succeeds [tr_66e9b614da69] - and then deliberately returns gRPC INTERNAL (13) whose details string names the enabled product-catalog failure flag [tr_293d3116d65e]. The error originates on the productcatalogservice server span and propagates up to frontend's client and root spans [tr_66e9b614da69], explaining the frontend and loadgenerator alerts. Error ratio was flat zero across the three-hour baseline and stepped up at a single change point at 08:36:45, ~75s after the flag write [tr_cf69190d3ddd, tr_3c25044284d1], and nothing was deployed or changed at productcatalogservice [tr_808016f83625]. The wrong flag value is itself the failure.
+  OPEN        : productcatalogservice's own logs were never retrieved - the Loki selector used a hyphenated label value and returned zero lines, so the flag read and error generation were never confirmed from the catalog side [tr_5f17e9f626b2].
+  OPEN        : Why the failure is partial (peak ~10.75%, mean ~0.14%, 9 of 10 traces clean): whether injection is probabilistic, SKU-scoped (OLJCESPC7Z), or limited to the frontend GetProduct path is unsettled, given checkout-path catalog spans were clean [tr_3c25044284d1, tr_66e9b614da69].
+  OPEN        : The catalog change query covered incident-time forward only and at zero hops, so pre-onset changes at productcatalogservice or shared config sources remain unqueried; no request-rate or latency series were collected [tr_808016f83625, tr_cf69190d3ddd].
+
+flags: none
+
+retrieval: exclude_origin=None, 3 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-602qq9u6/f2121f9c-061e-4eb6-a093-d816bf4b4c36-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-602qq9u6/f2121f9c-061e-4eb6-a093-d816bf4b4c36-narrative.md
+
+re-investigating after an operator rejection: This incident is part of a paired retrieval measurement and is not being remediated. No judgement is offered about your previous proposal and none should be inferred: read the evidence exactly as you would on a first look.
+incident f2121f9c-061e-4eb6-a093-d816bf4b4c36  state rejected  anchor 08:38:45
+triage: 7 services, severity critical, start from productcatalogservice, 1 unmeasured edge(s) crossed
+
+states: rejected -> planning -> investigating -> synthesizing -> proposing
+trajectory: 8ff62b89-be6c-4fac-8a26-80a8d1821aa4
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service alerting with productcatalogservice and frontend failing simultaneously and downstream consumers in radius — not dismissible as a single warning or load-generator-only artifact. No open incidents to attribute it to, and nothing in the alert pattern yet distinguishes a deploy from a dependency issue.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention would be shown wrong by a change record for productcatalogservice in the unexamined pre-onset window - both change queries ran forward from 08:38:45, never backward [tr_263b0078cb86] - naming a config push or flag default with a recoverable prior value. It would also be undermined by log lines retrieved under the correct (unhyphenated) label naming the specific flag and its value, or by a featureflagservice change record timestamped near 08:36:45. Any of those would convert revert_config from precondition-failing to actionable. Note also that it is unknown whether the fault is still ongoing: the trace sample clusters in the final ~20 seconds of the window [tr_4bfb3126bd19], so a current error-ratio check is the cheapest next step, and if the ratio has returned to zero there is nothing left to remediate at all.
+  rests on    : tr_919b39d82995, tr_263b0078cb86, tr_4bfb3126bd19, tr_8c6592d0045d, tr_24f5cc9feeea
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 20703 pushed / 4481 pulled (pull rate 0.1779), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_4bfb3126bd19, tr_2154b4785b24, tr_263b0078cb86
+  root cause  : productcatalogservice began erroring on a minority of GetProduct calls (~10% peak, ~0.44% mean) from ~08:36:45, against a zero-error, zero-variance two-hour baseline [tr_2154b4785b24]. Traces localise the fault inside productcatalogservice: only GetProduct spans error, and the sole structural feature distinguishing them from the many successful GetProduct spans is a child call to FeatureFlagService/GetFlag — successful ones are childless leaves. That flag lookup returns successfully in ~1ms, so the error is raised by productcatalogservice after it reads the flag value, not by the downstream dependency [tr_4bfb3126bd19]. The best-supported reading is that a feature flag governing a failure branch in GetProduct was enabled (or set to a nonzero failure probability), and the wrong flag value is itself what breaks the request. Errors propagate through the frontend gRPC client span and root HTTP GET, explaining the frontend and loadgenerator alerts [tr_4bfb3126bd19]. No deploy or rollout for this service is recorded at or after onset [tr_919b39d82995][tr_263b0078cb86], consistent with a runtime flag flip.
+  OPEN        : Which flag, what value, and when it changed: no log line or featureflagservice change record was retrieved, so the flag attribution rests on span topology alone [tr_8c6592d0045d][tr_24f5cc9feeea].
+  OPEN        : The pre-incident change surface is unexamined — both change queries ran forward from onset, not backward [tr_263b0078cb86].
+  OPEN        : Whether the ~1-in-10 rate is a configured failure probability or a per-product property; the sample is too small and time-clustered to tell, and it is unknown whether the fault is still ongoing [tr_4bfb3126bd19].
+
+flags: none
+
+retrieval: exclude_origin=None, 5 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-ufog96f5/f2121f9c-061e-4eb6-a093-d816bf4b4c36-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-ufog96f5/f2121f9c-061e-4eb6-a093-d816bf4b4c36-narrative.md
+
+--- settling 300s before redis-cart-dependency-latency #1
+--- settling 300s before redis-cart-dependency-latency #2
+  incident a721193f-06a9-466e-beca-bb82535da091 with 4 episode(s)
+incident a721193f-06a9-466e-beca-bb82535da091  state triaging  anchor 08:59:45
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 0c929d42-bc55-4d82-8ed6-dc743b19c701
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four services alerting within seconds, starting at cartservice and spreading up through checkout and frontend, is a propagating failure rather than a single quiet warning. The cart-first ordering hints at a downstream dependency or its datastore, but nothing rules out other causes yet.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : revert_config recreates the container and with it cartservice's network namespace, where a traffic-shaping egress delay would live. New Tempo traces should show HGET/HMSET self-time drop from the near-constant ~300-305ms to single-digit ms, GetCart/EmptyCart roots from ~302ms to <10ms, AddItem from ~605ms and checkout from ~660ms proportionally; cart-service log lines should return to the tight spacing seen early in the window.
+  within      : 300s
+  risk        : If the delay is actually in redis-cart or the network path, this changes nothing and costs a restart. Worse, 'previous configuration' may resolve to the non-default Redis port rather than baseline unset, which would turn a 300ms slowdown into total cart failure. In-process cart state is discarded on recreate.
+  blast radius: cartservice only, for the recreate duration: frontend and checkoutservice see connection resets on in-flight cart calls, and checkout failures surface to loadgenerator. If the reverted value is a Redis address, redis-cart sees traffic move ports.
+  if wrong    : If traces 2-5 minutes after the recreate still show ~300ms Redis spans, the delay is not in cartservice's namespace and the unexcluded alternative - a server-side cost in redis-cart, never measured - takes over; stop and instrument redis-cart. If cart-service logs start showing Redis connection errors, the restored config is the REDIS_ADDR=redis-cart:6380 state rather than the unset baseline, and this must be undone. Confirmation must come from traces and logs: cartservice's error-ratio series is empty in both windows [tr_5bf93d3e2e26], so Prometheus would not show a regression.
+  rests on    : tr_d8b5d68d74c0, tr_3656f1b26249
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 26409 pushed / 7185 pulled (pull rate 0.2139), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_d8b5d68d74c0, tr_3656f1b26249, tr_9592aaa1f007, tr_57d2e876352e
+  root cause  : cartservice requests are slow, not failing: every Redis client span (HGET and HMSET alike) costs a near-constant ~300-305ms of self-time while cartservice's own gRPC handler self-time stays under 1ms, and per-request latency is simply additive in the number of cart calls (~302ms single call, ~605ms AddItem, ~660ms checkout) [tr_d8b5d68d74c0]. A near-constant cost identical across reads, writes and payload sizes, with no heavy tail, is the signature of a fixed delay injected into the cart-to-Redis path, not queueing, cache behaviour, retries or application work - all of which that dispatch excludes. The cartservice change log names exactly such a mechanism: a traffic-shaping sidecar imposing a fixed egress delay on the cart-service network namespace, plus a Redis address pointed at a non-default port, both recorded as reverted before onset [tr_3656f1b26249]. The fixed-delay signature is present in traces timestamped 08:59:08-08:59:50, so either the revert did not take effect in the running network namespace or the change record does not reflect reality. The mechanism is dependency_latency: cartservice fails because it waits on each Redis operation, and frontend and checkoutservice durations are fully explained by waiting on cartservice.
+  OPEN        : Whether the traffic-shaping delay rule is still physically present on the cartservice network namespace - no dispatch inspected the live pod, so the revert rests only on an untrusted change-log entry that the traces contradict.
+  OPEN        : Whether redis-cart is itself slow: no metrics, logs or traces were collected from redis-cart, so a server-side ~300ms cost is unmeasured rather than excluded.
+  OPEN        : When the delay began: Tempo returned no cartservice traces from the earlier part of the window [tr_d8b5d68d74c0] and the cartservice log result has a gap spanning the 08:59:45 alert moment [tr_9592aaa1f007], so no before/after comparison exists.
+
+flags: none
+
+retrieval: exclude_origin=None, 5 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-x306mdq8/a721193f-06a9-466e-beca-bb82535da091-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-x306mdq8/a721193f-06a9-466e-beca-bb82535da091-narrative.md
+
+re-investigating after an operator rejection: This incident is part of a paired retrieval measurement and is not being remediated. No judgement is offered about your previous proposal and none should be inferred: read the evidence exactly as you would on a first look.
+incident a721193f-06a9-466e-beca-bb82535da091  state rejected  anchor 08:59:45
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: rejected -> planning -> investigating -> synthesizing -> proposing
+trajectory: e19a5850-68f2-42be-bc82-78a7a4af5600
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four services alerted within seconds, starting at cartservice and propagating to checkoutservice and frontend, which is a multi-service pattern I cannot dismiss as a single quiet warning. The cartservice-first ordering hints at a downstream dependency issue, but nothing rests on that guess.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : restart_service (restart)
+  target      : cartservice
+  expect      : Recreating cartservice gives it a fresh network namespace, discarding any residual egress shaping rule. Within minutes, Tempo traces should show HGET/HMSET leaf spans drop from the 300-305ms cluster to single-digit ms, GetCart from ~302ms to ~10ms, AddItem from ~605ms to ~20ms, and checkoutservice's PlaceOrder-to-Kafka-write log interval from ~600-700ms back to ~20ms. Confirm via traces and logs only; cartservice error-ratio returns no samples in either window [tr_39358abbff52], so no error change should be expected.
+  within      : 300s
+  risk        : restart_service is irreversible and its precondition (evidence points at process state) is only weakly met: the evidence points at a change surface, not process state. If the delay lives in redis-cart or in a host-level qdisc, the restart accomplishes nothing while dropping cartservice's in-process cache and resetting connections, briefly making latency worse on cold caches. It also destroys the namespace state that would let someone inspect the qdisc and settle the open question.
+  blast radius: cartservice for the duration of the recreate. Its inbound callers - frontend and checkoutservice - see connection resets, so frontend cart pages and in-flight PlaceOrder calls can fail; loadgenerator will record those errors. Downstream redis-cart sees connections re-established.
+  if wrong    : If leaf spans remain at ~300ms after the recreate, the delay is not in cartservice's namespace and the likely source is redis-cart itself, whose latency, CPU and memory were never measured; redis-cart is not in the blast radius, so no permitted action reaches it and the next step is human escalation. If latency recovers then snaps back to exactly ~300ms, the platform-automation loop is re-attaching the shaper.
+  rests on    : tr_82855edf4ef1, tr_c2e57cad8738, tr_ca66a3e3fe9e
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 26508 pushed / 7643 pulled (pull rate 0.2238), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_82855edf4ef1, tr_c2e57cad8738, tr_5c821ff5d113
+  root cause  : Every cartservice request stalls on its Redis backing store: handler self-time is sub-millisecond while each HGET/HMSET leaf span burns a uniform ~300-305ms regardless of read vs write, caller, or load [tr_82855edf4ef1]. That fixed penalty propagates upward - AddItem (two commands) ~600ms, GetCart ~300ms, and the two cartservice calls account for ~600ms of a ~655-660ms PlaceOrder - which matches the ~30x error-free slowdown checkoutservice logs [tr_5c821ff5d113]. Nothing is erroring; everything is waiting. The penalty is numerically identical to the fixed 300ms egress delay a traffic-shaping container injected into the cart-service network namespace [tr_c2e57cad8738], so the most plausible mechanism is that that delay (or an equivalent residual rule on the cartservice egress path) is still in effect, despite the change log recording its detachment ~1.7h before onset. cartservice is the blamed hop: it is where the wait is incurred and the only service whose symptoms explain the others'.
+  OPEN        : Whether the 300ms delay sits in the cartservice network namespace or in redis-cart itself - no evidence was gathered on the Redis instance's own latency, CPU, or memory.
+  OPEN        : The change log is untrusted and claims the shaper was removed 1.7h pre-onset; nothing confirms the qdisc was actually torn down, and nothing explains the ~1.4h quiet gap before onset.
+  OPEN        : Truncated logs (roughly 08:29:50-09:04:33) and traces only from 09:03:36-09:04:09 mean the actual onset at 08:59:45 was never directly observed; cartservice error-ratio and request-rate series are entirely absent [tr_39358abbff52].
+
+flags: none
+
+retrieval: exclude_origin=None, 3 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-k_duaib4/a721193f-06a9-466e-beca-bb82535da091-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-k_duaib4/a721193f-06a9-466e-beca-bb82535da091-narrative.md
+
+--- settling 300s before shipping-quote-misconfig #1
+--- settling 300s before shipping-quote-misconfig #2
+  incident 0f1f90d4-8e9f-4762-bf60-e6b184c6ab13 with 5 episode(s)
+incident 0f1f90d4-8e9f-4762-bf60-e6b184c6ab13  state triaging  anchor 09:22:30
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 62071ff0-204b-42f9-b76c-190496718ebb
+triage judged: investigate (medium confidence, suspects unknown)
+  Checkout alerted first and its downstream consumers followed minutes later, a critical multi-service failure that cannot be dismissed. No open incident to attribute it to, and the alerts alone don't distinguish a deploy, config, or dependency cause.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a change record for shippingservice, quoteservice or pre-onset checkoutservice turns up naming a deploy, image or config change inside 05:43-07:27 — that would meet rollback_image or revert_config preconditions and make a targeted revert the right call. It is also wrong if shippingservice logs show a crash-loop, restart banners or a wedged connection pool, which would be process state and would meet restart_service's precondition. Neither is on the board today: no shippingservice telemetry or change history was collected at all, and the checkoutservice change query [tr_e913bd4b8c04] began at onset and looked only forward.
+  rests on    : tr_6b582d501817, tr_e913bd4b8c04, tr_0e42023da870
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 32412 pushed / 13119 pulled (pull rate 0.2881), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_6b582d501817, tr_9e9cbaa56ca5, tr_0e42023da870
+  root cause  : Checkout requests fail at a single hop: the outbound ShippingService/GetQuote call inside checkoutservice's prepareOrderItemsAndShippingQuoteFromCart. In all 10 sampled traces that client span is the last child started and carries the error, propagating up to the frontend root, while cart/Redis, productcatalog, featureflag and currency siblings all complete sub-2ms without error [tr_6b582d501817]. Fulfilment is never reached, which explains checkout logging order-start lines with no payment/email/write completions [tr_9e9cbaa56ca5] and paymentservice going silent without a single error or orphaned handler [tr_af84cea26f1d]; the accounting, email, fraud and quote alerts are downstream consequences of orders never being placed. The failure is intermittent and predates the 09:22:30 alert (mean error ratio 0.11, sd 0.23, change points 05:43-07:27) [tr_0e42023da870]. No specialist was dispatched to shippingservice, so the mechanism behind the bad quote is not established.
+  OPEN        : No logs, metrics, traces or change history were collected for shippingservice or quoteservice — the actual failure mechanism behind the bad quote response is unmeasured.
+  OPEN        : The shippingservice server span is not marked error while the client span is; whether checkout rejects a valid response or shipping returns a non-OK status is unresolved.
+  OPEN        : The checkoutservice change query started at incident onset and never covered the preceding hours, so a pre-onset checkout change remains unexcluded [tr_e913bd4b8c04].
+  OPEN        : Error onset actually falls between 05:43 and 07:27, overlapping the cartservice fault-injection window; whether those injections left residue is untested [tr_0e42023da870, tr_40fcf46c8776].
+
+flags: none
+
+retrieval: exclude_origin=None, 3 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-ag55452x/0f1f90d4-8e9f-4762-bf60-e6b184c6ab13-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-ag55452x/0f1f90d4-8e9f-4762-bf60-e6b184c6ab13-narrative.md
+
+re-investigating after an operator rejection: This incident is part of a paired retrieval measurement and is not being remediated. No judgement is offered about your previous proposal and none should be inferred: read the evidence exactly as you would on a first look.
+incident 0f1f90d4-8e9f-4762-bf60-e6b184c6ab13  state rejected  anchor 09:22:30
+triage: 12 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: rejected -> planning -> investigating -> synthesizing -> proposing
+trajectory: c9f29b82-8924-4d66-a16d-3f0fe1b4b4a8
+triage judged: investigate (medium confidence, suspects unknown)
+  Checkout fails first and its downstream consumers follow minutes later, ending in loadgenerator impact — a real user-facing failure fanning out, not a quiet warning. No open incident covers it and the alerts alone don't distinguish a bad deploy from a failing dependency.
+investigation: 2 round(s), 9 dispatch(es), 26 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : shippingservice
+  expect      : Restoring shippingservice's prior environment removes QUOTE_SERVICE_ADDR=http://quoteservice-gone:8090 (previous value: unset, so the binary's working default returns). Both preconditions are met: a prior configuration is recorded in change history and the evidence names a configuration change 2 minutes before onset [tr_dbb4a521d6cd]. Observable within minutes: (1) shipping-service logs resume the baseline completion pattern - each 'GetQuoteRequest' INFO line followed by a quote-sent line and a ship-order/tracking-ID line, which have been absent since onset [tr_d6475f7f902e]; (2) checkoutservice error ratio falls from its incident mean ~0.065 back toward the baseline ~0.0075 with no further excursions above ~0.06, measured by the same sum-by-service_name error-ratio query that showed the 09:20:30 change point [tr_03d1f2a3ed01]; (3) new checkout traces stop carrying an ERROR status on the checkoutservice client span to ShippingService/GetQuote, and paymentservice spans - absent from all 176 spans of the 10 failing traces - reappear downstream of prepareOrderItemsAndShippingQuoteFromCart [tr_656c2751f963].
+  within      : 300s
+  risk        : If the diagnosis is wrong, this is a config change plus a container recreate on a service that is currently alive and accepting traffic [tr_d6475f7f902e]: the recreate drops in-flight GetQuote calls, so expect a short burst of additional checkout errors during the restart window that could be mistaken for the fix making things worse. If the unset default resolves to a quote endpoint that is also unavailable, the revert removes evidence of the injected value without restoring service. The change was made by platform-automation [tr_dbb4a521d6cd]; if that automation is still running an experiment loop it may re-apply the bad address, producing an apparent fix that regresses - the repeated apply/revert pattern seen on cartservice [tr_3067d4b77829] makes that plausible. Reverting also discards whatever intentional migration the automation may have been performing.
+  blast radius: One service recreated: shippingservice. Its inbound caller checkoutservice sees connection resets for the duration, which propagates to frontend and to loadgenerator-driven checkouts (and to the alerted accountingservice/emailservice/frauddetectionservice paths that sit downstream of completed orders). Because the reverted value is a dependency address, traffic moves off quoteservice-gone and back onto the default quote endpoint - quoteservice sees inbound traffic resume.
+  if wrong    : Falsified if, after the recreate settles (~60s), shipping-service logs still show GetQuote request lines with no quote-sent/tracking follow-up, or checkoutservice error ratio stays at incident levels (mean well above 0.02, peaks >0.15) for two consecutive 2m windows, or fresh traces still mark the GetQuote client span ERROR. A specific way this can be wrong: quoteservice was never directly observed [tr_2c1e6be6cb86] - if the default quote endpoint is itself down, reverting the address changes nothing and the symptom persists unchanged, which would point at quoteservice availability rather than at shipping's config. Also note shippingservice has no error-ratio series at all in either window [tr_ce24845339e7], so shipping-side recovery cannot be confirmed from metrics - confirmation must come from its logs, checkout's error ratio, and traces.
+  rests on    : tr_dbb4a521d6cd, tr_d6475f7f902e, tr_656c2751f963, tr_03d1f2a3ed01
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 36794 pushed / 14431 pulled (pull rate 0.2817), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_dbb4a521d6cd, tr_656c2751f963, tr_d6475f7f902e, tr_03d1f2a3ed01, tr_cff780a5e73b, tr_3067d4b77829
+  root cause  : Two minutes before onset, platform-automation set QUOTE_SERVICE_ADDR on shippingservice to a non-resolvable host (previously unset, so shipping had been using its working default) [tr_dbb4a521d6cd]. From then shippingservice kept accepting well-formed GetQuote calls but never emitted the quote-sent/tracking completion lines it produced at baseline [tr_d6475f7f902e], returning failure across that hop. checkoutservice's error ratio steps up at a change point at 09:20:30 [tr_03d1f2a3ed01], and in all 10 sampled failing traces the only erroring child under prepareOrderItemsAndShippingQuoteFromCart is the client span to ShippingService/GetQuote, with cartservice, currencyservice and productcatalogservice clean and paymentservice never reached [tr_656c2751f963]. The wrong endpoint value is itself the mechanism: it names a service that cannot serve quotes, and that is what breaks each checkout.
+  OPEN        : quoteservice was never directly observed; its unavailability is inferred from the hostname and shipping's incomplete handler, not measured [tr_2c1e6be6cb86].
+  OPEN        : Traces mark the error on the checkout client side while shipping's server span is clean [tr_656c2751f963] and shipping logs no response or error at all [tr_d6475f7f902e] — the exact status returned is unexplained.
+  OPEN        : shippingservice has no error-ratio, latency, or resource series in either window [tr_ce24845339e7], so shipping-side onset and any concurrent resource issue remain unmeasured.
+
+flags: none
+
+retrieval: exclude_origin=None, 5 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-08dglqwg/0f1f90d4-8e9f-4762-bf60-e6b184c6ab13-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-08dglqwg/0f1f90d4-8e9f-4762-bf60-e6b184c6ab13-narrative.md
+
+--- settling 300s before shipping-wrong-image #1
+--- settling 300s before shipping-wrong-image #2
+  incident c83505d6-beab-4582-8c40-b7e692e0fb86 with 2 episode(s)
+incident c83505d6-beab-4582-8c40-b7e692e0fb86  state triaging  anchor 09:47:00
+triage: 10 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: acd56e34-cfd7-4d84-9d98-8ffe26a52157
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alert on checkoutservice followed by the load generator indicates real user-facing checkout failure, not a quiet system. No open incidents to attribute it to, and the alerts alone don't distinguish a bad deploy from a failing downstream dependency.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a shippingservice change record with a prior image tag turns up inside the incident window (which would satisfy rollback_image's preconditions and make rollback the right call), or if the GetQuote span's status code turns out to name a mechanism that a permitted action addresses - e.g. UNAVAILABLE with connection refused plus a shippingservice restart/crash signal would point at restart_service, and a changed dependency address would point at revert_config. Any of those observations should reopen this immediately.
+  rests on    : tr_17bac6ca26ef, tr_caf8e0180b8c, tr_26dc62b881ac
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 27890 pushed / 8591 pulled (pull rate 0.2355), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : low
+  evidence    : tr_17bac6ca26ef, tr_caf8e0180b8c, tr_90773266a7a2, tr_26dc62b881ac, tr_c0be4905172a
+  root cause  : Checkout order placement fails at a single hop: checkoutservice's client call to shippingservice GetQuote. In all ten sampled traces that client span is the only errored leaf, and frontend/PlaceOrder inherit ERROR from it, while cart, Redis, currency, catalog and feature-flag calls all succeed in milliseconds [tr_17bac6ca26ef]. GetQuote fast-fails in ~2ms with no server-side span from shippingservice anywhere in 163 spans, the signature of rejection at connection/dispatch rather than a slow handler [tr_17bac6ca26ef]. checkoutservice is otherwise healthy: it keeps accepting orders, burns negligible self time, and has no recorded change in the 24h around onset [tr_90773266a7a2, tr_26dc62b881ac]. Failures are partial and stepwise — ~0.09% baseline to ~14.4% mean, peak ~31%, change points at 09:20:30 and 09:45:00 [tr_caf8e0180b8c] — consistent with a staged rollout of a shippingservice artifact that cannot serve GetQuote, with the refusing fraction growing. checkoutservice is the service that noticed, not the one that broke. No dispatch touched shippingservice, so this mechanism is inferred from the caller side.
+  OPEN        : shippingservice was never dispatched against: its change history, logs, metrics and restart state are wholly unobserved, so the failing artifact is inferred, not seen.
+  OPEN        : The gRPC status code and error text on the errored GetQuote span were not reported, leaving refusal vs. resolution failure vs. resource limit undistinguished.
+  OPEN        : The 09:20:30 change point precedes the alert by ~26 minutes and nothing explains what happened then; no pre-09:47 traces were returned for comparison [tr_17bac6ca26ef].
+
+flags: none
+
+retrieval: exclude_origin=None, 5 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-v86cy6qo/c83505d6-beab-4582-8c40-b7e692e0fb86-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k5-flag2-v86cy6qo/c83505d6-beab-4582-8c40-b7e692e0fb86-narrative.md
+
+re-investigating after an operator rejection: This incident is part of a paired retrieval measurement and is not being remediated. No judgement is offered about your previous proposal and none should be inferred: read the evidence exactly as you would on a first look.
+incident c83505d6-beab-4582-8c40-b7e692e0fb86  state rejected  anchor 09:47:00
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: rejected -> planning -> investigating -> synthesizing -> proposing
+trajectory: eba0c473-5c5e-4439-b07e-d46ac41e36f9
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service failure beginning at checkout and fanning out to its downstream consumers within minutes; nothing here can be dismissed. Origin is ambiguous between a checkout-path deploy and a shared dependency, so no prior is asserted.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : shippingservice
+  expect      : Redeploying shippingservice at the tag it ran before the 09:44:20 image update should stop the repeating JVM/agent bootstrap triple in Loki {service="shipping-service"} and restore Rust-style GetQuote/tracking-ID request lines; in Tempo, checkoutservice GetQuote client spans should gain a shippingservice server span and frontend root spans should stop carrying ERROR; in checkoutservice logs, each [PlaceOrder] line should again be followed by payment/email/message-write completions. shippingservice's own metrics return no samples in either window, so confirmation must come from logs and traces, not from its error ratio.
+  within      : 300s
+  risk        : If the recorded prior tag is not a good shippingservice build, or if no prior tag exists (never established by any result), the recreate leaves shipping down or replaces one broken artifact with another, extending the checkout outage. Any in-flight GetQuote calls are reset during the recreate.
+  blast radius: shippingservice restarts; checkoutservice sees connection resets on GetQuote during the recreate, propagating to frontend and loadgenerator. quoteservice may see its inbound traffic resume. emailservice, accountingservice, paymentservice and frauddetectionservice see checkout traffic return if the fix works.
+  if wrong    : Falsified if the bootstrap triple keeps recurring on its backoff cadence after the recreate, which would mean the kill reason (never retrieved: no exit code, OOM record, or probe event) is the real mechanism rather than the image; or if a Rust shippingservice serves requests yet checkoutservice PlaceOrder traces still error at the shipping hop.
+  rests on    : tr_181e2307f6e2, tr_bae95b5ca8e5, tr_799375d506e3
+  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)
+
+context: 31152 pushed / 9252 pulled (pull rate 0.229), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : tr_181e2307f6e2, tr_bae95b5ca8e5, tr_799375d506e3, tr_bb422f1c2b87, tr_d1c72b473e8b, tr_b38c4f72e28b, tr_ffec66f99963
+  root cause  : At 09:44:20, platform-automation updated the shippingservice image reference to an adservice-tagged artifact (ghcr.io/open-telemetry/demo:v1.2.1-adservice) [tr_181e2307f6e2]. The workload that came up is not shippingservice: its logs shift from Rust-style application gRPC handling (successful GetQuote responses and tracking IDs early in the window) to a bare, repeating JVM/OpenTelemetry-agent bootstrap sequence about ten times between 09:44:43 and 09:51:18, with backoff-shaped spacing and zero request-handling lines [tr_bae95b5ca8e5]. The pod therefore never reaches a serving state, so checkoutservice's client call to ShippingService/GetQuote fails fast with client-only spans, no shippingservice server span and negligible duration, aborting PlaceOrder before payment and propagating an ERROR to the frontend root [tr_799375d506e3]; checkoutservice logs show order placements arriving but no downstream completion lines from 09:48:56 onward [tr_bb422f1c2b87]. Checkoutservice is the caller that noticed, not the fault: it is alive, unchanged, and its own error ratio is indistinguishable from baseline [tr_b38c4f72e28b][tr_d1c72b473e8b]. The running artifact on shippingservice is the wrong one; reverting the image reference to the last good shippingservice build is the fix.
+  OPEN        : No kill reason was retrieved for the shippingservice restarts — no exit code, OOM-kill record, or liveness-probe event; the crash-loop is inferred from repeated boot sequences with no terminal error line [tr_bae95b5ca8e5].
+  OPEN        : shippingservice has no usable metrics at all: error ratio, request rate, p95 and saturation returned no samples in either incident or baseline window, so container memory/CPU at restart time is unmeasured [tr_ffec66f99963].
+  OPEN        : The checkoutservice and currencyservice change queries covered 09:47 forward, not the hours before onset, so a pre-incident change to either service was never actually searched [tr_b38c4f72e28b][tr_51a418ba9460].
+  OPEN        : Checkoutservice logs were truncated to the oldest 8 and newest 32 lines, so the exact onset of the stall between 08:47 and 09:48 and any error lines in that gap are unobserved [tr_bb422f1c2b87].
+  OPEN        : Gap between the image update (09:44:20), the first restarts (09:44:43) and the checkoutservice alert (09:47:00) is unexplained in detail — likely rolling-update replica drain, but no deployment/replica evidence was gathered.
+  OPEN        : quoteservice, emailservice, accountingservice and frauddetectionservice were never dispatched; their alerts are assumed downstream of shipping but not verified.
+  OPEN        : Whether the last-known-good shippingservice image tag is identified and available for rollback is not established by any result.
+
+flags: none
+
+retrieval: exclude_origin=None, 3 hit(s)
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-yeby431h/c83505d6-beab-4582-8c40-b7e692e0fb86-verdict.json
+wrote /var/folders/r9/gwbn9m0j4kd1221cggwf836m0000gn/T/q53-k3-flag0-yeby431h/c83505d6-beab-4582-8c40-b7e692e0fb86-narrative.md
+
+pairs attempted : 19
+pairs complete  : 10
+verdicts differ : 2 of 10
+spend           : $14.43 of $25.00
+  ad-memory-squeeze: DIFFERS  first=k3-flag0  k3-flag0=bad_deploy/rollback, k5-flag2=resource_exhaustion/config_revert  [remediation also moved]
+  cart-bad-image-tag: skipped - gate refused: aborting before injection: 1 container(s) have been up for less than 300s and are still settling.; incident 3ec97981-9366-4161-8890-412afcbba837 resolved at 2026-09-14T06:33:12.039496+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 75s.
+  cart-bad-image-tag#2: same  first=k5-flag2  k3-flag0=bad_deploy/rollback, k5-flag2=bad_deploy/rollback
+  cart-dependency-latency: skipped - gate refused: aborting before injection: 1 container(s) have been up for less than 300s and are still settling.; incident ada07b9d-ca39-4414-aaf3-e20e4d843510 resolved at 2026-09-14T06:56:12.069705+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 125s.
+  cart-dependency-latency#2: same  first=k3-flag0  k3-flag0=dependency_latency/config_revert, k5-flag2=dependency_latency/config_revert
+  cart-redis-misconfig: skipped - gate refused: incident 65e3b6d8-36e7-4e51-ae30-30ec699343b7 resolved at 2026-09-14T07:17:57.050968+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 155s.
+  cart-redis-misconfig#2: same  first=k5-flag2  k3-flag0=unknown/restart, k5-flag2=unknown/restart
+  frauddetection-memory-squeeze: skipped - gate refused: aborting before injection: 1 container(s) have been up for less than 300s and are still settling.; incident 52c245ec-8d03-4292-a198-ec5b85af5292 resolved at 2026-09-14T07:40:42.011212+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 207s.
+  frauddetection-memory-squeeze#2: same  first=k3-flag0  k3-flag0=resource_exhaustion/config_revert, k5-flag2=resource_exhaustion/config_revert
+  payment-telemetry-blackout: skipped - gate refused: aborting before injection: 1 container(s) have been up for less than 300s and are still settling.; incident 57a5240f-5815-4c66-92b9-2cb5a9180ddf resolved at 2026-09-14T08:02:12.072514+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 51s.
+  payment-telemetry-blackout#2: same  first=k5-flag2  k3-flag0=bad_config/config_revert, k5-flag2=bad_config/config_revert
+  product-catalog-flag-failure: skipped - gate refused: incident b074fea6-1d3e-48fb-b7b6-595e004a227b resolved at 2026-09-14T08:25:42.036800+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 30s.
+  product-catalog-flag-failure#2: same  first=k3-flag0  k3-flag0=bad_config/config_revert, k5-flag2=bad_config/config_revert
+  redis-cart-dependency-latency: skipped - gate refused: aborting before injection: 1 container(s) have been up for less than 300s and are still settling.; incident f2121f9c-061e-4eb6-a093-d816bf4b4c36 resolved at 2026-09-14T08:47:27.039727+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 72s.
+  redis-cart-dependency-latency#2: same  first=k5-flag2  k3-flag0=dependency_latency/restart, k5-flag2=dependency_latency/config_revert  [remediation also moved]
+  shipping-quote-misconfig: skipped - gate refused: incident a721193f-06a9-466e-beca-bb82535da091 resolved at 2026-09-14T09:11:57.072944+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 141s.
+  shipping-quote-misconfig#2: DIFFERS  first=k3-flag0  k3-flag0=unknown/none, k5-flag2=bad_config/config_revert  [remediation also moved]
+  shipping-wrong-image: skipped - gate refused: aborting before injection: 1 container(s) have been up for less than 300s and are still settling.; incident 0f1f90d4-8e9f-4762-bf60-e6b184c6ab13 resolved at 2026-09-14T09:35:42.084124+00:00 and is still inside the orchestrator's 300s settle window - a firing episode now would reopen it rather than open a new incident, and this run's alerts would be attributed to the previous one. Wait 91s.
+  shipping-wrong-image#2: same  first=k5-flag2  k3-flag0=bad_deploy/rollback, k5-flag2=bad_deploy/rollback
+
+DIFFERS is a changed fault_class only (Amendment 1). The second arm of every pair is reached through a rejection, which reaches the proposer's brief and which T6.3 measured at 2 of 2 changed proposals - so remediation_class is shown and does not decide.
+
+-> /Users/chandana/Downloads/q53-pilot.json
