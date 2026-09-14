@@ -287,11 +287,17 @@ def run(argv: list[str] | None = None) -> int:
     def _model(name: str) -> LanguageModel:
         return build_model(name, provider=_settings.provider, base_url=_settings.openai_base_url)
 
+    # **The retry loop is bounded by the run's own budget (Q33).** Without this, four attempts
+    # against a 600 s per-call timeout is forty minutes inside a 600 s budget, and the wall-clock
+    # check cannot interrupt a blocked call - which is how `20260910T002657Z-ad-memory-squeeze`
+    # recorded 6596 s and still wrote itself as `scored`. No new setting: the bound is the budget
+    # the run already declares and the freeze already records.
     model = Resilient(
         _model(args.model),
         [_model(name) for name in _settings.fallback_models],
         attempts=_settings.retry_attempts,
         base_delay=_settings.retry_base_delay,
+        deadline_seconds=float(args.wall_clock),
     )
     archive = connect_or_none()
     engine = Investigation(
