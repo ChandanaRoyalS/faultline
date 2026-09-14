@@ -569,6 +569,101 @@ def text_arm_counts(dsn: str, golden: Sequence[GoldenQuery]) -> list[tuple[Golde
     return out
 
 
+CV_SEED = 20260914
+CV_SPLITS = 1000
+CV_CANDIDATES: tuple[int, ...] = (0, 1, 2, 4, 8, 16)
+"""The cross-validation's parameters, fixed in `PREREGISTRATION-Q52.md` before it was run.
+
+Flag 32 is absent because it is provably identical to flag 0 - `fuse` reads positions and
+`rank/(rank + 1)` is monotone - and including a duplicate of the baseline would inflate every
+selection frequency by splitting the baseline's votes.
+"""
+
+
+@dataclass(frozen=True, slots=True)
+class CrossValidation:
+    """What a selection procedure is worth when it is not scored on the data that chose it."""
+
+    k: int
+    in_sample: float
+    """The best flag's advantage over flag 0, measured on all 43 - the number Q49 reported."""
+
+    out_of_sample: float
+    """The mean advantage of the flag chosen on one half, measured on the other."""
+
+    selection: dict[int, int]
+    """How often each flag won the selection half."""
+
+    splits: int
+
+    @property
+    def shrinkage(self) -> float:
+        """How much of the in-sample margin does not survive having been selected."""
+        return self.in_sample - self.out_of_sample
+
+
+def cross_validate(
+    per_flag: dict[int, Sequence[QueryResult]], k: int, *, splits: int = CV_SPLITS
+) -> CrossValidation:
+    """**Q52's answer to a question the data cannot answer the usual way.**
+
+    The intended confirmation was a held-out draw. There is no held-out data: the harvest holds
+    **31 distinct non-holdout planner queries and the golden set already spent 21**, so the largest
+    possible held-out planner set is ten, five of them from one scenario, at a resolution of 0.10
+    per query against an effect of 0.0233. More planner queries mean more investigations, which
+    mean model calls.
+
+    So this measures the thing that actually matters instead: **how much of a selected flag's
+    margin survives being selected.** Repeatedly split the scored queries in half, choose the best
+    flag on one half by the deciding metric, and measure that flag's advantage over flag 0 on the
+    other. The gap between the in-sample margin and the mean out-of-sample margin is the selection
+    bias, measured rather than assumed.
+
+    **This is not independent confirmation and must not be reported as any.** Every query in every
+    half is a query the flags were already scored on. What it bounds is optimism, not truth.
+    """
+    import random
+
+    scored = {flag: [r for r in results if r.scored] for flag, results in sorted(per_flag.items())}
+    ids = [r.query_id for r in scored[0]]
+    hits = {flag: {r.query_id: r.recall_at(k) for r in results} for flag, results in scored.items()}
+    ranks = {
+        flag: {r.query_id: r.reciprocal_rank for r in results} for flag, results in scored.items()
+    }
+
+    def mean(flag: int, table: dict[int, dict[str, float]], over: Sequence[str]) -> float:
+        return sum(table[flag][q] for q in over) / len(over) if over else 0.0
+
+    best_overall = max(
+        scored,
+        key=lambda f: (mean(f, hits, ids), mean(f, ranks, ids), -f),
+    )
+    in_sample = mean(best_overall, hits, ids) - mean(0, hits, ids)
+
+    rng = random.Random(CV_SEED)
+    selection: dict[int, int] = dict.fromkeys(scored, 0)
+    total = 0.0
+    for _ in range(splits):
+        shuffled = list(ids)
+        rng.shuffle(shuffled)
+        half = len(shuffled) // 2
+        pick, check = shuffled[:half], shuffled[half:]
+        chosen = max(
+            scored,
+            key=lambda f: (mean(f, hits, pick), mean(f, ranks, pick), -f),
+        )
+        selection[chosen] += 1
+        total += mean(chosen, hits, check) - mean(0, hits, check)
+
+    return CrossValidation(
+        k=k,
+        in_sample=in_sample,
+        out_of_sample=total / splits,
+        selection=selection,
+        splits=splits,
+    )
+
+
 def run_cli(argv: Sequence[str] | None = None) -> int:
     import argparse
 
@@ -599,6 +694,14 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     )
     score_cmd.add_argument("--golden", type=Path, default=GOLDEN_SET)
     score_cmd.add_argument("--json", type=Path, default=None)
+
+    cv_cmd = sub.add_parser(
+        "crossval",
+        help="how much of a selected ts_rank_cd flag's margin survives being selected (Q52)",
+    )
+    cv_cmd.add_argument("--dsn", default=None)
+    cv_cmd.add_argument("--golden", type=Path, default=GOLDEN_SET)
+    cv_cmd.add_argument("--k", type=int, action="append")
 
     arms_cmd = sub.add_parser(
         "arms", help="how many chunks the hybrid's text arm matches, per golden query"
@@ -668,6 +771,37 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
         if args.out:
             args.out.write_text(json.dumps(drawn, indent=2, default=str) + "\n")
             print(f"-> {args.out}")
+        return 0
+
+    if args.command == "crossval":
+        import psycopg
+
+        from faultline.context import store as store_module
+        from faultline.context.embedding import SentenceTransformerEmbedder
+        from faultline.context.settings import ContextSettings
+
+        golden = load_golden(args.golden)
+        standing = store_module.TEXT_NORMALISATION
+        with psycopg.connect(args.dsn or ContextSettings().postgres_dsn) as conn:
+            for k in sorted(set(args.k or [3, 5])):
+                per_flag: dict[int, Sequence[QueryResult]] = {}
+                for flag in CV_CANDIDATES:
+                    store_module.TEXT_NORMALISATION = flag
+                    subject = store_module.PgVectorPastIncidentStore(
+                        conn, SentenceTransformerEmbedder()
+                    )
+                    per_flag[flag] = measure(
+                        subject, golden, k=k, predates_task=PREDATES_T6_4
+                    ).results
+                store_module.TEXT_NORMALISATION = standing
+                cv = cross_validate(per_flag, k)
+                print(f"===== k={k}, {cv.splits} splits, seed {CV_SEED} =====")
+                print(f"  in-sample advantage of the best flag : {cv.in_sample:+.4f}")
+                print(f"  out-of-sample advantage of the chosen: {cv.out_of_sample:+.4f}")
+                print(f"  shrinkage                            : {cv.shrinkage:+.4f}")
+                chosen = ", ".join(f"flag {f}={n}" for f, n in sorted(cv.selection.items()) if n)
+                print(f"  selected on the pick half            : {chosen}")
+                print()
         return 0
 
     if args.command == "score":
