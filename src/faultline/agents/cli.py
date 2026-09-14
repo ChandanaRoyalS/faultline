@@ -548,10 +548,17 @@ def _run_b0(
 
     started = datetime.now(UTC)
     tools = Tools(ToolSettings(), PostgresChangeLog(psycopg.connect(dsn)))
-    window = WindowPolicy(ToolSettings()).for_specialist("changes", anchor, started)
+    # **Two windows, because the two tools have different ceilings (Q34).** `change_history`'s is
+    # the change lookback plus the telemetry bound; `promql_query`'s is `max_window_seconds`,
+    # twelve times narrower. Passing the changes window to both - which is what this line did
+    # until 2026-09-14 - got `promql_query` refused on 95 of 95 calls across every B0 run ever
+    # recorded, so B0's third signal never once ran. `BASELINE_VERSION` moves with this.
+    window, metric_window = baselines.windows_for(WindowPolicy(ToolSettings()), anchor, started)
     alerting = [member.service for member in triage.alerting]
 
-    signals, calls = baselines.signals_from_tools(tools, alerting, anchor, window)
+    signals, calls = baselines.signals_from_tools(
+        tools, alerting, anchor, window, metric_window=metric_window
+    )
     prediction = baselines.predict(signals, anchor)
 
     trajectory = Trajectory(

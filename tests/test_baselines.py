@@ -418,3 +418,73 @@ def test_a_baseline_run_cannot_share_a_config_fingerprint_with_an_agent_run() ->
 
     assert agent.fingerprint != baseline.fingerprint
     assert "baseline" in agent.missing, "an agent run simply does not carry the input"
+
+
+def test_each_of_b0s_two_tools_gets_a_window_its_own_ceiling_admits() -> None:
+    """**Q34, and the test that would have caught it without a database.**
+
+    B0 calls two tools with different ceilings. `change_history`'s is the change lookback plus the
+    telemetry bound; everything else gets `max_window_seconds`, twelve times narrower. v2 built one
+    window with `for_specialist("changes")` - 24 hours - and handed it to both, so `promql_query`
+    was refused on **95 of 95 calls across every B0 run ever recorded** and B0's third signal never
+    ran once.
+
+    Nothing caught it. The existing fake tool layer answers whatever window it is given, so the
+    refusal the real tool performs was not modelled anywhere the suite could see it. This asserts
+    against `WindowPolicy.refusal` - the predicate the real tool applies - rather than against a
+    fake that cannot refuse.
+
+    The first assertion is the one that matters: it states that the changes window really is too
+    wide for `promql_query`, so this test fails if someone "simplifies" the call site back to one
+    window.
+    """
+    from faultline.tools.settings import ToolSettings
+    from faultline.tools.window import WindowPolicy
+
+    policy = WindowPolicy(ToolSettings())
+    started = ONSET + timedelta(minutes=5)
+
+    changes, metrics = baselines.windows_for(policy, ONSET, started)
+
+    assert policy.refusal("promql_query", changes.start, changes.end), (
+        "the changes window must be too wide for promql_query - if it is not, this test has "
+        "stopped describing the defect"
+    )
+    assert policy.refusal("promql_query", metrics.start, metrics.end) is None
+    assert policy.refusal("change_history", changes.start, changes.end) is None
+
+
+def test_the_metric_window_is_the_one_promql_is_asked_for() -> None:
+    """The fix, pinned at the seam rather than at the call site.
+
+    `signals_from_tools` takes both windows and must not cross them. Asserted by recording what
+    each tool was handed, because the two are easy to swap and the symptom - an empty
+    `error_deltas` - looks exactly like a world with no `calls_total` series, which is what the
+    field's own docstring used to claim it was.
+    """
+    from faultline.tools.results import ChangeResult, MetricResult, MetricSeries, Window
+
+    change_window = Window(start=ONSET - timedelta(hours=24), end=ONSET)
+    metric_window = Window(start=ONSET - timedelta(minutes=30), end=ONSET)
+    seen: dict[str, tuple[datetime, datetime]] = {}
+
+    class Layer:
+        def change_history(self, service: str, start: datetime, end: datetime) -> ChangeResult:
+            seen["change_history"] = (start, end)
+            return ChangeResult(service=service, window=change_window, records=[])
+
+        def promql_query(self, query: str, start: datetime, end: datetime) -> MetricResult:
+            seen["promql_query"] = (start, end)
+            return MetricResult(
+                query=query,
+                window=metric_window,
+                series=[MetricSeries(labels={}, points=[(0.0, 0.01), (1.0, 0.30)])],
+            )
+
+    signals, _ = baselines.signals_from_tools(
+        Layer(), ["cartservice"], ONSET, change_window, metric_window=metric_window
+    )
+
+    assert seen["change_history"] == (change_window.start, change_window.end)
+    assert seen["promql_query"] == (metric_window.start, metric_window.end)
+    assert signals.error_deltas, "signal 3 has never once produced a value; it does now"
