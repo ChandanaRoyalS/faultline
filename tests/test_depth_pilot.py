@@ -37,20 +37,31 @@ class _Steps:
         incident: bool = True,
         cost: float = 0.6,
         reject_raises: Exception | None = None,
+        admits_after: int = 10**6,
+        gate_wait: int = 0,
     ) -> None:
         self.answers = answers or {}
         self._admits = admits
         self._incident = incident
         self._cost = cost
         self._reject_raises = reject_raises
+        self._admits_after = admits_after
+        self._gate_wait = gate_wait
+        self.gate_readings = 0
         self.injected: list[str] = []
         self.reverted: list[str] = []
         self.investigations: list[tuple[str, str]] = []
         self.rejections: list[tuple[str, str]] = []
         self.order: list[str] = []
 
-    def gate_admits(self) -> tuple[bool, list[str]]:
-        return self._admits, [] if self._admits else ["a leftover incident"]
+    def gate_admits(self) -> depthpilot.GateCheck:
+        self.gate_readings += 1
+        admits = self._admits or self.gate_readings > self._admits_after
+        return depthpilot.GateCheck(
+            admits,
+            () if admits else ("a leftover incident",),
+            self._gate_wait,
+        )
 
     def inject(self, scenario_id: str) -> str:
         self.injected.append(scenario_id)
@@ -399,14 +410,66 @@ def test_the_world_is_reverted_even_when_an_arm_produces_nothing() -> None:
 def test_a_refused_gate_skips_the_scenario_without_injecting() -> None:
     """T6.3's first defect was a driver whose gate was weaker than the harness's, and a leftover
     incident swallowed the next scenario's alerts. The gate is checked before **every** injection,
-    not once at the start."""
+    not once at the start - and now, after Q56, re-read until patience runs out."""
+    naps: list[int] = []
     steps = _Steps(admits=False)
 
-    result = run_pilot(steps, ("a", "b"))
+    result = run_pilot(steps, ("a", "b"), sleeper=naps.append)
 
     assert steps.injected == []
     assert all("gate refused" in p.skipped for p in result.pairs)
     assert result.complete_pairs == []
+    assert steps.gate_readings == depthpilot.GATE_RETRIES * len(result.pairs)
+    assert all(f"after {depthpilot.GATE_RETRIES} readings" in p.skipped for p in result.pairs)
+
+
+# --- Q56: a gate refusal is not a failed attempt ------------------------------------------------
+
+
+def test_the_driver_waits_the_gate_out_instead_of_burning_an_attempt() -> None:
+    """**Q56, and the reason the ten-pair run nearly reported `n = 1`.**
+
+    The pilot took T6.3's lesson that the gate must be re-read before every injection and not
+    T6.3's *patience*: `rejectloop` retries ten times at sixty seconds, this refused on the first
+    reading. In the live run **9 of 10 first attempts died on the gate**, and Amendment 2's single
+    re-attempt - registered for investigation failures, of which there were zero - was consumed by
+    them.
+
+    The scarce resource is the re-attempt. A world that merely needed another ninety seconds must
+    not cost one.
+    """
+    naps: list[int] = []
+    steps = _Steps(admits=False, admits_after=2, gate_wait=90)
+
+    result = run_pilot(steps, ("a",), sleeper=naps.append)
+
+    assert steps.injected == ["a"], "it injected, rather than giving up"
+    assert [p.attempt for p in result.pairs] == [1], "the re-attempt was never spent"
+    assert result.pairs[0].complete
+
+
+def test_the_wait_is_the_gate_s_own_number_not_a_constant_of_the_driver_s() -> None:
+    """`gate.Reading.settle_seconds_remaining` is the world's clock. The driver's own constant is
+    the floor for refusals that are not clocks - a firing alert can say *no* but not *how long* -
+    and the margin exists because a wait computed to the second and slept to the second arrives one
+    second early."""
+    naps: list[int] = []
+    steps = _Steps(admits=False, admits_after=1, gate_wait=207)
+
+    run_pilot(steps, ("a",), sleeper=naps.append)
+
+    assert naps == [207 + depthpilot.GATE_WAIT_MARGIN_SECONDS]
+
+
+def test_a_gate_that_names_no_clock_still_waits_a_floor() -> None:
+    """`settle_seconds_remaining` is 0 for a firing alert or a p95 excursion. Sleeping zero and
+    re-reading ten times in a row would be a busy loop against Prometheus."""
+    naps: list[int] = []
+    steps = _Steps(admits=False, admits_after=1, gate_wait=0)
+
+    run_pilot(steps, ("a",), sleeper=naps.append)
+
+    assert naps == [depthpilot.GATE_MIN_WAIT_SECONDS + depthpilot.GATE_WAIT_MARGIN_SECONDS]
 
 
 def test_a_scenario_that_never_alerts_is_skipped_and_reverted() -> None:

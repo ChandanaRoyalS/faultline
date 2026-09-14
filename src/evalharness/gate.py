@@ -426,6 +426,34 @@ class GateReading:
     def passed(self) -> bool:
         return not self.refusals
 
+    @property
+    def settle_seconds_remaining(self) -> int:
+        """How long the **clock-based** refusals still have to run. `0` when none apply.
+
+        **Both numbers already existed and both were only ever formatted into prose.**
+        `require_settled_containers` computes `threshold - min(uptime)` for its *"Wait about Ns"*,
+        and the settle-window loop computes `seconds_remaining` per incident for its *"Wait Ns."*
+        A caller that wanted either had to parse an English sentence, so every driver in this
+        repository guessed a constant instead.
+
+        **Q53's pilot is what that costs.** `depthpilot` waited a fixed 300s after its own revert,
+        but the previous incident only *resolves* some seconds later and the orchestrator's window
+        starts then - so the wait was always short by the resolve lag and **9 of 10 first attempts
+        were refused**. The remainders the gate printed and nothing could read: 75s, 125s, 155s,
+        207s, 51s, 30s, 72s, 141s, 91s.
+
+        **A floor, not a promise.** It answers *"waiting less than this cannot possibly help"* and
+        says nothing about the refusals that are not clocks - a firing alert, a p95 excursion, an
+        open incident, an active injection. Those may clear on their own or may never, so a caller
+        must still re-read the gate rather than trust one arithmetic answer.
+        """
+        waits = [int(settling["seconds_remaining"]) for settling in self.settling_incidents]
+        if self.youngest_container:
+            young = MIN_CONTAINER_UPTIME_SECONDS - self.youngest_container[1]
+            if young > 0:
+                waits.append(young)
+        return max(waits, default=0)
+
     def as_dict(self) -> dict[str, Any]:
         return {
             "passed": self.passed,
@@ -444,6 +472,7 @@ class GateReading:
             "active_injections": self.active_injections,
             "open_incidents": self.open_incidents,
             "settling_incidents": self.settling_incidents,
+            "settle_seconds_remaining": self.settle_seconds_remaining,
             # Recorded on every run, passing or refusing. **Provenance, not a new discard
             # reason**: when a later run dies on the recorder's 90% guard, its manifest can
             # say what it started at, which is what makes that discard diagnosable (T7.31).
