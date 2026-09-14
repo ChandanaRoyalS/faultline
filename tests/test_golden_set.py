@@ -11,6 +11,7 @@ import collections
 
 import pytest
 
+from evalharness import retrieval
 from evalharness.freeze import holdout_origins
 from evalharness.retrieval import PREDATES_T6_4, GoldenQuery, load_golden
 from faultline.context.runbooks import load_runbooks
@@ -118,3 +119,33 @@ def test_every_query_carries_its_provenance(role: str) -> None:
         assert query.source_trajectory
         assert query.seq >= 0
         assert query.harvested_from
+
+
+def test_the_planner_rule_reproduces_every_committed_planner_label() -> None:
+    """**The provenance check that can run without a database** (Q52).
+
+    `golden.yaml`'s header calls the planner labels *"a mechanical label rather than a judgement"*.
+    Until now nothing checked that, and the draw rule's own header turned out to be 42/43 accurate
+    - so the claim was worth testing rather than trusting.
+
+    It is exactly right: 21 planner queries, 17 carrying one label and 4 carrying two, and
+    `planner_labels` reproduces every one from the query text alone.
+
+    **This is what lets Q52's confirmation set be labelled without judgement.** Q49 left flag 2
+    winning on the set that selected it; whoever labels a held-out set knows that, and for the
+    planner half it cannot matter, because no person assigns anything.
+    """
+    planner = [q for q in golden() if q.role == retrieval.PLANNER]
+    assert len(planner) == 21, "the committed planner half, as drawn"
+
+    for query in planner:
+        derived = {label.document_id for label in retrieval.planner_labels(query.query)}
+        committed = {label.document_id for label in query.relevant}
+        assert derived == committed, f"{query.id}: rule gives {derived}, file has {committed}"
+
+
+def test_the_planner_rule_refuses_a_query_it_cannot_label() -> None:
+    """A synthesizer query has no `starting at` clause. Raising beats returning an empty tuple,
+    which would silently become an unanswerable query scored as though it had an answer."""
+    with pytest.raises(ValueError, match="starting at"):
+        retrieval.planner_labels("the change-log query returned no records for cartservice")

@@ -39,6 +39,7 @@ finding about the corpus.
 from __future__ import annotations
 
 import json
+import re
 from collections.abc import Iterable, Sequence
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -396,6 +397,54 @@ def harvest(dsn: str) -> list[dict[str, Any]]:
     ]
 
 
+SEED_SERVICE = re.compile(r"\bstarting at ([a-z0-9][a-z0-9-]*)\s*$")
+"""The planner query's own trailing clause, which names the service the alert opened on."""
+
+HIGH_LATENCY = "runbook:alert-high-latency"
+
+
+def planner_labels(query: str) -> tuple[Label, ...]:
+    """The planner labelling rule, **as code** (Q52).
+
+    `golden.yaml`'s header states it: *"planner queries get a mechanical label rather than a
+    judgement - the seed service's own runbook, taken from the query's 'starting at' clause, plus
+    `alert-high-latency` when the severity is `warning`, which is the only rule carrying it."*
+
+    **It is exactly regular over the committed set**: 17 `critical` queries carry one label and 4
+    `warning` queries carry two, with no exceptions, which
+    `test_the_planner_rule_reproduces_every_committed_planner_label` asserts against the file.
+
+    This exists so a confirmation set can be labelled **without judgement**. Q49 left flag 2
+    winning on the set that chose it, and whoever labels a confirmation set already knows that. For
+    the planner half nobody labels anything: the query's text determines its labels, and a test
+    proves the function agrees with 21 labels written before any of this was measured.
+    """
+    match = SEED_SERVICE.search(query.strip())
+    if not match:
+        raise ValueError(f"no 'starting at <service>' clause to label from: {query[:80]!r}")
+    seed = match.group(1)
+    labels = [
+        Label(
+            document_id=f"runbook:service-{seed}",
+            reason=(
+                f"the query's own 'starting at' clause names {seed}, and that service's runbook "
+                "is what a responder holding these symptoms would reach for first"
+            ),
+        )
+    ]
+    if " warning " in f" {query.strip()} ":
+        labels.append(
+            Label(
+                document_id=HIGH_LATENCY,
+                reason=(
+                    "severity is warning, and ServiceHighLatency is the only alert rule in this "
+                    "world that opens an incident at that severity"
+                ),
+            )
+        )
+    return tuple(labels)
+
+
 PLANNER_PER_SCENARIO = 3
 SYNTHESIZER_PER_SCENARIO = 2
 """How many of each role the draw takes per scenario. `golden.yaml`'s header states these; until
@@ -566,6 +615,14 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
     draw_cmd.add_argument("--skip-synthesizer", type=int, default=0)
     draw_cmd.add_argument("--out", type=Path, default=None)
     draw_cmd.add_argument(
+        "--role",
+        choices=[PLANNER, SYNTHESIZER],
+        default=None,
+        help="keep one role only. Q52's confirmation set is planner-only, because planner labels "
+        "are mechanical and synthesizer labels are a judgement made by someone who already knows "
+        "what the measurement is expected to show",
+    )
+    draw_cmd.add_argument(
         "--against",
         type=Path,
         default=None,
@@ -594,6 +651,8 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
             skip_planner=args.skip_planner,
             skip_synthesizer=args.skip_synthesizer,
         )
+        if args.role:
+            drawn = [r for r in drawn if str(r["role"]) == args.role]
         print(f"{len(drawn)} of {len({str(r['query']) for r in rows})} distinct harvested queries")
         if args.against:
             committed = [q.query for q in load_golden(args.against)]
