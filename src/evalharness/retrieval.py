@@ -424,6 +424,25 @@ def draw(
     Distinct **by query text**, keeping the first occurrence in sort order, because one query text
     can be sent in several runs and the golden set labels texts rather than sendings.
 
+    **Distinctness is global, and the header does not say so.** Some query texts are sent under
+    more than one scenario - the planner's symptom list for two shipping faults can be identical -
+    and *"sort the distinct queries ... then take the first 3 per scenario"* does not say whether
+    "distinct" means across the harvest or within a scenario. Global is the reading taken here: a
+    shared text occupies **one** seat, credited to the first origin in sort order, and the other
+    scenario's seats shift one deeper.
+
+    **The consequence is measured, not assumed.** Against the live harvest this reproduces **42 of
+    the 43** committed queries. The single disagreement is exactly this case: one
+    `shipping-quote-misconfig` planner query the committed set holds and this does not, against one
+    `shipping-wrong-image` query this takes and the committed set does not. Neither scenario is
+    over its allowance in either version - the committed set is internally consistent with 3-and-2
+    throughout - so this is an ambiguity in the stated rule rather than a defect in the set.
+
+    `golden.yaml` is **not rewritten** to match. It is a captured artefact, every published figure
+    was computed over the 43 queries it actually contains, and a one-query difference in provenance
+    is a thing to document rather than to erase. What matters for Q52 is that the rule is now
+    pinned, so the confirmation draw is reproducible even though the first draw was not.
+
     **Holdout-derived rows are dropped before anything is sorted**, and leaving that out was the
     first version's defect. `golden.yaml`'s header states the exclusion and `load_golden` raises on
     it, so a committed file would have been caught - but a *draw* that emits them hands the next

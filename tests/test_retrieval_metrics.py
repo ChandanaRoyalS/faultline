@@ -305,3 +305,31 @@ def test_the_draw_refuses_holdout_derived_queries(monkeypatch: pytest.MonkeyPatc
     ]
 
     assert [r["query"] for r in retrieval.draw(rows)] == ["from a dev run"]
+
+
+def test_a_query_text_sent_under_two_scenarios_takes_one_seat() -> None:
+    """**The ambiguity in the stated rule, pinned.**
+
+    `golden.yaml`'s header says *"sort the distinct queries ... then take the first 3 planner and
+    2 synthesizer per scenario"* and does not say whether "distinct" is global or per scenario.
+    It matters: a planner's symptom list for two shipping faults can be the same text.
+
+    Global is the reading. A shared text takes **one** seat, credited to the first origin in sort
+    order, and the second scenario reaches one deeper to fill its three. Measured against the live
+    harvest this reproduces 42 of the 43 committed queries, and the single disagreement is exactly
+    this case - which is why it is pinned here rather than left to whoever writes the next draw.
+    """
+    rows = [
+        _row(retrieval.PLANNER, "scenario:a", "t1", 0, "shared"),
+        _row(retrieval.PLANNER, "scenario:a", "t1", 1, "a-only-1"),
+        _row(retrieval.PLANNER, "scenario:a", "t1", 2, "a-only-2"),
+        _row(retrieval.PLANNER, "scenario:b", "t2", 0, "shared"),
+        _row(retrieval.PLANNER, "scenario:b", "t2", 1, "b-only-1"),
+        _row(retrieval.PLANNER, "scenario:b", "t2", 2, "b-only-2"),
+        _row(retrieval.PLANNER, "scenario:b", "t2", 3, "b-only-3"),
+    ]
+
+    drawn = [r["query"] for r in retrieval.draw(rows)]
+
+    assert drawn.count("shared") == 1
+    assert drawn == ["shared", "a-only-1", "a-only-2", "b-only-1", "b-only-2", "b-only-3"]

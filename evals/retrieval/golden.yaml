@@ -17,6 +17,22 @@
 # synthesizer per scenario. No RNG and no selection, so "the author picked the queries they
 # could label well" is not available as an explanation of the number.
 #
+# **Addendum, 2026-09-14 (Q52): the rule above is under-specified, and this set differs from it
+# by one query.** The rule was applied by hand and implemented nowhere until `retrieval.draw`.
+# Running that implementation against the harvest reproduces **42 of the 43** queries below.
+#
+# The single disagreement is an ambiguity rather than a defect: some query texts are sent under
+# more than one scenario - the planner's symptom list for two shipping faults can be identical -
+# and "sort the distinct queries ... then take the first 3 per scenario" does not say whether
+# "distinct" is global or per scenario. `draw` takes it as global, so a shared text occupies one
+# seat and the other scenario reaches one deeper; this file holds a `shipping-quote-misconfig`
+# planner query where that reading takes a `shipping-wrong-image` one.
+#
+# **Nothing below is changed.** Every published retrieval figure was computed over exactly these
+# 43 queries, the set is internally consistent with 3-and-2 per scenario throughout, and a
+# provenance difference of one query is documented rather than erased. What the sentence above
+# can no longer claim is that this set is exactly reproducible from its own description.
+#
 # **The labelling rule, applied uniformly**: a document is relevant if a fact stated in it lets a
 # reader answer something the query asks or asserts, *from the query text alone*. Topical
 # adjacency is not relevance. Planner queries get a mechanical label rather than a judgement -
