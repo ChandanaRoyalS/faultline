@@ -633,3 +633,90 @@ def test_the_cli_refuses_a_start_pass_outside_the_tier(
     monkeypatch.setattr(sweep, "runnable", lambda **_: ["a"])
     assert sweep.main(["--tier", "weekly", "--start-pass", "4"]) == 3
     assert "outside this tier's 1..3 passes" in capsys.readouterr().out
+
+
+# --- Q60: which sweep, and where in it ----------------------------------------------------------
+
+
+def test_every_run_is_stamped_with_its_sweep_and_its_slot() -> None:
+    """**548 manifests and not one of them said which sweep it belonged to.**
+
+    `RESULTS.md` groups its headline figures under *"dev sweep 12"* - a name that lives in prose
+    and nowhere in the record - and the only way to recover a sweep's membership was timestamp
+    arithmetic across manifests, which a resumed or interleaved sweep breaks.
+    """
+    seen: list[list[str]] = []
+
+    def run(argv: list[str]) -> int:
+        seen.append(argv)
+        return 0
+
+    sweep.sweep(["a", "b"], runner=run, session="20260914T103000Z")
+
+    for argv in seen:
+        assert "--sweep" in argv
+        assert argv[argv.index("--sweep") + 1] == "20260914T103000Z"
+    slots = [int(a[a.index("--sweep-slot") + 1]) for a in seen]
+    assert slots == [1, 2]
+    assert all(a[a.index("--sweep-of") + 1] == "2" for a in seen)
+
+
+def test_a_sweep_with_no_session_stamps_nothing_rather_than_inventing_one() -> None:
+    """A library call without an id is not a sweep with an unknown id. Manufacturing one here
+    would put a different sweep id on every test run and on every hand-driven catalog pass."""
+    seen: list[list[str]] = []
+
+    def run(argv: list[str]) -> int:
+        seen.append(argv)
+        return 0
+
+    sweep.sweep(["a"], runner=run)
+
+    assert not any("--sweep" in argv for argv in seen)
+
+
+def test_slots_number_across_passes_and_a_resume_keeps_the_whole_sweep_s_numbering() -> None:
+    """**The numbering the sweep already prints.** A resumed pass 2 of 3 is slot 11 of 30, not 1 of
+    20, because the record it joins is the thirty-slot one - and two numberings for one run is how
+    a reader ends up with two answers."""
+    seen: list[list[str]] = []
+
+    def run(argv: list[str]) -> int:
+        seen.append(argv)
+        return 0
+
+    sweep.sweep(["a", "b"], repeats=3, runner=run, start_pass=2, session="s", recycler=lambda: None)
+
+    slots = [int(a[a.index("--sweep-slot") + 1]) for a in seen]
+    passes = [int(a[a.index("--sweep-pass") + 1]) for a in seen]
+    assert slots == [3, 4, 5, 6], "resuming at pass 2 of 2-scenario passes starts at slot 3"
+    assert passes == [2, 2, 3, 3]
+    assert all(a[a.index("--sweep-of") + 1] == "6" for a in seen)
+
+
+def test_the_manifest_block_is_none_without_a_sweep_and_a_dict_with_one() -> None:
+    """`faultline-eval` run by hand belongs to no sweep, and a block of nulls would read as one
+    whose fields went missing."""
+    from evalharness.run import sweep_block
+
+    assert sweep_block(None, 1, 30, 1) is None
+    assert sweep_block("", 1, 30, 1) is None
+    assert sweep_block("s12", 11, 30, 2) == {"id": "s12", "slot": 11, "of": 30, "pass": 2}
+
+
+def test_the_sweep_block_does_not_disturb_the_config_fingerprint() -> None:
+    """**The reason this was safe to add at all.** `evaldb.fingerprint` reads an explicit
+    allowlist, so a new manifest key cannot silently re-fingerprint every future run and split it
+    from the archive it belongs beside."""
+    from evalharness.evaldb import fingerprint
+
+    manifest = {
+        "models": {"agent": "m"},
+        "budget": {"max_usd": 2.0},
+        "repeat_count": 3,
+        "ablation": [],
+    }
+    before = fingerprint(manifest).fingerprint
+    after = fingerprint({**manifest, "sweep": {"id": "s12", "slot": 11, "of": 30, "pass": 2}})
+
+    assert after.fingerprint == before

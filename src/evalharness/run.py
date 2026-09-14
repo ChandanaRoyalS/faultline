@@ -292,6 +292,31 @@ def _kafka_uptime(manifest: dict[str, Any] | None) -> int | None:
     return int(seconds) if isinstance(seconds, int) else None
 
 
+def sweep_block(
+    sweep: str | None, slot: int | None, of: int | None, pass_number: int | None
+) -> dict[str, Any] | None:
+    """Where this run sat in the sweep that launched it, or `None` when nothing launched it.
+
+    **548 manifests and not one of them says which sweep it belongs to** (Q60). `RESULTS.md`
+    groups its headline figures under *"dev sweep 12"*, a name that exists in prose and nowhere in
+    the record; the only way to recover a sweep's membership today is timestamp arithmetic across
+    manifests, which a resumed or interleaved sweep breaks.
+
+    **`id` is the sweep's, not the run's.** A resume passes the original id back with `--label`, so
+    the record it joins is the one it is continuing rather than a second sweep that looks like it.
+
+    **`slot` is the whole sweep's numbering, not the resumed remainder's** - a resumed pass 2 of 3
+    is slot 11 of 30 - because `sweep()` already prints it that way and two numberings for one run
+    is how a reader ends up with two answers.
+
+    `pass_number` is recorded rather than derived. `slot // len(catalog)` is right only when no
+    scenario was added or removed between passes, and the catalog is not frozen.
+    """
+    if not sweep:
+        return None
+    return {"id": sweep, "slot": slot, "of": of, "pass": pass_number}
+
+
 def world_continuity(run_id: str, uptime_now: int | None, root: Path = RUN_ROOT) -> dict[str, Any]:
     """Whether the world this run measures is the same instance the previous run measured.
 
@@ -953,6 +978,15 @@ def parser() -> argparse.ArgumentParser:
             "observation and never a rate."
         ),
     )
+    # Q60: stamped by `faultline-sweep`, absent on a hand-run scenario. Four values rather than
+    # one packed string because this is a machine-to-machine interface and parsing prose back out
+    # of a flag is how the sweep's own record acquires a parser.
+    p.add_argument(
+        "--sweep", default=None, help="the launching sweep's id; faultline-sweep sets it"
+    )
+    p.add_argument("--sweep-slot", type=int, default=None)
+    p.add_argument("--sweep-of", type=int, default=None)
+    p.add_argument("--sweep-pass", type=int, default=None)
     p.add_argument("--max-tool-calls", type=int, default=4)
     p.add_argument(
         "--max-tool-calls-changes",
@@ -1302,6 +1336,9 @@ def main(argv: list[str] | None = None) -> int:
             run.manifest["repeat_count"] = variance.TIERS[args.tier][0]
             run.manifest["tier"] = args.tier
             run.manifest["seed_policy"] = variance.SEED_POLICY
+            block = sweep_block(args.sweep, args.sweep_slot, args.sweep_of, args.sweep_pass)
+            if block is not None:
+                run.manifest["sweep"] = block
 
             generation = generations.generation_of(run.manifest)
             previous = previous_run_manifest(run.run_id)
