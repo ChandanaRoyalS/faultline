@@ -107,6 +107,25 @@ of the decision rather than arguing the contamination away.
 A reason chosen after seeing a second verdict would be prompt-fitting; this is the reject-loop
 driver's rule and the constant is here for the same reason its `PAIRS` are."""
 
+REJECT_PATH = "/api/v1/incidents/{incident_id}/reject"
+"""The route the second arm depends on, as FastAPI spells it in the schema."""
+
+
+def reject_route_is_mounted(schema: dict[str, Any]) -> bool:
+    """Is the reject route actually served by the process the pilot will talk to?
+
+    **The fifth precondition, and the one most likely to be missed.** `api/app.py` mounts the
+    approve and reject routes only when `FAULTLINE_EXECUTOR_TOKEN_KEY` is set, and **starts anyway
+    when it is not** - deliberately, because *"a missing button is not an outage"*. From the pilot's
+    side that is invisible: the screen serves, the read routes answer, and the rejection returns a
+    bare 404 that looks like a missing incident. It would arrive after the first arm had been paid
+    for, ten times.
+
+    Read off `GET /openapi.json`, which is the process's own statement about what it serves, rather
+    than probed by sending a rejection somewhere. A probe would need an incident to reject.
+    """
+    return REJECT_PATH in (schema.get("paths") or {})
+
 
 def arm_order(index: int) -> tuple[str, str]:
     """Which arm runs first for pair `index`. **Alternated, and that is not cosmetic.**
@@ -717,6 +736,27 @@ def run_cli(argv: list[str] | None = None) -> int:  # pragma: no cover - the liv
             "the incident passes through REJECTED, and the pilot gets it there through the "
             "authenticated route rather than by calling record_rejection. "
             "faultline-ingest must be running. See PREREGISTRATION-Q53.md, Amendment 1."
+        )
+
+    import urllib.error
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen(f"{args.api_url.rstrip('/')}/openapi.json", timeout=10) as r:
+            schema = json.loads(r.read().decode())
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        parser.error(
+            f"cannot read {args.api_url}/openapi.json ({type(exc).__name__}: {exc}). "
+            "faultline-ingest is not serving there, so the rejection between the arms would fail "
+            "after the first arm had been paid for. Nothing was injected."
+        )
+    if not reject_route_is_mounted(schema):
+        parser.error(
+            f"{args.api_url} is serving, but {REJECT_PATH} is not among its routes: "
+            "FAULTLINE_EXECUTOR_TOKEN_KEY is unset in that process, so api/app.py mounted the "
+            "read surface and left the approve/reject routes off - and said so once, at startup. "
+            "Every pair's second arm would 404 after the first arm was paid for. Nothing was "
+            "injected."
         )
 
     scenarios = tuple(args.only) if args.only else SCENARIOS

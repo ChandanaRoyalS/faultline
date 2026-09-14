@@ -230,6 +230,36 @@ def test_the_artifact_records_the_channel_the_outcome_was_read_on() -> None:
     assert payload["pairs"][0]["remediation_differs"] is False
 
 
+def test_an_unmounted_reject_route_is_visible_before_anything_is_injected() -> None:
+    """**The precondition that would otherwise have been found ten times, at $0.79 each.**
+
+    `api/app.py` mounts the approve and reject routes only when `FAULTLINE_EXECUTOR_TOKEN_KEY` is
+    set and **starts anyway when it is not**, on the deliberate ground that *"a missing button is
+    not an outage"*. From the pilot's side that is invisible: the screen serves, the read routes
+    answer, and the rejection comes back as a bare 404 indistinguishable from a missing incident -
+    after the first arm has been paid for.
+
+    So it is read off the process's own `/openapi.json`, which is a statement about what it serves
+    rather than a guess, and the path here is the one FastAPI registers.
+    """
+    served = {"paths": {depthpilot.REJECT_PATH: {"post": {}}, "/healthz": {"get": {}}}}
+    read_only = {"paths": {"/api/v1/incidents": {"get": {}}, "/healthz": {"get": {}}}}
+
+    assert depthpilot.reject_route_is_mounted(served)
+    assert not depthpilot.reject_route_is_mounted(read_only)
+    assert not depthpilot.reject_route_is_mounted({})
+
+
+def test_the_reject_path_is_the_one_the_app_actually_registers() -> None:
+    """The constant is checked against the router rather than against itself, so that a rename of
+    the route shows up here instead of as a preflight that passes and a pilot that 404s."""
+    source = (REPO_ROOT / "src" / "faultline" / "api" / "approvals.py").read_text()
+
+    assert 'APIRouter(prefix="/api/v1/incidents")' in source
+    assert '@router.post("/{incident_id}/reject")' in source
+    assert depthpilot.REJECT_PATH == "/api/v1/incidents/{incident_id}/reject"
+
+
 def test_the_registered_reason_survives_the_machines_own_cleaning() -> None:
     """`record_rejection` requires a reason and `clean_reason` raises on whitespace, so there is no
     reasonless route to `REJECTED`. The constant has to be text a real rejection would accept."""
