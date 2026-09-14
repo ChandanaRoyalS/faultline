@@ -11,6 +11,24 @@ two verdicts is what retrieval handed the model. World variance is the dominant 
 this benchmark and pairing removes it; ten pairs this way are worth far more than twenty unpaired
 runs.
 
+**The second arm is reached through a rejection, and that is forced** (Amendment 1). `ALLOWED`
+admits `PLANNING` from `TRIAGING` and from `REJECTED` and from nowhere else, which is why
+`INVESTIGABLE` has exactly two members; an incident that has been investigated once is past
+`TRIAGING` permanently. There is **no door into a second investigation of one incident that does
+not pass through `REJECTED`**, so the registration's §3 design cannot run without one. The dry run
+found it after the first arm and before the second: *"incident ... is in state proposing; the
+machine investigates from rejected, triaging only."*
+
+**So the outcome narrows to `fault_class` alone.** A rejection reaches the *proposer's* brief and
+nothing else - `roles.py`'s `Section(name="operator-rejection", ...)`, pinned by
+`test_an_operator_rejection_reaches_the_proposer_in_the_user_message_only` - and T6.3 measured a
+rejection's effect on the next proposal at **2 of 2 changed, both abstentions**. So
+`remediation_class` is contaminated by an effect this repository has already measured at 100%; it
+is recorded and it does not decide. `fault_class` comes from the synthesizer, which never sees the
+rejection, working off a reused triage and the same episodes, catalog and corpus - `context/seed.py`
+is the only writer to the past-incident store, so the second arm's corpus is byte-identical to the
+first's. Retrieval is the only injected difference upstream of the verdict.
+
 **It is a kill switch, not a measurement**, and §3.1 of the registration fixes the arithmetic that
 makes that honest: at the retrieval upper bound of 18.6% this sees at least one changed verdict 87%
 of the time, at 5% it sees one 40% of the time. So it can falsify *this matters a lot* and cannot
@@ -66,6 +84,28 @@ BUDGET_CEILING_USD = 25.0
 spend is nearer $12 at the $0.597 median. The registration's words: *a budget that is revised
 upward mid-task is not a budget.* Reaching this stops the pilot where it stands and reports the
 pairs it did not complete."""
+
+REJECTION_REASON = (
+    "This incident is part of a paired retrieval measurement and is not being remediated. "
+    "No judgement is offered about your previous proposal and none should be inferred: read "
+    "the evidence exactly as you would on a first look."
+)
+"""**Fixed here, before any run, and identical for all ten pairs.**
+
+`record_rejection` requires a reason (`clean_reason` raises on whitespace) and there is no
+reasonless route to `REJECTED`, so the pilot has to supply text the proposer will read. T6.3's
+reasons were substantive operator reports - *"restarted cartservice and the alerts kept firing"* -
+and were meant to move the proposal. This one is meant not to, and says so.
+
+**It does not succeed at that and the pilot does not pretend it does.** The brief wraps any reason
+in *"An operator reviewed your previous proposal for this incident and REJECTED it"* and invites an
+abstention, and that framing is not removable from here. What this text buys is that the framing is
+**the same in every pair and carries no scenario-specific content**, so it cannot vary with the arm.
+What it cannot buy is a clean `remediation_class`, which is why Amendment 1 takes that channel out
+of the decision rather than arguing the contamination away.
+
+A reason chosen after seeing a second verdict would be prompt-fitting; this is the reject-loop
+driver's rule and the constant is here for the same reason its `PAIRS` are."""
 
 
 def arm_order(index: int) -> tuple[str, str]:
@@ -146,6 +186,10 @@ class PairResult:
     first_arm: str = ""
     verdicts: dict[str, Verdict] = field(default_factory=dict)
     skipped: str = ""
+    rejected: bool = False
+    """Whether the incident passed through `REJECTED` between the arms. **True on every complete
+    pair**, because it is the only route to a second investigation; recorded rather than assumed so
+    that a pair which somehow completed without one would be visible in the artifact."""
 
     @property
     def complete(self) -> bool:
@@ -153,7 +197,13 @@ class PairResult:
 
     @property
     def differs(self) -> bool:
-        """**The pilot's whole outcome.** A changed `fault_class` or `remediation_class`.
+        """**The pilot's whole outcome: a changed `fault_class`.**
+
+        Amendment 1 narrowed this from *fault class or remediation class*. The second arm is only
+        reachable through a rejection, a rejection reaches the proposer's brief, and T6.3 measured
+        that at 2 of 2 changed proposals - so a moved `remediation_class` here would be evidence
+        about the rejection, not about retrieval. The synthesizer that produces `fault_class` never
+        sees the rejection, so this channel is clean and it is the one that decides.
 
         Not "is it better": that is the 30-40 pair measurement this pilot exists to decide whether
         to fund. `n = 10` cannot say which direction dominates and the registration forbids
@@ -161,8 +211,23 @@ class PairResult:
         """
         if not self.complete:
             return False
-        a, b = self.verdicts[BASELINE_ARM], self.verdicts[CHANGE_ARM]
-        return (a.fault_class, a.remediation_class) != (b.fault_class, b.remediation_class)
+        return self.verdicts[BASELINE_ARM].fault_class != self.verdicts[CHANGE_ARM].fault_class
+
+    @property
+    def remediation_differs(self) -> bool:
+        """Recorded, and **deliberately not part of `differs`.**
+
+        Kept because the contamination is an argument rather than a measurement: if this moves in
+        roughly half the pairs it is the rejection doing what T6.3 saw, and if it never moves that
+        is worth knowing too. Either way it does not decide Q53, and a reader who wants it has to
+        read it under the sentence that says why.
+        """
+        if not self.complete:
+            return False
+        return (
+            self.verdicts[BASELINE_ARM].remediation_class
+            != self.verdicts[CHANGE_ARM].remediation_class
+        )
 
     @property
     def cost_usd(self) -> float:
@@ -205,7 +270,15 @@ class PilotResult:
                 f"{arm}={v.fault_class}/{v.remediation_class}"
                 for arm, v in sorted(pair.verdicts.items())
             )
-            lines.append(f"  {pair.scenario_id}: {mark}  first={pair.first_arm}  {detail}")
+            tail = "  [remediation also moved]" if pair.remediation_differs else ""
+            lines.append(f"  {pair.scenario_id}: {mark}  first={pair.first_arm}  {detail}{tail}")
+        lines.append("")
+        lines.append(
+            "DIFFERS is a changed fault_class only (Amendment 1). The second arm of every pair is "
+            "reached through a rejection, which reaches the proposer's brief and which T6.3 "
+            "measured at 2 of 2 changed proposals - so remediation_class is shown and does not "
+            "decide."
+        )
         if not self.stopped and self.complete_pairs and not self.differing:
             lines.append("")
             lines.append(
@@ -222,6 +295,12 @@ class PilotResult:
             "cost_usd": round(self.cost_usd, 4),
             "ceiling_usd": BUDGET_CEILING_USD,
             "arms": ARMS,
+            "outcome_channel": "fault_class",
+            "rejection_reason": REJECTION_REASON,
+            "amendment": (
+                "Amendment 1: the second arm is reachable only through REJECTED, so the outcome "
+                "is fault_class alone and remediation_class is recorded as contaminated."
+            ),
             "pairs": [
                 {
                     "scenario_id": p.scenario_id,
@@ -229,7 +308,9 @@ class PilotResult:
                     "first_arm": p.first_arm,
                     "skipped": p.skipped,
                     "complete": p.complete,
+                    "rejected": p.rejected,
                     "differs": p.differs,
+                    "remediation_differs": p.remediation_differs,
                     "verdicts": {
                         arm: {
                             "trajectory_id": v.trajectory_id,
@@ -264,6 +345,14 @@ class Steps(Protocol):
         """One arm's investigation. `None` when it produced no verdict."""
         ...
 
+    def reject(self, incident_id: str, reason: str) -> None:
+        """Move the incident to `REJECTED` so the second arm is legal. Raises on a refusal.
+
+        **Through the route**, not by calling `record_rejection`: the reject-loop driver's rule,
+        and here it also means the pilot cannot reach `REJECTED` by any path an operator could not.
+        """
+        ...
+
     def revert(self, scenario_id: str) -> None: ...
 
 
@@ -295,6 +384,13 @@ def run_pilot(
 
     **The budget is checked before each investigation**, not after. A ceiling enforced after the
     spend is a report, not a limit.
+
+    **The rejection sits between the arms and nowhere else.** It is what makes the second
+    investigation legal at all, and it cannot be moved earlier: an incident is only rejectable once
+    something has proposed on it (`REJECTABLE` is `PROPOSING`, `SYNTHESIZING`, `AWAITING_APPROVAL`),
+    so the first arm has to have run and been paid for before the pilot knows the pair can complete.
+    A refusal there loses the pair **and the first arm's spend**, which is recorded in `skipped`
+    rather than raised - the alternative is a driver that can die holding an injected fault.
 
     **The world is reverted in a `finally`**, because a pilot that leaves a fault injected has cost
     more than money.
@@ -336,10 +432,17 @@ def run_pilot(
 
             first, second = arm_order(index)
             pair.first_arm = first
-            for arm in (first, second):
+            for position, arm in enumerate((first, second)):
                 if result.cost_usd >= ceiling_usd:
                     result.stopped = f"budget ceiling ${ceiling_usd:.2f} reached in {scenario_id}"
                     break
+                if position:
+                    try:
+                        steps.reject(incident_id, REJECTION_REASON)
+                    except Exception as exc:
+                        pair.skipped = f"rejection refused: {type(exc).__name__}: {exc}"
+                        break
+                    pair.rejected = True
                 verdict = steps.investigate(incident_id, arm)
                 if verdict is None:
                     pair.skipped = f"{arm} produced no verdict"
@@ -362,10 +465,23 @@ class LiveSteps:  # pragma: no cover - the paid path; the fakes cover the logic
     same repository. It is also what lets `env_for` vary the configuration at all.
     """
 
-    def __init__(self, dsn: str | None = None) -> None:
+    def __init__(
+        self,
+        dsn: str | None = None,
+        *,
+        api_url: str = "http://127.0.0.1:8000",
+        api_user: str = "faultline",
+        api_password: str = "",
+    ) -> None:
+        import base64
+
         from faultline.context.settings import ContextSettings
 
         self._dsn = dsn or ContextSettings().postgres_dsn
+        self._api = api_url.rstrip("/")
+        self._auth = base64.b64encode(f"{api_user}:{api_password}".encode()).decode()
+        """Built once and never logged. The password arrives in the environment and leaves in a
+        header; it is in no file this driver writes. The reject-loop driver's rule, verbatim."""
 
     def gate_admits(self) -> tuple[bool, list[str]]:
         from evalharness import gate
@@ -488,6 +604,33 @@ class LiveSteps:  # pragma: no cover - the paid path; the fakes cover the logic
             return ()
         return tuple(row[0]) if row and row[0] else ()
 
+    def reject(self, incident_id: str, reason: str) -> None:
+        """`POST /api/v1/incidents/{id}/reject`, the surface an operator uses.
+
+        **Not `record_rejection`.** Calling the function would let the pilot reach `REJECTED` by a
+        path no operator has, and the whole reason the second arm is legal is that an operator
+        *could* have put the incident there. The route also enforces the rejection cap and writes
+        the ledger row, both of which should exist for these ten incidents like any other.
+        """
+        import urllib.error
+        import urllib.request
+
+        request = urllib.request.Request(
+            f"{self._api}/api/v1/incidents/{incident_id}/reject",
+            data=json.dumps({"reason": reason}).encode(),
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Basic {self._auth}",
+            },
+            method="POST",
+        )
+        try:
+            urllib.request.urlopen(request, timeout=30).close()
+        except urllib.error.HTTPError as failure:
+            raise RuntimeError(
+                f"{failure.code}: {failure.read().decode(errors='replace')[:400]}"
+            ) from None
+
     def revert(self, scenario_id: str) -> None:
         from evalharness.run import _sh
 
@@ -503,7 +646,11 @@ def run_cli(argv: list[str] | None = None) -> int:  # pragma: no cover - the liv
         prog="faultline-depth-pilot",
         description=(
             "Q53's ten-pair pilot. Spends money. Read PREREGISTRATION-Q53.md first: this is a "
-            "kill switch, not a measurement, and it adopts nothing whatever it finds."
+            "kill switch, not a measurement, and it adopts nothing whatever it finds. "
+            "Needs faultline-ingest running with the executor key, because the second arm of "
+            "every pair is reached by rejecting the first arm's proposal through the route. "
+            "Run no InvestigationRunner with --investigate against this world: it picks up "
+            "rejected incidents and would both race the second arm and spend outside the budget."
         ),
     )
     parser.add_argument("--out", type=Path, default=None)
@@ -526,6 +673,8 @@ def run_cli(argv: list[str] | None = None) -> int:  # pragma: no cover - the liv
         help="seconds to wait between pairs. The orchestrator's settle window is 300s and a pair "
         "started inside it is refused by the gate, so lowering this buys refusals, not speed",
     )
+    parser.add_argument("--api-url", default="http://127.0.0.1:8000")
+    parser.add_argument("--api-user", default=os.environ.get("FAULTLINE_API_USER") or "faultline")
     parser.add_argument(
         "--i-have-read-the-registration",
         action="store_true",
@@ -544,8 +693,35 @@ def run_cli(argv: list[str] | None = None) -> int:  # pragma: no cover - the liv
             "A budget revised upward mid-task is not a budget."
         )
 
+    # **Everything the run needs, checked before a fault is injected.** Q20's rule, which this
+    # repository has now re-learned four times: T6.3's second live run reached its model call and
+    # died on a missing `anthropic`, after a fault had been injected, an incident opened and a
+    # rejection recorded. Q53's own third dry run spent $0.79 and then discovered the second arm was
+    # illegal. Both were knowable beforehand; this is where that knowing happens.
+    #
+    # `find_spec`, not an import - this module must stay unable to reach a model client at all
+    # (`test_the_pilot_calls_no_model_itself`), and asking whether a package is installed is not
+    # the same act as importing it.
+    import importlib.util
+
+    if importlib.util.find_spec("anthropic") is None:
+        parser.error(
+            "the `agents` extra is not installed here, so faultline-investigate cannot reach a "
+            "model and every arm would produce nothing. Nothing was injected. "
+            "Install it with: uv sync --all-extras --all-groups"
+        )
+    password = os.environ.get("FAULTLINE_API_PASSWORD") or ""
+    if not password:
+        parser.error(
+            "FAULTLINE_API_PASSWORD is unset. The second arm of every pair is only legal after "
+            "the incident passes through REJECTED, and the pilot gets it there through the "
+            "authenticated route rather than by calling record_rejection. "
+            "faultline-ingest must be running. See PREREGISTRATION-Q53.md, Amendment 1."
+        )
+
     scenarios = tuple(args.only) if args.only else SCENARIOS
-    result = run_pilot(LiveSteps(), scenarios, ceiling_usd=args.ceiling, settle=args.settle)
+    steps = LiveSteps(api_url=args.api_url, api_user=args.api_user, api_password=password)
+    result = run_pilot(steps, scenarios, ceiling_usd=args.ceiling, settle=args.settle)
     print(result.render())
     if args.out:
         args.out.write_text(json.dumps(result.as_dict(), indent=2) + "\n")

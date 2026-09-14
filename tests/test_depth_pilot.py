@@ -36,14 +36,18 @@ class _Steps:
         admits: bool = True,
         incident: bool = True,
         cost: float = 0.6,
+        reject_raises: Exception | None = None,
     ) -> None:
         self.answers = answers or {}
         self._admits = admits
         self._incident = incident
         self._cost = cost
+        self._reject_raises = reject_raises
         self.injected: list[str] = []
         self.reverted: list[str] = []
         self.investigations: list[tuple[str, str]] = []
+        self.rejections: list[tuple[str, str]] = []
+        self.order: list[str] = []
 
     def gate_admits(self) -> tuple[bool, list[str]]:
         return self._admits, [] if self._admits else ["a leftover incident"]
@@ -57,11 +61,18 @@ class _Steps:
 
     def investigate(self, incident_id: str, arm: str) -> Verdict | None:
         self.investigations.append((incident_id, arm))
+        self.order.append(f"investigate:{arm}")
         scenario = incident_id.removeprefix("inc-")
         answer = self.answers.get((scenario, arm), ("bad_deploy", "rollback"))
         if answer is None:
             return None
         return Verdict(arm, f"t-{scenario}-{arm}", answer[0], answer[1], self._cost)
+
+    def reject(self, incident_id: str, reason: str) -> None:
+        self.order.append("reject")
+        if self._reject_raises is not None:
+            raise self._reject_raises
+        self.rejections.append((incident_id, reason))
 
     def revert(self, scenario_id: str) -> None:
         self.reverted.append(scenario_id)
@@ -115,6 +126,116 @@ def test_a_changed_fault_class_is_the_outcome() -> None:
 
     assert [p.scenario_id for p in result.differing] == ["b"]
     assert "DIFFERS" in result.render()
+
+
+# --- Amendment 1: the rejection between the arms, and what it costs the outcome -----------------
+
+
+def test_the_second_arm_is_reached_through_a_rejection_and_the_first_is_not() -> None:
+    """**The defect the third dry run bought, for $0.79.**
+
+    `ALLOWED` admits `PLANNING` from `TRIAGING` and from `REJECTED` and from nowhere else, which is
+    why `INVESTIGABLE` has exactly those two members. An incident that has been investigated once is
+    past `TRIAGING` permanently, so there is no door into a second investigation of one incident
+    that does not pass through `REJECTED` - the registered design could not run without one.
+
+    The rejection sits between the arms and nowhere else: the first arm is legal from `TRIAGING`,
+    and an incident is not rejectable until something has proposed on it.
+    """
+    steps = _Steps()
+
+    result = run_pilot(steps, ("cart-bad-image-tag",))
+
+    assert steps.order == [
+        f"investigate:{BASELINE_ARM}",
+        "reject",
+        f"investigate:{CHANGE_ARM}",
+    ]
+    assert len(steps.rejections) == 1
+    assert result.pairs[0].rejected
+    assert result.pairs[0].complete
+
+
+def test_every_pair_is_rejected_with_the_same_registered_reason() -> None:
+    """**Fixed before any run, identical across pairs, carrying no scenario-specific content.**
+
+    A reason chosen after seeing a verdict would be prompt-fitting - the reject-loop driver's rule.
+    A reason that varied by scenario would put scenario text in one arm's brief and not the other's,
+    which is the confound the pairing exists to remove.
+    """
+    steps = _Steps()
+
+    run_pilot(steps, ("a", "b", "c"))
+
+    reasons = {reason for _, reason in steps.rejections}
+    assert reasons == {depthpilot.REJECTION_REASON}
+    for scenario_id in depthpilot.SCENARIOS:
+        assert scenario_id not in depthpilot.REJECTION_REASON
+        for word in scenario_id.split("-"):
+            assert word not in depthpilot.REJECTION_REASON.split(), scenario_id
+
+
+def test_a_moved_remediation_class_alone_is_not_the_outcome() -> None:
+    """**Amendment 1's whole point.** The rejection reaches the proposer's brief and only the
+    proposer's - `test_an_operator_rejection_reaches_the_proposer_in_the_user_message_only` pins
+    that - and T6.3 measured a rejection's effect on the next proposal at **2 of 2 changed, both
+    abstentions**. So a moved `remediation_class` here is evidence about the rejection, not about
+    retrieval, and counting it would let the pilot recommend funding a 30-40 pair measurement on an
+    effect this repository has already measured at 100%.
+
+    It is still recorded: if it moves in about half the pairs that is T6.3's effect showing up
+    again, and if it never moves that is worth knowing too.
+    """
+    steps = _Steps({("a", CHANGE_ARM): ("bad_deploy", "none")})
+
+    result = run_pilot(steps, ("a",))
+
+    pair = result.pairs[0]
+    assert pair.complete
+    assert not pair.differs, "the fault class did not move"
+    assert pair.remediation_differs
+    assert result.differing == []
+    assert "[remediation also moved]" in result.render()
+    assert "does not decide" in result.render()
+
+
+def test_a_refused_rejection_loses_the_pair_and_says_so() -> None:
+    """The first arm has already been paid for by the time the pilot can know the pair completes -
+    an incident is only rejectable once something has proposed on it. A refusal here is recorded in
+    `skipped` rather than raised, because a driver that dies holding an injected fault has cost more
+    than the pair."""
+    steps = _Steps(reject_raises=RuntimeError("409: the rejection cap for this incident is two"))
+
+    result = run_pilot(steps, ("a",))
+
+    pair = result.pairs[0]
+    assert not pair.complete
+    assert not pair.rejected
+    assert "rejection refused" in pair.skipped and "409" in pair.skipped
+    assert steps.reverted == ["a"], "the world is still cleaned up"
+    assert result.cost_usd == pytest.approx(0.6), "the first arm's spend is still reported"
+
+
+def test_the_artifact_records_the_channel_the_outcome_was_read_on() -> None:
+    """A reader opening the JSON a year from now should not have to infer from the code which of
+    the two classes decided, nor that a rejection stood between the arms."""
+    steps = _Steps()
+
+    payload = run_pilot(steps, ("a",)).as_dict()
+
+    assert payload["outcome_channel"] == "fault_class"
+    assert payload["rejection_reason"] == depthpilot.REJECTION_REASON
+    assert "Amendment 1" in payload["amendment"]
+    assert payload["pairs"][0]["rejected"] is True
+    assert payload["pairs"][0]["remediation_differs"] is False
+
+
+def test_the_registered_reason_survives_the_machines_own_cleaning() -> None:
+    """`record_rejection` requires a reason and `clean_reason` raises on whitespace, so there is no
+    reasonless route to `REJECTED`. The constant has to be text a real rejection would accept."""
+    from faultline.orchestrator.rejections import clean_reason
+
+    assert clean_reason(depthpilot.REJECTION_REASON)
 
 
 def test_the_budget_stops_the_pilot_before_spending_not_after() -> None:
