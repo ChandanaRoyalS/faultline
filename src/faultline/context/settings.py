@@ -47,6 +47,25 @@ class ContextSettings(BaseSettings):
     `faultline[embeddings]` and imported lazily, so `make check` never loads it.
     """
 
+    text_normalisation: int = 0
+    """`ts_rank_cd`'s normalisation bitmask for the text arm (Q49, Q53).
+
+    **0 is the standing value and Q49 is why.** Flag 1 moved `recall@3` by zero queries; flag 2
+    reaches `recall@5` = 0.605 and clears the registered floor, and Q52's cross-validation showed
+    95% of that margin survives selection - but at `k = 3`, the depth production retrieves at,
+    choosing among six flags is **worse than not choosing** (out-of-sample -0.0288). So nothing
+    was adopted.
+
+    **It is a setting rather than a constant because Q53 has to vary it across a subprocess.**
+    `faultline-investigate` runs as a CLI, and the pilot needs one invocation at (0, k=3) and one
+    at (2, k=5) against the same incident. A module constant cannot be varied that way without an
+    environment hack; a field here can, through `FAULTLINE_CONTEXT_TEXT_NORMALISATION`.
+
+    Making it configurable is not a step toward adopting it. `PREREGISTRATION-Q53.md` adopts
+    nothing, and ADR-0041 records that the retrieval side of its rule is already satisfied while
+    the evidence that matters - whether a verdict changes - does not exist yet.
+    """
+
     retrieval_k: int = 3
     """How many chunks a retrieval returns.
 

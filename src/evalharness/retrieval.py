@@ -781,19 +781,16 @@ def run_cli(argv: Sequence[str] | None = None) -> int:
         from faultline.context.settings import ContextSettings
 
         golden = load_golden(args.golden)
-        standing = store_module.TEXT_NORMALISATION
         with psycopg.connect(args.dsn or ContextSettings().postgres_dsn) as conn:
             for k in sorted(set(args.k or [3, 5])):
                 per_flag: dict[int, Sequence[QueryResult]] = {}
                 for flag in CV_CANDIDATES:
-                    store_module.TEXT_NORMALISATION = flag
                     subject = store_module.PgVectorPastIncidentStore(
-                        conn, SentenceTransformerEmbedder()
+                        conn, SentenceTransformerEmbedder(), normalisation=flag
                     )
                     per_flag[flag] = measure(
                         subject, golden, k=k, predates_task=PREDATES_T6_4
                     ).results
-                store_module.TEXT_NORMALISATION = standing
                 cv = cross_validate(per_flag, k)
                 print(f"===== k={k}, {cv.splits} splits, seed {CV_SEED} =====")
                 print(f"  in-sample advantage of the best flag : {cv.in_sample:+.4f}")
