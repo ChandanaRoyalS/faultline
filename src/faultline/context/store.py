@@ -181,6 +181,29 @@ def _cosine(left: list[float], right: list[float]) -> float:
     return 0.0 if norm == 0 else dot / norm
 
 
+TEXT_NORMALISATION = 1
+"""`ts_rank_cd`'s normalisation bitmask: divide the rank by `1 + log(document length)` (Q49).
+
+**The defect it answers.** With no normalisation `ts_rank_cd` does not divide by length, so under
+Q39's disjunction a long chunk matches more of a query's terms and ranks higher whether or not it
+is *about* them. Synthesizer queries carry four specialist findings and name several services, so
+they OR into the widest match sets in the corpus and hand the ordering to whichever chunks are
+longest. Q39 cost the synthesizer two queries at `k = 5` while the planner gained everywhere, and
+`PREREGISTRATION-Q39.md`'s prediction 7 named this mechanism in advance as the reason it might.
+
+**Why 1 and not the best of six.** Flags 1, 2, 4, 8 and 16 all reorder this corpus - 17, 42, 17, 35
+and 18 of the 43 golden queries get a different top chunk. Measuring all of them against one
+43-query set and adopting the winner is selection on the test set, at a scale where one query is
+0.0233. Flag 1 is the conventional mild length normalisation and the one that addresses the named
+mechanism, so it was chosen on argument; `PREREGISTRATION-Q49.md` §3 records that and the others
+are reported without deciding anything.
+
+**Flag 32 is not a candidate and cannot be one.** `fuse` is reciprocal-rank fusion: it reads
+positions, not scores. `rank/(rank + 1)` is monotone, so it cannot move a position - and measuring
+it confirmed 0 of 43 top results change. Any future proposal to "normalise the score to 0..1" is
+the same no-op.
+"""
+
 TEXT_QUERY = "replace(plainto_tsquery('english', %(q)s)::text, ' & ', ' | ')::tsquery"
 """The text arm's query, **disjunctive** (Q39, `PREREGISTRATION-Q39.md`).
 
@@ -293,7 +316,8 @@ class PgVectorPastIncidentStore:
                 "WITH tq AS (SELECT " + TEXT_QUERY + " AS q) "
                 "SELECT id FROM incident_chunks, tq WHERE body_tsv @@ tq.q"
                 + exclusion
-                + " ORDER BY ts_rank_cd(body_tsv, tq.q) DESC LIMIT %(k)s",
+                + f" ORDER BY ts_rank_cd(body_tsv, tq.q, {TEXT_NORMALISATION}) DESC"
+                + " LIMIT %(k)s",
                 params,
             )
             text = [str(row[0]) for row in cur.fetchall()]
