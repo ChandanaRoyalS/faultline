@@ -181,6 +181,32 @@ def _cosine(left: list[float], right: list[float]) -> float:
     return 0.0 if norm == 0 else dot / norm
 
 
+TEXT_QUERY = "replace(plainto_tsquery('english', %(q)s)::text, ' & ', ' | ')::tsquery"
+"""The text arm's query, **disjunctive** (Q39, `PREREGISTRATION-Q39.md`).
+
+**What was wrong.** `plainto_tsquery` ANDs every lexeme, so a query had to have all of its terms
+in one chunk to match at all. Measured against the corpus: one term matched 37 chunks, three
+matched 1, and a real six-term planner query matched **none**. All 43 golden queries returned
+zero rows on this arm, so `fuse()` had been fusing one list since T2.4b and `RRF_K` had been a
+constant over a single arm. Every figure in `RETRIEVAL-2026-09-12-t6.4.md` is labelled one-armed
+for that reason.
+
+**Why the operator is swapped rather than the function.** `websearch_to_tsquery` was the other
+candidate Q39 named and it is not one: it ANDs too, matching 0 of 43, and differs from
+`plainto_tsquery` on only 22 queries and only by rendering hyphenated compounds as phrase
+constraints - *more* restrictive. Taking `plainto_tsquery`'s own output and replacing ` & ` with
+` | ` keeps its stemming, its stopword removal and its quoting exactly, and changes the one thing
+that was wrong. Postgres quotes each lexeme, so a `&` in the input is inside quotes and is not a
+separator; an empty or stopword-only query yields an empty `tsquery`, which matches nothing -
+the correct answer rather than an error.
+
+**What it costs, stated because the registration predicts from it.** The arm stops being a filter
+and becomes a ranking problem: a disjunction over six terms matches a **median of 174 of the 211
+authored chunks**, and `ts_rank_cd` with `LIMIT k` then does the discriminating. Whether that is
+an improvement is the question `PREREGISTRATION-Q39.md` §4 registers ten predictions about.
+"""
+
+
 class PgVectorPastIncidentStore:
     """The real one. Not exercised by `make check` - the tests use the in-memory double.
 
@@ -264,9 +290,10 @@ class PgVectorPastIncidentStore:
             )
             dense = [str(row[0]) for row in cur.fetchall()]
             cur.execute(
-                "SELECT id FROM incident_chunks WHERE body_tsv @@ plainto_tsquery("
-                "'english', %(q)s)" + exclusion + " ORDER BY ts_rank_cd(body_tsv, "
-                "plainto_tsquery('english', %(q)s)) DESC LIMIT %(k)s",
+                "WITH tq AS (SELECT " + TEXT_QUERY + " AS q) "
+                "SELECT id FROM incident_chunks, tq WHERE body_tsv @@ tq.q"
+                + exclusion
+                + " ORDER BY ts_rank_cd(body_tsv, tq.q) DESC LIMIT %(k)s",
                 params,
             )
             text = [str(row[0]) for row in cur.fetchall()]

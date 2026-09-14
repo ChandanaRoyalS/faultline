@@ -268,3 +268,28 @@ rather than treating as settled.
 
 **Prediction 8 remains untested.** No in-memory corpus was built, so the ranking comparison it
 names was never set up. Recorded as unresolved rather than dropped.
+
+---
+
+## Addendum 3 — the text arm was fixed, and `recall@5` went down (2026-09-13)
+
+Appended, not rewritten: every figure above stands as what was measured on 2026-09-12.
+
+Q39 landed. The text arm is disjunctive and now matches for all 43 queries instead of none, so the
+hybrid is two-armed for the first time since T2.4b. **`recall@5` fell, 0.465 → 0.442**, while
+`MRR@5` rose 0.219 → 0.311 and `recall@3` — production's `k` — rose 0.256 → 0.395.
+
+Two things above need reading differently in light of it:
+
+**§2's headline that the pipeline is dense-only is now historical.** The figures in this document
+are one-armed figures, which is what they were labelled, and they remain the correct record of
+what a one-armed hybrid returned.
+
+**The expectation that fixing the arm would move the figures up sharply was half right and in the
+wrong half.** The gate file said *"Q39's fix should move these figures up sharply."* Ranking
+improved sharply; recall on the deciding metric did not improve at all. A second arm that matches
+82% of the corpus promotes relevant documents that were already retrieved rather than reaching new
+ones, and it displaces a dense hit occasionally — one query, in this measurement.
+
+The full result, all ten predictions adjudicated, and the two defects found in Q39's own decision
+rule: [`RETRIEVAL-2026-09-13-q39.md`](RETRIEVAL-2026-09-13-q39.md).
