@@ -132,17 +132,33 @@ def _reconcile(store: PastIncidentStore, chunks: list[Chunk]) -> int:
     return store.prune_document(document_id, {chunk_key(chunk) for chunk in chunks})
 
 
+def dev_bundles(root: Path) -> list[tuple[Path, str | None]]:
+    """Every directory under `root`, with why it is skipped or `None` if it seeds.
+
+    **Extracted so the corpus-drift check enumerates what the seeder enumerates** (Q45). A second
+    copy of *"skip a bundle with no narrative, skip one marked INVALID"* would make the check
+    disagree with the seeder about what the corpus should contain, which is the one thing a drift
+    check may not do.
+    """
+    out: list[tuple[Path, str | None]] = []
+    for bundle in sorted(p for p in root.iterdir() if p.is_dir()):
+        if not (bundle / NARRATIVE).is_file():
+            out.append((bundle, "no incident.md"))
+        elif (bundle / INVALID).is_file():
+            out.append((bundle, "bundle is marked INVALID"))
+        else:
+            out.append((bundle, None))
+    return out
+
+
 def seed(store: PastIncidentStore, dev_root: Path) -> SeedResult:
     """Seed every valid dev bundle's narrative. One root, and it is the only argument."""
     root = require_dev_root(dev_root)
     result = SeedResult()
 
-    for bundle in sorted(p for p in root.iterdir() if p.is_dir()):
-        if not (bundle / NARRATIVE).is_file():
-            result.skipped.append((bundle.name, "no incident.md"))
-            continue
-        if (bundle / INVALID).is_file():
-            result.skipped.append((bundle.name, "bundle is marked INVALID"))
+    for bundle, skip in dev_bundles(root):
+        if skip is not None:
+            result.skipped.append((bundle.name, skip))
             continue
         chunks = bundle_chunks(bundle)
         result.chunks += store.add(chunks)
