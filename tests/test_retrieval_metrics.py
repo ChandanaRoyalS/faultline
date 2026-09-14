@@ -282,3 +282,26 @@ def test_the_arms_diagnostic_reads_the_arm_the_store_actually_uses() -> None:
     assert TEXT_QUERY in sql
     assert "plainto_tsquery('english', %(q)s)::text" in sql, "still built from plainto's lexemes"
     assert " & " in sql and " | " in sql, "and it is the disjunctive form, not the conjunctive one"
+
+
+def test_the_draw_refuses_holdout_derived_queries(monkeypatch: pytest.MonkeyPatch) -> None:
+    """**The defect the provenance check found, and the reason it was worth running.**
+
+    `golden.yaml`'s header says holdout-harvested queries are excluded and `load_golden` raises on
+    them, so a committed file could not carry one. The first version of `draw` did not filter them
+    at all: run against the real harvest it emitted six synthesizer queries from
+    `email-wrong-image`, `productcatalog-dependency-latency` and `recommendation-memory-squeeze` -
+    each carrying a holdout run's findings in its text, presented as a mechanical selection.
+
+    A read-side guard catches the file. It does not catch the person who ran the draw, read the
+    output, and now knows what is in those runs.
+    """
+    monkeypatch.setattr(
+        "evalharness.freeze.holdout_origins", lambda: ["scenario:held"], raising=True
+    )
+    rows = [
+        _row(retrieval.PLANNER, "scenario:held", "t1", 0, "from a holdout run"),
+        _row(retrieval.PLANNER, "scenario:dev", "t2", 0, "from a dev run"),
+    ]
+
+    assert [r["query"] for r in retrieval.draw(rows)] == ["from a dev run"]

@@ -423,11 +423,22 @@ def draw(
 
     Distinct **by query text**, keeping the first occurrence in sort order, because one query text
     can be sent in several runs and the golden set labels texts rather than sendings.
+
+    **Holdout-derived rows are dropped before anything is sorted**, and leaving that out was the
+    first version's defect. `golden.yaml`'s header states the exclusion and `load_golden` raises on
+    it, so a committed file would have been caught - but a *draw* that emits them hands the next
+    author six synthesizer queries carrying holdout findings and a procedure that says they were
+    selected mechanically. The provenance check found it: six of the seven queries this drew that
+    the committed set does not contain came from `email-wrong-image`,
+    `productcatalog-dependency-latency` and `recommendation-memory-squeeze`.
     """
+    from evalharness.freeze import holdout_origins
+
+    held = set(holdout_origins())
     seen: set[str] = set()
     ordered: list[dict[str, Any]] = []
     for row in sorted(
-        rows,
+        [r for r in rows if str(r["exclude_origin"] or "") not in held],
         key=lambda r: (
             str(r["role"]),
             str(r["exclude_origin"] or ""),
