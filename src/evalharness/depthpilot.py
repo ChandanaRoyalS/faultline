@@ -267,11 +267,25 @@ class Steps(Protocol):
     def revert(self, scenario_id: str) -> None: ...
 
 
+SETTLE_SECONDS = 300
+"""The orchestrator's settle window, and **the reason a pilot could only ever complete its first
+pair.** Every pair leaves a resolved incident, and a firing inside 300s reopens it rather than
+opening a new one - so the next pair's alerts would be attributed to the previous scenario and the
+gate refuses outright. `sweep.py` learned this first and carries the same constant; this mirrors it
+rather than inventing a second number.
+
+**Found by the dry run, before any money was spent on it.** The gate's refusal said *"Wait 141s"*,
+which is what made the gap visible: without this the ten-pair run would complete pair one, refuse
+pairs two through ten, and report `n = 1` for $1.20."""
+
+
 def run_pilot(
     steps: Steps,
     scenarios: tuple[str, ...] = SCENARIOS,
     *,
     ceiling_usd: float = BUDGET_CEILING_USD,
+    settle: int = 0,
+    sleeper: Any = None,
 ) -> PilotResult:
     """Ten pairs, or as many as the budget allows.
 
@@ -284,9 +298,20 @@ def run_pilot(
 
     **The world is reverted in a `finally`**, because a pilot that leaves a fault injected has cost
     more than money.
+
+    **`settle` defaults to 0 and that is deliberate**, on `sweep.py`'s precedent: *"the first
+    version defaulted without a sleeper and tried to nap for twenty minutes"*. Waiting is a property
+    of running the pilot, not of the function, and a default that sleeps is one nobody can call in a
+    test without knowing to disarm it. The CLI passes `SETTLE_SECONDS`.
     """
+    import time
+
+    nap = sleeper if sleeper is not None else time.sleep
     result = PilotResult()
     for index, scenario_id in enumerate(scenarios):
+        if index and settle:
+            print(f"--- settling {settle}s before {scenario_id}", flush=True)
+            nap(settle)
         pair = PairResult(scenario_id=scenario_id)
         result.pairs.append(pair)
 
@@ -495,6 +520,13 @@ def run_cli(argv: list[str] | None = None) -> int:  # pragma: no cover - the liv
         help="restrict to these scenarios. For a dry check of the driver, not for the pilot",
     )
     parser.add_argument(
+        "--settle",
+        type=int,
+        default=SETTLE_SECONDS,
+        help="seconds to wait between pairs. The orchestrator's settle window is 300s and a pair "
+        "started inside it is refused by the gate, so lowering this buys refusals, not speed",
+    )
+    parser.add_argument(
         "--i-have-read-the-registration",
         action="store_true",
         help="required. This command spends money and the registration says how much and why",
@@ -513,7 +545,7 @@ def run_cli(argv: list[str] | None = None) -> int:  # pragma: no cover - the liv
         )
 
     scenarios = tuple(args.only) if args.only else SCENARIOS
-    result = run_pilot(LiveSteps(), scenarios, ceiling_usd=args.ceiling)
+    result = run_pilot(LiveSteps(), scenarios, ceiling_usd=args.ceiling, settle=args.settle)
     print(result.render())
     if args.out:
         args.out.write_text(json.dumps(result.as_dict(), indent=2) + "\n")

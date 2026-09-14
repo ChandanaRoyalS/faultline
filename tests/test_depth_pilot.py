@@ -277,3 +277,41 @@ def test_an_abstention_is_still_a_verdict() -> None:
 
     assert verdict is not None
     assert verdict.remediation_class == "none"
+
+
+# --- the settle window between pairs ------------------------------------------------------------
+
+
+def test_the_pilot_settles_between_pairs_but_not_before_the_first() -> None:
+    """**The gap the dry run exposed at $0.**
+
+    Every pair leaves a resolved incident, and a firing inside the orchestrator's 300s window
+    reopens it rather than opening a new one - so the next pair's alerts are attributed to the
+    previous scenario and the gate refuses. Without this the ten-pair run completes pair one,
+    refuses pairs two through ten, and reports `n = 1` for $1.20.
+
+    The gate's own refusal is what made it visible: *"Wait 141s."* `sweep.py` carries the same
+    constant for the same reason, and this mirrors it rather than inventing a second number.
+
+    No wait before the first pair: there is nothing to settle from.
+    """
+    steps = _Steps()
+    naps: list[int] = []
+
+    run_pilot(steps, ("a", "b", "c"), settle=300, sleeper=naps.append)
+
+    assert naps == [300, 300], "between pairs, not before the first"
+
+
+def test_settle_defaults_off_so_a_test_cannot_nap_for_twenty_minutes() -> None:
+    """`sweep.py`'s lesson, inherited rather than relearned: *"the first version defaulted without
+    a sleeper and tried to nap for twenty minutes."* Waiting is a property of running the pilot,
+    not of the function, and a default that sleeps is one nobody can call in a test without knowing
+    to disarm it. The CLI passes `SETTLE_SECONDS`."""
+    steps = _Steps()
+    naps: list[int] = []
+
+    run_pilot(steps, ("a", "b"), sleeper=naps.append)
+
+    assert naps == []
+    assert depthpilot.SETTLE_SECONDS == 300
