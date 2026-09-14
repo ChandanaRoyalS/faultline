@@ -16,6 +16,10 @@ Saying so in the file is the difference between a gate and a decoration."*
 **This runs against real pgvector and the real embedder**, because the figure it guards came from
 those. A gate over the hashing embedder or the in-memory double would be guarding a different
 pipeline and would pass while production regressed.
+
+**And it reads both `k`** (ADR-0040). It read `k = 5` alone until 2026-09-14, because that is what
+the floor is stated in - while `ContextSettings.retrieval_k` is **3**, so a regression at the only
+depth production uses could clear this gate untouched. Q48 established the two are not nested.
 """
 
 from __future__ import annotations
@@ -53,6 +57,27 @@ The first measurement, on 2026-09-12 with a text arm that matched nothing, retur
 difference is **one query of 43** and that the registered decision rule said not to adopt.
 
 Recorded here so the margin below is readable as a margin rather than as a number someone chose.
+"""
+
+MEASURED_RECALL_AT_3 = 0.395
+MEASURED_MRR_AT_3 = 0.233
+"""The same measurement read at `k = 3`, which is the depth production retrieves at.
+
+Unchanged by Q48's reconciliation: removing the two orphan chunks moved `MRR@5` and left every
+`k = 3` figure byte-identical. Not a coincidence worth relying on - see ADR-0040 clause 3 - but
+recorded because it is the reason these two numbers have one date and the `k = 5` pair has two.
+"""
+
+GATE_RECALL_AT_3 = 0.35
+GATE_MRR_AT_3 = 0.21
+"""**Calibrated at the same relative margins as the `k = 5` pair** - 11.4% and 9.9% below, from
+rounding the 9.5%/9.1% formula down to two places. Derived rather than chosen, so that the two
+depths cannot drift into being governed by different degrees of slack.
+
+**No floor accompanies these** (ADR-0040 clause 4). A floor says what good would look like and is
+worth having only if it was argued before the answer was known. `recall@3` was measured at 0.395
+before anyone proposed a `k = 3` floor, so any number written now would be chosen with the answer
+in hand. These are regression gates; they certify nothing.
 """
 
 GATE_RECALL_AT_5 = 0.40
@@ -127,6 +152,34 @@ def test_retrieval_has_not_regressed_against_the_calibrated_gate(
     )
 
 
+def test_retrieval_has_not_regressed_at_the_depth_production_retrieves(
+    seeded_store: PgVectorPastIncidentStore,
+) -> None:
+    """**ADR-0040 clause 1.** The gate read `k = 5` only, and production retrieves `k = 3`.
+
+    `ContextSettings.retrieval_k` is 3 and T6.4 set it there *because nothing read the old 5*. So
+    for the whole life of this gate, a regression at the only depth the pipeline actually uses
+    could pass it - and Q48 showed the two are not nested: each arm applies its own `LIMIT k` and
+    `fuse` takes `limit=k`, so `k = 3` and `k = 5` are different retrievals, not one read twice.
+
+    Additive on purpose. Nothing that passed before can fail because a condition was added, which
+    is what makes this safe to land in the same breath as an ADR about which `k` decides - the
+    clause that could be self-serving is clause 2, and it governs the *next* measurement rather
+    than this file.
+    """
+    result = measure(seeded_store, load_golden(), k=3, predates_task=PREDATES_T6_4)
+
+    assert result.overall.recall_at_k >= GATE_RECALL_AT_3, (
+        f"recall@3 {result.overall.recall_at_k:.3f} is below the calibrated gate "
+        f"{GATE_RECALL_AT_3}. Measured at {MEASURED_RECALL_AT_3} on 2026-09-14, on the reconciled "
+        "corpus. This is the depth production retrieves at."
+    )
+    assert result.overall.mrr >= GATE_MRR_AT_3, (
+        f"MRR@3 {result.overall.mrr:.3f} is below the calibrated gate {GATE_MRR_AT_3}. "
+        f"Measured at {MEASURED_MRR_AT_3} on 2026-09-14."
+    )
+
+
 def test_the_gate_is_below_the_measurement_and_the_measurement_is_below_the_floor(
     seeded_store: PgVectorPastIncidentStore,
 ) -> None:
@@ -142,3 +195,9 @@ def test_the_gate_is_below_the_measurement_and_the_measurement_is_below_the_floo
     """
     assert GATE_RECALL_AT_5 < MEASURED_RECALL_AT_5 < 0.60
     assert GATE_MRR_AT_5 < MEASURED_MRR_AT_5 < 0.45
+
+    # **Two levels at `k = 3`, not three** - ADR-0040 clause 4 sets no floor there, because
+    # `recall@3` was measured before anyone proposed one. The ordering that remains is still
+    # worth asserting: a gate above its own measurement fails every build at either depth.
+    assert GATE_RECALL_AT_3 < MEASURED_RECALL_AT_3
+    assert GATE_MRR_AT_3 < MEASURED_MRR_AT_3
