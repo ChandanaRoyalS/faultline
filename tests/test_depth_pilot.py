@@ -223,3 +223,57 @@ def test_the_pilot_calls_no_model_itself() -> None:
     assert "anthropic" not in imported
     assert not any(name.startswith("faultline.agents.role") for name in imported)
     assert "faultline.agents.model" not in imported
+
+
+# --- reading the verdict, which the dry run found broken ---------------------------------------
+
+
+def test_the_verdict_is_read_from_the_artifact_the_pipeline_writes() -> None:
+    """**The defect the $1.20 dry run bought.**
+
+    The first version queried a `proposals` table that does not exist. The lesson is not the wrong
+    name: `faultline-investigate --out` writes `<incident>-verdict.json`, `evalharness.run` reads
+    exactly that file, and a driver reconstructing the same answer from tables is a second
+    implementation of the harness - which this module's docstring says it must not be.
+
+    `fault_class` lives here and **not** in `trajectory_proposals`, which carries
+    `remediation_class` only, so the table route could never have answered the question at all.
+    """
+    payload = {
+        "trajectory_id": "c5d32a77",
+        "verdict": {"fault_class": "resource_exhaustion", "remediation_class": "scale"},
+    }
+
+    verdict = depthpilot.verdict_from_artifact(payload, CHANGE_ARM, cost_usd=0.6)
+
+    assert verdict is not None
+    assert verdict.fault_class == "resource_exhaustion"
+    assert verdict.remediation_class == "scale"
+    assert verdict.trajectory_id == "c5d32a77"
+    assert verdict.cost_usd == 0.6
+
+
+def test_an_artifact_without_a_verdict_yields_none_rather_than_a_blank() -> None:
+    """A blank `fault_class` compared against another blank would read as *the arms agree*, which
+    is the pilot's outcome reported from an absence of evidence."""
+    assert depthpilot.verdict_from_artifact({}, CHANGE_ARM) is None
+    assert depthpilot.verdict_from_artifact({"trajectory_id": "t"}, CHANGE_ARM) is None
+    assert (
+        depthpilot.verdict_from_artifact({"verdict": {"fault_class": "bad_deploy"}}, CHANGE_ARM)
+        is None
+    )
+
+
+def test_an_abstention_is_still_a_verdict() -> None:
+    """ADR-0022 §1.2: an abstention is an outcome, not an absence. The dry run's one completed arm
+    abstained on the proposal and still returned a fault class, and a pilot that discarded it would
+    be dropping the answer it exists to compare."""
+    payload = {
+        "trajectory_id": "t1",
+        "verdict": {"fault_class": "resource_exhaustion", "remediation_class": "none"},
+    }
+
+    verdict = depthpilot.verdict_from_artifact(payload, BASELINE_ARM)
+
+    assert verdict is not None
+    assert verdict.remediation_class == "none"

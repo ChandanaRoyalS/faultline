@@ -95,6 +95,36 @@ def env_for(arm: str, base: dict[str, str] | None = None) -> dict[str, str]:
     return out
 
 
+def verdict_from_artifact(
+    payload: dict[str, Any], arm: str, *, cost_usd: float = 0.0, documents: tuple[str, ...] = ()
+) -> Verdict | None:
+    """Read one arm's answer out of `<incident>-verdict.json`.
+
+    **The first version of this queried a `proposals` table that does not exist**, and the dry run
+    found it after one paid investigation had already completed. The lesson is not that a name was
+    wrong: it is that the pipeline already writes a verdict artifact, `faultline-investigate --out`
+    produces it, and `evalharness.run` reads exactly this file. A driver that goes around the
+    artifact to reconstruct the same answer from tables is a second implementation of the harness,
+    which is the thing this module's own docstring says it must not be.
+
+    `fault_class` is here and **not** in `trajectory_proposals`, which carries `remediation_class`
+    only - so the table route could never have answered the question in the first place.
+    """
+    verdict = payload.get("verdict") or {}
+    trajectory_id = str(payload.get("trajectory_id") or "")
+    fault_class = str(verdict.get("fault_class") or "")
+    if not trajectory_id or not fault_class:
+        return None
+    return Verdict(
+        arm=arm,
+        trajectory_id=trajectory_id,
+        fault_class=fault_class,
+        remediation_class=str(verdict.get("remediation_class") or ""),
+        cost_usd=cost_usd,
+        documents=documents,
+    )
+
+
 @dataclass(frozen=True, slots=True)
 class Verdict:
     """One arm's answer, reduced to what the pilot compares."""
@@ -339,63 +369,99 @@ class LiveSteps:  # pragma: no cover - the paid path; the fakes cover the logic
             return None
 
     def investigate(self, incident_id: str, arm: str) -> Verdict | None:
+        """One arm, through the CLI, reading the artifact the CLI writes.
+
+        **Each arm gets its own output directory.** Both halves of a pair share an incident, so
+        both write `<incident>-verdict.json` - into one directory the second would overwrite the
+        first and the pilot would compare an arm against itself.
+
+        Nothing here raises. A driver whose verdict read can end the run is a driver that can leave
+        a fault injected on a world nobody is watching, and the whole pilot was stopped once
+        already by exactly that.
+        """
         import subprocess
+        import tempfile
 
         from faultline.orchestrator.settings import OrchestratorSettings
 
-        argv = ["faultline-investigate", incident_id, *OrchestratorSettings().investigate_args]
-        completed = subprocess.run(
-            argv, check=False, capture_output=True, text=True, env=env_for(arm)
-        )
-        print(completed.stdout)
-        if completed.returncode != 0:
-            print(f"  {arm}: faultline-investigate exited {completed.returncode}")
-            return None
-        return self._read_verdict(incident_id, arm)
+        with tempfile.TemporaryDirectory(prefix=f"q53-{arm}-") as tmp:
+            argv = [
+                "faultline-investigate",
+                incident_id,
+                "--out",
+                tmp,
+                *OrchestratorSettings().investigate_args,
+            ]
+            completed = subprocess.run(
+                argv, check=False, capture_output=True, text=True, env=env_for(arm)
+            )
+            print(completed.stdout)
+            if completed.returncode != 0:
+                print(f"  {arm}: faultline-investigate exited {completed.returncode}")
+                print(completed.stderr[-2000:])
+                return None
+            artifact = Path(tmp) / f"{incident_id}-verdict.json"
+            if not artifact.exists():
+                print(f"  {arm}: the investigation wrote no verdict artifact")
+                return None
+            try:
+                payload = json.loads(artifact.read_text())
+            except (OSError, ValueError) as exc:
+                print(f"  {arm}: unreadable verdict artifact: {exc}")
+                return None
 
-    def _read_verdict(self, incident_id: str, arm: str) -> Verdict | None:
+        trajectory_id = str(payload.get("trajectory_id") or "")
+        return verdict_from_artifact(
+            payload,
+            arm,
+            cost_usd=self._cost_of(trajectory_id),
+            documents=self._documents_of(trajectory_id),
+        )
+
+    def _cost_of(self, trajectory_id: str) -> float:
+        """From the recorded tokens. **Zero on any failure**, because a pilot that cannot price a
+        run it already paid for should report the run, not lose it - and the budget ceiling is
+        checked against the total, so an unpriced run makes the ceiling *more* conservative in the
+        wrong direction. That is a real limitation and it is better than an exception."""
         import psycopg
 
-        sql = """
-        SELECT t.id,
-               coalesce(sum(s.tokens_in), 0),
-               coalesce(sum(s.tokens_out), 0)
-        FROM trajectories t LEFT JOIN trajectory_steps s ON s.trajectory_id = t.id
-        WHERE t.incident_id = %s AND t.model <> 'none'
-        GROUP BY t.id, t.started_at ORDER BY t.started_at DESC LIMIT 1
-        """
-        with psycopg.connect(self._dsn) as conn:
-            row = conn.execute(sql, (incident_id,)).fetchone()
-            if not row:
-                return None
-            trajectory_id, tokens_in, tokens_out = row
-            proposal = conn.execute(
-                "SELECT fault_class, remediation_class FROM proposals "
-                "WHERE trajectory_id = %s ORDER BY created_at DESC LIMIT 1",
-                (trajectory_id,),
-            ).fetchone()
-            documents = conn.execute(
-                "SELECT returned FROM trajectory_retrievals WHERE trajectory_id = %s "
-                "ORDER BY seq DESC LIMIT 1",
-                (trajectory_id,),
-            ).fetchone()
-
-        if not proposal:
-            return None
         from faultline.agents.settings import AgentSettings
 
+        if not trajectory_id:
+            return 0.0
+        try:
+            with psycopg.connect(self._dsn) as conn:
+                row = conn.execute(
+                    "SELECT coalesce(sum(tokens_in), 0), coalesce(sum(tokens_out), 0) "
+                    "FROM trajectory_steps WHERE trajectory_id = %s",
+                    (trajectory_id,),
+                ).fetchone()
+        except Exception as exc:  # pragma: no cover - observational
+            print(f"  could not price {trajectory_id}: {type(exc).__name__}")
+            return 0.0
+        if not row:
+            return 0.0
         settings = AgentSettings()
-        cost = (
-            tokens_in * settings.usd_per_mtok_in + tokens_out * settings.usd_per_mtok_out
-        ) / 1_000_000
-        return Verdict(
-            arm=arm,
-            trajectory_id=str(trajectory_id),
-            fault_class=str(proposal[0] or ""),
-            remediation_class=str(proposal[1] or ""),
-            cost_usd=float(cost),
-            documents=tuple(documents[0]) if documents and documents[0] else (),
-        )
+        cost = row[0] * settings.usd_per_mtok_in + row[1] * settings.usd_per_mtok_out
+        return float(cost) / 1_000_000
+
+    def _documents_of(self, trajectory_id: str) -> tuple[str, ...]:
+        """What retrieval returned, for prediction 7. Empty on any failure - it is evidence for a
+        prediction, not a thing the pilot turns on."""
+        import psycopg
+
+        if not trajectory_id:
+            return ()
+        try:
+            with psycopg.connect(self._dsn) as conn:
+                row = conn.execute(
+                    "SELECT returned FROM trajectory_retrievals WHERE trajectory_id = %s "
+                    "ORDER BY seq DESC LIMIT 1",
+                    (trajectory_id,),
+                ).fetchone()
+        except Exception:  # pragma: no cover - observational
+            return ()
+        return tuple(row[0]) if row and row[0] else ()
 
     def revert(self, scenario_id: str) -> None:
         from evalharness.run import _sh
