@@ -57,12 +57,16 @@ class _Steps:
         return "injected"
 
     def wait_for_incident(self, scenario_id: str, after: datetime) -> str | None:
-        return f"inc-{scenario_id}" if self._incident else None
+        """A fresh incident per injection, because a re-attempt is a fresh injection: the old one
+        is `failed`, which ADR-0016's table makes terminal."""
+        if not self._incident:
+            return None
+        return f"inc-{scenario_id}-{self.injected.count(scenario_id)}"
 
     def investigate(self, incident_id: str, arm: str) -> Verdict | None:
         self.investigations.append((incident_id, arm))
         self.order.append(f"investigate:{arm}")
-        scenario = incident_id.removeprefix("inc-")
+        scenario = incident_id.removeprefix("inc-").rsplit("-", 1)[0]
         answer = self.answers.get((scenario, arm), ("bad_deploy", "rollback"))
         if answer is None:
             return None
@@ -73,6 +77,11 @@ class _Steps:
         if self._reject_raises is not None:
             raise self._reject_raises
         self.rejections.append((incident_id, reason))
+
+    def spend_on(self, incident_id: str) -> float:
+        """Priced per investigation started, verdict or not - which is the world's behaviour and
+        the whole point of asking the world instead of summing the verdicts."""
+        return self._cost * sum(1 for i, _ in self.investigations if i == incident_id)
 
     def revert(self, scenario_id: str) -> None:
         self.reverted.append(scenario_id)
@@ -212,8 +221,8 @@ def test_a_refused_rejection_loses_the_pair_and_says_so() -> None:
     assert not pair.complete
     assert not pair.rejected
     assert "rejection refused" in pair.skipped and "409" in pair.skipped
-    assert steps.reverted == ["a"], "the world is still cleaned up"
-    assert result.cost_usd == pytest.approx(0.6), "the first arm's spend is still reported"
+    assert steps.reverted == ["a", "a"], "both attempts still clean up"
+    assert result.cost_usd == pytest.approx(1.2), "each attempt's first arm is still counted"
 
 
 def test_the_artifact_records_the_channel_the_outcome_was_read_on() -> None:
@@ -268,6 +277,67 @@ def test_the_registered_reason_survives_the_machines_own_cleaning() -> None:
     assert clean_reason(depthpilot.REJECTION_REASON)
 
 
+# --- Amendment 2: spend the ceiling can see, and one re-attempt per scenario --------------------
+
+
+def test_a_failed_arms_spend_is_counted_against_the_ceiling() -> None:
+    """**The defect the fourth dry run exposed, and it reported `$0.00` while doing it.**
+
+    The planner ran, was refused twice on a field `DispatchPlan` forbids, and the incident went to
+    `failed`. No verdict - so the old accounting, which summed the verdicts, saw no spend at all.
+    Twenty investigations at a discard rate near a sixth is several dollars the $25 ceiling could
+    not observe, which is a blind spot in exactly the place a ceiling exists for.
+
+    So the pair's cost is what the **incident** cost, read from the world after each arm.
+    """
+    steps = _Steps({("a", BASELINE_ARM): None}, cost=0.5)
+
+    result = run_pilot(steps, ("a",))
+
+    assert not any(p.complete for p in result.pairs)
+    assert result.cost_usd == pytest.approx(1.0), "two attempts, one dead arm each, both counted"
+    assert "spent $0.50" in result.render()
+
+
+def test_a_dead_pair_is_re_attempted_once_and_only_once() -> None:
+    """Amendment 2, fixed before the run. A pair dies whole when either arm fails and the incident
+    is then `failed`, which ADR-0016's table makes terminal - so the retry is a fresh injection.
+
+    Both halves must score for a pair to count, so the harness's 16.7% per-run discard rate is
+    30.6% per pair. One retry restores the registered ten; a second would be a budget responding to
+    its own outcome.
+    """
+    steps = _Steps({("a", CHANGE_ARM): None})
+
+    result = run_pilot(steps, ("a",))
+
+    assert steps.injected == ["a", "a"]
+    assert [p.attempt for p in result.pairs] == [1, 2]
+    assert len({i for i, _ in steps.investigations}) == 2, "a fresh incident, not a resumption"
+
+
+def test_a_scenario_whose_pair_completes_is_not_re_attempted() -> None:
+    steps = _Steps()
+
+    result = run_pilot(steps, ("a", "b"))
+
+    assert steps.injected == ["a", "b"]
+    assert [p.attempt for p in result.pairs] == [1, 1]
+
+
+def test_the_re_attempt_keeps_the_arm_order_of_the_attempt_it_replaces() -> None:
+    """**A retry that flipped the order would confound the retry with the arm**, which is the one
+    thing `arm_order` exists to prevent. The order comes from the scenario's index, never from the
+    attempt number."""
+    steps = _Steps({("b", BASELINE_ARM): None})
+
+    result = run_pilot(steps, ("a", "b"))
+
+    b_pairs = [p for p in result.pairs if p.scenario_id == "b"]
+    assert [p.attempt for p in b_pairs] == [1, 2]
+    assert {p.first_arm for p in b_pairs} == {CHANGE_ARM}, "index 1 puts the change arm first"
+
+
 def test_the_budget_stops_the_pilot_before_spending_not_after() -> None:
     """**A ceiling enforced after the spend is a report, not a limit.**
 
@@ -290,9 +360,9 @@ def test_the_world_is_reverted_even_when_an_arm_produces_nothing() -> None:
 
     result = run_pilot(steps, ("a",))
 
-    assert steps.reverted == ["a"]
-    assert not result.pairs[0].complete
-    assert "produced no verdict" in result.pairs[0].skipped
+    assert steps.reverted == ["a", "a"], "both attempts clean up after themselves"
+    assert not any(p.complete for p in result.pairs)
+    assert all("produced no verdict" in p.skipped for p in result.pairs)
 
 
 def test_a_refused_gate_skips_the_scenario_without_injecting() -> None:
@@ -313,8 +383,8 @@ def test_a_scenario_that_never_alerts_is_skipped_and_reverted() -> None:
 
     result = run_pilot(steps, ("a",))
 
-    assert steps.reverted == ["a"]
-    assert result.pairs[0].skipped == "no incident"
+    assert steps.reverted == ["a", "a"]
+    assert all(p.skipped == "no incident" for p in result.pairs)
     assert steps.investigations == [], "nothing is investigated without an incident"
 
 

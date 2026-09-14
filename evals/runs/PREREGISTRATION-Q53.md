@@ -219,3 +219,85 @@ Still twenty investigations, still a hard **$25.00**. The rejection costs nothin
 transition and a ledger row. The $0.79 the third dry run spent is **already counted against this
 task's record** and is not re-spent: Q53's running total before the pilot is **$1.39**, for three
 defects that would each have spoiled the ten-pair run.
+
+---
+
+# Amendment 2 — a budget that can see a failed arm, and one re-attempt per scenario
+
+**2026-09-14, written before the pilot ran and after the fourth dry run.** Appended, not edited.
+
+## What the dry run found, at $0.12
+
+`--only cart-bad-image-tag`, ceiling lowered to $2. The first arm died:
+
+> `FAILED MID-INVESTIGATION: SchemaValidationError: schema validation failed twice`
+> `(1 validation error for DispatchPlan / skipped_note / Extra inputs are not permitted)`
+
+and the pilot printed **`spend $0.00 of $25.00`**, which was false. A triage had been judged and a
+planner had run and been refused twice; the incident went to `failed` with trajectory `808bae11`
+holding all of it. There was no verdict, the pair's cost was summed from its verdicts, and so the
+spend was invisible.
+
+**Two defects, and the accounting one is the serious one.**
+
+### 1. The ceiling could not see a failed arm
+
+`PairResult.cost_usd` summed `Verdict.cost_usd`, which exists only when an investigation returned a
+verdict. Twenty investigations at the harness's own 16.7% discard rate is between three and four
+runs whose spend the $25 ceiling would never have observed. §4 says *a budget that is revised
+upward mid-task is not a budget*; a budget that cannot observe its own spend is worse, because
+nothing announces it.
+
+**A pair now costs what its incident cost** — every token on every trajectory carrying that
+incident id, read from the world after each arm, verdict or no verdict. The figure appears per pair
+in the artifact and in the rendered report.
+
+### 2. A dead pair could not be retried, and the arithmetic behind prediction 6 was wrong
+
+A pair dies whole when either arm fails, and the incident is then `failed`, which ADR-0016's table
+makes terminal — there is no resuming it. §5's prediction 6 reads *"At least 8 of the 10 pairs
+complete — the discard rate is 16.7% and both halves of a pair must score for the pair to count."*
+It names the right mechanism and then uses the per-**run** rate: both halves scoring is
+0.833² = **0.694**, so the expectation is 6.9 complete pairs, not 8, and P(≥8) is about 13%.
+
+**Prediction 6 stands exactly as registered and will be scored as written.** It is recorded here as
+wrong on its own arithmetic, before the run, because noticing it afterwards and reporting it as a
+near miss would be worth nothing.
+
+What follows from it is the real problem: at ~7 complete pairs §3.1's detection probability at the
+retrieval bound falls from **87% to 76%**, and the pilot was budgeted and argued at ten.
+
+**So: one re-attempt per scenario, and one only.** A pair that fails for any reason other than a
+completed comparison is re-injected once. `ATTEMPTS_PER_SCENARIO = 2`, in the driver, fixed before
+any pair ran.
+
+- **The retry keeps the arm order of the attempt it replaces.** A re-attempt that flipped the order
+  would confound the retry with the arm, which is the one thing §3's alternation exists to prevent.
+- **It is a rule about run failures, not about results.** A differing verdict is a completed pair
+  and is never retried. A rule that retried until the answer changed would be a different study.
+- **Two, not "until it works."** A retry count chosen after seeing how many pairs completed would
+  be a budget responding to its own outcome.
+- **Cost.** Up to ten extra attempts in the worst case, but the expectation is about three at the
+  measured discard rate — roughly **$4**, inside the unchanged $25 ceiling, which is what the
+  ceiling is for. Every attempt is reported, including the ones that died.
+
+## What this does not change
+
+The arms, the outcome channel (`fault_class`, Amendment 1), §3.2's decision rule, and the ceiling.
+Ten pairs is still the target and 0-of-10 still closes Q53.
+
+## The failure itself is not this task's to fix
+
+`skipped_note` was refused because `DispatchPlan` carries `REQUESTED` (`extra="forbid"`).
+`contracts.py` states the governing rule in its own docstring: *"relax the ones whose extras are
+inert, and keep refusing the ones where an unexpected key is an attempted instruction."* An extra on
+`Dispatch` is an attempted instruction — `test_the_window_is_told_to_the_specialist_never_asked_of_it`
+depends on that refusal. An extra on the **plan envelope**, whose fields are `dispatches`, `skipped`
+and `rationale`, has no reader and no path, exactly like `alternatives_note` on `Verdict` ($0.3890,
+two refusals) and `confirm_within_seconds_note` on `Proposal` (sweep 11, finding 35). **This is the
+same defect a third time, one contract over.**
+
+It is not fixed here. `DispatchPlan`'s JSON schema sits inside the frozen `prompts` key, so
+`extra="allow"` would move `prompt_digest` and strand every published figure. It queues as **Q54**,
+and until it lands it is part of this pilot's discard rate — which is precisely what the re-attempt
+above is sized for.
