@@ -39,10 +39,15 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 DEV_ROOT = REPO_ROOT / "evals" / "scenarios" / "artifacts" / "dev"
 
 MEASURED_RECALL_AT_5 = 0.442
-MEASURED_MRR_AT_5 = 0.311
+MEASURED_MRR_AT_5 = 0.286
 """What the **second** measurement returned, 2026-09-13, on a two-armed hybrid (Q39).
 
-The first, on 2026-09-12 with a text arm that matched nothing, returned **0.465 and 0.219**.
+Reported on the **reconciled 261-chunk corpus** (Q48), which is what this container seeds; the
+2026-09-13 write-up leads with 0.442 and **0.311** because it ran against a database still holding
+two orphan chunks, and removing them cost 8% of `MRR@5` and no recall at all.
+
+The first measurement, on 2026-09-12 with a text arm that matched nothing, returned **0.465 and
+0.219**.
 `recall@5` therefore went *down* and `MRR@5` went sharply up;
 `evals/runs/RETRIEVAL-2026-09-13-q39.md` reports the whole of it, including that the recall
 difference is **one query of 43** and that the registered decision rule said not to adopt.
@@ -52,7 +57,7 @@ Recorded here so the margin below is readable as a margin rather than as a numbe
 
 GATE_RECALL_AT_5 = 0.40
 GATE_MRR_AT_5 = 0.26
-"""**Calibrated, not derived.** 9.5% and 16.4% below what was measured.
+"""**Calibrated, not derived.** 9.5% and 9.1% below what was measured.
 
 The margin is not a confidence interval - the golden set is fixed and the corpus is fixed, so
 there is no sampling to be noisy about. It is slack for legitimate corpus edits: adding a
@@ -65,8 +70,9 @@ the measurement - which would put this at **0.38**. The measurement fell, so the
 gate. **A relative-margin rule loosens the gate exactly when quality drops**, which converts a
 regression into the new baseline and is the one thing a regression gate exists to prevent. So the
 rule applied here is the tighter of the two: the registered formula, or the constant already
-standing. For `MRR` the formula tightens (0.18 → 0.26) and is taken; for `recall` it loosens and
-0.40 stands, still below the 0.442 measured.
+standing. For `MRR` the formula tightened (0.18 → 0.26) and was taken; for `recall` it loosens and
+0.40 stands, still below the 0.442 measured. Q48 then moved `MRR` to 0.286, where the formula
+gives 0.235 and this constant is the tighter one again, so 0.26 stands and its margin narrows.
 
 **This deviation was decided after seeing the data**, which is normally how a rule gets bent to
 fit. What makes it defensible is direction: it is strictly more demanding than what was registered
@@ -74,7 +80,7 @@ in both cases, so it cannot flatter the change it was chosen alongside. Recorded
 only in the write-up, because the next person to read these constants is reading this file.
 
 **It certifies nothing.** Clearing it means retrieval has not got materially worse than a pipeline
-still recorded as below its own floor - 0.442 against a registered 0.60, and 0.311 against 0.45.
+still recorded as below its own floor - 0.442 against a registered 0.60, and 0.286 against 0.45.
 """
 
 
