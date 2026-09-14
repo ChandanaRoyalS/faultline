@@ -26,11 +26,11 @@ import os
 import subprocess
 import sys
 import time
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from typing import Any
 
-from evalharness import freeze, gate, generations, metrics, preflight, variance
+from evalharness import freeze, gate, generations, metrics, preflight, prom, variance
 from evalharness.prom import PROMETHEUS, QueryError, get_json
 from evalharness.provenance import recorder_provenance
 from evalharness.scoring import (
@@ -518,6 +518,71 @@ def wait_for_incident(dsn: str, after: datetime, min_episodes: int = 2) -> str:
         "that a sparse service can take far longer than a busy one to trip a rule "
         "(evals/scenarios/CATALOG.md)."
     )
+
+
+CALLER_PROBE_WINDOW_SECONDS = 120
+"""How far back the caller probe looks. Two minutes: long enough for a scrape or two after the
+revert, short enough that it is reading the world *after* recovery rather than during the fault."""
+
+
+def caller_reachability(service: str, *, now: datetime | None = None) -> dict[str, Any]:
+    """**Observational only. Refuses nothing, gates nothing** (Q32).
+
+    `confirm_recovery` asks whether alerts stopped and services report. It does not ask whether a
+    container the revert *recreated* is being **reached**. After `shipping-wrong-image`'s revert,
+    frontend's gRPC client kept dialling the old container's address (`172.18.0.7:50050`), and the
+    next scenario - `ad-memory-squeeze`, first in the catalog where shipping is last - opened with
+    frontend's shipping-quote calls refused. Two of its four misses across dev sweep 12's arms cite
+    that address and the previous scenario's image change.
+
+    **This does not fix that, and is not built to.** There is no caller-to-callee metric in this
+    world: `ERROR_RATIO` and `CALL_RATE` are per service, so "frontend cannot reach shipping" has
+    to be inferred from frontend's own error ratio. Whether that inference actually shows the
+    condition **has never been measured** - the race has been observed once, on a live sweep.
+
+    A recovery gate built on an unmeasured signal is a check that may never fire, reads as
+    protection, and gets trusted. This repository has shipped that three times in a fortnight: a
+    retrieval gate that could not run, a probe still measuring an arm that had been replaced, and a
+    falsification bound to one strength of an effect. So this records and does not decide.
+
+    The trigger in Q32's row - a sweep running `shipping-wrong-image` and `ad-memory-squeeze` back
+    to back - then produces evidence about whether the signal exists. **Gate on it after that, not
+    before.**
+    """
+    from faultline.context.graph import ServiceGraph
+    from faultline.telemetry import PROMETHEUS, query_range
+    from faultline.tools.metrics import MetricTemplate, render_query
+
+    end = now or datetime.now(UTC)
+    start = end - timedelta(seconds=CALLER_PROBE_WINDOW_SECONDS)
+    try:
+        graph = ServiceGraph.from_snapshot()
+        callers = sorted(graph.neighbours(service)) if graph.has(service) else []
+    except Exception as exc:  # pragma: no cover - a missing snapshot must not fail a run
+        return {"service": service, "error": f"{type(exc).__name__}: {exc}", "callers": {}}
+
+    readings: dict[str, Any] = {}
+    for caller in callers:
+        try:
+            payload = query_range(
+                render_query(MetricTemplate.ERROR_RATIO, caller),
+                start,
+                end,
+                step=15,
+                base=PROMETHEUS,
+            )
+            points = prom.series_points(payload)
+            values = [v for series in points.values() for _, v in series]
+            readings[caller] = max(values) if values else None
+        except Exception as exc:  # pragma: no cover - observational; never fails a run
+            readings[caller] = f"{type(exc).__name__}"
+
+    return {
+        "service": service,
+        "window_seconds": CALLER_PROBE_WINDOW_SECONDS,
+        "callers": readings,
+        "note": "observational (Q32); nothing refuses on this",
+    }
 
 
 def confirm_recovery() -> gate.GateReading:
@@ -1305,6 +1370,15 @@ def main(argv: list[str] | None = None) -> int:
             print("confirming recovery...")
             recovery = confirm_recovery()
             run.manifest["recovery"] = recovery.as_dict()
+            # **Recorded, not enforced** (Q32). `confirm_recovery` cannot see a caller still
+            # dialling a recreated container's old address. Neither can this - it infers
+            # reachability from each caller's own error ratio, and whether that inference shows
+            # the condition has never been measured. So it writes a reading and decides nothing,
+            # and the next sweep running shipping-wrong-image before ad-memory-squeeze is what
+            # turns it into evidence.
+            run.manifest["recovery"]["caller_reachability"] = caller_reachability(
+                str((bundle.get("injection") or {}).get("target") or "")
+            )
             emit(
                 ev,
                 "recovered",
