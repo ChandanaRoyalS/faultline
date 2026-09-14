@@ -119,3 +119,103 @@ side already; what is missing is evidence about verdicts, and one pilot does not
   meet a 0.60 floor written at `k = 5` when production ran 3. ADR-0041 says what to do about that:
   **a floor met because the depth moved to meet it is not a floor that was cleared**, and it must be
   said in the same breath as any adoption.
+
+---
+
+# Amendment 1 — the second arm is only reachable through `REJECTED`, so the outcome is `fault_class`
+
+**2026-09-14, written before the pilot ran and after the third dry run.** Appended, not edited:
+nothing above this line is changed, and §3 and §5 are to be read against what follows.
+
+## What the dry run found
+
+`--only cart-bad-image-tag`. The first arm completed and wrote its verdict artifact. The second
+refused:
+
+> `REFUSED: incident 514bd81a-1baf-4bbe-8b43-975a2a36dd29 is in state proposing; the machine`
+> `investigates from rejected, triaging only. See ADR-0016 and`
+> `faultline.orchestrator.machine.INVESTIGABLE.`
+
+**This is a defect in §3's design, not in the driver.** `machine.ALLOWED` admits `PLANNING` from
+`TRIAGING` and from `REJECTED` and from nowhere else — which is the whole reason `INVESTIGABLE` has
+exactly two members — and an incident that has been investigated once is past `TRIAGING`
+permanently. So *"one injection, one incident, two investigations"* is not a design the state
+machine can run. There is no third door, and the cost of finding out was **$0.79**.
+
+The machine is right and the registration was wrong. Adding a transition so that a measurement
+could proceed is the thing the reject-loop driver refused to do in its own docstring — *"changing
+the product to fit the instrument"* — and it is refused again here.
+
+## The amendment
+
+**§3 stands, with the route named: the pair's second arm is reached by rejecting the first arm's
+proposal through `POST /api/v1/incidents/{id}/reject`.** One injection, one incident, one
+rejection, two investigations. `REJECTABLE` is `PROPOSING`, `SYNTHESIZING`, `AWAITING_APPROVAL`, so
+this works whether the first arm proposed an action or abstained.
+
+**`REJECTION_REASON` is fixed in `depthpilot.py` and is identical for all ten pairs.** It carries no
+scenario-specific content, and a test asserts both. A reason chosen after seeing a verdict would be
+prompt-fitting.
+
+**§5's outcome narrows from *`fault_class` or `remediation_class`* to *`fault_class`*.**
+
+This is the price, and it is paid rather than argued away:
+
+- A rejection reaches **the proposer's brief and nothing else** — `roles.py`'s
+  `Section(name="operator-rejection", priority=4, essential=True)`, pinned by
+  `test_an_operator_rejection_reaches_the_proposer_in_the_user_message_only`, which exists because
+  operator text is untrusted input and would otherwise strand `stamp.prompt_digest()`.
+- **T6.3 measured what a rejection does to the next proposal: 2 of 2 changed, both abstentions**
+  (`LOOP-2026-09-12-t6.3.md` §9). So `remediation_class` in this pilot is contaminated by an effect
+  this repository has already measured at 100%. Counting it would let ten pairs recommend funding a
+  30–40 pair measurement on T6.3's finding wearing Q53's name.
+- **`fault_class` is clean.** It is the synthesizer's, and the synthesizer never sees the rejection.
+  The re-investigation reuses the triage it already has, works from the same episodes, the same
+  catalog and the same corpus — `context/seed.py` is the only writer to the past-incident store, so
+  nothing the first arm did changes what the second one can retrieve. Retrieval is the only injected
+  difference upstream of the verdict.
+
+`remediation_class` is **recorded in every pair and in the artifact**, under a line saying why it
+does not decide. If it moves in roughly half the pairs, that is T6.3's effect appearing again; if it
+never moves, that is worth knowing too.
+
+**The symmetry cannot be restored and no attempt is made to fake it.** Seeding a proposal and
+rejecting it before the *first* arm as well — the reject-loop's trick, and free — would make both
+arms run from `REJECTED`, but the second arm's brief would still quote the first arm's real
+proposal while the first arm's quoted a fabricated one. Structural symmetry with asymmetric content
+is worse than an acknowledged asymmetry, because it looks controlled.
+
+## What §5's predictions become
+
+| # | as registered | after this amendment |
+|---|---|---|
+| 1 | at least one pair produces a different `fault_class` **or** `remediation_class` | **at least one produces a different `fault_class`** |
+| 2 | no more than three do | unchanged, read on `fault_class` |
+| 3 | where a verdict changes, `k = 5` is right at least as often | unchanged |
+| 4 | no pair differs only in `remediation_class` | **retired.** It is unanswerable here: the rejection moves `remediation_class` by a route that has nothing to do with retrieval. It was a real prediction about the one-to-one class→remediation mapping and this pilot can no longer test it. |
+| 5–7 | spend, completion rate, document nesting | unchanged |
+
+**Prediction 1 gets harder and that is the correct direction.** It was registered against two
+channels and now has one, and the one it keeps is the narrower. Nothing about the decision rule in
+§3.2 changes: 0 of 10 closes Q53, 1 or more stops the pilot and adopts nothing.
+
+## Two operational consequences
+
+**The pilot now needs `faultline-ingest` running with the executor key.** The rejection goes through
+the authenticated route rather than through `record_rejection`, so that the pilot cannot reach
+`REJECTED` by a path no operator has. `faultline-depth-pilot` refuses before injecting anything if
+`FAULTLINE_API_PASSWORD` is unset, and — the lesson T6.3 paid for and this task has now paid for
+twice — it also refuses before injecting anything if the `agents` extra is missing.
+
+**No `InvestigationRunner` may be running with `--investigate` against this world.**
+`runner._reinvestigable()` picks up rejected incidents under the cap and starts its own
+investigation. Against this pilot that is both a race for the second arm and up to ten
+model calls nobody budgeted. This is stated rather than enforced: the driver cannot see the
+runner, and a check it cannot make honestly is worse than a sentence in the protocol.
+
+## The budget is unchanged
+
+Still twenty investigations, still a hard **$25.00**. The rejection costs nothing — it is a state
+transition and a ledger row. The $0.79 the third dry run spent is **already counted against this
+task's record** and is not re-spent: Q53's running total before the pilot is **$1.39**, for three
+defects that would each have spoiled the ten-pair run.

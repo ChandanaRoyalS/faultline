@@ -27,7 +27,8 @@ from faultline.agents.trajectory import (
     Trajectory,
     TrajectoryStep,
 )
-from faultline.context.store import TEXT_NORMALISATION, TEXT_QUERY
+from faultline.context.settings import ContextSettings
+from faultline.context.store import TEXT_QUERY
 from faultline.migrate import stamp_head, upgrade_head
 from faultline.orchestrator.models import (
     INVESTIGATING_STATES,
@@ -354,7 +355,7 @@ def test_the_text_arm_matches_when_the_terms_do_not_all_co_occur(virgin_dsn: str
         ranked = (
             "WITH tq AS (SELECT " + TEXT_QUERY + " AS q) "
             "SELECT id FROM incident_chunks, tq WHERE body_tsv @@ tq.q "
-            f"ORDER BY ts_rank_cd(body_tsv, tq.q, {TEXT_NORMALISATION}) DESC"
+            f"ORDER BY ts_rank_cd(body_tsv, tq.q, {ContextSettings().text_normalisation}) DESC"
         )
         assert conn.execute(ranked, {"q": query}).fetchall(), (
             "the ranking expression must be valid SQL against a real tsvector - the "
