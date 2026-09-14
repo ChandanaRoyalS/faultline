@@ -107,6 +107,19 @@ of the decision rather than arguing the contamination away.
 A reason chosen after seeing a second verdict would be prompt-fitting; this is the reject-loop
 driver's rule and the constant is here for the same reason its `PAIRS` are."""
 
+ATTEMPTS_PER_SCENARIO = 2
+"""**One re-attempt, and one only** (Amendment 2, registered before the run).
+
+A pair dies whole when either arm fails, and the incident is then `failed`, which ADR-0016's table
+makes terminal - so the retry is a fresh injection, not a resumption. The fourth dry run's arm died
+on a `DispatchPlan` the schema refused twice, which is the harness's ordinary discard rate arriving
+in the worst place for a paired design: **both halves must score, so 16.7% per run is 30.6% per
+pair**, and the registration's own prediction 6 was written against the per-run figure.
+
+Fixed at two before any pair had run, so it is a rule about **run failures** and not about results.
+A retry decided after seeing how many pairs completed would be a budget that responds to its own
+outcome, which is the shape this repository refuses everywhere else."""
+
 REJECT_PATH = "/api/v1/incidents/{incident_id}/reject"
 """The route the second arm depends on, as FastAPI spells it in the schema."""
 
@@ -209,6 +222,16 @@ class PairResult:
     """Whether the incident passed through `REJECTED` between the arms. **True on every complete
     pair**, because it is the only route to a second investigation; recorded rather than assumed so
     that a pair which somehow completed without one would be visible in the artifact."""
+    attempt: int = 1
+    """1, or 2 for the single re-attempt Amendment 2 allows a scenario whose pair died."""
+    spend_usd: float = 0.0
+    """What this incident has cost, **across every trajectory on it**, read after each arm.
+
+    **The fourth dry run reported `$0.00` for an investigation that was not free.** The planner ran,
+    was refused twice on a `skipped_note` the schema forbids, and the incident went to `failed` - so
+    there was no verdict, so the old sum over `verdicts` saw nothing, so the ceiling saw nothing. At
+    twenty investigations and a discard rate near a sixth, that is a budget with a blind spot in
+    exactly the place a budget exists for."""
 
     @property
     def complete(self) -> bool:
@@ -250,7 +273,12 @@ class PairResult:
 
     @property
     def cost_usd(self) -> float:
-        return sum(v.cost_usd for v in self.verdicts.values())
+        """`spend_usd` when the world could be asked, and the verdicts' sum otherwise.
+
+        The fallback is not a nicety: it is what a `Steps` fake without a priced world reports, and
+        keeping it means the budget tests stay about the ceiling rather than about wiring.
+        """
+        return self.spend_usd or sum(v.cost_usd for v in self.verdicts.values())
 
 
 @dataclass
@@ -281,8 +309,10 @@ class PilotResult:
         if self.stopped:
             lines.append(f"STOPPED EARLY   : {self.stopped}")
         for pair in self.pairs:
+            tag = f"{pair.scenario_id}#{pair.attempt}" if pair.attempt > 1 else pair.scenario_id
             if pair.skipped:
-                lines.append(f"  {pair.scenario_id}: skipped - {pair.skipped}")
+                spend = f"  (spent ${pair.cost_usd:.2f})" if pair.cost_usd else ""
+                lines.append(f"  {tag}: skipped - {pair.skipped}{spend}")
                 continue
             mark = "DIFFERS" if pair.differs else "same" if pair.complete else "incomplete"
             detail = ", ".join(
@@ -290,7 +320,7 @@ class PilotResult:
                 for arm, v in sorted(pair.verdicts.items())
             )
             tail = "  [remediation also moved]" if pair.remediation_differs else ""
-            lines.append(f"  {pair.scenario_id}: {mark}  first={pair.first_arm}  {detail}{tail}")
+            lines.append(f"  {tag}: {mark}  first={pair.first_arm}  {detail}{tail}")
         lines.append("")
         lines.append(
             "DIFFERS is a changed fault_class only (Amendment 1). The second arm of every pair is "
@@ -325,7 +355,9 @@ class PilotResult:
                     "scenario_id": p.scenario_id,
                     "incident_id": p.incident_id,
                     "first_arm": p.first_arm,
+                    "attempt": p.attempt,
                     "skipped": p.skipped,
+                    "spend_usd": round(p.cost_usd, 4),
                     "complete": p.complete,
                     "rejected": p.rejected,
                     "differs": p.differs,
@@ -369,6 +401,15 @@ class Steps(Protocol):
 
         **Through the route**, not by calling `record_rejection`: the reject-loop driver's rule,
         and here it also means the pilot cannot reach `REJECTED` by any path an operator could not.
+        """
+        ...
+
+    def spend_on(self, incident_id: str) -> float:
+        """Everything this incident has cost so far, across **every** trajectory on it.
+
+        **Not the sum of the verdicts' costs**, which is what this used to be and which reports
+        `$0.00` for an investigation that burned a triage and two refused planner attempts before
+        dying. Amendment 2: the budget is checked against a number that can see a failed arm.
         """
         ...
 
@@ -423,56 +464,80 @@ def run_pilot(
 
     nap = sleeper if sleeper is not None else time.sleep
     result = PilotResult()
+    started_one = False
     for index, scenario_id in enumerate(scenarios):
-        if index and settle:
-            print(f"--- settling {settle}s before {scenario_id}", flush=True)
-            nap(settle)
-        pair = PairResult(scenario_id=scenario_id)
-        result.pairs.append(pair)
+        for attempt in range(1, ATTEMPTS_PER_SCENARIO + 1):
+            if started_one and settle:
+                print(f"--- settling {settle}s before {scenario_id} #{attempt}", flush=True)
+                nap(settle)
+            started_one = True
 
-        if result.cost_usd >= ceiling_usd:
-            result.stopped = f"budget ceiling ${ceiling_usd:.2f} reached before {scenario_id}"
-            pair.skipped = "budget"
-            break
-
-        admitted, refusals = steps.gate_admits()
-        if not admitted:
-            pair.skipped = f"gate refused: {'; '.join(refusals)}"
-            continue
-
-        started = datetime.now(UTC)
-        steps.inject(scenario_id)
-        try:
-            incident_id = steps.wait_for_incident(scenario_id, started)
-            if not incident_id:
-                pair.skipped = "no incident"
-                continue
-            pair.incident_id = incident_id
-
-            first, second = arm_order(index)
-            pair.first_arm = first
-            for position, arm in enumerate((first, second)):
-                if result.cost_usd >= ceiling_usd:
-                    result.stopped = f"budget ceiling ${ceiling_usd:.2f} reached in {scenario_id}"
-                    break
-                if position:
-                    try:
-                        steps.reject(incident_id, REJECTION_REASON)
-                    except Exception as exc:
-                        pair.skipped = f"rejection refused: {type(exc).__name__}: {exc}"
-                        break
-                    pair.rejected = True
-                verdict = steps.investigate(incident_id, arm)
-                if verdict is None:
-                    pair.skipped = f"{arm} produced no verdict"
-                    break
-                pair.verdicts[arm] = verdict
-        finally:
-            steps.revert(scenario_id)
-
+            pair = _attempt_pair(
+                steps, scenario_id, index, attempt=attempt, result=result, ceiling_usd=ceiling_usd
+            )
+            result.pairs.append(pair)
+            if result.stopped or pair.complete or attempt == ATTEMPTS_PER_SCENARIO:
+                break
         if result.stopped:
             break
     return result
+
+
+def _attempt_pair(
+    steps: Steps,
+    scenario_id: str,
+    index: int,
+    *,
+    attempt: int,
+    result: PilotResult,
+    ceiling_usd: float,
+) -> PairResult:
+    """One injection and its two arms. **The arm order comes from `index`, never from `attempt`** -
+    a re-attempt that flipped the order would confound the retry with the arm, which is the exact
+    confound `arm_order` exists to prevent."""
+    pair = PairResult(scenario_id=scenario_id, attempt=attempt)
+
+    if result.cost_usd >= ceiling_usd:
+        result.stopped = f"budget ceiling ${ceiling_usd:.2f} reached before {scenario_id}"
+        pair.skipped = "budget"
+        return pair
+
+    admitted, refusals = steps.gate_admits()
+    if not admitted:
+        pair.skipped = f"gate refused: {'; '.join(refusals)}"
+        return pair
+
+    started = datetime.now(UTC)
+    steps.inject(scenario_id)
+    try:
+        incident_id = steps.wait_for_incident(scenario_id, started)
+        if not incident_id:
+            pair.skipped = "no incident"
+            return pair
+        pair.incident_id = incident_id
+
+        first, second = arm_order(index)
+        pair.first_arm = first
+        for position, arm in enumerate((first, second)):
+            if result.cost_usd + pair.cost_usd >= ceiling_usd:
+                result.stopped = f"budget ceiling ${ceiling_usd:.2f} reached in {scenario_id}"
+                break
+            if position:
+                try:
+                    steps.reject(incident_id, REJECTION_REASON)
+                except Exception as exc:
+                    pair.skipped = f"rejection refused: {type(exc).__name__}: {exc}"
+                    break
+                pair.rejected = True
+            verdict = steps.investigate(incident_id, arm)
+            pair.spend_usd = steps.spend_on(incident_id)
+            if verdict is None:
+                pair.skipped = f"{arm} produced no verdict"
+                break
+            pair.verdicts[arm] = verdict
+    finally:
+        steps.revert(scenario_id)
+    return pair
 
 
 class LiveSteps:  # pragma: no cover - the paid path; the fakes cover the logic
@@ -577,6 +642,41 @@ class LiveSteps:  # pragma: no cover - the paid path; the fakes cover the logic
             cost_usd=self._cost_of(trajectory_id),
             documents=self._documents_of(trajectory_id),
         )
+
+    def spend_on(self, incident_id: str) -> float:
+        """Every token on every trajectory this incident has, priced.
+
+        **Joined through `trajectories.incident_id` rather than summed from the verdicts**, because
+        an investigation that dies before a verdict still has a trajectory and still has steps. The
+        fourth dry run is the case: triage, then a planner refused twice on a field `DispatchPlan`
+        forbids, then `failed` - no verdict, and under the old accounting, no spend.
+
+        Zero on any failure, for `_cost_of`'s reason: a pilot that cannot price a run it has already
+        paid for should report the run. That makes the ceiling less conservative on a database
+        error, which is a real limitation and is better than an exception mid-pair.
+        """
+        import psycopg
+
+        from faultline.agents.settings import AgentSettings
+
+        if not incident_id:
+            return 0.0
+        try:
+            with psycopg.connect(self._dsn) as conn:
+                row = conn.execute(
+                    "SELECT coalesce(sum(s.tokens_in), 0), coalesce(sum(s.tokens_out), 0) "
+                    "FROM trajectory_steps s JOIN trajectories t ON s.trajectory_id = t.id "
+                    "WHERE t.incident_id = %s",
+                    (incident_id,),
+                ).fetchone()
+        except Exception as exc:  # pragma: no cover - observational
+            print(f"  could not price incident {incident_id}: {type(exc).__name__}")
+            return 0.0
+        if not row:
+            return 0.0
+        settings = AgentSettings()
+        cost = row[0] * settings.usd_per_mtok_in + row[1] * settings.usd_per_mtok_out
+        return float(cost) / 1_000_000
 
     def _cost_of(self, trajectory_id: str) -> float:
         """From the recorded tokens. **Zero on any failure**, because a pilot that cannot price a
