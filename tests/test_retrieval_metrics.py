@@ -189,3 +189,96 @@ def test_this_module_cannot_reach_a_model() -> None:
     banned = {"anthropic", "faultline.agents.model", "faultline.agents.roles"}
     assert not (imported & banned), f"{sorted(imported & banned)} reachable from retrieval.py"
     assert not any(name.startswith("faultline.agents") for name in imported)
+
+
+# --- the draw rule, which lived only in a header until Q52 -----------------------------------
+
+
+def _row(role: str, origin: str, trajectory: str, seq: int, query: str) -> dict:
+    return {
+        "role": role,
+        "exclude_origin": origin,
+        "source_trajectory": trajectory,
+        "seq": seq,
+        "query": query,
+    }
+
+
+def test_the_draw_takes_a_prefix_per_role_and_scenario() -> None:
+    """`golden.yaml`'s header states the rule; **nothing implemented it until Q52.**
+
+    *"Sort the distinct queries by (role, origin, trajectory, seq), then take the first 3 planner
+    and 2 synthesizer per scenario. No RNG and no selection."* A rule that exists only as prose
+    cannot be applied a second time, which is exactly what a confirmation set needs.
+    """
+    rows = [_row(retrieval.PLANNER, "scenario:a", "t1", i, f"a-planner-{i}") for i in range(5)] + [
+        _row(retrieval.SYNTHESIZER, "scenario:a", "t1", i, f"a-synth-{i}") for i in range(4)
+    ]
+
+    drawn = [r["query"] for r in retrieval.draw(rows)]
+
+    assert drawn == ["a-planner-0", "a-planner-1", "a-planner-2", "a-synth-0", "a-synth-1"]
+
+
+def test_a_skipped_draw_is_disjoint_from_the_first_one() -> None:
+    """**The property the confirmation set rests on.**
+
+    The original draw took a *prefix*, not a sample, so everything after the cut was never drawn
+    and never read. Skipping by exactly the first draw's size yields a set chosen by the identical
+    procedure with no overlap - no RNG, no judgement, and nothing that could have been influenced
+    by the numbers the first set produced.
+    """
+    rows = [_row(retrieval.PLANNER, "scenario:a", "t1", i, f"a-planner-{i}") for i in range(7)] + [
+        _row(retrieval.SYNTHESIZER, "scenario:a", "t1", i, f"a-synth-{i}") for i in range(5)
+    ]
+
+    first = {r["query"] for r in retrieval.draw(rows)}
+    second = {r["query"] for r in retrieval.draw(rows, skip_planner=3, skip_synthesizer=2)}
+
+    assert not (first & second)
+    assert second == {"a-planner-3", "a-planner-4", "a-planner-5", "a-synth-2", "a-synth-3"}
+
+
+def test_the_draw_counts_seats_per_scenario_not_globally() -> None:
+    """Two scenarios each get their own three-and-two. Counting globally would take everything
+    from whichever scenario sorts first, which is the failure a stratified draw exists to avoid."""
+    rows = [
+        _row(retrieval.PLANNER, origin, "t1", i, f"{origin}-{i}")
+        for origin in ("scenario:a", "scenario:b")
+        for i in range(4)
+    ]
+
+    drawn = [r["query"] for r in retrieval.draw(rows)]
+
+    assert sum(1 for q in drawn if q.startswith("scenario:a")) == 3
+    assert sum(1 for q in drawn if q.startswith("scenario:b")) == 3
+
+
+def test_one_query_text_sent_in_several_runs_is_drawn_once() -> None:
+    """The golden set labels query *texts*, not sendings. A duplicate text taking two seats would
+    quietly shrink the draw and over-weight whatever was retried most."""
+    rows = [
+        _row(retrieval.PLANNER, "scenario:a", "t1", 0, "same"),
+        _row(retrieval.PLANNER, "scenario:a", "t2", 0, "same"),
+        _row(retrieval.PLANNER, "scenario:a", "t3", 0, "other"),
+    ]
+
+    assert [r["query"] for r in retrieval.draw(rows)] == ["same", "other"]
+
+
+def test_the_arms_diagnostic_reads_the_arm_the_store_actually_uses() -> None:
+    """**A probe that drifts from what it probes answers confidently and wrongly.**
+
+    `ARMS_SQL` was a constant written with `plainto_tsquery` - the defect it existed to expose.
+    Q39 replaced the arm with a disjunction and the constant kept the old form, so
+    `faultline-retrieval arms` would have reported a historical defect as though it were current.
+
+    Reading `store.TEXT_QUERY` is what stops that recurring, and this asserts the reading rather
+    than the current text, so the next change to the arm carries the diagnostic with it.
+    """
+    from faultline.context.store import TEXT_QUERY
+
+    sql = retrieval.arms_sql()
+    assert TEXT_QUERY in sql
+    assert "plainto_tsquery('english', %(q)s)::text" in sql, "still built from plainto's lexemes"
+    assert " & " in sql and " | " in sql, "and it is the disjunctive form, not the conjunctive one"
