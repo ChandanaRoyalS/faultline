@@ -107,6 +107,13 @@ of the decision rather than arguing the contamination away.
 A reason chosen after seeing a second verdict would be prompt-fitting; this is the reject-loop
 driver's rule and the constant is here for the same reason its `PAIRS` are."""
 
+RETRIEVAL_BOUND = 0.186
+"""8 of 43 golden queries, §3.1's upper bound on how often retrieval could change anything at all.
+
+Used to price what a run of `n` pairs bought: `1 - (1 - 0.186)**n`. At `n = 10` that is the
+registration's 87%; at `n = 1` it is 18.6%, which is the number the fifth dry run should have
+printed and did not."""
+
 ATTEMPTS_PER_SCENARIO = 2
 """**One re-attempt, and one only** (Amendment 2, registered before the run).
 
@@ -328,15 +335,35 @@ class PilotResult:
             "measured at 2 of 2 changed proposals - so remediation_class is shown and does not "
             "decide."
         )
-        if not self.stopped and self.complete_pairs and not self.differing:
+        if self.complete_pairs and not self.differing:
             lines.append("")
-            lines.append(
-                "0 of "
-                f"{len(self.complete_pairs)} differ. Per PREREGISTRATION-Q53.md 3.2 this closes "
-                "Q53: the effect is below the retrieval upper bound at 87% confidence and the "
-                "larger measurement is not funded."
-            )
+            lines.append(self.closure_reading())
         return "\n".join(lines)
+
+    def closure_reading(self) -> str:
+        """What 0-of-n actually licenses, **computed from n rather than asserted.**
+
+        The fifth dry run printed *"0 of 1 differ ... this closes Q53 ... at 87% confidence"*. The
+        87% is `1 - (1 - 0.186)**10` and belongs to ten pairs; at one pair the same arithmetic gives
+        **18.6%**, and the sentence was a false claim in the driver's own report. It would have
+        printed identically had the ten-pair run stopped at three.
+
+        §3.2's closure is written for the registered set. Short of it, this says what was actually
+        bought, and says that it is not the closure.
+        """
+        n = len(self.complete_pairs)
+        confidence = 1 - (1 - RETRIEVAL_BOUND) ** n
+        head = f"0 of {n} differ. At the retrieval upper bound of {RETRIEVAL_BOUND:.1%}, "
+        head += f"{n} pair(s) would have found a change {confidence:.0%} of the time."
+        if n < len(SCENARIOS):
+            return (
+                head + f"  NOT the closure: PREREGISTRATION-Q53.md 3.2 is written for "
+                f"{len(SCENARIOS)} complete pairs at 87%, and this run has {n}. Q53 stays open."
+            )
+        return (
+            head + "  Per PREREGISTRATION-Q53.md 3.2 this closes Q53: the effect is below the "
+            "retrieval upper bound and the larger measurement is not funded."
+        )
 
     def as_dict(self) -> dict[str, Any]:
         return {

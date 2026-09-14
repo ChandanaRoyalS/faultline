@@ -301,3 +301,80 @@ It is not fixed here. `DispatchPlan`'s JSON schema sits inside the frozen `promp
 `extra="allow"` would move `prompt_digest` and strand every published figure. It queues as **Q54**,
 and until it lands it is part of this pilot's discard rate — which is precisely what the re-attempt
 above is sized for.
+
+---
+
+# Amendment 3 — the pair does not share an alert set, and a correction to Amendment 1
+
+**2026-09-14, written before the pilot ran and after the fifth dry run.** Appended, not edited.
+The fifth dry run completed a pair end to end for **$1.44**: both arms returned a verdict, the
+rejection between them worked, retrieval returned 3 hits and 5 hits respectively, and the two
+`fault_class` values agreed while `remediation_class` moved `restart` → `scale`. The machinery is
+sound. Two claims it was resting on are not.
+
+## 1. Amendment 1 says the second arm works "off a reused triage". That is wrong.
+
+The source of the claim was `machine.py`'s own docstring on `INVESTIGABLE`: the `REJECTED` re-entry
+*"reuses the triage it already has, because triage is a pure function of the episodes, the catalog
+and the radius and paying a model to recompute it would be paying for a known answer."*
+
+**`faultline-investigate` does not do that**, and `faultline-investigate` is what the pilot shells
+and what the harness itself shells. `agents/cli.py` runs `Triage(ServiceCatalog.from_snapshot(),
+context.hop_radius).run(incident)` unconditionally on every invocation, and asks `Triager` to judge
+it — a model call — every time. The docstring describes the runner's intent, not this entry point.
+
+I wrote the sentence from the docstring without reading the call path. It is corrected here rather
+than edited out of Amendment 1.
+
+## 2. §3's "the pair shares a world state, an alert set and a change log" is false
+
+It is false because the fault keeps running while the first arm investigates, and the incident keeps
+correlating new firings into itself. The fifth dry run measured the size of it on one pair:
+
+| | arm 1 (`k3-flag0`) | arm 2 (`k5-flag2`) |
+|---|---|---|
+| triage blast radius | 12 services | **14 services** |
+| unmeasured edges crossed | 4 | **5** |
+| dispatches | 6 | **7** |
+| evidence available | — | a cart-service **shutdown at 05:58:46** arm 1 never saw |
+
+The second arm did not see the same incident more deeply. It saw a **later** one, with more alerts,
+a wider radius, a re-derived triage and evidence that did not exist when the first arm ran. That is
+a larger order effect than §3 anticipated when it called the question "unknown".
+
+## 3. What changes, and what does not
+
+**The design does not change, and here is the honest reason rather than a reassuring one.**
+
+- **Alternation is the only mitigation available and it is already registered.** §3 alternates arm
+  order, so each arm runs second on five of ten pairs. That does not remove the order effect — §3
+  said so before any of this — it stops the effect being confounded with the arm, which is the
+  difference between a caveated result and a meaningless one.
+- **Scenario-pairing would not fix it.** Two injections of one scenario have the same problem plus
+  world variance between injections, which `variance.py` says this repository has **never measured**
+  (`RHO_ASSUMED = 0.8`, assumed everywhere it is used).
+- **The asymmetry still runs the right way for a kill switch.** Every confound identified so far —
+  the rejection in the proposer's brief (Amendment 1), and now the evolving alert set — can only
+  *add* differences. So **0 of 10 is strengthened by them**, and "1 or more" is weakened. §3.2 only
+  ever spends money on the second branch, and it adopts nothing. The pilot can still falsify *this
+  matters a lot*; it is further than ever from establishing *this never matters*.
+
+**What this costs the record:** any reported difference must now be read as *retrieval, or the
+rejection, or forty minutes of extra world*, and the write-up must say so in the sentence that
+reports it, not in a footnote.
+
+## 4. A false claim the driver printed, now fixed
+
+The fifth dry run ended with:
+
+> `0 of 1 differ. Per PREREGISTRATION-Q53.md 3.2 this closes Q53: the effect is below the retrieval`
+> `upper bound at 87% confidence and the larger measurement is not funded.`
+
+**On one pair.** The 87% is `1 − (1 − 0.186)¹⁰` and belongs to ten; one pair buys **18.6%**. The
+sentence fired whenever a run had no differences, so a ten-pair run that stopped at three would have
+closed Q53 on three pairs — in the artifact, in the report, and in whatever a reader quoted from it.
+
+`closure_reading()` now computes the confidence from the actual `n` and **refuses to say "closes
+Q53" below the registered ten**, naming what the run did buy instead. A driver that can print the
+task's conclusion from an unfinished run is a worse defect than any of the four that cost money,
+because nothing about it looks like a failure.

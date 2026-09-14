@@ -121,7 +121,38 @@ def test_identical_verdicts_do_not_count_as_a_difference() -> None:
 
     assert result.complete_pairs and not result.differing
     assert "0 of 2 differ" in result.render()
-    assert "closes Q53" in result.render()
+
+
+def test_a_short_run_of_zero_differences_is_not_the_closure() -> None:
+    """**The false claim the fifth dry run printed.**
+
+    `0 of 1 differ ... this closes Q53 ... at 87% confidence`. The 87% is `1 - (1-0.186)**10` and
+    belongs to ten pairs; one pair buys **18.6%**. The sentence fired on any run with no
+    differences, so a ten-pair run that stopped at three would have closed Q53 on three pairs.
+    """
+    steps = _Steps()
+
+    result = run_pilot(steps, ("a",))
+
+    reading = result.closure_reading()
+    assert "0 of 1 differ" in reading
+    assert "19%" in reading or "18%" in reading, reading
+    assert "NOT the closure" in reading
+    assert "Q53 stays open" in reading
+    assert "closes Q53" not in reading, "one pair must never claim the closure"
+
+
+def test_the_closure_is_licensed_only_by_the_full_registered_set() -> None:
+    """Ten complete pairs, and only then, is what §3.2 was written for."""
+    steps = _Steps()
+
+    result = run_pilot(steps, depthpilot.SCENARIOS)
+
+    reading = result.closure_reading()
+    assert len(result.complete_pairs) == 10
+    assert "87%" in reading
+    assert "closes Q53" in reading
+    assert "NOT the closure" not in reading
 
 
 def test_a_changed_fault_class_is_the_outcome() -> None:
