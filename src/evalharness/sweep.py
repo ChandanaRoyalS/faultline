@@ -37,6 +37,7 @@ import subprocess
 import time
 from collections import Counter
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -344,6 +345,7 @@ def sweep(
     sleeper: Any = None,
     recycler: Any = None,
     start_pass: int = 1,
+    session: str | None = None,
 ) -> SweepResult:
     """The catalog, `repeats` times, counting `--runs-remaining` down **within each pass**.
 
@@ -463,6 +465,21 @@ def sweep(
                 str(remaining),
                 *(extra or []),
             ]
+            # **Q60: which sweep, and where in it.** Until this existed, 548 manifests carried no
+            # way to tell which sweep a run belonged to, and `RESULTS.md` grouped its headline
+            # figures under a name that lived only in prose. `done` is the whole sweep's numbering
+            # rather than a resumed remainder's, matching the label printed below.
+            if session:
+                argv += [
+                    "--sweep",
+                    session,
+                    "--sweep-slot",
+                    str(done),
+                    "--sweep-of",
+                    str(total),
+                    "--sweep-pass",
+                    str(pass_number),
+                ]
             # **Wait before, not after.** The block is the *previous* incident's settle window, so
             # the pause belongs in front of the run that would trip over it - and only when
             # something has actually been injected, so a sweep whose first scenarios all refuse
@@ -594,6 +611,15 @@ def parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--postgres-dsn", default=None)
     p.add_argument(
+        "--label",
+        default=None,
+        help=(
+            "this sweep's id, written onto every run's manifest (Q60). Defaults to a timestamp. "
+            "**Pass the original id when resuming**, or the resumed passes join a second sweep "
+            "that merely looks like the first"
+        ),
+    )
+    p.add_argument(
         "--start-pass",
         type=int,
         default=1,
@@ -687,6 +713,8 @@ def main(argv: list[str] | None = None) -> int:
         f"${estimate * MEDIAN_RUN_USD:.0f}, and the measured discard rate is "
         f"{DISCARD_RATE:.0%} - budget about ${estimate * MEDIAN_RUN_USD / (1 - DISCARD_RATE):.0f}."
     )
+    session = args.label or datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
+    print(f"sweep id: {session}  (pass it back as --label to resume into this same record)")
     result = sweep(
         ids,
         repeats=repeats,
@@ -695,6 +723,7 @@ def main(argv: list[str] | None = None) -> int:
         retries=args.retries,
         recycler=_recycle_world if repeats > 1 else None,
         start_pass=args.start_pass,
+        session=session,
     )
     result.declared_repeats = repeats
     print("\n".join(result.render()))
