@@ -402,3 +402,95 @@ them.** `GATE_RECALL_AT_3` and the measured constants are calibrated to 261 chun
 **The re-score costs no model call**, so it is a step rather than a decision: `faultline-retrieval
 score` runs in the seed commit, beside the two digests and the two pins, and §7's report quotes
 the post-seed `recall@3` rather than the pre-seed one when it states what attenuated the effect.
+
+---
+
+# Amendment 4 — two of the ten postmortems are about a failure that did not happen
+
+**2026-09-15, written after drafting and before any acceptance, seed or scored run. $0.72 spent
+on the drafting this amendment is about; $0.797 was spent and discarded before it.** Appended,
+not edited: §4 and §7 are to be read against what follows.
+
+## 1. What the drafting produced
+
+Ten drafts from ten dev scenarios, each from its newest **full-pipeline** scored run, at
+`prompts:06f24e827915`, 2026-09-09. **Two guard refusals**, both recovered on the retry.
+
+**A first attempt was discarded**: its ten donors were the `--without traces` ablation arm, which
+`record_from_run` did not refuse, and its postmortems scored 4 of 9 on fault class. That run is
+recorded in [`docs/evidence/t6.5-drafting/`](../../docs/evidence/t6.5-drafting/DISCARDED-2026-09-15-ablation-donors.md)
+and pools with nothing.
+
+## 2. Prediction 6 is scored, and it failed
+
+> *"**No postmortem trips the leak guard on its first draft.** Registered because it is the one I
+> expect to fail: the model has the fault class and the remediation in the record it drafts from,
+> and §2 forbids both."*
+
+**Two of ten tripped it.** The prediction is false and was registered as expected to fail. Both
+recovered on the second attempt with the parser's own refusal fed back.
+
+**Scored against the design as registered**, which matters because it briefly was not: for one
+commit the brief withheld every prose field the guard matched, which would have made this a
+different question. That was reverted when the withholding was measured — 183 of 204 verdicts
+leak in their own prose, so withholding leaves no brief. The model had the fault class in front of
+it, as §7 assumed.
+
+## 3. The finding this amendment exists for
+
+**Two of the ten postmortems describe a failure that did not happen**, because their donor runs
+concluded wrongly. The donors score **8 of 10** on fault class:
+
+| scenario | class | donor correct | what its postmortem says |
+|---|---|---|---|
+| `ad-memory-squeeze` | `resource_exhaustion` | **no** | shipping-quote unreachable at the transport layer; nothing bound to the serving port |
+| `shipping-quote-misconfig` | `bad_config` | **no** | — |
+| the other eight | — | yes | — |
+
+**This is the donor rule working as designed, and the design has a cost that is now concrete.**
+`donor_runs` takes the newest run rather than the best one, deliberately: *"choosing the run whose
+verdict was correct would make the corpus a record of the pipeline's successes, and a measurement
+of whether prior incidents help would then be measuring whether prior right answers help."* That
+argument stands. What it buys is two documents whose **metadata and content disagree** — the chunk
+carries `fault_class` from the manifest, which is the truth, while the prose describes something
+else.
+
+**The sharpest consequence, named so §7 cannot be surprised by it.** `resource_exhaustion` has
+two runnable scenarios (Amendment 2). So for **`frauddetection-memory-squeeze`, the entire WITH-arm
+advantage is `ad-memory-squeeze`'s postmortem — the wrong one, and nothing else.** That arm is not
+testing whether a prior same-class incident helps; it is testing whether a prior same-class
+*mistake* hurts. `bad_config` has four scenarios, so `shipping-quote-misconfig`'s wrongness
+dilutes.
+
+**And one of the two is built on Q57's residue.** `ad-memory-squeeze`'s postmortem reasons from a
+change record *"oscillating … roughly five times across the preceding ~19 hours"* — which is the
+harness re-injecting the same fault, read as incident history. Q57 measured a median of 12 stale
+records against 1 of a run's own. This is that residue reaching the retrieval corpus through a
+document, which no guard in this system looks for.
+
+## 4. Decided: all ten are accepted, and §7 reports the split
+
+Accepting eight would be a quality floor with a real precedent — the seeder skips a bundle marked
+`INVALID` because *"seeding them would put two incidents in the corpus that never happened"* — and
+it was rejected because `resource_exhaustion` would then contribute nothing at all: one of its two
+scenarios would have no same-class document and the other's would be excluded as its own.
+
+**So §7 gains a reporting obligation rather than the corpus losing documents:**
+
+1. The delta is reported **over all ten**, as registered.
+2. It is reported again **over the eight whose donors were right**, as a secondary cut, labelled
+   post-hoc — it is a subgroup chosen after seeing which donors were wrong, and Q57's mistake was
+   exactly a within-generation cut presented as though it had been registered.
+3. **`frauddetection-memory-squeeze` is named in the report whichever way the delta falls**, because
+   its WITH arm carries one wrong document and no other same-class postmortem.
+
+**What this costs the conclusion, stated now.** A null delta over ten will not distinguish *prior
+incidents do not transfer* from *two of ten prior documents were wrong*. §8 already says this task
+cannot show whether a body of prior incidents helps; it now also cannot cleanly show whether
+**correct** prior incidents help. That is a real narrowing and it is the price of not selecting
+donors on their answers.
+
+## 5. Unchanged
+
+The two arms, the query-time exclusion, `weekly` at R = 3, the 16.2pp floor, the $70 ceiling, and
+predictions 1, 2, 3, 4, 5 and 7. Prediction 6 is answered above.
