@@ -178,6 +178,44 @@ def runnable(root: Path = SCENARIO_ROOT, *, holdout: bool = False) -> list[str]:
     )
 
 
+def same_class_origins(
+    scenario_id: str, root: Path = SCENARIO_ROOT, *, holdout: bool = False
+) -> list[str]:
+    """`scenario:S`, and every other **runnable** scenario of S's fault class, on S's split.
+
+    **T6.5 §4's WITHOUT arm, derived rather than typed.** The registration says the arm excludes
+    *"S's own documents, and every other dev scenario in C"* - a set the operator would otherwise
+    compute by hand, once per scenario, and Q66 is the row about consumers each computing their
+    own selection and all four getting it wrong the same way. This is the fifth consumer, so it
+    reuses `runnable`'s exclusions instead of restating them: a blocked scenario and one marked
+    INVALID have no documents in the corpus, so naming them in an exclusion would be asking the
+    store to filter rows that do not exist and reporting a healthy `excluded_count` for it.
+
+    **One origin per scenario, and that covers its postmortem too.** A postmortem's `document_id`
+    is `postmortem:S` and its `origin` is `scenario:S` - the same key its narrative carries - so
+    an exclusion stated in origins removes both without knowing postmortems exist. That is the
+    property `tests/test_corpus.py` pins.
+
+    Same split as S, always. Crossing it would put a holdout scenario's id into a dev run's
+    exclusion list, which is ADR-0008 axis 1 arriving through an argument rather than a path.
+    """
+    from evalharness.scenario import Scenario
+
+    catalog = {s.id: s for s in (Scenario.from_yaml(path) for path in sorted(root.glob("*.yaml")))}
+    subject = catalog.get(scenario_id)
+    if subject is None:
+        raise UnknownScenarioError(
+            f"{scenario_id!r} is not in the catalog, so its fault class cannot be read and the "
+            "same-class exclusion cannot be derived."
+        )
+    ids = set(runnable(root, holdout=holdout))
+    return sorted(
+        f"scenario:{s.id}"
+        for s in catalog.values()
+        if s.id in ids and s.fault_class == subject.fault_class and s.split == subject.split
+    )
+
+
 class UnknownScenarioError(ValueError):
     """A named scope that includes something the catalog cannot run."""
 
@@ -603,6 +641,17 @@ def parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--baseline", choices=("b0", "b1", "b2"), default=None)
     p.add_argument(
+        "--exclude-same-class",
+        action="store_true",
+        help=(
+            "passed through to faultline-eval: run T6.5 section 4's WITHOUT arm, excluding every "
+            "runnable scenario of each scenario's fault class rather than its own documents "
+            "alone. **The sweep could not express this arm at all until now** - it passes a "
+            "fixed set of flags through, and the registered measurement's independent variable "
+            "was not among them"
+        ),
+    )
+    p.add_argument(
         "--without",
         action="append",
         default=[],
@@ -695,6 +744,8 @@ def main(argv: list[str] | None = None) -> int:
         extra += ["--without", specialist]
     if args.holdout:
         extra += ["--holdout"]
+    if args.exclude_same_class:
+        extra += ["--exclude-same-class"]
 
     # **The declared repeat count and the number of passes are the same number.** A tier that
     # declared R = 3 while one pass ran would put a corrupt fingerprint on every run in the sweep.

@@ -1091,6 +1091,17 @@ def parser() -> argparse.ArgumentParser:
         "the config fingerprint, so an ablation run can never pool with a full run. Refused "
         "with --baseline: a baseline dispatches nothing to withhold.",
     )
+    p.add_argument(
+        "--exclude-same-class",
+        action="store_true",
+        help="widen retrieval's exclusion from this scenario's own documents to **every "
+        "runnable scenario of its fault class**, on its own split (T6.5 section 4's WITHOUT "
+        "arm). The list is derived from the catalog rather than typed: an arm stated by hand is "
+        "a fifth place that computes which runs belong to what, and Q66 is the row about the "
+        "first four. Recorded on the manifest as `exclusion_policy` and part of the config "
+        "fingerprint, so the two arms can never pool - which matters more here than anywhere "
+        "else, because what they differ in is the thing being measured",
+    )
     return p
 
 
@@ -1120,13 +1131,39 @@ def transient_signal(transcript: str) -> str | None:
     return next((signal for signal in TRANSIENT_SIGNALS if signal in transcript), None)
 
 
+def exclusion_for(scenario_id: str, args: Any) -> list[str]:
+    """What retrieval may not read on this run: S's own origin, or S's fault class (T6.5 §4).
+
+    **One function, so the manifest and the subprocess cannot disagree.** The thing recorded as
+    `exclude_origins` has to be the thing the agent was actually run with; computing it twice is
+    how a run comes to carry a label for an arm it was not in, and a mislabelled arm is worse
+    than a missing one because it is scored.
+    """
+    if getattr(args, "exclude_same_class", False):
+        from evalharness.sweep import same_class_origins
+
+        return same_class_origins(scenario_id)
+    return [f"scenario:{scenario_id}"] if not scenario_id.startswith("scenario:") else [scenario_id]
+
+
+def exclusion_policy(args: Any) -> str:
+    """`own+class` or `own`. **The fingerprint input, and deliberately not the resolved list.**
+
+    The list differs per scenario, so fingerprinting it would give every scenario its own
+    configuration row and the table would stop grouping anything. The *policy* is constant across
+    a sweep, which is the granularity `ablation` already established: `[]` against `["traces"]`
+    names what was done to every run, not what it resolved to on one.
+    """
+    return "own+class" if getattr(args, "exclude_same_class", False) else "own"
+
+
 def _investigate(incident_id: str, scenario_id: str, out: Path, args: Any) -> tuple[int, str]:
     """`faultline-investigate`, as a subprocess. **Its exit code is the contract being used.**"""
     cmd = [
         "faultline-investigate",
         incident_id,
         "--exclude-origins",
-        scenario_id,
+        ",".join(exclusion_for(scenario_id, args)),
         "--out",
         str(out),
         "--max-tool-calls",
@@ -1373,6 +1410,11 @@ def main(argv: list[str] | None = None) -> int:
             # fingerprint must see "nothing withheld" as a stated value, or a full run recorded
             # after this field existed would be indistinguishable from one recorded before it.
             run.manifest["ablation"] = sorted(set(args.without))
+            # T6.5 §4: which arm this run was, and what that resolved to. The policy is the
+            # fingerprint input; the resolved list is recorded beside it so a reader can check
+            # the derivation without the catalog this run was launched against.
+            run.manifest["exclusion_policy"] = exclusion_policy(args)
+            run.manifest["exclude_origins"] = exclusion_for(args.scenario_id, args)
             run.manifest["repeat_count"] = variance.TIERS[args.tier][0]
             run.manifest["tier"] = args.tier
             run.manifest["seed_policy"] = variance.SEED_POLICY
