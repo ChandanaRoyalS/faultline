@@ -23,22 +23,28 @@ Q61 both of them are frozen inputs: `corpus_sha256` when a postmortem is added,
 actually is. `tests/test_postmortem_drafter.py` pins this module out of the stamp so the natural
 instinct - *a new role belongs in `roles.py`* - fails loudly rather than quietly.
 
-## What the briefing withholds, and why that is not the guard doing its job twice
+## What the briefing withholds: the lookup keys, and not the reasoning
 
 `context/postmortem.py` bans every allowlist action id and every performable remediation class,
 because `CLASS_TO_REMEDIATION` is one-to-one across eighteen scenarios and a named remediation is
 the fault class in another spelling (registration §2, Q63).
 
-**So the brief does not contain them.** The model is given the proposal's *target*, preconditions,
-blast radius and falsifier, and is not given `action_id`, `remediation_class` or `fault_class` at
-all. A model cannot leak what it never saw, and a guard is a better last line than a first one.
+**The structured fields carrying those values are never read into the brief** - `action_id`,
+`remediation_class`, `fault_class`, on the verdict and on every `Candidate`. They map one-to-one
+to the answer and cost nothing to drop: the proposal's preconditions already say what the action
+was for, and a candidate's `why_not` is what a responder wants from a runner-up.
 
-**This changes what prediction 6 measures, and the registration should be read knowing it.**
-*"No postmortem trips the leak guard on its first draft"* was registered as the one expected to
-fail, on the reasoning that *"the model has the fault class and the remediation in the record it
-drafts from"*. It no longer does. What is now being scored is whether a model that was never told
-the remediation names one anyway - a fairer question about the model and a weaker test of the
-guard, and the difference is recorded here rather than left for the write-up to explain.
+**The prose is passed through, and that was measured rather than chosen.** An earlier version
+withheld any free-text field the leak guard matched. Over 204 recorded verdicts, **183 leak in
+their own prose**: `verdict.reasoning` names `bad_config` 101 times, `bad_deploy` 93,
+`dependency_latency` 88, `resource_exhaustion` 81, and `inject`/`injected` 25 each. Withholding at
+that rate leaves the drafter writing *what the investigation concluded* from a service name and a
+confidence level. **You cannot withhold prose here and still have a brief.**
+
+So §2 is enforced where the registration puts it: on the **output**, by `parse_postmortem_text`,
+with the refusal fed back into the next attempt. **Prediction 6 is therefore scored as
+registered** - *"the model has the fault class and the remediation in the record it drafts from"*
+is true again, and it is the prediction the registration expected to fail.
 """
 
 from __future__ import annotations
@@ -123,36 +129,47 @@ class PostmortemDraft(BaseModel):
 
 ABSTAINED = "no action was proposed; the evidence did not support one"
 
-WITHHELD = "(withheld: the recorded text names a remediation, which a postmortem may not)"
-"""**Named rather than silently dropped.** A missing line reads as *nothing was recorded*, which
-is a different and false statement; the model is told a field exists and why it cannot see it."""
+
+def alternative_lines(verdict: Verdict) -> list[str]:
+    """The runners-up, **by their real field names and without their classes.**
+
+    `Candidate` is `root_cause`, `service`, `fault_class`, `remediation_class`, `why_not` - read
+    off the contract after the first version of this guessed `hypothesis` and crashed on the first
+    donor. The two class fields are never read, on `carried`'s rule; `why_not` is the field that
+    makes the list worth having, and it is what a responder actually wants from a runner-up.
+    """
+    candidates = list(getattr(verdict, "alternatives", None) or [])
+    if not candidates:
+        return ["  - none recorded, which is itself worth saying"]
+    return [
+        f"  - {c.root_cause} (blamed {c.service or 'no service'})"
+        f" - ruled below because: {c.why_not}"
+        for c in candidates
+    ]
 
 
 def carried(proposal: dict[str, Any], field: str) -> str:
-    """One free-text proposal field, **or a note saying why it was held back.**
+    """One free-text proposal field, as recorded. **Passed through, and that was measured twice.**
 
-    **Every free-text field of a real proposal names the remediation, and this was measured
-    rather than guessed.** Over the 121 agent verdict artifacts in `evals/runs/` that carry a
-    proposal, `risk` names `restart` 58 times, `revert_config` 36, `rollback_image` 24;
-    `if_wrong` and `blast_radius` are barely better. Of course they are - the proposer is
-    *proposing an action*, so its prose about risk and blast radius is prose about that action.
+    This function withheld any field the leak guard matched, for one commit. The measurement that
+    justified it was real - over the 121 proposals in `evals/runs/`, `risk` names `restart` 58
+    times, `revert_config` 36, `rollback_image` 24, and 21 briefs would have carried banned
+    vocabulary. The measurement that overturned it is larger: **183 of 204 verdicts leak in their
+    own prose**, `verdict.reasoning` naming `bad_config` 101 times, `bad_deploy` 93,
+    `dependency_latency` 88 and `resource_exhaustion` 81.
 
-    The first version of this module passed `blast_radius` and `if_wrong` through verbatim and
-    **21 of those 121 briefs would have carried banned vocabulary to the drafter.** It survived
-    its tests because the fixture proposal happened not to say `restart`. Opening a real artifact
-    is what found it.
+    **You cannot withhold prose in this pipeline and still have a brief.** Withholding at that
+    rate would leave the drafter writing *what the investigation concluded* from a service name
+    and a confidence level, which empties the artefact before the measurement starts.
 
-    **Twenty-four of those field-instances are harness vocabulary** - `netem`, `inject`,
-    `injected`, `injection`, `resource_exhaustion` - written by the proposer into a stored
-    proposal. Nothing guards the proposer's output today because it is shown to an approver and
-    never retrieved; T6.5 is what would make it corpus-adjacent. `docs/QUEUE.md` Q64.
+    So the rule is drawn where it can hold: **withhold the lookup keys, pass the reasoning.**
+    `action_id`, `remediation_class` and `fault_class` are structured fields that map one-to-one
+    to the answer and cost nothing to drop - the preconditions already say what the action was
+    for. Prose is the reasoning that happened, and §2 governs the **output**, enforced by
+    `parse_postmortem_text` and the refusal fed back into the next attempt. That is the design the
+    registration registered, and prediction 6 is scored against it.
     """
-    from faultline.context.postmortem import leaked_words
-
-    text = str(proposal.get(field) or "").strip()
-    if not text:
-        return "not recorded"
-    return WITHHELD if leaked_words(text) else text
+    return str(proposal.get(field) or "").strip() or "not recorded"
 
 
 def proposal_lines(proposal: dict[str, Any] | None) -> list[str]:
@@ -265,12 +282,7 @@ class PostmortemScribe:
                 name="alternatives",
                 priority=6,
                 essential=True,
-                lines=["What else was considered, best first:"]
-                + [
-                    f"  - {c.hypothesis}: {c.why_not}"
-                    for c in getattr(verdict, "alternatives", []) or []
-                ]
-                or ["No alternative was recorded, which is itself worth saying."],
+                lines=["What else was considered, best first:", *alternative_lines(verdict)],
             ),
             Section(
                 name="proposal",

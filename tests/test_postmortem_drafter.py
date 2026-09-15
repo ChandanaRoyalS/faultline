@@ -6,6 +6,7 @@ that is the natural place for it and doing so would silently re-stamp every run 
 
 from __future__ import annotations
 
+import contextlib
 import json
 from pathlib import Path
 from typing import Any
@@ -124,24 +125,25 @@ def test_the_corpus_digest_is_what_sees_a_postmortem_instead() -> None:
 # --- what the drafter is told -----------------------------------------------------------------
 
 
-def test_the_brief_never_carries_the_action_or_its_class() -> None:
-    """**§2 enforced before the model writes, not only after.**
+def test_the_brief_never_reads_the_lookup_keys() -> None:
+    """**The half of §2 that is enforced at the input, and the half that is not.**
 
-    `CLASS_TO_REMEDIATION` is one-to-one across eighteen scenarios, so `rollback_image` and
-    `rollback` each hand the reader `bad_deploy` through a lookup table. A model that never sees
-    them cannot write them down, and the guard is a better last line than a first one.
+    `action_id` and `remediation_class` map one-to-one to the answer and cost nothing to drop -
+    the preconditions already say what the action was for. The prose is passed through, because
+    183 of 204 recorded verdicts leak in their own words and withholding at that rate leaves no
+    brief at all. §2 is enforced on the output, where the registration puts it.
     """
     lines = "\n".join(proposal_lines(PROPOSAL))
 
-    assert "rollback" not in lines and "rollback_image" not in lines
-    assert "cart-service" in lines, "the target is not the leak; the action is"
+    assert "rollback_image" not in lines, "the action id is a lookup key"
+    assert "cart-service" in lines, "the target is not the leak"
     assert "prior container reference" in lines
     assert "if no prior reference exists" in lines, "the falsifier survives"
 
 
-def test_the_whole_briefing_carries_no_banned_vocabulary() -> None:
-    """The brief assembled, not just one helper - including the verdict, which carries
-    `fault_class` and `remediation_class` as fields and must not render them."""
+def test_the_briefing_never_renders_a_verdicts_class_fields() -> None:
+    """`Verdict` carries `fault_class` and `remediation_class` and the brief must not print them.
+    Asserted on a fixture whose prose is deliberately clean, so a hit is the structured field."""
     from faultline.context.postmortem import leaked_words
 
     model = ScriptedModel(BODIES)
@@ -248,6 +250,10 @@ def test_a_refused_draft_is_told_why_in_the_user_message_not_the_system_prompt()
 RUNS = Path(__file__).resolve().parents[1] / "evals" / "runs"
 
 
+class _StopError(Exception):
+    """Stops a scribe after it has assembled its briefing and before it calls a model."""
+
+
 def recorded_proposals() -> list[tuple[str, dict[str, Any]]]:
     out: list[tuple[str, dict[str, Any]]] = []
     if not RUNS.is_dir():
@@ -263,40 +269,80 @@ def recorded_proposals() -> list[tuple[str, dict[str, Any]]]:
     return out
 
 
-def test_no_recorded_proposal_leaks_into_a_brief() -> None:
-    """**The defect this test was written after, and the reason the fixture above was not enough.**
+def test_no_brief_adds_a_leak_the_record_did_not_already_contain() -> None:
+    """**The invariant, over every run on disk, and the test the fixture could not be.**
 
-    Over the 121 agent verdict artifacts carrying a proposal, `risk` names `restart` 58 times,
-    `revert_config` 36 and `rollback_image` 24 - because the proposer is proposing an action, so
-    its prose about risk and blast radius is prose about that action. The first version of
-    `proposal_lines` passed `blast_radius` and `if_wrong` through verbatim and **21 of those 121
-    briefs would have carried banned vocabulary**. It passed its tests because the synthetic
-    fixture happened not to say `restart`.
+    The brief passes prose through - it has to, since 183 of 204 verdicts leak in their own words
+    - so "the brief is clean" is not the property to assert. The property is that the brief
+    **introduces** nothing: every banned word in it came from the record it was built from, and
+    none from a structured field this module chose to render.
 
-    Real data, every one of them, or this test is the same mistake again.
+    A `fault_class` or `remediation_class` rendered into the brief would show up here immediately,
+    because those values are not in the prose set. So would `alternative_lines` reading a
+    candidate's class, which is the bug that crashed the first live run by guessing field names.
     """
+    from faultline.agents.postmortem import PostmortemScribe, record_from_run
     from faultline.context.postmortem import leaked_words
 
-    recorded = recorded_proposals()
-    if not recorded:
+    class Halt:
+        def complete(self, request: Any) -> Any:
+            raise _StopError
+
+    checked = 0
+    adding: list[tuple[str, list[str]]] = []
+    for directory in sorted(RUNS.glob("*")):
+        if not directory.is_dir():
+            continue
+        try:
+            record = record_from_run(directory)
+        except Exception:
+            continue
+        checked += 1
+        verdict = record.verdict
+        proposal = record.proposal or {}
+        prose = " ".join(
+            filter(
+                None,
+                [
+                    verdict.root_cause,
+                    verdict.reasoning,
+                    verdict.service,
+                    *(verdict.open_questions or []),
+                    *[
+                        f"{c.root_cause} {c.service} {c.why_not}"
+                        for c in (verdict.alternatives or [])
+                    ],
+                    *[
+                        str(proposal.get(k) or "")
+                        for k in ("target", "blast_radius", "if_wrong", "risk", "expected_effect")
+                    ],
+                    *[str(x) for x in (proposal.get("preconditions") or [])],
+                ],
+            )
+        )
+        scribe = PostmortemScribe(Halt())  # type: ignore[arg-type]
+        with contextlib.suppress(_StopError):
+            scribe.draft(verdict, proposal=record.proposal, fate=record.fate)
+        assert scribe.briefing is not None
+        added = sorted(set(leaked_words(scribe.briefing.text)) - set(leaked_words(prose)))
+        if added:
+            adding.append((directory.name, added))
+
+    if not checked:
         return
-    leaking = [
-        (run, leaked_words("\n".join(proposal_lines(proposal))))
-        for run, proposal in recorded
-        if leaked_words("\n".join(proposal_lines(proposal)))
-    ]
-
-    assert not leaking, f"{len(leaking)} of {len(recorded)} recorded proposals leak: {leaking[:3]}"
+    assert not adding, f"{len(adding)} of {checked} briefs introduce a leak: {adding[:3]}"
 
 
-def test_a_withheld_field_says_so_rather_than_reading_as_unrecorded() -> None:
-    """A dropped line reads as *nothing was recorded*, which is a different and false statement."""
+def test_a_proposals_prose_is_passed_through_even_when_it_names_the_action() -> None:
+    """**The measurement that overturned withholding.** `risk` names `restart` in 58 of 121
+    recorded proposals, because the proposer is proposing an action and its prose about risk is
+    prose about that action. Withholding it, and the verdict prose that leaks at 90%, leaves the
+    drafter nothing to write from."""
     leaking = {**PROPOSAL, "risk": "Restarting paymentservice would discard in-flight attempts."}
 
     lines = "\n".join(proposal_lines(leaking))
 
-    assert pm.WITHHELD in lines
-    assert "Restarting" not in lines
+    assert "Restarting paymentservice" in lines
 
 
 def test_an_abstentions_reasoning_travels_with_it_where_the_guard_allows() -> None:
@@ -489,3 +535,71 @@ def test_one_postmortem_per_scenario_not_per_run() -> None:
 
     assert donors, "the archive has usable donors"
     assert len(donors) == len(set(donors)), "keyed by scenario, so one each by construction"
+
+
+def test_every_recorded_verdict_builds_a_brief_without_raising() -> None:
+    """**The crash this was written after.** `alternative_lines` guessed `Candidate.hypothesis`,
+    which does not exist, and the first live run died on its first donor - after the dry run had
+    passed, because a dry run builds no brief. The contract is `root_cause`, `service`,
+    `fault_class`, `remediation_class`, `why_not`.
+
+    Every verdict on disk, including the 116 carrying alternatives, or this is the same mistake.
+    """
+    from faultline.agents.postmortem import PostmortemScribe, record_from_run
+
+    class Halt:
+        def complete(self, request: Any) -> Any:
+            raise _StopError
+
+    built = with_alternatives = 0
+    for directory in sorted(RUNS.glob("*")):
+        if not directory.is_dir():
+            continue
+        try:
+            record = record_from_run(directory)
+        except Exception:
+            continue
+        scribe = PostmortemScribe(Halt())  # type: ignore[arg-type]
+        with contextlib.suppress(_StopError):
+            scribe.draft(record.verdict, proposal=record.proposal, fate=record.fate)
+        built += 1
+        if record.verdict.alternatives:
+            with_alternatives += 1
+
+    if not built:
+        return
+    assert with_alternatives, "the archive carries verdicts with alternatives; they are the case"
+
+
+def test_a_candidates_class_fields_are_never_rendered() -> None:
+    """`Candidate` carries `fault_class` and `remediation_class` like `Verdict` does. `why_not` is
+    what a responder wants from a runner-up; the classes are the lookup key."""
+    from faultline.agents.contracts import Candidate
+    from faultline.agents.postmortem import alternative_lines
+    from faultline.context.postmortem import leaked_words
+
+    verdict = VERDICT.model_copy(
+        update={
+            "alternatives": [
+                Candidate(
+                    root_cause="the cache address moved",
+                    service="cartservice",
+                    fault_class="bad_config",
+                    remediation_class="config_revert",
+                    why_not="no configuration change was recorded in the window",
+                )
+            ]
+        }
+    )
+
+    lines = "\n".join(alternative_lines(verdict))
+
+    assert "the cache address moved" in lines
+    assert "no configuration change was recorded" in lines, "why_not is the point of the list"
+    assert leaked_words(lines) == [], "neither class field reaches the brief"
+
+
+def test_no_alternatives_is_stated_rather_than_left_blank() -> None:
+    from faultline.agents.postmortem import alternative_lines
+
+    assert "none recorded" in " ".join(alternative_lines(VERDICT))
