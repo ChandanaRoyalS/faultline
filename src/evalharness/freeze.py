@@ -26,6 +26,17 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
+from faultline.context.corpus import body_digest_of as body_digest_of
+
+"""`body_sha256` over `(document_id, section, body)` triples.
+
+**Re-exported, not reimplemented.** It was written here and moved down to
+`faultline.context.corpus` at T6.5, because the postmortem acceptance ledger pins a document by
+this digest and production may not import the harness. The name stays reachable by this path
+because `corpus_state`, the drift check and their tests all read it here - and because *there is
+one of it* is the entire point of the function.
+"""
+
 REPO_ROOT = Path(__file__).resolve().parents[2]
 
 AGENT_ROLES = (
@@ -62,19 +73,6 @@ def prompts_hash() -> dict[str, Any]:
     )
     joined = "\n\x00\n".join(getattr(roles, n) for n in names)
     return {"constants": names, "sha256": _sha(joined), "chars": len(joined)}
-
-
-def body_digest_of(rows: list[tuple[str, str, str]]) -> str:
-    """`body_sha256` over `(document_id, section, body)` triples.
-
-    **Extracted so there is one of it** (Q45). The corpus-drift check hashes the working tree and
-    compares against this number; two implementations of the same digest is a drift checker that
-    can drift, which is the joke this repository does not need to make.
-
-    The ordering is the SQL's - `document_id, section, body` - so a caller hashing chunks off disk
-    sorts the same way or gets a different answer for the same corpus.
-    """
-    return _sha("\n\x00\n".join(f"{d}|{s}|{b}" for d, s, b in sorted(rows)))
 
 
 def corpus_state(dsn: str) -> dict[str, Any]:

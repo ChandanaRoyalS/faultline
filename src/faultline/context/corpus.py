@@ -12,6 +12,7 @@ it is why the chunk is a section (ADR-0018).
 
 from __future__ import annotations
 
+import hashlib
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -145,6 +146,25 @@ AUTHORED = "authored"
 """The origin every runbook carries. **The one value T4.1b's filter never excludes** (ADR-0008):
 runbooks are institutional knowledge a responder would legitimately have, so excluding them
 while scoring a scenario would measure an agent working without its own documentation."""
+
+
+def body_digest_of(rows: list[tuple[str, str, str]]) -> str:
+    """A digest over `(document_id, section, body)` triples. **The content, not the shape.**
+
+    **Extracted so there is one of it** (Q45). The corpus-drift check hashes the working tree and
+    compares against `corpus_state`'s `body_sha256`; two implementations of the same digest is a
+    drift checker that can drift, which is the joke this repository does not need to make.
+
+    The ordering is the SQL's - `document_id, section, body` - so a caller hashing chunks off
+    disk sorts the same way or gets a different answer for the same corpus.
+
+    **It lives here rather than in `evalharness.freeze`, where it was written.** T6.5's
+    acceptance ledger pins a postmortem by this digest, and production may not import the
+    harness - so the function moved down and `freeze` re-exports it. Moving it was the only way
+    to keep the "one of it" property that its own docstring is about.
+    """
+    joined = "\n\x00\n".join(f"{d}|{s}|{b}" for d, s, b in sorted(rows))
+    return hashlib.sha256(joined.encode()).hexdigest()
 
 
 def chunk_runbook(runbook: Any, source_path: Path) -> list[Chunk]:

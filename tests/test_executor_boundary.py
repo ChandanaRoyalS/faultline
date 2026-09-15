@@ -85,10 +85,15 @@ READ_SURFACE = SRC / "faultline" / "api" / "incidents.py"
 WRITERS = (
     "faultline.executor",
     "faultline.api.approvals",
+    "faultline.api.postmortems",
     "faultline.orchestrator.machine",
     "faultline.orchestrator.rejections",
     "faultline.orchestrator.acknowledgements",
+    "faultline.context.acceptance",
 )
+"""**T6.5 added two**, and they belong here for the same reason the others do: a postmortem
+acceptance is a row that decides what enters the retrieval corpus, and a read route that could
+import the writer could append one."""
 
 
 def test_the_read_surface_still_imports_no_writer() -> None:

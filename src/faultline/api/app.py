@@ -49,6 +49,7 @@ they were handed stores, not a connection, precisely so that this stays true.
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI
@@ -93,8 +94,56 @@ def read_surface(app: FastAPI, postgres_dsn: str) -> FastAPI:
     trajectory_store = PostgresTrajectoryStore(connection)
     app.include_router(incidents.build(incident_store, trajectory_store), dependencies=[credential])
     app.include_router(incidents.page_router(), dependencies=[credential])
+    accept_surface(app, connection, credential)
     write_surface(app, connection, incident_store, trajectory_store, credential)
     return app
+
+
+def accept_surface(app: FastAPI, connection: Any, credential: Any) -> FastAPI:
+    """Mount T6.5's postmortem accept route.
+
+    **Here rather than inside `write_surface`, and the reason is a bug that would have been
+    hard to see.** `write_surface` returns early when the executor's token key is unset, which
+    is right for approve and reject - they are useless without an executor. Accepting a
+    postmortem has nothing to do with the executor, and mounting it there would mean a
+    deployment that never executes anything silently cannot accept a document either, while
+    `faultline-seed` goes on refusing every postmortem for want of a row nobody could create.
+    """
+    from faultline.api import postmortems
+    from faultline.context.acceptance import PostgresAcceptanceStore
+
+    app.include_router(
+        postmortems.build(
+            acceptances=PostgresAcceptanceStore(connection),
+            caller=credential,
+            scenario_ids=catalog_scenario_ids(),
+        ),
+        dependencies=[credential],
+    )
+    return app
+
+
+def catalog_scenario_ids() -> set[str] | None:
+    """Every catalog scenario id, for ADR-0036's ban - or `None` if the catalog is not there.
+
+    **`None` rather than an empty set**, because the two mean opposite things to the guard: an
+    empty set silently checks nothing, and a deployment shipping without `evals/scenarios/`
+    would then accept a postmortem naming a holdout scenario with no complaint. `None` is the
+    honest report that the check could not run, and `parse_postmortem_text` treats it as such.
+    """
+    # Walked up rather than a package-relative constant, for the reason `allowlist.catalog_path`
+    # gives: the catalog is repository data, and it must resolve the same from an editable
+    # install and from a clean clone.
+    root = next(
+        (p for p in Path(__file__).resolve().parents if (p / "evals" / "scenarios").is_dir()),
+        None,
+    )
+    if root is None:
+        return None
+    scenarios = root / "evals" / "scenarios"
+    if not scenarios.is_dir():
+        return None
+    return {path.stem for path in scenarios.glob("*.yaml")}
 
 
 def write_surface(

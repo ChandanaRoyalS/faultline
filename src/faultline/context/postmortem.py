@@ -82,7 +82,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict
 
 from faultline.context.allowlist import ActionStatus, load_allowlist
 from faultline.context.corpus import FRONT_MATTER, SECTION, TITLE, Chunk
@@ -191,17 +191,16 @@ def named_scenarios(text: str, scenario_ids: set[str]) -> list[str]:
 
 
 class Postmortem(BaseModel):
-    """One accepted postmortem, parsed.
+    """One parsed postmortem. **Parsing says nothing about whether it may be seeded.**
 
-    **`accepted_by` is required and may not be empty**, so the class cannot represent an
-    unaccepted document at all. The registration's §3 names the failure mode - *a boolean
-    nobody sets* - and a required field is the cheap half of avoiding it.
+    It carried `accepted_by` and `accepted_at` for one commit, and T6.5's second piece removed
+    them. The docstring then said what was wrong with them: *a name in front matter is a string
+    anyone can type*. Acceptance now lives in `context/acceptance.py` - an append-only row
+    naming the authenticated caller and pinning the prose by digest - and a field beside it
+    would be a second answer to one question, editable by whoever edits the file.
 
-    It is only the cheap half. A name in front matter is a string anyone can type; what makes
-    it correspond to an authenticated caller and an append-only row is the accept route, which
-    is T6.5's second piece and is **not built yet**. Until it is, this field records an
-    intention rather than an authorisation, and nothing here should be read as claiming
-    otherwise.
+    So there is nothing here to consult about acceptance, deliberately. The seeder asks the
+    ledger, which is the only thing that can answer.
     """
 
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -221,9 +220,6 @@ class Postmortem(BaseModel):
     """Copied from the bundle manifest, as a narrative's is - so a re-record moves it and a
     stale postmortem is detectable by the same rule."""
 
-    accepted_by: str = Field(min_length=1)
-    accepted_at: str = Field(min_length=1)
-
     title: str
     sections: list[tuple[str, str]]
 
@@ -233,17 +229,28 @@ class Postmortem(BaseModel):
 
 
 def parse_postmortem(path: Path, *, scenario_ids: set[str] | None = None) -> Postmortem:
+    """One postmortem file. `parse_postmortem_text` with the path as the name in every error."""
+    return parse_postmortem_text(path.read_text(), source=str(path), scenario_ids=scenario_ids)
+
+
+def parse_postmortem_text(
+    text: str, *, source: str = "<submitted>", scenario_ids: set[str] | None = None
+) -> Postmortem:
     """Front matter, title, sections - then every guard, before the object exists.
 
     **Guarded at parse time rather than at seed time**, which is one layer earlier than the
     narrative's guard runs and deliberately so. The narrative's leak check lives in `render`
-    because the scribe composes it; a postmortem can also arrive as a hand-edited file, and a
-    guard that only the writing path runs is a guard an editor walks around.
+    because the scribe composes it; a postmortem also arrives as a hand-edited file and as an
+    HTTP body, and a guard that only the writing path runs is a guard an editor walks around.
 
-    `scenario_ids` is injected rather than globbed so this stays a pure function over a path;
-    `faultline.context.seed` passes the catalog.
+    **Text rather than a path, so the accept route runs exactly these guards** (T6.5 piece 2).
+    A route that re-implemented them would be a second opinion about what may enter the corpus,
+    and the two would drift on the first rule that changed.
+
+    `scenario_ids` is injected rather than globbed so this stays a pure function over its input;
+    `faultline.context.seed` and `api/postmortems.py` both pass the catalog.
     """
-    text = path.read_text()
+    path = source
     match = FRONT_MATTER.match(text)
     if match is None:
         raise PostmortemError(f"{path}: no YAML front matter, so it carries no provenance")
@@ -304,8 +311,6 @@ def parse_postmortem(path: Path, *, scenario_ids: set[str] | None = None) -> Pos
         split=str(loaded.get("split", "")),
         incident_id=str(loaded.get("incident_id", "")),
         recorded_from=str(loaded.get("recorded_from", "")),
-        accepted_by=str(loaded.get("accepted_by", "")),
-        accepted_at=str(loaded.get("accepted_at", "")),
         title=title_match.group(1).strip(),
         sections=sections,
     )
@@ -351,8 +356,6 @@ def render(postmortem: Postmortem) -> str:
         "split": postmortem.split,
         "incident_id": postmortem.incident_id,
         "recorded_from": postmortem.recorded_from,
-        "accepted_by": postmortem.accepted_by,
-        "accepted_at": postmortem.accepted_at,
     }
     lines = ["---", yaml.safe_dump(front, sort_keys=False).rstrip(), "---", ""]
     lines += [f"# {postmortem.title}", ""]
