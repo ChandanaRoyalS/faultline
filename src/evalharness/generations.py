@@ -98,7 +98,7 @@ constant is what the scenario table's at-stamp columns compare against so that r
 cannot be printed as figures about the second. Move it when the observability files move, in the
 same commit that re-records the bundles."""
 
-CURRENT_CORPUS_SHAPE = "5e372dd5955d6f9fa1ecd25582b18cc9296122e255875004116c1bbf85338546"
+CURRENT_CORPUS_SHAPE = "f34651707c7f928ffdb7f231dfe5cc827dcc5468b93582050a44a90061c28f03"
 """The corpus `sha256` a figure at the current corpus is expected to carry (Q61).
 
 **The corpus is not in the generation name, and this is the decision.** Q61's row poses it as a
@@ -114,18 +114,36 @@ compared where the figures are printed**, with absent read as *unknown* rather t
 The corpus is the same shape of problem - it changes what an agent can retrieve and not what
 world it ran in - so it gets the same mechanism rather than a new one.
 
-**And the archive has already crossed one corpus boundary that nothing recorded.** Measured over
-551 run directories: 183 carry a corpus block, and they fall into exactly two states - **six runs
-at `e4ca493867b4`, 35 chunks over 7 documents**, and **177 at this digest, 103 chunks over 25
-documents** (10 scenario narratives, 15 runbooks). `generation_of` calls all 183 one generation,
-because it reads `compose_digest` and `host_platform` and nothing about the corpus.
+**The archive has already crossed two corpus boundaries and nothing recorded either.** Measured
+over 551 run directories: 183 carry a corpus block, in exactly two states - **six runs at
+`e4ca493867b4`, 35 chunks over 7 documents**, and **177 at `5e372dd5955d`, 103 chunks over 25**.
+`generation_of` calls all 183 one generation, because it reads `compose_digest` and
+`host_platform` and nothing about the corpus.
+
+**And then a third, which is the one this constant names.** T6.4 grew the corpus to **50
+documents and 261 chunks** on 2026-09-12 - the day after the newest scored run - and Q48 settled
+that *"the 261-chunk figures are canonical now: they are what the source files produce and what
+CI seeds."* `recall@3 = 0.395` is a figure about that corpus. **Every scored run in `evals/runs/`
+is about the 25-document one.**
+
+**So this value is not the archive's, and pinning it to the archive's was the defect it was
+written to prevent.** The first version of this constant took the digest off the newest recorded
+*run*, reasoning that a run is what carries a corpus - and that made the pin describe the corpus
+of the last thing scored rather than the corpus the pipeline now reads, so `_corpus_agrees` would
+have admitted 177 runs on the old corpus and excluded every new one. Exactly backwards. Found by
+running `faultline-corpus-drift` against the live store, which reported 261 chunks where every
+manifest says 103.
+
+**What it costs, measured before it was taken: README's at-stamp table goes from 30 runs to
+zero.** That is not a regression, it is the record: no scored run exists on the corpus this
+pipeline retrieves from. The table's dashes say so until T6.5's arms land, and Q61's row called
+this split *"correct"* when it expected it to arrive later.
 
 **What has not happened, checked rather than assumed: no published stamp pools two corpora.**
 Grouped by `runtime_version`, every stamp is corpus-homogeneous - sweep 5's `1b0e7cbb4c47` is the
-7-document corpus, every later stamp is this one, and the only bucket holding both is the
+7-document corpus, every later stamp the 25-document one, and the only bucket holding both is the
 stampless one, which is unscored runs rather than figures. **That is timing, not a mechanism**:
-the corpus happened to change between sweeps rather than inside one. This constant is the
-mechanism, added before the seed T6.5 needs makes it matter.
+the corpus changed between sweeps rather than inside one, three times, unremarked each time.
 """
 
 CURRENT_CORPUS_BODY: str | None = None
