@@ -98,12 +98,18 @@ its own docstring makes for `observability_digest`: *"Without this input those f
 share a fingerprint with every run made after the fix, which is the silent pooling the whole table
 exists to prevent."*
 
-It is not in this change because `eval_configs.fingerprint` is a **stored primary key**, not a
-read-time computation. Adding an input changes the fingerprint of every future ingest of a run
-that carries a corpus block, so the same run ingested before and after this change lands under
-two configuration rows. That is defensible — `settings` holds the exact object each fingerprint
-was taken over, which is the designed mitigation — but it re-partitions the eval database and
-deserves its own diff and its own argument rather than riding along with a table filter.
+It was not in the first change because `eval_configs.fingerprint` is a **stored primary key**,
+not a read-time computation: adding an input changes the fingerprint of every future ingest of a
+run that carries a corpus block, so the same manifest ingested before and after lands under two
+configuration rows. That deserved its own diff.
+
+**Landed in the follow-up, and the feared cost was measured and is not there.** Over all 548
+manifests on disk the grouping after the change is the **same 38 groups with the same members**,
+only renamed — because every configuration in this archive was already corpus-homogeneous, which
+is §1's finding from the other side. So the cost is names rather than membership: a half-loaded
+database holds one configuration under two names, which a re-backfill resolves. The input
+therefore separates nothing today, and it is right anyway — **it is a mechanism for the next seed
+rather than a repair of the last one.**
 
 **The generation name still under-specifies the world**, now on two axes rather than one. That is
 Q31, and the corpus joins it rather than opening a second row: renaming a generation renames it
@@ -116,9 +122,9 @@ form `group_by_generation` respects."* **That phrasing named a function with no 
 consumer**, which §1 establishes, so it cannot be met literally and meeting it would buy nothing.
 
 What the amendment was *for* is that a T6.5 figure must not silently pool with runs that read a
-different corpus. Against that, after §3: **the README table cannot, and the eval database still
-can.** So the gate is half open, and the honest reading is that T6.5's seed should wait for §4's
-first half — which is a small change with its argument already written here.
+different corpus. Against that, after §3 and §4: **neither the README table nor the eval database
+can.** The gate is met in substance, and it is met by a mechanism that has never had to fire —
+which is the only kind worth having in place before the seed rather than after it.
 
 **One thing the seed must do either way**, and it is cheap: record `body_sha256` before and after,
 and set `CURRENT_CORPUS_BODY` in the same commit. Without that the body axis stays unarmed and
