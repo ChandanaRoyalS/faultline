@@ -42,7 +42,13 @@ from pathlib import Path
 from typing import Any
 
 from evalharness.evaldb import outcome_of
-from evalharness.generations import CURRENT_OBSERVABILITY, WORLD_90E, generation_of
+from evalharness.generations import (
+    CURRENT_CORPUS_BODY,
+    CURRENT_CORPUS_SHAPE,
+    CURRENT_OBSERVABILITY,
+    WORLD_90E,
+    generation_of,
+)
 from evalharness.run import counts_toward_aggregates
 from evalharness.scenario import Scenario
 
@@ -116,7 +122,13 @@ def _manifests(runs: Path) -> list[dict[str, Any]]:
     ]
 
 
-def _qualifies(manifest: dict[str, Any], world: str, observability: str | None = None) -> bool:
+def _qualifies(
+    manifest: dict[str, Any],
+    world: str,
+    observability: str | None = None,
+    corpus_shape: str | None = None,
+    corpus_body: str | None = None,
+) -> bool:
     return (
         counts_toward_aggregates(manifest)
         # The pipeline arm only. A B0 baseline run (`manifest["baseline"]`, stamp
@@ -136,6 +148,7 @@ def _qualifies(manifest: dict[str, Any], world: str, observability: str | None =
         and outcome_of(manifest) == "scored"
         and generation_of(manifest).world == world
         and _observability_agrees(manifest, observability)
+        and _corpus_agrees(manifest, corpus_shape, corpus_body)
     )
 
 
@@ -164,12 +177,45 @@ def _observability_agrees(manifest: dict[str, Any], expected: str | None) -> boo
     return expected is None or recorded is None or recorded == expected
 
 
+def _corpus(manifest: dict[str, Any]) -> dict[str, Any]:
+    return (manifest.get("freeze") or {}).get("corpus") or {}
+
+
+def _corpus_agrees(manifest: dict[str, Any], shape: str | None, body: str | None) -> bool:
+    """Whether this run read the corpus the current figures describe (Q61).
+
+    **The same rule as `_observability_agrees`, for the same reason and with the same asymmetry.**
+    The corpus is not in the generation name - `generation_of` reads `compose_digest` and
+    `host_platform` and nothing else - and it changes what an agent can retrieve, which is what
+    these figures are about. `CURRENT_CORPUS_SHAPE` carries the argument for pinning rather than
+    folding.
+
+    **Absent is unknown, not different**, on both axes independently. A run that recorded
+    `sha256` and not `body_sha256` is checked on the first and not the second, which is every run
+    in the archive: 183 carry a shape digest and none carries a body digest. Dropping them would
+    be refusing figures on a number nobody recorded, which is the mistake `_observability_agrees`
+    documents its first version making.
+
+    **Two axes because the two digests see different changes.** `sha256` sees a document added or
+    removed; `body_sha256` sees a rewrite under an unchanged heading, which `sha256` cannot see at
+    all (Q36, Q45). A corpus can move on either alone.
+    """
+    corpus = _corpus(manifest)
+    recorded_shape = corpus.get("sha256")
+    recorded_body = corpus.get("body_sha256")
+    shape_ok = shape is None or not recorded_shape or recorded_shape == shape
+    body_ok = body is None or not recorded_body or recorded_body == body
+    return bool(shape_ok and body_ok)
+
+
 def rows(
     stamp: str,
     runs: Path = RUNS,
     scenarios: Path = SCENARIOS,
     world: str = CURRENT_WORLD,
     observability: str | None = CURRENT_OBSERVABILITY,
+    corpus_shape: str | None = CURRENT_CORPUS_SHAPE,
+    corpus_body: str | None = CURRENT_CORPUS_BODY,
 ) -> list[ScenarioRow]:
     """One row per unblocked scenario, dev first, then holdout, alphabetical within each."""
     # The top-level files only: `evals/scenarios/examples/` is the schema's worked example and
@@ -178,14 +224,16 @@ def rows(
     catalog = [s for s in loaded if not s.blocked]
     catalog.sort(key=lambda s: (s.split != "dev", s.id))
     on_world = [m for m in _manifests(runs) if _qualifies(m, world)]
-    qualifying = [m for m in on_world if _qualifies(m, world, observability)]
+    qualifying = [
+        m for m in on_world if _qualifies(m, world, observability, corpus_shape, corpus_body)
+    ]
 
     out: list[ScenarioRow] = []
     for scenario in catalog:
         # **The two columns ask different questions, so they filter differently.** The pooled
         # column is context - every stamp on this compose world - and keeps runs whose
-        # observability differs, because dropping them would hide runs that happened.
-        # The at-stamp columns are the figures, and ask for both digests.
+        # observability or corpus differs, because dropping them would hide runs that happened.
+        # The at-stamp columns are the figures, and ask for every digest.
         mine = [m for m in on_world if m.get("scenario_id") == scenario.id]
         at_stamp = [
             m

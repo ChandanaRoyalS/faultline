@@ -98,6 +98,57 @@ constant is what the scenario table's at-stamp columns compare against so that r
 cannot be printed as figures about the second. Move it when the observability files move, in the
 same commit that re-records the bundles."""
 
+CURRENT_CORPUS_SHAPE = "5e372dd5955d6f9fa1ecd25582b18cc9296122e255875004116c1bbf85338546"
+"""The corpus `sha256` a figure at the current corpus is expected to carry (Q61).
+
+**The corpus is not in the generation name, and this is the decision.** Q61's row poses it as a
+choice - fold the corpus into the world key, or leave it - and notes that folding would split the
+archive's runs from everything after, *"which is correct and is also the first time this
+repository would separate two tables over a change nobody has argued is material"*.
+
+**The repository has already answered this question once, for a digest of exactly the same
+kind.** `CURRENT_OBSERVABILITY` exists because the world whose Tempo was blind to the last five
+minutes and the world whose Tempo is not are one `compose_digest` and two different things to an
+agent. The answer there was not a second generation axis: it was a **pinned expected digest,
+compared where the figures are printed**, with absent read as *unknown* rather than *different*.
+The corpus is the same shape of problem - it changes what an agent can retrieve and not what
+world it ran in - so it gets the same mechanism rather than a new one.
+
+**And the archive has already crossed one corpus boundary that nothing recorded.** Measured over
+551 run directories: 183 carry a corpus block, and they fall into exactly two states - **six runs
+at `e4ca493867b4`, 35 chunks over 7 documents**, and **177 at this digest, 103 chunks over 25
+documents** (10 scenario narratives, 15 runbooks). `generation_of` calls all 183 one generation,
+because it reads `compose_digest` and `host_platform` and nothing about the corpus.
+
+**What has not happened, checked rather than assumed: no published stamp pools two corpora.**
+Grouped by `runtime_version`, every stamp is corpus-homogeneous - sweep 5's `1b0e7cbb4c47` is the
+7-document corpus, every later stamp is this one, and the only bucket holding both is the
+stampless one, which is unscored runs rather than figures. **That is timing, not a mechanism**:
+the corpus happened to change between sweeps rather than inside one. This constant is the
+mechanism, added before the seed T6.5 needs makes it matter.
+"""
+
+CURRENT_CORPUS_BODY: str | None = None
+"""The corpus `body_sha256` a figure at the current corpus is expected to carry - **once one
+exists**.
+
+`None` means *no expected value has been established*, and the qualifier below treats it as a
+check that does not run. That is the honest state: `body_sha256` landed 2026-09-14 (Q36, Q45) and
+**no scored run has been recorded since**, so nothing in `evals/runs/` carries one - 0 of 183.
+
+**It is pinned as a literal rather than computed, for `CURRENT_OBSERVABILITY`'s reason**: reading
+it off the live store would make a published figure's membership depend on which database the
+reader happens to have. The value is set in the same commit that re-seeds, from the digest that
+seed records.
+
+**Why both digests and not one.** `sha256` hashes `document_id|section` and sees a document
+added or removed; `body_sha256` hashes the text and sees a rewrite. Q45's first live run found
+the deployed corpus disagreeing with `main` on **nine runbooks with an identical shape** - same
+headings, different words - which `sha256` cannot see at all. The T6.5 seed carries both kinds of
+change at once: postmortems are new documents (shape moves) and the drifted runbooks are
+rewrites (only body moves). One constant would catch one of them.
+"""
+
 WORLD_ERAS = (
     (T7_1_FIRST_CAPTURE, WORLD_4A),
     (T7_28_FIRST_CAPTURE, WORLD_299),
