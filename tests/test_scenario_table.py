@@ -12,6 +12,7 @@ from __future__ import annotations
 import json
 import re
 from pathlib import Path
+from typing import Any
 
 from evalharness import scenario_table as st
 
@@ -298,3 +299,94 @@ def test_the_repeats_sentence_is_read_off_the_rows(tmp_path: Path) -> None:
         ),
     )
     assert "different numbers of runs at this stamp" in st.render("b6837dd449ca", uneven)
+
+
+# --- which corpus did a run read (Q61) ----------------------------------------------------------
+
+
+def _with_corpus(shape: str | None = None, body: str | None = None) -> dict[str, Any]:
+    corpus: dict[str, Any] = {}
+    if shape is not None:
+        corpus["sha256"] = shape
+    if body is not None:
+        corpus["body_sha256"] = body
+    return {"freeze": {"corpus": corpus}}
+
+
+def test_a_run_on_a_different_corpus_is_not_a_figure_about_this_one() -> None:
+    """**The defect Q61 names, as a filter.** `generation_of` reads `compose_digest` and
+    `host_platform` and nothing about the corpus, so two runs either side of a `faultline-seed`
+    carry the same generation name while having retrieved from different documents."""
+    other = "e4ca493867b4" + "0" * 52
+
+    assert not st._corpus_agrees(_with_corpus(shape=other), st.CURRENT_CORPUS_SHAPE, None)
+
+
+def test_a_run_on_the_current_corpus_qualifies() -> None:
+    assert st._corpus_agrees(
+        _with_corpus(shape=st.CURRENT_CORPUS_SHAPE), st.CURRENT_CORPUS_SHAPE, None
+    )
+
+
+def test_a_manifest_that_recorded_no_corpus_is_unknown_and_not_different() -> None:
+    """The rule `_observability_agrees` already follows, and the mistake its first version made:
+    dropping every run whose freeze predates the field is refusing figures on a number nobody
+    recorded. 289 run directories in this archive have no corpus block at all."""
+    assert st._corpus_agrees({}, st.CURRENT_CORPUS_SHAPE, "whatever")
+    assert st._corpus_agrees(_with_corpus(), st.CURRENT_CORPUS_SHAPE, "whatever")
+
+
+def test_the_two_digests_are_checked_independently() -> None:
+    """**Every run in the archive is this case**: 183 carry `sha256` and none carries
+    `body_sha256`, so the shape check runs and the body check does not. A single combined check
+    would either drop all 183 or ask nothing of any of them."""
+    manifest = _with_corpus(shape=st.CURRENT_CORPUS_SHAPE)
+
+    assert st._corpus_agrees(manifest, st.CURRENT_CORPUS_SHAPE, "a-body-digest-nobody-recorded")
+
+
+def test_a_rewrite_is_caught_by_the_body_digest_alone() -> None:
+    """Q45's nine drifted runbooks: same headings, different words. `sha256` is byte-identical
+    across that change and cannot see it, which is why `body_sha256` exists (Q36) and why this
+    check has two axes rather than one."""
+    rewritten = _with_corpus(shape=st.CURRENT_CORPUS_SHAPE, body="b" * 64)
+
+    assert st._corpus_agrees(rewritten, st.CURRENT_CORPUS_SHAPE, None), "shape did not move"
+    assert not st._corpus_agrees(rewritten, st.CURRENT_CORPUS_SHAPE, "a" * 64)
+
+
+def test_an_unset_body_expectation_is_a_check_that_does_not_run() -> None:
+    """`CURRENT_CORPUS_BODY` is `None` until a seed records one. That is the honest state -
+    `body_sha256` landed after the last scored run - and it is distinct from *every run agrees*."""
+    assert st.CURRENT_CORPUS_BODY is None
+    assert st._corpus_agrees(_with_corpus(body="c" * 64), None, st.CURRENT_CORPUS_BODY)
+
+
+def test_no_published_stamp_pools_two_corpora_today() -> None:
+    """**Measured, and it is the finding that says this is a mechanism rather than a repair.**
+
+    Every `runtime_version` stamp in `evals/runs/` is corpus-homogeneous: sweep 5's
+    `1b0e7cbb4c47` is the 7-document corpus, every later stamp is the 25-document one, and the
+    only bucket holding both is the stampless one, which is unscored runs rather than figures.
+
+    **That is timing and not a mechanism** - the corpus happened to change between sweeps rather
+    than inside one - so this test is a tripwire for the next time it does not, which is the seed
+    T6.5 needs.
+    """
+    import collections
+
+    per: dict[str, set[str]] = collections.defaultdict(set)
+    for manifest in st._manifests(st.RUNS):
+        runtime = str((manifest.get("score") or {}).get("runtime_version", ""))
+        if "prompts:" not in runtime:
+            continue
+        digest = (st._corpus(manifest) or {}).get("sha256")
+        if digest:
+            per[runtime.split("prompts:")[-1]].add(str(digest))
+
+    mixed = {stamp: sorted(digests) for stamp, digests in per.items() if len(digests) > 1}
+
+    assert not mixed, (
+        f"these stamps pool runs from two corpora: {mixed}. A figure at such a stamp is about "
+        "two different sets of retrievable documents, and `generation_of` cannot see it (Q61)."
+    )
