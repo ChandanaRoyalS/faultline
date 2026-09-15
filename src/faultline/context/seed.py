@@ -31,6 +31,11 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from faultline.context.acceptance import (
+    AcceptanceStore,
+    InMemoryAcceptanceStore,
+    digest_of,
+)
 from faultline.context.corpus import (
     AUTHORED,
     Chunk,
@@ -38,6 +43,7 @@ from faultline.context.corpus import (
     chunk_runbook,
     parse_narrative,
 )
+from faultline.context.postmortem import chunk_postmortem, parse_postmortem
 from faultline.context.runbooks import Runbook, load_runbooks, runbooks_dir
 from faultline.context.store import PastIncidentStore, chunk_key
 
@@ -46,6 +52,13 @@ HOLDOUT = "holdout"
 NARRATIVE = "incident.md"
 MANIFEST = "manifest.json"
 INVALID = "INVALID.md"
+POSTMORTEM = "postmortem.md"
+"""**Beside the narrative, in the same bundle, under the same one root.**
+
+ADR-0008's quarantine is a *path* rule - `require_dev_root` refuses anything that is not
+`artifacts/dev/` - and putting postmortems anywhere else would mean a second root and a second
+guard. The whole argument in this module's docstring is that widening the input is how the
+holdout leaks, so the new document class takes the existing input rather than adding one."""
 
 
 class QuarantineError(RuntimeError):
@@ -151,9 +164,73 @@ def dev_bundles(root: Path) -> list[tuple[Path, str | None]]:
     return out
 
 
-def seed(store: PastIncidentStore, dev_root: Path) -> SeedResult:
-    """Seed every valid dev bundle's narrative. One root, and it is the only argument."""
+class UnacceptedError(RuntimeError):
+    """A postmortem on disk that no ledger row admits. **Never caught, never softened.**
+
+    Refused rather than skipped, and the asymmetry with `INVALID.md` is the point. A bundle
+    marked invalid is a decision someone recorded; an unaccepted postmortem is a document
+    somebody wrote and nobody approved, sitting in the path the seeder reads. Skipping it with a
+    line in `result.skipped` would make *"never auto-published"* depend on an operator reading
+    seeder output, and `api/auth.py` already has this repository's answer to that: **a default
+    that is safe only if someone reads a warning is not a default.**
+    """
+
+
+def postmortem_chunks(
+    bundle: Path,
+    acceptances: AcceptanceStore,
+    *,
+    scenario_ids: set[str] | None = None,
+) -> list[Chunk]:
+    """One bundle's postmortem, if it has one **and the ledger admits these exact words**.
+
+    The digest is over title and sections, so editing a paragraph after acceptance leaves no row
+    for what is now on disk and this refuses. That is the whole gate: §3's *"draft for human
+    edit, never auto-published"* is enforced here or nowhere, because this is the only code path
+    between a file and the retrieval corpus.
+    """
+    path = bundle / POSTMORTEM
+    if not path.is_file():
+        return []
+    postmortem = parse_postmortem(path, scenario_ids=scenario_ids)
+    if postmortem.split != DEV_SPLIT:
+        raise QuarantineError(
+            f"{path} declares split={postmortem.split!r} but was found under a {DEV_SPLIT} "
+            "root. The path and the front matter disagree about which side of the quarantine "
+            "this is, and the seeder refuses rather than picking one."
+        )
+    digest = digest_of(postmortem)
+    if acceptances.accepted(postmortem.scenario_id, digest) is None:
+        raise UnacceptedError(
+            f"{path} has no acceptance for its current text (digest {digest[:12]}). A postmortem "
+            "joins the corpus when a person accepts it through the approval surface and not "
+            "before; if it was accepted and then edited, the edit needs accepting too - the row "
+            "pins the words that were read (PREREGISTRATION-T6.5.md §3)."
+        )
+    manifest = json.loads((bundle / MANIFEST).read_text())
+    return chunk_postmortem(
+        postmortem,
+        scenario_fingerprint=str(manifest.get("scenario_fingerprint", "")),
+        fault_class=str(manifest.get("fault_class", "")),
+        source_path=path,
+    )
+
+
+def seed(
+    store: PastIncidentStore,
+    dev_root: Path,
+    acceptances: AcceptanceStore | None = None,
+) -> SeedResult:
+    """Seed every valid dev bundle's narrative, and any postmortem a person has accepted.
+
+    **`acceptances` defaults to a store with no rows**, which refuses every postmortem. That is
+    the safe default rather than the convenient one: a caller who has not wired the ledger is a
+    caller who cannot check the gate, and the alternative default - *no ledger means no check* -
+    would let a `faultline-seed` invocation publish an unaccepted document by omitting an
+    argument.
+    """
     root = require_dev_root(dev_root)
+    ledger = acceptances if acceptances is not None else InMemoryAcceptanceStore()
     result = SeedResult()
 
     for bundle, skip in dev_bundles(root):
@@ -165,6 +242,13 @@ def seed(store: PastIncidentStore, dev_root: Path) -> SeedResult:
         result.pruned += _reconcile(store, chunks)
         result.documents += 1
         result.seeded.append(bundle.name)
+
+        accepted = postmortem_chunks(bundle, ledger)
+        if accepted:
+            result.chunks += store.add(accepted)
+            result.pruned += _reconcile(store, accepted)
+            result.documents += 1
+            result.seeded.append(f"{bundle.name} (postmortem)")
 
     return result
 

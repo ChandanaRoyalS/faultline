@@ -30,8 +30,6 @@ origin: scenario:cart-bad-image-tag
 split: dev
 incident_id: inc-0007
 recorded_from: 2026-09-01T03:11:37Z
-accepted_by: chandana
-accepted_at: 2026-09-15T10:00:00Z
 ---
 """
 
@@ -111,16 +109,20 @@ def test_an_origin_that_disagrees_with_the_scenario_is_refused(tmp_path: Path) -
         parse_postmortem(write(tmp_path, text))
 
 
-def test_a_postmortem_cannot_be_constructed_without_an_accepter(tmp_path: Path) -> None:
-    """**The cheap half of §3's gate**, and only the cheap half.
+def test_acceptance_is_not_a_field_on_the_document(tmp_path: Path) -> None:
+    """**The field this class carried for one commit, and why it is gone.**
 
-    The failure mode §3 names is *a boolean nobody sets*. A required field means the class
-    cannot represent an unaccepted document - but a name in front matter is a string anyone can
-    type, and the route that ties it to an authenticated caller and an append-only row is T6.5's
-    second piece and is not built. This test asserts the field, not the authorisation.
+    1a made `accepted_by` required so the class could not represent an unaccepted document, and
+    its own docstring said what was wrong with that: *a name in front matter is a string anyone
+    can type*. Acceptance is an append-only row naming the authenticated caller, and a field
+    beside it would be a second answer to one question, editable by whoever edits the file.
+
+    `extra="forbid"`, so the old spelling is now a parse error rather than a value nobody reads.
     """
-    with pytest.raises(Exception, match="accepted_by"):
-        parse_postmortem(write(tmp_path, document().replace("accepted_by: chandana", "")))
+    parsed = parse_postmortem(write(tmp_path, document()))
+
+    assert not hasattr(parsed, "accepted_by")
+    assert not hasattr(parsed, "accepted_at")
 
 
 def test_a_postmortem_round_trips_through_render(tmp_path: Path) -> None:

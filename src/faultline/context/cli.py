@@ -69,7 +69,12 @@ def run(argv: list[str] | None = None) -> int:
     """Entry point. Imports its backends late, so `--help` needs no Postgres and no model."""
     args = parser().parse_args(argv)
 
-    from faultline.context.seed import QuarantineError, seed, seed_runbooks
+    from faultline.context.acceptance import (
+        AcceptanceStore,
+        InMemoryAcceptanceStore,
+        PostgresAcceptanceStore,
+    )
+    from faultline.context.seed import QuarantineError, UnacceptedError, seed, seed_runbooks
 
     if args.dry_run:
         # A store that accepts chunks and keeps nothing, so the guards and the parsing run
@@ -79,23 +84,28 @@ def run(argv: list[str] | None = None) -> int:
         from faultline.context.store import InMemoryPastIncidentStore
 
         store: object = InMemoryPastIncidentStore(HashingEmbedder())
+        # **An empty ledger, so a dry run refuses every postmortem.** It is not a lie about
+        # the deployment: a dry run has no database and therefore cannot know what was
+        # accepted, and reporting "this would seed" about a document whose acceptance it never
+        # checked is worse than reporting that it cannot tell.
+        acceptances: AcceptanceStore = InMemoryAcceptanceStore()
     else:
         import psycopg
 
         from faultline.context.embedding import SentenceTransformerEmbedder
         from faultline.context.store import PgVectorPastIncidentStore
 
-        real = PgVectorPastIncidentStore(
-            psycopg.connect(args.postgres_dsn), SentenceTransformerEmbedder(args.embedder)
-        )
+        connection = psycopg.connect(args.postgres_dsn)
+        real = PgVectorPastIncidentStore(connection, SentenceTransformerEmbedder(args.embedder))
         if args.create_schema:
             from faultline.migrate import upgrade_head
 
             upgrade_head(args.postgres_dsn)
         store = real
+        acceptances = PostgresAcceptanceStore(connection)
 
     try:
-        result = seed(store, Path(args.dev_root))  # type: ignore[arg-type]
+        result = seed(store, Path(args.dev_root), acceptances)  # type: ignore[arg-type]
         # **A second call, not a second root** (Q15). `seed` reads one directory and refuses
         # anything else; the runbooks arrive through their own entry point with their own
         # guard, so neither input can be widened into the other.
@@ -103,6 +113,12 @@ def run(argv: list[str] | None = None) -> int:
     except QuarantineError as exc:
         # Same shape as `faultline-inject`: a refusal is an error message and a non-zero
         # exit, not a traceback. The message is the guard's own and says what was refused.
+        print(f"error: {exc}", file=sys.stderr)
+        return 2
+    except UnacceptedError as exc:
+        # **Refused, not skipped.** A postmortem nobody accepted is not a seeding input, and a
+        # run that seeded the rest and mentioned this in passing would be the warning-nobody-
+        # reads that `api/auth.py` argues against.
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
