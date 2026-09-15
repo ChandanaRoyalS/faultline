@@ -10,8 +10,9 @@ check reports it.** This is the check.
 
 ## Why it can be trusted to disagree correctly
 
-**It hashes through the seeder's own chunkers.** `bundle_chunks` and `chunk_runbook` produce the
-rows the seeder would have written, and `freeze.body_digest_of` is the function `corpus_state` uses
+**It hashes through the seeder's own chunkers.** `bundle_chunks`, `postmortem_rows` and
+`chunk_runbook` produce the rows the seeder would have written, and `freeze.body_digest_of` is the
+function `corpus_state` uses
 for `body_sha256`. Two implementations of one digest is a drift checker that can drift, and a
 second copy of *"skip a bundle with no narrative, skip one marked INVALID"* would make the check
 disagree with the seeder about what the corpus should contain - the one thing a drift check may
@@ -128,7 +129,7 @@ def working_tree_rows(dev_root: Path | None = None) -> list[tuple[str, str, str]
     """
     from faultline.context.corpus import chunk_runbook
     from faultline.context.runbooks import load_runbooks, runbooks_dir
-    from faultline.context.seed import bundle_chunks, dev_bundles
+    from faultline.context.seed import bundle_chunks, dev_bundles, postmortem_rows
 
     root = dev_root or DEV_ROOT
     rows: list[tuple[str, str, str]] = []
@@ -136,6 +137,14 @@ def working_tree_rows(dev_root: Path | None = None) -> list[tuple[str, str, str]
         for bundle, skip in dev_bundles(root):
             if skip is None:
                 rows += [(c.document_id, c.section, c.text) for c in bundle_chunks(bundle)]
+                # **Postmortems too, and without asking whether they were accepted** (T6.5).
+                # This check reads no database, so it cannot ask - and it does not need to. Its
+                # question is *does the store hold what the tree says*, and a postmortem in the
+                # tree and not in the store is a real disagreement whether nobody seeded or
+                # nobody accepted. `faultline-seed` is what tells those apart, by reconciling
+                # or by refusing with the reason. `postmortem_rows` is the seeder's own parse
+                # and chunking, extracted rather than restated.
+                rows += [(c.document_id, c.section, c.text) for c in postmortem_rows(bundle)]
     directory = runbooks_dir()
     for runbook in load_runbooks():
         chunks = chunk_runbook(runbook, directory / f"{runbook.id}.md")

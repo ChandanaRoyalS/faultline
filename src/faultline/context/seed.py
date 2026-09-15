@@ -176,6 +176,37 @@ class UnacceptedError(RuntimeError):
     """
 
 
+def postmortem_rows(bundle: Path, *, scenario_ids: set[str] | None = None) -> list[Chunk]:
+    """One bundle's postmortem as chunks, **with every guard except the ledger's.**
+
+    Extracted so the corpus-drift check enumerates what the seeder enumerates (Q45). Drift reads
+    no database, so it cannot ask whether a document was accepted - and it does not need to: its
+    question is *does the store hold what the tree says*, and a postmortem in the tree and not in
+    the store is a real disagreement whether the reason is that nobody seeded or that nobody
+    accepted. `faultline-seed` is what tells the two apart, by reconciling or by refusing.
+
+    A second copy of *parse, check the split, chunk from the manifest* would be the thing a drift
+    check may not have: its own opinion of what the corpus should contain.
+    """
+    path = bundle / POSTMORTEM
+    if not path.is_file():
+        return []
+    postmortem = parse_postmortem(path, scenario_ids=scenario_ids)
+    if postmortem.split != DEV_SPLIT:
+        raise QuarantineError(
+            f"{path} declares split={postmortem.split!r} but was found under a {DEV_SPLIT} "
+            "root. The path and the front matter disagree about which side of the quarantine "
+            "this is, and the seeder refuses rather than picking one."
+        )
+    manifest = json.loads((bundle / MANIFEST).read_text())
+    return chunk_postmortem(
+        postmortem,
+        scenario_fingerprint=str(manifest.get("scenario_fingerprint", "")),
+        fault_class=str(manifest.get("fault_class", "")),
+        source_path=path,
+    )
+
+
 def postmortem_chunks(
     bundle: Path,
     acceptances: AcceptanceStore,
@@ -189,16 +220,11 @@ def postmortem_chunks(
     edit, never auto-published"* is enforced here or nowhere, because this is the only code path
     between a file and the retrieval corpus.
     """
-    path = bundle / POSTMORTEM
-    if not path.is_file():
+    rows = postmortem_rows(bundle, scenario_ids=scenario_ids)
+    if not rows:
         return []
+    path = bundle / POSTMORTEM
     postmortem = parse_postmortem(path, scenario_ids=scenario_ids)
-    if postmortem.split != DEV_SPLIT:
-        raise QuarantineError(
-            f"{path} declares split={postmortem.split!r} but was found under a {DEV_SPLIT} "
-            "root. The path and the front matter disagree about which side of the quarantine "
-            "this is, and the seeder refuses rather than picking one."
-        )
     digest = digest_of(postmortem)
     if acceptances.accepted(postmortem.scenario_id, digest) is None:
         raise UnacceptedError(
@@ -207,13 +233,7 @@ def postmortem_chunks(
             "before; if it was accepted and then edited, the edit needs accepting too - the row "
             "pins the words that were read (PREREGISTRATION-T6.5.md §3)."
         )
-    manifest = json.loads((bundle / MANIFEST).read_text())
-    return chunk_postmortem(
-        postmortem,
-        scenario_fingerprint=str(manifest.get("scenario_fingerprint", "")),
-        fault_class=str(manifest.get("fault_class", "")),
-        source_path=path,
-    )
+    return rows
 
 
 def seed(
