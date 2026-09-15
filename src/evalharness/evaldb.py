@@ -61,6 +61,7 @@ FINGERPRINT_INPUTS = (
     "observability_digest",
     "corpus_sha256",
     "corpus_body_sha256",
+    "exclusion_policy",
 )
 """The behaviour-relevant settings, in the order T4.4 and T4.6 name them.
 
@@ -71,6 +72,15 @@ before it. `ablation` is T6.1's - the specialists withheld from the agent, `[]` 
 and is absent from every run recorded before it, which `missing` records; an ablation run and a
 full run therefore never share a fingerprint, and neither pools with a run made before the switch
 existed without the difference being visible.
+
+**`exclusion_policy` is T6.5's, and it is the one input that names the measured variable
+itself.** §4's two arms sit on one corpus and differ only in what retrieval may read - `own`
+against `own+class` - so without this input a WITH run and a WITHOUT run of the same scenario
+share a configuration row and the experiment pools with its own control. It is the *policy* and
+not the resolved origin list: the list differs per scenario, so fingerprinting it would give
+every scenario its own row and the table would stop grouping anything. `ablation` set that
+granularity first - `[]` against `["traces"]` names what was done to every run in a sweep, not
+what it resolved to on one of them.
 
 **`observability_digest` is T6.1's too, and closes a hole this table had from the start.**
 A run's generation is named by `compose_digest` alone (`generations.world_key`), so **two
