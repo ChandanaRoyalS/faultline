@@ -106,3 +106,54 @@ def test_the_read_surface_still_imports_no_writer() -> None:
         f"faultline/api/incidents.py imports {offending}: the read surface is read-only "
         "structurally, and T6.3's write routes live in faultline/api/approvals.py"
     )
+
+
+# --- one sentence about execution, in one place -------------------------------------------------
+
+
+def test_the_execution_note_has_exactly_one_definition() -> None:
+    """**It had two, and they disagreed for fifteen days.**
+
+    `api/view.py` rewrote it at T6.3 — until then it read *"no executor exists"*, true when T5.6
+    wrote it and false the moment T6.2 merged, a sentence asserting the absence of a container the
+    deployment runs. `agents/cli.py`'s copy was missed and printed on all twenty of Q53's pilot
+    investigations.
+
+    It lives in `agents.contracts` rather than in either surface, so the next rewrite cannot leave
+    a third copy behind and `agents` need not import `api` to say what a proposal is.
+    """
+    definitions = [
+        path
+        for path in (SRC / "faultline").rglob("*.py")
+        if "EXECUTION_NOTE = " in path.read_text()
+    ]
+
+    assert [p.name for p in definitions] == ["contracts.py"]
+
+
+def test_no_surface_still_claims_the_executor_does_not_exist() -> None:
+    """T6.2 built one and the deployment runs it in its own container. A string saying otherwise is
+    not a stale comment - it is a false statement to an operator reading a screen or a terminal.
+
+    **Literals only.** A comment or a docstring recording what a line *used to* say is how this
+    repository keeps a correction legible, and a guard that banned the phrase outright would forbid
+    explaining the defect it exists to prevent. What must not survive is a string the program can
+    hand to a person.
+    """
+    for path in (SRC / "faultline").rglob("*.py"):
+        tree = ast.parse(path.read_text())
+        # A string that is the *whole value of a bare expression statement* is discarded by Python
+        # and cannot reach anyone: module, class and function docstrings, and the attribute
+        # docstrings this repository uses under nearly every constant. Everything else is a literal
+        # the program can hand to a person.
+        prose = {
+            id(node.value)
+            for node in ast.walk(tree)
+            if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
+        }
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Constant) or not isinstance(node.value, str):
+                continue
+            if id(node) in prose:
+                continue
+            assert "no executor exists" not in node.value, f"{path}:{node.lineno}"

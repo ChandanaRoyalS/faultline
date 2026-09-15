@@ -27,6 +27,19 @@ SpecialistName = Literal["metrics", "logs", "changes", "traces"]
 SPECIALISTS: tuple[SpecialistName, ...] = ("metrics", "logs", "changes", "traces")
 
 
+EXECUTION_NOTE = "not executed - a proposal is a claim, never the change (ADR-0028 §1)"
+"""What any surface says where an action plane would report execution status.
+
+**Here because it had two copies and they disagreed.** `api.view` rewrote it at T6.3 - until then
+it read *"no executor exists"*, true when T5.6 wrote it and false the moment T6.2 merged, a
+sentence asserting the absence of a container the deployment runs - and `agents.cli`'s copy was
+missed. It printed on all twenty of Q53's pilot investigations, fifteen days after it stopped being
+true.
+
+It lives in the domain rather than in either surface so the next rewrite cannot leave a third copy
+behind, and so that `agents` does not have to import `api` to say what a proposal is."""
+
+
 REPORTED = ConfigDict(extra="allow")
 """**For a contract that reports what a model found: unexpected keys are accepted and recorded.**
 

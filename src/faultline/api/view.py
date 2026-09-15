@@ -58,6 +58,7 @@ from functools import lru_cache
 from typing import Any
 from urllib.parse import quote
 
+from faultline.agents.contracts import EXECUTION_NOTE
 from faultline.tools.settings import ToolSettings
 
 GRAFANA_EXPLORE = "/explore"
@@ -382,14 +383,11 @@ def incident_view(incident: Any, trajectory: Any | None) -> dict[str, Any]:
     }
 
 
-EXECUTION_NOTE = "not executed - a proposal is a claim, never the change (ADR-0028 §1)"
-"""What the screen says where an action plane reports execution status.
-
-**Rewritten at T6.3.** Until then it read *"no executor exists"*, which was true when T5.6 wrote it
-and false the moment T6.2 merged - a sentence on the screen asserting the absence of a container
-the deployment was running. What is still true is the half that matters: what is shown is a claim,
-and nothing has acted on it. Whether an action was *then* executed is the audit's answer, not this
-field's, and the timeline carries it."""
+# **`EXECUTION_NOTE` is imported at the top of this module, not defined here.** It had two copies
+# and they disagreed: `agents/cli.py`'s still said "no executor exists" fifteen days after T6.2
+# made that false. What is still true is the half that matters - what is shown is a claim, and
+# nothing has acted on it. Whether an action was *then* executed is the audit's answer, not this
+# field's, and the timeline carries it.
 
 
 def _proposal(
