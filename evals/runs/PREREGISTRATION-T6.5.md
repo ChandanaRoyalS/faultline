@@ -652,3 +652,92 @@ nothing — the same shape Q61's change had, measured there over 548 manifests.
 
 **Then the runs.** Forty to sixty scored runs at `weekly`, R = 3, $42–55 expected against a $70
 ceiling that does not move.
+
+---
+
+# Amendment 7 — the arms interleave, because running each as a block confounds it with time
+
+**2026-09-15, written before any scored run of this measurement. $0.00 so far beyond the $1.52
+already spent.** Appended, not edited.
+
+## 1. What §4 left unspecified
+
+§4 names two arms and says *"R ≥ 2, **alternating**"* — which fixes the repeats and says nothing
+about **the order the arms run in**. Run as written, the obvious reading is two invocations of
+thirty runs each.
+
+**That confounds the arm with position in the sweep.** Q57 measured stale change records rising
+with position within a sweep; on the current generation the median investigation reads **12
+against 1 of its own**, and Q59 is open because no uncontaminated control exists. An arm that ran
+entirely second reads a world thirty runs dirtier than the arm that ran first, and §7's headline
+delta would carry that difference inside it with nothing able to separate them.
+
+This was not a hypothetical risk for this harness: dev sweep 12 put **arm B's first six runs in
+arm A's column**, which is `scenario_table._qualifies`'s first recorded miss and one of Q66's
+four.
+
+## 2. The schedule
+
+Six blocks of ten runs, one pass of one arm each, with the leading arm flipped every pass:
+
+| block | arm | `--label` | pass | runs |
+|---|---|---|---|---|
+| 1 | **WITH** | `t6.5-with` | 1 | 1–10 |
+| 2 | **WITHOUT** | `t6.5-without` | 1 | 11–20 |
+| 3 | **WITHOUT** | `t6.5-without` | 2 | 21–30 |
+| 4 | **WITH** | `t6.5-with` | 2 | 31–40 |
+| 5 | **WITH** | `t6.5-with` | 3 | 41–50 |
+| 6 | **WITHOUT** | `t6.5-without` | 3 | 51–60 |
+
+Block positions: WITH at 1, 4, 5 — sum 10. WITHOUT at 2, 3, 6 — sum 11. **One block-position of
+imbalance across sixty runs**, against thirty in the two-block form.
+
+`--end-pass` exists as of this commit. `--start-pass` alone runs from N *through the end*, so a
+single pass was not expressible, and the alternative — a tier with R = 1 — would write the wrong
+`repeat_count` into every fingerprint, which Amendment 3 settled. **Every manifest still declares
+R = 3**, because that is still the design; the blocks are how the passes were spread over time.
+
+## 3. What this fixes, and what it does not
+
+**Fixed:** the arm no longer lines up with time-in-sweep, so a delta cannot be residue
+accumulation wearing an arm label.
+
+**Not fixed, and named rather than left to be asked:**
+
+- **Residue is still present in both arms**, at Q57's measured level. Interleaving balances it;
+  it does not remove it, and Q59 is the row about there being no control group to remove it
+  against.
+- **The world is recycled before every pass**, which is one clearing per block rather than one
+  per run, so within-block position still varies.
+- **The dose is not equal across classes.** `bad_config` has four runnable scenarios and the
+  other three classes have two, so a WITHOUT run of a `bad_config` scenario has three other
+  scenarios excluded and every other WITHOUT run has one. **§7 reports the delta by class as
+  well as pooled**, because a single pooled figure is an average over two different
+  manipulations. This is §4 read literally rather than a change to it.
+
+## 4. The ceiling, and where it is enforced
+
+**No spend ceiling exists in the sweep.** It prints an estimate and does not stop at a dollar
+figure, so Amendment 3's **$70 hard ceiling is enforced at the block boundaries** — which is the
+second reason for six blocks rather than two.
+
+**Spend is read after every block** and the schedule stops where the ceiling is reached,
+reporting the blocks not run. A block is ten runs at sweep 12's measured $0.59–0.77, so **$6–8 per
+block and $35–46 for all six**, before the 16.7% discard rate. If the total after block 5 leaves
+less than one block's headroom, block 6 does not start.
+
+**The ceiling is not revised.** A budget revised upward mid-task is not a budget (§6).
+
+## 5. The label check, which is the thing most likely to go wrong
+
+Six invocations with two labels is the shape that produced dev sweep 12's mislabelled arm. So,
+**after every block**, before the next one starts: the block's manifests are read back and every
+one must carry the expected `exclusion_policy` and `sweep.label`. A block whose manifests
+disagree with the arm it was launched as is **discarded, not relabelled** — a manifest corrected
+by hand is a record of what someone believed rather than of what ran.
+
+## 6. Everything else stands
+
+Ten scenarios, `weekly`, R = 3, the 16.2pp catalog floor, the ~10pp instrument-noise floor, and
+Amendment 6's attenuation bound of `recall@3 = 0.302`. Predictions 1–11 are unchanged, including
+prediction 2's registration that the delta is **not** expected to clear 16.2pp.
