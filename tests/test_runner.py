@@ -402,7 +402,7 @@ def test_a_retrieval_stores_the_text_the_model_read_not_the_chunk_it_came_from()
     record = RetrievalRecord(
         query="q",
         k=3,
-        exclude_origin="scenario:cart-redis-misconfig",
+        exclude_origins=["scenario:cart-redis-misconfig"],
         returned=["scenario:cart-redis-misconfig"],
         scores=[0.42],
         rendered=rendered,
@@ -423,12 +423,12 @@ def test_the_retrieval_hash_sits_beside_the_text_and_not_instead_of_it() -> None
     from faultline.agents.trajectory import RetrievalRecord
 
     lines = ["a / b: one", "c / d: two"]
-    record = RetrievalRecord(query="q", k=2, exclude_origin=None, rendered=lines)
+    record = RetrievalRecord(query="q", k=2, exclude_origins=[], rendered=lines)
 
     assert record.rendered_sha256 == hashlib.sha256("\n".join(lines).encode()).hexdigest()
     assert record.rendered == lines, "the text is still there to read"
 
-    drifted = RetrievalRecord(query="q", k=2, exclude_origin=None, rendered=["a / b: ONE"])
+    drifted = RetrievalRecord(query="q", k=2, exclude_origins=[], rendered=["a / b: ONE"])
     assert drifted.rendered_sha256 != record.rendered_sha256, "drift is detectable"
 
 
@@ -438,7 +438,7 @@ def test_an_older_trajectory_reads_as_text_not_kept_never_as_nothing_retrieved()
     from faultline.agents.trajectory import RetrievalRecord
 
     older = RetrievalRecord(
-        query="q", k=3, exclude_origin="scenario:x", returned=["scenario:y"], scores=[0.5]
+        query="q", k=3, exclude_origins=["scenario:x"], returned=["scenario:y"], scores=[0.5]
     )
 
     assert older.returned, "the run did retrieve something"

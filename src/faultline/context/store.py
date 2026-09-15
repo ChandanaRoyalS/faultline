@@ -4,9 +4,14 @@ ADR-0002 chose pgvector inside the existing Postgres so that "provenance filters
 service, recency - the contamination model's enforcement point) are plain SQL WHERE clauses
 in the same query", and so leave-one-out exclusion at T4.1b is enforced in the query itself.
 
-**`exclude_origin` is in the signature from day one.** T4.1b then passes an argument rather
+**`exclude_origins` is in the signature from day one.** T4.1b then passes an argument rather
 than patching a query, and the two arms of the hybrid cannot drift into filtering
 differently, because both take the same parameter at the same call.
+
+**It was `exclude_origin: str | None` until T6.5**, which widened it to a set so the
+learning-effect measurement's two arms could sit on one corpus - the WITHOUT arm excluding a
+whole fault class, the WITH arm excluding one scenario, neither re-seeding anything. That was
+the only production change the measurement required, and ADR-0018's T6.5 addendum records it.
 
 The fusion rule lives here in Python rather than in SQL, deliberately: both implementations
 use it, so the in-memory double exercises the same ranking the real store does.
@@ -21,6 +26,28 @@ from typing import Any, Protocol
 
 from faultline.context.corpus import Chunk
 from faultline.context.embedding import Embedder
+
+
+def normalise_exclusions(origins: frozenset[str] | str | None) -> frozenset[str]:
+    """`None` and the empty set both mean *exclude nothing*. **A bare string is an error.**
+
+    The guard is not pedantry. `str` is a `Collection[str]`, so `exclude_origins="scenario:x"`
+    would type-check at most call sites and exclude sixteen single characters - matching no
+    origin, excluding nothing, and reporting a perfectly healthy `excluded_count` of zero, which
+    T4.1b would read as *the corpus does not hold this scenario*. A leave-one-out that silently
+    does not happen is the exact defect ADR-0008 axis 2 exists to prevent, so the parameter that
+    used to take a string refuses one now rather than doing something plausible with it.
+    """
+    if origins is None:
+        return frozenset()
+    if isinstance(origins, str):
+        raise TypeError(
+            f"exclude_origins takes a set of origins, not the string {origins!r}. A string is "
+            "iterable, so this would have excluded its characters and nothing else - see "
+            "ADR-0008 axis 2 and T6.5's widening of this parameter."
+        )
+    return frozenset(origins)
+
 
 RRF_K = 60
 """Reciprocal-rank-fusion constant, at its conventional value.
@@ -61,8 +88,8 @@ class PastIncidentStore(Protocol):
         263 chunks over 50 documents whose seed had just reported 261.
         """
 
-    def excluded_count(self, origin: str) -> int:
-        """How many chunks carry `origin`, and are therefore unreachable when it is excluded.
+    def excluded_count(self, origins: frozenset[str]) -> int:
+        """How many chunks carry one of `origins`, and are unreachable while they are excluded.
 
         **T4.1b's "count of filtered artifacts", and the number that answers whether the filter
         fired.** The plan asks for the count to be logged per run and for a scored run where the
@@ -79,17 +106,26 @@ class PastIncidentStore(Protocol):
         **Zero is the signal.** On a scored dev run the scenario's own narrative is in the corpus
         by construction - that is what leave-one-out means - so a zero here says either the
         corpus does not hold it or the exclusion did not apply to it. Both invalidate the run's
-        leave-one-out claim, and neither is visible from `exclude_origin` alone, which records
+        leave-one-out claim, and neither is visible from `exclude_origins` alone, which records
         only that an argument was passed.
+
+        **A set makes this number weaker than it was, and T6.5 says so rather than discovering
+        it.** With one origin, a positive count meant *S's own artifacts were unreachable*. With
+        four, a positive count means *something in the set was unreachable* - which a run
+        excluding three same-class scenarios satisfies while S's own narrative stays reachable.
+        The count alone can no longer carry T4.1b's assertion, so `run.classify_retrievals`
+        takes the scenario's own origin and checks it is in the recorded set.
         """
 
-    def search(self, query: str, k: int = 5, exclude_origin: str | None = None) -> list[Hit]:
+    def search(
+        self, query: str, k: int = 5, exclude_origins: frozenset[str] | None = None
+    ) -> list[Hit]:
         """Hybrid retrieval, with the exclusion applied to **both** arms.
 
-        `exclude_origin=None` is legal and is the product case: a live incident has no origin
+        `exclude_origins=None` is legal and is the product case: a live incident has no origin
         to exclude. **Every benchmark retrieval passes it** - ADR-0008's axis 2, where the
         nearest neighbour to scenario S is S's own rehearsal, written in the label author's
-        own words. See ADR-0018.
+        own words. See ADR-0018 and its T6.5 addendum.
         """
 
 
@@ -149,15 +185,14 @@ class InMemoryPastIncidentStore:
             del self.chunks[key]
         return len(stale)
 
-    def excluded_count(self, origin: str) -> int:
-        return sum(1 for chunk in self.chunks.values() if chunk.origin == origin)
+    def excluded_count(self, origins: frozenset[str]) -> int:
+        return sum(1 for chunk in self.chunks.values() if chunk.origin in origins)
 
-    def search(self, query: str, k: int = 5, exclude_origin: str | None = None) -> list[Hit]:
-        candidates = [
-            key
-            for key, chunk in self.chunks.items()
-            if exclude_origin is None or chunk.origin != exclude_origin
-        ]
+    def search(
+        self, query: str, k: int = 5, exclude_origins: frozenset[str] | None = None
+    ) -> list[Hit]:
+        excluded = normalise_exclusions(exclude_origins)
+        candidates = [key for key, chunk in self.chunks.items() if chunk.origin not in excluded]
         if not candidates:
             return []
 
@@ -285,16 +320,32 @@ class PgVectorPastIncidentStore:
             )
             return int(cur.rowcount)
 
-    def excluded_count(self, origin: str) -> int:
+    def excluded_count(self, origins: frozenset[str]) -> int:
+        if not origins:
+            return 0
         with self._conn.cursor() as cur:
-            cur.execute("SELECT count(*) FROM incident_chunks WHERE origin = %s", (origin,))
+            cur.execute(
+                "SELECT count(*) FROM incident_chunks WHERE origin = ANY(%s)",
+                (sorted(origins),),
+            )
             row = cur.fetchone()
             return int(row[0]) if row else 0
 
-    def search(self, query: str, k: int = 5, exclude_origin: str | None = None) -> list[Hit]:
+    def search(
+        self, query: str, k: int = 5, exclude_origins: frozenset[str] | None = None
+    ) -> list[Hit]:
         vector = str(self._embedder.embed([query])[0])
-        exclusion = "" if exclude_origin is None else " AND origin <> %(origin)s"
-        params: dict[str, Any] = {"q": query, "v": vector, "k": k, "origin": exclude_origin}
+        excluded = normalise_exclusions(exclude_origins)
+        # `<> ALL(...)` rather than `NOT IN (...)`, because `NOT IN` against an array containing
+        # a NULL is NULL for every row and would return nothing at all. No origin is null today;
+        # the form that cannot break that way costs nothing.
+        exclusion = "" if not excluded else " AND origin <> ALL(%(origins)s)"
+        params: dict[str, Any] = {
+            "q": query,
+            "v": vector,
+            "k": k,
+            "origins": sorted(excluded),
+        }
 
         with self._conn.cursor() as cur:
             cur.execute(

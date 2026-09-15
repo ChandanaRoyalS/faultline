@@ -179,3 +179,62 @@ orders away; a second document type joins past incidents, since hand-authored ru
 `origin: authored` and are never excluded (ADR-0008) and may want different chunking; or
 T4.2 measures the section-level choice as worse than a document-level one, which is the
 first real evidence any of this will get.
+
+---
+
+## Addendum 1 (2026-09-15, T6.5) — the exclusion is a set, and a second document type arrived
+
+**Two of this ADR's own "revisit if" triggers fired together, which is why they are recorded
+together.**
+
+### `exclude_origin: str | None` becomes `exclude_origins: frozenset[str] | None`
+
+T6.5's learning-effect measurement compares an arm that can read prior same-class incidents
+against one that cannot. The plan's wording — *"measured with/without"* — reads as two corpora,
+and [`PREREGISTRATION-T6.5.md`](../../evals/runs/PREREGISTRATION-T6.5.md) §4 corrected it to a
+**query-time exclusion** instead, because seeding and unseeding between arms would make them
+differ in `body_sha256` — the one axis ADR-0014 exists to separate — through a route no grouping
+sees (**Q61**).
+
+That correction needs exactly one production change: the exclusion has to name a set of origins.
+**One corpus, one digest, one generation, one wider WHERE clause.**
+
+- `PastIncidentStore.search` and `excluded_count` take a set; the SQL is `AND origin <> ALL(...)`,
+  chosen over `NOT IN` because `NOT IN` against an array containing a NULL matches no row at all.
+- **A bare string is a `TypeError`**, not a permissive convenience. `str` is a `Collection[str]`,
+  so the old spelling would have excluded sixteen characters, matched no origin, and reported a
+  healthy `excluded_count` of zero — which T4.1b reads as *the corpus does not hold this
+  scenario*. A leave-one-out that silently does not happen is the defect ADR-0008 axis 2 exists
+  to prevent.
+- `trajectory_retrievals.exclude_origin TEXT` becomes `exclude_origins TEXT[]` (migration 0009).
+  Lossless: `NULL → NULL`, `'x' → ARRAY['x']`. **Renamed rather than retyped under the same
+  name**, on `corpus_state`'s rule about `body_sha256` — a field that changes shape while keeping
+  its name makes old and new records incomparable *without saying so*.
+- `FAULTLINE_EVAL_SCENARIO` and `--exclude-origin` accept a comma-separated list. **The same
+  variable, not a second one**: two places deciding what a run may read is one sweep away from an
+  arm nobody can name afterwards. The singular flag spelling still works, because every recorded
+  sweep passes it.
+
+**What this cost, stated rather than discovered.** With one origin, *the exclusion removed
+something* and *the scenario under test was excluded* were the same event, and `excluded_count`
+carried T4.1b alone. With a set they are different: a run holding out three same-class scenarios
+and not the one under test reports a healthy count while ADR-0008 axis 2 is simply unasserted. So
+`run.classify_retrievals` now takes the scenario's own origin and checks it is in the recorded
+set, and reports `missing_own` separately from `silent` — *we excluded the wrong things* sends a
+reader to the invocation, *it removed nothing* sends them to `faultline-seed`.
+
+### A second document type joined past incidents
+
+This ADR's "revisit if" names it: *"a second document type joins past incidents … and may want
+different chunking"*. **Postmortems want the same chunking and a different identity.** They are
+sectioned per ADR-0018's rule, because a section is still what a live incident resembles; what
+differs is that a postmortem carries `document_id = postmortem:<id>` while keeping
+`origin = scenario:<id>`.
+
+That pairing is not cosmetic. `origin` is the exclusion key, so T4.1b's self-exclusion covers the
+postmortem for free and §4's WITHOUT arm reaches it through the same column with no second
+mechanism — but `document_id` is what `_reconcile` prunes against, so sharing it with the
+narrative would make the seeder's two passes each delete the other's rows, quietly, on every seed.
+
+**The older ADRs still say `exclude_origin` and are left as written.** ADR-0008, ADR-0020 and
+ADR-0022 record what was decided when they were decided; this addendum is where the change lives.

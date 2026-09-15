@@ -162,7 +162,7 @@ class InvestigationResult:
     escalation is a flag on the verdict, a warning in the log, and a field in the trajectory -
     all three of which T4.2 and T4.3 read."""
     retrieved: list[str] = field(default_factory=list)
-    exclude_origin: str | None = None
+    exclude_origins: frozenset[str] = frozenset()
 
     @property
     def flags(self) -> list[str]:
@@ -413,15 +413,15 @@ class Investigation:
         meter: DisclosureMeter,
         seq: int,
     ) -> int:
-        """Retrieve, then conclude. **The first live consumer of `exclude_origin`.**"""
+        """Retrieve, then conclude. **The first live consumer of `exclude_origins`.**"""
         if self._synthesizer is None:
             return seq
 
         exclude = self._exclusion_for(incident_id)
-        result.exclude_origin = exclude
+        result.exclude_origins = exclude
         if self._corpus is not None:
             query = self._retrieval_query(triage, result)
-            hits = self._corpus.search(query, k=self._retrieval_k, exclude_origin=exclude)
+            hits = self._corpus.search(query, k=self._retrieval_k, exclude_origins=exclude)
             result.retrieved = [
                 f"{_label(hit.chunk)} / {hit.chunk.section}: {hit.chunk.text[:280]}" for hit in hits
             ]
@@ -437,7 +437,7 @@ class Investigation:
                 RetrievalRecord(
                     query=query,
                     k=self._retrieval_k,
-                    exclude_origin=exclude,
+                    exclude_origins=sorted(exclude),
                     returned=[hit.chunk.document_id for hit in hits],
                     scores=[hit.score for hit in hits],
                     # The same list handed to the synthesizer below, not a re-render of it
@@ -475,7 +475,7 @@ class Investigation:
                     "attempts": completion.attempts,
                     "verdict": completion.value.model_dump(),
                     "flags": result.flags,
-                    "exclude_origin": exclude,
+                    "exclude_origins": sorted(exclude),
                 },
             )
         )
@@ -572,19 +572,26 @@ class Investigation:
         return seq
 
     @staticmethod
-    def _exclusion_for(incident_id: str) -> str | None:
-        """`None` in production; the scenario under test on a scored run (ADR-0008, axis 2).
+    def _exclusion_for(incident_id: str) -> frozenset[str]:
+        """Empty in production; the scenarios under test on a scored run (ADR-0008, axis 2).
 
         **Marked decision.** ADR-0020 requires every benchmark retrieval to pass one and does not
         say who supplies it. Here the caller sets `FAULTLINE_EVAL_SCENARIO` when a run is scored,
         because the *harness* knows which scenario is under test and the product does not - an
         investigation cannot infer that it is being examined, and one that could would be a worse
         design than one that cannot.
+
+        **A comma-separated list since T6.5**, and the same variable rather than a second one.
+        The measurement's WITHOUT arm excludes the scenario's own documents and every other dev
+        scenario in its fault class; a new variable beside this one would mean two places that
+        decide what a run may read, and the first sweep that set only one would produce an arm
+        nobody could name afterwards. One variable, one answer, still supplied by the harness.
         """
         import os
 
-        origin = os.environ.get("FAULTLINE_EVAL_SCENARIO", "").strip()
-        return f"scenario:{origin}" if origin else None
+        raw = os.environ.get("FAULTLINE_EVAL_SCENARIO", "")
+        names = [part.strip() for part in raw.split(",") if part.strip()]
+        return frozenset(f"scenario:{name}" for name in names)
 
     def _retrieve_for_planner(
         self,
@@ -603,16 +610,16 @@ class Investigation:
         the reason its retrieval stays where it is. Collapsing them would deliver T3.2's clause
         by degrading T3.7.
 
-        `exclude_origin` is passed here exactly as it is there - ADR-0008 axis 2 applies to every
-        benchmark retrieval, and a second one that skipped it would be a contamination hole in
-        the shape of a feature. T4.1b reads `trajectory_retrievals.exclude_origin` per row, so
+        `exclude_origins` is passed here exactly as it is there - ADR-0008 axis 2 applies to
+        every benchmark retrieval, and a second one that skipped it would be a contamination hole
+        in the shape of a feature. T4.1b reads `trajectory_retrievals.exclude_origins` per row, so
         two rows are two assertions rather than one weakened one.
         """
         if self._corpus is None:
             return [], seq
         exclude = self._exclusion_for(incident_id)
         query = self._planner_query(triage)
-        hits = self._corpus.search(query, k=self._retrieval_k, exclude_origin=exclude)
+        hits = self._corpus.search(query, k=self._retrieval_k, exclude_origins=exclude)
         rendered = [
             f"{_label(hit.chunk)} / {hit.chunk.section}: {hit.chunk.text[:280]}" for hit in hits
         ]
@@ -625,7 +632,7 @@ class Investigation:
             RetrievalRecord(
                 query=query,
                 k=self._retrieval_k,
-                exclude_origin=exclude,
+                exclude_origins=sorted(exclude),
                 returned=[hit.chunk.document_id for hit in hits],
                 scores=[hit.score for hit in hits],
                 rendered=list(rendered),
@@ -634,7 +641,7 @@ class Investigation:
         )
         return rendered, seq
 
-    def _excluded_count(self, exclude: str | None) -> int | None:
+    def _excluded_count(self, exclude: frozenset[str]) -> int | None:
         """How many chunks this exclusion made unreachable, or `None` when there is no
         exclusion to count (T4.1b).
 
@@ -642,8 +649,13 @@ class Investigation:
         two top-k arms and cannot say what was removed before ranking. A store that predates this
         method - a test double, a future backend - returns `None` rather than raising, and `None`
         reads as *not computed* everywhere downstream, never as zero.
+
+        **With a set this number stops carrying T4.1b on its own**, and the check moved rather
+        than weakened: a run excluding three same-class scenarios reports a healthy positive
+        count whether or not its own narrative was among them. `run.classify_retrievals` now
+        takes the scenario's own origin and asserts it is in the recorded set.
         """
-        if exclude is None:
+        if not exclude:
             return None
         counter = getattr(self._corpus, "excluded_count", None)
         return counter(exclude) if callable(counter) else None
@@ -994,7 +1006,7 @@ class Investigation:
 def record_retrieval(
     trajectory: Trajectory, seq: int, role: str, record: RetrievalRecord
 ) -> TrajectoryStep:
-    """Attach a retrieval to the trajectory. `exclude_origin` is on the record, and T4.1b reads
+    """Attach a retrieval to the trajectory. `exclude_origins` is on the record, and T4.1b reads
     it from the column rather than from a log line (ADR-0008)."""
     return trajectory.add(
         TrajectoryStep(

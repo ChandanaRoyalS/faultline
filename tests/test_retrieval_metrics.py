@@ -43,7 +43,7 @@ class _Store:
         self.ranking = ranking
         self.calls: list[tuple[str, int]] = []
 
-    def search(self, query: str, k: int = 5, exclude_origin: str | None = None):
+    def search(self, query: str, k: int = 5, exclude_origins: frozenset[str] | None = None):
         self.calls.append((query, k))
         return [_Hit(_Chunk(d)) for d in self.ranking.get(query, [])[:k]]
 
@@ -197,7 +197,7 @@ def test_this_module_cannot_reach_a_model() -> None:
 def _row(role: str, origin: str, trajectory: str, seq: int, query: str) -> dict:
     return {
         "role": role,
-        "exclude_origin": origin,
+        "exclude_origins": [origin] if origin else [],
         "source_trajectory": trajectory,
         "seq": seq,
         "query": query,

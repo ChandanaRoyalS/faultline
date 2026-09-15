@@ -458,8 +458,10 @@ class FakeCorpus:
         """How many chunks this corpus holds for an excluded origin. **Zero is the interesting
         value**: an exclusion that matched nothing, which T4.1b says invalidates a scored run."""
 
-    def search(self, query: str, k: int = 5, exclude_origin: str | None = None) -> list[Any]:
-        self.calls.append((query, k, exclude_origin))
+    def search(
+        self, query: str, k: int = 5, exclude_origins: frozenset[str] | None = None
+    ) -> list[Any]:
+        self.calls.append((query, k, exclude_origins))
         return []
 
     def excluded_count(self, origin: str) -> int:
@@ -481,7 +483,7 @@ ONE_DISPATCH = plan_reply(
 )
 
 
-def test_every_retrieval_row_carries_exclude_origin(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_every_retrieval_row_carries_exclude_origins(monkeypatch: pytest.MonkeyPatch) -> None:
     """**ADR-0008's axis 2, at the point it is first consumed live.** The harness sets the
     scenario under test and the row records it, which is where T4.1b reads the assertion."""
     monkeypatch.setenv("FAULTLINE_EVAL_SCENARIO", "cart-redis-misconfig")
@@ -493,8 +495,8 @@ def test_every_retrieval_row_carries_exclude_origin(monkeypatch: pytest.MonkeyPa
 
     result = engine.run("incident-7", triage_of("cartservice"), ANCHOR)
 
-    assert result.exclude_origin == "scenario:cart-redis-misconfig"
-    assert all(call[2] == "scenario:cart-redis-misconfig" for call in corpus.calls)
+    assert result.exclude_origins == frozenset({"scenario:cart-redis-misconfig"})
+    assert all(call[2] == frozenset({"scenario:cart-redis-misconfig"}) for call in corpus.calls)
     rows = [s.retrieval for s in store.trajectories[result.trajectory.id].steps if s.retrieval]
     # **Two rows since Batch C, and the count is asserted rather than relaxed.** Q23 gave the
     # planner the top-3 past incidents T3.2 always specified, so an investigation now retrieves
@@ -502,14 +504,14 @@ def test_every_retrieval_row_carries_exclude_origin(monkeypatch: pytest.MonkeyPa
     # conclude. Both must carry the exclusion; a `>= 1` here would let a third retrieval land
     # without one and this test would still pass, which is the failure it exists to prevent.
     assert len(rows) == 2
-    assert all(row.exclude_origin == "scenario:cart-redis-misconfig" for row in rows)
+    assert all(row.exclude_origins == ["scenario:cart-redis-misconfig"] for row in rows)
 
 
 def test_production_retrieval_carries_no_exclusion_and_that_is_distinct(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """A live incident has no origin to exclude. `None` has to be distinguishable from a scored
-    run that forgot one."""
+    """A live incident has no origin to exclude. An empty set has to be distinguishable from a
+    scored run that forgot one - which `excluded_count is None` is what records."""
     monkeypatch.delenv("FAULTLINE_EVAL_SCENARIO", raising=False)
     corpus = FakeCorpus()
     model = ScriptedModel(
@@ -519,8 +521,8 @@ def test_production_retrieval_carries_no_exclusion_and_that_is_distinct(
 
     result = engine.run("incident-8", triage_of("cartservice"), ANCHOR)
 
-    assert result.exclude_origin is None
-    assert corpus.calls[0][2] is None
+    assert result.exclude_origins == frozenset()
+    assert corpus.calls[0][2] == frozenset()
 
 
 def test_a_flagged_investigation_produces_a_flagged_verdict_not_silence() -> None:
@@ -1762,7 +1764,7 @@ def test_a_planner_widening_reaches_the_tool_and_the_record():  # type: ignore[n
 def test_a_retrieval_records_how_many_chunks_the_exclusion_removed(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """**T4.1b's first half.** `exclude_origin` says an exclusion was asked for; this says it had
+    """**T4.1b's first half.** `exclude_origins` says an exclusion was asked for; this says it had
     something to exclude. The filter is SQL, so a query whose exclusion matches nothing returns
     what a query with no exclusion returns and the row looks identical - which is why the count
     is recorded rather than inferred."""
@@ -1814,7 +1816,7 @@ def test_a_production_retrieval_counts_nothing_because_it_excludes_nothing(
     result = engine.run("incident-11", triage_of("cartservice"), ANCHOR)
 
     rows = [s.retrieval for s in store.trajectories[result.trajectory.id].steps if s.retrieval]
-    assert rows and all(row.exclude_origin is None for row in rows)
+    assert rows and all(row.exclude_origins == [] for row in rows)
     assert all(row.excluded_count is None for row in rows)
 
 

@@ -257,7 +257,7 @@ def test_evidence_cited_without_looking_is_recorded_and_then_emptied() -> None:
     model = ScriptedModel([verdict_reply(evidence=["tr_deadbeef", "tr_c0ffee"])])
 
     run = investigate(model)
-    written = b2.artifact("i", "t", [], 0, None, run)
+    written = b2.artifact("i", "t", [], 0, [], run)
 
     assert run.invented_evidence == ["tr_deadbeef", "tr_c0ffee"]
     assert written["verdict"]["evidence"] == [], "no id here resolves to anything"
@@ -269,7 +269,7 @@ def test_an_honest_empty_citation_is_not_flagged() -> None:
     run = investigate(ScriptedModel([verdict_reply()]))
 
     assert run.invented_evidence == []
-    assert b2.artifact("i", "t", [], 0, None, run)["flags"] == []
+    assert b2.artifact("i", "t", [], 0, [], run)["flags"] == []
 
 
 # --- scored by the same code path as everything else ----------------------------------------
@@ -282,7 +282,7 @@ def test_concluding_without_looking_is_the_method_here_and_not_an_error() -> Non
 
     assert run.error is None
     assert run.verdict is not None
-    assert b2.artifact("i", "t", [], 0, None, run)["baseline"]["tool_calls"] == 0
+    assert b2.artifact("i", "t", [], 0, [], run)["baseline"]["tool_calls"] == 0
 
 
 def test_the_artifact_has_every_field_the_scorer_reads() -> None:

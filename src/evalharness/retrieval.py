@@ -56,7 +56,9 @@ SYNTHESIZER = "synthesizer"
 class Searcher(Protocol):
     """The half of `PastIncidentStore` this module uses."""
 
-    def search(self, query: str, k: int = 5, exclude_origin: str | None = None) -> Any: ...
+    def search(
+        self, query: str, k: int = 5, exclude_origins: frozenset[str] | None = None
+    ) -> Any: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,10 +88,14 @@ class GoldenQuery:
     source_trajectory: str
     seq: int
     harvested_from: str = "none"
-    """The `exclude_origin` the run carried, i.e. which scenario this query was sent during.
+    """The `exclude_origins` the run carried, i.e. which scenarios this query was sent during.
 
     Carried so the holdout guard below has something to check. `none` is the product case: a live
     incident has no origin to exclude.
+
+    **A comma-joined sorted list since T6.5.** It is a label rather than data - the holdout guard
+    reads the row's own list, not this string - so joining is safe and keeps one query's
+    provenance readable in one field.
     """
 
     relevant: tuple[Label, ...] = ()
@@ -355,8 +361,14 @@ def measure(
     )
 
 
+def _origin_key(origins: Any) -> str:
+    """One query's exclusion as a stable label. `none` is the product case."""
+    listed = sorted(str(o) for o in (origins or []))
+    return ",".join(listed) if listed else "none"
+
+
 HARVEST_SQL = """
-SELECT r.trajectory_id, r.seq, r.query, r.k, r.exclude_origin, s.role, t.incident_id
+SELECT r.trajectory_id, r.seq, r.query, r.k, r.exclude_origins, s.role, t.incident_id
 FROM trajectory_retrievals r
 JOIN trajectory_steps s ON s.trajectory_id = r.trajectory_id AND s.seq = r.seq
 JOIN trajectories t ON t.id = r.trajectory_id
@@ -389,7 +401,7 @@ def harvest(dsn: str) -> list[dict[str, Any]]:
             "seq": row[1],
             "query": row[2],
             "k": row[3],
-            "exclude_origin": row[4],
+            "exclude_origins": list(row[4] or []),
             "role": row[5],
             "incident_id": row[6],
         }
@@ -506,10 +518,14 @@ def draw(
     seen: set[str] = set()
     ordered: list[dict[str, Any]] = []
     for row in sorted(
-        [r for r in rows if str(r["exclude_origin"] or "") not in held],
+        # **Intersection, not membership.** With a set a row can exclude one dev scenario and
+        # one holdout scenario at once, and `not in held` on a joined string would let it
+        # through - a harvested query carrying a holdout scenario's words is the contamination
+        # this guard exists to stop, whatever else the row also excluded.
+        [r for r in rows if not held & set(r["exclude_origins"])],
         key=lambda r: (
             str(r["role"]),
-            str(r["exclude_origin"] or ""),
+            _origin_key(r["exclude_origins"]),
             str(r["source_trajectory"]),
             int(r["seq"]),
         ),
@@ -529,7 +545,7 @@ def draw(
         role = str(row["role"])
         if role not in wanted:
             continue
-        key = (role, str(row["exclude_origin"] or ""))
+        key = (role, _origin_key(row["exclude_origins"]))
         seat = taken.get(key, 0)
         taken[key] = seat + 1
         low, high = wanted[role]

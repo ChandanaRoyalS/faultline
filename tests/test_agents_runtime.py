@@ -162,7 +162,7 @@ def trajectory_with_envelope() -> tuple[Trajectory, str]:
             retrieval=RetrievalRecord(
                 query="cart errors",
                 k=5,
-                exclude_origin="scenario:cart-redis-misconfig",
+                exclude_origins=["scenario:cart-redis-misconfig"],
                 returned=["scenario:ad-memory-squeeze#0"],
                 scores=[0.0164],
             ),
@@ -196,23 +196,23 @@ def test_the_envelope_hash_travels_with_the_text() -> None:
 
 
 def test_every_retrieval_records_the_exclusion_that_was_passed() -> None:
-    """**This is where T4.1b reads ADR-0008's assertion.** The harness sets `exclude_origin` on
+    """**This is where T4.1b reads ADR-0008's assertion.** The harness sets `exclude_origins` on
     every scored run and asserts the filter fired; a run where it did not is marked invalid, not
     annotated. A column, not a log line."""
     trajectory, _ = trajectory_with_envelope()
 
     retrieval = trajectory.retrievals[0]
 
-    assert retrieval.exclude_origin == "scenario:cart-redis-misconfig"
+    assert retrieval.exclude_origins == ["scenario:cart-redis-misconfig"]
     assert retrieval.returned and retrieval.scores
 
 
 def test_a_product_retrieval_may_carry_no_exclusion_and_that_is_distinct() -> None:
     """`None` is legal and is the product case - a live incident has no origin to exclude. It
     has to be distinguishable from a benchmark run that forgot one."""
-    record = RetrievalRecord(query="cart errors", k=5, exclude_origin=None)
+    record = RetrievalRecord(query="cart errors", k=5, exclude_origins=[])
 
-    assert record.exclude_origin is None
+    assert record.exclude_origins == []
 
 
 def test_the_trajectory_records_the_effective_role_map_not_just_the_default() -> None:

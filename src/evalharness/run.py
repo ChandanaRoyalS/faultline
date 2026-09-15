@@ -769,7 +769,9 @@ def metric_panel(dsn: str, trajectory_id: str) -> metrics.MetricPanel:
     )
 
 
-def retrieval_enforcement(dsn: str, trajectory_id: str) -> dict[str, Any]:
+def retrieval_enforcement(
+    dsn: str, trajectory_id: str, own_origin: str | None = None
+) -> dict[str, Any]:
     """Did the leave-one-out filter actually remove anything? (T4.1b)
 
     T4.1b's second half: *"the count of filtered artifacts is logged per run, and a scored run
@@ -778,13 +780,21 @@ def retrieval_enforcement(dsn: str, trajectory_id: str) -> dict[str, Any]:
 
     Three outcomes, and the third is the one that matters:
 
-    - **no benchmark retrieval** - every row has `exclude_origin IS NULL`. This is the product
+    - **no benchmark retrieval** - every row has an empty `exclude_origins`. This is the product
       case and it is legal; a live incident has no origin to exclude.
     - **fired** - every excluding row removed at least one chunk.
     - **did not fire** - a row asked for an exclusion and it matched **nothing**. On a scored dev
       run the scenario's own narrative is in the corpus by construction, so a zero says either
       the corpus does not hold it or the exclusion did not apply to it. Either way the run's
       leave-one-out claim is unsupported and the run is not a result.
+
+    **A fourth since T6.5, and it is the reason this function now takes `own_origin`.** The
+    exclusion is a set, so a positive `excluded_count` no longer means *S's own artifacts were
+    unreachable* - a WITHOUT-arm run excluding three same-class scenarios reports a healthy count
+    whether or not S is among them. `own_origin` is checked against the recorded set directly,
+    which is the assertion ADR-0008 axis 2 actually makes; the count says only that the exclusion
+    had something to bite on. Passing `None` skips that check and is for callers that do not know
+    which scenario was under test.
 
     `NULL` counts are *not computed*, not zero: rows written before this task, and any store
     that cannot count. They are reported as `unassessable` and never invalidate a run, because
@@ -795,32 +805,62 @@ def retrieval_enforcement(dsn: str, trajectory_id: str) -> dict[str, Any]:
 
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
         cur.execute(
-            "SELECT seq, exclude_origin, excluded_count FROM trajectory_retrievals "
+            "SELECT seq, exclude_origins, excluded_count FROM trajectory_retrievals "
             "WHERE trajectory_id = %s ORDER BY seq",
             (trajectory_id,),
         )
         rows = cur.fetchall()
-    return classify_retrievals([(int(seq), origin, count) for seq, origin, count in rows])
+    return classify_retrievals(
+        [(int(seq), list(origins or []), count) for seq, origins, count in rows],
+        own_origin=own_origin,
+    )
 
 
-def classify_retrievals(rows: list[tuple[int, str | None, int | None]]) -> dict[str, Any]:
+def classify_retrievals(
+    rows: list[tuple[int, list[str], int | None]], own_origin: str | None = None
+) -> dict[str, Any]:
     """The judgement, separated from the query so it can be tested without a database.
 
-    `rows` is `(seq, exclude_origin, excluded_count)` as stored. Kept pure deliberately: the
+    `rows` is `(seq, exclude_origins, excluded_count)` as stored. Kept pure deliberately: the
     decision to refuse a run is the part that has to be right, and a rule reachable only through
     Postgres is a rule exercised only by the integration suite.
+
+    **`missing_own` is T6.5's addition and it is the strict one.** A row that excluded something
+    but not the scenario under test has not made ADR-0008 axis 2's assertion, however healthy
+    its count looks. It invalidates the run for the same reason `silent` does, and it is reported
+    separately so a reader can tell *the corpus was empty* from *we excluded the wrong things*.
     """
-    excluding = [(seq, origin, count) for seq, origin, count in rows if origin is not None]
-    silent = [(seq, origin) for seq, origin, count in excluding if count == 0]
-    unassessable = [(seq, origin) for seq, origin, count in excluding if count is None]
+    excluding = [(seq, origins, count) for seq, origins, count in rows if origins]
+    silent = [(seq, origins) for seq, origins, count in excluding if count == 0]
+    unassessable = [(seq, origins) for seq, origins, count in excluding if count is None]
+    missing_own = (
+        [(seq, origins) for seq, origins, _ in excluding if own_origin not in origins]
+        if own_origin is not None
+        else []
+    )
     return {
         "retrievals": len(rows),
         "excluding": len(excluding),
         "filtered": {str(seq): count for seq, _, count in excluding},
-        "silent": [{"seq": seq, "exclude_origin": origin} for seq, origin in silent],
-        "unassessable": [{"seq": seq, "exclude_origin": origin} for seq, origin in unassessable],
-        "enforced": bool(excluding) and not silent and not unassessable,
+        "silent": [{"seq": seq, "exclude_origins": origins} for seq, origins in silent],
+        "unassessable": [{"seq": seq, "exclude_origins": origins} for seq, origins in unassessable],
+        "missing_own": [
+            {"seq": seq, "exclude_origins": origins, "own_origin": own_origin}
+            for seq, origins in missing_own
+        ],
+        "enforced": bool(excluding) and not silent and not unassessable and not missing_own,
     }
+
+
+MISSING_OWN_INVALID = (
+    "retrieval excluded something, but not the scenario under test. ADR-0008 axis 2 is the "
+    "assertion that a scenario's own artifacts are unreachable while it is scored, and a run "
+    "that held out three other scenarios and not this one has not made it - however healthy the "
+    "filtered count looks. **This failure is only reachable since T6.5 widened the exclusion to "
+    "a set**, and it is the reason the count alone stopped being sufficient: with one origin, "
+    "excluding something and excluding the right thing were the same event. Check what was "
+    "passed to --exclude-origins; this is a mistake in the invocation rather than in the corpus."
+)
 
 
 SILENT_FILTER_INVALID = (
@@ -1085,7 +1125,7 @@ def _investigate(incident_id: str, scenario_id: str, out: Path, args: Any) -> tu
     cmd = [
         "faultline-investigate",
         incident_id,
-        "--exclude-origin",
+        "--exclude-origins",
         scenario_id,
         "--out",
         str(out),
@@ -1472,7 +1512,9 @@ def main(argv: list[str] | None = None) -> int:
         # this run rather than a property of the code. Checked after scoring so the score is
         # written either way - an invalid run keeps its artifacts and its numbers, and is
         # refused as a *result*, which is the distinction ADR-0022 §3.3 draws for discards.
-        enforcement = retrieval_enforcement(dsn, trajectory_id)
+        enforcement = retrieval_enforcement(
+            dsn, trajectory_id, own_origin=f"scenario:{args.scenario_id}"
+        )
         run.manifest["leave_one_out"] = enforcement
         # T4.3's panel, computed from the same stored run and printed beside the accuracy block
         # rather than inside it - these are the numbers that explain *why* accuracy moved, and
@@ -1483,9 +1525,19 @@ def main(argv: list[str] | None = None) -> int:
         report = scored.report() + "\n\n" + "\n".join(panel.render())
         run.write("report.txt", report + "\n")
         print("\n" + report)
-        if enforcement["silent"]:
-            run.invalidate("leave-one-out filter did not fire", SILENT_FILTER_INVALID)
-            print(f"\nINVALID: {SILENT_FILTER_INVALID}")
+        if enforcement["silent"] or enforcement["missing_own"]:
+            # **Two different failures, two different messages.** *Removed nothing* usually means
+            # the corpus was never seeded; *excluded the wrong things* means the run was pointed
+            # at a scenario it did not hold out, which is a harness mistake and not a data one.
+            # One message for both would send a reader to `faultline-seed` for a problem that is
+            # in the invocation.
+            reason, detail = (
+                ("leave-one-out filter did not fire", SILENT_FILTER_INVALID)
+                if enforcement["silent"]
+                else ("the scenario under test was not excluded", MISSING_OWN_INVALID)
+            )
+            run.invalidate(reason, detail)
+            print(f"\nINVALID: {detail}")
             print(f"recorded, not deleted: {run.path / 'INVALID.md'}")
             print(f"\nartifacts under {run.path}")
             return 6

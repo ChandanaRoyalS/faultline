@@ -200,7 +200,7 @@ def test_exclude_origin_removes_a_scenarios_own_narrative_from_its_own_retrieval
     narrative = parse_narrative(DEV / "cart-redis-misconfig" / "incident.md")
     query = dict(narrative.sections)["What was observed"]
 
-    hits = seeded.search(query, k=5, exclude_origin="scenario:cart-redis-misconfig")
+    hits = seeded.search(query, k=5, exclude_origins=frozenset({"scenario:cart-redis-misconfig"}))
 
     assert hits, "the corpus still answers - other incidents remain retrievable"
     assert not any(hit.chunk.origin == "scenario:cart-redis-misconfig" for hit in hits)
@@ -219,7 +219,7 @@ def test_exclusion_applies_to_both_arms_of_the_hybrid() -> None:
     narrative = parse_narrative(DEV / "shipping-wrong-image" / "incident.md")
     query = narrative.title + " " + dict(narrative.sections)["What was observed"]
 
-    hits = seeded.search(query, k=10, exclude_origin="scenario:shipping-wrong-image")
+    hits = seeded.search(query, k=10, exclude_origins=frozenset({"scenario:shipping-wrong-image"}))
 
     assert all(hit.chunk.origin != "scenario:shipping-wrong-image" for hit in hits)
     assert any(hit.text_rank is not None for hit in hits), "the text arm did run"
@@ -383,3 +383,64 @@ def test_excluded_count_counts_by_origin_not_by_candidates_dropped() -> None:
     assert held.excluded_count("scenario:cart-redis-misconfig") == 2
     assert held.excluded_count("authored") == 1
     assert held.excluded_count("scenario:never-seeded") == 0
+
+
+# --- the exclusion as a set (T6.5, ADR-0018 Addendum 1) -----------------------------------------
+
+
+def test_a_bare_string_exclusion_is_refused_rather_than_iterated() -> None:
+    """**The footgun the widening created, closed in the same change.**
+
+    `str` is a `Collection[str]`, so `exclude_origins="scenario:cart-redis-misconfig"` would
+    type-check at most call sites and exclude twenty-eight single characters: matching no origin,
+    excluding nothing, and reporting a healthy `excluded_count` of zero - which T4.1b reads as
+    *the corpus does not hold this scenario*. A leave-one-out that silently does not happen is
+    exactly what ADR-0008 axis 2 exists to prevent, so the old spelling raises.
+    """
+    import pytest
+
+    from faultline.context.store import normalise_exclusions
+
+    with pytest.raises(TypeError, match="not the string"):
+        normalise_exclusions("scenario:cart-redis-misconfig")  # type: ignore[arg-type]
+
+
+def test_none_and_the_empty_set_both_mean_exclude_nothing() -> None:
+    from faultline.context.store import normalise_exclusions
+
+    assert normalise_exclusions(None) == frozenset()
+    assert normalise_exclusions(frozenset()) == frozenset()
+
+
+def test_excluding_a_whole_fault_class_removes_every_one_of_its_scenarios() -> None:
+    """**What the measurement's WITHOUT arm does**, and the reason `exclude_origin` became a set
+    at all: §4's arms sit on one corpus, so the difference between them has to be expressible as
+    a wider WHERE clause rather than as a re-seed."""
+    seeded = store()
+    seed(seeded, DEV)
+    origins = sorted({c.origin for c in seeded.chunks.values() if c.origin.startswith("scenario:")})
+    if len(origins) < 2:
+        return
+
+    excluded = frozenset(origins[:2])
+    hits = seeded.search("errors in the checkout path", k=20, exclude_origins=excluded)
+
+    assert not any(hit.chunk.origin in excluded for hit in hits)
+    assert seeded.excluded_count(excluded) == sum(
+        1 for c in seeded.chunks.values() if c.origin in excluded
+    )
+
+
+def test_the_count_is_over_the_whole_set_which_is_why_it_stopped_carrying_t4_1b() -> None:
+    """A positive count now means *something in the set was unreachable*, not *S's own artifacts
+    were*. `run.classify_retrievals` takes the scenario's own origin for that reason; this test
+    pins the weakening so the reason stays visible."""
+    seeded = store()
+    seed(seeded, DEV)
+    origins = sorted({c.origin for c in seeded.chunks.values() if c.origin.startswith("scenario:")})
+    if len(origins) < 2:
+        return
+
+    others = frozenset(origins[1:])
+
+    assert seeded.excluded_count(others) > 0, "healthy-looking, and says nothing about origins[0]"
