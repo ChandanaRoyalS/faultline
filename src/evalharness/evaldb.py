@@ -131,14 +131,30 @@ def outcome_reread(stored: str, manifest: dict[str, Any]) -> str | None:
     does - in which case the loader stops, because the realistic cause is a directory edited by
     hand and a benchmark's record must not absorb that quietly.
 
-    **The one correction this recognises is `outcome_of`'s own (2026-09-04).** Gate refusals were
-    written as discards until that day, and the fix was a *reading* of the record rather than an
-    edit to it: a `discarded` manifest with no `injected_at` never started and reads `refused`.
-    Rows loaded before that reading existed say `discarded`. The loader met one on 2026-09-11,
-    at the end of dev sweep 12, and refused to load anything - correctly, given what it knew,
-    and wrongly, given what the repository knew. The signature is exact: the manifest still
-    carries the `discarded` block it was written with and has no `injected_at`. Anything else
-    that disagrees is still a conflict.
+    **Two corrections are recognised, and both are `outcome_of`'s own.** Each is a *reading* of
+    the record rather than an edit to it, each landed after rows had already been stored under the
+    older reading, and each has an exact signature. Anything else that disagrees is still a
+    conflict.
+
+    **1. A discard that never injected reads as a refusal (2026-09-04).** Gate refusals were
+    written as discards until that day. Rows loaded before the reading existed say `discarded`;
+    the loader met one on 2026-09-11 at the end of dev sweep 12 and refused to load anything -
+    correctly, given what it knew, and wrongly, given what the repository knew. The signature: the
+    manifest still carries the `discarded` block it was written with, and has no `injected_at`.
+
+    **2. A scored run whose budget did not bind reads as invalid (Q33, 2026-09-14).**
+    `outlived_its_budget` compares the run's own recorded latency against its own recorded
+    budget, and `outcome_of` answers `invalid` when it overran - because the question that column
+    answers is *may these numbers be used*. One run in the archive meets it:
+    `20260910T002657Z-ad-memory-squeeze`, **6596 s against a 600 s budget**, stored as `scored`
+    before the rule existed. The loader refused the whole backfill on it 2026-09-15, which is the
+    same shape as the first case a year's worth of commits later.
+
+    **The signature here is exact for the same reason.** It applies only when the manifest carries
+    a `score` block, carries **no** `invalid` block of its own, and `outlived_its_budget` says so.
+    A hand-written `invalid` block returns at `outcome_of`'s first line and never reaches this
+    branch, so a directory edited by hand still stops the loader - which is the property this
+    function exists to keep.
     """
     if (
         stored == "discarded"
@@ -147,6 +163,14 @@ def outcome_reread(stored: str, manifest: dict[str, Any]) -> str | None:
         and not manifest.get("injected_at")
     ):
         return "a discard that never injected reads as a refusal (2026-09-04 correction)"
+    if (
+        stored == "scored"
+        and outcome_of(manifest) == "invalid"
+        and manifest.get("score")
+        and not manifest.get("invalid")
+        and outlived_its_budget(manifest)
+    ):
+        return "a run whose budget did not bind reads as invalid (Q33, 2026-09-14 correction)"
     return None
 
 
