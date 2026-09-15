@@ -145,3 +145,79 @@ therefore not evidence that prior incidents do not help** — it is evidence tha
 - **Whether prior incidents help in general.** §5: only *through this retriever, at recall@3 = 0.395*.
 - **Whether the guard in §2 costs the artefact its realism.** It does. How much is not measured here.
 - **Anything on holdout.** Dev only; no holdout scenario is spent on a learning-effect measurement.
+
+---
+
+# Amendment 1 — §4 says "no re-seed" and the task cannot avoid one, so Q61 gates the run
+
+**2026-09-15, written after all three build pieces landed (#318, #319, #320) and before anything
+is drafted or spent. $0.00.** Appended, not edited: nothing above this line is changed, and §4
+and §6 are to be read against what follows.
+
+## The sentence that is wrong, and the half of it that is right
+
+[The design note](../../docs/design/t6.5-what-a-registration-must-fix.md) §3 argues for the
+query-time exclusion and closes with four bullets, the last of which is:
+
+> **No re-seed** — which also means the nine drifted runbooks and Q45's open half stay out of it.
+
+**That is true between the arms and false before them.** §4's design does stop the *comparison*
+from crossing a corpus boundary: both arms read one corpus at one `body_sha256`, and the WITHOUT
+arm differs from the WITH arm by a wider `WHERE`, which is the whole reason the exclusion became
+a set. Nothing in that claim has changed and piece 3 delivered it.
+
+But the plan's row is *"accepted postmortems join the corpus"*, and joining the corpus is
+`faultline-seed`. `context/seed.py` is the only writer to the pgvector store, so **~13 new
+documents have to be written into it once, before either arm runs.** The design note did not say
+so and I did not notice until the seeder was the thing I was editing.
+
+## Why that single seed is Q61 and not a formality
+
+Verified in the tree rather than quoted from a row: `evalharness.generations.generation_of` reads
+`freeze.world.compose_digest` and `host_platform`, falls back to the run-id stamp, and **reads
+nothing about the corpus at all**. So a seed changes `rows`, `sha256` and `body_sha256` — what
+every run afterwards retrieves from — and `group_by_generation` puts runs from either side of it
+in one table.
+
+That is Q61 exactly, reached by a different route than the one §4 closed. §4 closed the
+*between-arm* route. The *before-the-run* route was always open and the note's fourth bullet
+obscured it.
+
+**And the seed carries two changes, not one.** Q45's first live run found the deployed corpus
+disagreeing with `main` on **nine runbooks** — same shape, different words. Those land in the same
+`faultline-seed` invocation as the postmortems. So the corpus T6.5 measures against will differ
+from the corpus every prior figure was measured against in two independent ways, and a write-up
+that mentions only the postmortems would be describing half of what moved.
+
+## What this changes, and what it does not
+
+**Unchanged:** the two arms, the outcome metric, both floors, every prediction, and the $55
+ceiling. §4's design is still the better one — one seed raises the generation question **once**,
+where a with/without-*corpus* comparison raises it twice per scenario, twenty-six times.
+
+**Changed: the ordering, and it is now a gate rather than a preference.**
+
+1. **Q61 is settled** — something records which corpus a run read, in a form
+   `group_by_generation` respects.
+2. Postmortems are drafted, accepted through the route #319 added, and committed.
+3. **One** `faultline-seed`, and its `body_sha256` recorded before and after.
+4. Both arms, on that one corpus.
+
+**T6.5 does not start at step 2.** The standing instruction not to run `faultline-seed` until Q61
+is settled is not a caution this task can spend its way past: every figure this task produces
+would be incomparable with the 183 archived runs by a route no grouping sees, which is the
+condition ADR-0022 §3.3 exists to refuse.
+
+## The honest accounting of how this was missed
+
+The design note's §3 was written to show that a query-time exclusion beats a corpus swap, and it
+does. Four bullets of advantage were listed, and the fourth generalised *"the arms do not re-seed
+between them"* into *"no re-seed"* without checking what putting a new document class into the
+corpus requires. **The registration then inherited the claim in §4 by reference rather than
+re-deriving it**, which is the same failure this repository has recorded five times in other
+forms: trusting a document's summary of a thing instead of opening the thing.
+
+It cost nothing here because it was found while building rather than while spending. That is luck
+about the order the pieces were built in, not a property of the process, and the process fix is
+the one already written down — *when a document describes code or a result, open the thing it
+describes before repeating it.*
