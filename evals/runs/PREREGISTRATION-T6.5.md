@@ -546,3 +546,109 @@ excluding it would be excluding the one document that behaved as the system is d
 
 Everything else in Amendment 4, including the decision to accept all ten, prediction 6's score,
 and the Q57 residue finding.
+
+---
+
+# Amendment 6 — the seed ran, and found three defects between the two pins
+
+**2026-09-15. $0.00** — every number below is a database read, a tree read, or
+`faultline-retrieval score`, none of which calls a model. **$1.52 remains the task's total
+spend.** Appended, not edited.
+
+Amendment 1 made the seed the gate on this measurement and Amendment 3 §5 added the re-score to
+it. Both are now done. The seed was supposed to be a step; it took four commits, because the two
+pins could not be set correctly until three things were repaired underneath them.
+
+## 1. The corpus, before and after
+
+| | before | after |
+|---|---|---|
+| chunks | 261 | **311** |
+| documents | 50 | **60** |
+| `sha256` | `9c5e5958e8c7` (store) / `f34651707c7f` (pin) | **`844fe623366c`** |
+| `body_sha256` | `6cde2afd5016` | **`cc473105c036`** |
+| `holdout_chunks` | 0 | **0** |
+| `faultline-corpus-drift` | exit 1 | **exit 0** |
+
+Both pins are set in this commit, from `freeze.corpus_state` on the seeded store, and **both
+reproduce off the working tree with no database at all**.
+
+## 2. Three defects, found between reading the first digest and pinning the second
+
+**The corpus could take a new document and not an edit to an old one** (PR #338).
+`PgVectorPastIncidentStore.add` upserted five columns on conflict and `section` was not among
+them; the key is `document_id#section_index`, which a renamed heading does not move. Thirteen
+headings across nine runbooks survived a `faultline-seed` that printed all forty runbooks as
+seeded. **Q45 had diagnosed those nine as a deployment the seeder had not reached since
+2026-09-14.** It had reached them every time.
+
+**The retrieval benchmark moved two queries when nothing changed** (Q68, PR #340). Both arms
+ended `ORDER BY ... LIMIT k` on one key, so ties were resolved by heap order, which moves when
+rows are rewritten. Five re-seed-and-score cycles on a fixed corpus: `recall@3` over
+**0.302 / 0.326 / 0.349**. Measured before repaired, because a tiebreaker sets the spread to zero
+and the width is a fact about the *existing record* — `recall@3 = 0.395`, `recall@5 = 0.442` and
+`GATE_RECALL_AT_3` are each one draw from a distribution nobody sampled.
+
+**The shape digest was a property of the collation** (Q69, PR #341). `corpus_state` hashed a SQL
+`ORDER BY`, so on `en_US.utf8` the same 311 chunks hashed `ee7c7bb277cf` in the database and
+`844fe623366c` off the tree. The pin would otherwise have named this Mac's locale.
+
+**None of the three was caused by this task**, and all three were found by it, because a seed is
+the one operation that reads the corpus, writes it and compares the two.
+
+## 3. The re-score Amendment 3 §5 asked for
+
+| | before the seed | after, reproducible |
+|---|---:|---:|
+| `recall@3` | 0.395 | **0.302** |
+| `MRR@3` | 0.233 | 0.198 |
+| planner `recall@3` | 0.619 | 0.571 |
+| synthesizer `recall@3` | 0.182 | **0.045** |
+| `recall@5` | 0.442 | 0.372 |
+| synthesizer `recall@5` | 0.182 | **0.045** |
+
+Two independent re-seeds after the tiebreaker returned these figures **byte-identical, down to
+`MRR@5 = 0.252`**. The 0.302 is the lowest of the three values Q68 observed; the tiebreaker froze
+one of them rather than lowering anything.
+
+**Corpus growth made retrieval worse, and the synthesizer took almost all of it** — 0.182 to
+0.045 is four queries of twenty-two down to one. Ten postmortems are topically near-identical to
+the narratives the golden set labels as the answer, and they displace them.
+
+## 4. What that does to this measurement, and what it does not
+
+**§5's attenuation bound moves from 0.395 to 0.302** and §7 quotes the post-seed figure, as
+Amendment 3 §5 registered. Prediction 4 — *"in fewer than half the WITH-arm investigations does
+retrieval surface a same-class document at all"* — was registered against the 0.395 corpus and is
+now registered against a corpus that retrieves worse. **It becomes easier to satisfy, which
+makes it weaker evidence than when it was written**, and §7 says so when it reports it.
+
+**The registered design does not otherwise change.** Ten scenarios, `weekly`, R = 3, a 16.2pp
+floor, a $70 ceiling. **The floor is not renegotiated because attenuation got worse** — a floor
+moved after the instrument got harder is not a floor, and Amendment 3 fixed this one at the real
+R for exactly that reason.
+
+**What is now more likely: a null result.** A WITH arm that retrieves the prior incident less
+often has less to transfer. If the measurement comes back inside the floor, **that is a reportable
+outcome and not a failed run**, and it is registered here as expected rather than discovered
+afterwards.
+
+## 5. What is not claimed
+
+**Not that 0.302 is better or worse than 0.395 as a number about retrieval.** 0.395 was one draw
+from a two-query-wide instrument on a different corpus; 0.302 is reproducible on this one. They
+are not two measurements of one thing.
+
+**Not that the corpus should shrink.** Whether ten postmortems earn their place is what this
+task measures, and a retrieval score is not that measurement — it scores a golden set labelled
+before postmortems existed, so a postmortem outranking a narrative is scored as a miss whether or
+not it helped the agent. That is worth knowing and it is not a verdict.
+
+## 6. What the next commit does
+
+**Re-backfill the eval database.** Q69 renames every `corpus_sha256`, which `FINGERPRINT_INPUTS`
+carries, so a half-loaded database holds one configuration under two names. Renames, regroups
+nothing — the same shape Q61's change had, measured there over 548 manifests.
+
+**Then the runs.** Forty to sixty scored runs at `weekly`, R = 3, $42–55 expected against a $70
+ceiling that does not move.

@@ -346,9 +346,15 @@ def test_the_two_digests_are_checked_independently() -> None:
 
 
 def test_a_rewrite_is_caught_by_the_body_digest_alone() -> None:
-    """Q45's nine drifted runbooks: same headings, different words. `sha256` is byte-identical
-    across that change and cannot see it, which is why `body_sha256` exists (Q36) and why this
-    check has two axes rather than one."""
+    """A rewrite under an unmoved heading: `sha256` is byte-identical across it and cannot see
+    it, which is why `body_sha256` exists (Q36) and why this check has two axes rather than one.
+
+    **This docstring used to offer Q45's nine drifted runbooks as the example - "same headings,
+    different words" - and they were not.** Measured before the T6.5 seed: thirteen section
+    headings differ, so both digests saw them. The property below is real and the nine were never
+    a case of it. The corrected account is in
+    `docs/evidence/t6.5-seed/2026-09-15-the-seed-that-could-not-update-a-heading.md`.
+    """
     rewritten = _with_corpus(shape=st.CURRENT_CORPUS_SHAPE, body="b" * 64)
 
     assert st._corpus_agrees(rewritten, st.CURRENT_CORPUS_SHAPE, None), "shape did not move"
@@ -356,10 +362,29 @@ def test_a_rewrite_is_caught_by_the_body_digest_alone() -> None:
 
 
 def test_an_unset_body_expectation_is_a_check_that_does_not_run() -> None:
-    """`CURRENT_CORPUS_BODY` is `None` until a seed records one. That is the honest state -
-    `body_sha256` landed after the last scored run - and it is distinct from *every run agrees*."""
-    assert st.CURRENT_CORPUS_BODY is None
-    assert st._corpus_agrees(_with_corpus(body="c" * 64), None, st.CURRENT_CORPUS_BODY)
+    """*Unset* is a check that does not run, and it is distinct from *every run agrees*.
+
+    **Asserted against an explicit `None` now, and that is what changed.** This test read
+    `st.CURRENT_CORPUS_BODY` and asserted it was `None` - true from 2026-09-14, when `body_sha256`
+    landed after the last scored run, until the T6.5 seed set it on 2026-09-15. It failed on the
+    commit that set the pin, which is what a tripwire over a constant is for. The property it was
+    guarding survives the pin and is what is kept.
+    """
+    assert st._corpus_agrees(_with_corpus(body="c" * 64), None, None)
+
+
+def test_the_body_expectation_is_set_and_a_run_on_another_corpus_does_not_agree() -> None:
+    """The other half, now that there is a value to check against. `CURRENT_CORPUS_BODY` names
+    the 311-chunk corpus the T6.5 seed wrote; a run carrying any other body digest read a
+    different corpus and is not a figure about this one."""
+    assert st.CURRENT_CORPUS_BODY is not None, "set by the T6.5 seed (Amendment 6)"
+    assert len(st.CURRENT_CORPUS_BODY) == 64
+
+    agreeing = _with_corpus(shape=st.CURRENT_CORPUS_SHAPE, body=st.CURRENT_CORPUS_BODY)
+    other = _with_corpus(shape=st.CURRENT_CORPUS_SHAPE, body="d" * 64)
+
+    assert st._corpus_agrees(agreeing, st.CURRENT_CORPUS_SHAPE, st.CURRENT_CORPUS_BODY)
+    assert not st._corpus_agrees(other, st.CURRENT_CORPUS_SHAPE, st.CURRENT_CORPUS_BODY)
 
 
 def test_no_published_stamp_pools_two_corpora_today() -> None:

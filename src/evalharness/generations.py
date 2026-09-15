@@ -98,7 +98,7 @@ constant is what the scenario table's at-stamp columns compare against so that r
 cannot be printed as figures about the second. Move it when the observability files move, in the
 same commit that re-records the bundles."""
 
-CURRENT_CORPUS_SHAPE = "f34651707c7f928ffdb7f231dfe5cc827dcc5468b93582050a44a90061c28f03"
+CURRENT_CORPUS_SHAPE = "844fe623366ca03200a351df84c15d3d2011ebce36f24b4da0c287674564187d"
 """The corpus `sha256` a figure at the current corpus is expected to carry (Q61).
 
 **The corpus is not in the generation name, and this is the decision.** Q61's row poses it as a
@@ -146,7 +146,7 @@ stampless one, which is unscored runs rather than figures. **That is timing, not
 the corpus changed between sweeps rather than inside one, three times, unremarked each time.
 """
 
-CURRENT_CORPUS_BODY: str | None = None
+CURRENT_CORPUS_BODY: str | None = "cc473105c036ca668c08b87c8ce8c84ca1c30382b520bd76ca952eacf934cac9"
 """The corpus `body_sha256` a figure at the current corpus is expected to carry - **once one
 exists**.
 
@@ -160,11 +160,24 @@ reader happens to have. The value is set in the same commit that re-seeds, from 
 seed records.
 
 **Why both digests and not one.** `sha256` hashes `document_id|section` and sees a document
-added or removed; `body_sha256` hashes the text and sees a rewrite. Q45's first live run found
-the deployed corpus disagreeing with `main` on **nine runbooks with an identical shape** - same
-headings, different words - which `sha256` cannot see at all. The T6.5 seed carries both kinds of
-change at once: postmortems are new documents (shape moves) and the drifted runbooks are
-rewrites (only body moves). One constant would catch one of them.
+added or removed; `body_sha256` hashes the text and sees a rewrite. The two answer different
+questions and a corpus can move on either axis alone.
+
+**Set 2026-09-15 by the T6.5 seed**, from `freeze.corpus_state` on the seeded store: 311 chunks
+over 60 documents, `holdout_chunks` 0, and `faultline-corpus-drift` exiting 0 - the first time it
+ever has. Both values reproduce off the working tree with no database, which is Q69's repair and
+is what makes them properties of the corpus rather than of the host that hashed it.
+
+**The nine drifted runbooks were not what this docstring said they were.** It described them as
+*"nine runbooks with an identical shape - same headings, different words - which `sha256` cannot
+see at all"*, repeating Q45's row. Measured before the seed: **thirteen section headings differ**,
+so both digests saw them and the example was never an example of the thing it was offered for.
+The argument for two constants survives unharmed - the postmortems are ten new documents and the
+runbooks are rewrites-plus-renames, so the axes do come apart - but the sentence that carried it
+was describing something that was not on disk. It is corrected here rather than deleted, because
+the same claim reached Q45's row and [the T6.5 seed evidence]
+(../../docs/evidence/t6.5-seed/2026-09-15-the-seed-that-could-not-update-a-heading.md) is where
+it was caught.
 """
 
 WORLD_ERAS = (
