@@ -97,15 +97,21 @@ def test_per_document_digests_localise_the_disagreement() -> None:
 
 
 def test_the_working_tree_reads_through_the_seeder_s_own_chunkers() -> None:
-    """`bundle_chunks` and `chunk_runbook` produce the rows the seeder would have written. A
-    second chunker here would make the check disagree with the seeder about what the corpus should
-    contain, which is the one thing a drift check may not do."""
+    """`bundle_chunks`, `chunk_runbook` and `postmortem_rows` produce the rows the seeder would
+    have written. A second chunker here would make the check disagree with the seeder about what
+    the corpus should contain, which is the one thing a drift check may not do.
+
+    **`postmortem:` is the third prefix, and this assertion is how it arrived.** It was written
+    as a closed pair and it fired the day real postmortems landed in the dev tree - which is what
+    a tripwire over a closed set is for. It stays closed: a fourth prefix should fail here too.
+    """
     rows = working_tree_rows()
     documents = {d for d, _, _ in rows}
 
     assert rows, "the repository has a corpus"
     assert any(d.startswith("runbook:") for d in documents), "runbooks are one entry point"
-    assert all(d.startswith(("runbook:", "scenario:")) for d in documents)
+    assert any(d.startswith("postmortem:") for d in documents), "and postmortems are the third"
+    assert all(d.startswith(("runbook:", "scenario:", "postmortem:")) for d in documents)
     assert compare(rows, rows).agrees
 
 

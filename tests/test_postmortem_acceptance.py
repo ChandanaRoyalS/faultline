@@ -292,20 +292,49 @@ def test_the_ledger_can_answer_whether_the_only_caller_is_a_script() -> None:
 # --- the seams this piece leaves -----------------------------------------------------------------
 
 
-def test_no_bundle_in_the_repository_carries_a_postmortem_yet() -> None:
-    """**A tripwire, not a fact worth asserting for its own sake.**
+def test_the_drift_check_accounts_for_every_postmortem_on_disk() -> None:
+    """**The tripwire this replaces has fired, and this is what it was guarding.**
 
-    `evalharness.corpusdrift.working_tree_rows` computes what the seeder would write, and it
-    does not know about postmortems - it cannot, because acceptance lives in a database and the
-    drift check reads none. That is harmless while no postmortem exists on disk and wrong the
-    day one lands, so this fails then and says so.
+    It asserted that no bundle carried a `postmortem.md`, because
+    `evalharness.corpusdrift.working_tree_rows` did not know about them and would have
+    under-reported the corpus from the day one landed. Ten landed on 2026-09-15.
+
+    `working_tree_rows` now calls the seeder's own `postmortem_rows`, so what it reports is what
+    the seeder would write - minus the ledger, which it cannot read and does not need to: a
+    postmortem in the tree and not in the store is a real disagreement either way.
     """
+    from evalharness.corpusdrift import working_tree_rows
+
     root = Path(__file__).resolve().parents[1] / "evals" / "scenarios" / "artifacts" / "dev"
     if not root.is_dir():
         return
-    found = sorted(p.parent.name for p in root.glob("*/postmortem.md"))
+    on_disk = sorted(p.parent.name for p in root.glob("*/postmortem.md"))
+    reported = {
+        d.removeprefix("postmortem:")
+        for d, _, _ in working_tree_rows()
+        if d.startswith("postmortem:")
+    }
 
-    assert not found, (
-        f"{found} carry a postmortem, so `corpusdrift.working_tree_rows` now under-reports the "
-        "corpus and must learn to read the acceptance ledger before the drift check is trusted"
+    assert reported == set(on_disk), (
+        f"the drift check reports {sorted(reported)} and the tree holds {on_disk}; a corpus "
+        "document the check cannot see is a corpus it silently under-reports"
     )
+
+
+def test_a_postmortem_is_chunked_the_same_way_on_both_paths() -> None:
+    """One implementation of *what the corpus should contain*. The seeder applies the ledger on
+    top; the rows themselves come from the same function, so the check cannot form its own
+    opinion of the corpus."""
+    from evalharness.corpusdrift import working_tree_rows
+    from faultline.context.seed import postmortem_rows
+
+    root = Path(__file__).resolve().parents[1] / "evals" / "scenarios" / "artifacts" / "dev"
+    if not root.is_dir():
+        return
+    bundles = sorted(p.parent for p in root.glob("*/postmortem.md"))
+    if not bundles:
+        return
+    direct = {(c.document_id, c.section, c.text) for c in postmortem_rows(bundles[0])}
+    through_check = {r for r in working_tree_rows() if r[0] == f"postmortem:{bundles[0].name}"}
+
+    assert direct == through_check and direct
