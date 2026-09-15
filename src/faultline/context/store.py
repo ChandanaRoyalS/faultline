@@ -375,7 +375,21 @@ class PgVectorPastIncidentStore:
             cur.execute(
                 "SELECT id FROM incident_chunks WHERE TRUE"
                 + exclusion
-                + " ORDER BY embedding <=> %(v)s::vector LIMIT %(k)s",
+                # **`, id` is a tiebreaker and not a ranking change** (Q68). Without it both
+                # arms end `ORDER BY ... LIMIT k` on one key, so at a tie the rows returned are
+                # whichever the scan reaches first - heap order, which moves whenever rows are
+                # rewritten. Measured 2026-09-15: 22 of the 43 golden queries tie across the k
+                # boundary in the text arm, and re-seeding an unchanged corpus moved `recall@3`
+                # over 0.302 / 0.326 / 0.349, a two-query spread with byte-identical bodies and
+                # embeddings.
+                #
+                # `id` is `document_id#section_index`, so the order it imposes is alphabetical
+                # and arbitrary. **That is deliberate.** A tiebreaker that preferred shorter
+                # chunks or authored ones would be a ranking change wearing a determinism
+                # repair, and it would move figures for a reason nobody registered. This makes
+                # the instrument reproducible; it does not make a tie correct, because a tie has
+                # no correct answer.
+                + " ORDER BY embedding <=> %(v)s::vector, id LIMIT %(k)s",
                 params,
             )
             dense = [str(row[0]) for row in cur.fetchall()]
@@ -383,7 +397,7 @@ class PgVectorPastIncidentStore:
                 "WITH tq AS (SELECT " + TEXT_QUERY + " AS q) "
                 "SELECT id FROM incident_chunks, tq WHERE body_tsv @@ tq.q"
                 + exclusion
-                + f" ORDER BY ts_rank_cd(body_tsv, tq.q, {self._normalisation}) DESC"
+                + f" ORDER BY ts_rank_cd(body_tsv, tq.q, {self._normalisation}) DESC, id"
                 + " LIMIT %(k)s",
                 params,
             )
