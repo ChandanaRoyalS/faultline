@@ -376,6 +376,30 @@ class RecordError(ValueError):
     """A run directory that cannot supply a postmortem's inputs."""
 
 
+class RefusedError(RuntimeError):
+    """Every draft for one scenario tripped the guard. **Carries what was spent failing.**
+
+    A scenario that produced nothing cost as much as one that produced a document, and a caller
+    that subtracted only successes from its budget would walk past a ceiling. This is Q53's
+    failed-arm lesson applied before the first dollar rather than after it.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        refusals: list[str],
+        tokens_in: int,
+        tokens_out: int,
+        attempts: int,
+    ) -> None:
+        super().__init__(message)
+        self.refusals = refusals
+        self.tokens_in = tokens_in
+        self.tokens_out = tokens_out
+        self.attempts = attempts
+
+
 def fate_of(payload: dict[str, Any]) -> str:
     """What became of the proposal, as the artifact records it.
 
@@ -427,4 +451,109 @@ def record_from_run(run_dir: Path) -> Record:
         verdict=Verdict.model_validate(body),
         proposal=payload.get("proposal"),
         fate=fate_of(payload),
+    )
+
+
+DONOR_SPLIT = "dev"
+"""**Dev only, and the registration says so in §8**: *"no holdout scenario is spent on a
+learning-effect measurement."* A holdout postmortem in the corpus would be the answer key to a
+scenario nothing downstream would notice had leaked (ADR-0008 axis 1)."""
+
+
+def donor_runs(runs: Path, scenario_ids: set[str] | None = None) -> dict[str, Path]:
+    """The newest usable run per scenario. **One postmortem per incident, not per run.**
+
+    A scenario with three scored runs has three tellings of one incident, and seeding all three
+    would put the same incident in the corpus three times and let one document win a query with
+    three hits - the same argument ADR-0018 makes for not storing a narrative twice.
+
+    **Newest rather than best**, deliberately: choosing the run whose verdict was correct would
+    make the corpus a record of the pipeline's successes, and a measurement of whether prior
+    incidents help would then be measuring whether prior *right answers* help.
+    """
+    found: dict[str, Path] = {}
+    for directory in sorted(p for p in runs.iterdir() if p.is_dir()):
+        try:
+            record = record_from_run(directory)
+        except (RecordError, OSError, json.JSONDecodeError):
+            continue
+        if scenario_ids is not None and record.scenario_id not in scenario_ids:
+            continue
+        found[record.scenario_id] = directory
+    return found
+
+
+@dataclass(frozen=True, slots=True)
+class Drafted:
+    """One scenario's drafting, **including the attempts that produced nothing.**
+
+    `tokens_in` and `tokens_out` are the totals across every attempt, refused ones included, and
+    that is the whole reason this type exists rather than returning a `Completion`. Q53's driver
+    printed `$0.00` while a failed arm spent real tokens, because it priced the verdict instead of
+    the work; the fix there was to price the incident, and this is the same fix made in advance.
+
+    `refusals` is prediction 6's data. The registration predicts *no postmortem trips the leak
+    guard on its first draft* and says it expects that to fail - a count nobody collected could
+    not have scored it either way.
+    """
+
+    text: str
+    refusals: list[str]
+    tokens_in: int
+    tokens_out: int
+    attempts: int
+
+    def cost_usd(self, usd_per_mtok_in: float, usd_per_mtok_out: float) -> float:
+        return (
+            self.tokens_in / 1_000_000 * usd_per_mtok_in
+            + self.tokens_out / 1_000_000 * usd_per_mtok_out
+        )
+
+
+def draft_one(
+    record: Record, model: LanguageModel, *, attempts: int = 2, split: str = DONOR_SPLIT
+) -> Drafted:
+    """One postmortem, re-drafted while the guard refuses it and the attempts last.
+
+    **Raises with the tokens still counted**, because a scenario whose every draft leaked cost
+    exactly as much as one whose first draft did not, and a ceiling that cannot see the failures
+    is not a ceiling.
+    """
+    from faultline.context.postmortem import PostmortemError, parse_postmortem_text
+
+    refusals: list[str] = []
+    violation: str | None = None
+    tokens_in = tokens_out = 0
+    used = 0
+    for _ in range(max(1, attempts)):
+        used += 1
+        scribe = PostmortemScribe(model)
+        completion = scribe.draft(
+            record.verdict,
+            proposal=record.proposal,
+            fate=record.fate,
+            violation=violation,
+        )
+        tokens_in += completion.response.input_tokens
+        tokens_out += completion.response.output_tokens
+        text = document(
+            completion.value,
+            scenario_id=record.scenario_id,
+            split=split,
+            incident_id=record.incident_id,
+        )
+        try:
+            parse_postmortem_text(text, source=f"{record.scenario_id}/postmortem.md")
+        except PostmortemError as refused:
+            refusals.append(str(refused))
+            violation = str(refused)
+            continue
+        return Drafted(text, refusals, tokens_in, tokens_out, used)
+    raise RefusedError(
+        f"{record.scenario_id}: {len(refusals)} draft(s) refused and none survived the guard. "
+        f"Last: {refusals[-1] if refusals else 'none recorded'}",
+        refusals=refusals,
+        tokens_in=tokens_in,
+        tokens_out=tokens_out,
+        attempts=used,
     )
