@@ -167,6 +167,30 @@ def body_digest_of(rows: list[tuple[str, str, str]]) -> str:
     return hashlib.sha256(joined.encode()).hexdigest()
 
 
+def shape_digest_of(rows: list[tuple[str, str]]) -> str:
+    """A digest over `(document_id, section)` pairs. **The shape, not the content.**
+
+    `body_digest_of`'s twin, extracted for the same reason and one defect later. The shape digest
+    was computed inline in `freeze.corpus_state` from a `SELECT ... ORDER BY document_id,
+    section`, so **the row order came from the database's collation** and the digest with it.
+
+    Measured 2026-09-15 on `en_US.utf8`, libc provider: Postgres orders *"Acting on it"* before
+    *"A reading of its error ratio was withdrawn"*, because en_US ignores the space at primary
+    weight; Python compares code points and orders them the other way. The same 311 chunks
+    therefore hashed `ee7c7bb277cf` in the database and `844fe623366c` off the working tree.
+
+    That makes the digest a property of **where it was computed** rather than of the corpus - so
+    two hosts disagree about one corpus, and one host disagrees with itself across a libc or ICU
+    upgrade, which is the same class of change that silently invalidates text indexes. `sorted`
+    here is Python's, over the pairs, which is why `body_digest_of` never had the problem.
+
+    **Every archived `corpus_sha256` was computed the other way** and none of them can be
+    recovered. What this buys is that every future one names a corpus rather than a locale.
+    """
+    joined = "\n".join(f"{d}|{s}" for d, s in sorted(rows))
+    return hashlib.sha256(joined.encode()).hexdigest()
+
+
 def chunk_runbook(runbook: Any, source_path: Path) -> list[Chunk]:
     """One authored runbook, as retrievable chunks (Q15, T2.4b's third deliverable).
 

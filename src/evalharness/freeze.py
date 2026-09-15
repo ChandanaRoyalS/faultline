@@ -27,6 +27,7 @@ from pathlib import Path
 from typing import Any
 
 from faultline.context.corpus import body_digest_of as body_digest_of
+from faultline.context.corpus import shape_digest_of as shape_digest_of
 
 """`body_sha256` over `(document_id, section, body)` triples.
 
@@ -101,10 +102,11 @@ def corpus_state(dsn: str) -> dict[str, Any]:
     with psycopg.connect(dsn) as conn, conn.cursor() as cur:
         cur.execute("SELECT count(*) FROM incident_chunks")
         rows = int((cur.fetchone() or [0])[0])
-        cur.execute(
-            "SELECT document_id, section FROM incident_chunks ORDER BY document_id, section"
-        )
-        digest = _sha("\n".join(f"{d}|{s}" for d, s in cur.fetchall()))
+        # **No `ORDER BY`, deliberately** (Q69). The order this digest is taken in belongs to
+        # `shape_digest_of`, which sorts in Python; asking SQL to sort made the digest a
+        # property of the database's collation rather than of the corpus.
+        cur.execute("SELECT document_id, section FROM incident_chunks")
+        digest = shape_digest_of([(d, s) for d, s in cur.fetchall()])
         cur.execute(
             "SELECT document_id, section, body FROM incident_chunks "
             "ORDER BY document_id, section, body"
