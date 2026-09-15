@@ -355,3 +355,137 @@ def test_a_real_run_reads_into_a_record_the_drafter_can_use() -> None:
     assert record.scenario_id
     assert record.verdict.root_cause
     assert record.fate in {"approved", "rejected", "escalated", "abstained", "unknown"}
+
+
+# --- the drafting command ----------------------------------------------------------------------
+
+
+class RefusingModel:
+    """Answers with a document that names a remediation, every time."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+        self.seen: list[str] = []
+
+    def complete(self, request: Any) -> ModelResponse:
+        self.calls += 1
+        self.seen.append(request.messages[0]["content"])
+        leaking = {**BODIES, "proposal_rested_on": "We proposed rollback_image on the service."}
+        return ModelResponse(
+            text=json.dumps(leaking), input_tokens=1000, output_tokens=500, model="scripted"
+        )
+
+
+def a_record() -> Any:
+    from faultline.agents.postmortem import Record
+
+    return Record(
+        scenario_id="cart-bad-image-tag",
+        incident_id="inc-0007",
+        verdict=VERDICT,
+        proposal=PROPOSAL,
+        fate="unknown",
+    )
+
+
+def test_a_clean_draft_comes_back_with_its_tokens_counted() -> None:
+    from faultline.agents.postmortem import draft_one
+
+    drafted = draft_one(a_record(), ScriptedModel(BODIES))  # type: ignore[arg-type]
+
+    assert drafted.refusals == []
+    assert drafted.attempts == 1
+    assert drafted.tokens_in and drafted.tokens_out
+    assert "## What was never measured" in drafted.text
+
+
+def test_a_scenario_whose_every_draft_leaks_still_reports_what_it_spent() -> None:
+    """**Q53's failed-arm lesson, applied before the first dollar rather than after it.**
+
+    That driver printed `$0.00` while a failed arm burned tokens, because it priced the verdict
+    rather than the work. A scenario that produced nothing here cost exactly as much as one that
+    produced a document, and a ceiling that cannot see the failures is not a ceiling.
+    """
+    from faultline.agents.postmortem import RefusedError, draft_one
+
+    model = RefusingModel()
+
+    with pytest.raises(RefusedError) as refused:
+        draft_one(a_record(), model, attempts=2)  # type: ignore[arg-type]
+
+    assert model.calls == 2, "both attempts were made"
+    assert len(refused.value.refusals) == 2
+    assert refused.value.tokens_in == 2000 and refused.value.tokens_out == 1000
+    priced = refused.value.tokens_in / 1_000_000 * 5.0 + refused.value.tokens_out / 1_000_000 * 25.0
+    assert priced > 0, "the failure has a price, and a caller that ignored it would walk a ceiling"
+
+
+def test_the_guards_own_message_is_what_the_next_draft_is_told() -> None:
+    """T3.8's shape, and the reason the refusal text is worth keeping: the second attempt is told
+    exactly what the parser refused, in the user message, not a paraphrase of it."""
+    import contextlib
+
+    from faultline.agents.postmortem import RefusedError, draft_one
+
+    model = RefusingModel()
+    with contextlib.suppress(RefusedError):
+        draft_one(a_record(), model, attempts=2)  # type: ignore[arg-type]
+
+    assert len(model.seen) == 2
+    first, second = model.seen
+    assert "refused" not in first, "the first draft has no violation to be told about"
+    assert "rollback_image" in second, "the second is told what the guard caught"
+
+
+def test_the_drafts_do_not_land_where_the_seeder_reads() -> None:
+    """**The gate is a person, not a directory.** A draft written into
+    `evals/scenarios/artifacts/dev/` would be one accepted row away from the corpus, and
+    *"never auto-published"* would be a formality between two folders."""
+    from evalharness import postmortem_cli
+
+    assert "artifacts" not in str(postmortem_cli.DEFAULT_OUT)
+    assert postmortem_cli.DEFAULT_OUT.name == "postmortems"
+
+
+def test_the_command_defaults_to_the_registrations_budget() -> None:
+    """§6 budgets $5 for postmortem generation inside a $55 ceiling. A budget revised upward
+    mid-task is not a budget, so it is the default rather than a suggestion in prose."""
+    from evalharness import postmortem_cli
+
+    assert postmortem_cli.MAX_USD == 5.0
+    assert postmortem_cli.parser().parse_args([]).max_usd == 5.0
+
+
+def test_only_dev_scenarios_are_donors() -> None:
+    """Registration §8: no holdout scenario is spent on a learning-effect measurement, and a
+    holdout postmortem in the corpus is an answer key nothing downstream would notice."""
+    from evalharness import postmortem_cli
+
+    scenarios = Path(__file__).resolve().parents[1] / "evals" / "scenarios"
+    if not scenarios.is_dir():
+        return
+
+    found = postmortem_cli.dev_scenarios(scenarios)
+
+    assert found, "the catalog has dev scenarios"
+    assert "ad-memory-squeeze" in found
+    for scenario_id in found:
+        import yaml
+
+        loaded = yaml.safe_load((scenarios / f"{scenario_id}.yaml").read_text())
+        assert loaded["split"] == "dev"
+
+
+def test_one_postmortem_per_scenario_not_per_run() -> None:
+    """A scenario with three scored runs has three tellings of one incident. Seeding all three
+    would put it in the corpus three times and let one document win a query with three hits -
+    ADR-0018's argument for not storing a narrative twice."""
+    from faultline.agents.postmortem import donor_runs
+
+    if not RUNS.is_dir():
+        return
+
+    donors = donor_runs(RUNS)
+
+    assert donors, "the archive has usable donors"
+    assert len(donors) == len(set(donors)), "keyed by scenario, so one each by construction"
