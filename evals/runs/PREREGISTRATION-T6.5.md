@@ -221,3 +221,96 @@ It cost nothing here because it was found while building rather than while spend
 about the order the pieces were built in, not a property of the process, and the process fix is
 the one already written down — *when a document describes code or a result, open the thing it
 describes before repeating it.*
+
+---
+
+# Amendment 2 — three of the thirteen scenarios cannot run, and the floor was quoted at the wrong R
+
+**2026-09-15, written after the build finished (#318–#326) and before any model call. $0.00.**
+Appended, not edited: nothing above this line is changed, and §4, §5 and §6 are to be read against
+what follows. Everything below is read off `evals/scenarios/*.yaml` and `variance.mde`.
+
+## 1. Ten scenarios, not thirteen
+
+`faultline-postmortem --dry-run` found **ten** donors where §6 budgeted thirteen. The catalog says
+why: three dev scenarios carry `blocked: true`, meaning their faults produced nothing observable
+and they cannot be rehearsed at all.
+
+| class | dev scenarios | **runnable** | donors left when one is held out |
+|---|---|---|---|
+| `bad_config` | 4 | **4** | 3 |
+| `bad_deploy` | 3 | **2** | **1** |
+| `dependency_latency` | 3 | **2** | **1** |
+| `resource_exhaustion` | 3 | **2** | **1** |
+
+Blocked: `ad-dependency-latency`, `currency-cpu-throttle`, `flag-service-crashloop`.
+
+**The design note's §2 counted all thirteen** and concluded *"holding one out always leaves
+donors"*. That is true and it is the wrong reassurance: in **three of four classes it leaves
+exactly one**, always, not — as the note said of `dependency_latency` alone — sometimes. The note
+knew `ad-dependency-latency` had no narrative bundle and did not notice that being *blocked* is
+the deeper reason, nor that two more scenarios share it.
+
+**What this does to §4.** For six of the ten scenarios the WITH arm carries **one** same-class
+postmortem and one same-class narrative, against a WITHOUT arm carrying neither. That is the
+transfer this measurement can observe: not *does a body of prior same-class incidents help*, but
+*does one prior incident help, when retrieval finds it*.
+
+**Prediction 4 stops being a prediction.** It reads *"in fewer than half the WITH-arm
+investigations does retrieval surface a same-class document at all"* — with one candidate document
+in three of four classes and `recall@3 = 0.395`, that is close to arithmetic. It is still worth
+recording, and it is no longer a test of anything; §7's scoring should say so rather than claim a
+prediction held.
+
+**Per-class deltas are not reportable for three of the four classes.** n = 2 with R = 2 is four
+runs an arm. The report gives the pooled delta and the per-class counts, and says nothing about a
+per-class effect.
+
+## 2. The floor was quoted at an R this design does not use
+
+§5 names *"the catalog's MDE: 16.2pp at `n = 10, R = 3`"*. §4 registers **R ≥ 2**. Those are two
+different numbers and the registration used the friendlier one.
+
+`variance.mde`, run against this catalog:
+
+| n | R | MDE |
+|---|---|---|
+| 13 | 3 | 14.2pp |
+| **10** | **3** | **16.2pp** |
+| 13 | 2 | 17.4pp |
+| **10** | **2** | **19.8pp** |
+
+So the floor at the shape actually registered is **19.8pp**, not 16.2pp. The n was right by
+accident — §5's `n = 10` matches the ten runnable scenarios rather than the thirteen §6 budgeted,
+which is two errors that happened to cancel in one field.
+
+**Decided: R = 2, and the floor is 19.8pp.** Buying back 3.6pp costs R = 3, which is 60 runs at
+**$35–46**, or **$42–55** at the 16.7% discard rate — against a $55 ceiling, so one bad batch ends
+the task with arms incomplete and no result. Predictions 2 and 3 already register that the delta
+clears neither 16.2pp nor 10pp; spending $14 to tighten a floor on a measurement whose registered
+expectation is a null buys precision in the one case the registration says will not arise.
+
+**§5's second floor is unchanged and is the one that will do the interpretive work.** The
+instrument's own noise is ~10pp, and only the larger floor can decide pass or fail — but a delta
+landing *between* 10pp and 19.8pp is a different statement from one landing below 10pp, and §7's
+report keeps that distinction.
+
+## 3. §6's budget, corrected downward
+
+| | registered | corrected |
+|---|---|---|
+| scored runs | 13 × 2 arms × R=2 = **52** | 10 × 2 arms × R=2 = **40** |
+| at $0.59–0.77 | $31–40 | **$24–31** |
+| with 16.7% discards | $37–48 | **$28–37** |
+| postmortem drafting | $5 | $5 (10 donors, not 13) |
+| **hard ceiling** | **$55** | **$55, unchanged** |
+
+The ceiling does not move. A ceiling that tracked the estimate downward would not be a ceiling,
+and the headroom is what pays for a re-run if a batch fails.
+
+## 4. What this amendment does not change
+
+The two arms, the query-time exclusion, the accept gate, §7's predictions 1, 2, 3, 5, 6 and 7, and
+§8's list of what the task cannot settle. **§8 gains one line:** this measurement cannot say
+whether *a body* of prior same-class incidents helps, because on three of four classes there is
+only ever one.
