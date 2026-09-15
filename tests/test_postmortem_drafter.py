@@ -7,6 +7,7 @@ that is the natural place for it and doing so would silently re-stamp every run 
 from __future__ import annotations
 
 import json
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -155,7 +156,11 @@ def test_an_abstention_is_described_as_a_finding_not_an_absence() -> None:
     """ADR-0028 §4: abstention is a first-class output. *The evidence did not support an action*
     is something a responder wants to read; an empty section is not."""
     assert proposal_lines(None) == [pm.ABSTAINED]
-    assert proposal_lines({"action_id": ""}) == [pm.ABSTAINED]
+    assert proposal_lines({"action_id": ""})[0] == pm.ABSTAINED
+    assert "not recorded" in "\n".join(proposal_lines({"action_id": ""})), (
+        "an abstention with no recorded reasoning says so, rather than dropping the lines and "
+        "reading as though the question was never asked"
+    )
 
 
 def test_an_unrecorded_fate_says_so_rather_than_inventing_a_decision() -> None:
@@ -236,3 +241,117 @@ def test_a_refused_draft_is_told_why_in_the_user_message_not_the_system_prompt()
     request = model.requests[-1]
     assert request.system == POSTMORTEM_SYSTEM
     assert "rollback_image" in request.messages[0]["content"]
+
+
+# --- against every proposal this repository has actually recorded -------------------------------
+
+RUNS = Path(__file__).resolve().parents[1] / "evals" / "runs"
+
+
+def recorded_proposals() -> list[tuple[str, dict[str, Any]]]:
+    out: list[tuple[str, dict[str, Any]]] = []
+    if not RUNS.is_dir():
+        return out
+    for path in sorted(RUNS.glob("*/*-verdict.json")):
+        try:
+            payload = json.loads(path.read_text())
+        except Exception:
+            continue
+        if payload.get("baseline") or not payload.get("proposal"):
+            continue
+        out.append((path.parent.name, payload["proposal"]))
+    return out
+
+
+def test_no_recorded_proposal_leaks_into_a_brief() -> None:
+    """**The defect this test was written after, and the reason the fixture above was not enough.**
+
+    Over the 121 agent verdict artifacts carrying a proposal, `risk` names `restart` 58 times,
+    `revert_config` 36 and `rollback_image` 24 - because the proposer is proposing an action, so
+    its prose about risk and blast radius is prose about that action. The first version of
+    `proposal_lines` passed `blast_radius` and `if_wrong` through verbatim and **21 of those 121
+    briefs would have carried banned vocabulary**. It passed its tests because the synthetic
+    fixture happened not to say `restart`.
+
+    Real data, every one of them, or this test is the same mistake again.
+    """
+    from faultline.context.postmortem import leaked_words
+
+    recorded = recorded_proposals()
+    if not recorded:
+        return
+    leaking = [
+        (run, leaked_words("\n".join(proposal_lines(proposal))))
+        for run, proposal in recorded
+        if leaked_words("\n".join(proposal_lines(proposal)))
+    ]
+
+    assert not leaking, f"{len(leaking)} of {len(recorded)} recorded proposals leak: {leaking[:3]}"
+
+
+def test_a_withheld_field_says_so_rather_than_reading_as_unrecorded() -> None:
+    """A dropped line reads as *nothing was recorded*, which is a different and false statement."""
+    leaking = {**PROPOSAL, "risk": "Restarting paymentservice would discard in-flight attempts."}
+
+    lines = "\n".join(proposal_lines(leaking))
+
+    assert pm.WITHHELD in lines
+    assert "Restarting" not in lines
+
+
+def test_an_abstentions_reasoning_travels_with_it_where_the_guard_allows() -> None:
+    """Registration §1 wants *"abstained with the abstention's reasoning"*; §2 forbids naming the
+    remediation, and Q63 settled that §2 governs. Honouring §1 as far as §2 permits is better than
+    dropping the clause because the two disagree."""
+    clean = {
+        "action_id": "",
+        "expected_effect": "No action: the dependency was never measured.",
+        "if_wrong": "Wrong if a saturation measurement shows a climb before onset.",
+    }
+
+    lines = "\n".join(proposal_lines(clean))
+
+    assert "never measured" in lines
+    assert "shows a climb before onset" in lines
+
+
+def test_a_baseline_run_is_not_a_donor() -> None:
+    """B0 and B1 are controls for the pipeline, and a postmortem of a control is a document about
+    a lookup table."""
+    from faultline.agents.postmortem import RecordError, record_from_run
+
+    run = RUNS
+    baselines = [
+        p.parent
+        for p in sorted(RUNS.glob("*/*-verdict.json"))
+        if json.loads(p.read_text()).get("baseline")
+    ]
+    if not baselines:
+        return
+    run = baselines[0]
+
+    with pytest.raises(RecordError, match="baseline"):
+        record_from_run(run)
+
+
+def test_a_real_run_reads_into_a_record_the_drafter_can_use() -> None:
+    """End to end over the archive: the artifact the scorer read is the artifact the drafter
+    drafts from, which is what keeps a postmortem about a run that was actually scored."""
+    from faultline.agents.postmortem import record_from_run
+
+    usable = []
+    for path in sorted(RUNS.glob("*/*-verdict.json")):
+        payload = json.loads(path.read_text())
+        if payload.get("baseline") or not (payload.get("verdict") or {}).get("root_cause"):
+            continue
+        if not (path.parent / "manifest.json").is_file():
+            continue
+        usable.append(path.parent)
+    if not usable:
+        return
+
+    record = record_from_run(usable[-1])
+
+    assert record.scenario_id
+    assert record.verdict.root_cause
+    assert record.fate in {"approved", "rejected", "escalated", "abstained", "unknown"}
