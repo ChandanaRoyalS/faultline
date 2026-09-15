@@ -6,7 +6,9 @@ here is the part that decides *what* gets written, which is where the judgement 
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -389,3 +391,78 @@ def test_an_explicit_label_still_wins_over_the_reading() -> None:
     manifest.pop("score")
 
     assert evaldb.outcome_of(manifest) == "discarded"
+
+
+# --- the loader and Q33's reading of the record -------------------------------------------------
+
+
+def _overran() -> dict[str, Any]:
+    """A manifest shaped like the one run in the archive that meets this: a score, a 600 s
+    budget, and 6596 s of latency against it."""
+    return {
+        "injected_at": "2026-09-10T00:26:57Z",
+        "score": {"fault_class": {}},
+        "budget": {"wall_clock_seconds": 600},
+        "metrics": {"latency": {"investigation_seconds": 6596}},
+    }
+
+
+def test_a_scored_run_whose_budget_did_not_bind_may_be_reread_as_invalid() -> None:
+    """**2026-09-15, the re-backfill Q61 asked for.** `faultline-eval-db load` met
+    `20260910T002657Z-ad-memory-squeeze` - stored as `scored` before Q33's rule existed, read as
+    `invalid` under it - and refused the whole backfill. The same shape as the 2026-09-04 case
+    above: right given what the loader knew, wrong given what the repository knew.
+
+    `outlived_its_budget`'s own docstring measured this at **1 of 245 scored runs**, so this is a
+    rule that catches an outlier rather than one that reclassifies a population.
+    """
+    overran = _overran()
+
+    assert evaldb.outlived_its_budget(overran)
+    assert evaldb.outcome_of(overran) == "invalid"
+    assert evaldb.outcome_reread("scored", overran) is not None
+
+
+def test_a_run_that_stayed_inside_its_budget_is_not_reread() -> None:
+    inside = {**_overran(), "metrics": {"latency": {"investigation_seconds": 480}}}
+
+    assert evaldb.outcome_of(inside) == "scored"
+    assert evaldb.outcome_reread("scored", inside) is None, "nothing disagrees"
+
+
+def test_a_manifest_that_declares_itself_invalid_still_stops_the_loader() -> None:
+    """**The property that keeps this a reading rather than an absorption.** A hand-written
+    `invalid` block returns at `outcome_of`'s first line and never reaches the budget branch, so a
+    directory edited by hand is still a conflict the loader refuses to resolve."""
+    declared = {"injected_at": "2026-09-01T00:00:00Z", "score": {}, "invalid": {"why": "typed"}}
+
+    assert evaldb.outcome_of(declared) == "invalid"
+    assert evaldb.outcome_reread("scored", declared) is None, "a hand edit, not a reading"
+
+
+def test_the_two_corrections_do_not_admit_each_others_shapes() -> None:
+    """Each signature is exact. A discard is not reread as invalid, and an overrun is not reread
+    as a refusal, however the stored value happens to disagree."""
+    overran = _overran()
+
+    assert evaldb.outcome_reread("discarded", overran) is None
+    assert evaldb.outcome_reread("invalid", overran) is None, "no disagreement to explain"
+    assert evaldb.outcome_reread("scored", {"discarded": {"reason": "gate"}}) is None
+
+
+def test_exactly_one_run_in_the_archive_meets_the_budget_reread() -> None:
+    """**Measured, so the rule's blast radius is a number rather than a hope.**
+    `outlived_its_budget` recorded 1 of 245 scored runs when it was written. If this ever counts
+    more, the rule stopped being about an outlier and the queue should hear about it."""
+    runs = Path(__file__).resolve().parents[1] / "evals" / "runs"
+    if not runs.is_dir():
+        return
+    overran = [
+        p.parent.name
+        for p in sorted(runs.glob("*/manifest.json"))
+        if evaldb.outlived_its_budget(json.loads(p.read_text()))
+    ]
+
+    assert overran == ["20260910T002657Z-ad-memory-squeeze"], (
+        f"the budget-overrun rule now catches {len(overran)} runs: {overran}"
+    )
