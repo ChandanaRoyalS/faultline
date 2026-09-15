@@ -122,3 +122,86 @@ def test_a_renamed_section_is_reconciled_by_index_not_by_title() -> None:
     renamed = [replace(c, section=f"Renamed {c.section_index}") for c in original]
     store.add(renamed)
     assert store.count() == 3
+
+
+# --- the upsert that could not take an edit (2026-09-15, T6.5's seed) -----------------------
+
+
+def _insert_statement() -> str:
+    """The `incident_chunks` upsert, read out of the source.
+
+    Adjacent string literals are one `ast.Constant` after parsing, so the whole statement comes
+    back assembled without this test owning a second copy of it - the property
+    `corpusdrift`'s docstring asks for, applied to a guard rather than to a digest.
+    """
+    import ast
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[1] / "src" / "faultline" / "context" / "store.py"
+    ).read_text()
+    for node in ast.walk(ast.parse(source)):
+        if (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and "INSERT INTO incident_chunks" in node.value
+        ):
+            return node.value
+    raise AssertionError("the incident_chunks INSERT is no longer one literal")
+
+
+def test_the_upsert_updates_every_column_it_inserts_except_the_key() -> None:
+    """**Q45's nine runbooks, and the row's diagnosis was wrong.**
+
+    The `DO UPDATE SET` listed five columns and `section` was not one of them. A chunk's id is
+    `document_id#section_index`, which a renamed heading does not move, so the upsert wrote the
+    new body under the old heading and `prune_document` saw nothing stale. The corpus could
+    take a *new* document and could not take an *edit* to one it held.
+
+    Measured on 2026-09-15, immediately after a `faultline-seed` that printed all forty runbooks
+    as seeded: thirteen headings across nine runbooks still at their pre-edit text, the same nine
+    `faultline-corpus-drift` had been naming since 2026-09-14 as a corpus the seeder had not
+    reached. It had reached them every time.
+
+    **Asserted as a rule rather than as a list**, because the list is what went wrong. Anything
+    inserted is updated; `id` is the conflict target and the only exemption. A column added to
+    the INSERT and forgotten here fails this test on the commit that adds it, which is the guard
+    the original omission never had.
+    """
+    import re
+
+    statement = _insert_statement()
+    inserted = re.search(r"INSERT INTO incident_chunks \(([^)]*)\)", statement)
+    updated = re.search(r"DO UPDATE SET (.*)$", statement, re.S)
+    assert inserted and updated
+
+    columns = [c.strip() for c in inserted.group(1).split(",")]
+    assignments = dict(
+        (left.strip(), right.strip())
+        for left, _, right in (a.partition("=") for a in updated.group(1).split(","))
+    )
+
+    assert columns[0] == "id", "the conflict target is the first column"
+    assert set(assignments) == set(columns[1:]), (
+        "every inserted column but the key is updated on conflict. Missing: "
+        f"{sorted(set(columns[1:]) - set(assignments))}"
+    )
+    assert all(value == f"EXCLUDED.{name}" for name, value in assignments.items()), (
+        "each column takes the incoming value, not a computed one"
+    )
+
+
+def test_the_in_memory_store_already_took_the_edit_which_is_why_no_test_caught_it() -> None:
+    """**The seam that hid it for a day.** `InMemoryPastIncidentStore.add` assigns the whole
+    `Chunk` at the key, so a renamed heading replaces the row and every test written against the
+    substituted store passes. The defect lived only in the SQL, which no test read.
+
+    This pins the behaviour the two stores are now supposed to share, and it is deliberately
+    *not* the guard - the guard is the test above, which reads the statement that was wrong.
+    """
+    store = InMemoryPastIncidentStore(HashingEmbedder())
+    store.add([replace(_chunk("runbook:x", 0), section="The consequence for the benchmark")])
+    store.add([replace(_chunk("runbook:x", 0), section="The consequence")])
+
+    assert store.count() == 1, "one section index, one row"
+    assert [c.section for c in store.chunks.values()] == ["The consequence"]

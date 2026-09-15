@@ -280,10 +280,34 @@ class PgVectorPastIncidentStore:
                     "body, origin, split, scenario_id, fault_class, scenario_fingerprint, "
                     "recorded_from, title, source_path, embedder, dimensions, embedding) "
                     "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
-                    "ON CONFLICT (id) DO UPDATE SET body = EXCLUDED.body, "
-                    "embedding = EXCLUDED.embedding, embedder = EXCLUDED.embedder, "
-                    "recorded_from = EXCLUDED.recorded_from, "
-                    "scenario_fingerprint = EXCLUDED.scenario_fingerprint",
+                    # **Every column the source produces, not a chosen subset.** The subset was
+                    # body, embedding, embedder, recorded_from, scenario_fingerprint - and it
+                    # omitted `section`, so renaming a heading at an unchanged index wrote the
+                    # new body under the old heading and left the old heading there forever.
+                    # `prune_document` cannot catch it either: the key is
+                    # `document_id#section_index`, which a rename does not move, so the row is
+                    # never stale by that test.
+                    #
+                    # **That is Q45's nine runbooks.** The row diagnosed them as a deployment the
+                    # seeder had not reached. They survived a seeder that reached them - measured
+                    # 2026-09-15, thirteen headings still stale in the store immediately after a
+                    # full `faultline-seed` that printed all forty runbooks as seeded. A corpus
+                    # that cannot take an edit to a document it already holds is one the drift
+                    # check can never report agreement about, and its exit code had been
+                    # permanently 1 for that reason.
+                    #
+                    # Listed exhaustively rather than extended by one column, because the next
+                    # omission would be found the same way. `id` is the conflict target and the
+                    # only thing that does not move; `tests/test_corpus_hygiene.py` parses this
+                    # statement and asserts every other inserted column appears here.
+                    "ON CONFLICT (id) DO UPDATE SET document_id = EXCLUDED.document_id, "
+                    "section = EXCLUDED.section, section_index = EXCLUDED.section_index, "
+                    "body = EXCLUDED.body, origin = EXCLUDED.origin, split = EXCLUDED.split, "
+                    "scenario_id = EXCLUDED.scenario_id, fault_class = EXCLUDED.fault_class, "
+                    "scenario_fingerprint = EXCLUDED.scenario_fingerprint, "
+                    "recorded_from = EXCLUDED.recorded_from, title = EXCLUDED.title, "
+                    "source_path = EXCLUDED.source_path, embedder = EXCLUDED.embedder, "
+                    "dimensions = EXCLUDED.dimensions, embedding = EXCLUDED.embedding",
                     (
                         chunk_key(chunk),
                         chunk.document_id,
