@@ -137,7 +137,7 @@ def test_a_failing_archive_never_costs_a_trajectory(caplog: Any) -> None:
 @dataclass
 class Result:
     narrative: str | None = "# Incident\n\nThe cart service lost its Redis address."
-    exclude_origin: str | None = None
+    exclude_origins: list[str] = field(default_factory=list)
     verdict: Any = None
     flags: list[str] = field(default_factory=list)
     retrieved: list[Any] = field(default_factory=list)

@@ -11,7 +11,7 @@ the smoke asserts it round-trips that way: encoding and escaping are exactly whe
 corrupts something quietly. The ANSI escapes in `cart-bad-image-tag`'s committed log capture and
 the per-call nonce in the closing delimiter are both things a helpful normaliser would eat.
 
-And `trajectory_retrievals.exclude_origin` is where T4.1b reads ADR-0008's assertion: the
+And `trajectory_retrievals.exclude_origins` is where T4.1b reads ADR-0008's assertion: the
 harness "sets it to the scenario under test on every scored run and then asserts the filter
 actually fired; a scored run where the filter did not fire is marked **invalid**, not
 annotated". A column, not a log line.
@@ -80,17 +80,25 @@ class RetrievalRecord:
 
     query: str
     k: int
-    exclude_origin: str | None
-    """`None` is the product case and is legal. Every **benchmark** retrieval passes one
-    (ADR-0008, axis 2), and this column is how T4.1b tells the two apart after the fact."""
+    exclude_origins: list[str]
+    """Empty is the product case and is legal. Every **benchmark** retrieval passes at least one
+    (ADR-0008, axis 2), and this column is how T4.1b tells the two apart after the fact.
+
+    **A list since T6.5** (migration 0009), because the learning-effect measurement's WITHOUT arm
+    excludes the scenario's own documents *and every other dev scenario in its fault class*. A
+    scalar column would have recorded one of four and made the record say something false about
+    what the run could see - which is the property registration §4 chose a query-time exclusion
+    to get: *what each arm could see is in the record rather than in an operator's memory*.
+
+    Stored sorted, so two runs excluding the same set produce the same row."""
 
     returned: list[str] = field(default_factory=list)
     scores: list[float] = field(default_factory=list)
 
     excluded_count: int | None = None
-    """How many corpus chunks `exclude_origin` made unreachable (T4.1b).
+    """How many corpus chunks `exclude_origins` made unreachable (T4.1b).
 
-    **`exclude_origin` records that an exclusion was asked for; this records that it had
+    **`exclude_origins` records that an exclusion was asked for; this records that it had
     something to exclude.** The plan asks for both - *"the count of filtered artifacts is logged
     per run, and a scored run where the filter did not fire is marked invalid, not merely
     annotated"* - because the argument being passed is not evidence that anything was removed.
@@ -328,7 +336,7 @@ class PostgresTrajectoryStore:
                     r = step.retrieval
                     cur.execute(
                         "INSERT INTO trajectory_retrievals (trajectory_id, seq, query, k, "
-                        "exclude_origin, returned, scores, rendered, rendered_sha256, "
+                        "exclude_origins, returned, scores, rendered, rendered_sha256, "
                         "excluded_count) "
                         "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                         "ON CONFLICT (trajectory_id, seq) DO NOTHING",
@@ -337,7 +345,7 @@ class PostgresTrajectoryStore:
                             step.seq,
                             r.query,
                             r.k,
-                            r.exclude_origin,
+                            sorted(r.exclude_origins),
                             json.dumps(r.returned),
                             json.dumps(r.scores),
                             json.dumps(r.rendered),
@@ -433,7 +441,7 @@ class PostgresTrajectoryStore:
                     tool=tool, request=request or {}, result_id=result_id, envelope=envelope
                 )
             cur.execute(
-                "SELECT seq, query, k, exclude_origin, returned, scores, rendered, "
+                "SELECT seq, query, k, exclude_origins, returned, scores, rendered, "
                 "excluded_count FROM trajectory_retrievals WHERE trajectory_id = %s",
                 (trajectory_id,),
             )
@@ -441,7 +449,7 @@ class PostgresTrajectoryStore:
                 seq,
                 query,
                 k,
-                exclude_origin,
+                exclude_origins,
                 returned,
                 scores,
                 rendered,
@@ -450,7 +458,7 @@ class PostgresTrajectoryStore:
                 steps[seq].retrieval = RetrievalRecord(
                     query=query,
                     k=k,
-                    exclude_origin=exclude_origin,
+                    exclude_origins=list(exclude_origins or []),
                     returned=returned or [],
                     scores=scores or [],
                     # Empty for anything recorded before T7.9. Read it as "the retrieved text

@@ -468,7 +468,7 @@ def artifact(
     trajectory_id: str,
     blast_radius: list[str],
     unmeasured_edges: int,
-    exclude_origin: str | None,
+    exclude_origins: list[str],
     prediction: Prediction,
 ) -> dict[str, object]:
     """The verdict artifact, in exactly the shape `evalharness.run.score` reads.
@@ -484,7 +484,7 @@ def artifact(
         "states": ["triaging"],
         "blast_radius": list(blast_radius),
         "unmeasured_edges": unmeasured_edges,
-        "exclude_origin": exclude_origin,
+        "exclude_origins": sorted(exclude_origins),
         "verdict": {
             "fault_class": prediction.fault_class,
             "remediation_class": prediction.fix_class,

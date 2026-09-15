@@ -56,13 +56,16 @@ def parser() -> argparse.ArgumentParser:
         help="write <incident>-verdict.json and <incident>-narrative.md here",
     )
     p.add_argument(
+        "--exclude-origins",
         "--exclude-origin",
+        dest="exclude_origins",
         default=None,
-        metavar="SCENARIO",
+        metavar="SCENARIO[,SCENARIO...]",
         help=(
-            "hold this scenario's own past-incident chunks out of retrieval (ADR-0008 axis 2). "
+            "hold these scenarios' own past-incident chunks out of retrieval (ADR-0008 axis 2). "
+            "Comma-separated since T6.5, whose WITHOUT arm excludes a whole fault class. "
             "Overrides FAULTLINE_EVAL_SCENARIO. Unset in production, where retrieval sees the "
-            "whole corpus"
+            "whole corpus. The singular spelling still works: every recorded sweep passes it"
         ),
     )
     p.add_argument(
@@ -239,8 +242,10 @@ def run(argv: list[str] | None = None) -> int:
     if rejection is not None:
         print(f"re-investigating after an operator rejection: {rejection.reason}")
 
-    exclude = args.exclude_origin or os.environ.get("FAULTLINE_EVAL_SCENARIO") or None
+    exclude = args.exclude_origins or os.environ.get("FAULTLINE_EVAL_SCENARIO") or ""
     if exclude:
+        # Still one variable and still the harness's answer - `_exclusion_for` splits it. A
+        # second variable for the plural case would be two places deciding what a run may read.
         os.environ["FAULTLINE_EVAL_SCENARIO"] = exclude
 
     triage = Triage(ServiceCatalog.from_snapshot(), context.hop_radius).run(incident)
@@ -543,7 +548,10 @@ def _print_report(report: object) -> None:
     else:
         print("\nflags: none")
 
-    print(f"\nretrieval: exclude_origin={result.exclude_origin!r}, {len(result.retrieved)} hit(s)")
+    print(
+        f"\nretrieval: exclude_origins={sorted(result.exclude_origins)}, "
+        f"{len(result.retrieved)} hit(s)"
+    )
     if result.narrative is None:
         print(f"NARRATIVE NOT RENDERED: {result.narrative_error}")
 
@@ -644,12 +652,22 @@ def _run_b0(
             trajectory_id=trajectory.id,
             blast_radius=[m.service for m in triage.blast_radius],
             unmeasured_edges=len(triage.unmeasured_edges),
-            exclude_origin=exclude,
+            exclude_origins=_origins(exclude),
             prediction=prediction,
         )
         (out / f"{incident.id}-verdict.json").write_text(json.dumps(payload, indent=2) + "\n")
         print(f"wrote {out / f'{incident.id}-verdict.json'}")
     return 0
+
+
+def _origins(exclude: str | None) -> list[str]:
+    """The `--exclude-origins` value as origins, in the one spelling the store and the record use.
+
+    Split here and in `investigation._exclusion_for`, from the same variable, because the CLI
+    writes `FAULTLINE_EVAL_SCENARIO` and the investigation reads it - two readers of one string,
+    which is better than two strings.
+    """
+    return sorted(f"scenario:{part.strip()}" for part in (exclude or "").split(",") if part.strip())
 
 
 def _run_b1(
@@ -777,7 +795,7 @@ def _run_b1(
             trajectory_id=trajectory.id,
             blast_radius=[m.service for m in triage.blast_radius],
             unmeasured_edges=len(triage.unmeasured_edges),
-            exclude_origin=exclude,
+            exclude_origins=_origins(exclude),
             run=run,
         )
         (out / f"{incident.id}-verdict.json").write_text(json.dumps(payload, indent=2) + "\n")
@@ -873,7 +891,7 @@ def _run_b2(
             trajectory_id=trajectory.id,
             blast_radius=[m.service for m in triage.blast_radius],
             unmeasured_edges=len(triage.unmeasured_edges),
-            exclude_origin=exclude,
+            exclude_origins=_origins(exclude),
             run=run,
         )
         (out / f"{incident.id}-verdict.json").write_text(json.dumps(payload, indent=2) + "\n")

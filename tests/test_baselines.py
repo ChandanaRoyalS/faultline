@@ -325,7 +325,7 @@ def test_the_artifact_has_every_field_the_scorer_reads() -> None:
         trajectory_id="t-1",
         blast_radius=["cartservice", "frontend"],
         unmeasured_edges=2,
-        exclude_origin="scenario:cart-bad-image-tag",
+        exclude_origins=["scenario:cart-bad-image-tag"],
         prediction=prediction,
     )
 
@@ -346,9 +346,7 @@ def test_the_artifact_has_every_field_the_scorer_reads() -> None:
 def test_the_artifact_leaves_the_agents_fields_empty_rather_than_absent() -> None:
     """A reader diffing a B0 artifact against an agent's should see which parts of the pipeline
     B0 does not have, rather than which keys someone forgot."""
-    written = baselines.artifact(
-        "i", "t", [], 0, None, baselines.predict(baselines.Signals(), ONSET)
-    )
+    written = baselines.artifact("i", "t", [], 0, [], baselines.predict(baselines.Signals(), ONSET))
 
     assert written["retrieved"] == []
     assert written["proposal"] is None

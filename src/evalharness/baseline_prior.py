@@ -271,7 +271,7 @@ def artifact(
     trajectory_id: str,
     blast_radius: list[str],
     unmeasured_edges: int,
-    exclude_origin: str | None,
+    exclude_origins: list[str],
     run: B2Run,
 ) -> dict[str, object]:
     """The verdict artifact, in exactly the shape `evalharness.run.score` reads.
@@ -288,7 +288,7 @@ def artifact(
         "states": ["triaging"],
         "blast_radius": list(blast_radius),
         "unmeasured_edges": unmeasured_edges,
-        "exclude_origin": exclude_origin,
+        "exclude_origins": sorted(exclude_origins),
         "verdict": {
             "fault_class": getattr(verdict, "fault_class", None),
             "remediation_class": getattr(verdict, "remediation_class", None),

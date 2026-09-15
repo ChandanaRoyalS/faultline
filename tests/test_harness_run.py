@@ -1936,9 +1936,9 @@ def test_a_run_whose_exclusion_removed_nothing_is_invalid_not_annotated() -> Non
     """
     from evalharness.run import classify_retrievals
 
-    verdict = classify_retrievals([(1, "scenario:cart-redis-misconfig", 0), (2, None, None)])
+    verdict = classify_retrievals([(1, ["scenario:cart-redis-misconfig"], 0), (2, [], None)])
 
-    assert verdict["silent"] == [{"seq": 1, "exclude_origin": "scenario:cart-redis-misconfig"}]
+    assert verdict["silent"] == [{"seq": 1, "exclude_origins": ["scenario:cart-redis-misconfig"]}]
     assert verdict["enforced"] is False
 
 
@@ -1948,7 +1948,7 @@ def test_a_run_whose_exclusion_removed_chunks_is_enforced() -> None:
     from evalharness.run import classify_retrievals
 
     verdict = classify_retrievals(
-        [(1, "scenario:ad-memory-squeeze", 3), (2, "scenario:ad-memory-squeeze", 3)]
+        [(1, ["scenario:ad-memory-squeeze"], 3), (2, ["scenario:ad-memory-squeeze"], 3)]
     )
 
     assert verdict["enforced"] is True
@@ -1957,12 +1957,12 @@ def test_a_run_whose_exclusion_removed_chunks_is_enforced() -> None:
 
 
 def test_a_production_run_excludes_nothing_and_is_not_invalid() -> None:
-    """`exclude_origin IS NULL` is the product case and is legal - a live incident has no origin
+    """An empty `exclude_origins` is the product case and is legal - a live incident has no origin
     to exclude. It is not `enforced` either, because there was nothing to enforce, and reporting
     it as enforcement would be the same overclaim in the other direction."""
     from evalharness.run import classify_retrievals
 
-    verdict = classify_retrievals([(1, None, None)])
+    verdict = classify_retrievals([(1, [], None)])
 
     assert verdict["silent"] == []
     assert verdict["enforced"] is False
@@ -1979,13 +1979,69 @@ def test_an_uncounted_row_is_unassessable_and_never_invalid() -> None:
     """
     from evalharness.run import classify_retrievals
 
-    verdict = classify_retrievals([(1, "scenario:shipping-wrong-image", None)])
+    verdict = classify_retrievals([(1, ["scenario:shipping-wrong-image"], None)])
 
     assert verdict["unassessable"] == [
-        {"seq": 1, "exclude_origin": "scenario:shipping-wrong-image"}
+        {"seq": 1, "exclude_origins": ["scenario:shipping-wrong-image"]}
     ]
     assert verdict["silent"] == []
     assert verdict["enforced"] is False
+
+
+def test_excluding_the_wrong_scenarios_is_invalid_even_when_the_count_is_healthy() -> None:
+    """**The failure T6.5 created and had to close in the same change.**
+
+    With one origin, *excluded something* and *excluded the right thing* were the same event. With
+    a set they are not: a run holding out three same-class scenarios and not the one under test
+    reports a perfectly healthy `filtered` count while ADR-0008 axis 2 is simply unasserted. The
+    count cannot see it, so `own_origin` is checked against the recorded set directly.
+    """
+    from evalharness.run import classify_retrievals
+
+    verdict = classify_retrievals(
+        [(1, ["scenario:cart-dependency-latency", "scenario:redis-cart-dependency-latency"], 9)],
+        own_origin="scenario:ad-dependency-latency",
+    )
+
+    assert verdict["silent"] == [], "it excluded plenty - that is exactly the problem"
+    assert verdict["filtered"] == {"1": 9}
+    assert verdict["missing_own"] == [
+        {
+            "seq": 1,
+            "exclude_origins": [
+                "scenario:cart-dependency-latency",
+                "scenario:redis-cart-dependency-latency",
+            ],
+            "own_origin": "scenario:ad-dependency-latency",
+        }
+    ]
+    assert verdict["enforced"] is False
+
+
+def test_a_without_arm_run_that_holds_out_its_own_scenario_too_is_enforced() -> None:
+    """What the measurement's WITHOUT arm actually looks like: S's own documents **and** every
+    other dev scenario in its fault class. Both floors clear."""
+    from evalharness.run import classify_retrievals
+
+    verdict = classify_retrievals(
+        [(1, ["scenario:ad-dependency-latency", "scenario:cart-dependency-latency"], 12)],
+        own_origin="scenario:ad-dependency-latency",
+    )
+
+    assert verdict["enforced"] is True
+    assert verdict["missing_own"] == []
+
+
+def test_without_an_own_origin_the_strict_check_does_not_run() -> None:
+    """A caller that does not know which scenario was under test gets the old judgement rather
+    than a guess. `missing_own` is empty because the question was not asked, and that is
+    distinct from asked-and-answered-yes."""
+    from evalharness.run import classify_retrievals
+
+    verdict = classify_retrievals([(1, ["scenario:cart-bad-image-tag"], 4)])
+
+    assert verdict["missing_own"] == []
+    assert verdict["enforced"] is True
 
 
 # --- both refusal paths record themselves the same way (2026-09-04) ------------

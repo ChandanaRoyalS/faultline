@@ -290,7 +290,7 @@ def write_outputs(report: RunReport, out: Path, archive: Archive | None = None) 
                 "states": list(report.states),
                 "blast_radius": list(report.blast_radius),
                 "unmeasured_edges": report.unmeasured_edges,
-                "exclude_origin": result.exclude_origin,
+                "exclude_origins": sorted(result.exclude_origins),
                 "verdict": None if result.verdict is None else result.verdict.model_dump(),
                 "flags": result.flags,
                 "retrieved": result.retrieved,

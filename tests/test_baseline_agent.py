@@ -315,7 +315,7 @@ def test_the_artifact_has_every_field_the_scorer_reads() -> None:
         trajectory_id="t-1",
         blast_radius=["frontend", "adservice"],
         unmeasured_edges=1,
-        exclude_origin="scenario:ad-memory-squeeze",
+        exclude_origins=["scenario:ad-memory-squeeze"],
         run=run,
     )
 
@@ -337,7 +337,7 @@ def test_the_artifact_leaves_the_pipelines_fields_empty_rather_than_absent() -> 
     """A reader diffing a B1 artifact against the pipeline's should see which parts B1 does not
     have, rather than which keys someone forgot. B1 has no retrieval, no proposer, no scribe."""
     run = investigate(ScriptedModel([call("logs", "frontend"), CONCLUDE, VERDICT]))
-    written = b1.artifact("i", "t", [], 0, None, run)
+    written = b1.artifact("i", "t", [], 0, [], run)
 
     assert written["retrieved"] == []
     assert written["proposal"] is None
@@ -348,7 +348,7 @@ def test_an_exhausted_run_is_flagged_in_the_artifact() -> None:
     budget = Budget(max_tool_calls_per_specialist=1)
     run = investigate(RelentlessModel(), budget=budget)
 
-    assert "budget_exhausted" in b1.artifact("i", "t", [], 0, None, run)["flags"]
+    assert "budget_exhausted" in b1.artifact("i", "t", [], 0, [], run)["flags"]
 
 
 def test_both_clis_offer_b1_and_neither_reaches_a_backend_to_say_so() -> None:
