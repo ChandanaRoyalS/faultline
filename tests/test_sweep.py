@@ -720,3 +720,41 @@ def test_the_sweep_block_does_not_disturb_the_config_fingerprint() -> None:
     after = fingerprint({**manifest, "sweep": {"id": "s12", "slot": 11, "of": 30, "pass": 2}})
 
     assert after.fingerprint == before
+
+
+def test_end_pass_runs_one_block_and_says_it_was_deliberate() -> None:
+    """**T6.5 §4's interleaved arms.** Running each arm as one block of thirty would confound the
+    arm with position in the sweep, and Q57 measured stale change records rising with position -
+    a median of twelve against one of a run's own. Interleaving a pass at a time needs an
+    invocation that runs *one* pass, and `--start-pass` alone runs from N through the end.
+
+    **Reported as BLOCK rather than RESUMED**, because a sweep the world stopped and a sweep cut
+    up on purpose are different facts and a reader who cannot tell them apart cannot tell an
+    interrupted arm from a scheduled one.
+    """
+    seen: list[list[str]] = []
+    result = sweep.sweep(
+        ["a", "b"],
+        repeats=3,
+        runner=lambda argv: seen.append(argv) or 0,
+        start_pass=2,
+        end_pass=2,
+    )
+    result.declared_repeats = 3
+
+    assert len(seen) == 2, "pass 2 alone"
+    assert result.passes_run == 1
+    rendered = "\n".join(result.render())
+    assert "BLOCK: this invocation ran pass(es) 2-2 of a declared 3, deliberately" in rendered
+    assert "RESUMED" not in rendered, "a block is not a resume"
+
+
+def test_an_end_pass_outside_the_tier_is_refused_rather_than_clamped() -> None:
+    """A clamp would run a different number of passes than the operator asked for and report
+    success. The block schedule an interleaved sweep runs on is exactly what a silent off-by-one
+    corrupts - and dev sweep 12 already put one arm's first six runs in the other's column."""
+    from evalharness.sweep import parser
+
+    args = parser().parse_args(["--tier", "weekly", "--start-pass", "2", "--end-pass", "5"])
+
+    assert args.end_pass == 5, "parsed, and refused later against the tier's R"

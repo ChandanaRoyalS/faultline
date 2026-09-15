@@ -281,9 +281,23 @@ class SweepResult:
     an outside condition stopped (`--start-pass`). The passes before it are the operator's claim
     to have run elsewhere, and `divergence` expects only the passes this invocation ran."""
 
+    end_pass: int | None = None
+    """The last pass this invocation ran, or `None` for *through to the declared R*.
+
+    **Set when a sweep is deliberately cut into blocks** (`--end-pass`). T6.5 §4 runs two arms
+    that differ in what retrieval may read, and running each as one block would confound the arm
+    with position in the sweep - Q57 measured stale change records rising with position, at a
+    median of twelve against one of a run's own. Interleaving the arms a pass at a time needs an
+    invocation that runs *one* pass, which `--start-pass` alone cannot express: it runs from N
+    through the end.
+
+    It is not a smaller R. `repeat_count` on every manifest still declares the tier's, because
+    that is still the design; the blocks are how the passes were spread over time."""
+
     @property
     def passes_run(self) -> int:
-        return self.declared_repeats - self.start_pass + 1
+        last = self.end_pass if self.end_pass is not None else self.declared_repeats
+        return last - self.start_pass + 1
 
     @property
     def scored(self) -> int:
@@ -328,7 +342,18 @@ class SweepResult:
             f"SWEEP: {self.scored}/{len(self.outcomes)} scored",
             "  " + " · ".join(f"{name} {n}" for name, n in sorted(counts.items())),
         ]
-        if self.start_pass > 1:
+        # **Two different facts, two different words.** A sweep the world stopped and a sweep cut
+        # into blocks on purpose both run a subset of the passes, and a reader who cannot tell
+        # them apart cannot tell an interrupted arm from a scheduled one.
+        if self.end_pass is not None:
+            lines += [
+                "",
+                f"  BLOCK: this invocation ran pass(es) {self.start_pass}-{self.end_pass} of a "
+                f"declared {self.declared_repeats}, deliberately (--end-pass). The rest of this "
+                "arm runs in its own blocks; the figures below are for this invocation only, and "
+                "`faultline-eval-db` is where the whole arm is read.",
+            ]
+        elif self.start_pass > 1:
             lines += [
                 "",
                 f"  RESUMED: this invocation ran passes {self.start_pass}-{self.declared_repeats} "
@@ -383,6 +408,7 @@ def sweep(
     sleeper: Any = None,
     recycler: Any = None,
     start_pass: int = 1,
+    end_pass: int | None = None,
     session: str | None = None,
 ) -> SweepResult:
     """The catalog, `repeats` times, counting `--runs-remaining` down **within each pass**.
@@ -438,7 +464,7 @@ def sweep(
     launch = runner or _shell
     wait = sleeper or time.sleep
     result = SweepResult()
-    total = len(ids) * repeats
+    total = len(ids) * (end_pass if end_pass is not None else repeats)
     # **Resuming numbers the slots as the whole sweep would have**: a resumed pass 2 of 3 prints
     # `[11/30]`, not `[1/20]`, because the record it joins is the thirty-slot one.
     done = len(ids) * (start_pass - 1)
@@ -474,7 +500,8 @@ def sweep(
     unscored_in_a_row = 0
 
     result.start_pass = start_pass
-    for pass_number in range(start_pass, repeats + 1):
+    result.end_pass = end_pass
+    for pass_number in range(start_pass, (end_pass if end_pass is not None else repeats) + 1):
         if recycler is not None:
             # **Before every pass, including the first**, never during one: the gate's projection
             # below assumes a pass begins on a cleared kafka, and until 2026-09-10 pass 1 was the
@@ -683,6 +710,22 @@ def parser() -> argparse.ArgumentParser:
         ),
     )
     p.add_argument(
+        "--end-pass",
+        type=int,
+        default=None,
+        metavar="N",
+        help=(
+            "stop after pass N instead of after the tier's last. **For a sweep deliberately cut "
+            "into blocks**: T6.5 section 4's two arms differ in what retrieval may read, and "
+            "running each as one block would confound the arm with position in the sweep - Q57 "
+            "measured stale change records rising with position, a median of twelve against one "
+            "of a run's own. Interleaving the arms a pass at a time needs an invocation that "
+            "runs one pass, and --start-pass alone runs from N to the end. Not a smaller R: "
+            "every manifest still declares the tier's repeat_count, because that is still the "
+            "design (default: the tier's last pass)"
+        ),
+    )
+    p.add_argument(
         "--settle",
         type=int,
         default=SETTLE_SECONDS,
@@ -755,7 +798,16 @@ def main(argv: list[str] | None = None) -> int:
             f"REFUSED: --start-pass {args.start_pass} is outside this tier's 1..{repeats} passes."
         )
         return 3
-    passes = repeats - args.start_pass + 1
+    if args.end_pass is not None and not args.start_pass <= args.end_pass <= repeats:
+        # Refused rather than clamped. A clamp would run a different number of passes than the
+        # operator asked for and report success, and the block schedule an interleaved sweep runs
+        # on is exactly the thing a silent off-by-one corrupts.
+        print(
+            f"REFUSED: --end-pass {args.end_pass} is outside --start-pass {args.start_pass}"
+            f"..{repeats}."
+        )
+        return 3
+    passes = (args.end_pass if args.end_pass is not None else repeats) - args.start_pass + 1
     estimate = len(ids) * passes
     resumed = f" (resuming at pass {args.start_pass} of {repeats})" if args.start_pass > 1 else ""
     print(
@@ -774,6 +826,7 @@ def main(argv: list[str] | None = None) -> int:
         retries=args.retries,
         recycler=_recycle_world if repeats > 1 else None,
         start_pass=args.start_pass,
+        end_pass=args.end_pass,
         session=session,
     )
     result.declared_repeats = repeats
