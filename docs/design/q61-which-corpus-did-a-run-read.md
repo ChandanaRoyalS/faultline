@@ -126,6 +126,31 @@ different corpus. Against that, after §3 and §4: **neither the README table no
 can.** The gate is met in substance, and it is met by a mechanism that has never had to fire —
 which is the only kind worth having in place before the seed rather than after it.
 
-**One thing the seed must do either way**, and it is cheap: record `body_sha256` before and after,
-and set `CURRENT_CORPUS_BODY` in the same commit. Without that the body axis stays unarmed and
-Q45's nine drifted runbooks enter the corpus with nothing able to see that they moved.
+## 6. What the seed must do, corrected
+
+§5 said *"record `body_sha256` before and after, and set `CURRENT_CORPUS_BODY` in the same
+commit"* and named only one of the two pins. **Both have to move, and the shape one is the
+load-bearing omission.**
+
+Ten accepted postmortems are **ten new documents**, so they add `document_id|section` pairs and
+the corpus `sha256` moves — which means `CURRENT_CORPUS_SHAPE` stops describing the corpus the
+pipeline reads the moment the seed lands. A seed that moved only the body pin would leave every
+T6.5 run **excluded from the at-stamp figures by the very mechanism built to protect them**, and
+the table would stay empty with forty runs sitting beside it.
+
+So the seed commit sets **both**:
+
+| pin | why it moves | what happens if it does not |
+|---|---|---|
+| `CURRENT_CORPUS_SHAPE` | ten new documents, ten new sets of section pairs | every T6.5 run is excluded; the at-stamp table stays empty |
+| `CURRENT_CORPUS_BODY` | the postmortems' text, **and** Q45's nine drifted runbooks, which the same seed reconciles | the body axis stays unarmed and the drifted runbooks enter the corpus with nothing able to see they moved |
+
+**Record both digests before and after**, not just after: the before-values are what say the seed
+did what it was supposed to, and `faultline-corpus-drift` prints the body pair for free. The
+shape digest comes from `freeze.corpus_state`, or offline from the working tree — they agree
+whenever the two sides differ only in wording, which is the case Q45 found.
+
+**This corrects [T6.5 Amendment 1](../../evals/runs/PREREGISTRATION-T6.5.md), which named only the
+body pin.** The amendment is not edited — a pre-registration amended after the fact is not one —
+so this note is where the correction lives, and the seed's own amendment will carry the measured
+digests.
