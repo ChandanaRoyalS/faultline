@@ -22,6 +22,7 @@ the rendered text would be the same mistake as a drift guard comparing `callCoun
 
 from __future__ import annotations
 
+import re
 from datetime import datetime
 from enum import StrEnum
 from typing import Any
@@ -165,6 +166,48 @@ queued for T7.1's re-record - see `CATALOG.md`, "The fixes we are not taking, an
 Exempted here explicitly rather than removed from the banned list, so the exemption is one
 line and visible.
 """
+
+
+_INFLECTIONS = "(?:s|es|d|ed|ing)?"
+
+_MATCHER_CACHE: dict[str, re.Pattern[str]] = {}
+
+
+def _matcher(word: str) -> re.Pattern[str]:
+    pattern = _MATCHER_CACHE.get(word)
+    if pattern is None:
+        pattern = re.compile(rf"(?<![\w-]){re.escape(word)}{_INFLECTIONS}(?![\w-])")
+        _MATCHER_CACHE[word] = pattern
+    return pattern
+
+
+def matched_words(text: str, vocabulary: frozenset[str]) -> list[str]:
+    """Terms from `vocabulary` present in `text`, **matched on word boundaries**.
+
+    **One implementation of the boundary semantics, and there used to be one guard using it.**
+    It lived in `faultline.agents.narrative` until T6.5 needed the same rule over a second
+    document class; a second copy would be a leak guard that can disagree with itself about
+    what a word is, which is the failure `tests/test_corpus_drift.py` names for digests and
+    which costs more here. The vocabulary is the caller's, the matching is not.
+
+    **The two ends are deliberately not symmetric.** The false positive is a *prefix* problem:
+    `default` contains `fault` because two letters precede it, so the lookbehind is strict and
+    admits nothing before the term. The way a leak escapes is a *suffix* problem: a strict
+    lookahead lets `scenarios` and `rehearsed` through, which are leaks by any reading. So the
+    tail allows ordinary inflections and the head allows nothing.
+
+    Hyphens count as word characters at both ends, so an image tag like `demo:v1.2.1-adservice`
+    is not chopped into pieces that match something, and an underscored id like
+    `rollback_image` is matched whole rather than as `rollback` plus a suffix.
+
+    `WORLD_OWNED_TOKENS` is scrubbed first: `FAULTLINE_ENABLED_FLAGS` is the world's variable
+    name and leaks this harness's existence rather than the answer (T2.6).
+    """
+    scrubbed = text
+    for token in WORLD_OWNED_TOKENS:
+        scrubbed = scrubbed.replace(token, "")
+    lowered = scrubbed.lower()
+    return sorted(word for word in vocabulary if _matcher(word).search(lowered))
 
 
 KNOWN_LEAKING_FAULTS: frozenset[str] = frozenset()
