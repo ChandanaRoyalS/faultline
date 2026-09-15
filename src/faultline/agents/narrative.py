@@ -25,28 +25,9 @@ work:
 
 from __future__ import annotations
 
-import re
-
 from faultline.agents.contracts import NarrativeDraft
 from faultline.agents.trajectory import TrajectoryStore
-from faultline.tools.changes import HARNESS_VOCABULARY, WORLD_OWNED_TOKENS
-
-_INFLECTIONS = "(?:s|es|d|ed|ing)?"
-
-_WORDS: dict[str, re.Pattern[str]] = {
-    word: re.compile(rf"(?<![\w-]){re.escape(word)}{_INFLECTIONS}(?![\w-])")
-    for word in HARNESS_VOCABULARY
-}
-"""One compiled matcher per term, and **the two ends are deliberately not symmetric.**
-
-The false positive is a *prefix* problem: `default` contains `fault` because two letters precede
-it, so the lookbehind is strict and admits nothing before the term. The way a leak escapes is a
-*suffix* problem: a strict lookahead lets `scenarios` and `rehearsed` through, which are leaks by
-any reading. So the tail allows ordinary inflections and the head allows nothing.
-
-Hyphens count as word characters at both ends, so an image tag like `demo:v1.2.1-adservice` is
-not chopped into pieces that match something.
-"""
+from faultline.tools.changes import HARNESS_VOCABULARY, matched_words
 
 QUOTE_LINES = 6
 """How much of a stored envelope a citation shows. Enough to be evidence, short enough that a
@@ -81,12 +62,12 @@ def leaked_words(text: str) -> list[str]:
 
     `FAULTLINE_ENABLED_FLAGS` is the world's variable name and leaks this harness's existence
     rather than the answer (T2.6); it is exempt here for the same reason and no other token is.
+
+    **The matching moved to `changes.matched_words` at T6.5** and the vocabulary stayed here.
+    A second document class needed the same boundary rule, and two copies of it would be a
+    leak guard that can disagree with itself about where a word ends.
     """
-    scrubbed = text
-    for token in WORLD_OWNED_TOKENS:
-        scrubbed = scrubbed.replace(token, "")
-    lowered = scrubbed.lower()
-    return sorted(word for word in HARNESS_VOCABULARY if _WORDS[word].search(lowered))
+    return matched_words(text, HARNESS_VOCABULARY)
 
 
 def render(draft: NarrativeDraft, store: TrajectoryStore) -> str:
