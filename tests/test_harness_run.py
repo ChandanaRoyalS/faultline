@@ -2259,3 +2259,81 @@ def test_the_wait_is_carried_in_the_recorded_reading() -> None:
     reading.settling_incidents = [{"incident_id": "a", "resolved_at": "x", "seconds_remaining": 75}]
 
     assert reading.as_dict()["settle_seconds_remaining"] == 75
+
+
+def test_the_fingerprint_reads_the_corpus_a_run_retrieved_from() -> None:
+    """**Q61's hole, one layer over from the scenario table's.**
+
+    A generation is named by `compose_digest` alone, so two corpora were one configuration here -
+    exactly what `observability_digest` was added to fix for a different digest of the same kind.
+    Two inputs, because `sha256` sees a document added and `body_sha256` sees a rewrite under an
+    unchanged heading, and the seed T6.5 needs carries both kinds at once.
+    """
+    from evalharness import evaldb
+
+    assert "corpus_sha256" in evaldb.FINGERPRINT_INPUTS
+    assert "corpus_body_sha256" in evaldb.FINGERPRINT_INPUTS
+
+
+def test_two_runs_on_different_corpora_no_longer_share_a_fingerprint() -> None:
+    from evalharness import evaldb
+
+    def run(digest: str) -> dict[str, object]:
+        return {"score": {"runtime_version": "x"}, "freeze": {"corpus": {"sha256": digest}}}
+
+    assert (
+        evaldb.fingerprint(run("a" * 64)).fingerprint
+        != evaldb.fingerprint(run("b" * 64)).fingerprint
+    )
+
+
+def test_a_run_that_recorded_no_corpus_reports_it_missing_rather_than_defaulting() -> None:
+    """This module's rule, and the reason it hashes what is present: *a default is a claim about
+    a run that nobody made*. 289 run directories carry no freeze corpus block, and `body_sha256`
+    is absent from every run ever recorded - it landed after the newest scored one."""
+    from evalharness import evaldb
+
+    config = evaldb.fingerprint({"score": {"runtime_version": "x"}})
+
+    assert "corpus_sha256" in config.missing
+    assert "corpus_body_sha256" in config.missing
+    assert "corpus_sha256" not in config.settings
+
+
+def test_adding_the_corpus_regrouped_nothing_in_the_archive() -> None:
+    """**Measured before the input was added, and asserted here so it stays checkable.**
+
+    Every corpus-carrying manifest hashes to a new value, and the grouping does not move: the
+    archive's manifests fall into the same configuration groups with the same members, because
+    every configuration in it was already corpus-homogeneous. The input is a mechanism for the
+    next seed rather than a repair of the last one.
+    """
+    import collections
+    import json
+
+    from evalharness import evaldb
+
+    runs = Path(__file__).resolve().parents[1] / "evals" / "runs"
+    if not runs.is_dir():
+        return
+    groups: dict[str, set[str]] = collections.defaultdict(set)
+    corpora: dict[str, set[str]] = collections.defaultdict(set)
+    for path in sorted(runs.glob("*/manifest.json")):
+        try:
+            manifest = json.loads(path.read_text())
+        except Exception:
+            continue
+        key = evaldb.fingerprint(manifest).fingerprint
+        groups[key].add(path.parent.name)
+        digest = ((manifest.get("freeze") or {}).get("corpus") or {}).get("sha256")
+        if digest:
+            corpora[key].add(str(digest))
+
+    mixed = {key: sorted(seen) for key, seen in corpora.items() if len(seen) > 1}
+
+    assert groups, "the archive has runs"
+    assert not mixed, (
+        f"these fingerprints still pool two corpora: {mixed} - which would mean the input is "
+        "being read from the wrong place, since a fingerprint that includes the corpus cannot "
+        "span two of them"
+    )

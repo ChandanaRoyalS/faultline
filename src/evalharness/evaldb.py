@@ -59,6 +59,8 @@ FINGERPRINT_INPUTS = (
     "seed_policy",
     "ablation",
     "observability_digest",
+    "corpus_sha256",
+    "corpus_body_sha256",
 )
 """The behaviour-relevant settings, in the order T4.4 and T4.6 name them.
 
@@ -85,6 +87,36 @@ one that nothing was reading. `None` for the runs whose freeze predates the fiel
 `missing` reports rather than defaulting. **The generation *name* still under-specifies the world**;
 naming it properly would rename every generation in README, RESULTS and PLAN, and belongs in a
 change of its own rather than in this docstring - `docs/QUEUE.md` Q31.
+
+**`corpus_sha256` and `corpus_body_sha256` are Q61's, and close the same hole one layer over.**
+Everything the paragraph above says about observability is true of the corpus, word for word: a
+generation is named by `compose_digest` alone, so **two corpora were one configuration here**, and
+a re-seed moves what every run afterwards can retrieve while moving no generation. Measured before
+this input was added: the archive's 183 corpus-carrying runs are **six at 35 chunks over 7
+documents** and **177 at 103 chunks over 25**, and they shared a configuration.
+
+**Two inputs rather than one, because the two digests see different changes.** `sha256` hashes
+`document_id|section` and sees a document added or removed; `body_sha256` hashes the text and sees
+a rewrite under an unchanged heading, which `sha256` cannot see at all (Q36, Q45). The seed T6.5
+needs carries both at once - postmortems are new documents, and nine drifted runbooks are
+rewrites with identical shape - so one input would catch one of them.
+
+**What this costs, measured rather than feared.** `eval_configs.fingerprint` is a stored primary
+key, so every corpus-carrying manifest hashes to a **different value** after this change and a
+re-ingest lands it under a new row. The worry that follows is that the archive gets re-partitioned
+- and it does not: over all 548 manifests on disk the grouping is **byte-for-byte the same 38
+groups with the same members**, only renamed. Every configuration in this archive was already
+corpus-homogeneous, which is the same fact the scenario table's tripwire records from the other
+side.
+
+So the cost is names, not membership. `load` upserts on `run_id`, so a re-backfill repoints each
+run and leaves the superseded config rows orphaned and harmless, and a database left half-loaded
+holds **the same groups under two names** rather than genuinely mixed ones. Re-backfill anyway,
+because two names for one configuration is a report that counts it twice.
+
+**Adding the input is right even though it currently separates nothing.** It is a mechanism for
+the next seed - the one T6.5 needs - not a repair of the last one, and a guard that has never had
+to fire is the only kind worth having in place beforehand.
 """
 
 
@@ -193,6 +225,13 @@ def _setting(manifest: dict[str, Any], key: str) -> Any:
     if key == "observability_digest":
         # The freeze's, not the repository's: the question is what this run executed against.
         return ((manifest.get("freeze") or {}).get("world") or {}).get("observability_digest")
+    if key in {"corpus_sha256", "corpus_body_sha256"}:
+        # The freeze's corpus block, which is what this run retrieved from (Q61). Absent for the
+        # 289 run directories with no freeze corpus block, and `body_sha256` is absent for every
+        # run recorded so far - it landed 2026-09-14, after the newest scored run. `missing`
+        # reports both rather than defaulting, which is this module's whole rule.
+        corpus = (manifest.get("freeze") or {}).get("corpus") or {}
+        return corpus.get(key.removeprefix("corpus_"))
     if key == "judge_version":
         return (manifest.get("judge") or {}).get("judge_model")
     if key == "baseline":
