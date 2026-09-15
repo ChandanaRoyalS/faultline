@@ -205,3 +205,58 @@ def test_the_in_memory_store_already_took_the_edit_which_is_why_no_test_caught_i
 
     assert store.count() == 1, "one section index, one row"
     assert [c.section for c in store.chunks.values()] == ["The consequence"]
+
+
+def test_both_retrieval_arms_break_ties_deterministically() -> None:
+    """**Q68.** Two scores over a corpus with byte-identical bodies and byte-identical embeddings
+    returned `recall@3` of 0.302 and 0.326; five re-seed-and-score cycles spread it over
+    0.302 / 0.326 / 0.349. Nothing about the corpus changed - the rows had been rewritten, and
+    both arms ended `ORDER BY ... LIMIT k` on a single key, so a tie was resolved by heap order.
+    22 of the 43 golden queries tie across the k boundary in the text arm alone.
+
+    Asserted over **every** `ORDER BY` this module sends rather than the two known ones, because
+    a third arm would be added by someone who had not read this. Read out of the SQL literals
+    rather than off the raw source, so a comment explaining the rule cannot satisfy it.
+    """
+    import ast
+    import re
+    from pathlib import Path
+
+    source = (
+        Path(__file__).resolve().parents[1] / "src" / "faultline" / "context" / "store.py"
+    ).read_text()
+
+    tree = ast.parse(source)
+    # An f-string's literal halves are `Constant` children of a `JoinedStr`, so walking naively
+    # yields the clause three times and in pieces. Joined here with the interpolations standing
+    # in as `?`, which is enough to see whether a sort key follows.
+    joined = {
+        id(part)
+        for node in ast.walk(tree)
+        if isinstance(node, ast.JoinedStr)
+        for part in node.values
+    }
+    literals = [
+        "".join(
+            part.value if isinstance(part, ast.Constant) else "?"
+            for part in node.values
+            if not isinstance(part, ast.Constant) or isinstance(part.value, str)
+        )
+        if isinstance(node, ast.JoinedStr)
+        else node.value
+        for node in ast.walk(tree)
+        if isinstance(node, ast.JoinedStr)
+        or (
+            isinstance(node, ast.Constant)
+            and isinstance(node.value, str)
+            and id(node) not in joined
+        )
+    ]
+    clauses = [c for literal in literals for c in re.findall(r"ORDER BY .*", literal)]
+
+    assert len(clauses) == 2, f"a retrieval arm was added or removed: {clauses}"
+    for clause in clauses:
+        assert re.search(r",\s*id\b", clause), (
+            f"{clause.strip()!r} resolves ties by heap order. A benchmark that moves when rows "
+            "are rewritten reports a width it does not state"
+        )
