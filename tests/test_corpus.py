@@ -16,9 +16,17 @@ from pathlib import Path
 
 import pytest
 
+from faultline.context.acceptance import Acceptance, InMemoryAcceptanceStore, digest_of
 from faultline.context.corpus import ANSWER_SECTION, NarrativeError, parse_narrative
 from faultline.context.embedding import HashingEmbedder
-from faultline.context.seed import QuarantineError, bundle_chunks, require_dev_root, seed
+from faultline.context.postmortem import SECTIONS, parse_postmortem
+from faultline.context.seed import (
+    POSTMORTEM,
+    QuarantineError,
+    bundle_chunks,
+    require_dev_root,
+    seed,
+)
 from faultline.context.store import InMemoryPastIncidentStore, fuse
 
 ARTIFACTS = Path(__file__).resolve().parents[1] / "evals" / "scenarios" / "artifacts"
@@ -34,9 +42,46 @@ SECTIONS_PER_NARRATIVE = 5
 Root cause | Resolution | Detection notes. Identical in every one, which is what makes a
 section a stable chunk rather than one author's habit."""
 
+DEV_POSTMORTEMS = 10
+"""T6.5's ten accepted postmortems, one per valid bundle. Pinned for `DEV_DOCUMENTS`'s reason,
+and **separately from it** - the two grow for different reasons, and one total would let one
+move under the other."""
+
+SECTIONS_PER_POSTMORTEM = len(SECTIONS)
+"""Read off the closed tuple rather than typed again. A second literal here would be a second
+opinion about a constant that already refuses to vary."""
+
 
 def store() -> InMemoryPastIncidentStore:
     return InMemoryPastIncidentStore(HashingEmbedder())
+
+
+def tree_acceptances() -> InMemoryAcceptanceStore:
+    """A ledger admitting exactly the postmortems in the dev tree, **as they are on disk now**.
+
+    `seed`'s ledger argument defaults to an empty store that refuses every postmortem - per
+    `UnacceptedError`'s docstring, a caller who has not wired the ledger is a caller who cannot
+    check the gate - so a test that wants a seeded corpus must *supply acceptance*, exactly as a
+    deployment does. That is why this helper exists rather than a skip flag on the seeder.
+
+    **It is not a relaxation, and the difference is worth stating.** The digest still comes from
+    `digest_of` over the parsed document, so editing a postmortem in the tree changes what this
+    admits in the same motion as it changes what the seeder asks for. What the helper cannot do
+    is refuse: it accepts whatever is there. So it belongs in tests about seeding, provenance and
+    exclusion, and **not** in a test about the gate - those live in
+    `tests/test_postmortem_acceptance.py`, against a ledger that says no.
+    """
+    ledger = InMemoryAcceptanceStore()
+    for path in sorted(DEV.glob(f"*/{POSTMORTEM}")):
+        postmortem = parse_postmortem(path)
+        ledger.append(
+            Acceptance(
+                scenario_id=postmortem.scenario_id,
+                body_digest=digest_of(postmortem),
+                caller="tests",
+            )
+        )
+    return ledger
 
 
 # --- parsing -------------------------------------------------------------------
@@ -125,14 +170,22 @@ def test_a_narrative_whose_origin_disagrees_with_its_manifest_refuses(tmp_path: 
 def test_seeding_the_dev_tree_yields_exactly_the_ten_valid_narratives() -> None:
     """Nine bundles, two INVALID - `currency-cpu-throttle` and `flag-service-crashloop` are
     blocked scenarios whose faults produced nothing observable. Seeding them would put two
-    incidents in the corpus that never happened."""
+    incidents in the corpus that never happened.
+
+    **Since T6.5 each valid bundle also carries an accepted postmortem**, so the totals are two
+    documents per bundle rather than one. They are asserted as two named terms and not as a sum:
+    a single `== 20` would be satisfied by twenty narratives and no postmortems.
+    """
     seeded = store()
 
-    result = seed(seeded, DEV)
+    result = seed(seeded, DEV, tree_acceptances())
 
-    assert result.documents == DEV_DOCUMENTS
-    assert result.chunks == DEV_DOCUMENTS * SECTIONS_PER_NARRATIVE
+    assert result.documents == DEV_DOCUMENTS + DEV_POSTMORTEMS
+    assert result.chunks == (
+        DEV_DOCUMENTS * SECTIONS_PER_NARRATIVE + DEV_POSTMORTEMS * SECTIONS_PER_POSTMORTEM
+    )
     assert seeded.count() == result.chunks
+    assert sum(1 for name in result.seeded if name.endswith("(postmortem)")) == DEV_POSTMORTEMS
     assert sorted(name for name, _ in result.skipped) == [
         "currency-cpu-throttle",
         "flag-service-crashloop",
@@ -144,7 +197,7 @@ def test_every_chunk_carries_the_provenance_exclusion_needs() -> None:
     """The point of the provenance is that T4.1b's exclusion is a WHERE clause, not a
     special case - so every field it filters on has to be on every chunk."""
     seeded = store()
-    seed(seeded, DEV)
+    seed(seeded, DEV, tree_acceptances())
 
     for chunk in seeded.chunks.values():
         assert chunk.origin.startswith("scenario:")
@@ -152,16 +205,22 @@ def test_every_chunk_carries_the_provenance_exclusion_needs() -> None:
         assert chunk.scenario_id and chunk.fault_class
         assert chunk.scenario_fingerprint, "ties the chunk to the label it was recorded against"
         assert chunk.recorded_from.startswith("2026-"), "ties it to one recording"
-        assert chunk.document_id == chunk.origin
+        assert chunk.document_id in (chunk.origin, f"postmortem:{chunk.scenario_id}")
 
     origins = {chunk.origin for chunk in seeded.chunks.values()}
-    assert len(origins) == DEV_DOCUMENTS
+    documents = {chunk.document_id for chunk in seeded.chunks.values()}
+    assert len(documents) == DEV_DOCUMENTS + DEV_POSTMORTEMS
+    assert len(origins) == DEV_DOCUMENTS, (
+        "**a postmortem shares its scenario's origin.** Two documents, one exclusion key - which "
+        "is what makes T4.1b's WHERE clause remove a scenario's postmortem along with its "
+        "narrative, without knowing postmortems exist"
+    )
 
 
 def test_no_seeded_chunk_comes_from_the_holdout() -> None:
     """The assertion that matters most, stated over the result rather than the input."""
     seeded = store()
-    seed(seeded, DEV)
+    seed(seeded, DEV, tree_acceptances())
 
     assert not any(chunk.split == "holdout" for chunk in seeded.chunks.values())
     holdout_ids = {p.parent.name for p in HOLDOUT.glob("*/incident.md")}
@@ -176,7 +235,7 @@ def test_retrieval_returns_a_scenarios_own_narrative_when_nothing_is_excluded() 
     """The product case, and the setup for the next test: without an exclusion the nearest
     neighbour to a scenario's symptoms is that scenario's own write-up."""
     seeded = store()
-    seed(seeded, DEV)
+    seed(seeded, DEV, tree_acceptances())
     narrative = parse_narrative(DEV / "cart-redis-misconfig" / "incident.md")
     query = dict(narrative.sections)["What was observed"]
 
@@ -196,7 +255,7 @@ def test_exclude_origin_removes_a_scenarios_own_narrative_from_its_own_retrieval
     than patching a query.
     """
     seeded = store()
-    seed(seeded, DEV)
+    seed(seeded, DEV, tree_acceptances())
     narrative = parse_narrative(DEV / "cart-redis-misconfig" / "incident.md")
     query = dict(narrative.sections)["What was observed"]
 
@@ -215,7 +274,7 @@ def test_exclusion_applies_to_both_arms_of_the_hybrid() -> None:
     query beside it. Asserted by excluding an origin whose prose the text arm would rank
     first on shared vocabulary."""
     seeded = store()
-    seed(seeded, DEV)
+    seed(seeded, DEV, tree_acceptances())
     narrative = parse_narrative(DEV / "shipping-wrong-image" / "incident.md")
     query = narrative.title + " " + dict(narrative.sections)["What was observed"]
 
@@ -266,21 +325,58 @@ def test_the_seed_cli_offers_no_way_to_point_at_the_holdout() -> None:
     assert not {"--split", "--holdout", "--all-splits"} & flags
 
 
-def test_the_seed_cli_dry_run_reproduces_the_ten_documents(
+def test_the_seed_cli_dry_run_now_refuses_the_dev_tree_because_it_cannot_read_the_ledger(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """`--dry-run` applies every guard with no database and no model, so a new narrative can
-    be checked before a download is spent on it.
+    """**This test used to assert `--dry-run` reproduces the ten documents, and it cannot.**
 
-    `--no-runbooks` keeps this test about the narratives; the runbook half has its own below.
+    `--dry-run` runs with no database, and the CLI therefore hands `seed` an empty
+    `InMemoryAcceptanceStore` - its own comment says why: *reporting "this would seed" about a
+    document whose acceptance it never checked is worse than reporting that it cannot tell*.
+    That was written before any postmortem was on disk. Ten of them are now, so the first bundle
+    raises `UnacceptedError` and the command exits 2 on a tree where nothing is wrong.
+
+    The refusal is not relaxed here, and the flag is not repaired here either. **Pinned instead**,
+    so the loss is visible rather than inferred from a deleted test: `--dry-run`'s stated purpose
+    - check a new narrative before a download is spent on it - no longer works against the real
+    dev tree. Whether the dry run should grow a third state (*unchecked*, distinct from seeded and
+    from skipped) or should read the ledger over the DSN is **Q67**, and it is a design question
+    rather than something to settle inside a test-fixing commit.
     """
     from faultline.context.cli import run
 
-    assert run(["--dry-run", "--no-runbooks", "--dev-root", str(DEV)]) == 0
+    assert run(["--dry-run", "--no-runbooks", "--dev-root", str(DEV)]) == 2
+
+    err = capsys.readouterr().err
+    assert "has no acceptance for its current text" in err
+    assert "postmortem.md" in err
+
+
+def test_the_dry_run_still_reproduces_a_tree_whose_bundles_carry_no_postmortem(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """What the test above used to assert, on the input it is actually still true of.
+
+    A tree of narratives alone - a fresh scenario being checked before a download is spent on it,
+    which is the case `--dry-run` was built for - still parses, chunks, applies every quarantine
+    guard and exits 0. So the flag is narrowed rather than dead, and Q67 is about restoring the
+    other half.
+    """
+    from faultline.context.cli import run
+
+    root = tmp_path / "dev"
+    root.mkdir()
+    wanted = ("cart-redis-misconfig", "shipping-wrong-image")
+    for name in wanted:
+        bundle = root / name
+        bundle.mkdir()
+        (bundle / "incident.md").write_text((DEV / name / "incident.md").read_text())
+        (bundle / "manifest.json").write_text((DEV / name / "manifest.json").read_text())
+
+    assert run(["--dry-run", "--no-runbooks", "--dev-root", str(root)]) == 0
 
     out = capsys.readouterr().out
-    assert f"documents={DEV_DOCUMENTS} chunks={DEV_DOCUMENTS * SECTIONS_PER_NARRATIVE}" in out
-    assert "skipped currency-cpu-throttle - bundle is marked INVALID" in out
+    assert f"documents={len(wanted)} chunks={len(wanted) * SECTIONS_PER_NARRATIVE}" in out
     assert "runbooks were not seeded" in out
     assert "nothing was written" in out
 
@@ -417,7 +513,7 @@ def test_excluding_a_whole_fault_class_removes_every_one_of_its_scenarios() -> N
     at all: §4's arms sit on one corpus, so the difference between them has to be expressible as
     a wider WHERE clause rather than as a re-seed."""
     seeded = store()
-    seed(seeded, DEV)
+    seed(seeded, DEV, tree_acceptances())
     origins = sorted({c.origin for c in seeded.chunks.values() if c.origin.startswith("scenario:")})
     if len(origins) < 2:
         return
@@ -436,7 +532,7 @@ def test_the_count_is_over_the_whole_set_which_is_why_it_stopped_carrying_t4_1b(
     were*. `run.classify_retrievals` takes the scenario's own origin for that reason; this test
     pins the weakening so the reason stays visible."""
     seeded = store()
-    seed(seeded, DEV)
+    seed(seeded, DEV, tree_acceptances())
     origins = sorted({c.origin for c in seeded.chunks.values() if c.origin.startswith("scenario:")})
     if len(origins) < 2:
         return
