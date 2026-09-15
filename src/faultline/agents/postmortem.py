@@ -43,18 +43,18 @@ guard, and the difference is recorded here rather than left for the write-up to 
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+import json
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, Field
 
 from faultline.agents.briefing import Briefing, Section, assemble
-from faultline.agents.contracts import REPORTED
+from faultline.agents.contracts import REPORTED, Verdict
 from faultline.agents.model import LanguageModel, ModelRequest
 from faultline.agents.roles import DEFAULT_BRIEFING_TOKENS, Completion, ask
 from faultline.context.postmortem import SECTIONS
-
-if TYPE_CHECKING:
-    from faultline.agents.contracts import Verdict
 
 POSTMORTEM_SYSTEM = """You are writing the postmortem for an incident that is now closed. A
 responder will read it months from now, while a different service is failing, and will want one
@@ -123,28 +123,69 @@ class PostmortemDraft(BaseModel):
 
 ABSTAINED = "no action was proposed; the evidence did not support one"
 
+WITHHELD = "(withheld: the recorded text names a remediation, which a postmortem may not)"
+"""**Named rather than silently dropped.** A missing line reads as *nothing was recorded*, which
+is a different and false statement; the model is told a field exists and why it cannot see it."""
+
+
+def carried(proposal: dict[str, Any], field: str) -> str:
+    """One free-text proposal field, **or a note saying why it was held back.**
+
+    **Every free-text field of a real proposal names the remediation, and this was measured
+    rather than guessed.** Over the 121 agent verdict artifacts in `evals/runs/` that carry a
+    proposal, `risk` names `restart` 58 times, `revert_config` 36, `rollback_image` 24;
+    `if_wrong` and `blast_radius` are barely better. Of course they are - the proposer is
+    *proposing an action*, so its prose about risk and blast radius is prose about that action.
+
+    The first version of this module passed `blast_radius` and `if_wrong` through verbatim and
+    **21 of those 121 briefs would have carried banned vocabulary to the drafter.** It survived
+    its tests because the fixture proposal happened not to say `restart`. Opening a real artifact
+    is what found it.
+
+    **Twenty-four of those field-instances are harness vocabulary** - `netem`, `inject`,
+    `injected`, `injection`, `resource_exhaustion` - written by the proposer into a stored
+    proposal. Nothing guards the proposer's output today because it is shown to an approver and
+    never retrieved; T6.5 is what would make it corpus-adjacent. `docs/QUEUE.md` Q64.
+    """
+    from faultline.context.postmortem import leaked_words
+
+    text = str(proposal.get(field) or "").strip()
+    if not text:
+        return "not recorded"
+    return WITHHELD if leaked_words(text) else text
+
 
 def proposal_lines(proposal: dict[str, Any] | None) -> list[str]:
     """What the drafter is told about the proposal. **Not the action, and not its class.**
 
-    `action_id` and `remediation_class` are withheld rather than redacted downstream, for the
-    module docstring's reason: `baselines.CLASS_TO_REMEDIATION` is one-to-one, so either one hands
-    the reader the fault class through a lookup table, and a model that never sees them cannot
-    write them down.
+    `action_id` and `remediation_class` are withheld structurally - they are never read here - for
+    the module docstring's reason: `baselines.CLASS_TO_REMEDIATION` is one-to-one, so either one
+    hands the reader the fault class through a lookup table, and a model that never sees them
+    cannot write them down. Every free-text field is guarded by `carried`, because the action's
+    *name* turns up in prose about it far more often than not.
 
     An abstention is a first-class outcome (ADR-0028 §4) and is described as one rather than as an
     absence, because *"the evidence did not support an action"* is a finding a responder wants and
-    an empty section is not.
+    an empty section is not. **Its reasoning travels with it where the guard allows**, which is
+    registration §1's *"abstained with the abstention's reasoning"* honoured as far as §2 permits
+    rather than dropped because the two clauses disagree (Q63).
     """
-    if not proposal or not proposal.get("action_id"):
+    if not proposal:
         return [ABSTAINED]
+    if not proposal.get("action_id"):
+        return [
+            ABSTAINED,
+            f"Why the evidence did not support one: {carried(proposal, 'expected_effect')}",
+            f"What would show the abstention wrong: {carried(proposal, 'if_wrong')}",
+        ]
     preconditions = [f"  - {line}" for line in proposal.get("preconditions") or []]
     return [
         f"Target: {proposal.get('target') or 'not recorded'}",
         "Preconditions it rested on:",
         *(preconditions or ["  - none recorded"]),
-        f"Blast radius: {proposal.get('blast_radius') or 'not recorded'}",
-        f"Falsifier - what would show it wrong: {proposal.get('if_wrong') or 'not recorded'}",
+        f"Blast radius: {carried(proposal, 'blast_radius')}",
+        f"Falsifier - what would show it wrong: {carried(proposal, 'if_wrong')}",
+        f"Risk it named: {carried(proposal, 'risk')}",
         f"Confirm within: {proposal.get('confirm_within_seconds') or 'not recorded'}s",
     ]
 
@@ -310,3 +351,80 @@ def document(
     for heading, body in zip(SECTIONS, draft.bodies(), strict=True):
         lines += [f"## {heading}", "", body.strip(), ""]
     return "\n".join(lines).rstrip() + "\n"
+
+
+@dataclass(frozen=True, slots=True)
+class Record:
+    """One closed incident, as a postmortem needs it.
+
+    **Read from a recorded run's verdict artifact rather than from the database**, and that is the
+    right source rather than the convenient one: the corpus is about incidents that were *scored*,
+    the artifact is what `evalharness.run.score` read, and a drafter that queried Postgres would
+    draft from a state that has moved since. It also makes drafting offline, reproducible and
+    testable against the 121 artifacts already in `evals/runs/`.
+    """
+
+    scenario_id: str
+    incident_id: str
+    verdict: Verdict
+    proposal: dict[str, Any] | None
+    fate: str
+    """`approved`, `rejected`, `escalated`, `abstained`, or `unknown`. See `fate_lines`."""
+
+
+class RecordError(ValueError):
+    """A run directory that cannot supply a postmortem's inputs."""
+
+
+def fate_of(payload: dict[str, Any]) -> str:
+    """What became of the proposal, as the artifact records it.
+
+    **`unknown` is the common answer and it is the honest one.** A verdict artifact is written
+    when the run is scored, which is before any human touches the approval surface, so a run that
+    was later approved or rejected does not say so here. Reporting `abstained` for every
+    un-acted-on proposal would put a decision in the record that nobody made; `fate_lines`
+    renders `unknown` as *the record does not say*.
+    """
+    proposal = payload.get("proposal")
+    if not proposal:
+        return "unknown"
+    return "abstained" if not proposal.get("action_id") else "unknown"
+
+
+def record_from_run(run_dir: Path) -> Record:
+    """The inputs for one postmortem, from a scored run directory.
+
+    Refuses a baseline run and a run with no verdict rather than drafting from either: a B0
+    artifact has no `root_cause` to state, and a postmortem of a run that concluded nothing would
+    be a document about an absence.
+    """
+    verdicts = sorted(run_dir.glob("*-verdict.json"))
+    if not verdicts:
+        raise RecordError(f"{run_dir} holds no *-verdict.json")
+    payload = json.loads(verdicts[0].read_text())
+    if payload.get("baseline"):
+        raise RecordError(
+            f"{run_dir.name} is a baseline run. B0 and B1 are controls for the pipeline, and a "
+            "postmortem of a control is a document about a lookup table."
+        )
+    body = payload.get("verdict") or {}
+    if not body.get("root_cause"):
+        raise RecordError(
+            f"{run_dir.name} recorded no root cause, so there is nothing a postmortem can state "
+            "as the conclusion. A discarded or invalid run is not a donor."
+        )
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.is_file() else {}
+    scenario_id = str(manifest.get("scenario_id") or "")
+    if not scenario_id:
+        raise RecordError(
+            f"{run_dir.name}: no scenario_id on the manifest, and `origin` is the exclusion key - "
+            "a postmortem that guessed it would be excluded from the wrong scenario."
+        )
+    return Record(
+        scenario_id=scenario_id,
+        incident_id=str(payload.get("incident_id") or ""),
+        verdict=Verdict.model_validate(body),
+        proposal=payload.get("proposal"),
+        fate=fate_of(payload),
+    )
