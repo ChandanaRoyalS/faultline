@@ -494,3 +494,55 @@ donors on their answers.
 
 The two arms, the query-time exclusion, `weekly` at R = 3, the 16.2pp floor, the $70 ceiling, and
 predictions 1, 2, 3, 4, 5 and 7. Prediction 6 is answered above.
+
+---
+
+# Amendment 5 — one postmortem is wrong; the other abstained, which is not the same thing
+
+**2026-09-15, minutes after Amendment 4 and still before any acceptance. $0.00.** Appended, not
+edited: Amendment 4 §3 and §4 are to be read against this.
+
+## The correction
+
+Amendment 4 says *"two of the ten postmortems describe a failure that did not happen"* and names
+`ad-memory-squeeze` and `shipping-quote-misconfig`. **That is wrong about the second one.**
+
+Read off the two score blocks rather than off the `correct` field alone:
+
+| scenario | truth | returned | `correct` | `abstained` |
+|---|---|---|---|---|
+| `ad-memory-squeeze` | `resource_exhaustion` | **`bad_deploy`** | false | **false** |
+| `shipping-quote-misconfig` | `bad_config` | **`unknown`** | false | **true** |
+
+**`shipping-quote-misconfig` did not answer wrongly. It declined to answer**, and ADR-0022 §1.2
+makes an abstention neither right nor wrong. Its postmortem says so in its own words:
+
+> *"Confidence stayed low, and the fault class was left unknown rather than guessed, precisely
+> because a client-side ERROR paired with a server-side success is not one mechanism."*
+
+That is a document a responder can use. It describes a real discriminator — a fast client-side
+error against a clean server span in the same trace — and stops where the evidence stopped.
+
+**How the error was made, since it is the same one this task keeps making.** Amendment 4 read
+`score.fault_class.correct` and treated `false` as *wrong*. The scorer records `abstained` in the
+same block, one key away, precisely because the two are different — and this repository's own
+README leads with *"read the abstentions before the accuracy."*
+
+## What changes
+
+**One wrong postmortem, not two.** `ad-memory-squeeze` answered `bad_deploy` against a truth of
+`resource_exhaustion`, and its prose describes a transport-layer failure at shipping-quote. That
+document, and its consequence for `frauddetection-memory-squeeze`'s WITH arm, stand exactly as
+Amendment 4 §3 describes them.
+
+**`bad_config` carries no wrong document.** Its four scenarios contribute three confident
+postmortems and one honest abstention.
+
+**Amendment 4 §4's reporting obligations stand, with the split redefined:** the secondary cut is
+**nine donors that did not answer wrongly**, not eight — an abstention is not a wrong answer and
+excluding it would be excluding the one document that behaved as the system is designed to.
+
+## What is unchanged
+
+Everything else in Amendment 4, including the decision to accept all ten, prediction 6's score,
+and the Q57 residue finding.
