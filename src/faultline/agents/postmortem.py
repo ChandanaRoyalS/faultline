@@ -383,6 +383,9 @@ class Record:
     fate: str
     """`approved`, `rejected`, `escalated`, `abstained`, or `unknown`. See `fate_lines`."""
 
+    recorded_from: str = ""
+    """The run's `injected_at` - which recording this postmortem is about."""
+
 
 class RecordError(ValueError):
     """A run directory that cannot supply a postmortem's inputs."""
@@ -443,14 +446,31 @@ def record_from_run(run_dir: Path) -> Record:
             f"{run_dir.name} is a baseline run. B0 and B1 are controls for the pipeline, and a "
             "postmortem of a control is a document about a lookup table."
         )
+    manifest_path = run_dir / "manifest.json"
+    manifest = json.loads(manifest_path.read_text()) if manifest_path.is_file() else {}
+    ablation = manifest.get("ablation") or []
+    if ablation:
+        # **The fourth time this hole has been found, and the first three are on the record.**
+        # `scenario_table._qualifies` excludes ablation runs from every figure and says why: a
+        # `--without traces` run "is a different pipeline in exactly the sense [a baseline] means
+        # it", and T6.1 put `ablation` in `FINGERPRINT_INPUTS` so one can never pool with a full
+        # run. Its comment records the same hole taking `observability_digest` and the B0 arm
+        # before that. This function refused a baseline and said nothing about an ablation, so
+        # the first live drafting run took **nine of nine donors from the without-traces arm** -
+        # the newest run per scenario happened to be that arm - and produced postmortems scoring
+        # 4 of 9 on fault class where the full pipeline scores 8 of 10. README's own text
+        # predicts it: "nine of nine with traces, three of eleven without".
+        raise RecordError(
+            f"{run_dir.name} is an ablation run ({', '.join(sorted(ablation))} withheld). A "
+            "postmortem of a degraded pipeline teaches a reader what that pipeline concluded "
+            "without its evidence, which is not what the corpus is for."
+        )
     body = payload.get("verdict") or {}
     if not body.get("root_cause"):
         raise RecordError(
             f"{run_dir.name} recorded no root cause, so there is nothing a postmortem can state "
             "as the conclusion. A discarded or invalid run is not a donor."
         )
-    manifest_path = run_dir / "manifest.json"
-    manifest = json.loads(manifest_path.read_text()) if manifest_path.is_file() else {}
     scenario_id = str(manifest.get("scenario_id") or "")
     if not scenario_id:
         raise RecordError(
@@ -463,6 +483,10 @@ def record_from_run(run_dir: Path) -> Record:
         verdict=Verdict.model_validate(body),
         proposal=payload.get("proposal"),
         fate=fate_of(payload),
+        # **The recording this postmortem is about**, so a re-record moves it and a stale
+        # postmortem is detectable by the rule a stale narrative already is. It was empty on
+        # every draft of the first live run, which is a chunk that cannot be aged out.
+        recorded_from=str(manifest.get("injected_at") or ""),
     )
 
 
@@ -553,6 +577,7 @@ def draft_one(
             scenario_id=record.scenario_id,
             split=split,
             incident_id=record.incident_id,
+            recorded_from=record.recorded_from,
         )
         try:
             parse_postmortem_text(text, source=f"{record.scenario_id}/postmortem.md")
