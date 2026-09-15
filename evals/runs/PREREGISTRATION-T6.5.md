@@ -314,3 +314,91 @@ The two arms, the query-time exclusion, the accept gate, §7's predictions 1, 2,
 §8's list of what the task cannot settle. **§8 gains one line:** this measurement cannot say
 whether *a body* of prior same-class incidents helps, because on three of four classes there is
 only ever one.
+
+---
+
+# Amendment 3 — R is not a free parameter, so Amendment 2's R = 2 cannot be run
+
+**2026-09-15, written before any model call. $0.00.** Appended, not edited: nothing above this
+line is changed, and §4, §5, §6 and Amendment 2 are to be read against what follows. Everything
+below is read off `variance.TIERS`, `run.py` and 548 recorded manifests.
+
+## 1. The clause neither the design note nor the registration read
+
+The plan's T6.5 row has four columns. The note quoted the deliverable and the eval, and **did not
+read the constraints column**, which ends: *"the with/without-corpus comparison run at **T4.6's
+scored-comparison tier**, so holdout scores stay clean."*
+
+That is the third time in this task a document's summary was repeated instead of the document
+(Amendment 1's *"no re-seed"*, Amendment 2's thirteen scenarios, and now this), and it is the
+same fix each time: open the thing being described.
+
+## 2. R is derived from the tier, and R = 2 is not a tier
+
+`variance.TIERS` admits five names and each carries its own repeat count:
+
+| tier | R | what T4.6 says it is |
+|---|---|---|
+| `manual` | 1 | one run by hand; an observation, never a rate |
+| `ci-smoke` | 1 | change detection only, never citable |
+| `nightly` | 1 | change detection; not a finding on its own |
+| **`weekly`** | **3** | consolidation |
+| `published` | 5 | *the only tier a printed comparison may come from* |
+
+`faultline-eval --tier` takes `choices=tuple(variance.TIERS)`, and
+`run.manifest["repeat_count"] = variance.TIERS[args.tier][0]`. **The repeat count is not an
+argument.** So `R ∈ {1, 3, 5}`, and **R = 2 is unrunnable** — not merely unlabelled. Amendment 2
+chose a value this harness cannot produce, and the tier joins the config fingerprint, so a run at
+one tier can never pool with a run at another.
+
+**Amendment 2's §2 decision is void.** Its §1 and §3 stand: ten scenarios, not thirteen; the floor
+is read at the R actually used.
+
+## 3. What the archive has ever done, measured
+
+Over 548 manifests: **`weekly` 97, `manual` 58, `nightly` 10**, and `repeat_count` is **3 on 97
+runs and 1 on 68**. **Nothing in this repository has ever run at `published`.** `docs/RESULTS.md`
+cites no tier at all.
+
+So reading the plan's clause as `published` would mean **no comparison this repository has
+published was ever at the tier its own plan requires** — including the headline figure, dev sweep
+12's arm A, which is `weekly`. Two readings survive that: the repository has been out of
+compliance and nobody noticed, or *"scored-comparison tier"* means the tier at which comparisons
+here are actually scored, which is `weekly`. **This amendment takes the second and records the
+first as a live possibility rather than dismissing it** — it belongs to whoever writes T4.6's next
+addendum, not to a task that would be marking its own paper.
+
+## 4. Decided: `weekly`, R = 3, and the ceiling moves to $70
+
+| | Amendment 2 | **this amendment** |
+|---|---|---|
+| tier | *(none — R = 2)* | **`weekly`** |
+| R | 2 | **3** |
+| scored runs | 40 | **60** |
+| MDE at n = 10 | 19.8pp | **16.2pp** — the floor §5 quoted all along |
+| at $0.59–0.77 | $24–31 | **$35–46** |
+| with 16.7% discards | $28–37 | **$42–55** |
+| drafting | $5 | $5 |
+| **total** | $33–42 | **$47–60** |
+| **hard ceiling** | $55 | **$70** |
+
+**Why the ceiling moves, and why that is not the thing a ceiling exists to prevent.** §6's rule is
+*"a budget revised upward mid-task is not a budget"*, and it is about revising after seeing
+results. This revision is forced by a fact about the harness, is taken **before any model call**,
+and is written down with its arithmetic. A $55 ceiling against a $47–60 estimate is a ceiling that
+stops the task part-way on an ordinary discard rate — spending the money and getting no delta,
+which is the worst of both.
+
+**$70 is the estimate's top plus headroom for one failed batch**, and it does not move again. If
+the walk reaches it, it stops and reports the arms it did not complete, exactly as §6 says.
+
+## 5. The clause still unaddressed
+
+*"corpus growth tracked in the retrieval evals"* is the one plan constraint nothing in this task
+touches. Ten postmortems take the corpus from 50 documents to 60, and **`recall@3 = 0.395` — which
+§5 uses as the attenuation bound for the whole measurement — is a number about the corpus before
+them.** `GATE_RECALL_AT_3` and the measured constants are calibrated to 261 chunks.
+
+**The re-score costs no model call**, so it is a step rather than a decision: `faultline-retrieval
+score` runs in the seed commit, beside the two digests and the two pins, and §7's report quotes
+the post-seed `recall@3` rather than the pre-seed one when it states what attenuated the effect.
