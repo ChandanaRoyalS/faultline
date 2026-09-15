@@ -12,7 +12,7 @@ from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
-from faultline.agents.contracts import SPECIALISTS
+from faultline.agents.contracts import EXECUTION_NOTE, SPECIALISTS
 from faultline.agents.settings import AgentSettings
 from faultline.archive import connect_or_none
 from faultline.context.settings import ContextSettings
@@ -503,7 +503,12 @@ def _print_report(report: object) -> None:
             print(f"  blast radius: {proposal.blast_radius}")
         print(f"  if wrong    : {proposal.if_wrong}")
         print(f"  rests on    : {', '.join(proposal.rests_on) or 'nothing cited'}")
-        print("  execution   : NOT MEASURED - no executor exists (ADR-0028 §4)")
+        # **The same sentence `api.view` rewrote at T6.3, in the copy that was missed.** It read
+        # "no executor exists", which was true when T5.6 wrote it and false the moment T6.2 merged
+        # - a line asserting the absence of a container the deployment runs. It printed on all
+        # twenty of Q53's pilot investigations. `EXECUTION_NOTE` is imported rather than restated,
+        # so the next rewrite cannot leave a third copy behind.
+        print(f"  execution   : {EXECUTION_NOTE}")
     for violation in getattr(result, "proposal_violations", []):
         print(f"  PROPOSAL REFUSED: {violation}")
     if getattr(result, "proposal_escalated", False):
