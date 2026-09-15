@@ -390,7 +390,10 @@ def test_a_real_run_reads_into_a_record_the_drafter_can_use() -> None:
         payload = json.loads(path.read_text())
         if payload.get("baseline") or not (payload.get("verdict") or {}).get("root_cause"):
             continue
-        if not (path.parent / "manifest.json").is_file():
+        manifest_path = path.parent / "manifest.json"
+        if not manifest_path.is_file():
+            continue
+        if json.loads(manifest_path.read_text()).get("ablation"):
             continue
         usable.append(path.parent)
     if not usable:
@@ -603,3 +606,57 @@ def test_no_alternatives_is_stated_rather_than_left_blank() -> None:
     from faultline.agents.postmortem import alternative_lines
 
     assert "none recorded" in " ".join(alternative_lines(VERDICT))
+
+
+def test_an_ablation_run_is_not_a_donor() -> None:
+    """**The fourth time this hole has been found, and the first three are on the record.**
+
+    `scenario_table._qualifies` excludes ablation runs from every figure - *"a `--without traces`
+    run is a different pipeline in exactly the sense [a baseline] means it"* - and its own comment
+    notes the same hole taking `observability_digest` and the B0 arm before that. T6.1 put
+    `ablation` in `FINGERPRINT_INPUTS` so one can never pool with a full run.
+
+    `record_from_run` refused a baseline and said nothing about an ablation, so the first live
+    drafting run took **nine of nine donors from the without-traces arm** - it was the newest run
+    per scenario - and wrote postmortems scoring **4 of 9** on fault class where the full pipeline
+    scores 8 of 10. README predicts exactly that: *"nine of nine with traces, three of eleven
+    without."*
+    """
+    from faultline.agents.postmortem import RecordError, record_from_run
+
+    ablated = [
+        p.parent
+        for p in sorted(RUNS.glob("*/manifest.json"))
+        if (json.loads(p.read_text()).get("ablation") or [])
+    ]
+    if not ablated:
+        return
+
+    with pytest.raises(RecordError, match="ablation"):
+        record_from_run(ablated[0])
+
+
+def test_no_donor_the_walk_would_pick_is_a_baseline_or_an_ablation() -> None:
+    """The property that matters, over the whole archive rather than one directory."""
+    from faultline.agents.postmortem import donor_runs
+
+    for scenario, directory in donor_runs(RUNS).items():
+        manifest = json.loads((directory / "manifest.json").read_text())
+        assert not manifest.get("baseline"), f"{scenario}: {directory.name} is a baseline"
+        assert not (manifest.get("ablation") or []), f"{scenario}: {directory.name} is an ablation"
+
+
+def test_a_postmortem_records_which_recording_it_is_about() -> None:
+    """`recorded_from` was empty on every draft of the first live run, which is a chunk that
+    cannot be aged out: a narrative's ties it to one recording so a re-record moves it, and a
+    postmortem carrying none is a document nothing can tell is stale."""
+    from faultline.agents.postmortem import donor_runs, record_from_run
+
+    donors = donor_runs(RUNS)
+    if not donors:
+        return
+    records = [record_from_run(d) for d in donors.values()]
+
+    assert all(r.recorded_from for r in records), (
+        "every donor's run records when it injected; the postmortem carries it"
+    )
