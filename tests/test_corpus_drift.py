@@ -146,3 +146,51 @@ def test_the_check_writes_nothing() -> None:
     assert "faultline.context.seed" in imported
     assert not any(name in source for name in ("store.add", "INSERT", "UPDATE ", "DELETE "))
     assert "seed(" not in source.replace("faultline-seed", "").replace("dev_bundles", "")
+
+
+# --- the shape digest, and where it is taken (Q69) -----------------------------------------------
+
+
+def test_the_shape_digest_does_not_depend_on_the_order_rows_arrive_in() -> None:
+    """**Q69, and `body_digest_of` had this property from the start.**
+
+    The shape digest was computed inline in `freeze.corpus_state` from a
+    `SELECT ... ORDER BY document_id, section`, so the ordering - and the digest - came from the
+    database's collation. Measured on `en_US.utf8`: Postgres orders "Acting on it" before
+    "A reading of its error ratio was withdrawn", because en_US ignores the space at primary
+    weight and Python compares code points. The same 311 chunks hashed `ee7c7bb277cf` in the
+    database and `844fe623366c` off the working tree.
+    """
+    from faultline.context.corpus import shape_digest_of
+
+    pairs = [(d, s) for d, s, _ in SEEDED]
+
+    assert shape_digest_of(list(reversed(pairs))) == shape_digest_of(pairs)
+
+
+def test_the_shape_digest_sees_a_rename_that_the_body_digest_does_not_localise() -> None:
+    """The two digests answer different questions and both are needed (Q36, Q61). A renamed
+    heading over identical text moves the shape; the body digest moves too, because its triples
+    carry the section - but only the shape digest moves when *nothing else* does."""
+    from faultline.context.corpus import shape_digest_of
+
+    pairs = [(d, s) for d, s, _ in SEEDED]
+    renamed = [(d, "What to check first" if s == "What to check" else s) for d, s in pairs]
+
+    assert shape_digest_of(renamed) != shape_digest_of(pairs)
+
+
+def test_the_corpus_freeze_does_not_ask_sql_to_order_the_shape_digest() -> None:
+    """**The guard is on the call site, because that is what was wrong.** `shape_digest_of` can
+    be order-independent and still be fed a digest taken elsewhere; what made the value a
+    property of the locale was the `ORDER BY` in the query, not the hashing.
+    """
+    source = (REPO_ROOT / "src" / "evalharness" / "freeze.py").read_text()
+    statement = "SELECT document_id, section FROM incident_chunks"
+
+    assert statement in source, "corpus_state still reads the pairs"
+    after = source.split(statement, 1)[1][:40]
+    assert "ORDER BY" not in after, (
+        "the shape digest is ordered by `shape_digest_of`, in Python. A SQL sort makes it a "
+        "property of the database's collation rather than of the corpus"
+    )
