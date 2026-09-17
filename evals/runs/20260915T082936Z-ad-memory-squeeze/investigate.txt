@@ -1,0 +1,16 @@
+incident 6c1f5c44-2203-4ced-8353-cedb519b25da  state triaging  anchor 08:32:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> failed
+trajectory: 219d3f5e-b7a4-4089-89e6-32997ee2c601
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with both loadgenerator and frontend alerting seconds apart points to a real user-facing failure, not a synthetic-only artifact. No open incidents to attribute it to, and the alerts don't yet distinguish a deploy, config, or downstream dependency cause among frontend's five backends.
+
+FAILED MID-INVESTIGATION: SchemaValidationError: schema validation failed twice (dispatch service "adservice, cartservice, productcatalogservice, recommendationservice, checkoutservice (frontend's 1-hop dependencies)" names more than one service. A dispatch is one specialist asking one question about one service; to cover three services, make three dispatches. Legal values: accountingservice, adservice, cartservice, checkoutservice, currencyservice, emailservice, featureflagservice, frauddetectionservice, frontend, frontendproxy, kafka, loadgenerator, paymentservice, productcatalogservice, quoteservice, recommendationservice, redis-cart, shippingservice.)
+the trajectory holds everything that ran before the failure
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10166.69it/s]

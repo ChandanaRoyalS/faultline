@@ -1,0 +1,38 @@
+incident 537d56bf-fa6e-416d-8bdd-8c5ca4dc8a13  state triaging  anchor 08:45:15
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 23a56f10-6874-4b8c-a786-9c7866e5512a
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend and checkoutservice within seconds of each other, plus the load generator, describe a user-facing checkout failure that cannot be dismissed. No open incident to attribute it to, and the alert pattern alone does not distinguish a bad deploy from a failing downstream dependency.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a dispatch against cartservice returns a restart or OOM-kill count rising inside the 08:41:50-08:46:06 onset bracket [tr_f6db098f108b], or a log stream that ends abruptly at onset - that would meet restart_service's precondition (process state, not change) and make restart_service on cartservice the right proposal. It is also wrong in the opposite direction if cartservice change history shows a config or image change inside the window, in which case revert_config or rollback_image is indicated and a restart would have recreated the same broken process. Note that restarting cartservice now would itself destroy the in-process and log evidence needed to tell these apart, so the cost of acting early is not only a possible no-op.
+  rests on    : tr_f6db098f108b, tr_37bb607ee689, tr_73a8955b0079
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 29607 pushed / 7991 pulled (pull rate 0.2125), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_f6db098f108b, tr_73a8955b0079, tr_f0db5295bd36
+  root cause  : Checkout errors visible at frontend originate on the checkoutservice -> cartservice edge. Every failing PlaceOrder trace aborts at checkoutservice's outbound client span for CartService/GetCart, which carries an error status that propagates up through checkoutservice, frontend's PlaceOrder and the frontend HTTP root [tr_f6db098f108b]. Those failing calls produce no cartservice server-side span and end in 2-4ms, indicating an immediate connection-level rejection rather than a slow dependency [tr_f6db098f108b]. checkoutservice is only the reporter: its self-time in failing traces is ~0.1-0.2ms, it keeps accepting orders at a steady cadence, and it logs no errors, timeouts or resource limits [tr_73a8955b0079, tr_f6db098f108b]. No dispatch examined cartservice itself, so the mechanism behind the refusal (crash/restart, listener or pool limit, wrong endpoint, bad artifact) is not established by this evidence.
+  OPEN        : cartservice was never dispatched: its metrics, logs, restart/OOM counts and change history are wholly unexamined, and the mechanism lives there.
+  OPEN        : Why GetCart produces no cartservice server span - process gone, connections refused at a limit, or endpoint misresolved.
+  OPEN        : Frontend's error ratio crossed threshold at 08:31, before the cart failure onset bracketed at ~08:41:50-08:46:06, so an earlier or second contributor is unaccounted for [tr_37bb607ee689, tr_f6db098f108b].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:scenario:cart-bad-image-tag'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260915T084218Z-cart-bad-image-tag/537d56bf-fa6e-416d-8bdd-8c5ca4dc8a13-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260915T084218Z-cart-bad-image-tag/537d56bf-fa6e-416d-8bdd-8c5ca4dc8a13-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8459.40it/s]

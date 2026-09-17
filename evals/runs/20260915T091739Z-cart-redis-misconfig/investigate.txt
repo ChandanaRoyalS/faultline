@@ -1,0 +1,38 @@
+incident a256fafa-32c8-408d-af6e-dad3eee047f2  state triaging  anchor 09:20:15
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 3f1c4a72-7d13-4868-83c1-cbd712411ab8
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend and checkoutservice together with the load generator point at a real user-facing failure, not a quiet world. No open incident to attribute it to, and the alerts alone don't favor one fault class over the several shared downstreams.
+investigation: 2 round(s), 9 dispatch(es), 26 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if cartservice is in fact crash-looping or wedged in a bad in-process state right now — that would show as a restart count climbing, a startup banner repeating in its logs, or a connection-refused pattern on GetCart. None of those have been observed, because cartservice was never queried. If a dispatch returns such evidence, restart_service on cartservice becomes the correct proposal and this abstention cost ~one dispatch of delay.
+  rests on    : tr_d6827e2372a7, tr_632e684f9eb7, tr_ce6f2f9e7568, tr_b46113298aeb
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 30002 pushed / 5175 pulled (pull rate 0.1471), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : low
+  evidence    : tr_d6827e2372a7, tr_632e684f9eb7, tr_ce6f2f9e7568, tr_b46113298aeb, tr_feba44de6059
+  root cause  : Checkout failures originate at cartservice: every sampled PlaceOrder trace terminates in error at the CartService/GetCart leaf span, with the error status propagating upward through checkoutservice and the frontend [tr_d6827e2372a7]. The failures are sub-millisecond immediate rejections, not waits, so this is not a latency problem. Frontend and checkoutservice both step from an exactly-zero error baseline to partial, bursty error rates starting ~08:31-08:43 [tr_ce6f2f9e7568][tr_632e684f9eb7]; checkoutservice keeps serving and self-reports nothing [tr_b46113298aeb]; productcatalogservice is clean [tr_feba44de6059]. No dispatch ever touched cartservice, so the failing component is identified but its internal mechanism is not.
+  OPEN        : cartservice was never dispatched — its gRPC status code on failed GetCart calls (UNAVAILABLE vs RESOURCE_EXHAUSTED vs INTERNAL) would likely decide the fault class outright.
+  OPEN        : No change history was queried for cartservice, so 'no change anywhere' is unestablished; likewise its backing cache/store was never examined.
+  OPEN        : Onset at 08:31-08:43 precedes the 09:20 alerts by ~40 minutes and nothing explains that gap; trace sampling is confined to the final minute, so the 9/9 error rate cannot be generalized to the whole window.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:scenario:cart-redis-misconfig'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260915T091739Z-cart-redis-misconfig/a256fafa-32c8-408d-af6e-dad3eee047f2-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260915T091739Z-cart-redis-misconfig/a256fafa-32c8-408d-af6e-dad3eee047f2-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10183.71it/s]

@@ -1,0 +1,43 @@
+incident d502c601-def0-4853-a247-32dd6e3a4b73  state triaging  anchor 03:20:30
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: f7b6ea0a-8ef4-407c-b627-58453849e594
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical-severity alert on frontend with the load generator following it simultaneously indicates user-facing impact, not a lone synthetic blip. No open incident covers it, and the cause could be frontend itself or any of its five downstream dependencies, so evidence is needed.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : adservice
+  expect      : Restoring adservice's pre-change configuration (no explicit memory limit, the recorded prior value) and recreating the container should, within a few minutes, (a) stop the repeated grpc-js client `14 UNAVAILABLE / no connection could be established` lines in the frontend log stream — measurable as that line pattern ceasing in `{service="frontend"}` after the recreate timestamp; (b) make adservice reappear as a server span under frontend client spans in Tempo — measurable by re-running the frontend trace sample and finding non-zero adservice spans where the last sample had none across 92 spans; and (c) restore continuous `received ad request` lines in `{service="ad-service"}`. Note explicitly: frontend's aggregate error ratio is NOT a valid confirmation signal here — it was already below baseline during the incident [tr_be68ab30c32c], so it will not move, and anyone watching only that metric will see nothing either way.
+  within      : 300s
+  risk        : Three concrete ways this hurts if the diagnosis is wrong. (1) Removing the memory cap restores unbounded memory growth for adservice; if the platform-automation limit was applied for a real reason (a leak, a noisy-neighbour policy), adservice can grow until it pressures other containers on the same host, converting a single-service ad outage into a host-level problem. (2) The recorded actor is platform-automation, not a human — the controller that set 256m may reapply it, producing a flap loop of limit-set / container-recreate that is worse than the steady state. (3) The recreate itself drops in-flight ad RPCs and resets the connection frontend holds, so if adservice is currently partially serving, this converts partial availability into a short total outage for no gain.
+  blast radius: adservice is recreated; its inbound caller in this incident is frontend, which will see connection resets on ad RPCs for the duration of the recreate, and loadgenerator traffic flows through frontend so synthetic requests touching the ads path will see errors during that interval. Users of the ads surface see it change state twice (down, then hopefully up). Co-located containers on the same host inherit the memory-headroom change once the cap is gone. cartservice, productcatalogservice, recommendationservice, featureflagservice and checkoutservice are not touched by this action and should show no change — if they do, that is itself a signal the diagnosis was wrong.
+  if wrong    : Falsified if, five minutes after the recreate, frontend is still emitting code 14 lines with the same connection-establishment detail, or adservice is still absent from a fresh frontend trace sample. Either outcome means the unreachable peer was never adservice: the code 14 errors name no host or callee, so the callee identity is inferred from the change record plus adservice's trace absence, not observed. Also falsified in a subtler way if the code 14 lines stop but a code 13 `ProductCatalogService Fail Feature Flag Enabled` regime is what actually dominates the unobserved middle of the window — frontend logs were truncated to oldest 8 / newest 32 lines and the flag's current state is unknown. A third falsifier: adservice was never memory-constrained at all and the container comes back with identical behaviour, since no OOM-kill, restart-count, or memory-vs-limit series was ever queried for the incident window (both adservice dispatches covered a window a day earlier).
+  rests on    : tr_89f50f6da970, tr_2090e4e7735b, tr_538d145bb229
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 27619 pushed / 7409 pulled (pull rate 0.2115), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_89f50f6da970, tr_2090e4e7735b, tr_538d145bb229
+  root cause  : About three minutes before onset, platform-automation lowered the ad-service memory limit to 256m where no explicit limit existed before [tr_89f50f6da970]. From onset frontend's newest lines are client-side gRPC code 14 UNAVAILABLE errors whose detail says no connection could be established to the callee — outbound failures, not frontend faults and not served application errors [tr_2090e4e7735b]. Frontend and checkoutservice have no recorded changes at all [tr_660f8c1d3d68][tr_b3e8f6fc81a3], frontend's aggregate error ratio fell below baseline (so no downstream is erroring on most calls) [tr_be68ab30c32c], and all sampled frontend traces complete in tens of milliseconds with cartservice, productcatalogservice, recommendationservice and featureflagservice fast and adservice absent from 92 spans [tr_538d145bb229]. The coherent reading: adservice containers began exceeding the new 256m cap and were killed/restarted, leaving no reachable endpoint for frontend's ad RPCs. The mechanism is memory exhaustion against the cap; the limit edit is the trigger, not the fault.
+  OPEN        : No direct evidence of OOM kills, restarts, or memory-vs-limit for adservice during the incident window — both adservice dispatches covered a window a day earlier and never queried memory or restart series.
+  OPEN        : The code 14 errors name no host or callee, so the unreachable peer is inferred from the change record and adservice's trace absence, not observed.
+  OPEN        : Frontend logs were truncated to the oldest 8 and newest 32 lines, leaving the shift from the earlier product-catalog fail-flag (code 13) regime unobserved and the flag's current state unknown.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:scenario:ad-memory-squeeze'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T031656Z-ad-memory-squeeze/d502c601-def0-4853-a247-32dd6e3a4b73-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T031656Z-ad-memory-squeeze/d502c601-def0-4853-a247-32dd6e3a4b73-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7642.20it/s]
