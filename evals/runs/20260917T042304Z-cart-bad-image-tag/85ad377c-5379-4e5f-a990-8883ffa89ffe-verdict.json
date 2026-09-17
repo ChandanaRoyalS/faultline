@@ -1,0 +1,174 @@
+{
+  "incident_id": "85ad377c-5379-4e5f-a990-8883ffa89ffe",
+  "trajectory_id": "d0afdbc3-e71a-484e-b601-f18a1d5f64da",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [
+    "scenario:cart-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "PlaceOrder fails at checkoutservice's first downstream hop: the client span for CartService/GetCart returns ERROR in ~2.3-2.8ms with all duration as self-time and no cartservice server child span in any failing trace [tr_8d0fbe9b8a12]. A fast client-side error with no server span and no accumulated latency indicates the RPC was refused or reset - cartservice stopped serving from ~04:25-04:28. checkoutservice itself is healthy: it keeps accepting PlaceOrder at normal cadence through 04:29:23, logs no error or timeout, and never reaches the payment/email/Kafka steps that followed every completed order earlier [tr_aa6212e2c3aa]. Downstream services (currency, shipping, quote, email, accounting) alerted ~90s later because the abort starved them of traffic; their spans never appear in failing traces [tr_8d0fbe9b8a12]. No deploy, config push or flag flip exists for checkoutservice or any 1-hop neighbour near onset [tr_a69bfa12916a][tr_227bea3f8f97], so the likeliest mechanism is a runtime resource failure inside cartservice (memory, connections, or its Redis pool) causing it to refuse connections. This mechanism is inferred - no dispatch was sent to cartservice.",
+    "service": "cartservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_8d0fbe9b8a12",
+      "tr_aa6212e2c3aa",
+      "tr_a69bfa12916a",
+      "tr_227bea3f8f97",
+      "tr_93ad4c6210c1"
+    ],
+    "reasoning": "The trace evidence localises the break precisely to the checkoutservice->cartservice hop and rules out every service downstream of it, plus checkoutservice's own post-cart steps [tr_8d0fbe9b8a12]. Logs corroborate: requests enter checkout and stall before payment, with no dependency named and no crash or restart of checkout [tr_aa6212e2c3aa]. The error is recorded client-side with no server span, which points at cartservice not receiving/answering rather than erroring in its handler. Absence of any recorded change on checkoutservice or its 1-hop neighbours [tr_a69bfa12916a][tr_227bea3f8f97] argues against bad_deploy/bad_config, leaving a runtime failure of the cartservice process. The fast-abort profile also rules out latency accumulation [tr_8d0fbe9b8a12]. checkoutservice's own error-ratio series shows only a late-onset burst at 04:25:30 with low traffic, consistent with onset near incident time but not diagnostic of mechanism [tr_93ad4c6210c1].",
+    "open_questions": [
+      "No dispatch was ever run against cartservice - its logs, metrics (memory/OOM, connection pool), restart history and change record are entirely unexamined, so resource_exhaustion is inferred from the trace shape rather than observed.",
+      "The exact gRPC status on the failing GetCart client span (UNAVAILABLE vs DEADLINE_EXCEEDED vs INTERNAL) was not reported, which would distinguish refused-connection from other failures.",
+      "cartservice's Redis backend was not investigated; a Redis outage would produce a similar upstream signature if cartservice failed fast or crash-looped.",
+      "checkoutservice request rate, p95 latency and saturation metrics were never returned [tr_93ad4c6210c1], and its logs are truncated between ~03:58 and 04:26:49 [tr_aa6212e2c3aa], leaving true onset time unpinned."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "cartservice's Redis dependency became unavailable, causing cartservice to fail or crash-loop and refuse checkout's RPCs.",
+        "service": "cartservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "The failing hop aborts in ~2.5ms rather than waiting, which fits a refused connection better than a slow backend; and no Redis evidence was gathered either way."
+      },
+      {
+        "root_cause": "A recent change to cartservice (deploy or config) outside the queried services left it unable to serve, producing immediate connection failures.",
+        "service": "cartservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The 1-hop change query surfaced no neighbour changes near onset [tr_227bea3f8f97], though cartservice's own change history was never queried directly, so this cannot be fully excluded."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "payment-telemetry-blackout / What ruled the alternatives out: Crash-loop, credential rejection and charge-path failure: paired charge/completion log lines continued at info level through the end of the window \u2014 there were no repeated startup banners and no gap in request handling. paymentservice latency and errors: root latencies stayed fla",
+    "shipping-wrong-image / What the investigation concluded: shippingservice was running an artifact that was not the shipping binary. About two minutes before onset (T-2m), platform-automation moved shippingservice's image reference to a demo artifact whose tag names a different service entirely (adservice). Four earlier change records in",
+    "frauddetection-memory-squeeze / What was checked: **Whether it was worth investigating at all.** A single no-traffic alert on a\nlow-volume service, with no customer impact and no other signal, is the shape of a\nmonitoring artifact. frauddetectionservice handles about one call every ten seconds; at\nthat rate a brief stall or a sl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 23955,
+    "pulled_tokens": 7628,
+    "pull_rate": 0.2415,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 493,
+        "content_tokens": 495,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1531,
+        "content_tokens": 1534,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7231,
+        "content_tokens": 7207,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6769,
+        "content_tokens": 6771,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7931,
+        "content_tokens": 7909,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_8d0fbe9b8a12",
+      "tr_aa6212e2c3aa",
+      "tr_93ad4c6210c1"
+    ],
+    "expected_effect": "No action, so nothing should change: PlaceOrder traces should keep terminating at checkoutservice's CartService/GetCart client span with ERROR at ~2.3-2.8ms and no cartservice server child span [tr_8d0fbe9b8a12], and checkoutservice should keep logging PlaceOrder start lines with no payment/email/Kafka completion lines [tr_aa6212e2c3aa]. Abstaining because the only candidate action, restart_service on cartservice, rests on an unobserved mechanism: no dispatch was run against cartservice, so its memory/OOM state, connection pool, Redis backend and restart history are entirely unexamined, and the failing hop's gRPC status was never reported. Restart's precondition (evidence points at process state) is not met by trace shape alone. Rollback and config_revert are barred: no deploy or config change for checkoutservice in the covered interval [tr_a69bfa12916a]. scale_service is unavailable. Supporting signal is also weak - checkoutservice's error ratio is below baseline with one late change point on possibly tiny volume, and rate/latency/saturation were never returned [tr_93ad4c6210c1].",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Wrong if a cartservice dispatch shows OOM kills, pool exhaustion, or a crash-loop restart count near 04:25-04:28 - then restart_service on cartservice becomes supportable, predicting cartservice server spans reappearing under the GetCart client span within ~120s. Also wrong if the outage is ongoing and wide enough that waiting for that dispatch costs more than a blind recreate; the evidence does not show that.",
+    "risk": "Waiting leaves the failure in place if cartservice really is resource-exhausted. Conversely, restarting now would be irreversible, would destroy the live process state that identifies the mechanism, and would do nothing if the fault is Redis or checkoutservice's client channel.",
+    "blast_radius": "No change is made, so no service sees anything; only responders are affected, by having to run a cartservice dispatch first. A cartservice restart would instead hit checkoutservice and frontend (dropped carts) plus every PlaceOrder caller during the recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Nine services alerting critical within 90 seconds, centered on checkout and frontend and fanning out to their downstream dependents, is not something I can dismiss. No open incident to attribute it to, and the pattern fits either a checkout-path deploy or a shared dependency failing, so no prior is honest yet."
+  }
+}

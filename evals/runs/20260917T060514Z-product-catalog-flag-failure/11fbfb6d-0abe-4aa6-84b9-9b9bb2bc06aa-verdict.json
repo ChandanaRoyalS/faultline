@@ -1,0 +1,169 @@
+{
+  "incident_id": "11fbfb6d-0abe-4aa6-84b9-9b9bb2bc06aa",
+  "trajectory_id": "64e735f8-0071-484f-9871-1c6e57b5f563",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:product-catalog-flag-failure"
+  ],
+  "verdict": {
+    "root_cause": "frontend's gRPC client logs are the only mechanism-naming signal on the board: repeated status 13 INTERNAL responses received from the product catalog dependency, whose detail text attributes the failure to a deliberately enabled 'fail' feature flag, recurring at 06:10:38 and 06:10:47 [tr_b041e95a699e]. The frames arise in the client status-receive path, so frontend is relaying an error handed to it, not generating one. That makes productcatalogservice the failing party: a feature flag governing its catalog lookups is set to a value that makes it return INTERNAL, and the wrongness of that value is itself the failure \u2014 no timeout, deadline or capacity language appears, and traces in the same minutes show nothing slower than a 26ms end-to-end checkout [tr_b8fd3c6f3d15]. The flag is absent from productcatalogservice's own change log, which is empty for 24h [tr_41fdb1b0dad1], consistent with it living in the separate FeatureFlagService visible in the trace tree [tr_b8fd3c6f3d15]. The fix is to flip the flag off, not to roll back or restart.",
+    "service": "productcatalogservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_b041e95a699e",
+      "tr_b8fd3c6f3d15",
+      "tr_41fdb1b0dad1",
+      "tr_e668a04490f1",
+      "tr_93af46dee0e9",
+      "tr_2f7cde204b26"
+    ],
+    "reasoning": "Only [tr_b041e95a699e] produced a positive observation: a remote status, a named dependency, an explicit fault-injection reason, and recurrence \u2014 which internally rules out transient, timeout and resource-limit readings. Everything else is empty or negative. The low aggregate error ratios for productcatalogservice [tr_bb247e5cb0de] and frontend [tr_ab4785ce0d4c] are unbroken service-wide series over noisy baselines, so a flag affecting one RPC path need not lift them, but they do not corroborate either. The callee's own logs were never actually read: the selector used a hyphenated label that does not match the service name [tr_e668a04490f1]. adservice's only changes are matched memory-limit apply/revert pairs, the last restoring the cap 1.9h before onset [tr_93af46dee0e9], so no lowered limit was in force; its metrics are vacuously empty in both windows [tr_2f7cde204b26]. Not bad_deploy because no artifact changed; not dependency_latency because the failure is an immediate INTERNAL, with the slowest hop ~6-7ms [tr_b8fd3c6f3d15]; not resource_exhaustion because the only capacity-shaped change was already reverted.",
+    "open_questions": [
+      "The trace sample spans 06:10:21-06:10:57 with zero error spans across 94 spans [tr_b8fd3c6f3d15], yet the flag-attributed errors are logged inside that same minute [tr_b041e95a699e] \u2014 sampling gap or different path, unresolved, and the main reason confidence is not high.",
+      "productcatalogservice's own logs were never read due to a label mismatch [tr_e668a04490f1]; re-querying with the correct label would confirm or overturn the flag on the callee side.",
+      "Where the flag lives, who flipped it and when is unestablished \u2014 no dispatch queried the feature-flag service's change history, so the 06:09 onset is not time-correlated to any recorded act [tr_41fdb1b0dad1]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The frontend->adservice edge is failing or timing out and drives the incident, unseen because that edge is entirely unmeasured.",
+        "service": "adservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "No positive evidence at all: no sampled span [tr_b8fd3c6f3d15] and no metric series in either window [tr_2f7cde204b26]. It is unmeasured rather than implicated, and no error text names it, whereas the catalog flag is named explicitly."
+      },
+      {
+        "root_cause": "adservice is being OOM-killed under a lowered 256m memory cap, degrading the ad path frontend depends on.",
+        "service": "adservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "config_revert",
+        "why_not": "The last recorded change restored the memory limit ~1.9h before onset, so the cap was not in force at 06:09, and nothing landed in the minutes before onset [tr_93af46dee0e9]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **4m16s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 3\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence two and a\n  half minutes la"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29743,
+    "pulled_tokens": 4963,
+    "pull_rate": 0.143,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 428,
+        "content_tokens": 429,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1465,
+        "content_tokens": 1467,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9374,
+        "content_tokens": 9349,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8584,
+        "content_tokens": 8586,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9892,
+        "content_tokens": 9870,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_41fdb1b0dad1",
+      "tr_b041e95a699e",
+      "tr_e668a04490f1",
+      "tr_bb247e5cb0de",
+      "tr_b8fd3c6f3d15"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. The observation that would justify a later proposal is a productcatalogservice log query under the correct label (the earlier attempt used 'product-catalog-service' and returned zero lines [tr_e668a04490f1]) showing server-side INTERNAL responses attributed to the fail flag at 06:10:38 and 06:10:47, plus a change-history entry naming the flag flip on whichever service actually holds it.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the flag is in fact stored in productcatalogservice's own environment and simply not journalled \u2014 in that case revert_config on productcatalogservice would clear the status 13 INTERNAL lines from frontend's log within a minute and the abstention cost an easy fix. It is also wrong if a runbook (withheld from this briefing) names an approved flag-reset path I could not see. The correct next step is a dispatch, not an action: re-query productcatalogservice logs with the label value 'productcatalogservice', and query change history for the FeatureFlagService named in the trace tree [tr_b8fd3c6f3d15].",
+    "risk": "Abstaining leaves the fail flag set, so catalog lookups keep returning INTERNAL to frontend and the user-visible errors continue until someone acts manually. That is a real cost, accepted because the alternative is acting on an unmet precondition. Had I proposed revert_config on productcatalogservice, the risk would be recreating a service whose recorded prior configuration is empty \u2014 restoring it to an unknown or default environment, potentially changing dependency addresses that currently work, and dropping its in-process cache, all while leaving the flag untouched because the flag is held elsewhere.",
+    "blast_radius": "Nothing changes, so nobody sees a change. The unremediated fault continues to be seen by frontend (which logs the relayed status 13), by checkoutservice and recommendationservice downstream of productcatalogservice, and by loadgenerator traffic at the edge."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "medium",
+    "reasoning": "Critical alerts across loadgenerator, frontend, and productcatalogservice within seconds suggests a real user-facing failure, not a single-service warning. Productcatalog is the common downstream of frontend traffic, making it the likely origin, though a bad deploy cannot be ruled out."
+  }
+}

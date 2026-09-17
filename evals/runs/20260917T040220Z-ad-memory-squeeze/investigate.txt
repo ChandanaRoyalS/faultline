@@ -1,0 +1,43 @@
+incident df43ddd5-7fb0-419c-bac7-effe43863291  state triaging  anchor 04:06:00
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 897b35be-752b-43a3-a1bb-554c72164d09
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend plus the load generator indicate user-facing failure, not an isolated synthetic blip, and no open incident covers it. Cause is undetermined; frontend's five dependencies are the natural first sweep.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : restart_service (restart)
+  target      : adservice
+  expect      : Recreating adservice should re-register its name/endpoint so frontend can resolve adservice:9555. Confirm by: the repeating 'status 14 UNAVAILABLE / DNS resolution failed for adservice:9555' lines in {service="frontend"} in Loki ceasing, and adservice spans reappearing under frontend spans in Tempo. Frontend error ratio is not a valid signal - it never moved with the fault.
+  within      : 300s
+  risk        : Irreversible recreate that discards adservice in-process cache; if the real fault is cluster DNS, the restart fixes nothing, adds a cold-start gap in ad serving, and destroys the pre-restart process state that would have distinguished the two hypotheses.
+  blast radius: adservice only, for the duration of the recreate. Frontend is its caller and will see continued or briefly worsened ad-panel failures; user-visible impact stays partial (ad panel). No effect expected on cartservice, productcatalogservice, checkoutservice, recommendationservice or loadgenerator.
+  if wrong    : If the frontend DNS-failure log lines continue at the same cadence after adservice is confirmed recreated and running, the fault is the resolver/service-discovery layer, not adservice process state, and no permitted action addresses it. If adservice is found already running and ready, the process-state premise was wrong. Note: no adservice-side metric, log or change evidence was ever pulled, so this rests on a caller-side inference only.
+  rests on    : tr_c27c47009e12, tr_0fadf4f5fafb, tr_b4f84b5748b1
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 25458 pushed / 3636 pulled (pull rate 0.125), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : low
+  evidence    : tr_c27c47009e12, tr_0fadf4f5fafb, tr_1e14b9d3d52c
+  root cause  : Frontend's own request handling, error rate and downstream span timings are all normal or better than baseline; what is anomalous is a cluster of outbound gRPC client failures (status 14 UNAVAILABLE) whose newest lines attribute the failure to DNS name resolution failing for the adservice target on port 9555 [tr_c27c47009e12]. The connection is never established, so adservice is either not resolvable or has no healthy endpoints behind its name — a dependency-availability/discovery fault on the adservice path, not a frontend fault. No change record exists for frontend or checkoutservice to anchor this to a deploy or edit [tr_b4f84b5748b1][tr_d6f70a4c5c7c], and the alert at 04:06 is not corroborated by any error-ratio transition at frontend or loadgenerator [tr_1e14b9d3d52c][tr_88dbd8dfe2d2], so the impact is partial (ad panel) rather than a full outage.
+  OPEN        : Is adservice running with ready endpoints, or is cluster DNS itself failing? No adservice-side metrics, logs or change history were pulled.
+  OPEN        : What actually fired the 04:06 alert? No frontend or loadgenerator metric shows a transition there, and no latency series was ever returned [tr_1e14b9d3d52c].
+  OPEN        : Traces cover only ~16s at 04:07:42-04:07:58 with no 04:06 coverage and no adservice span [tr_0fadf4f5fafb], so the onset minute is unobserved.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:ad-memory-squeeze'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T040220Z-ad-memory-squeeze/df43ddd5-7fb0-419c-bac7-effe43863291-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T040220Z-ad-memory-squeeze/df43ddd5-7fb0-419c-bac7-effe43863291-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10283.58it/s]

@@ -1,0 +1,161 @@
+{
+  "incident_id": "7e1ddb7b-aaaa-4e56-8483-3347aadfb974",
+  "trajectory_id": "8dce9d5f-2211-4ca7-bd2e-24e9878eb204",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "frontend",
+    "paymentservice"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origins": [
+    "scenario:payment-telemetry-blackout"
+  ],
+  "verdict": {
+    "root_cause": "The only near-onset change on the path is a platform-automation edit setting OTEL_EXPORTER_OTLP_TRACES_ENDPOINT on paymentservice to a loopback address (http://127.0.0.1:4317) about five minutes before the 05:49 alert, re-applying a value that had been deliberately reverted to unset 20.5h earlier [tr_6794690e86df]. The request path is healthy in the same period: paymentservice logs show unbroken successful charge pairs through 05:50:59 with no errors or restarts [tr_3f1d3e055e48], Charge spans show no error status and sub-3ms latency [tr_9298c776bea9], and checkoutservice emits zero error-status spans for the whole window with its elevated errors sitting in the earlier baseline and already cleared [tr_074bebd38483]. Meanwhile the paymentservice span-derived call metric returns no samples at all [tr_9c126d3555e8]. This reads as a telemetry-plane failure: the wrong export endpoint value is itself what breaks, payments keep succeeding, and the alert reflects missing observability rather than failing customer traffic.",
+    "service": "paymentservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_6794690e86df",
+      "tr_3f1d3e055e48",
+      "tr_074bebd38483",
+      "tr_9c126d3555e8"
+    ],
+    "reasoning": "Three independent request-path probes find no failure at onset [tr_3f1d3e055e48, tr_9298c776bea9, tr_074bebd38483], so the blast radius is not explained by erroring or slow payments. The single act five minutes before onset touches only telemetry egress, not business logic, credentials, or dependency endpoints, and the identical value had prior operational history of being backed out [tr_6794690e86df]. The empty paymentservice metric selector [tr_9c126d3555e8] fits telemetry not reaching the pipeline. bad_deploy is excluded because no deploy or image event exists in the window [tr_6794690e86df]; dependency_latency and resource_exhaustion are excluded because no wait, saturation, or OOM signal appears in logs or spans. The remedy is restoring the previously-reverted endpoint value, hence config_revert.",
+    "open_questions": [
+      "The trace query covered 22:49-04:49, entirely before the 05:43 change, so the ruling-out of 'export stopped' [tr_9298c776bea9] does not test post-change export; whether paymentservice telemetry still arrives after 05:43 is the decisive unchecked fact.",
+      "What the 05:49 alert actually fired on was never retrieved - no request-rate, latency, or alert definition [tr_9c126d3555e8].",
+      "Whether a collector sidecar listens on 127.0.0.1:4317 in the paymentservice pod, which would make the value benign; and the pod replacement implied by the hostname change [tr_3f1d3e055e48] is unexplained."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The user-visible symptom is checkout latency from the shippingservice -> quoteservice hop, with paymentservice only the place the investigation started.",
+        "service": "quoteservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "The degrading hop was observed only in traces from 04:14-04:38, well before onset, and contributed 18-24% of already-fast 26-35ms traces [tr_9298c776bea9]; no post-onset latency evidence ties it to 05:49."
+      },
+      {
+        "root_cause": "The incident had already resolved before the window, and the 05:49 alert is a lagging artifact of the checkoutservice error burst visible in the earlier baseline.",
+        "service": "checkoutservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "This leaves the near-onset loopback endpoint change unexplained [tr_6794690e86df] and cannot account for the paymentservice metric series being absent in both windows [tr_9c126d3555e8]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-quote-misconfig / What ruled the alternatives out: Gradual degradation: metrics show a sharp step at onset, not a ramp, which also excludes any trigger landing at or after T+1m45s. Slow or hung dependency: the failing call returns in single-digit milliseconds - a hang looks like a floor near the client deadline, this looks like a",
+    "cart-redis-misconfig / What was never measured: Nothing was ever queried against redis-cart, so neither port's actual listening state was confirmed. cartservice emitted no calls_total under the queried service_name label in either window, so the crashloop timeline rests on logs alone with no metric-side corroboration. The call",
+    "cart-bad-image-tag / What ruled the alternatives out: Trace topology did the most work. The error origin sat two levels below the alerting services, which eliminated the frontend and checkoutservice's own PlaceOrder handler; checkoutservice showed continuous traffic, no error lines, no process discontinuity, and an incident-window e"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 19810,
+    "pulled_tokens": 9905,
+    "pull_rate": 0.3333,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 389,
+        "content_tokens": 391,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1325,
+        "content_tokens": 1328,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 5989,
+        "content_tokens": 5965,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5514,
+        "content_tokens": 5516,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 6593,
+        "content_tokens": 6571,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "paymentservice",
+    "rests_on": [
+      "tr_6794690e86df",
+      "tr_3f1d3e055e48",
+      "tr_9298c776bea9"
+    ],
+    "expected_effect": "Restoring paymentservice's prior environment (OTEL_EXPORTER_OTLP_TRACES_ENDPOINT unset, as after the 09:21 revert) should make paymentservice spans reappear in Tempo: checkout traces containing paymentservice/.../Charge with its nested charge child, as seen through 04:38. Measure by a Tempo query for paymentservice spans over the 10 minutes after the recreate returning non-zero traces; the 05:49 alert should clear if it fired on missing paymentservice telemetry. Charge logs should resume their paired info lines within seconds of the recreate.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Falsified if Tempo still returns no paymentservice spans after the revert, or if a check of 05:43-05:49 (never run; trace evidence stops at 04:49) shows spans still arriving under the loopback value - which would mean a sidecar does listen on 127.0.0.1:4317 and this removed working telemetry. The Prometheus calls_total selector was empty in both incident and baseline windows, so it cannot confirm or falsify anything here.",
+    "risk": "The recreate drops in-flight charges and briefly interrupts a payment path that all evidence shows is healthy - a working service is disturbed to fix observability. If the real fault is elsewhere, the outage window is added for nothing, and if a sidecar collector was the intended target, the revert breaks telemetry that currently works.",
+    "blast_radius": "paymentservice container recreate; checkoutservice sees connection reset on Charge during the restart, and frontend sees any resulting PlaceOrder failures. Reverting an export endpoint moves trace traffic off 127.0.0.1:4317 to the default collector."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A critical alert on paymentservice sits upstream of checkout and frontend, so a real customer-facing payment failure cannot be dismissed. Nothing in the alert pattern points to a specific cause yet."
+  }
+}

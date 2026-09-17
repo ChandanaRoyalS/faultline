@@ -1,0 +1,39 @@
+incident 85ad377c-5379-4e5f-a990-8883ffa89ffe  state triaging  anchor 04:27:30
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: d0afdbc3-e71a-484e-b601-f18a1d5f64da
+triage judged: investigate (medium confidence, suspects unknown)
+  Nine services alerting critical within 90 seconds, centered on checkout and frontend and fanning out to their downstream dependents, is not something I can dismiss. No open incident to attribute it to, and the pattern fits either a checkout-path deploy or a shared dependency failing, so no prior is honest yet.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Wrong if a cartservice dispatch shows OOM kills, pool exhaustion, or a crash-loop restart count near 04:25-04:28 - then restart_service on cartservice becomes supportable, predicting cartservice server spans reappearing under the GetCart client span within ~120s. Also wrong if the outage is ongoing and wide enough that waiting for that dispatch costs more than a blind recreate; the evidence does not show that.
+  rests on    : tr_8d0fbe9b8a12, tr_aa6212e2c3aa, tr_93ad4c6210c1
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 23955 pushed / 7628 pulled (pull rate 0.2415), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : restart
+  confidence  : low
+  evidence    : tr_8d0fbe9b8a12, tr_aa6212e2c3aa, tr_a69bfa12916a, tr_227bea3f8f97, tr_93ad4c6210c1
+  root cause  : PlaceOrder fails at checkoutservice's first downstream hop: the client span for CartService/GetCart returns ERROR in ~2.3-2.8ms with all duration as self-time and no cartservice server child span in any failing trace [tr_8d0fbe9b8a12]. A fast client-side error with no server span and no accumulated latency indicates the RPC was refused or reset - cartservice stopped serving from ~04:25-04:28. checkoutservice itself is healthy: it keeps accepting PlaceOrder at normal cadence through 04:29:23, logs no error or timeout, and never reaches the payment/email/Kafka steps that followed every completed order earlier [tr_aa6212e2c3aa]. Downstream services (currency, shipping, quote, email, accounting) alerted ~90s later because the abort starved them of traffic; their spans never appear in failing traces [tr_8d0fbe9b8a12]. No deploy, config push or flag flip exists for checkoutservice or any 1-hop neighbour near onset [tr_a69bfa12916a][tr_227bea3f8f97], so the likeliest mechanism is a runtime resource failure inside cartservice (memory, connections, or its Redis pool) causing it to refuse connections. This mechanism is inferred - no dispatch was sent to cartservice.
+  OPEN        : No dispatch was ever run against cartservice - its logs, metrics (memory/OOM, connection pool), restart history and change record are entirely unexamined, so resource_exhaustion is inferred from the trace shape rather than observed.
+  OPEN        : The exact gRPC status on the failing GetCart client span (UNAVAILABLE vs DEADLINE_EXCEEDED vs INTERNAL) was not reported, which would distinguish refused-connection from other failures.
+  OPEN        : cartservice's Redis backend was not investigated; a Redis outage would produce a similar upstream signature if cartservice failed fast or crash-looped.
+  OPEN        : checkoutservice request rate, p95 latency and saturation metrics were never returned [tr_93ad4c6210c1], and its logs are truncated between ~03:58 and 04:26:49 [tr_aa6212e2c3aa], leaving true onset time unpinned.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-bad-image-tag'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T042304Z-cart-bad-image-tag/85ad377c-5379-4e5f-a990-8883ffa89ffe-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T042304Z-cart-bad-image-tag/85ad377c-5379-4e5f-a990-8883ffa89ffe-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10714.62it/s]

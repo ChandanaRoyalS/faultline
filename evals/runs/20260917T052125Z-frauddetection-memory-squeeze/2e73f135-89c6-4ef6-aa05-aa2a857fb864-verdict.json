@@ -1,0 +1,164 @@
+{
+  "incident_id": "2e73f135-89c6-4ef6-aa05-aa2a857fb864",
+  "trajectory_id": "50dfe301-01fa-4b46-b15d-35cd80465e56",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [
+    "scenario:frauddetection-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "About six minutes before the alert, platform-automation applied a resource_limits change to the frauddetection-service workload that set the container memory limit to 200m [tr_3bab1fb1c90a, tr_4f33e9a9e848]. Within roughly twelve seconds of that change the service entered a supervisor restart loop: the log stream contains only a repeating three-line JVM/OpenTelemetry-javaagent startup banner, with gaps ramping from a few seconds up to a ~62s backoff cap, and no application-level output, no graceful shutdown, no exception and no stack trace [tr_5f3879330cbb]. That signature \u2014 a JVM plus javaagent dying silently mid-startup, before it ever reaches steady-state order consumption, on a backoff cadence beginning immediately after a memory ceiling was tightened \u2014 is the container runtime killing the process for exceeding its memory allowance. The service is failing because it cannot obtain the memory it needs to complete JVM initialisation; the limit edit is how it started, exhaustion is what is happening now.",
+    "service": "frauddetectionservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_3bab1fb1c90a",
+      "tr_4f33e9a9e848",
+      "tr_5f3879330cbb",
+      "tr_07952637945a",
+      "tr_8e1013d8852e"
+    ],
+    "reasoning": "Three independent strands converge. (1) Change history over a full 24h window contains exactly one entry for this workload \u2014 a memory limit lowered to 200m at 05:21:30 by an automated actor \u2014 and the retrieval was untruncated, so no deploy, flag flip, or competing same-service change is available to blame [tr_3bab1fb1c90a, tr_4f33e9a9e848]. (2) Logs place the first restart at ~05:21:42, twelve seconds after that change, with the service having logged normal order consumption as late as 02:09, so the workload was healthy earlier in the window and the onset is tightly coupled to the limit edit [tr_5f3879330cbb]. (3) The manner of death matters: every cycle ends after the javaagent banner with zero diagnostic output, which is what an external SIGKILL looks like from inside the process, and rules out both 'up but degraded' and 'controlled rollout' [tr_5f3879330cbb]. A JVM carrying an OpenTelemetry javaagent cannot complete startup inside a 200m ceiling, which explains why no instance reaches application code. I classify this as resource_exhaustion rather than bad_config because the running failure is the process being killed for exceeding memory it needs, not a value naming a wrong endpoint or credential; the remediation is nonetheless to revert the limit value to its prior setting, so config_revert is the corrective act. The metric dispatches contribute nothing either way: the error-ratio series has no samples in incident or baseline windows, indicating the calls_total series does not exist under that service_name label rather than a telemetry collapse at onset, and no container memory, OOMKilled reason, or restart-count data was retrieved at all [tr_8e1013d8852e, tr_07952637945a].",
+    "open_questions": [
+      "No container-level evidence was ever retrieved \u2014 no OOMKilled termination reason, exit code (137), memory working-set series, or kube restart count. The OOM mechanism is inferred from the log signature and timing, not directly observed [tr_07952637945a].",
+      "The prior memory limit is null in the change record, so the magnitude of the reduction is unknown; 200m may be a drastic cut or a modest one, and it may be a unit error (200m CPU-style millivalue vs an intended 200Mi) [tr_4f33e9a9e848].",
+      "Why platform-automation issued the change is unexamined \u2014 a VPA/rightsizing recommender, a policy default, or a bad template could re-apply it immediately after a revert.",
+      "Blast radius is recorded as one service, but no dispatch examined consumers of frauddetectionservice's Kafka topic or any downstream caller, so the true customer impact of the stopped order consumption is unmeasured.",
+      "Span-derived telemetry for this service appears absent under the queried label entirely [tr_8e1013d8852e]; whether that is a separate pre-existing instrumentation gap or a naming mismatch was never resolved."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The 200m value is itself malformed or semantically wrong (e.g. a unit slip where a CPU-style millivalue was written into a memory field), making the configuration value the defect rather than a merely tight-but-valid ceiling.",
+        "service": "frauddetectionservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Even if the value was written in error, what the service is doing wrong right now is dying for want of memory \u2014 the mechanism is exhaustion and the taxonomy assigns a limit lowered until a process is killed to resource_exhaustion. The remediation is identical, so nothing operational hinges on this distinction; it would only change the postmortem framing. Distinguishing it requires the prior limit value, which the change record does not carry [tr_4f33e9a9e848].",
+        "confidence": "low"
+      },
+      {
+        "root_cause": "The process fails during JVM/javaagent initialisation for a reason unrelated to memory \u2014 a failing startup or liveness probe, a missing mount, or a broken dependency reachable only at boot \u2014 and the limit change six minutes earlier is coincidental.",
+        "service": "frauddetectionservice",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "A twelve-second interval between the only recorded change in 24 hours and the first restart is hard to attribute to coincidence, and an application-level startup failure would normally emit a message or stack trace; the logs show the process dying with no output at all, which points to external termination rather than self-inflicted exit [tr_5f3879330cbb, tr_4f33e9a9e848]. This stays on the board only because no exit code or termination reason was ever retrieved to confirm the kill [tr_07952637945a].",
+        "confidence": "low"
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:world-emulated-containers / The collector does the same thing, and the consequence is worse: `otelcol` was measured at 291.7MiB of a 300M limit after about a day up - 97.2%, **the same\nunbounded shape**. Its limit was raised to 600M on the same reasoning, and the raise was taken\nknowing it buys time rather than fixing the growth, because the collector is the path every\nm",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:class-resource-exhaustion / The mechanism has a narrow usable band, measured: T7.20 probed it from both sides. **Too gentle and the container restarts faster than detection**,\nwith nothing alerting at all. **Too harsh and it never starts**, alerts far more widely than the\nfault, and stops exporting the runtime evidence that would describe it. CPU was retir"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 20848,
+    "pulled_tokens": 2722,
+    "pull_rate": 0.1155,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 329,
+        "content_tokens": 331,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1323,
+        "content_tokens": 1326,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6254,
+        "content_tokens": 6230,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5989,
+        "content_tokens": 5991,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 6953,
+        "content_tokens": 6930,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "frauddetectionservice",
+    "rests_on": [
+      "tr_3bab1fb1c90a",
+      "tr_4f33e9a9e848",
+      "tr_5f3879330cbb"
+    ],
+    "expected_effect": "Reverting the 05:21:30 resource_limits change should lift the 200m memory ceiling and let the JVM finish initialisation. Observable only in Loki on {service=\"frauddetection-service\"}: one final startup banner from the recreate, then no further banner at the ~62s cadence (05:23:32 / 05:24:34 / 05:25:36 / 05:26:39 / 05:27:41 / 05:28:43), and resumption of steady-state 'Consumed record with orderId ... updated total count to: N' lines, absent since ~02:09, with a rising count over several consecutive minutes. No metric can confirm this: container-level series are unavailable [tr_07952637945a] and span-derived metrics are empty in both windows [tr_8e1013d8852e].",
+    "confirm_within_seconds": 420,
+    "if_wrong": "Falsified if banners keep recurring on a ~60s cadence with no consumption lines \u2014 then the process dies for some other reason and the memory-limit story was coincidence. Also falsified if consumption resumes but the loop returns within minutes, or the applied config still reads memory=200m: that is platform-automation re-applying the change [tr_3bab1fb1c90a], and the real fix is in the recommender, outside this system. If the action is rejected for want of a recorded prior state \u2014 plausible, since the before-value is null [tr_4f33e9a9e848] \u2014 treat it as precondition failure, not evidence about memory, and escalate to a human who can read the manifest and set an explicit limit (200Mi vs 200m unit error).",
+    "risk": "revert_config restores the whole previous environment, not just the memory field; if that prior state carries stale dependency addresses or an older agent config, a visible crash loop becomes a quietly misconfigured service. The recreate also resets the backoff clock and destroys the cadence evidence in [tr_5f3879330cbb], which is currently the only signal we have.",
+    "blast_radius": "One service. frauddetectionservice is the sole service in the recorded blast radius, and it is already crash-looping, so the recreate costs little availability. Unmeasured: no dispatch examined consumers of its Kafka topic or downstream callers, so who notices order-consumption resuming \u2014 or breaking differently \u2014 is unknown."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A single critical alert on frauddetectionservice with no open incidents to attribute it to; critical severity is not dismissible as a quiet-world signal. No pattern in the alerts points to a specific fault class yet."
+  }
+}
