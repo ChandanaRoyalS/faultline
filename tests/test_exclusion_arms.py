@@ -112,3 +112,49 @@ def test_the_sweep_can_actually_express_the_arm() -> None:
     flags = {a.option_strings[0] for a in parser()._actions if a.option_strings}
 
     assert "--exclude-same-class" in flags
+
+
+# --- the seam, which none of the above crossed -------------------------------------------------
+
+
+def test_the_harness_side_and_the_agent_side_agree_on_what_an_origin_is(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """**Every test above passed while every run was INVALID.** They tested `exclusion_for` in
+    isolation; the string it produced then crossed into `faultline-investigate`, whose
+    `_exclusion_for` had always added `scenario:` to a bare id, and became
+    `scenario:scenario:ad-memory-squeeze` - an origin nothing carries, so the exclusion removed
+    nothing, so T4.1b marked the run INVALID. Found 2026-09-17 in the manifest of the first run
+    that completed after #344, not by any test.
+
+    So this test does what none of them did: it takes what the harness emits, hands it across
+    the same boundary a real run crosses, and asserts what comes out is exactly the set of
+    origins the corpus filters on.
+    """
+    from faultline.agents.investigation import Investigation
+
+    for scenario in runnable():
+        for args in (WITH, WITHOUT):
+            emitted = exclusion_for(scenario, args)
+            monkeypatch.setenv("FAULTLINE_EVAL_SCENARIO", ",".join(emitted))
+
+            parsed = Investigation._exclusion_for("any-incident")
+
+            assert parsed == frozenset(emitted), f"{scenario}: {sorted(parsed)} != {emitted}"
+            assert all(o.count("scenario:") == 1 for o in parsed), "no origin is prefixed twice"
+
+
+def test_the_agent_side_accepts_the_bare_id_every_recorded_sweep_passed(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Backwards: every sweep before #344 passed `--exclude-origins <id>` with no prefix, and
+    the archive's `trajectory_retrievals` rows say `scenario:<id>`. That spelling still works."""
+    from faultline.agents.investigation import Investigation, as_origin
+
+    monkeypatch.setenv("FAULTLINE_EVAL_SCENARIO", "ad-memory-squeeze, cart-bad-image-tag")
+
+    assert Investigation._exclusion_for("x") == frozenset(
+        {"scenario:ad-memory-squeeze", "scenario:cart-bad-image-tag"}
+    )
+    assert as_origin("scenario:ad-memory-squeeze") == as_origin("ad-memory-squeeze")
+    assert as_origin(as_origin("x")) == as_origin("x"), "idempotent"

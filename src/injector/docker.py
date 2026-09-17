@@ -46,6 +46,15 @@ class CommandRunner(Protocol):
     ) -> CommandResult: ...
 
 
+COMMAND_TIMEOUT_SECONDS = 300
+"""How long one docker verb may take before it is a failure.
+
+Longer than `rehearse.DOCKER_TIMEOUT_SECONDS` because these are the *writing* verbs - a compose
+recreate pulls and starts a container, where the read verbs only report. Bounded all the same:
+**every call here was unbounded**, so a wedged daemon did not fail an injection, it suspended it.
+"""
+
+
 class SubprocessRunner:
     """The real thing: subprocess with an argv list and no shell."""
 
@@ -54,13 +63,32 @@ class SubprocessRunner:
     ) -> CommandResult:
         # An argument list with shell=False by construction: a fault parameter is
         # data, and must never get a chance to be read as shell code.
-        completed = subprocess.run(
-            list(args),
-            cwd=cwd,
-            capture_output=True,
-            text=True,
-            check=False,
-        )
+        try:
+            completed = subprocess.run(
+                list(args),
+                cwd=cwd,
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=COMMAND_TIMEOUT_SECONDS,
+            )
+        except subprocess.TimeoutExpired as exc:
+            # **A wedged daemon is a failure, not a wait.** Without this an injection or a revert
+            # blocks forever, and a revert that never returns leaves a fault in the world -
+            # which is how a killed sweep on 2026-09-16 left `product-catalog-flag-failure`
+            # injected for sixteen hours and refused every run made after it.
+            raise CommandError(
+                CommandResult(
+                    args=tuple(args),
+                    returncode=124,
+                    stdout="",
+                    stderr=(
+                        f"timed out after {COMMAND_TIMEOUT_SECONDS}s. The docker daemon is not "
+                        "answering; the world's state is now unknown and "
+                        "`faultline-inject status` is what says whether a fault is still applied."
+                    ),
+                )
+            ) from exc
         result = CommandResult(
             args=tuple(args),
             returncode=completed.returncode,

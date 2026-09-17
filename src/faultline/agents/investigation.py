@@ -96,6 +96,28 @@ def _label(chunk: Any) -> str:
     return label
 
 
+ORIGIN_PREFIX = "scenario:"
+
+
+def as_origin(name: str) -> str:
+    """`scenario:<id>` from either `<id>` or `scenario:<id>`. **Idempotent, and that is the fix.**
+
+    `--exclude-origins` takes scenario ids despite its name, and this side has always added the
+    prefix. On 2026-09-17 the harness began passing origins - `exclusion_for` in `evalharness.run`
+    emits `scenario:<id>`, because that is what the manifest should record and what the store
+    filters on - and the two sides composed into `scenario:scenario:ad-memory-squeeze`. Nothing
+    carries that origin, so the exclusion removed nothing, so T4.1b's leave-one-out check marked
+    every completed run INVALID. Which is what it is for: the guard caught the defect and refused
+    the numbers, and the numbers were the only place the defect was visible.
+
+    Normalised here rather than fixed at the caller, because the caller is not the only one: every
+    recorded sweep passed the bare id, and the tests that exist pass both. A boundary that accepts
+    the two spellings and produces one cannot be made to double up again.
+    """
+    name = name.strip()
+    return name if name.startswith(ORIGIN_PREFIX) else f"{ORIGIN_PREFIX}{name}"
+
+
 class InvestigationFailedError(RuntimeError):
     """A run that raised, carrying what it had got to. **The distinction the runner needs.**
 
@@ -591,7 +613,7 @@ class Investigation:
 
         raw = os.environ.get("FAULTLINE_EVAL_SCENARIO", "")
         names = [part.strip() for part in raw.split(",") if part.strip()]
-        return frozenset(f"scenario:{name}" for name in names)
+        return frozenset(as_origin(name) for name in names)
 
     def _retrieve_for_planner(
         self,
