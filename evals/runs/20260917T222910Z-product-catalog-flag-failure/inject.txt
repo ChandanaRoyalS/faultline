@@ -1,0 +1,4 @@
+injected product-catalog-flag-failure (bad_config) on featureflagservice
+  - compose: featureflagservice recreated with FAULTLINE_ENABLED_FLAGS=productCatalogFailure
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/product-catalog-flag-failure.yml
+revert with: faultline-inject stop product-catalog-flag-failure

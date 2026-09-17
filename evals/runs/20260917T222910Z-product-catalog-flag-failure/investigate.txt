@@ -1,0 +1,39 @@
+incident 08461e85-9255-4d3a-a760-b5aa5afbdef7  state triaging  anchor 22:33:00
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 3bff65bb-761e-4b55-9592-2aa90808437b
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with simultaneous alerts on frontend, productcatalogservice, and the load generator indicates a real user-facing failure, not a single quiet latency warning. No open incidents to attribute it to, and the simultaneity leaves the origin ambiguous between a catalog-side fault and a shared dependency.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if someone produces evidence meeting a precondition I do not currently see: (a) a frontend change-history entry naming a deploy, image, or config edit inside the 22:03-22:35 window, which would make rollback_image or revert_config eligible; or (b) a frontend resource/GC series showing saturation or a restart-count pattern, which would make restart_service eligible as process-state evidence. Absent either, every permitted action is a guess. Note also that the only latency signal here is 10 sampled traces with one ~55ms outlier [tr_82279b161d2a] and no percentile series at all - so even the symptom I would be treating is unquantified, and I could not tell after a restart whether it had improved.
+  rests on    : tr_82279b161d2a, tr_d18ea2b81967
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 23921 pushed / 3056 pulled (pull rate 0.1133), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_82279b161d2a, tr_d18ea2b81967, tr_bf8410dff58c
+  root cause  : No investigated service is confirmed as origin; the one signal that survives scrutiny points inward at frontend. In all 10 sampled traces, frontend handler spans carry their duration as self-time (~4-7ms, one ~55ms outlier) with no child spans, while the outbound edges that appear (productcatalogservice/GetProduct, cartservice/GetCart with Redis HGET) return in single-digit ms with no error status [tr_82279b161d2a]. Frontend's own error ratio fell to about a fifth of baseline, so nothing is failing loudly downstream [tr_d18ea2b81967]. productcatalogservice is a co-symptom: its errors are only 1.22x its four-hour baseline and the 22:31 excursion is matched at 19:00 and 19:07 [tr_90363d0ff249], the zero-to-1.1% jump being an artifact of a short error-free baseline [tr_bf8410dff58c]. adservice memory-limit cycling is routine automation whose capped state ended ~1.9h before onset [tr_20ac9b3ec41c]. The failure is latency local to frontend's own processing, but no frontend latency-percentile, resource, or change data was ever retrieved, so the mechanism is unestablished.
+  OPEN        : No frontend CPU/memory/thread/GC or latency-percentile series was ever queried; frontend resource exhaustion remains untested.
+  OPEN        : No change history was queried for frontend, so a deploy or config edit on it is neither supported nor excluded.
+  OPEN        : The productcatalogservice log query used a mismatched label selector [tr_bc86f5cbbc83], so its logs are effectively unread; two of frontend's four outbound edges never appeared in the trace sample.
+  OPEN        : One unmeasured edge from triage was never crossed, and loadgenerator's simultaneous alert was not investigated.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:product-catalog-flag-failure'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T222910Z-product-catalog-flag-failure/08461e85-9255-4d3a-a760-b5aa5afbdef7-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T222910Z-product-catalog-flag-failure/08461e85-9255-4d3a-a760-b5aa5afbdef7-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8651.86it/s]

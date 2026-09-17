@@ -1,0 +1,43 @@
+incident 90ee42e5-1e5a-44aa-aba3-a51323976d98  state triaging  anchor 22:13:15
+triage: 3 services, severity critical, start from paymentservice, 2 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 2fc09098-6df5-478e-9195-0394378425df
+triage judged: investigate (medium confidence, suspects unknown)
+  A critical alert on paymentservice with checkout and frontend downstream is a revenue-path failure that cannot be dismissed without evidence. Nothing in the alert pattern points to a specific cause yet.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : paymentservice
+  expect      : After reverting OTEL_EXPORTER_OTLP_TRACES_ENDPOINT away from the loopback value set at 22:07:07, paymentservice spans should begin appearing in Tempo and the span-derived calls_total{service_name="paymentservice"} series should become non-empty in Prometheus within a few minutes, making the error-ratio query return samples instead of nothing. Charge request/completion logging in Loki should continue uninterrupted apart from the container recreate.
+  within      : 900s
+  risk        : The revert recreates the container. If paymentservice is in fact unhealthy in a way the logs did not show, the recreate drops in-flight charge requests and briefly resets connections. If the prior configuration is itself the broken state (telemetry was also absent while unset), the revert restores a non-emitting configuration and consumes an outage window for no gain. It also does not stop the platform-automation loop that has re-set this variable five times today, so the value may be re-applied within hours.
+  blast radius: paymentservice only for the recreate window; checkoutservice, its direct caller, sees connection resets on in-flight charge gRPC calls, and frontend may surface those as checkout errors. Tempo/Prometheus see paymentservice telemetry resume.
+  if wrong    : If, 15 minutes after the revert, Tempo still returns zero paymentservice spans and calls_total is still empty, the exporter endpoint was not the only break (the prior state was also unset from 18:47-22:07 with no telemetry, per tr_3eec73fcdc8a and tr_9c11b97d7914) and the fault lies in instrumentation or collector ingest, not this variable. Also note this action cannot be confirmed to silence the 22:13:15 alert, since no evidence identifies the firing rule.
+  rests on    : tr_3eec73fcdc8a, tr_9c11b97d7914, tr_2763aaff5c6f
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 22916 pushed / 6231 pulled (pull rate 0.2138), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_3eec73fcdc8a, tr_2763aaff5c6f, tr_9c11b97d7914, tr_29d582524105
+  root cause  : paymentservice is functionally healthy; what broke is its telemetry export path. All nine recorded changes are automated toggles of OTEL_EXPORTER_OTLP_TRACES_ENDPOINT between unset and the loopback address http://127.0.0.1:4317, with the final set at 22:07:07 — six minutes before the 22:13:15 alert — left unreverted [tr_3eec73fcdc8a]. A loopback OTLP address names a receiver that is not there, so spans never reach Tempo and the span-derived calls_total series never appears in Prometheus: zero paymentservice spans across six pre-incident hours [tr_9c11b97d7914], and an error-ratio query with no samples in either the incident or the baseline window [tr_2763aaff5c6f]. The log path, which does not depend on the exporter, shows charge requests arriving and completing sub-millisecond on both sides of 22:13:15 with no errors, no restart output and no throughput gap [tr_29d582524105], and the caller checkoutservice had a lower error ratio during the incident window than before it while serving traffic continuously [tr_7fa6ab3c7e72]. The wrong endpoint value is itself the mechanism, so the alert is best read as the absence of paymentservice telemetry rather than a payment failure.
+  OPEN        : Which alert rule fired at 22:13:15, and whether it was an absence-of-data condition rather than an error-rate threshold — nothing on the board identifies the firing signal.
+  OPEN        : Whether paymentservice spans exist at or after 22:07:07; the trace query ended at 21:13:15Z and never covered that period [tr_9c11b97d7914].
+  OPEN        : Why telemetry was also missing from 18:47 to 22:07 when the variable was unset, and whether real user impact occurred on the two unprobed edges — the checkoutservice query had no downstream dimension [tr_7fa6ab3c7e72].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:payment-telemetry-blackout'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T220700Z-payment-telemetry-blackout/90ee42e5-1e5a-44aa-aba3-a51323976d98-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T220700Z-payment-telemetry-blackout/90ee42e5-1e5a-44aa-aba3-a51323976d98-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8879.48it/s]

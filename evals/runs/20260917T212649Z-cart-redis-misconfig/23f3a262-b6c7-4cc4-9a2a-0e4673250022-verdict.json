@@ -1,0 +1,171 @@
+{
+  "incident_id": "23f3a262-b6c7-4cc4-9a2a-0e4673250022",
+  "trajectory_id": "0120bcce-bc86-4d2c-a35a-a9c660bfed7b",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:cart-redis-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "The failing hop is cartservice, not frontend or checkoutservice. All 10 sampled PlaceOrder traces share one shape and terminate at checkoutservice's call to CartService GetCart, whose leaf span returns in error in under ~1ms; checkoutservice spans have negligible self time and are in error only by propagation, as is the frontend root [tr_c1cb1f72f015]. Checkout logs show order-entry lines continuing with no crash and no error text, never reaching the first downstream completion milestone \u2014 a silent abort during cart fetch [tr_bafa0cef353f]. The sub-millisecond rejections rule out waiting on a slow dependency [tr_c1cb1f72f015]. Metrics show bursty, intermittent degradation rather than a step (checkout mean 0.047 -> 0.098, sd > mean, min 0, same 0.6667 peak as baseline, change points 20:53 and 21:29) [tr_e67e54de912d], mirrored at frontend [tr_37181737c804], which fits cartservice periodically depleting a resource (memory, or connections/threads to its cache backend) and rejecting calls immediately while depleted, rather than a constantly-wrong value or artifact. No change record exists for frontend or checkoutservice in the queried interval [tr_9b40de00ea0a][tr_8b305010869e]. Cartservice itself was never measured, so the exhausted resource is inferred from the failure signature, not observed.",
+    "service": "cartservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "scale",
+    "confidence": "low",
+    "evidence": [
+      "tr_c1cb1f72f015",
+      "tr_bafa0cef353f",
+      "tr_e67e54de912d"
+    ],
+    "reasoning": "Trace topology localises the fault to one hop: the error originates in the CartService GetCart leaf and propagates up through checkout to frontend, with checkout contributing almost no self time [tr_c1cb1f72f015]. Checkout's logs independently place the break after order entry and before any completion milestone, with the process alive and receiving traffic [tr_bafa0cef353f], which excludes checkout crash, traffic loss, and log-pipeline gaps. Fast rejections exclude dependency_latency. Frontend alerted first only because errors propagate toward the caller, and its own change log is empty [tr_9b40de00ea0a]. Choosing resource_exhaustion over the config/deploy alternatives rests on the burst structure and the unchanged peak severity with increased burst frequency [tr_e67e54de912d], which is an inference about mechanism from signature rather than a direct observation of cartservice \u2014 hence low confidence.",
+    "open_questions": [
+      "No cartservice metrics, logs, or change history were ever queried \u2014 the specific exhausted resource (memory/OOM, connection or thread pool, cache backend) is unverified, as is whether cartservice restarted.",
+      "Both change-history queries ran forward from onset rather than covering the preceding hours, so a pre-onset change to cartservice or its cache remains unqueried, not clean [tr_9b40de00ea0a][tr_8b305010869e].",
+      "Error elevation predates the 21:29 alert (frontend crossings at 20:52/20:56, checkout change point at 20:53) and peaks match baseline, so true onset and whether this is a step-up of chronic behaviour are unresolved [tr_37181737c804][tr_e67e54de912d]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A cartservice config value (e.g. cache/Redis address, credential, or pool limit) is itself wrong, causing immediate GetCart rejections.",
+        "service": "cartservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "A wrong value would fail continuously; the observed pattern is bursts interleaved with fully healthy intervals and a minimum error ratio of zero [tr_e67e54de912d][tr_37181737c804], and no change record supports it in the queried window."
+      },
+      {
+        "root_cause": "A cartservice deployment shipped an artifact that fails GetCart fast for a fraction of requests.",
+        "service": "cartservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Frontend and checkout error ratios are bursty rather than stepped and comparable peaks exist in baseline, which argues against a new artifact flipping a constant fraction of traffic [tr_37181737c804][tr_e67e54de912d]; cartservice change history was never queried either way."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:service-frontend / The at-rest latency tail: **Measured over twelve hours at 15s resolution on a world at rest** (ADR-0025): frontend's\nmedian p95 is 42.3ms, and 127 of 2398 samples were above the 250ms threshold, 94 of them above\n1000ms, in excursions sustained past the rule's three-minute `for:` clause. Two episodes in th",
+    "product-catalog-flag-failure / What ruled the alternatives out: Three discriminators did the work. (1) Frontend errors were raised on the grpc-js status-receive path, meaning frontend transcribed a peer-supplied status rather than manufacturing one; frontend also had no recorded change of any kind across the 24h spanning onset. That eliminate",
+    "shipping-wrong-image / Detection notes: - Onset to first page: **3m04s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 22934,
+    "pulled_tokens": 4922,
+    "pull_rate": 0.1767,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 484,
+        "content_tokens": 487,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1390,
+        "content_tokens": 1394,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6891,
+        "content_tokens": 6867,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6517,
+        "content_tokens": 6519,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7652,
+        "content_tokens": 7629,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_c1cb1f72f015",
+      "tr_bafa0cef353f",
+      "tr_e67e54de912d",
+      "tr_8b305010869e",
+      "tr_9b40de00ea0a"
+    ],
+    "expected_effect": "No action proposed, so no effect is predicted. What should happen next is measurement, not remediation: cartservice error-ratio and latency metrics, cartservice logs over 20:40-21:35, and a change-history query for cartservice and its cache backend covering the hours *before* 20:52 rather than forward from 21:29. Those four queries would turn the inferred exhausted resource into an observed one and would name an action class.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if cartservice metrics/logs, once queried, show an unambiguous process-state fault (OOM kills, restart count climbing, connection-pool-exhausted log lines) with no corresponding change record \u2014 at that point restart_service on cartservice becomes a supportable proposal and the delay cost real orders. It is also wrong if a pre-onset change record for cartservice or its cache exists, which would make rollback_image or revert_config the correct action and this abstention a missed cheap fix. Conversely, if the 0.6667 peak and identical baseline maximum reflect chronic low-volume noise rather than a new fault, no action was ever warranted and abstaining was right.",
+    "risk": "The named fix class, scale, is unavailable in this world: scale_service cannot execute against services declaring container_name, so proposing it would be proposing an action the world cannot perform. The only mechanically plausible substitute, restart_service on cartservice, fails its own precondition \u2014 the evidence never measured cartservice at all, so 'process state' is inferred from a failure signature, not observed. Restarting cartservice is explicitly irreversible and discards in-process state; for cartservice that state is the carts themselves, so a wrong diagnosis converts an intermittent ~10% checkout error rate into certain cart loss for every user holding one. The traces also show the failure is a sub-millisecond rejection with checkoutservice self-time near zero, which is consistent with resource depletion but equally consistent with a validation or cache-backend-address fault that a restart would not touch and might mask for one depletion cycle, destroying the signal needed to diagnose it.",
+    "blast_radius": "Had an action been proposed against cartservice, it would be seen by frontend (its named inbound caller) and transitively by checkoutservice's PlaceOrder path, which aborts at the GetCart hop, and by loadgenerator driving both. Every user with a populated cart would see it empty. As this is an abstention, the actual blast radius is that the incident continues at its observed level: frontend error ratio ~4.1% mean with bursts to ~36%, checkoutservice ~9.8% mean, orders silently aborting before the first completion milestone, for as long as the four outstanding cartservice queries remain unrun."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts hit frontend and checkoutservice near-simultaneously with user-facing impact, which cannot be dismissed. No open incidents to attribute it to, and the alert pattern alone doesn't distinguish a deploy, config, or downstream dependency cause."
+  }
+}

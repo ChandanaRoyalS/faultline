@@ -1,0 +1,43 @@
+incident c929e8f2-df48-451a-80a9-2afcbca19a21  state triaging  anchor 23:30:30
+triage: 12 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: d242003c-456a-47f0-8319-3d11df32435e
+triage judged: investigate (medium confidence, suspects unknown)
+  Checkout alerted first and its downstream consumers followed three minutes later, spreading to the load generator — a real, widening failure that cannot be dismissed. No open incident to attribute it to, and nothing in the alert pattern picks out a fault class yet.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : shippingservice
+  expect      : Shipping-service logs should stop the repeating JVM/agent startup preamble (ten cycles 23:28:25-23:34:54) and resume Rust-style GetQuoteRequest handling lines as last seen 23:27:25; newly sampled checkout traces should show a shippingservice server span under the checkoutservice GetQuote client span with the frontend/PlaceOrder chain no longer ERROR; checkoutservice logs should resume the payment/email/broker-write completions after each placement. No metric-side confirmation exists - shippingservice has no calls_total series in either window.
+  within      : 300s
+  risk        : Recreating the container destroys the uninspected evidence (running image digest, exit/restart reasons) and drops in-flight gRPC connections and cache. If the recorded prior tag is stale, shipping returns on an unverified build. If the loop is environmental rather than artifact-driven, the rollback is a no-op that costs another outage window.
+  blast radius: shippingservice alone changes, but its callers see the reset: checkoutservice's GetQuote hop, and through it frontend and loadgenerator. Downstream stages (paymentservice, emailservice, accountingservice) start receiving traffic again as checkouts complete.
+  if wrong    : Falsified if the JVM preamble keeps repeating after the recreate, which would support the unresolved alternative that those lines belong to another workload inheriting the shipping-service label and that the restart loop has an ungathered cause (external kill, probe, OOM). Also falsified if shipping serves again but GetQuote still fails with no server span, pointing at discovery/network. Also falsified if platform-automation re-applies the adservice image, in which case stopping the automation is the real fix and lies outside this system's actions.
+  rests on    : tr_8df2455f0e0e, tr_0dd84f9d81f9, tr_89bcb0420124
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 34323 pushed / 11740 pulled (pull rate 0.2549), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : tr_8df2455f0e0e, tr_0dd84f9d81f9, tr_89bcb0420124, tr_642597894060, tr_83d62c4c189e, tr_ec16a83cabf8, tr_a5de874d209c
+  root cause  : At 23:27:53, ~2 minutes before onset, platform-automation repointed shippingservice's image reference at an unrelated adservice-tagged demo artifact, and unlike the four prior occurrences of this same automated cycle that day, this swap was never reverted [tr_8df2455f0e0e]. The container that came up is not the shipping binary: shipping's logs change from Rust-style gRPC request handling (last quote served 23:27:25) to a repeating JVM/agent startup preamble recurring ten times through 23:34:54 without ever reaching a serving state [tr_0dd84f9d81f9]. With nothing listening on the expected gRPC port, checkoutservice's GetQuote client spans fail fast with no server span on the other end in all 10 sampled failing traces, aborting checkout before payment [tr_89bcb0420124]; checkout's own logs show orders that begin and never emit the payment, email, or broker-write completions they emitted earlier [tr_642597894060]. checkoutservice is the reporter, not the cause: no change records at all [tr_83d62c4c189e], no error-ratio change point near onset [tr_ec16a83cabf8], process alive throughout [tr_642597894060].
+  OPEN        : No dispatch inspected the running image digest or pod events on shippingservice; the wrong-artifact claim rests on the change record plus the runtime shift in logs.
+  OPEN        : The log specialist flagged that post-23:28 JVM lines may belong to a different workload inheriting the shipping-service label [tr_0dd84f9d81f9], so the restart loop is not definitively attributed to the shipping pod.
+  OPEN        : Why the process restarts is unexplained - no panic, bind failure, or OOM evidence was gathered, and shippingservice has no calls_total series in either window [tr_cb285e8828ab], leaving no metric-side confirmation of the cutoff.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:shipping-wrong-image'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T232744Z-shipping-wrong-image/c929e8f2-df48-451a-80a9-2afcbca19a21-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T232744Z-shipping-wrong-image/c929e8f2-df48-451a-80a9-2afcbca19a21-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9433.02it/s]

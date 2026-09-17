@@ -1,0 +1,169 @@
+{
+  "incident_id": "53746f08-a9fb-4ae3-8775-d250edbd946f",
+  "trajectory_id": "d58ddd1e-c656-4941-991e-b3598a8d5b3b",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:cart-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "Every PlaceOrder aborts at its first downstream call: CartService/GetCart returns an error immediately in all 10 sampled traces, and that error propagates up through checkoutservice and frontend [tr_ecd6b0a2ed0a]. checkoutservice logs show orders starting but never reaching payment/email/order-write, with no error lines of its own [tr_500ce94e6edd], and its internal spans have negligible self time [tr_ecd6b0a2ed0a] \u2014 so checkoutservice and frontend are reporters, not the fault. Blame lands on cartservice, which rejects cart reads outright in 2-4ms of self time (a fast rejection, not a wait). No specialist was dispatched to cartservice or its cart store, so the mechanism behind that rejection is not established by this board.",
+    "service": "cartservice",
+    "fault_class": "unknown",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_ecd6b0a2ed0a",
+      "tr_500ce94e6edd",
+      "tr_c2fc18f61dac",
+      "tr_0a565369e268"
+    ],
+    "reasoning": "Localisation is strong: the break is one hop downstream of checkoutservice at GetCart in 10/10 traces, with upstream spans inheriting the error, while payment, shipping, email and order-write spans never exist and checkoutservice self time is negligible [tr_ecd6b0a2ed0a]. Logs corroborate from the other side \u2014 PlaceOrder entries continue through 20:55:56 so the service is up, but completion entries present earlier in the window are absent in the contiguous 20:52-20:56 block [tr_500ce94e6edd]. Latency is affirmatively excluded: roots are 3-14ms and GetCart errors in 2-4ms, too fast for a deadline or stall [tr_ecd6b0a2ed0a]. productcatalogservice is cleared as origin (zero error ratio, zero variance, denominator defined throughout) [tr_0a565369e268]. checkoutservice metrics place a single change point at 20:53:00 reaching ~67% of calls against a pre-existing ~8% error floor, i.e. a sharp burst rather than a level shift in checkoutservice [tr_c2fc18f61dac]. Change logs for checkoutservice and productcatalogservice are empty and cover only onset forward [tr_21d4fce94b8b, tr_ee55b3ed60c5], so they exclude concurrent changes on those two services and nothing more. With no cartservice logs, metrics, or change history, I can name the failing component but not the mechanism; restart is a provisional pick for a store-connection or in-process state failure of this shape.",
+    "open_questions": [
+      "What does cartservice itself report at 20:53:00 \u2014 error logs, memory/connection saturation, restarts, or a recent deploy or config change? Nothing on this board touches it.",
+      "Is the cart backing store (Redis/valkey) reachable and healthy? A wrong endpoint/credential or an exhausted connection pool would both produce this fast rejection and imply different fixes.",
+      "Onset cannot be placed precisely: checkoutservice logs are truncated between ~19:54 and 20:52 [tr_500ce94e6edd], and change queries do not cover the hours before 20:54:15 [tr_ee55b3ed60c5]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "cartservice's backing cart store ran out of connections or memory, so cart reads are rejected immediately.",
+        "service": "cartservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "Fits the fast-rejection signature in [tr_ecd6b0a2ed0a], but no cartservice or store memory/connection/restart metrics were gathered, so the mechanism is asserted rather than shown.",
+        "confidence": "low"
+      },
+      {
+        "root_cause": "A cartservice config value (store address, credential, or connection limit) is wrong, so every GetCart fails on connect.",
+        "service": "cartservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "No change record was queried for cartservice at all, and the queried windows exclude the pre-onset hours [tr_ee55b3ed60c5], so there is no positive evidence of a wrong value."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-dependency-latency / What was never measured: Checkout's error-ratio change point sits ~19 minutes before the shaping attachment, overlapping the hotfix apply-and-restore window; that gap is unexplained and may be a second, independent story. No latency or request-rate series returned for either service, and traces cover onl",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl",
+    "runbook:service-frontend / The at-rest latency tail: **Measured over twelve hours at 15s resolution on a world at rest** (ADR-0025): frontend's\nmedian p95 is 42.3ms, and 127 of 2398 samples were above the 250ms threshold, 94 of them above\n1000ms, in excursions sustained past the rule's three-minute `for:` clause. Two episodes in th"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 24207,
+    "pulled_tokens": 4974,
+    "pull_rate": 0.1705,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 486,
+        "content_tokens": 489,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1684,
+        "content_tokens": 1688,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7384,
+        "content_tokens": 7360,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6760,
+        "content_tokens": 6762,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7893,
+        "content_tokens": 7897,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_ecd6b0a2ed0a",
+      "tr_500ce94e6edd"
+    ],
+    "expected_effect": "No action proposed, so no effect is predicted. The board localises the failure to cartservice's GetCart handler \u2014 error status in all 10 sampled traces with 2-4ms of self time, and checkoutservice execution never reaching payment/email/order-write [tr_ecd6b0a2ed0a, tr_500ce94e6edd] \u2014 but it contains no observation of cartservice itself: no cartservice logs, no cartservice error-ratio or restart/memory series, no cartservice change history. The next step that would earn a proposal is a dispatch to cartservice (logs at 20:53:00, restart and memory counters, change history covering the hours *before* 20:54:15) and to its Redis/valkey backing store for reachability.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if cartservice evidence arrives showing process-state exhaustion \u2014 an OOM or connection-pool-exhausted log line, a rising restart count, or memory at the container limit \u2014 in which case restart_service on cartservice becomes supportable and the delay cost real orders. It is also wrong if the outage is in fact self-healing on restart and every minute of abstention is lost revenue. Conversely, the abstention is vindicated if cartservice turns out to hold a bad Redis endpoint or credential, or an exhausted pool pointed at a dead store: both produce exactly this 2-4ms rejection, and a restart would either change nothing or clear the symptom just long enough to destroy the evidence.",
+    "risk": "The risk of abstaining is prolonged total checkout failure \u2014 every PlaceOrder is currently aborting, so the user-visible outage continues while the question is answered. The risk of the alternative, restarting cartservice on this board, is higher: restart_service is irreversible, its stated precondition (evidence pointing at process state rather than a change) is not met by any result here, it discards all in-memory cart contents for active shoppers, and if the true cause is a misconfigured or unreachable cart store the restart returns the service to the same rejecting state while erasing the log and memory evidence that would have identified it. Note also that change history was never queried for cartservice and the windows that were queried [tr_ee55b3ed60c5] run forward from onset, so a pre-onset cartservice deploy or config edit \u2014 which would call for rollback_image or revert_config, not restart \u2014 cannot presently be excluded.",
+    "blast_radius": "Nothing changes, so nobody sees a change. Had cartservice been restarted, the blast radius would be cartservice's container plus its named inbound callers: frontend (browse and cart pages, which would see connection resets for the duration of the recreate) and checkoutservice via prepareOrderItemsAndShippingQuoteFromCart, and through those, loadgenerator's traffic and the alerted frontend/checkoutservice SLOs. Shoppers with items in flight would lose their carts.",
+    "notes": "scale_service is unavailable in this world (ADR-0029) and would not address a fast rejection in any case; rollback_image and revert_config both require a recorded prior image or configuration and evidence naming a change inside the window, and no change query on this board covers cartservice at all."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts hit checkout and frontend simultaneously along with the load generator, indicating user-facing order flow breakage rather than a quiet warning. No open incident could account for it, and the shared downstream dependencies of checkout/frontend need evidence to narrow the cause."
+  }
+}

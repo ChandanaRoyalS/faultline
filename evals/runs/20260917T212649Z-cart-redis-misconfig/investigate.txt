@@ -1,0 +1,38 @@
+incident 23f3a262-b6c7-4cc4-9a2a-0e4673250022  state triaging  anchor 21:29:30
+triage: 12 services, severity critical, start from frontend, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 0120bcce-bc86-4d2c-a35a-a9c660bfed7b
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts hit frontend and checkoutservice near-simultaneously with user-facing impact, which cannot be dismissed. No open incidents to attribute it to, and the alert pattern alone doesn't distinguish a deploy, config, or downstream dependency cause.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if cartservice metrics/logs, once queried, show an unambiguous process-state fault (OOM kills, restart count climbing, connection-pool-exhausted log lines) with no corresponding change record — at that point restart_service on cartservice becomes a supportable proposal and the delay cost real orders. It is also wrong if a pre-onset change record for cartservice or its cache exists, which would make rollback_image or revert_config the correct action and this abstention a missed cheap fix. Conversely, if the 0.6667 peak and identical baseline maximum reflect chronic low-volume noise rather than a new fault, no action was ever warranted and abstaining was right.
+  rests on    : tr_c1cb1f72f015, tr_bafa0cef353f, tr_e67e54de912d, tr_8b305010869e, tr_9b40de00ea0a
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 22934 pushed / 4922 pulled (pull rate 0.1767), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : scale
+  confidence  : low
+  evidence    : tr_c1cb1f72f015, tr_bafa0cef353f, tr_e67e54de912d
+  root cause  : The failing hop is cartservice, not frontend or checkoutservice. All 10 sampled PlaceOrder traces share one shape and terminate at checkoutservice's call to CartService GetCart, whose leaf span returns in error in under ~1ms; checkoutservice spans have negligible self time and are in error only by propagation, as is the frontend root [tr_c1cb1f72f015]. Checkout logs show order-entry lines continuing with no crash and no error text, never reaching the first downstream completion milestone — a silent abort during cart fetch [tr_bafa0cef353f]. The sub-millisecond rejections rule out waiting on a slow dependency [tr_c1cb1f72f015]. Metrics show bursty, intermittent degradation rather than a step (checkout mean 0.047 -> 0.098, sd > mean, min 0, same 0.6667 peak as baseline, change points 20:53 and 21:29) [tr_e67e54de912d], mirrored at frontend [tr_37181737c804], which fits cartservice periodically depleting a resource (memory, or connections/threads to its cache backend) and rejecting calls immediately while depleted, rather than a constantly-wrong value or artifact. No change record exists for frontend or checkoutservice in the queried interval [tr_9b40de00ea0a][tr_8b305010869e]. Cartservice itself was never measured, so the exhausted resource is inferred from the failure signature, not observed.
+  OPEN        : No cartservice metrics, logs, or change history were ever queried — the specific exhausted resource (memory/OOM, connection or thread pool, cache backend) is unverified, as is whether cartservice restarted.
+  OPEN        : Both change-history queries ran forward from onset rather than covering the preceding hours, so a pre-onset change to cartservice or its cache remains unqueried, not clean [tr_9b40de00ea0a][tr_8b305010869e].
+  OPEN        : Error elevation predates the 21:29 alert (frontend crossings at 20:52/20:56, checkout change point at 20:53) and peaks match baseline, so true onset and whether this is a step-up of chronic behaviour are unresolved [tr_37181737c804][tr_e67e54de912d].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-redis-misconfig'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T212649Z-cart-redis-misconfig/23f3a262-b6c7-4cc4-9a2a-0e4673250022-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T212649Z-cart-redis-misconfig/23f3a262-b6c7-4cc4-9a2a-0e4673250022-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8607.56it/s]

@@ -1,0 +1,39 @@
+incident 245970b8-4738-4a9f-9581-e9a84533e7e1  state triaging  anchor 22:52:45
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: d35de590-cdf2-4eb3-bd9d-d88915ade0de
+triage judged: investigate (medium confidence, suspects unknown)
+  Four services alerting simultaneously along the cart/checkout/frontend path is a coherent user-facing failure, not a single quiet latency warning, so it cannot be dismissed despite the warning label. No open incidents to attribute it to, and nothing in the alert pattern points to a specific cause yet.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if the withheld resource series, once retrieved, name a specific saturating component with a matching change entry inside the incident window - for example a frontend config change altering pool size or timeouts, or a restart-count series on frontend climbing from 22:52:45. Either would convert an inferred client-side saturation into a measured one and could meet the preconditions for revert_config or restart_service. It is also wrong if the middle of the checkoutservice log window, currently unobserved due to truncation to oldest 8 / newest 32 lines, contains error lines that reclassify this as an error incident rather than a latency one. Note that the mechanism proposed by the verdict - caller-side transport or pool queueing - has no metric currently collected that could show it improving, so even a plausible action here would produce an effect nobody in this system could observe; that alone argues against acting.
+  rests on    : tr_67bb549f6840, tr_1acc6074b03c, tr_15e8ff0c49e1, tr_bedabf035e1f, tr_d64c9ae9d951
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 26520 pushed / 8046 pulled (pull rate 0.2328), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : none
+  confidence  : low
+  evidence    : tr_1acc6074b03c, tr_bedabf035e1f, tr_d64c9ae9d951, tr_67bb549f6840, tr_27ccd8aed2d7, tr_15e8ff0c49e1
+  root cause  : cartservice alerted but is not the failing component. Its own spans are fast (0.1-0.6ms self time), its Redis calls are fast, its logs are error-free and continuous, and every one of the 32 recorded changes to it was paired with a revert leaving baseline state with a clean ~1.3h gap before onset. The unexplained time sits on the caller side of the frontend->cartservice hop: in 8 of 10 traces the frontend client span's self time exceeds the whole downstream cartservice server span, with 0.7-2.2ms gaps before the server span starts. Checkoutservice shows the same shape - orders still complete end to end, but per-order wall clock grew from ~20ms to ~0.65s spread across payment, email and queue steps rather than concentrated in one dependency. A broad, caller-side slowdown affecting many hops with no errors anywhere is most consistent with the frontend/client-side call path waiting - transport, connection-pool or queueing saturation - rather than any single downstream being slow. No resource series were ever retrieved, so the underlying exhaustion cannot be named.
+  OPEN        : No resource metrics (CPU throttling, memory, connection pool, GC, restarts) were ever collected for frontend or cartservice, so client-side saturation is inferred, not measured.
+  OPEN        : Trace sampling covered 15:52-21:52, ending an hour before onset at 22:52:45; no traces from the incident window itself were examined.
+  OPEN        : checkoutservice logs were truncated to the oldest 8 and newest 32 lines, so error lines in the middle of the window remain unobserved.
+  OPEN        : frontend, loadgenerator and the other 8 services in the blast radius were never directly queried; the shippingservice->quoteservice hop flagged in one trace is also unexplored.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:redis-cart-dependency-latency'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T224908Z-redis-cart-dependency-latency/245970b8-4738-4a9f-9581-e9a84533e7e1-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T224908Z-redis-cart-dependency-latency/245970b8-4738-4a9f-9581-e9a84533e7e1-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9984.36it/s]
