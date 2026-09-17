@@ -80,14 +80,44 @@ class RehearsalError(RuntimeError):
     """Something went wrong that makes the recorded bundle untrustworthy."""
 
 
+DOCKER_TIMEOUT_SECONDS = 120
+"""How long any single `docker` call may take before it is a failure rather than a wait.
+
+**Every `subprocess.run` on a docker verb had no timeout at all**, so a slow or wedged daemon
+did not slow the harness down - it stopped it, silently and forever. Measured 2026-09-17: a
+sweep sat in `faultline-eval`'s baseline gate for **thirteen minutes** with no output, no child
+process and nothing written, inside `docker stats --no-stream` across thirty containers. Two
+earlier blocks had died the same way and were read as a settling problem.
+
+120s rather than something tight, because `docker stats --no-stream` is legitimately slow on a
+thirty-container world on Docker Desktop - the point is not to catch a slow call, it is that an
+unbounded one turns an unattended sweep into a process nobody can tell from a working one.
+"""
+
+
+def _docker_timeout(args: list[str], seconds: int) -> RehearsalError:
+    """The error a timed-out docker call raises. **Says what to do, not just what failed.**"""
+    return RehearsalError(
+        f"{' '.join(args[:3])} did not return within {seconds}s, so the world cannot be read.\n"
+        "The docker daemon is wedged or overloaded rather than the world being wrong: nothing "
+        "was injected and nothing was measured.\n"
+        "Usually `docker ps` hanging in another terminal says the same thing. Restarting Docker "
+        "Desktop clears it; a sweep that hit this should be re-run, not resumed."
+    )
+
+
 def injector(*args: str) -> str:
     """Drive the injector through its public CLI, never its internals."""
-    result = subprocess.run(
-        ["faultline-inject", *args],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    try:
+        result = subprocess.run(
+            ["faultline-inject", *args],
+            capture_output=True,
+            text=True,
+            check=False,
+            timeout=DOCKER_TIMEOUT_SECONDS,
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise _docker_timeout(["faultline-inject", *args], DOCKER_TIMEOUT_SECONDS) from exc
     if result.returncode != 0:
         raise RehearsalError(
             f"faultline-inject {' '.join(args)} failed:\n{result.stdout}{result.stderr}"
@@ -308,7 +338,12 @@ fill page cache, and reading *that* is what produced T7.13's retracted 90-minute
 
 
 def _docker_out(args: list[str]) -> str:
-    result = subprocess.run(args, capture_output=True, text=True, check=False)
+    try:
+        result = subprocess.run(
+            args, capture_output=True, text=True, check=False, timeout=DOCKER_TIMEOUT_SECONDS
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise _docker_timeout(args, DOCKER_TIMEOUT_SECONDS) from exc
     if result.returncode != 0:
         raise RehearsalError(f"{' '.join(args[:3])} failed:\n{result.stderr.strip()}")
     return result.stdout
@@ -321,12 +356,16 @@ def container_memory_usage() -> list[tuple[str, float, str]]:
     world, and the recorder needs the answer before it injects rather than two scrapes
     later.
     """
-    result = subprocess.run(
-        ["docker", "stats", "--no-stream", "--format", "{{.Name}}\t{{.MemPerc}}\t{{.MemUsage}}"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
+    stats = ["docker", "stats", "--no-stream", "--format", "{{.Name}}\t{{.MemPerc}}\t{{.MemUsage}}"]
+    try:
+        # **The call that hung a sweep for thirteen minutes.** `--no-stream` bounds how much it
+        # prints and not how long it takes; on thirty containers it is the slowest docker verb
+        # the harness uses, and it was the only one with nothing to stop it.
+        result = subprocess.run(
+            stats, capture_output=True, text=True, check=False, timeout=DOCKER_TIMEOUT_SECONDS
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise _docker_timeout(stats, DOCKER_TIMEOUT_SECONDS) from exc
     if result.returncode != 0:
         raise RehearsalError(
             f"docker stats failed, so the world cannot be checked:\n{result.stderr}"

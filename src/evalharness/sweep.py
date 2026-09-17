@@ -605,6 +605,15 @@ def _shell(argv: list[str]) -> int:  # pragma: no cover - the subprocess path
 
 
 RECYCLE_SETTLE_SECONDS = 300
+"""Kept for the record. **`wait_until_settled` replaced the sleep this named** - see its
+docstring: a fixed wait equal to the gate's threshold is always short by the restart's duration."""
+
+RECYCLE_SETTLE_CAP_SECONDS = 900
+"""How long `wait_until_settled` will wait before going on and letting the gate decide.
+
+Three times the threshold. A world that is still restarting containers after fifteen minutes has
+something wrong with it that waiting does not fix, and the gate's refusal names it better than a
+timeout here would."""
 """What the baseline gate's own refusal says: *"Containers settle in 300s."* A recycle followed
 immediately by a run trades one refusal for another."""
 
@@ -619,14 +628,60 @@ def _recycle_world() -> None:  # pragma: no cover - the subprocess path
     printed these exact two commands at every refusal since T7.29; `PREREGISTRATION-T6.1.md`
     section 4 registered them as a continuity event between passes. This is that, executed.
     """
-    subprocess.run(["docker", "restart", "kafka"], check=False)
+    from evalharness.rehearse import DOCKER_TIMEOUT_SECONDS
+
+    subprocess.run(["docker", "restart", "kafka"], check=False, timeout=DOCKER_TIMEOUT_SECONDS)
     time.sleep(20)
     subprocess.run(
         ["docker", "restart", "accounting-service", "frauddetection-service", "checkout-service"],
         check=False,
+        timeout=DOCKER_TIMEOUT_SECONDS,
     )
-    print(f"--- recycled; settling {RECYCLE_SETTLE_SECONDS}s before the next pass", flush=True)
-    time.sleep(RECYCLE_SETTLE_SECONDS)
+    print("--- recycled; waiting for the world to settle before the next pass", flush=True)
+    wait_until_settled()
+
+
+def wait_until_settled(cap: int = RECYCLE_SETTLE_CAP_SECONDS) -> int:
+    """Block until no container is younger than the gate's threshold. Returns that age.
+
+    **This was `time.sleep(RECYCLE_SETTLE_SECONDS)`, and the two constants were both 300.** The
+    sleep began when `docker restart` was *issued*; the containers' `StartedAt` is strictly later
+    than that, by however long the restart took. So the wait was always shorter than the guard by
+    exactly the restart duration, and `rehearse.require_settled_containers` refused the first run
+    of every pass **by construction** - a recycle that could never satisfy the guard it existed
+    to satisfy.
+
+    It looked like bad luck rather than a certainty because the retry would have cleared it a
+    minute later, and until `DOCKER_TIMEOUT_SECONDS` the retries could hang instead.
+
+    Waiting on the world rather than on the clock also removes the constant: there is nothing to
+    re-tune if a restart gets slower, and the log says what it is waiting for instead of going
+    quiet for five minutes, which is the other half of why this was mistaken for a hang.
+    """
+    from evalharness.rehearse import MIN_CONTAINER_UPTIME_SECONDS, container_uptimes
+
+    deadline = time.monotonic() + cap
+    while True:
+        uptimes = container_uptimes()
+        if not uptimes:
+            return 0
+        name, youngest = uptimes[0]
+        if youngest >= MIN_CONTAINER_UPTIME_SECONDS:
+            print(f"--- settled: youngest container {name} is {youngest}s old", flush=True)
+            return youngest
+        if time.monotonic() >= deadline:
+            # **Reported and not raised.** The gate is the thing that refuses an unsettled world,
+            # and it refuses with a reading of its own. A second refusal here would make the
+            # sweep's own patience a second opinion about the same question.
+            print(
+                f"--- still unsettled after {cap}s: {name} is {youngest}s old. Going on; the "
+                "gate decides.",
+                flush=True,
+            )
+            return youngest
+        wait = min(MIN_CONTAINER_UPTIME_SECONDS - youngest + 5, 60)
+        print(f"--- {name} is {youngest}s old; waiting {wait}s", flush=True)
+        time.sleep(wait)
 
 
 def parser() -> argparse.ArgumentParser:

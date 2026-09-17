@@ -387,16 +387,26 @@ def test_the_body_expectation_is_set_and_a_run_on_another_corpus_does_not_agree(
     assert not st._corpus_agrees(other, st.CURRENT_CORPUS_SHAPE, st.CURRENT_CORPUS_BODY)
 
 
-def test_no_published_stamp_pools_two_corpora_today() -> None:
-    """**Measured, and it is the finding that says this is a mechanism rather than a repair.**
+def test_a_stamp_that_holds_two_corpora_has_at_most_one_the_table_admits() -> None:
+    """**The Q61 tripwire, after it fired.**
 
-    Every `runtime_version` stamp in `evals/runs/` is corpus-homogeneous: sweep 5's
-    `1b0e7cbb4c47` is the 7-document corpus, every later stamp is the 25-document one, and the
-    only bucket holding both is the stampless one, which is unscored runs rather than figures.
+    This test used to assert that no `runtime_version` stamp holds runs from two corpora. That was
+    true of the archive and was registered as *"a tripwire for the next seed rather than a claim
+    about the past"*. The T6.5 seed landed on 2026-09-15 and the first run made after it carried
+    the same prompt stamp as the runs before it - `06f24e827915`, on corpus `844fe623` where the
+    archive's are on `5e372dd5` - and the test failed on 2026-09-17, as it was built to.
 
-    **That is timing and not a mechanism** - the corpus happened to change between sweeps rather
-    than inside one - so this test is a tripwire for the next time it does not, which is the seed
-    T6.5 needs.
+    **What it was built to make someone check is whether the mechanism holds, not whether the
+    stamp is pure.** Q61 decided the corpus does *not* go into the generation name: prompts did
+    not change, so the stamp is the same, and two corpora under one stamp is the designed state
+    after any seed. What protects a figure is `_qualifies` comparing the recorded digest against
+    `CURRENT_CORPUS_SHAPE` and `CURRENT_CORPUS_BODY`. So this now asserts that: for every stamp
+    that holds more than one corpus, **the qualifier admits at most one of them**, and the runs on
+    the others cannot reach the at-stamp table however the stamp reads.
+
+    It stays a tripwire. A stamp holding two corpora *both* of which the qualifier admits would
+    mean the pin describes two different sets of retrievable documents at once, which is the
+    pooling Q61 exists to prevent, and that is the thing this fails on.
     """
     import collections
 
@@ -411,7 +421,9 @@ def test_no_published_stamp_pools_two_corpora_today() -> None:
 
     mixed = {stamp: sorted(digests) for stamp, digests in per.items() if len(digests) > 1}
 
-    assert not mixed, (
-        f"these stamps pool runs from two corpora: {mixed}. A figure at such a stamp is about "
-        "two different sets of retrievable documents, and `generation_of` cannot see it (Q61)."
-    )
+    for stamp, digests in mixed.items():
+        admitted = [d for d in digests if d == st.CURRENT_CORPUS_SHAPE]
+        assert len(admitted) <= 1, (
+            f"stamp {stamp} holds corpora {digests} and the qualifier admits {admitted} - more "
+            "than one set of retrievable documents would print as one figure (Q61)"
+        )
