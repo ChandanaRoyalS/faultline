@@ -1,0 +1,166 @@
+{
+  "incident_id": "8ceb0ff7-ef61-4bd4-b59c-ddd44ec527d4",
+  "trajectory_id": "5b5c5888-7dd3-4757-bca6-da7053b7a526",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:shipping-wrong-image"
+  ],
+  "verdict": {
+    "root_cause": "checkoutservice fails ~11% of PlaceOrder calls (peak ~29%) because its outbound gRPC call to hipstershop.ShippingService/GetQuote inside prepareOrderItemsAndShippingQuoteFromCart fails fast: the client span is ERROR with ~2ms self time and no shippingservice server-side child, meaning the call fails at or before reaching shippingservice. Checkout aborts the order there, so payment, email, EmptyCart and ShipOrder never run, and frontend/loadgenerator alert as callers. checkoutservice itself keeps serving, logs no exceptions or restarts, and has no recorded change. No dispatch touched shippingservice, so the failing mechanism behind the unanswered GetQuote calls is not identified by the evidence in hand.",
+    "service": "shippingservice",
+    "fault_class": "unknown",
+    "remediation_class": "restart",
+    "confidence": "medium",
+    "evidence": [
+      "tr_2cfe1ebbc275",
+      "tr_67c82c6818b1",
+      "tr_764881231624"
+    ],
+    "reasoning": "Traces [tr_2cfe1ebbc275] localise the break to the GetQuote hop and clear the dependencies that do answer (cartservice, currencyservice, productcatalogservice all under ~2ms, no errors; paymentservice and emailservice never invoked post-onset). The same result rules out a latency hang \u2014 traces complete in 6-10ms with explicit ERROR \u2014 which is why dependency_latency is rejected despite the 'silent stalling' impression in [tr_764881231624]; explicit span status outranks inference from missing completion lines. [tr_764881231624] shows checkoutservice alive, info-only, intake continuous through 20:01:34, so it is the noticer not the fault; [tr_509231b777b0] and [tr_3ec607a3891f] find no checkoutservice change, though both windows start at 19:58:45 and cover only the seed service. [tr_67c82c6818b1] confirms a genuine, partial, bursty regression with change points at ~19:36:30 and ~19:57. With zero signals from shippingservice, the mechanism (refused connections, crashed replicas, wrong endpoint) cannot be named, so fault_class is unknown and restart is the pragmatic capacity-restoring action rather than a mechanism claim.",
+    "open_questions": [
+      "shippingservice was never queried: its logs, metrics, restart/OOM history and change record are all unexamined.",
+      "Change history covered only checkoutservice from 19:58:45 onward, so changes to shippingservice or anything before the 19:36:30 change point are unknown.",
+      "Why failures are partial (~11%, bursty) rather than total \u2014 partial replica loss versus intermittent connection failure \u2014 is unresolved."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "shippingservice was deployed with a broken artifact that cannot serve GetQuote, so connections are refused or reset immediately.",
+        "service": "shippingservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Plausible and consistent with the missing server span, but no shippingservice change record or log was ever retrieved, so the artifact claim is unsupported."
+      },
+      {
+        "root_cause": "shippingservice exhausted a resource (memory, connections, threads), losing replicas progressively and refusing a growing fraction of GetQuote calls.",
+        "service": "shippingservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "scale",
+        "why_not": "Fits the two-step, partial, bursty error profile, but no shippingservice resource metric or kill event was observed to support it."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-dependency-latency / What was never measured: Checkout's error-ratio change point sits ~19 minutes before the shaping attachment, overlapping the hotfix apply-and-restore window; that gap is unexplained and may be a second, independent story. No latency or request-rate series returned for either service, and traces cover onl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 27884,
+    "pulled_tokens": 9387,
+    "pull_rate": 0.2519,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 467,
+        "content_tokens": 469,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1752,
+        "content_tokens": 1755,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8656,
+        "content_tokens": 8631,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7900,
+        "content_tokens": 7901,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9109,
+        "content_tokens": 9112,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_2cfe1ebbc275",
+      "tr_764881231624",
+      "tr_509231b777b0",
+      "tr_3ec607a3891f"
+    ],
+    "expected_effect": "No action is proposed, so the prediction is that checkoutservice's error ratio stays around 11% with bursts to ~29% (same Prometheus query on calls_total by status_code) and PlaceOrder traces keep terminating at the ERROR GetQuote client span with no shippingservice server child, until the open questions on shippingservice are closed. The evidence names shippingservice as the far end of the failing hop but says nothing about shippingservice's own state: its logs, metrics, restart/OOM history and change record are all unqueried [tr_2cfe1ebbc275]. restart_service requires evidence pointing at process state; here there is none for shippingservice, and for checkoutservice the evidence positively contradicts a process-state fault - intake logging continues at 5-15s spacing through 20:01:34 with no exceptions, panics or restarts [tr_764881231624]. rollback_image and revert_config both require a recorded prior image or config for the target; the only change-history queries run covered checkoutservice and returned empty, and began at 19:58:45 - after the 19:36:30 change point - so no change artifact exists to roll back or revert for any service in the blast radius [tr_509231b777b0, tr_3ec607a3891f]. scale_service is unavailable. The next step is investigative, not remedial: query shippingservice logs, restart/OOM history and change record over 19:20-20:05, and break checkoutservice's error ratio down per-dependency, which the aggregate query could not do.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "This abstention is wrong if a shippingservice query comes back showing process-state evidence - restart or OOM-kill entries, a crash loop, or connection-refused/unavailable log lines timed to the 19:36:30 and 19:57:00 change points - in which case restart_service on shippingservice becomes defensible and the delay cost real orders. It is also wrong if change history for shippingservice, or for checkoutservice before 19:58:45, turns up a deploy or config edit naming a shipping endpoint, which would make rollback_image or revert_config the correct action. Note that the mechanism I am declining to act on is partly unobservable with the signals in hand: a failure at or before the connection (DNS, connection pool, network path) leaves no server-side span and no error log on either side, so its absence from the board is not evidence of its absence.",
+    "risk": "The risk of abstaining is continued order loss: roughly 11% of PlaceOrder calls keep failing before payment, email, EmptyCart and ShipOrder, and frontend and loadgenerator keep alerting, for as long as the investigation takes. The risk of the alternative - restarting shippingservice on this evidence - is that if the fault is in the connection path rather than in shippingservice's process (DNS resolution, a stale connection pool on the checkoutservice side, or partial replica loss), the restart discards shippingservice's caches and resets its connections for nothing, resets the clock on any evidence its process held, and is not reversible.",
+    "blast_radius": "No service is touched, so nobody sees a change. The parties already seeing the fault continue to: checkoutservice (seed), its callers frontend and loadgenerator (alerted), and the order-completion path downstream of the shipping quote - paymentservice and emailservice - which keep receiving no traffic for the failing orders."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on checkoutservice followed by the load generator indicates real user-facing order failures, not a lone warning. No open incidents to attribute it to, and the many unmeasured downstream dependencies leave the cause open."
+  }
+}

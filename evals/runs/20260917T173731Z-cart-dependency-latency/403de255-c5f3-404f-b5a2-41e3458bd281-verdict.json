@@ -1,0 +1,169 @@
+{
+  "incident_id": "403de255-c5f3-404f-b5a2-41e3458bd281",
+  "trajectory_id": "95ac7e92-91bf-44c5-8957-1177fcb49722",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:cart-dependency-latency"
+  ],
+  "verdict": {
+    "root_cause": "A platform-automation traffic-shaping container was attached to cartservice's network namespace ~3 minutes before onset, imposing a fixed ~300ms egress delay with zero jitter on eth0; unlike every prior cycle of this scripted apply/revert pattern, the matching removal never ran, so the delay was still active at onset [tr_8fe3c3e43f8d]. Traces show exactly that signature: all cartservice Redis operations sit in a tight ~301-307ms band while cartservice's own span self time is ~0.4-1.2ms, and callers carry a matching ~300ms per RPC, with trace totals scaling additively with cartservice hop count [tr_9a736ec83a3b]. cartservice never crashed and logged no errors [tr_f605a5fd6392]. checkoutservice, which makes the most cartservice round trips per checkout, converts that accumulated wait into failed calls at ~170x baseline error ratio [tr_cff02bc6c377]. The mechanism is injected wait on the cartservice call path; running the absent teardown step stops it.",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_8fe3c3e43f8d",
+      "tr_9a736ec83a3b",
+      "tr_cff02bc6c377"
+    ],
+    "reasoning": "The change record places a 300ms/0-jitter egress delay on cartservice's namespace minutes before onset with no removal [tr_8fe3c3e43f8d], and traces independently measure that exact shape: a uniform per-round-trip floor, additive with hop count, with cartservice application self time near zero and all other checkout dependencies at low-millisecond latency - excluding cluster-wide faults, cartservice CPU, and retry storms [tr_9a736ec83a3b]. checkoutservice, frontend and loadgenerator alerting seconds after cartservice follows from accumulated per-hop delay downstream [tr_cff02bc6c377]. It is dependency_latency rather than bad_config because the failure is the wait inserted into the call path, not a value naming something wrong; not bad_deploy because the hotfix image was reverted ~13 minutes before onset and no rollout or restart occurred [tr_8fe3c3e43f8d, tr_f605a5fd6392].",
+    "open_questions": [
+      "checkoutservice's only error-ratio change point is 17:19:15, ~18 minutes before the shaping container existed [tr_cff02bc6c377], so an earlier phase of the automation cycle may contribute an unexplained error component.",
+      "No cartservice traces before 17:42:48 and truncated logs from ~17:11-17:42 [tr_9a736ec83a3b, tr_f605a5fd6392] mean there is no pre-onset baseline confirming the 300ms floor was absent earlier.",
+      "checkoutservice logs/traces were never dispatched, so the actual failure mode of its errored calls (deadline exceeded vs. other) is unverified; cartservice latency, saturation and restart series were also never retrieved [tr_712aa1924b1d]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "checkoutservice itself regressed at 17:19:15 and its errors are independent of the cartservice delay.",
+        "service": "checkoutservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "No change or code evidence on checkoutservice was gathered, and its trace spans show the ~300ms floor only on cartservice-bound hops while its other dependencies stay fast [tr_9a736ec83a3b]; the delay's origin is demonstrably in cartservice's namespace [tr_8fe3c3e43f8d]."
+      },
+      {
+        "root_cause": "The cartservice REDIS_ADDR override or the reverted hotfix image left cartservice pointed at or running the wrong thing.",
+        "service": "cartservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Both were reverted before onset - REDIS_ADDR nearly four hours prior, the image ~13 minutes prior - and cart reads and writes both succeed with no connection errors [tr_8fe3c3e43f8d, tr_f605a5fd6392]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "redis-cart-dependency-latency / What the investigation concluded: Cart requests stayed successful but every Redis client span inside cartservice consumed a tightly clustered ~300-310ms, while the enclosing gRPC handler self-time stayed under ~2ms. Total operation latency tracked round-trip count exactly: one command (GetCart) ~305ms, two comman",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "redis-cart-dependency-latency / What was never measured: Whether an unlogged seventh attachment cycle began at onset, or whether a logged detachment left the shaping element in place, was never determined - the cart-service network namespace was never inspected while the condition was live. redis-cart was never queried at all: no serve"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25958,
+    "pulled_tokens": 5974,
+    "pull_rate": 0.1871,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 479,
+        "content_tokens": 481,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1563,
+        "content_tokens": 1567,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7971,
+        "content_tokens": 7947,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7312,
+        "content_tokens": 7314,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8633,
+        "content_tokens": 8610,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_8fe3c3e43f8d",
+      "tr_9a736ec83a3b",
+      "tr_cff02bc6c377"
+    ],
+    "expected_effect": "Reverting cartservice to its recorded prior configuration and recreating the container should detach the traffic-shaping container bound to its network namespace, removing the fixed ~300ms egress delay. Expect in Tempo: cartservice Redis HGET/HMSET self time leaves the ~301-307ms band and falls to single-digit ms; cartservice AddItem/GetCart spans drop from ~603-613ms to a few ms; checkout traces fall from ~2.4s. Expect in Prometheus: checkoutservice error ratio falls from the incident mean ~0.18 toward the ~0.001 baseline. cartservice's own error-ratio series is empty in both windows, so confirmation must come from traces plus checkoutservice's ratio.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, 3-5 minutes after the recreate, cartservice Redis spans still sit at ~300ms with ~1ms server self time - meaning the shaping rule survives container recreation or is re-applied by the platform-automation cycle, and only the missing teardown step (outside this allowlist) fixes it. Also falsified if latency normalises but checkoutservice error ratio stays far above baseline, consistent with the unexplained 17:19:15 change point.",
+    "risk": "If the diagnosis is wrong, this recreates a service that logs show is healthy and serving traffic continuously, for no benefit: cart in-memory/cache state is discarded and in-flight cart RPCs fail during the recreate. The reverted config also includes a REDIS_ADDR value; if change history's 'previous' configuration is the alternate-port override rather than baseline, the revert could point cartservice at the wrong redis and turn a latency incident into a hard cart outage. Verify the target config before applying.",
+    "blast_radius": "cartservice only, but its inbound callers notice the connection reset: frontend (CartService/AddItem, GetCart) and checkoutservice (GetCart, EmptyCart), and through them loadgenerator-driven checkout flows. Expect a brief error spike in frontend and checkoutservice during the recreate, which must not be mistaken for the fix failing."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "medium",
+    "reasoning": "Four services alerted within 15 seconds along the cart-checkout-frontend path, which is a coherent multi-service failure rather than an isolated warning. Cart alerting first and the rest fanning out downstream suggests a shared dependency or backing store degradation worth confirming."
+  }
+}

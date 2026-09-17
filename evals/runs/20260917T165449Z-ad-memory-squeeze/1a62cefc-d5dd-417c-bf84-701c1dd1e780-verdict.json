@@ -1,0 +1,170 @@
+{
+  "incident_id": "1a62cefc-d5dd-417c-bf84-701c1dd1e780",
+  "trajectory_id": "2ccfe113-00e9-45c2-b8f0-edaa95a79280",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "adservice is in a crash/restart loop caused by its container being killed for exceeding a memory limit that platform-automation lowered to 256m at 16:54:55, roughly three minutes before onset, and \u2014 unlike the four identical lowerings earlier the same day \u2014 never reverted. The adservice log stream for 16:55-17:02 contains nine JVM/OTel-agent startup sequences at a near-constant ~63s cadence with no application-ready or request-handling lines after them and no ERROR/exception/stack-trace output, the signature of an external, silent termination after JVM bootstrap rather than a handled application fault or a failed image launch [tr_db271cd98701]. The mechanism is exhaustion of the container memory budget: the process needs more than the ceiling it now has and is killed for it, so ad requests stop being served and the failure surfaces at the callers (frontend, loadgenerator) that alerted two minutes later [tr_07df5f60a0c1].",
+    "service": "adservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_db271cd98701",
+      "tr_07df5f60a0c1",
+      "tr_0a160e22e631",
+      "tr_fa5089e6fced",
+      "tr_40bb35714972",
+      "tr_73c5820de50a"
+    ],
+    "reasoning": "Two independent lines converge on adservice. The change record shows the only activity on the service in 24h is a recurring automation loop that lowers and restores a memory limit; the instance immediately before onset is the one lowering that was never restored, so the constrained ceiling was in force through the incident [tr_07df5f60a0c1]. The logs then show what living under that ceiling looks like: repeated successful JVM and agent bootstrap followed by silent death before steady-state serving, ~9 cycles at a fixed ~63s interval [tr_db271cd98701]. That same result rules out the two competing readings of a restart loop \u2014 a bad image or broken entrypoint (the JVM and the OTel agent start and print their banners every cycle) and an in-process JVM limit such as OutOfMemoryError or thread-creation failure (those write explicit error text before exit; none appears). The kill is therefore external to the JVM, which is what a cgroup OOM kill or a probe-driven restart looks like. Upstream/downstream alternatives were checked and did not hold: productcatalogservice error ratio is indistinguishable from its own four-hour baseline with no change point near 16:58:45 [tr_0a160e22e631], and frontend traces show cart, catalog and the full checkout fan-out completing fast and error-free, with the single error-marked frontend span being a short childless leaf rather than a timeout [tr_fa5089e6fced]. Per the taxonomy, a limit edit that leaves a process being killed for exceeding it is resource_exhaustion \u2014 the edit is how it started, exhaustion is what is happening \u2014 so the fix is restoring the limit to the value the automation restored it to on the four prior cycles, not a rollback of any artifact. Confidence is held at medium because the OOM mechanism itself is inferred, never measured: the only adservice metric queried was span-derived error ratio, which returned no samples in either window and explicitly covers no memory, restart or termination-reason data [tr_40bb35714972][tr_73c5820de50a].",
+    "open_questions": [
+      "The OOM kill is inferred from log shape, not observed. Container memory working-set against the 256m limit, container_restart_count, and last-terminated-reason/exit-code (137 vs probe failure) for adservice were never queried and would settle it directly.",
+      "Why this lowering was not reverted when the four previous ones were within ~10 minutes \u2014 is the automation loop stuck, and will it revert on its own? This determines whether config_revert is a manual action or a wait.",
+      "The frontend->adservice edge is unmeasured in both directions: no adservice span appears in any of the 20 frontend traces and no frontend span names an AdService RPC, even in the healthy early part of the window [tr_fa5089e6fced]. The causal link from adservice being down to the frontend/loadgenerator alerts is therefore assumed from topology, not observed.",
+      "The one error-marked frontend span is a childless leaf with in-frontend self-time as the attributed degrading hop [tr_fa5089e6fced]. Whether that represents a degraded-ad-path fallback inside frontend or an unrelated frontend-local fault is unresolved.",
+      "adservice span metrics are absent across the whole baseline as well as the incident [tr_73c5820de50a], so there is an instrumentation gap on this service that hides its request rate and latency entirely; the blast radius of 7 services was never reconciled against per-service evidence for the other four."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The ~63s restart cadence is a liveness/readiness probe with a too-short timeout or initial-delay killing a JVM that simply cannot finish startup in time, independent of memory pressure.",
+        "service": "adservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "It explains the silent external kill and the fixed interval equally well, but no probe-related change appears anywhere in the 24h change record \u2014 the only edits are resource_limits by the same actor [tr_07df5f60a0c1] \u2014 and the loop begins ~3 minutes after the unreverted memory lowering, which a static probe setting cannot account for. It would be promoted if the container's last-terminated reason comes back as a probe failure rather than OOMKilled.",
+        "why_not_confidence": "medium"
+      },
+      {
+        "root_cause": "The user-facing failure originates inside frontend itself, where the degrading hop is frontend self-time and the single error span has no downstream children at all.",
+        "service": "frontend",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "The trace evidence placing time inside frontend is real [tr_fa5089e6fced], but it names no mechanism, no frontend change was examined, and the frontend sample shows one error in 20 traces with a healthy sibling GET in the same trace \u2014 a per-request blemish, not an outage. Against that, adservice is independently observed hard-down in a restart loop with a matching change three minutes before onset, which is a concrete failing mechanism rather than an unattributed self-time bulge.",
+        "why_not_confidence": "medium"
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:world-warm-up-latency / The measured baseline, for comparison: Under 50 ms p95 on every service, flat over 45 clean minutes (ADR-0012). Anything between that\nand the 250 ms threshold is neither healthy-by-measurement nor alerting.\n\n**That 45-minute window is not the whole story, and a later twelve-hour census says so**\n(ADR-0025). `checkouts",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:world-saturation-is-invisible / What that costs, measured: ADR-0024 ran 50x normal load for twenty minutes with all three rules blind throughout.\nSaturation queues rather than erroring, and the span metrics do not widen enough to trip the\n250 ms latency threshold, so a saturated service looks healthy on every signal this world\ncollects."
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25915,
+    "pulled_tokens": 6541,
+    "pull_rate": 0.2015,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 437,
+        "content_tokens": 439,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1853,
+        "content_tokens": 1857,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7777,
+        "content_tokens": 7753,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7300,
+        "content_tokens": 7303,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8548,
+        "content_tokens": 8526,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "adservice",
+    "rests_on": [
+      "tr_07df5f60a0c1",
+      "tr_db271cd98701"
+    ],
+    "expected_effect": "Restoring adservice's configuration to its pre-16:54:55 state (memory limit back to unset, the same value the four earlier automation lowerings were reverted to) should end the restart loop. Observable in Loki on {service=\"ad-service\"}: after one final startup sequence at recreate time, no new JVM/OTel startup banner appears at the ~63s cadence documented in tr_db271cd98701, and 'hipstershop.AdService - received ad request' lines resume as they did in 16:28-16:40. Secondary, weaker confirmations: container_restart_count for adservice stops incrementing, and the frontend/loadgenerator alerts clear. Note that adservice span metrics (error ratio, request rate, latency) are empty across baseline and incident (tr_73c5820de50a), so confirmation must come from logs and container-level counters, not from adservice's own service metrics.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "If startup banners keep repeating at ~63s after the recreate, the kill is not the 256m ceiling - it is a liveness/health-probe restart or a supervisor policy, and this change bought nothing. If request-handling lines resume but the frontend error traces and loadgenerator alerts persist, the frontend->adservice causal link assumed from topology is wrong: tr_fa5089e6fced shows no adservice span in any of 20 frontend traces and the single error-marked frontend span is a childless leaf with in-frontend self-time, so frontend may have a local fault this does not touch. If instead adservice comes up and its memory working set climbs without bound, the limit was a symptom-suppressor for a leak, not the cause. Also worth checking before acting: the automation actor reverted the four prior lowerings within ~10 minutes; if that loop is merely late rather than stuck, the correct action is to wait, and if it is still live it may re-lower the limit after this revert and reopen the incident.",
+    "risk": "Two real failure modes. (1) If the process is being killed for something other than the memory ceiling, this recreate restarts a service that will keep crash-looping, and we have spent a config change and an outage-extending container recreate on the wrong mechanism while the actual cause (probe, supervisor, or host pressure) stays unaddressed. (2) If adservice genuinely needs more than 256m because it is leaking rather than because the ceiling was mis-set, removing the ceiling converts a contained per-container kill into unbounded memory growth on the shared host, which can degrade co-located services that were previously fine. The OOM kill itself is inferred from log shape only - exit code 137, last-terminated-reason, and working-set against the limit were never queried (tr_73c5820de50a) - so this proposal rests on an inference, not an observation.",
+    "blast_radius": "adservice's container is recreated, so the direct blast radius is adservice plus its inbound callers named in the brief: frontend and loadgenerator see connection resets for the few seconds of the recreate, on top of the outage they already have. Indirectly, if the reverted limit lets adservice grow unbounded on a shared host, cartservice, checkoutservice, productcatalogservice and recommendationservice could see memory contention they do not see today. The configuration value being reverted is a resource limit, not a dependency address, so no traffic moves between services."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "low",
+    "reasoning": "Critical severity with loadgenerator followed two minutes later by adservice and frontend together suggests a real user-facing failure, not a single warning. Fault class is a weak guess from the frontend/adservice pairing; evidence will decide."
+  }
+}

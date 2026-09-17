@@ -1,0 +1,182 @@
+{
+  "incident_id": "7dc840a2-313e-4e4f-b25b-fbb5d09a34b0",
+  "trajectory_id": "c5aeadc5-8676-4829-adbb-9c89488eb1ef",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [
+    "scenario:cart-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "Around 17:19 UTC checkoutservice stopped completing PlaceOrder requests: order-start lines keep arriving through 17:23:17, but no request after 17:19:07 reaches payment confirmation, email, or order publish, and checkoutservice logs no errors at all [tr_9fea75aec3e6]. paymentservice sees none of those charges - its logs stop at 17:16:42 with every prior receipt paired to a sub-millisecond completion, so charges stopped arriving rather than being processed slowly [tr_3391d631f80b]. The block therefore sits in a pre-charge hop. Of those hops, cartservice, currencyservice and productcatalogservice are closed sub-millisecond spans through 17:12, while the only hop flagged as degrading in all five sampled traces is shippingservice/GetQuote and its internal HTTP call to quoteservice, already 20-25% of trace self-time before onset [tr_85d28d498e0b]. Best reading: the quote hop became unresponsive at ~17:19, leaving checkoutservice blocked in-flight with spans never closing - which also explains the span-derived traffic gaps and the 8.9% mean / 67% peak error ratio as waits time out [tr_5fcac3511390], and why quoteservice and shippingservice only alerted at 17:22:45.",
+    "service": "quoteservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_9fea75aec3e6",
+      "tr_3391d631f80b",
+      "tr_85d28d498e0b",
+      "tr_5fcac3511390",
+      "tr_517bb1d1f417"
+    ],
+    "reasoning": "The mode is silent hanging, not loud failure: checkoutservice is alive and accepting work but never advances past the pre-payment stage [tr_9fea75aec3e6], and the next downstream receives nothing [tr_3391d631f80b]. That pair places the blocking wait upstream of the charge call, inside checkoutservice's outbound fan-out. Elimination narrows it: the other pre-charge dependencies are fast closed spans, adservice and recommendationservice are not in the subtree, and the sole flagged degrading hop is the quote path [tr_85d28d498e0b]. Hangs rather than errors fit the volatile, bursty error ratio and the genuine no-sample intervals, since spans that never close produce no call samples [tr_5fcac3511390]. Both change queries returned empty and self-report windows starting at onset and running forward, so they exclude concurrent and follow-on changes but say nothing about pre-incident ones [tr_517bb1d1f417]. Confidence is low: no dispatch observed quoteservice or shippingservice directly, and the trace sample ends at 17:12:27, before the stall.",
+    "open_questions": [
+      "No dispatch queried quoteservice or shippingservice at all; the attribution rests on elimination plus a pre-stall latency signal, not direct observation during the stall.",
+      "Both change-history windows start at onset and run forward, so any pre-incident deploy, config push or flag flip on any service remains unchecked [tr_517bb1d1f417].",
+      "No trace evidence covers 17:19 onward, so the open span that is actually blocking PlaceOrder was never identified [tr_85d28d498e0b]; cartservice also has no usable metrics in either window [tr_52e65f3d3eca]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "shippingservice itself is hung - its own handler or HTTP client blocks rather than quoteservice being slow.",
+        "service": "shippingservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "The trace analysis localises the degrading hop to shippingservice's outbound HTTP call to quoteservice rather than to shippingservice self-time [tr_85d28d498e0b], but nothing directly observed either service, so this is only just below."
+      },
+      {
+        "root_cause": "checkoutservice exhausted its own outbound connection or thread resources, so requests enter and queue without any dependency being at fault.",
+        "service": "checkoutservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "restart",
+        "why_not": "No exhaustion diagnostics or error lines appear in checkoutservice logs and order starts continue at a steady rate [tr_9fea75aec3e6]; no saturation metric was ever queried, so it is admitted but unsupported."
+      },
+      {
+        "root_cause": "A pre-incident config change on the quote or shipping path (e.g. a timeout or endpoint value) is the actual mechanism, with the wrong value breaking the call.",
+        "service": "quoteservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The change queries never covered the hours before onset, so no such record was seen [tr_517bb1d1f417]; a wait is the observed failure, which reads as latency regardless of what started it."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-dependency-latency / What was never measured: Checkout's error-ratio change point sits ~19 minutes before the shaping attachment, overlapping the hotfix apply-and-restore window; that gap is unexplained and may be a second, independent story. No latency or request-rate series returned for either service, and traces cover onl",
+    "cart-redis-misconfig / What was never measured: Nothing was ever queried against redis-cart, so neither port's actual listening state was confirmed. cartservice emitted no calls_total under the queried service_name label in either window, so the crashloop timeline rests on logs alone with no metric-side corroboration. The call",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26828,
+    "pulled_tokens": 11905,
+    "pull_rate": 0.3074,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 489,
+        "content_tokens": 491,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1786,
+        "content_tokens": 1789,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8202,
+        "content_tokens": 8177,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7575,
+        "content_tokens": 7577,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8776,
+        "content_tokens": 8754,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_85d28d498e0b",
+      "tr_9fea75aec3e6",
+      "tr_3391d631f80b",
+      "tr_517bb1d1f417"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. What should happen next is observation, not remediation: a trace/log query against quoteservice and shippingservice covering 17:19:00 onward, and a change-history query on a window that *ends* at 17:19 rather than starting there. If the quote hop is truly the block, those queries would show either shippingservice GetQuote spans open past 17:19 with no quoteservice child completion, or quoteservice logs stopping/erroring at ~17:19 \u2014 the same signature paymentservice shows at 17:16:42 [tr_3391d631f80b], but one hop earlier.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if the stall is in fact a pure process-state hang in quoteservice that a restart would clear, and the delay in restarting extends customer-visible checkout failure. Two observations would show that: quoteservice logs or traces during 17:19-17:23 showing accepted requests with no completions and no error output, and no pre-17:19 change record for quoteservice. Either of those arriving would convert this into a restart_service proposal on quoteservice. Note also that the effect of a restart here is only weakly observable from the evidence we hold: checkoutservice error ratio is the nearest signal [tr_5fcac3511390], but it is highly volatile (sd of the same order as the mean) and has genuine traffic gaps, so a short post-restart window could not cleanly distinguish recovery from noise \u2014 a further reason not to act blind.",
+    "risk": "The two candidate actions both fail their preconditions, and acting anyway carries real cost. restart_service requires evidence pointing at process state; no dispatch queried quoteservice or shippingservice at any point, and the only signal against them is a 5-8ms pre-stall latency contribution at 20-25% of trace self-time [tr_85d28d498e0b] \u2014 elevated but, as that same result records, far below stall magnitude. A restart discards in-process state and is irreversible; if the block is actually elsewhere (an unidentified open span after 17:19, which no trace evidence covers [tr_85d28d498e0b]) the restart destroys the hung-process state that would have identified the real culprit, and the incident continues with its best diagnostic gone. rollback_image and revert_config both require a named deploy or config change inside the window; no such change is named for any service, and both change-history windows are mis-specified \u2014 they begin at onset and run forward, so the hours before 17:19 are simply unchecked [tr_517bb1d1f417]. Proposing a rollback on an unrecorded prior image would be acting on an assumption the evidence explicitly does not support.",
+    "blast_radius": "None from this proposal. For the record, had a restart been proposed on quoteservice, its inbound edge is shippingservice/GetQuote, which is called synchronously inside checkoutservice PlaceOrder [tr_85d28d498e0b]; a recreate would reset those connections and so be visible to shippingservice, checkoutservice, frontend and loadgenerator, i.e. the whole order path that is already failing.",
+    "target_note": "No legal target selected; abstaining."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical, ten services alerting within two minutes starting at checkoutservice and fanning out \u2014 this cannot be dismissed. Origin at checkout/frontend with downstream spread is consistent with several causes, so no prior is honest yet."
+  }
+}

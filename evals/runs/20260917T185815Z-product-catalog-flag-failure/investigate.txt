@@ -1,0 +1,38 @@
+incident 2ab43250-c71d-4343-9ddc-1302b2597697  state triaging  anchor 19:01:45
+triage: 7 services, severity critical, start from productcatalogservice, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 942e5f12-fb7d-4c13-9d97-301e70c0b221
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with simultaneous productcatalogservice and frontend alerts plus loadgenerator impact indicates a real user-facing failure, not a quiet world. Productcatalogservice is the likely origin but the alerts alone do not distinguish a bad deploy from resource exhaustion.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Abstention is wrong if a change-history query against the feature-flag store returns a recorded prior flag value with a change timestamp inside the incident window — that would satisfy revert_config's two preconditions and make a targeted flag revert the correct action. It is also wrong if the flag value is proven to be held in productcatalogservice's own environment rather than in an external flag service, since that would make productcatalogservice a legal revert_config target. Neither is shown today: the change log for productcatalogservice is empty across ~24h and explicitly rules out both a config edit and a flag flip on this service [tr_a8da2f7fa5b8], so there is no recorded prior configuration to restore. The entity that actually holds the wrong value — the feature-flag service — is not in this incident's blast radius and therefore is not a legal target for any action here.
+  rests on    : tr_00905b37520e, tr_a8da2f7fa5b8
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 23855 pushed / 4683 pulled (pull rate 0.1641), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_00905b37520e, tr_a8da2f7fa5b8, tr_5ee8a8764cab
+  root cause  : productcatalogservice's GetProduct path fails on a feature-flag condition: every ERROR-status GetProduct span has exactly one child call to hipstershop.FeatureFlagService/GetFlag, the flag child itself is not in error, and the ERROR is first set on the productcatalogservice handler wrapping that lookup — the handler is reading a flag value and turning it into a returned gRPC error. Sibling GetProduct calls in the same traces that skip the flag lookup succeed at ~0ms, and ListProducts is unaffected, so this is a selective flag-conditioned error injection, not a service-wide fault [tr_00905b37520e]. No deploy, image, or env change is recorded for productcatalogservice in 24h [tr_a8da2f7fa5b8], consistent with a flag value held outside the seed service's change scope. The wrong flag value is itself what breaks the request, so the remedy is reverting that flag state.
+  OPEN        : No trace covers the 19:01:45 onset — all returned traces fall 19:03:26-19:03:37, so the mechanism is confirmed only for the late window [tr_00905b37520e].
+  OPEN        : The feature-flag service was never queried: who set the flag, when, and its current value are unknown (the unmeasured edge).
+  OPEN        : Logs returned nothing due to a label mismatch, and latency/CPU/memory/restart series were never returned, so resource exhaustion is unexamined rather than excluded [tr_204783be290e, tr_1ced1f16f25d].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:product-catalog-flag-failure'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T185815Z-product-catalog-flag-failure/2ab43250-c71d-4343-9ddc-1302b2597697-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T185815Z-product-catalog-flag-failure/2ab43250-c71d-4343-9ddc-1302b2597697-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11119.46it/s]

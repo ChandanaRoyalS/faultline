@@ -1,0 +1,40 @@
+incident 927be343-c2f0-4d81-b569-ea7fd0cd2620  state triaging  anchor 19:38:15
+triage: 10 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 186efb4a-ed3f-4a71-be06-cbc219d69844
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alert on checkoutservice followed by loadgenerator indicates real user-facing order-flow failure, not a lone warning. No open incidents to attribute it to, and the alerts alone don't distinguish a bad deploy from a failing downstream dependency.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a change record does exist for shippingservice or featureflagservice in the hours before 19:36:30 and was simply never queried — the change window in [tr_0989f9e34431] and [tr_37a32c2ed632] begins at onset and covers only the seed service, so it cannot exclude that. If such a record surfaces, rollback_image or revert_config on that service becomes a supportable proposal and this abstention cost time. It is also wrong if the checkout error ratio in [tr_cd8afa3b416f] keeps climbing toward total checkout failure while the open questions stay open; in that case a reader may reasonably prefer acting on a guess to waiting, and should know that is what they are doing.
+  rests on    : tr_4d9660bc87d3, tr_0989f9e34431, tr_37a32c2ed632, tr_a129308b4eee
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 25628 pushed / 11989 pulled (pull rate 0.3187), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_4d9660bc87d3, tr_a129308b4eee, tr_cd8afa3b416f, tr_76d4f0d7b975, tr_37a32c2ed632
+  root cause  : Checkout orders abort at the shipping-quote step. Every sampled post-19:39 trace shows cart, product-catalog and currency hops completing cleanly and fast, then the checkoutservice-side client span for ShippingService/GetQuote carrying the error that propagates up through PlaceOrder to the frontend root [tr_4d9660bc87d3]. The shippingservice server span and its own outbound HTTP call complete in ~2ms with no error, so shipping is answering — the failure is on the checkout side's handling of that response/contract. This matches checkout logs showing order initiations after 19:37 with no payment, email or message-write completions and no error lines [tr_a129308b4eee], payment logs going silent after 19:35:16 with no failures of its own [tr_76d4f0d7b975], and a checkoutservice error-ratio step at 19:36:30 rising ~5.6x over baseline [tr_cd8afa3b416f]. No change record exists for checkoutservice, but the queried window began at onset and covered only the seed service, so an upstream change on shippingservice or a flag service was never examined [tr_0989f9e34431, tr_37a32c2ed632].
+  OPEN        : What error status/message the checkout-side GetQuote client span actually carries — the trace shows the error flag but no gRPC code or exception text.
+  OPEN        : Whether any change (deploy, config edit, flag flip) landed on shippingservice or featureflagservice in the hours before 19:36:30; the change query covered only checkoutservice and started at onset.
+  OPEN        : Whether paymentservice's log silence after 19:35:16 is simply the absence of upstream calls or an independent problem — it began ~3 minutes before the checkout error step point, which the evidence does not reconcile.
+  OPEN        : Whether checkoutservice's configured shipping endpoint/contract version changed, which would separate bad_config from a shipping-side bad_deploy.
+  OPEN        : cartservice health is genuinely unmeasured: both incident and baseline error-ratio windows were empty, a metric coverage gap [tr_a1c6fee8a8bb].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:shipping-quote-misconfig'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T193516Z-shipping-quote-misconfig/927be343-c2f0-4d81-b569-ea7fd0cd2620-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T193516Z-shipping-quote-misconfig/927be343-c2f0-4d81-b569-ea7fd0cd2620-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11810.74it/s]

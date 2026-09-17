@@ -1,0 +1,46 @@
+incident 3b7cdd3a-1090-4296-bebe-1b4de5ed73fc  state triaging  anchor 18:21:00
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 4fc8ecdf-3dfb-4246-af5b-2a8862391996
+triage judged: investigate (low confidence, suspects unknown)
+  A single critical alert on frauddetectionservice with no open incidents to attribute it to; critical severity is not dismissible even with a one-service radius. Nothing in the alert pattern suggests a specific fault class yet.
+investigation: 2 round(s), 4 dispatch(es), 16 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Restoring the pre-18:14:52 configuration (memory limit unset) and recreating the container should end the crash loop: in Loki on {service="frauddetection-service"} the three-line JVM/OTel startup banner should appear once and stop repeating (the ~62s cadence at 18:17:57-18:22:06 ceases), and 'Consumed record with orderId ... total count to: N' lines should resume with an increasing counter as at 17:51. Confirmation must come from logs, not the error-ratio metric, which is empty across both windows.
+  within      : 300s
+  risk        : Reverts the whole prior environment, not just the memory limit, so any other legitimate config change since then is rewound too. The recreate kills the running process: in-flight Kafka records are lost and reprocessed from the last committed offset. If 200m was an intentional capacity guard, removing it lets this JVM grow and press on co-located services. If the automation's revert is merely late, this collides with it.
+  blast radius: One service, frauddetectionservice - the only service in the blast radius. Callers see a connection reset during the recreate, but no inbound edges were measured, so who notices is unknown. Kafka order producers see consumption stalled for the recreate on top of the existing outage; consumer lag spikes then drains.
+  if wrong    : Falsified if, ~3 minutes after the recreate, fresh startup banners still repeat on the same cadence with no consumption lines - the OOM kill was inferred from silent exits and timing only, never measured. Also effectively falsified if the loop stops but platform-automation re-lowers the limit to 200m and the loop returns.
+  rests on    : tr_a973b51e9341, tr_442f06575fcf
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 18954 pushed / 2854 pulled (pull rate 0.1309), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_a973b51e9341, tr_442f06575fcf, tr_708255aaeefa, tr_2354d468af15
+  root cause  : About six minutes before the 18:21 alert, platform-automation lowered the container memory limit on frauddetection-service to 200m and, unlike the four preceding lower/revert cycles, never reverted it [tr_a973b51e9341]. With that limit in effect the JVM cannot complete initialization inside 200m: from 18:15:05 the service stops emitting any application work (the Kafka consumption lines that were healthy at 17:51 disappear) and emits only repeating JVM/OpenTelemetry-agent startup banners, first in rapid succession and then on a near-exact ~62s backoff cadence still running at the end of the window [tr_442f06575fcf]. The processes die silently — no exception, stack trace, or shutdown message between banners — which is the signature of an external kill (container OOM kill) rather than an application fault [tr_442f06575fcf]. The service is therefore failing because it runs out of the memory it needs to start: a crash/restart loop caused by memory exhaustion against a limit that was tightened minutes earlier and left in place.
+  OPEN        : No container-level evidence was ever collected: kube_pod_container_status_last_terminated_reason (OOMKilled?), container_memory_working_set_bytes against the 200m limit, and kube_pod_container_status_restarts_total from ~18:15 remain unqueried [tr_2354d468af15]. The OOM kill is inferred from silent exits and timing, not measured.
+  OPEN        : Why did the automation's revert not fire this cycle? Every prior lowering was reverted in 11-12 minutes [tr_a973b51e9341]; whether the revert is merely late, failed, or has been disabled determines whether a manual config_revert is needed or whether it will self-heal.
+  OPEN        : What is the automation doing lowering memory limits on a 4-5h cadence at all, and is 200m ever a workable limit for this JVM? If prior lowerings also caused crash loops that simply ended at revert, this is a recurring latent outage.
+  OPEN        : The error-ratio series is empty over an eight-hour span covering both windows [tr_708255aaeefa]; whether frauddetectionservice is simply not span-instrumented under that service_name, or telemetry is broken, is unresolved and blocks any measured confirmation of caller-visible impact.
+  OPEN        : Downstream impact was never assessed — triage crossed zero unmeasured edges, so whether orders are backing up in Kafka or any caller is degraded is unknown.
+  OPEN        : The window ends at 18:22:47 with the loop still running; no evidence exists about whether the service recovered afterwards.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:frauddetection-memory-squeeze'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T181448Z-frauddetection-memory-squeeze/3b7cdd3a-1090-4296-bebe-1b4de5ed73fc-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T181448Z-frauddetection-memory-squeeze/3b7cdd3a-1090-4296-bebe-1b4de5ed73fc-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9460.70it/s]

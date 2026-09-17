@@ -1,0 +1,45 @@
+incident 1a62cefc-d5dd-417c-bf84-701c1dd1e780  state triaging  anchor 16:58:45
+triage: 7 services, severity critical, start from adservice, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 2ccfe113-00e9-45c2-b8f0-edaa95a79280
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Critical severity with loadgenerator followed two minutes later by adservice and frontend together suggests a real user-facing failure, not a single warning. Fault class is a weak guess from the frontend/adservice pairing; evidence will decide.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : adservice
+  expect      : Restoring adservice's configuration to its pre-16:54:55 state (memory limit back to unset, the same value the four earlier automation lowerings were reverted to) should end the restart loop. Observable in Loki on {service="ad-service"}: after one final startup sequence at recreate time, no new JVM/OTel startup banner appears at the ~63s cadence documented in tr_db271cd98701, and 'hipstershop.AdService - received ad request' lines resume as they did in 16:28-16:40. Secondary, weaker confirmations: container_restart_count for adservice stops incrementing, and the frontend/loadgenerator alerts clear. Note that adservice span metrics (error ratio, request rate, latency) are empty across baseline and incident (tr_73c5820de50a), so confirmation must come from logs and container-level counters, not from adservice's own service metrics.
+  within      : 300s
+  risk        : Two real failure modes. (1) If the process is being killed for something other than the memory ceiling, this recreate restarts a service that will keep crash-looping, and we have spent a config change and an outage-extending container recreate on the wrong mechanism while the actual cause (probe, supervisor, or host pressure) stays unaddressed. (2) If adservice genuinely needs more than 256m because it is leaking rather than because the ceiling was mis-set, removing the ceiling converts a contained per-container kill into unbounded memory growth on the shared host, which can degrade co-located services that were previously fine. The OOM kill itself is inferred from log shape only - exit code 137, last-terminated-reason, and working-set against the limit were never queried (tr_73c5820de50a) - so this proposal rests on an inference, not an observation.
+  blast radius: adservice's container is recreated, so the direct blast radius is adservice plus its inbound callers named in the brief: frontend and loadgenerator see connection resets for the few seconds of the recreate, on top of the outage they already have. Indirectly, if the reverted limit lets adservice grow unbounded on a shared host, cartservice, checkoutservice, productcatalogservice and recommendationservice could see memory contention they do not see today. The configuration value being reverted is a resource limit, not a dependency address, so no traffic moves between services.
+  if wrong    : If startup banners keep repeating at ~63s after the recreate, the kill is not the 256m ceiling - it is a liveness/health-probe restart or a supervisor policy, and this change bought nothing. If request-handling lines resume but the frontend error traces and loadgenerator alerts persist, the frontend->adservice causal link assumed from topology is wrong: tr_fa5089e6fced shows no adservice span in any of 20 frontend traces and the single error-marked frontend span is a childless leaf with in-frontend self-time, so frontend may have a local fault this does not touch. If instead adservice comes up and its memory working set climbs without bound, the limit was a symptom-suppressor for a leak, not the cause. Also worth checking before acting: the automation actor reverted the four prior lowerings within ~10 minutes; if that loop is merely late rather than stuck, the correct action is to wait, and if it is still live it may re-lower the limit after this revert and reopen the incident.
+  rests on    : tr_07df5f60a0c1, tr_db271cd98701
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 25915 pushed / 6541 pulled (pull rate 0.2015), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_db271cd98701, tr_07df5f60a0c1, tr_0a160e22e631, tr_fa5089e6fced, tr_40bb35714972, tr_73c5820de50a
+  root cause  : adservice is in a crash/restart loop caused by its container being killed for exceeding a memory limit that platform-automation lowered to 256m at 16:54:55, roughly three minutes before onset, and — unlike the four identical lowerings earlier the same day — never reverted. The adservice log stream for 16:55-17:02 contains nine JVM/OTel-agent startup sequences at a near-constant ~63s cadence with no application-ready or request-handling lines after them and no ERROR/exception/stack-trace output, the signature of an external, silent termination after JVM bootstrap rather than a handled application fault or a failed image launch [tr_db271cd98701]. The mechanism is exhaustion of the container memory budget: the process needs more than the ceiling it now has and is killed for it, so ad requests stop being served and the failure surfaces at the callers (frontend, loadgenerator) that alerted two minutes later [tr_07df5f60a0c1].
+  OPEN        : The OOM kill is inferred from log shape, not observed. Container memory working-set against the 256m limit, container_restart_count, and last-terminated-reason/exit-code (137 vs probe failure) for adservice were never queried and would settle it directly.
+  OPEN        : Why this lowering was not reverted when the four previous ones were within ~10 minutes — is the automation loop stuck, and will it revert on its own? This determines whether config_revert is a manual action or a wait.
+  OPEN        : The frontend->adservice edge is unmeasured in both directions: no adservice span appears in any of the 20 frontend traces and no frontend span names an AdService RPC, even in the healthy early part of the window [tr_fa5089e6fced]. The causal link from adservice being down to the frontend/loadgenerator alerts is therefore assumed from topology, not observed.
+  OPEN        : The one error-marked frontend span is a childless leaf with in-frontend self-time as the attributed degrading hop [tr_fa5089e6fced]. Whether that represents a degraded-ad-path fallback inside frontend or an unrelated frontend-local fault is unresolved.
+  OPEN        : adservice span metrics are absent across the whole baseline as well as the incident [tr_73c5820de50a], so there is an instrumentation gap on this service that hides its request rate and latency entirely; the blast radius of 7 services was never reconciled against per-service evidence for the other four.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:ad-memory-squeeze'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T165449Z-ad-memory-squeeze/1a62cefc-d5dd-417c-bf84-701c1dd1e780-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T165449Z-ad-memory-squeeze/1a62cefc-d5dd-417c-bf84-701c1dd1e780-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9712.31it/s]
