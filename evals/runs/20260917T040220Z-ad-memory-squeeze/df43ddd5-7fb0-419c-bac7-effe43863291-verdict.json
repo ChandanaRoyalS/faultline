@@ -1,0 +1,162 @@
+{
+  "incident_id": "df43ddd5-7fb0-419c-bac7-effe43863291",
+  "trajectory_id": "897b35be-752b-43a3-a1bb-554c72164d09",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "Frontend's own request handling, error rate and downstream span timings are all normal or better than baseline; what is anomalous is a cluster of outbound gRPC client failures (status 14 UNAVAILABLE) whose newest lines attribute the failure to DNS name resolution failing for the adservice target on port 9555 [tr_c27c47009e12]. The connection is never established, so adservice is either not resolvable or has no healthy endpoints behind its name \u2014 a dependency-availability/discovery fault on the adservice path, not a frontend fault. No change record exists for frontend or checkoutservice to anchor this to a deploy or edit [tr_b4f84b5748b1][tr_d6f70a4c5c7c], and the alert at 04:06 is not corroborated by any error-ratio transition at frontend or loadgenerator [tr_1e14b9d3d52c][tr_88dbd8dfe2d2], so the impact is partial (ad panel) rather than a full outage.",
+    "service": "adservice",
+    "fault_class": "unknown",
+    "remediation_class": "restart",
+    "confidence": "low",
+    "evidence": [
+      "tr_c27c47009e12",
+      "tr_0fadf4f5fafb",
+      "tr_1e14b9d3d52c"
+    ],
+    "reasoning": "Logs are the only dispatch that found a live anomaly, and it is frontend-as-client failing to resolve adservice [tr_c27c47009e12]. Traces show frontend reaching productcatalogservice and cartservice with sub-millisecond backend spans and no errored spans, so the failure is confined to a path not exercised in those samples [tr_0fadf4f5fafb]. Frontend and loadgenerator error ratios are below baseline with no change point at 04:06 [tr_1e14b9d3d52c][tr_88dbd8dfe2d2], consistent with a non-critical dependency failing closed. Empty change logs remove deploy/config-edit anchors for the two services queried [tr_b4f84b5748b1][tr_d6f70a4c5c7c]. I cannot distinguish 'adservice pods gone/unready' from 'cluster DNS broken' from this evidence, so fault_class stays unknown rather than being forced into bad_config.",
+    "open_questions": [
+      "Is adservice running with ready endpoints, or is cluster DNS itself failing? No adservice-side metrics, logs or change history were pulled.",
+      "What actually fired the 04:06 alert? No frontend or loadgenerator metric shows a transition there, and no latency series was ever returned [tr_1e14b9d3d52c].",
+      "Traces cover only ~16s at 04:07:42-04:07:58 with no 04:06 coverage and no adservice span [tr_0fadf4f5fafb], so the onset minute is unobserved."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Cluster DNS/service-discovery is degraded, and adservice is merely the first name whose resolution failed.",
+        "service": "frontend",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "Only the adservice target appears in the failing lines; calls to productcatalogservice and cartservice resolved and completed normally [tr_0fadf4f5fafb], which argues against a broad resolver outage."
+      },
+      {
+        "root_cause": "A wrong adservice address/port value in frontend's environment points at a name that does not resolve.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "No config edit is recorded for frontend in the window [tr_b4f84b5748b1], and similar UNAVAILABLE errors appear as far back as 03:10 [tr_c27c47009e12], inconsistent with a single wrong value introduced at onset."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What the investigation concluded: shippingservice was running an artifact that was not the shipping binary. About two minutes before onset (T-2m), platform-automation moved shippingservice's image reference to a demo artifact whose tag names a different service entirely (adservice). Four earlier change records in",
+    "cart-bad-image-tag / Detection notes: - Onset to first page: **4m46s**.\n- Services alerting at the page: **3**. Over the whole incident: **10**, across 10\n  alerts.\n- Alerts that fired only during recovery: **none**. Every alert in this window belongs\n  to the failure itself.\n- **The broken service was indistinguisha",
+    "shipping-quote-misconfig / Detection notes: **The alerting service was not the faulty service, and nothing in the alert path could have said\nso.** The whole page was about checkout. Checkout was healthy.\n\n**A service can fail without reporting anything.** Shipping produced no errors and no error logs.\nAn investigation that"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25458,
+    "pulled_tokens": 3636,
+    "pull_rate": 0.125,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 440,
+        "content_tokens": 442,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1451,
+        "content_tokens": 1454,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7945,
+        "content_tokens": 7922,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7230,
+        "content_tokens": 7233,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8392,
+        "content_tokens": 8395,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "restart",
+    "action_id": "restart_service",
+    "target": "adservice",
+    "rests_on": [
+      "tr_c27c47009e12",
+      "tr_0fadf4f5fafb",
+      "tr_b4f84b5748b1"
+    ],
+    "expected_effect": "Recreating adservice should re-register its name/endpoint so frontend can resolve adservice:9555. Confirm by: the repeating 'status 14 UNAVAILABLE / DNS resolution failed for adservice:9555' lines in {service=\"frontend\"} in Loki ceasing, and adservice spans reappearing under frontend spans in Tempo. Frontend error ratio is not a valid signal - it never moved with the fault.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "If the frontend DNS-failure log lines continue at the same cadence after adservice is confirmed recreated and running, the fault is the resolver/service-discovery layer, not adservice process state, and no permitted action addresses it. If adservice is found already running and ready, the process-state premise was wrong. Note: no adservice-side metric, log or change evidence was ever pulled, so this rests on a caller-side inference only.",
+    "risk": "Irreversible recreate that discards adservice in-process cache; if the real fault is cluster DNS, the restart fixes nothing, adds a cold-start gap in ad serving, and destroys the pre-restart process state that would have distinguished the two hypotheses.",
+    "blast_radius": "adservice only, for the duration of the recreate. Frontend is its caller and will see continued or briefly worsened ad-panel failures; user-visible impact stays partial (ad panel). No effect expected on cartservice, productcatalogservice, checkoutservice, recommendationservice or loadgenerator."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on frontend plus the load generator indicate user-facing failure, not an isolated synthetic blip, and no open incident covers it. Cause is undetermined; frontend's five dependencies are the natural first sweep."
+  }
+}

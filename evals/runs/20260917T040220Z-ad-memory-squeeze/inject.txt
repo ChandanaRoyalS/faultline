@@ -1,0 +1,3 @@
+injected ad-memory-squeeze (resource_exhaustion) on ad-service
+  - docker update: ad-service memory limit 700M -> 256m (swap capped at the same value)
+revert with: faultline-inject stop ad-memory-squeeze

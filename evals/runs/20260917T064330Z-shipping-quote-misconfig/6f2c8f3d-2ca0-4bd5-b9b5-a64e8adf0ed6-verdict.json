@@ -1,0 +1,171 @@
+{
+  "incident_id": "6f2c8f3d-2ca0-4bd5-b9b5-a64e8adf0ed6",
+  "trajectory_id": "363f3882-ee14-4d35-aa72-ced3939d55ef",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [
+    "scenario:shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "At 06:43:37 platform-automation set QUOTE_SERVICE_ADDR=http://quoteservice-gone:8090 on shippingservice, where the variable had previously been unset and shipping resolved a working default. From that point shipping's GetQuote handler aimed its outbound quote lookup at a non-existent host: inbound GetQuote lines keep arriving but the quote-computed/quote-sent completions stop, and quoteservice \u2014 which had served steady HTTP 200s from a single upstream client every few seconds \u2014 logs nothing after 06:43:30. checkoutservice calls ShippingService/GetQuote inside prepareOrderItemsAndShippingQuoteFromCart, so PlaceOrder aborts there: its client span for GetQuote is ERROR in every sampled trace, the frontend POST inherits the error, and payment/email/message-write are never reached. Checkout's error ratio steps up at 06:44:15, ~40s after the edit. The mechanism is the configuration value itself \u2014 the address names a host that does not exist, and that wrongness is what breaks the request.",
+    "service": "shippingservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_4ca845522927",
+      "tr_3baf6f0e3276",
+      "tr_c3765ab8ae2c"
+    ],
+    "reasoning": "Traces [tr_3baf6f0e3276] localise the failure: the checkoutservice client span for ShippingService/GetQuote is ERROR in all 10 samples and flagged as the degrading hop, while cart, currency and product-catalog calls are sub-millisecond and clean, and payment spans never appear. Shipping logs [tr_857b37d1d57b] show GetQuote requests arriving but never completing, with no crash and no error lines; quoteservice logs [tr_c3765ab8ae2c] show steady 200s until 06:43:30 then a genuine gap, so shipping's quote traffic stopped reaching it rather than being rejected. The single change on record in the blast radius [tr_4ca845522927] points shipping's quote target at a non-existent host two minutes before onset, and checkout's own change history is empty [tr_8962b4d9d9e5] while its errors step abruptly at 06:44:15 [tr_89b826922c52], making checkout the victim. Restoring the prior address is the fix; no artifact or version changed, and traces show no latency or saturation signature.",
+    "open_questions": [
+      "Why checkout's error ratio averages ~5% (peak 32%) while all sampled traces fail identically \u2014 partial rollout, a fallback path, or sampling bias is unresolved.",
+      "No shippingservice log or metric names the outbound call, target host, DNS/connection failure or status code; the link from env var to failure is inferential, and shipping has no calls_total series at all [tr_afa4f9e81b06].",
+      "Checkout's change query covered only post-onset at zero hops, so pre-onset and dependency changes were never searched [tr_8962b4d9d9e5]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "quoteservice was decommissioned or relocated by the same automation run, making shipping's quote dependency genuinely unavailable.",
+        "service": "quoteservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "quoteservice served steady 200s right up to 06:43:30 [tr_c3765ab8ae2c], so its silence is loss of inbound traffic, not loss of the service; the only change on record belongs to shippingservice."
+      },
+      {
+        "root_cause": "Shipping's outbound quote call hangs against an unresolvable host until a long timeout, and checkout fails because it waits.",
+        "service": "shippingservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "config_revert",
+        "why_not": "Traces show no elevated latency \u2014 roots complete in 7.7-13.4ms with the shipping server span ~2ms [tr_3baf6f0e3276] \u2014 so the signature is immediate failure, not waiting."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What the investigation concluded: shippingservice was running an artifact that was not the shipping binary. About two minutes before onset (T-2m), platform-automation moved shippingservice's image reference to a demo artifact whose tag names a different service entirely (adservice). Four earlier change records in",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:service-frontend / The at-rest latency tail: **Measured over twelve hours at 15s resolution on a world at rest** (ADR-0025): frontend's\nmedian p95 is 42.3ms, and 127 of 2398 samples were above the 250ms threshold, 94 of them above\n1000ms, in excursions sustained past the rule's three-minute `for:` clause. Two episodes in th"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 30940,
+    "pulled_tokens": 14345,
+    "pull_rate": 0.3168,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 457,
+        "content_tokens": 459,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1881,
+        "content_tokens": 1884,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9659,
+        "content_tokens": 9634,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8765,
+        "content_tokens": 8767,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10178,
+        "content_tokens": 10155,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "shippingservice",
+    "rests_on": [
+      "tr_4ca845522927",
+      "tr_c3765ab8ae2c",
+      "tr_3baf6f0e3276"
+    ],
+    "expected_effect": "Unsetting QUOTE_SERVICE_ADDR (the 06:43:37 change) should point shipping's quote lookup back at the default that worked until 06:43:30. Expect quoteservice access logs to resume POST /getquote 200 lines every few seconds, shipping logs to resume quote-sent completion lines after each inbound GetQuote, and checkoutservice error ratio to fall from ~0.052 (peak 0.32) back under its baseline max of 0.060, with GetQuote client spans no longer ERROR and paymentservice spans reappearing in traces.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if quoteservice stays silent, shipping still logs no completion lines, or checkout error ratio stays above 0.060 with GetQuote spans still ERROR. Note shippingservice has no calls_total series [tr_afa4f9e81b06], so confirmation must come from quoteservice logs, shipping logs, and checkout metrics/traces - not shipping's own RED metrics. A partial drop would mean a second contributor, consistent with the unresolved ~5% mean versus all-traces-fail discrepancy.",
+    "risk": "If platform-automation set the variable because the old unset default had already stopped resolving, the revert restores an equally broken config. The recreate drops in-flight GetQuote calls, briefly worsening checkout errors. It also re-imposes quote load on the old target, which may have been drained deliberately.",
+    "blast_radius": "shippingservice is recreated; checkoutservice (caller of GetQuote) sees resets during the restart, propagating to frontend POSTs and loadgenerator. quoteservice sees inbound traffic return from zero. If checkout recovers, paymentservice, emailservice, accountingservice and frauddetectionservice resume work they have not seen since onset."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Checkout alerts first, then its downstream consumers and frontend fan out within minutes, reaching the load generator \u2014 a real user-facing failure, not a quiet world. No open incident to attribute it to, and the alerts alone don't distinguish a bad deploy from a failing checkout dependency."
+  }
+}

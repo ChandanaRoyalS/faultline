@@ -1,0 +1,38 @@
+incident 11fbfb6d-0abe-4aa6-84b9-9b9bb2bc06aa  state triaging  anchor 06:08:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 64e735f8-0071-484f-9871-1c6e57b5f563
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Critical alerts across loadgenerator, frontend, and productcatalogservice within seconds suggests a real user-facing failure, not a single-service warning. Productcatalog is the common downstream of frontend traffic, making it the likely origin, though a bad deploy cannot be ruled out.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if the flag is in fact stored in productcatalogservice's own environment and simply not journalled — in that case revert_config on productcatalogservice would clear the status 13 INTERNAL lines from frontend's log within a minute and the abstention cost an easy fix. It is also wrong if a runbook (withheld from this briefing) names an approved flag-reset path I could not see. The correct next step is a dispatch, not an action: re-query productcatalogservice logs with the label value 'productcatalogservice', and query change history for the FeatureFlagService named in the trace tree [tr_b8fd3c6f3d15].
+  rests on    : tr_41fdb1b0dad1, tr_b041e95a699e, tr_e668a04490f1, tr_bb247e5cb0de, tr_b8fd3c6f3d15
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 29743 pushed / 4963 pulled (pull rate 0.143), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_b041e95a699e, tr_b8fd3c6f3d15, tr_41fdb1b0dad1, tr_e668a04490f1, tr_93af46dee0e9, tr_2f7cde204b26
+  root cause  : frontend's gRPC client logs are the only mechanism-naming signal on the board: repeated status 13 INTERNAL responses received from the product catalog dependency, whose detail text attributes the failure to a deliberately enabled 'fail' feature flag, recurring at 06:10:38 and 06:10:47 [tr_b041e95a699e]. The frames arise in the client status-receive path, so frontend is relaying an error handed to it, not generating one. That makes productcatalogservice the failing party: a feature flag governing its catalog lookups is set to a value that makes it return INTERNAL, and the wrongness of that value is itself the failure — no timeout, deadline or capacity language appears, and traces in the same minutes show nothing slower than a 26ms end-to-end checkout [tr_b8fd3c6f3d15]. The flag is absent from productcatalogservice's own change log, which is empty for 24h [tr_41fdb1b0dad1], consistent with it living in the separate FeatureFlagService visible in the trace tree [tr_b8fd3c6f3d15]. The fix is to flip the flag off, not to roll back or restart.
+  OPEN        : The trace sample spans 06:10:21-06:10:57 with zero error spans across 94 spans [tr_b8fd3c6f3d15], yet the flag-attributed errors are logged inside that same minute [tr_b041e95a699e] — sampling gap or different path, unresolved, and the main reason confidence is not high.
+  OPEN        : productcatalogservice's own logs were never read due to a label mismatch [tr_e668a04490f1]; re-querying with the correct label would confirm or overturn the flag on the callee side.
+  OPEN        : Where the flag lives, who flipped it and when is unestablished — no dispatch queried the feature-flag service's change history, so the 06:09 onset is not time-correlated to any recorded act [tr_41fdb1b0dad1].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:product-catalog-flag-failure'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T060514Z-product-catalog-flag-failure/11fbfb6d-0abe-4aa6-84b9-9b9bb2bc06aa-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T060514Z-product-catalog-flag-failure/11fbfb6d-0abe-4aa6-84b9-9b9bb2bc06aa-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8734.60it/s]

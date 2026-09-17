@@ -1,0 +1,43 @@
+incident 3b7ade75-1799-4519-95b5-66cfe58a2d10  state triaging  anchor 06:28:45
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 7a00fed2-4153-4675-9d1b-ce4c1fad4434
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four services alerting within 15 seconds along the cart/checkout/frontend call path is a coherent multi-service failure, not a single dismissible warning. The fan-in pattern starting at cartservice suggests a shared downstream dependency, but that prior is weak and nothing rests on it.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : restart_service (restart)
+  target      : cartservice
+  expect      : Recreating the container rebuilds cartservice's network namespace, where a residual tc egress rule would live. If that is the mechanism, Tempo traces of the same shapes as in tr_e39e15c5c9b5 should show HGET/HMSET leaf spans fall from the ~300-311ms band to single-digit ms, frontend cart POST roots from ~910ms to under ~100ms, and PlaceOrder roots from ~640-690ms to ~20-40ms. Loki cart-service lines should resume at prior cadence with no startup errors.
+  within      : 300s
+  risk        : I chose restart over the named config_revert because the only recorded prior config is REDIS_ADDR=redis-cart:6380, already reverted 1.3h before onset; restoring it would point cart at a likely-wrong port and could break cart persistence outright. Restart's own risk: it discards cartservice's in-process state and drops in-flight cart gRPC calls, so some carts in mid-checkout may error; if the delay is actually in redis-cart or an external injector, the restart buys nothing and costs a brief outage while burning the 'process state' hypothesis.
+  blast radius: cartservice for the seconds it takes to recreate. Its inbound callers - frontend (cart view/add) and checkoutservice (GetCart, EmptyCart in PlaceOrder) - see connection resets, which will surface as a short error spike on top of checkoutservice's already-elevated ratio (tr_15edc01dfe65) and as failed cart POSTs for loadgenerator traffic. No other checkout dependency is touched.
+  if wrong    : Traces after the restart still show HGET/HMSET pinned near 300ms with sub-ms handler self time: that falsifies the stale-netns reading and points at redis-cart itself, which was never queried. Also falsifying: latency drops then snaps back to ~300ms within minutes, implying re-application by platform-automation. Note cartservice has no usable Prometheus span-metrics (tr_6c9d77963f97), so confirmation rests on Tempo and Loki only; if no comparable trace is sampled inside the window, treat this as unconfirmed rather than fixed.
+  rests on    : tr_e39e15c5c9b5, tr_cb567cd9d301
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 25092 pushed / 7650 pulled (pull rate 0.2336), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_e39e15c5c9b5, tr_cb567cd9d301, tr_15edc01dfe65
+  root cause  : cartservice's Redis calls are held at a fixed ~300-311ms floor per command, and that wait is the failure. Traces show every sampled cart operation spending effectively all its time in a single Redis leaf span (HGET or HMSET) with the gRPC handler under 1ms of self time, reads and writes equally affected, tightly banded rather than long-tailed [tr_e39e15c5c9b5]. A uniform floor with near-zero variance is the signature of interposed egress delay, not server-side contention, and the change log records exactly that artifact on this path: a traffic-shaping container attached to the cart-service network namespace injecting fixed egress delay, plus a REDIS_ADDR port override, both by platform-automation [tr_cb567cd9d301]. Both are logged as reverted ~1.3-1.6h before onset, so the likeliest reading is that the shaping rule persisted in the pod's network namespace after the injector was detached, or was re-applied without a log entry. Upstream symptoms follow mechanically: latency multiplies per cart round-trip to ~910ms frontend POSTs and ~640-690ms PlaceOrder spans while every other checkout dependency stays in single-digit ms [tr_e39e15c5c9b5].
+  OPEN        : Whether the shaping rule actually stopped when the injector was detached - nobody inspected the live pod's netns or tc rules.
+  OPEN        : Onset is unattributed: the trace window has no pre-onset comparison, so the ~300ms floor may predate 06:28:45 and imply a different trigger.
+  OPEN        : redis-cart itself was never queried, so a genuinely slow Redis server cannot be excluded on its own telemetry.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:redis-cart-dependency-latency'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T062523Z-redis-cart-dependency-latency/3b7ade75-1799-4519-95b5-66cfe58a2d10-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T062523Z-redis-cart-dependency-latency/3b7ade75-1799-4519-95b5-66cfe58a2d10-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9825.18it/s]
