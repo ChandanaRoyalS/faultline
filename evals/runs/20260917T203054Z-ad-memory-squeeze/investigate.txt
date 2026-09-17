@@ -1,0 +1,38 @@
+incident c514c961-b1a3-4de1-985f-a91dea1df7b0  state triaging  anchor 20:34:15
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 685c830c-6d6c-402f-a369-b1f7e511812e
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alert on frontend with the load generator also firing indicates user-facing impact, not an isolated synthetic blip. No open incidents to attribute it to, and the cause could lie in any of the several first-hop dependencies, so specialist dispatch is warranted.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Three independent blockers, each sufficient on its own. (1) The mechanism sits in the shipping-quote service: the bad address is wrapped in a 'code = Unknown' remote envelope, which places it upstream of frontend's own handler, and frontend's retained errors are all client-side outbound-call errors [tr_fd8f527583db]. shippingservice is not in the blast radius this brief gives me, so there is no legal target that owns the bad value. Reverting config on frontend would revert a service whose configuration the evidence does not implicate. (2) revert_config requires a prior configuration recorded in change history. The change log is empty for frontend [tr_a65fc36b77d2] and for checkoutservice [tr_6e15fe00e6d4], and both queries ran from onset forward, missing the pre-onset period when the endpoint edit must have landed. There is no recorded prior value to restore, so the precondition is unmet on the evidence, not merely unverified. (3) No dispatch ever touched shippingservice or the quote service - its logs, metrics and change history are unmeasured, so the location of the bad value rests entirely on error nesting in frontend's logs. I would change this abstention if a change-history query over the pre-onset period on shippingservice returned a prior endpoint value, or if a log/metric query on shippingservice confirmed the quote URL originates there. Conversely, if such a query showed the unresolvable host configured on frontend itself with a recorded prior value, revert_config on frontend would become the right proposal.
+  rests on    : tr_fd8f527583db, tr_a65fc36b77d2, tr_6e15fe00e6d4
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 25529 pushed / 3811 pulled (pull rate 0.1299), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_fd8f527583db, tr_7383c104a38e, tr_c6684efc0244
+  root cause  : The shipping-quote path fails because it is pointed at a quote-service endpoint that does not exist: the only named upstream target in the evidence is the host `quoteservice-gone` on port 8090, and the call fails at DNS name resolution before any connection is made, surfacing to frontend as gRPC 13 INTERNAL 'shipping quote failure' [tr_fd8f527583db]. The remote error is wrapped in a `code = Unknown` gRPC envelope carrying an HTTP client failure for the quote URL, which places the bad address in the shipping-quote service rather than in frontend's own handler; frontend's retained errors are all client-side outbound-call errors and the service keeps running to the end of the window [tr_fd8f527583db]. The mechanism is the configuration value itself - an address naming an unresolvable host - so every shipping-quote request fails at name lookup, degrading later to bare gRPC 14 UNAVAILABLE 'no connection established' [tr_fd8f527583db].
+  OPEN        : No dispatch touched shippingservice or the quote service directly - its logs, metrics and change history are unmeasured, so locating the bad value in shippingservice rests on the error nesting in frontend's logs alone [tr_fd8f527583db].
+  OPEN        : No change record for the endpoint edit exists: both change queries ran from onset forward and missed the pre-onset period [tr_a65fc36b77d2, tr_6e15fe00e6d4].
+  OPEN        : Whether the 20:34:15 alert is error-shaped at all is unresolved - error ratios fell, and frontend latency and throughput were never measured [tr_591a8b1d1900, tr_b3279f394d77]; frontend log coverage also has an hour-long hole spanning onset [tr_fd8f527583db].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:ad-memory-squeeze'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T203054Z-ad-memory-squeeze/c514c961-b1a3-4de1-985f-a91dea1df7b0-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T203054Z-ad-memory-squeeze/c514c961-b1a3-4de1-985f-a91dea1df7b0-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8643.90it/s]

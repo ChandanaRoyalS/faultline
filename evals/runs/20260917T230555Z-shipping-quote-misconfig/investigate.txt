@@ -1,0 +1,43 @@
+incident d97a54a6-4098-4457-851e-726fd660323d  state triaging  anchor 23:09:00
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 7d8040c2-aba9-4795-a8c6-e796343267be
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service failure originating at checkoutservice and fanning out to frontend and its downstream consumers within three minutes; too broad to dismiss and no open incident to fold it into. The alert pattern doesn't clearly distinguish a deploy, config, or dependency-latency origin, so the cause prior stays unknown.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : shippingservice
+  expect      : Restoring shippingservice's pre-23:06 environment (QUOTE_SERVICE_ADDR back to unset, i.e. the value it held through every healthy period earlier today) and recreating the container should make the quote path produce output again. Observable as: (1) shipping-service Loki lines resume the baseline handler sequence — each 'GetQuoteRequest' line followed within the same second by a quote-value line, which has been absent for every one of the ~30 requests since 23:09:28 [tr_0d90ae6c2bcb]; (2) Tempo traces for checkoutservice show the shippingservice HTTP client span regaining a quoteservice/getquote child and the ShippingService/GetQuote client span on checkoutservice no longer carrying error status [tr_499daa7d80a6]; (3) checkout-service logs resume the completion triplet (payment transaction id, confirmation email, message-write with increasing offset) after each PlaceOrder line. Requests arrive every 5-15s, so one or two request cycles after the container is healthy is enough to see all three.
+  within      : 180s
+  risk        : Recreating the container drops every in-flight GetQuote and ShipOrder request, so checkoutservice sees a burst of connection resets during the recreate — on top of an already-failing checkout path. If the true fault is a down quoteservice rather than the address value, this change buys nothing, costs an outage window, and removes the one obviously-wrong config value from view, making the real cause harder to spot. It also discards shippingservice's in-process cache. If the unset default points somewhere different from what quoteservice actually listens on today, the revert could move shipping from a silent stall to a different failure mode. The open question of whether shipping fast-fails or blocks is unresolved; if shipping is swallowing a status rather than hanging, the revert fixes the address but leaves a handler that will fail silently the next time its dependency moves.
+  blast radius: One service recreated: shippingservice. Its inbound caller is checkoutservice (and through it frontend and loadgenerator, all currently failing at this hop anyway), which sees connection resets for the duration of the recreate. Downstream, quoteservice sees quote traffic move back to it — it has been receiving none since 23:06 and its capacity to absorb the returning load is unmeasured [tr_3fa76079aeff]. Services downstream of checkout completion — paymentservice, cartservice, emailservice, and the order-publish consumers accountingservice and frauddetectionservice — should see traffic resume, which is the intended effect but is still a load change they will notice.
+  if wrong    : If, two minutes after the recreate, shipping-service still logs inbound GetQuote lines with no quote value, and checkoutservice's GetQuote span still carries error status, the diagnosis is wrong in one of two ways: the unset default does not resolve to a live quote backend either, or quoteservice is independently down. The latter is genuinely unmeasured here — quoteservice's error-ratio series is empty in both baseline and incident windows [tr_3fa76079aeff], so nothing in metrics can tell us quoteservice is healthy before or after this change; only the shipping logs and the reappearance of the quoteservice trace child can. A second falsifier: if the change history's revert-to-unset does not in fact restore a working endpoint, the post-revert traces will show shipping's HTTP client span still childless. Note also that this config has been set-then-reverted roughly every four hours all day [tr_6aad564b6f00]; if the symptom returns ~4h later, the revert worked but the automation that sets the bad value was never addressed, and that root cause is outside what this system can act on.
+  rests on    : tr_6aad564b6f00, tr_0d90ae6c2bcb, tr_499daa7d80a6
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 31656 pushed / 14782 pulled (pull rate 0.3183), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_6aad564b6f00, tr_0d90ae6c2bcb, tr_499daa7d80a6, tr_efa865ce833c, tr_621b630168c7
+  root cause  : At 23:06:03, ~3 minutes before onset, platform-automation set shippingservice's QUOTE_SERVICE_ADDR from unset to http://quoteservice-gone:8090, an address that does not point at a live quote backend [tr_6aad564b6f00]. From 23:09:28 onward shippingservice logs inbound GetQuote requests at normal cadence but emits no quote value and no error, retry, or resolution line for any of them [tr_0d90ae6c2bcb], and failing traces show the shippingservice HTTP client span with no quoteservice child, whereas the 22:59 baseline trace has shipping -> quoteservice/getquote as the dominant hop [tr_499daa7d80a6]. The failure surfaces as an error on checkoutservice's client-side ShippingService/GetQuote span, aborting prepareOrderItemsAndShippingQuoteFromCart before payment, cart-empty, ship-order, email, and order publish [tr_499daa7d80a6], matching checkout logs that show PlaceOrder entries without the usual completion triplet after 23:09 [tr_efa865ce833c]. checkoutservice has no change record and no error-ratio regression [tr_c56ab14a09d4][tr_621b630168c7]; it noticed, it did not break. The wrong endpoint value is itself the mechanism.
+  OPEN        : Traces show fast failures (8.8-16.1ms, under the 25.2ms baseline) while shipping/checkout logs read as hangs; whether shipping fast-fails and swallows the status or blocks was not settled.
+  OPEN        : quoteservice's own health was never probed — its metric series is empty in both baseline and incident windows [tr_3fa76079aeff], so an independently-down quoteservice is unmeasured, and it is unconfirmed that unsetting QUOTE_SERVICE_ADDR restores a working default.
+  OPEN        : Why the automation's usual revert did not fire this cycle, and whether the downstream alerters (accounting, email, frauddetection) follow purely from the absent order-publish step, were not directly observed; 5 unmeasured edges remain unprobed.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:shipping-quote-misconfig'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T230555Z-shipping-quote-misconfig/d97a54a6-4098-4457-851e-726fd660323d-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T230555Z-shipping-quote-misconfig/d97a54a6-4098-4457-851e-726fd660323d-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8516.61it/s]

@@ -1,0 +1,38 @@
+incident 53746f08-a9fb-4ae3-8775-d250edbd946f  state triaging  anchor 20:54:15
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: d58ddd1e-c656-4941-991e-b3598a8d5b3b
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts hit checkout and frontend simultaneously along with the load generator, indicating user-facing order flow breakage rather than a quiet warning. No open incident could account for it, and the shared downstream dependencies of checkout/frontend need evidence to narrow the cause.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if cartservice evidence arrives showing process-state exhaustion — an OOM or connection-pool-exhausted log line, a rising restart count, or memory at the container limit — in which case restart_service on cartservice becomes supportable and the delay cost real orders. It is also wrong if the outage is in fact self-healing on restart and every minute of abstention is lost revenue. Conversely, the abstention is vindicated if cartservice turns out to hold a bad Redis endpoint or credential, or an exhausted pool pointed at a dead store: both produce exactly this 2-4ms rejection, and a restart would either change nothing or clear the symptom just long enough to destroy the evidence.
+  rests on    : tr_ecd6b0a2ed0a, tr_500ce94e6edd
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 24207 pushed / 4974 pulled (pull rate 0.1705), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : medium
+  evidence    : tr_ecd6b0a2ed0a, tr_500ce94e6edd, tr_c2fc18f61dac, tr_0a565369e268
+  root cause  : Every PlaceOrder aborts at its first downstream call: CartService/GetCart returns an error immediately in all 10 sampled traces, and that error propagates up through checkoutservice and frontend [tr_ecd6b0a2ed0a]. checkoutservice logs show orders starting but never reaching payment/email/order-write, with no error lines of its own [tr_500ce94e6edd], and its internal spans have negligible self time [tr_ecd6b0a2ed0a] — so checkoutservice and frontend are reporters, not the fault. Blame lands on cartservice, which rejects cart reads outright in 2-4ms of self time (a fast rejection, not a wait). No specialist was dispatched to cartservice or its cart store, so the mechanism behind that rejection is not established by this board.
+  OPEN        : What does cartservice itself report at 20:53:00 — error logs, memory/connection saturation, restarts, or a recent deploy or config change? Nothing on this board touches it.
+  OPEN        : Is the cart backing store (Redis/valkey) reachable and healthy? A wrong endpoint/credential or an exhausted connection pool would both produce this fast rejection and imply different fixes.
+  OPEN        : Onset cannot be placed precisely: checkoutservice logs are truncated between ~19:54 and 20:52 [tr_500ce94e6edd], and change queries do not cover the hours before 20:54:15 [tr_ee55b3ed60c5].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-bad-image-tag'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T205044Z-cart-bad-image-tag/53746f08-a9fb-4ae3-8775-d250edbd946f-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T205044Z-cart-bad-image-tag/53746f08-a9fb-4ae3-8775-d250edbd946f-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9934.99it/s]

@@ -1,0 +1,43 @@
+incident 5b51c22e-e3ef-44ff-b452-f9a1699e8ae8  state triaging  anchor 21:13:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: c14da469-991e-44f1-b6e5-76c3e5d21c80
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Four services alerted within 15 seconds starting at cartservice and spreading to checkout, frontend, and the load generator, which is a propagating user-facing failure rather than an isolated warning. Cart being first and upstream callers following suggests a dependency slowdown, but nothing here can be dismissed without evidence.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Recreating cartservice from its recorded prior configuration rebuilds its network namespace and drops the tc netem rule attached at 21:10:07. In Tempo: Redis client spans fall from ~300ms to the pre-onset 0.2-0.6ms, AddItem from ~604ms to single-digit ms, cart-path traces from ~1500-2500ms to 3.6-5.9ms. In Prometheus: checkoutservice error ratio falls from ~0.156 toward its 0.0021 baseline. Cart-side confirmation must come from traces, since cartservice has no calls_total series.
+  within      : 300s
+  risk        : If the diagnosis is wrong, this discards cartservice's in-process cache and briefly drops connections for no benefit, and reverting configuration may also roll back unrelated environment values (e.g. REDIS_ADDR) to a state that is not current-correct, creating a new fault. The shaping actor runs a ~4-hourly cycle, so relief may be temporary and mask the need to stop the harness.
+  blast radius: cartservice only, for the duration of the recreate. Its inbound callers - frontend and checkoutservice - see reset connections and a brief error spike; loadgenerator sees this at the edge.
+  if wrong    : Falsified if fresh cartservice traces still show ~300ms zero-jitter Redis spans after the recreate, meaning the delay is not bound to cartservice's namespace. Partially falsified if cart latency normalises but checkoutservice error ratio stays near 0.15, which would confirm the unexplained ~20:52:15 change point as a separate cause.
+  rests on    : tr_260016376ca5, tr_7a16a78fc77e, tr_3148065f7a49
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 23744 pushed / 9577 pulled (pull rate 0.2874), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_260016376ca5, tr_7a16a78fc77e, tr_3148065f7a49, tr_ece83ebae4c4, tr_ffcabdbd7c2d
+  root cause  : At 21:10:07, ~3 minutes before onset, platform-automation attached a traffic-shaping container to cart-service's network namespace applying a fixed 300ms egress delay with zero jitter, still in place at onset with no recorded removal [tr_260016376ca5]. Traces confirm the mechanism: from 21:11:29 every cartservice Redis client span carries ~300ms self time with only a few ms spread and no tail, the penalty recurs once per outbound Redis op (AddItem ~604ms), and cartservice's own handler self time stays at 0.5-1.1ms while non-cart dependencies stay at baseline [tr_7a16a78fc77e]. Callers inherit the same fixed increment per cart RPC, so checkoutservice and frontend fail by waiting on cart calls until deadlines expire [tr_7a16a78fc77e, tr_3148065f7a49]. cartservice itself never crashed or errored in its own logs [tr_ece83ebae4c4, tr_de1a3b1a5524]. The failing mechanism is delay inserted into a call path, not a semantically wrong value and not a wrong artifact.
+  OPEN        : checkoutservice's error change point is ~20:52:15, about 18 minutes before the shaping container existed [tr_3148065f7a49] - either a second earlier condition is in play or the detector latched onto an earlier burst. This is the largest unexplained residual.
+  OPEN        : No cartservice request/error/latency metrics exist at all; calls_total is absent across incident and four-hour baseline [tr_ffcabdbd7c2d], so the cart-side picture rests on 30 sampled traces.
+  OPEN        : Both log queries were truncated across 20:43:41-21:15:24, so the 21:13:30 neighbourhood is unobserved and no removal of the shaping rule is recorded [tr_ece83ebae4c4, tr_de1a3b1a5524, tr_260016376ca5].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-dependency-latency'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T210958Z-cart-dependency-latency/5b51c22e-e3ef-44ff-b452-f9a1699e8ae8-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T210958Z-cart-dependency-latency/5b51c22e-e3ef-44ff-b452-f9a1699e8ae8-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10481.18it/s]

@@ -1,0 +1,161 @@
+{
+  "incident_id": "90ee42e5-1e5a-44aa-aba3-a51323976d98",
+  "trajectory_id": "2fc09098-6df5-478e-9195-0394378425df",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "frontend",
+    "paymentservice"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origins": [
+    "scenario:payment-telemetry-blackout"
+  ],
+  "verdict": {
+    "root_cause": "paymentservice is functionally healthy; what broke is its telemetry export path. All nine recorded changes are automated toggles of OTEL_EXPORTER_OTLP_TRACES_ENDPOINT between unset and the loopback address http://127.0.0.1:4317, with the final set at 22:07:07 \u2014 six minutes before the 22:13:15 alert \u2014 left unreverted [tr_3eec73fcdc8a]. A loopback OTLP address names a receiver that is not there, so spans never reach Tempo and the span-derived calls_total series never appears in Prometheus: zero paymentservice spans across six pre-incident hours [tr_9c11b97d7914], and an error-ratio query with no samples in either the incident or the baseline window [tr_2763aaff5c6f]. The log path, which does not depend on the exporter, shows charge requests arriving and completing sub-millisecond on both sides of 22:13:15 with no errors, no restart output and no throughput gap [tr_29d582524105], and the caller checkoutservice had a lower error ratio during the incident window than before it while serving traffic continuously [tr_7fa6ab3c7e72]. The wrong endpoint value is itself the mechanism, so the alert is best read as the absence of paymentservice telemetry rather than a payment failure.",
+    "service": "paymentservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_3eec73fcdc8a",
+      "tr_2763aaff5c6f",
+      "tr_9c11b97d7914",
+      "tr_29d582524105"
+    ],
+    "reasoning": "Traces and metrics are both empty for paymentservice [tr_9c11b97d7914][tr_2763aaff5c6f], and the metrics specialist correctly read that as a series that does not exist rather than a measured zero. The exporter-independent log path shows normal, continuous, sub-millisecond charge handling straddling the alert [tr_29d582524105], and the immediate caller's errors fell [tr_7fa6ab3c7e72] \u2014 so no service-level failure is visible. The only candidate mechanism on the change board is the OTLP endpoint toggle, whose 22:07:07 set was the sole instance still in effect at onset [tr_3eec73fcdc8a]. A loopback exporter address is wrong in itself and that wrongness is the failure, which is why this is bad_config, not bad_deploy (no deploy or image entries exist [tr_3eec73fcdc8a]) or dependency_latency (nothing waits; in-service latency is sub-millisecond [tr_29d582524105]). Confidence is medium because the telemetry gap extends back further than any single toggle interval.",
+    "open_questions": [
+      "Which alert rule fired at 22:13:15, and whether it was an absence-of-data condition rather than an error-rate threshold \u2014 nothing on the board identifies the firing signal.",
+      "Whether paymentservice spans exist at or after 22:07:07; the trace query ended at 21:13:15Z and never covered that period [tr_9c11b97d7914].",
+      "Why telemetry was also missing from 18:47 to 22:07 when the variable was unset, and whether real user impact occurred on the two unprobed edges \u2014 the checkoutservice query had no downstream dimension [tr_7fa6ab3c7e72]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The collector or telemetry backend receiving paymentservice spans is itself down or unreachable, independent of the endpoint value.",
+        "service": "paymentservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "It would explain the chronic gap, but no collector or backend was probed, while a concrete misconfigured loopback endpoint is recorded six minutes before onset [tr_3eec73fcdc8a]; it also leaves the onset timing unexplained."
+      },
+      {
+        "root_cause": "A real failure on the checkoutservice-to-paymentservice edge exists but is invisible because the only metric query lacked a downstream dimension.",
+        "service": "paymentservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "paymentservice logs show paired request/completion lines under a millisecond and no errors across the alert moment [tr_29d582524105], and checkoutservice's aggregate error ratio fell rather than rose [tr_7fa6ab3c7e72]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-quote-misconfig / What ruled the alternatives out: Gradual degradation: metrics show a sharp step at onset, not a ramp, which also excludes any trigger landing at or after T+1m45s. Slow or hung dependency: the failing call returns in single-digit milliseconds - a hang looks like a floor near the client deadline, this looks like a",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:class-bad-config / What the change record holds: The variable and a timestamp, and **the new value only** - no change record in this world carries\na prior value, which `world-change-records-have-no-prior-value` sets out.\n\n**What the logs hold is not uniform, and this document had it wrong.** An earlier version said a\nservice po"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 22916,
+    "pulled_tokens": 6231,
+    "pull_rate": 0.2138,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 389,
+        "content_tokens": 391,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1562,
+        "content_tokens": 1565,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6892,
+        "content_tokens": 6868,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6547,
+        "content_tokens": 6549,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7526,
+        "content_tokens": 7504,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "paymentservice",
+    "rests_on": [
+      "tr_3eec73fcdc8a",
+      "tr_9c11b97d7914",
+      "tr_2763aaff5c6f"
+    ],
+    "expected_effect": "After reverting OTEL_EXPORTER_OTLP_TRACES_ENDPOINT away from the loopback value set at 22:07:07, paymentservice spans should begin appearing in Tempo and the span-derived calls_total{service_name=\"paymentservice\"} series should become non-empty in Prometheus within a few minutes, making the error-ratio query return samples instead of nothing. Charge request/completion logging in Loki should continue uninterrupted apart from the container recreate.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "If, 15 minutes after the revert, Tempo still returns zero paymentservice spans and calls_total is still empty, the exporter endpoint was not the only break (the prior state was also unset from 18:47-22:07 with no telemetry, per tr_3eec73fcdc8a and tr_9c11b97d7914) and the fault lies in instrumentation or collector ingest, not this variable. Also note this action cannot be confirmed to silence the 22:13:15 alert, since no evidence identifies the firing rule.",
+    "risk": "The revert recreates the container. If paymentservice is in fact unhealthy in a way the logs did not show, the recreate drops in-flight charge requests and briefly resets connections. If the prior configuration is itself the broken state (telemetry was also absent while unset), the revert restores a non-emitting configuration and consumes an outage window for no gain. It also does not stop the platform-automation loop that has re-set this variable five times today, so the value may be re-applied within hours.",
+    "blast_radius": "paymentservice only for the recreate window; checkoutservice, its direct caller, sees connection resets on in-flight charge gRPC calls, and frontend may surface those as checkout errors. Tempo/Prometheus see paymentservice telemetry resume."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A critical alert on paymentservice with checkout and frontend downstream is a revenue-path failure that cannot be dismissed without evidence. Nothing in the alert pattern points to a specific cause yet."
+  }
+}

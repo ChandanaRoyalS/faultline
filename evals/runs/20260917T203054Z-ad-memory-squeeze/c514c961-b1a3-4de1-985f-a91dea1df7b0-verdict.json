@@ -1,0 +1,164 @@
+{
+  "incident_id": "c514c961-b1a3-4de1-985f-a91dea1df7b0",
+  "trajectory_id": "685c830c-6d6c-402f-a369-b1f7e511812e",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "The shipping-quote path fails because it is pointed at a quote-service endpoint that does not exist: the only named upstream target in the evidence is the host `quoteservice-gone` on port 8090, and the call fails at DNS name resolution before any connection is made, surfacing to frontend as gRPC 13 INTERNAL 'shipping quote failure' [tr_fd8f527583db]. The remote error is wrapped in a `code = Unknown` gRPC envelope carrying an HTTP client failure for the quote URL, which places the bad address in the shipping-quote service rather than in frontend's own handler; frontend's retained errors are all client-side outbound-call errors and the service keeps running to the end of the window [tr_fd8f527583db]. The mechanism is the configuration value itself - an address naming an unresolvable host - so every shipping-quote request fails at name lookup, degrading later to bare gRPC 14 UNAVAILABLE 'no connection established' [tr_fd8f527583db].",
+    "service": "shippingservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_fd8f527583db",
+      "tr_7383c104a38e",
+      "tr_c6684efc0244"
+    ],
+    "reasoning": "tr_fd8f527583db is the only concrete named mechanism on the board, and it also rules out the rival shapes for the same path: no deadline or timeout statuses (not a slow dependency) and failures occurring before any connection or response exists (not an overloaded or resource-starved callee). Every other dispatch is negative in a way consistent with this. Frontend and checkoutservice error ratios both fell versus baseline with no change point near onset [tr_591a8b1d1900, tr_b3279f394d77, tr_c6684efc0244], and the traces are fast with negligible downstream server time and no checkoutservice spans [tr_7383c104a38e] - but that trace sample covers only the last ~6 seconds of the window and only product-page and cart requests, which never reach checkout or shipping [tr_7383c104a38e], so the failing path is absent from the sample and diluted in the aggregate ratios. Change history is uninformative: both queries were windowed from onset forward and never covered the period when the endpoint would have been edited [tr_a65fc36b77d2, tr_6e15fe00e6d4]. Blaming frontend requires an internal frontend fault, which tr_fd8f527583db rules out; blaming checkoutservice requires it to be erroring or absent, which tr_c6684efc0244 contradicts.",
+    "open_questions": [
+      "No dispatch touched shippingservice or the quote service directly - its logs, metrics and change history are unmeasured, so locating the bad value in shippingservice rests on the error nesting in frontend's logs alone [tr_fd8f527583db].",
+      "No change record for the endpoint edit exists: both change queries ran from onset forward and missed the pre-onset period [tr_a65fc36b77d2, tr_6e15fe00e6d4].",
+      "Whether the 20:34:15 alert is error-shaped at all is unresolved - error ratios fell, and frontend latency and throughput were never measured [tr_591a8b1d1900, tr_b3279f394d77]; frontend log coverage also has an hour-long hole spanning onset [tr_fd8f527583db]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The unresolvable quote-service address is in frontend's own configuration and frontend makes the failing HTTP call itself.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The quote-URL failure arrives inside a remote gRPC 'code = Unknown' envelope that frontend re-wraps as its own status 13, and tr_fd8f527583db rules out an internal frontend fault - the failing HTTP call is one hop further out."
+      },
+      {
+        "root_cause": "A shipping-quote dependency was deployed with a wrong artifact or never came up, so its address resolves to nothing and callers see connection failures.",
+        "service": "shippingservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The host name itself reads as a deliberately dead placeholder and fails at DNS lookup rather than at connect on a real address [tr_fd8f527583db], which points at a wrong configured value rather than a wrong running artifact; no deploy record supports it either [tr_6e15fe00e6d4]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:service-frontend / The at-rest latency tail: **Measured over twelve hours at 15s resolution on a world at rest** (ADR-0025): frontend's\nmedian p95 is 42.3ms, and 127 of 2398 samples were above the 250ms threshold, 94 of them above\n1000ms, in excursions sustained past the rule's three-minute `for:` clause. Two episodes in th",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25529,
+    "pulled_tokens": 3811,
+    "pull_rate": 0.1299,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 440,
+        "content_tokens": 442,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1843,
+        "content_tokens": 1846,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7779,
+        "content_tokens": 7755,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7140,
+        "content_tokens": 7142,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8327,
+        "content_tokens": 8305,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_fd8f527583db",
+      "tr_a65fc36b77d2",
+      "tr_6e15fe00e6d4"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected. What a correct fix would eventually show, once the owning service is identified and its prior config recovered: the log line 'error sending request for url (http://quoteservice-gone:8090/getquote) ... Name does not resolve' ceasing entirely in {service=\"frontend\"}, and the trailing gRPC 14 'no connection established' errors stopping within a minute of the recreate. That is the observable that matters, and nothing in the permitted action set can currently produce it against a legal target.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "Three independent blockers, each sufficient on its own. (1) The mechanism sits in the shipping-quote service: the bad address is wrapped in a 'code = Unknown' remote envelope, which places it upstream of frontend's own handler, and frontend's retained errors are all client-side outbound-call errors [tr_fd8f527583db]. shippingservice is not in the blast radius this brief gives me, so there is no legal target that owns the bad value. Reverting config on frontend would revert a service whose configuration the evidence does not implicate. (2) revert_config requires a prior configuration recorded in change history. The change log is empty for frontend [tr_a65fc36b77d2] and for checkoutservice [tr_6e15fe00e6d4], and both queries ran from onset forward, missing the pre-onset period when the endpoint edit must have landed. There is no recorded prior value to restore, so the precondition is unmet on the evidence, not merely unverified. (3) No dispatch ever touched shippingservice or the quote service - its logs, metrics and change history are unmeasured, so the location of the bad value rests entirely on error nesting in frontend's logs. I would change this abstention if a change-history query over the pre-onset period on shippingservice returned a prior endpoint value, or if a log/metric query on shippingservice confirmed the quote URL originates there. Conversely, if such a query showed the unresolvable host configured on frontend itself with a recorded prior value, revert_config on frontend would become the right proposal.",
+    "risk": "The risk of abstaining is real and should be stated: the condition is ongoing and unresolved as of 20:36:06, with errors still being emitted at the end of the window [tr_fd8f527583db], so every shipping-quote request continues to fail at name lookup while nobody acts. Abstention buys diagnostic correctness at the cost of continued checkout-path breakage. The risk of the alternative - proposing revert_config against frontend anyway - is worse: it recreates a service the evidence exonerates, discards whatever configuration frontend currently holds with no recorded prior state to fall back to, resets connections for every caller, and leaves the actual bad address untouched, so the DNS failures resume immediately after the recreate and the failed attempt muddies the next investigator's picture.",
+    "blast_radius": "None from this proposal, since no action is taken. For the record, had revert_config been aimed at frontend: frontend is the seed and alerted service and sits on the inbound path from loadgenerator, so loadgenerator would see connection resets across the recreate, and frontend's downstream dependencies - adservice, cartservice, checkoutservice, productcatalogservice, recommendationservice - would see traffic drop and resume. Any correct fix, when the owning service is found, will move shipping-quote traffic off the unresolvable host and onto a real endpoint, which that endpoint's owner will see as new inbound load."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on frontend with the load generator also firing indicates user-facing impact, not an isolated synthetic blip. No open incidents to attribute it to, and the cause could lie in any of the several first-hop dependencies, so specialist dispatch is warranted."
+  }
+}
