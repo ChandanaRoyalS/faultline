@@ -1,0 +1,43 @@
+incident ba7f8d8e-de10-42de-a664-fa483978d904  state triaging  anchor 12:44:00
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 4c5b487d-6b81-4172-ba1f-f9bf130a3081
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity at the frontend with the load generator following is user-facing and cannot be dismissed as a quiet world. No open incident matches, and the alerts alone don't distinguish a bad deploy from a slow downstream dependency.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : adservice
+  expect      : Restoring adservice's configuration to its pre-12:40:09 state (memory limit back to unset, as in the three recorded lower-then-revert cycles earlier that day) should let the JVM complete startup. Observable as: (a) the ad-service log stream stops emitting back-to-back JVM/OTel startup banners and resumes 'hipstershop.AdService - received ad request' lines of the kind present at 12:30 [tr_23f4c239bab1]; (b) frontend's grpc-js 'Error: 14 UNAVAILABLE' lines naming the adservice target on port 9555 cease within a retry interval or two of the pod becoming ready [tr_88656a5dca3b]; (c) frontend error ratio, currently ~3.1% mean against a ~2.2% baseline, returns to baseline. Note adservice itself has no span-metric series at all in Prometheus, so its own recovery can only be confirmed from logs plus frontend-side errors, not from adservice metrics.
+  within      : 300s
+  risk        : The revert recreates the container, so any in-flight ad requests are dropped and the JVM cold-starts again — a further ~30-60s of ad unavailability on top of the existing outage. Removing the memory ceiling is not free: if the true fault is an adservice memory leak or regression rather than an externally imposed limit that is simply too small, the unbounded JVM can grow until it pressures the host, which would degrade co-located services rather than just adservice. OOMKill was never directly observed — memory exhaustion is inferred from the limit edit plus the pre-ready restart loop [tr_23f4c239bab1] — so this is a well-supported inference, not a measured cause. The revert also fights an automated actor that has reapplied this limit four times today; without stopping that actor the fix may be transient.
+  blast radius: One service, adservice. Its inbound caller in this incident's graph is frontend, which sees the connection reset during the recreate — it is already failing fast with UNAVAILABLE on this path, so the marginal harm is small — and loadgenerator sees it transitively through frontend. No dependency address is being changed, so no other service receives moved traffic. cartservice, checkoutservice, productcatalogservice and recommendationservice are untouched, except indirectly if the unbounded JVM causes host memory pressure on shared infrastructure.
+  if wrong    : Falsified if, after the recreate, the ad-service log stream still shows only startup banners at roughly one-per-minute cadence, or if frontend continues logging UNAVAILABLE with name-resolution detail for adservice:9555 beyond ~5 minutes. Either would mean the memory ceiling was not the binding constraint and the mechanism is elsewhere — the unexplained 12:34 'Connection dropped' UNAVAILABLE predates the 12:40 loop, and the late failures fail at DNS resolution rather than at connect, which is consistent with service discovery never seeing endpoints but would also be consistent with a discovery-layer fault this action does not touch. Also falsified-in-effect if platform-automation reapplies the 256m limit (it has done so four times today) and the loop returns; that outcome means the durable fix is to stop the automation, which is outside what this system may do.
+  rests on    : tr_157405b0e3e6, tr_23f4c239bab1, tr_88656a5dca3b
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 26047 pushed / 5597 pulled (pull rate 0.1769), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_157405b0e3e6, tr_23f4c239bab1, tr_88656a5dca3b
+  root cause  : At 12:40:09 platform-automation lowered adservice's container memory limit to 256m, the fourth such lowering that day and the only one left unreverted at onset [tr_157405b0e3e6]. The JVM-based ad-service cannot fit under that ceiling: from 12:40:16 onward its logs contain only repeated JVM/OTel startup banners — at least eleven startups between 12:40 and 12:45 with backoff, and no request handling after 12:30 when it was still serving normally [tr_23f4c239bab1]. The pod never reaches ready state, its endpoints stay absent, and frontend's outbound gRPC calls to the adservice target on port 9555 fail fast with UNAVAILABLE, latterly at name resolution [tr_88656a5dca3b]. The mechanism is adservice being killed for exceeding a memory limit it cannot satisfy; frontend and loadgenerator alerted only as the callers noticing a missing dependency.
+  OPEN        : No OOMKill or container termination reason was retrieved; memory exhaustion is inferred from the limit edit plus the pre-ready restart loop [tr_23f4c239bab1], not directly observed. Kubelet events and working-set-vs-limit metrics would confirm it.
+  OPEN        : Whether the 12:40:09 lowering was reverted after 12:46 and whether adservice recovered — the log window ends mid-loop [tr_23f4c239bab1] and adservice has no metric series at all [tr_463656558d7e].
+  OPEN        : A frontend UNAVAILABLE at ~12:34 with a connection-dropped detail predates the crash loop [tr_88656a5dca3b], and the middle of the log window was not returned, so earlier adservice instability and the one unmeasured edge from triage remain unexplained.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:ad-memory-squeeze', 'scenario:frauddetection-memory-squeeze'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T124004Z-ad-memory-squeeze/ba7f8d8e-de10-42de-a664-fa483978d904-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T124004Z-ad-memory-squeeze/ba7f8d8e-de10-42de-a664-fa483978d904-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8807.97it/s]

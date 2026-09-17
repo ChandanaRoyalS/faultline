@@ -1,0 +1,174 @@
+{
+  "incident_id": "88fff9ef-217e-4449-83de-4e19a89fff5a",
+  "trajectory_id": "788ce237-eec4-42eb-9cb9-35077ed9ff14",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:cart-dependency-latency",
+    "scenario:redis-cart-dependency-latency"
+  ],
+  "verdict": {
+    "root_cause": "A traffic-shaping container was attached to cartservice's network namespace by platform-automation ~3 minutes before onset, imposing a fixed 300ms zero-jitter egress delay that was never removed [tr_4ba6c4f2425b]. Traces confirm the mechanism: every Redis leaf span from cartservice sits in a tight 300.5-311.6ms band while cartservice's own gRPC server spans have 0.3-1.1ms self time, and each caller leg absorbs another ~300ms, so cart round trips compound to ~605ms-1.21s [tr_4adfe9df6c0c]. cartservice is otherwise healthy - serving continuously, no errors, no restarts [tr_449b2234a1ed]. The wait propagates upward: checkoutservice per-order steps stretched from tens of milliseconds to ~1s [tr_5486a4f3c587] and its error ratio rose ~70x intermittently without saturating, the signature of deadline breaches on the slowest cart calls rather than a hard failure [tr_c9e5a7b0bc37]. frontend and loadgenerator alerted one hop further out.",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_4ba6c4f2425b",
+      "tr_4adfe9df6c0c",
+      "tr_c9e5a7b0bc37",
+      "tr_5486a4f3c587",
+      "tr_449b2234a1ed"
+    ],
+    "reasoning": "The change record's declared 300ms/0ms-jitter delay and the measured 300.5-311.6ms span floor match to the millisecond, and the tightness of that band is itself diagnostic - organic backend contention does not produce an 11ms-wide distribution across ten traces [tr_4ba6c4f2425b][tr_4adfe9df6c0c]. Sub-millisecond cartservice self time places the stall on the wire, not in cart code; peer dependencies of checkout are sub-20ms in the same traces, so the penalty is specific to the cart path [tr_4adfe9df6c0c]. The mechanism is waiting, so dependency_latency rather than bad_config: no value names a wrong address or limit, and the sidecar is doing exactly what it specifies. The earlier image revert and REDIS_ADDR edits both landed before onset and were excluded [tr_4ba6c4f2425b], removing bad_deploy. I blame cartservice over checkoutservice because checkout logs show no errors and a healthy payment/email/queue path [tr_5486a4f3c587] and its errors are intermittent [tr_c9e5a7b0bc37]. Fix is detaching the shaping container; a restart or rollback of cartservice would leave a netns sidecar in place.",
+    "open_questions": [
+      "No evidence ties checkoutservice's errors specifically to the cart edge - the error-ratio query has no dependency dimension [tr_c9e5a7b0bc37] and no span among 188 was errored [tr_4adfe9df6c0c]; the link is inferred by timing and exclusion.",
+      "Checkout logs from 13:25:19 onward show clean successful orders [tr_5486a4f3c587] while traces in those same minutes still show the 300ms floor [tr_4adfe9df6c0c]; unreconciled, and the 13:24:30 alert-moment lines were truncated out entirely.",
+      "cartservice has no calls_total samples in either window [tr_f413b29612b1], so its error rate, latency, restarts and readiness were never measured; the change record is untrusted and the sidecar's present attachment was never independently confirmed."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The Redis backing store genuinely slowed and the shaping container is coincidental.",
+        "service": "cartservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "A real backend slowdown would show variance; the band matches the declared delay=300ms jitter=0ms exactly, and it would not explain the ~300ms absorbed independently in caller client spans [tr_4adfe9df6c0c].",
+        "service_note": ""
+      },
+      {
+        "root_cause": "checkoutservice breaches its own too-tight RPC deadline on cart calls, making the deadline value the fault.",
+        "service": "checkoutservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The deadline was adequate until the delay was injected; the wrong thing in the world is the added latency, not the timeout value, and no dispatch examined checkout's deadline configuration.",
+        "service_note": ""
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What the investigation concluded: An automation cycle edited cartservice's REDIS_ADDR to point at the redis-cart host on 6380 rather than the default 6379 about two and a half minutes before onset, and \u2014 unlike every prior turn of that same cycle in the preceding day \u2014 that edit was still in force at onset. Each ",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What was never measured: Nothing was ever queried against redis-cart, so neither port's actual listening state was confirmed. cartservice emitted no calls_total under the queried service_name label in either window, so the crashloop timeline rests on logs alone with no metric-side corroboration. The call"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25497,
+    "pulled_tokens": 9174,
+    "pull_rate": 0.2646,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 479,
+        "content_tokens": 481,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1797,
+        "content_tokens": 1801,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7729,
+        "content_tokens": 7704,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7089,
+        "content_tokens": 7092,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8403,
+        "content_tokens": 8380,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_4ba6c4f2425b",
+      "tr_4adfe9df6c0c",
+      "tr_c9e5a7b0bc37"
+    ],
+    "expected_effect": "Detaching the traffic-shaping config attached at 13:20:48 should remove the fixed egress delay. Within minutes: cartservice Redis leaf spans (HGET/HMSET) leave the 300.5-311.6ms band for single-digit ms, checkout's CartService/GetCart client span drops from ~1.21s, PlaceOrder roots fall below ~2.5s, checkout-service log steps compress from ~1s apart back to tens of ms, and checkoutservice's error ratio returns toward its 0.0024 baseline mean. cartservice's own metrics cannot confirm anything - calls_total has no samples in either window - so confirmation must come from Tempo and checkoutservice.",
+    "confirm_within_seconds": 420,
+    "if_wrong": "Falsified if fresh traces still show the ~300ms Redis floor after the recreate: the delay would then live outside cartservice's config (host/bridge level) or the untrusted change record is wrong - the attachment was never independently confirmed. Also falsified if cart latency normalises but cartservice logs start emitting Redis connection/timeout errors, meaning the snapshot restored a stale REDIS_ADDR; revert immediately in that case.",
+    "risk": "Container recreate drops in-flight cart calls and in-process cart state. Change history shows an apply/revert cycle over three mutations (image tag, REDIS_ADDR, shaping container), so the restored snapshot may carry an older REDIS_ADDR pointing at an alternate Redis port - turning a slow-but-working cart into a broken one. Inspect the target config before applying.",
+    "blast_radius": "cartservice's inbound callers see resets during recreate: frontend (Add/GetCart) and checkoutservice (GetCart, EmptyCart), and through them loadgenerator. If a dependency address changes, the Redis instance it pointed at sees traffic move."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "medium",
+    "reasoning": "Multiple services alerted in a 15-second window starting at cartservice and spreading through checkoutservice and frontend, which is a propagating failure rather than an isolated warning. The cartservice-first ordering suggests a downstream dependency or its datastore degrading, but that needs evidence."
+  }
+}

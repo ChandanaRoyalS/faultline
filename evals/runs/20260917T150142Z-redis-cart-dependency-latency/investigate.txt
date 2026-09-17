@@ -1,0 +1,38 @@
+incident aa65fc02-cdc8-4c05-8c39-4a6fd6eef57b  state triaging  anchor 15:05:15
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: c962ca66-f8cc-4507-9943-dfc7c86aef9e
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four services alerting simultaneously along the cart/checkout/frontend path is a coordinated failure, not a single quiet warning, so it cannot be dismissed. The synchronous onset across a shared call chain weakly suggests a common downstream dependency, but nothing rests on that guess.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if the impairment is in fact a still-attached traffic-shaping sidecar or an active REDIS_ADDR override on cartservice, in which case a revert would have restored sub-millisecond cache spans immediately and I have prolonged a ~650ms checkout for every user. The specific check that would falsify me: a pod-spec inspection of the running cartservice showing a delay/tc container, or a change record dated inside 15:05. But the evidence I have says the opposite - revert_config requires a configuration or flag change named inside the incident window, and [tr_7ed48a0748fe] states all 20 cartservice changes landed before onset, the most recent 1.3h prior, with the delay sidecar logged as removed ~1.6h prior and REDIS_ADDR already reverted to unset. The precondition is not met on the evidence in front of me. Worse, the last recorded 'prior configuration' for cartservice is the chaos state (override image, REDIS_ADDR=redis-cart:6380, delay sidecar), so revert_config could plausibly re-apply the very fault being diagnosed. rollback_image is ruled out by the same record (no deploy in the window, last image revert ~1.9h prior). restart_service requires evidence pointing at process state; [tr_a3ca6f1897ee] puts the time in the downstream cache hop with sub-1ms cartservice handler self-time, and logs show the process serving normally through 15:07, so process state is not implicated - and a restart is irreversible. scale_service is unavailable. Nothing permitted targets redis-cart or the network path, which is where the mechanism lives, and redis-cart is not in the blast radius.
+  rests on    : tr_7ed48a0748fe, tr_a3ca6f1897ee, tr_b31c4a72c063
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 28863 pushed / 9600 pulled (pull rate 0.2496), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_a3ca6f1897ee, tr_7ed48a0748fe, tr_81d78e6a5d7b, tr_4160e7d59250, tr_b31c4a72c063
+  root cause  : cartservice's cache dependency (redis-cart) began adding a near-constant ~300ms penalty to every cache operation at around 15:05, and cartservice fails by waiting. Traces show cartservice handler self-time under 1ms while the HGET and HMSET child spans each hold ~300-311ms, reads and writes equally affected, against a pre-onset baseline of 0.2-0.5ms per cache span [tr_a3ca6f1897ee]. The penalty accumulates per call, so AddItem reaches ~605-615ms and a full checkout ~650-660ms end to end, which is what frontend, checkoutservice and loadgenerator noticed at the same minute. The fixed, command-agnostic magnitude matches the 300ms egress delay platform-automation repeatedly injected into cartservice in four apply/revert chaos cycles the same day [tr_7ed48a0748fe], suggesting a further unrecorded injection or an equivalent network-path delay. checkoutservice's spiky 0.4%-mean / 4.1%-peak errors off a flat-zero baseline [tr_81d78e6a5d7b] are downstream fallout: it has no changes of its own [tr_39ea4f72ea51] and logs clean end-to-end orders through 15:07 [tr_358eccc1f9bb].
+  OPEN        : No change record sits at onset; the delay sidecar is logged as removed ~1.6h prior [tr_7ed48a0748fe]. A live pod-spec check for a traffic-shaping container on cartservice would settle whether a fifth, unlogged cycle started.
+  OPEN        : redis-cart itself was never queried: its latency, memory, eviction and connection metrics would distinguish an injected delay from genuine cache-side degradation.
+  OPEN        : cartservice has no usable metrics at all [tr_b31c4a72c063], and both log queries truncated away the 15:05 minute itself [tr_4160e7d59250], so the cartservice-to-checkoutservice error link is inferred rather than measured.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-dependency-latency', 'scenario:redis-cart-dependency-latency'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T150142Z-redis-cart-dependency-latency/aa65fc02-cdc8-4c05-8c39-4a6fd6eef57b-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T150142Z-redis-cart-dependency-latency/aa65fc02-cdc8-4c05-8c39-4a6fd6eef57b-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11014.00it/s]

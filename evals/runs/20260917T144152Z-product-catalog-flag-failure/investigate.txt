@@ -1,0 +1,38 @@
+incident 0f7ec145-1dad-4161-b9b3-faaa396cfbbe  state triaging  anchor 14:45:45
+triage: 7 services, severity critical, start from productcatalogservice, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: e5794582-91ba-4f47-9b94-90a9b75beac4
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Critical alerts on productcatalogservice and frontend together, with loadgenerator reflecting user-facing impact, describe a real failure that cannot be dismissed. Productcatalog alerting first with frontend following suggests a downstream dependency issue, though a recent deploy or resource limit is equally plausible.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if the missing evidence, once gathered, names a mechanism that a permitted action addresses - e.g. a pre-14:43:45 deploy or config edit appears in a correctly-windowed change query (making rollback_image or revert_config eligible), or restart counts and memory growth for productcatalogservice show process-state degradation (making restart_service eligible). It is also wrong if the ~9.2% peak, 0.33% mean error ratio is in fact causing sustained customer-visible checkout failure that warrants acting on a guess; the blast-radius brief gives no error-budget or user-impact figure, so I cannot see that from here and a reader with that number may legitimately override this.
+  rests on    : tr_8a97a12d5c6d, tr_03436b58de35, tr_eb39421849d1, tr_4d08495d31fb, tr_96dc4093bd20, tr_449236056283
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 20238 pushed / 1240 pulled (pull rate 0.0577), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : none
+  confidence  : low
+  evidence    : tr_96dc4093bd20, tr_449236056283, tr_eb39421849d1, tr_4d08495d31fb, tr_8a97a12d5c6d, tr_03436b58de35
+  root cause  : Not established. The only positive signal is that productcatalogservice began emitting gRPC error-status spans abruptly at 14:43:45 after a provably clean baseline (error ratio exactly zero across 298 samples over 92 minutes), peaking near 9.2% with a standard deviation exceeding the mean - intermittent bursts against a mostly-healthy request stream [tr_96dc4093bd20][tr_449236056283]. That timing plus the alert order (productcatalogservice and loadgenerator at 14:45:45, frontend at 14:46:00) places productcatalogservice at or nearest the origin, with frontend observing propagated failures. But the mechanism is unidentified: both log dispatches queried a label value that does not exist in Loki and returned nothing [tr_eb39421849d1][tr_4d08495d31fb]; the metric dispatches returned no latency percentiles and no CPU/memory/restart data [tr_96dc4093bd20]; and both change-history queries began at or after onset, excluding exactly the pre-onset hours where a trigger would appear [tr_8a97a12d5c6d][tr_03436b58de35]. I name the service but leave the fault class unknown.
+  OPEN        : What does productcatalogservice log around 14:43:45? Both log queries used the label value `product-catalog-service`, which matches nothing; re-run against the unhyphenated name before naming any mechanism.
+  OPEN        : Was there a deploy, config edit, or flag flip in the hours BEFORE 14:43:45? Both change queries started at or after onset, leaving the pre-onset period wholly unexamined.
+  OPEN        : Did latency or resource saturation (CPU, memory, FDs, restarts) move at onset? Neither was ever queried, so dependency_latency and resource_exhaustion are untested rather than eliminated.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-redis-misconfig', 'scenario:payment-telemetry-blackout', 'scenario:product-catalog-flag-failure', 'scenario:shipping-quote-misconfig'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T144152Z-product-catalog-flag-failure/0f7ec145-1dad-4161-b9b3-faaa396cfbbe-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T144152Z-product-catalog-flag-failure/0f7ec145-1dad-4161-b9b3-faaa396cfbbe-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10661.20it/s]

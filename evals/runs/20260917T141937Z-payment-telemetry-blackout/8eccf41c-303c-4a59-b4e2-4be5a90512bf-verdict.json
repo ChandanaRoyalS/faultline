@@ -1,0 +1,167 @@
+{
+  "incident_id": "8eccf41c-303c-4a59-b4e2-4be5a90512bf",
+  "trajectory_id": "04e83b12-cc09-468d-98df-d660ef3b4b50",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "frontend",
+    "paymentservice"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origins": [
+    "scenario:cart-redis-misconfig",
+    "scenario:payment-telemetry-blackout",
+    "scenario:product-catalog-flag-failure",
+    "scenario:shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "The payment path never broke. platform-automation set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT to a loopback address on paymentservice ~6 minutes before the 14:25:45 alert, the third application in a ~9h set/revert flap, touching no other key and no artifact [tr_7970c9cda487]. Spans stop arriving in the trace backend after ~14:17 despite a window extending to 14:27 [tr_79febd00f80b], while the process itself keeps serving successful sub-millisecond charges from one unchanged pid through 14:27:32 with no errors or restarts [tr_f60a43a23791], and caller checkoutservice shows a flat-zero error ratio across all 128 samples [tr_f7a92b0eca17]. The mechanism is a config value naming an address with no listener behind it: observability of paymentservice failed, not paymentservice.",
+    "service": "paymentservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_7970c9cda487",
+      "tr_79febd00f80b",
+      "tr_f60a43a23791",
+      "tr_f7a92b0eca17",
+      "tr_bf5326f86bad"
+    ],
+    "reasoning": "Logs, traces and the caller's error metric independently show paymentservice healthy at and after onset [tr_f60a43a23791][tr_79febd00f80b][tr_f7a92b0eca17], which eliminates crash, restart, exhaustion and in-handler latency. What is demonstrably missing is telemetry, and the only change in the window is a loopback OTLP endpoint applied six minutes prior [tr_7970c9cda487]. The wrong value is itself the failure, so config_revert (plus stopping the automation loop) is the fix. Confidence is medium because the trace specialist explicitly refused a clean cut-in at the change time - the last sampled span is 14:17:00, before the edit [tr_79febd00f80b] - and paymentservice metrics are absent in both incident and baseline windows [tr_bf5326f86bad], so that corroboration was never available.",
+    "open_questions": [
+      "The last observed span predates the 14:19:42 edit by 2-3 minutes and only 6 of 34 traces were sampled [tr_79febd00f80b]; a per-minute span count would settle whether export ceased at the change or earlier.",
+      "The alert rule that fired at 14:25:45 was never retrieved, so whether it is an absence-of-telemetry alert is unconfirmed.",
+      "Traces flag shippingservice->quoteservice and frontend->checkout as degrading [tr_79febd00f80b]; neither service was dispatched and triage reports 2 unmeasured edges, so a concurrent latency problem is unexcluded."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Latency at the shippingservice->quoteservice hop in the checkout path is the real incident, with the paymentservice telemetry gap coincidental.",
+        "service": "quoteservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "Supported only by the trace sampler's hop attribution [tr_79febd00f80b]; nobody measured those services, and it does not explain a change landing six minutes before the alert.",
+        "config_revert_note": null
+      },
+      {
+        "root_cause": "paymentservice was never instrumented or scraped under that service label, so the alert reflects a pre-existing coverage gap rather than today's edit.",
+        "service": "paymentservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Explains the empty metric series in both windows [tr_bf5326f86bad] but not the trace backend holding 34 paymentservice traces earlier in the same window that then stop [tr_79febd00f80b].",
+        "config_revert_note": null
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What the investigation concluded: shippingservice was running an artifact that was not the shipping binary. About two minutes before onset (T-2m), platform-automation moved shippingservice's image reference to a demo artifact whose tag names a different service entirely (adservice). Four earlier change records in",
+    "cart-dependency-latency / What was checked: **Whether the reading was real.** cartservice runs at 2ms. Not approximately 2ms \u2014\nacross forty-five minutes of measured quiet operation its minimum, mean and maximum are\nall 2ms, and it has never been observed above 3ms on an undisturbed system. A reading of\n650ms is not an excu",
+    "cart-bad-image-tag / What the investigation concluded: The artifact reference for cartservice was changed by platform automation at onset, and the cart process that had been stopped one second earlier \u2014 with an orderly shutdown notice, not a crash \u2014 never appeared again in the log stream. From that point cartservice was not serving a"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 21072,
+    "pulled_tokens": 10123,
+    "pull_rate": 0.3245,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 393,
+        "content_tokens": 395,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1523,
+        "content_tokens": 1527,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6391,
+        "content_tokens": 6368,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 5843,
+        "content_tokens": 5845,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 6922,
+        "content_tokens": 6900,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "paymentservice",
+    "rests_on": [
+      "tr_7970c9cda487",
+      "tr_79febd00f80b",
+      "tr_f60a43a23791"
+    ],
+    "expected_effect": "Restoring paymentservice's prior environment removes OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4317, which was absent before the 14:19:42 edit [tr_7970c9cda487], so the exporter returns to its default collector and span export resumes. Observable as a trace query for paymentservice returning Charge spans with start times after the recreate, nested under checkoutservice as at 14:09-14:17 [tr_79febd00f80b]; equivalently a per-minute span count going from zero to non-zero. Logs should keep showing paired charge/transaction-complete info lines at sub-millisecond latency from a new pid [tr_f60a43a23791].",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, five minutes after the recreate, logs show charges served normally but trace queries over the post-revert window still return zero paymentservice spans - then export is broken by something else, consistent with the last span at ~14:17 predating the 14:19:42 edit [tr_79febd00f80b]. Also beside the point if the flagged frontend->checkout and shipping->quote degrading hops persist unchanged; a per-minute span count run first would settle this.",
+    "risk": "The recreate drops in-flight Charge RPCs on a process evidence shows is healthy - same pid, no errors, sub-millisecond charges through 14:27:32 [tr_f60a43a23791]. Any payment failure in the next minutes is caused by this action. If the diagnosis is wrong, cost is a needless payment-path interruption plus false comfort while an unexcluded latency fault continues. platform-automation has flapped this key three times in ~9h [tr_7970c9cda487], so it will likely re-apply; do not loop this action.",
+    "blast_radius": "paymentservice (container recreated, cache discarded); checkoutservice as immediate caller sees connection resets, a blip in its flat-zero error ratio; frontend and end users see failed or retried PlaceOrder during the recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "low",
+    "reasoning": "A critical alert on paymentservice sits upstream of checkout and frontend, so a real payment failure path cannot be dismissed. Single-service signal gives no fault-class hint yet."
+  }
+}

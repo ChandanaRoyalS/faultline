@@ -1,0 +1,165 @@
+{
+  "incident_id": "ba7f8d8e-de10-42de-a664-fa483978d904",
+  "trajectory_id": "4c5b487d-6b81-4172-ba1f-f9bf130a3081",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:ad-memory-squeeze",
+    "scenario:frauddetection-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "At 12:40:09 platform-automation lowered adservice's container memory limit to 256m, the fourth such lowering that day and the only one left unreverted at onset [tr_157405b0e3e6]. The JVM-based ad-service cannot fit under that ceiling: from 12:40:16 onward its logs contain only repeated JVM/OTel startup banners \u2014 at least eleven startups between 12:40 and 12:45 with backoff, and no request handling after 12:30 when it was still serving normally [tr_23f4c239bab1]. The pod never reaches ready state, its endpoints stay absent, and frontend's outbound gRPC calls to the adservice target on port 9555 fail fast with UNAVAILABLE, latterly at name resolution [tr_88656a5dca3b]. The mechanism is adservice being killed for exceeding a memory limit it cannot satisfy; frontend and loadgenerator alerted only as the callers noticing a missing dependency.",
+    "service": "adservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_157405b0e3e6",
+      "tr_23f4c239bab1",
+      "tr_88656a5dca3b"
+    ],
+    "reasoning": "Change history places a memory-limit reduction to 256m three minutes before onset, still in effect at onset, with no deploy, scaling, or DNS change available as an alternate trigger [tr_157405b0e3e6]. adservice's own logs show the consequence: healthy serving at 12:30, then a continuous pre-ready crash/restart loop from 12:40:16 that is still running at window end [tr_23f4c239bab1]. frontend's errors name only the adservice:9555 target and fail fast rather than on deadline \u2014 the caller-side signature of a service with no ready endpoints [tr_88656a5dca3b]. frontend is exonerated as origin: no changes [tr_b43938a2e300], error ratio inside baseline noise [tr_1d6249f884a0], no error spans and fast cart/catalog hops [tr_403f04b700c7]. The limit edit is how it started; what is happening now is repeated termination for exceeding a resource ceiling, so resource_exhaustion, and restoring the limit \u2014 not restarting into the same 256m \u2014 is the fix.",
+    "open_questions": [
+      "No OOMKill or container termination reason was retrieved; memory exhaustion is inferred from the limit edit plus the pre-ready restart loop [tr_23f4c239bab1], not directly observed. Kubelet events and working-set-vs-limit metrics would confirm it.",
+      "Whether the 12:40:09 lowering was reverted after 12:46 and whether adservice recovered \u2014 the log window ends mid-loop [tr_23f4c239bab1] and adservice has no metric series at all [tr_463656558d7e].",
+      "A frontend UNAVAILABLE at ~12:34 with a connection-dropped detail predates the crash loop [tr_88656a5dca3b], and the middle of the log window was not returned, so earlier adservice instability and the one unmeasured edge from triage remain unexplained."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A service-discovery or DNS problem made the adservice:9555 target unresolvable to frontend, independent of adservice's health.",
+        "service": "frontend",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Resolution failure is fully explained by endpoints being withdrawn from a pod that never becomes ready [tr_23f4c239bab1], and no DNS or service config change is recorded for adservice [tr_157405b0e3e6] or frontend [tr_b43938a2e300]."
+      },
+      {
+        "root_cause": "The 256m memory value is itself simply the wrong setting for this JVM workload, making the misconfiguration the failure.",
+        "service": "adservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Same remediation, but the failing mechanism observed is repeated termination for exceeding the ceiling [tr_23f4c239bab1] rather than a value that routes or authenticates wrongly; exhaustion is what the service is doing now."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:service-frontend / The at-rest latency tail: **Measured over twelve hours at 15s resolution on a world at rest** (ADR-0025): frontend's\nmedian p95 is 42.3ms, and 127 of 2398 samples were above the 250ms threshold, 94 of them above\n1000ms, in excursions sustained past the rule's three-minute `for:` clause. Two episodes in th",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:service-cartservice / What can page for it: All three rules, evaluated per `service_name`. SLO: p95 250ms, error ratio 0.05, from\n`compose/prometheus/alert-rules.yml`.\n\nIts measured healthy p95 is **1.9ms, flat** - 181 consecutive samples, min and max alike, over a\nclean 45-minute baseline. That is the bottom of the 1.9-9."
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26047,
+    "pulled_tokens": 5597,
+    "pull_rate": 0.1769,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 440,
+        "content_tokens": 442,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1635,
+        "content_tokens": 1638,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8102,
+        "content_tokens": 8078,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7280,
+        "content_tokens": 7282,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8590,
+        "content_tokens": 8567,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "adservice",
+    "rests_on": [
+      "tr_157405b0e3e6",
+      "tr_23f4c239bab1",
+      "tr_88656a5dca3b"
+    ],
+    "expected_effect": "Restoring adservice's configuration to its pre-12:40:09 state (memory limit back to unset, as in the three recorded lower-then-revert cycles earlier that day) should let the JVM complete startup. Observable as: (a) the ad-service log stream stops emitting back-to-back JVM/OTel startup banners and resumes 'hipstershop.AdService - received ad request' lines of the kind present at 12:30 [tr_23f4c239bab1]; (b) frontend's grpc-js 'Error: 14 UNAVAILABLE' lines naming the adservice target on port 9555 cease within a retry interval or two of the pod becoming ready [tr_88656a5dca3b]; (c) frontend error ratio, currently ~3.1% mean against a ~2.2% baseline, returns to baseline. Note adservice itself has no span-metric series at all in Prometheus, so its own recovery can only be confirmed from logs plus frontend-side errors, not from adservice metrics.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, after the recreate, the ad-service log stream still shows only startup banners at roughly one-per-minute cadence, or if frontend continues logging UNAVAILABLE with name-resolution detail for adservice:9555 beyond ~5 minutes. Either would mean the memory ceiling was not the binding constraint and the mechanism is elsewhere \u2014 the unexplained 12:34 'Connection dropped' UNAVAILABLE predates the 12:40 loop, and the late failures fail at DNS resolution rather than at connect, which is consistent with service discovery never seeing endpoints but would also be consistent with a discovery-layer fault this action does not touch. Also falsified-in-effect if platform-automation reapplies the 256m limit (it has done so four times today) and the loop returns; that outcome means the durable fix is to stop the automation, which is outside what this system may do.",
+    "risk": "The revert recreates the container, so any in-flight ad requests are dropped and the JVM cold-starts again \u2014 a further ~30-60s of ad unavailability on top of the existing outage. Removing the memory ceiling is not free: if the true fault is an adservice memory leak or regression rather than an externally imposed limit that is simply too small, the unbounded JVM can grow until it pressures the host, which would degrade co-located services rather than just adservice. OOMKill was never directly observed \u2014 memory exhaustion is inferred from the limit edit plus the pre-ready restart loop [tr_23f4c239bab1] \u2014 so this is a well-supported inference, not a measured cause. The revert also fights an automated actor that has reapplied this limit four times today; without stopping that actor the fix may be transient.",
+    "blast_radius": "One service, adservice. Its inbound caller in this incident's graph is frontend, which sees the connection reset during the recreate \u2014 it is already failing fast with UNAVAILABLE on this path, so the marginal harm is small \u2014 and loadgenerator sees it transitively through frontend. No dependency address is being changed, so no other service receives moved traffic. cartservice, checkoutservice, productcatalogservice and recommendationservice are untouched, except indirectly if the unbounded JVM causes host memory pressure on shared infrastructure."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical severity at the frontend with the load generator following is user-facing and cannot be dismissed as a quiet world. No open incident matches, and the alerts alone don't distinguish a bad deploy from a slow downstream dependency."
+  }
+}
