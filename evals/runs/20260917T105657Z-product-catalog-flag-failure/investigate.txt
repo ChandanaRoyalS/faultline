@@ -1,0 +1,38 @@
+incident 9d134bd7-341a-4d69-8ae0-7fdbc8c949ac  state triaging  anchor 11:00:45
+triage: 7 services, severity critical, start from productcatalogservice, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: d00b8e39-ca8a-42fc-87b9-77ffea12e0d7
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical multi-service alerting starting at productcatalogservice with frontend following 30s later suggests a real downstream failure propagating upward, not a quiet world. No open incidents to attribute it to, and the alerts alone do not distinguish a bad deploy from resource exhaustion in productcatalogservice.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if any of the following is produced: (a) a change-history query over the window *preceding* 10:58:45 — never run, per [tr_0a067fef7256, tr_8b7434752206] — that returns a config or flag entry for productcatalogservice with a recorded prior value, which would satisfy revert_config's preconditions directly; (b) a change-history query against featureflagservice showing a flag flip near 10:58:45, which would name the correct target and make the scope question, not the evidence question, the blocker; (c) a Loki query using the unhyphenated service label that returns productcatalogservice error lines naming a flag and error text, since both existing log queries used a selector that indexes nothing [tr_f3528a2a9096, tr_4dd8bf8248eb]. Any one of those turns abstention into a concrete proposal.
+  rests on    : tr_0a067fef7256, tr_8b7434752206, tr_fa36d7823d16, tr_f3528a2a9096, tr_4dd8bf8248eb
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 23940 pushed / 4728 pulled (pull rate 0.1649), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_fa36d7823d16, tr_529e7ceb35de, tr_8b7434752206
+  root cause  : productcatalogservice is originating the errors itself. In every errored trace the deepest error-flagged span is its own GetProduct handler, with all flagged ancestors being callers (frontend, checkoutservice) [tr_fa36d7823d16]. Failure is conditional: only GetProduct calls that make a FeatureFlagService/GetFlag child call fail, while sibling GetProduct calls without that child and ListProducts calls in the same traces succeed, and the GetFlag child spans are themselves unflagged [tr_fa36d7823d16]. Errors return promptly (0.7-2.0ms), not via timeout or exhaustion, and are new against an exactly-zero 30-minute baseline with a change point at 10:58:45 [tr_529e7ceb35de, tr_fa36d7823d16]. The consistent mechanism is a feature-flag value governing the GetProduct path set to a failure-injecting state: reading the wrong value is what breaks the request.
+  OPEN        : No log line was ever retrieved: both log queries used a hyphenated label that does not index this service's stream, so the flag name and error text are unverified [tr_f3528a2a9096, tr_4dd8bf8248eb].
+  OPEN        : The pre-onset change window was never queried, and featureflagservice's own change history and current flag values were never examined [tr_0a067fef7256, tr_8b7434752206].
+  OPEN        : The two metric baselines disagree (zero 30-minute baseline vs. pre-existing bursty errors over 6 hours), and no latency or saturation series were returned at all [tr_529e7ceb35de, tr_b06b351638e9].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-redis-misconfig', 'scenario:payment-telemetry-blackout', 'scenario:product-catalog-flag-failure', 'scenario:shipping-quote-misconfig'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T105657Z-product-catalog-flag-failure/9d134bd7-341a-4d69-8ae0-7fdbc8c949ac-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T105657Z-product-catalog-flag-failure/9d134bd7-341a-4d69-8ae0-7fdbc8c949ac-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11923.86it/s]

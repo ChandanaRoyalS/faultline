@@ -1,0 +1,174 @@
+{
+  "incident_id": "1371e37e-74cf-4371-87fa-7a69535a2849",
+  "trajectory_id": "a7c9a20c-b586-4665-94dd-4ef56f0ee9e5",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:cart-redis-misconfig",
+    "scenario:payment-telemetry-blackout",
+    "scenario:product-catalog-flag-failure",
+    "scenario:shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "cartservice cannot start because the Redis address it was handed is wrong. A platform-automation environment edit ~2 minutes before onset set REDIS_ADDR=redis-cart:6380 from a previously unset state and was never reverted [tr_cbc753c16772]. From ~09:56 cartservice crash-loops: startup dials redis-cart:6380, fails, and dies with an unhandled exception from the cart store's initialize/connect path called by program main, never reaching request handling [tr_dc63bf488e69]. With cartservice dead or restarting, checkoutservice's outbound CartService/GetCart span carries the error in 10/10 traces and propagates up through PlaceOrder to the frontend root [tr_2f62a6ad61ab], explaining the simultaneous checkoutservice/frontend/loadgenerator alerts while checkoutservice itself shows no change [tr_43aa54226209], no error-ratio shift [tr_dec0bdf34849], and only order-start log lines with no completion sequence [tr_73a852d2f6ba]. The wrong port value is the mechanism.",
+    "service": "cartservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_cbc753c16772",
+      "tr_dc63bf488e69",
+      "tr_2f62a6ad61ab",
+      "tr_73a852d2f6ba",
+      "tr_43aa54226209"
+    ],
+    "reasoning": "Direction of blame: traces put error status on the deepest leaf, checkoutservice's outbound GetCart, with frontend and checkoutservice spans inheriting it; checkoutservice's internal spans show 0.1-0.3ms self time and no local error, and no other downstream edge appears, excluding the four unmeasured edges [tr_2f62a6ad61ab]. checkoutservice's empty change log [tr_43aa54226209] and baseline-level error ratio [tr_dec0bdf34849] make it the noticer. Mechanism: cartservice is not degraded but dead-and-restarting, with stacks bottoming out in startup Redis connect rather than any RPC handler [tr_dc63bf488e69] - which is why GetCart fails fast with sub-millisecond leaf durations and no latency inflation [tr_2f62a6ad61ab]. Why the value is the fault: the dialed port is non-default (6380 vs 6379), the edit landed ~2m before onset from unset, has no revert, and the identical edit earlier that day was backed out within 9 minutes [tr_cbc753c16772]. Competing cartservice changes fail on timing - hotfix image reverted ~31m before onset, 300ms traffic-shaping sidecar removed ~11m before onset [tr_cbc753c16772]; cartservice error metrics are vacuous in both windows [tr_018d7743a08b].",
+    "open_questions": [
+      "redis-cart was never queried: it is unsettled whether nothing listens on 6380 (value simply wrong) or Redis was intentionally moved there and a missing listener, policy, or DNS blocks the path.",
+      "The 20-40s hang before each connect failure [tr_dc63bf488e69] reads as unreachable address or packet drop rather than refusal on a closed port; residual network-namespace state from the removed shaping sidecar was not examined.",
+      "checkoutservice logs were truncated, so onset between 09:27 and 09:56 is unobserved [tr_73a852d2f6ba]; nine of twelve blast-radius services were never dispatched, and the checkoutservice change query covered the seed only at 0 hops [tr_43aa54226209]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "redis-cart is itself unavailable or not listening where cartservice expects, so startup connect fails regardless of whether 6380 is the intended port.",
+        "service": "redis-cart",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "No dispatch touched redis-cart, so this is unmeasured rather than supported, while the unreverted address edit two minutes before onset is directly observed [tr_cbc753c16772]. Promotes above the primary if redis-cart proves to listen on 6380."
+      },
+      {
+        "root_cause": "Residual network-namespace state from the traffic-shaping container blackholes cartservice egress to Redis, causing the long connect hangs.",
+        "service": "cartservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "The sidecar was removed ~11 minutes before onset and never re-attached [tr_cbc753c16772], and the observed failure is a hard startup exception rather than slow-but-successful calls [tr_dc63bf488e69]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-dependency-latency / What was never measured: Checkout's error-ratio change point sits ~19 minutes before the shaping attachment, overlapping the hotfix apply-and-restore window; that gap is unexplained and may be a second, independent story. No latency or request-rate series returned for either service, and traces cover onl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:service-frontend / The at-rest latency tail: **Measured over twelve hours at 15s resolution on a world at rest** (ADR-0025): frontend's\nmedian p95 is 42.3ms, and 127 of 2398 samples were above the 250ms threshold, 94 of them above\n1000ms, in excursions sustained past the rule's three-minute `for:` clause. Two episodes in th"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 30603,
+    "pulled_tokens": 6851,
+    "pull_rate": 0.1829,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 484,
+        "content_tokens": 486,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2057,
+        "content_tokens": 2061,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9386,
+        "content_tokens": 9362,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8665,
+        "content_tokens": 8667,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10011,
+        "content_tokens": 9989,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_cbc753c16772",
+      "tr_dc63bf488e69",
+      "tr_2f62a6ad61ab"
+    ],
+    "expected_effect": "Restoring cartservice's pre-09:54:19 environment (REDIS_ADDR unset, i.e. default 6379) and recreating it should end the startup crash-loop: the repeating connect-to-redis-cart:6380 -> failure -> unhandled ApplicationException cycle stops appearing in cart-service logs, normal GetCartAsync/AddItemAsync info lines resume, and in Tempo the checkoutservice CartService/GetCart leaf returns OK instead of ERROR in 10/10 traces, with ERROR clearing from PlaceOrder and the frontend root. checkout-service logs should again show payment/email/message-write completion lines after each order-start.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if cart-service logs still show the connect-then-exception cycle from Program main after the revert - especially if it now dials 6379 and still hangs 20-40s, which would mean the port value was not the mechanism and redis-cart is unreachable by path, policy, or DNS (never queried). cartservice error-ratio metrics cannot confirm this (calls_total absent in both windows), so confirmation rests on cart-service logs and checkoutservice traces only.",
+    "risk": "If Redis was intentionally moved to 6380 and the real blocker is a missing listener or blocked path, this points cartservice at a port where nothing listens either: outage unchanged, plus one more config mutation on a service platform-automation is already cycling. The recreate discards in-process cart state and loses in-flight mutations; if automation re-applies 6380 the fix is transient.",
+    "blast_radius": "cartservice during the recreate; its callers frontend and checkoutservice see connection resets on an edge already erroring, visible to loadgenerator via frontend. redis-cart sees cart traffic move from 6380 back to 6379."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Simultaneous critical alerts on checkout and frontend plus the load generator indicate user-facing failure, not a quiet system. No open incident could account for it, and the shared downstream set gives no single prior yet."
+  }
+}

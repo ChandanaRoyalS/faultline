@@ -1,0 +1,164 @@
+{
+  "incident_id": "116f7408-2e74-421f-b799-b5fb6c3a1f3b",
+  "trajectory_id": "334fd949-617d-49bf-9d2b-2554e839199c",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [
+    "scenario:ad-memory-squeeze",
+    "scenario:frauddetection-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "At 10:13:38, about six minutes before onset, platform-automation re-applied a 200m container memory limit to frauddetection-service, taking it from unset to 200m [tr_606c0c8b2ae6][tr_f5f8d7b93060]. The JVM cannot complete initialization within that ceiling: from roughly 10:13 onward the service's logs contain nothing but a repeating three-line JVM/OpenTelemetry-agent startup triplet on a near-uniform ~62s cadence, with no application errors, no stack traces, no dependency names and no graceful-shutdown messages \u2014 the process is being killed abruptly during or shortly after bootstrap and restarted by the supervisor, never reaching the order-consumption loop that was producing normal output earlier in the window [tr_61ae9ef32aeb]. The failing mechanism is the service exhausting its (newly tightened) memory allocation and being killed for exceeding it; the limit edit is how it started, the kill-restart loop is what is happening now. The same 200m value was applied once before at 05:21 and reverted 11 minutes later, so the configuration is a known-bad repeat rather than a novel setting [tr_606c0c8b2ae6].",
+    "service": "frauddetectionservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_606c0c8b2ae6",
+      "tr_f5f8d7b93060",
+      "tr_61ae9ef32aeb",
+      "tr_2e35cafc8272",
+      "tr_6a587d310489"
+    ],
+    "reasoning": "Three independent strands line up. (1) Timing: the only mutation in the 24h window is a memory-limit lowering to 200m landing ~6 minutes before the 10:19:45 alert; no deploys, no flag or app-config edits, no dependency bumps, and nothing at or after onset [tr_f5f8d7b93060][tr_606c0c8b2ae6]. (2) Failure signature: the logs show a sustained crash/restart loop confined to bootstrap \u2014 startup banners repeat ~a dozen times at a fixed ~62s interval, order-consumption lines stop, and no shutdown or exception output is ever emitted, which is what an abrupt external kill (cgroup OOM) looks like from inside the process, and rules out a dependency fault, an agent load failure, a graceful drain, or a one-off crash [tr_61ae9ef32aeb]. (3) Precedent within the record itself: the identical 200m value was applied and reverted ~11 minutes later earlier the same morning, so this configuration had already been backed out once [tr_606c0c8b2ae6]. I classify this as resource_exhaustion rather than bad_config because what the service is doing wrong right now is exceeding its memory allocation and being killed for it; the edit is the trigger, exhaustion is the mechanism. Remediation is config_revert because restoring the limit to unset (the state that held for the preceding ~19 hours and again between 05:32 and 10:13) is what stops the kills \u2014 a restart alone would just re-enter the loop. Confidence is medium rather than high because no container-level memory, OOMKill or restart-count metric was ever retrieved: both metrics dispatches ran only an error-ratio query that returned no samples in incident or baseline windows, so the exhaustion mechanism is inferred from the timing and log signature rather than directly measured [tr_2e35cafc8272][tr_6a587d310489].",
+    "open_questions": [
+      "No container memory working-set, memory-limit or OOMKill/restart-count series was ever queried, so the kill reason is inferred from the log signature and change timing rather than observed [tr_6a587d310489].",
+      "The error-ratio series is empty in both incident and baseline windows, which the specialists attribute to a pre-existing instrumentation or service-name mismatch; whether frauddetectionservice emits span metrics under a different name is unresolved and leaves the service neither implicated nor cleared by metrics [tr_2e35cafc8272].",
+      "Why platform-automation re-applied a value that had already been reverted five hours earlier \u2014 whether an autoscaler/VPA recommendation, a reconciliation loop or a config drift correction \u2014 is not in the record, and until it is known the revert may be re-applied again.",
+      "Blast radius was scoped to this one service; no dispatch examined consumers of the fraud-detection order stream, so downstream backlog or caller-visible impact is unmeasured.",
+      "Whether 200m is simply below the JVM's baseline heap+metaspace footprint (making any restart futile) or whether the service could survive at 200m under lighter load was not tested."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The 200m memory limit value is itself the wrong configuration value, and its wrongness is the failure rather than any runtime exhaustion.",
+        "service": "frauddetectionservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Same fix, different naming of the mechanism. The taxonomy puts a limit lowered until a process is killed for exceeding it under resource_exhaustion: the wrong value is how it started, but what breaks each request cycle is the process running out of memory and being killed. Demoted on classification grounds, not on evidence.",
+        "_comment": null
+      },
+      {
+        "root_cause": "The JVM fails during initialization for a reason unrelated to the memory ceiling \u2014 e.g. a startup dependency (Kafka broker, config source) it cannot reach \u2014 and the coincident limit change is a red herring.",
+        "service": "frauddetectionservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "The logs contain no exception, no stack trace, no dependency host or client name, and no shutdown message at any cycle, which argues against an in-process initialization error and for an external kill [tr_61ae9ef32aeb]; and the only recorded mutation in 24 hours lands six minutes before onset and had already been reverted once before [tr_606c0c8b2ae6]. It stays on the list only because no container-level metric confirmed the OOM kill directly."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:alert-high-error-rate / What the label means: The alert's `service_name` label names where errors are **counted**. That is not the same thing\nas where they originate: the metric counts a span's status code, and a caller whose downstream\ncall returns an error records an error span of its own. One failure can be counted on mor",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:world-uninstrumented-services / featureflagservice: ADR-0006 replaced it with a stub that reproduces its gRPC contract and none of its\ninstrumentation. Measured against Prometheus: `count by (service_name) (calls_total)` returns\n15 services and it is not among them.\n\n**The consequence is exact.** Neither `calls_total` nor `latency"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 21450,
+    "pulled_tokens": 2886,
+    "pull_rate": 0.1186,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 329,
+        "content_tokens": 331,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1329,
+        "content_tokens": 1332,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6451,
+        "content_tokens": 6427,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6147,
+        "content_tokens": 6149,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7194,
+        "content_tokens": 7171,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "frauddetectionservice",
+    "rests_on": [
+      "tr_606c0c8b2ae6",
+      "tr_f5f8d7b93060",
+      "tr_61ae9ef32aeb"
+    ],
+    "expected_effect": "Restoring frauddetectionservice's prior configuration (memory limit unset, the state it ran in from 05:32 to 10:13) and recreating the container should end the restart loop. Observable in Loki on {service=\"frauddetection-service\"}: after one final startup triplet at recreate, the JAVA_TOOL_OPTIONS / class-sharing / OTel-agent triplet should stop recurring on the ~62s cadence, and \"Consumed record with orderId: ... updated total count to: N\" lines with an incrementing counter should reappear within roughly two minutes of recreate and continue. The absence of a further triplet past ~130s (two cadence periods) plus the return of consumption lines is the confirmation. Note the error-ratio series cannot confirm anything here: it is empty in both incident and baseline windows [tr_2e35cafc8272], so log content is the only available check unless a container memory/restart-count series is queried.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if the startup triplet keeps repeating on the ~62s cadence after the recreate, or if consumption lines do not resume within ~3 minutes. That would mean the 200m limit was not the binding constraint and the kill has another cause \u2014 which is live, because no container working-set, memory-limit or OOMKill/restart-count series was ever queried and the kill reason is inferred from log signature plus change timing only [tr_6a587d310489]. Also falsified in a subtler way if consumption resumes and then the loop returns within minutes: that indicates platform-automation re-applied 200m (it has already done one apply-revert-reapply cycle), and the fix must move to the automation, which is outside what this system can touch.",
+    "risk": "If the diagnosis is wrong, this costs a container recreate for nothing: the in-flight Kafka consumption is interrupted and in-process cache discarded, and a service already flapping gets one more forced restart. If the 200m ceiling was applied deliberately by a VPA/reconciliation loop as a correction for real memory growth, reverting to unset removes the bound and lets the JVM expand until it pressures the host, which can harm co-located services in a way no per-service metric here would attribute correctly. The revert is also likely to be overwritten: the same value was applied and reverted once already, so this may produce a config flap rather than a stable state, and the underlying reason the automation re-applies 200m is not in the record. Whether 200m is simply below the JVM's baseline heap+metaspace footprint, or survivable under lighter load, was never tested \u2014 so this revert treats the symptom of the limit without establishing the service's actual floor.",
+    "blast_radius": "One service: frauddetectionservice, the only member of this incident's blast radius. Callers see a connection reset during the recreate; the reverted value is a resource limit, not a dependency address, so no traffic moves elsewhere. Consumers of the fraud-detection order stream were never examined by any dispatch, so their view is unmeasured \u2014 if the revert works they should see a backlog drain as consumption resumes, and if it fails they continue to see nothing consumed. Anyone watching frauddetectionservice's restart count sees it increment once more at the recreate."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A single critical alert on frauddetectionservice with no open incidents to fold into and nothing indicating recovery. Isolated seed with no downstream spread gives no hint of cause, so the fault class stays unknown."
+  }
+}

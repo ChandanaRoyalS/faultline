@@ -1,0 +1,172 @@
+{
+  "incident_id": "c466da3e-24a1-4c35-a052-651a5ac9f91a",
+  "trajectory_id": "a513488e-a68d-4fef-b3d0-ed932d5ddb79",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:cart-dependency-latency",
+    "scenario:redis-cart-dependency-latency"
+  ],
+  "verdict": {
+    "root_cause": "A platform-automation traffic-shaping sidecar was attached to cartservice's network namespace at ~09:35:58, imposing a fixed 300ms/0ms-jitter egress delay on eth0 and never removed in the window [tr_73e8163729ef]. Traces show exactly that signature: a tight ~300-310ms additive penalty on every cart egress call and ~303ms of caller-side self-time in frontend's and checkoutservice's CartService client spans, stacking to ~906-1225ms across multi-hop checkouts, while cartservice's own handler self-time stays at 0.5-1.1ms against a sub-millisecond 09:11-09:13 baseline [tr_08e03d8a1691]. cartservice is otherwise healthy and serving [tr_3e37a2185753], so what callers suffer is waiting on the cart hop; checkoutservice, which crosses that hop repeatedly, tips from slow to failing with an error ratio two orders of magnitude over a clean baseline while every other downstream stays at 0-18ms [tr_b4a881275afa, tr_08e03d8a1691]. Removing the shaping sidecar is what stops it.",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "high",
+    "evidence": [
+      "tr_73e8163729ef",
+      "tr_08e03d8a1691",
+      "tr_b4a881275afa",
+      "tr_3e37a2185753",
+      "tr_f6b9bc0254e0"
+    ],
+    "reasoning": "The change record places an unreverted 300ms fixed-delay shaping container on cartservice's network namespace ~3 minutes before onset, with an identical earlier episode showing it is a repeating automated pattern [tr_73e8163729ef]. Traces match that injection quantitatively: a near-constant band with no spread, additive per hop, visible on both sides of the cart hop, with cart handler self-time unchanged - which excludes GC/contention, cart CPU saturation, retries and any gradual ramp [tr_08e03d8a1691]. Blame direction follows the wait: frontend and checkout alerted after cart and are the services that block on it [tr_b4a881275afa]. Class is dependency_latency, not bad_config, because the rule does not name a wrong address or limit - it inserts wall-clock delay, and the wait is the failure. Not bad_deploy: the v1.2.1 hotfix was reverted ~14 min before onset with no later image update. Not a cache misconfig: the sole REDIS_ADDR edit reverted ~4.5h earlier [tr_73e8163729ef]. Cart's own error-ratio series is unusable, empty in both windows from a pre-existing instrumentation gap [tr_f6b9bc0254e0].",
+    "open_questions": [
+      "checkoutservice's error-ratio change point is 09:17:15, ~19 minutes before the sidecar was attached [tr_b4a881275afa, tr_73e8163729ef]; injected cart latency cannot explain degradation that predates it, so a second concurrent fault or an effect of the 09:15/09:25 image cycle is unexcluded.",
+      "No checkoutservice latency series or timeout config was retrieved, so 'cart wait exceeds checkout deadline therefore checkout errors' is inferred from trace durations rather than measured; the failing calls' status codes were never read.",
+      "No dispatches on frontend or loadgenerator despite both alerting, and 4 unmeasured edges were crossed; whether the sidecar is still attached, or will be re-attached by automation after removal, is also unknown."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "checkoutservice carries an independent fault beginning 09:17:15 and the cart delay only worsened an already-failing service.",
+        "service": "checkoutservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "The earlier change point is real [tr_b4a881275afa], but no checkout-side mechanism was identified, and slow traces attribute ~1208ms and ~1225ms to checkout->cart hops while all other downstreams stay at 0-18ms [tr_08e03d8a1691]. Plausibly a second concurrent fault, not a replacement."
+      },
+      {
+        "root_cause": "The thrice-rolled v1.2.1 cartservice hotfix left cartservice in a degraded state that the shaping sidecar merely coincided with.",
+        "service": "cartservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The hotfix was already reverted ~14 minutes before onset with no subsequent image update [tr_73e8163729ef], and the inflation sits in egress and inbound hop latency rather than cart application code [tr_08e03d8a1691], which no image version would produce as a fixed zero-jitter offset."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What the investigation concluded: An automation cycle edited cartservice's REDIS_ADDR to point at the redis-cart host on 6380 rather than the default 6379 about two and a half minutes before onset, and \u2014 unlike every prior turn of that same cycle in the preceding day \u2014 that edit was still in force at onset. Each ",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What was never measured: Nothing was ever queried against redis-cart, so neither port's actual listening state was confirmed. cartservice emitted no calls_total under the queried service_name label in either window, so the crashloop timeline rests on logs alone with no metric-side corroboration. The call"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 21916,
+    "pulled_tokens": 7397,
+    "pull_rate": 0.2523,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 479,
+        "content_tokens": 481,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1513,
+        "content_tokens": 1516,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6550,
+        "content_tokens": 6526,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6089,
+        "content_tokens": 6091,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7285,
+        "content_tokens": 7263,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_73e8163729ef",
+      "tr_08e03d8a1691",
+      "tr_3e37a2185753"
+    ],
+    "expected_effect": "Detaching the traffic-shaping sidecar removes the fixed 300ms/0ms-jitter eth0 delay. In Tempo, cartservice Redis client spans should fall from the ~300-310ms band to the 0.2-0.7ms of the 09:11-09:13 baseline, and frontend/checkoutservice CartService client self-time from ~303ms (~906ms stacked) to low single-digit ms. Secondarily, checkoutservice error ratio should fall from ~0.18 toward its ~0.0009 baseline.",
+    "confirm_within_seconds": 420,
+    "if_wrong": "Falsified if fresh cart traces still carry the ~300ms penalty 3-5 min after recreate: the shaping was not in the reverted config, or platform-automation re-attached it as in the 04:44-04:53 episode. Partially falsified if cart latency normalizes but checkoutservice error ratio stays elevated, confirming the unexplained 09:17:15 change point as a second fault this does not touch.",
+    "risk": "The revert may restore a snapshot older than 09:35:57.97 and reintroduce the alternate REDIS_ADDR or the reverted v1.2.1 image, converting a latency fault into a connectivity or code fault on a currently healthy service. Operator must confirm the snapshot is the state immediately before the sidecar attach. The recreate also drops in-flight carts.",
+    "blast_radius": "cartservice, plus its callers frontend and checkoutservice, which see connection resets and a brief error burst during the recreate; both already alerting, so that burst must not be read as the fix failing. loadgenerator sees the same via frontend."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "low",
+    "reasoning": "Multiple services alerted within seconds spanning cart, checkout and frontend, which is more than a single isolated warning and cannot be dismissed. The cart-first ordering with downstream checkout/frontend following suggests a shared dependency or backing store, but evidence is needed."
+  }
+}

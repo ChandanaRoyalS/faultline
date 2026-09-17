@@ -1,0 +1,38 @@
+incident 971c0b60-9e31-4542-bd9a-7bddfb29317d  state triaging  anchor 11:20:00
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: a42ec050-7101-47f2-8be5-e0053bb0c41a
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Multiple services alerting near-simultaneously with cartservice first and checkoutservice/frontend following fits downstream propagation from the cart path, not a single quiet warning. No open incident covers it, so it warrants investigation.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Abstention is wrong if a standing configuration on cartservice is in fact carrying the delay. That would show up as a REDIS_ADDR or image override still present in cartservice's live environment with no matching revert - the change log says the opposite, that every apply has a paired revert and the latest is ~1.6h before onset [tr_8c23c4d6c8e8]. It would also be wrong if direct observation of redis-cart (never gathered: no metrics, logs, or change history for the backing store) showed a genuine server-side ~300ms stall, since that is a different mechanism from the one the verdict names and none of the permitted actions target redis-cart anyway.
+  rests on    : tr_8c23c4d6c8e8, tr_3984cc69c503, tr_17013007cead
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 32452 pushed / 12027 pulled (pull rate 0.2704), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_3984cc69c503, tr_17013007cead, tr_8c23c4d6c8e8, tr_b00c5e027670, tr_90d42a699f94, tr_5f846f914e7b, tr_c0db7cb47df3
+  root cause  : Every cart operation is paying a fixed ~300ms penalty on its call to the cart backing store. Traces at 11:21 show cartservice's redis child spans (HGET, HMSET) consuming ~301-307ms of self time each while the cartservice handler contributes under 1ms, and latency scales linearly with the number of redis round-trips (~305ms for one op, ~610ms for two, ~665ms for checkout's GetCart+EmptyCart) [tr_3984cc69c503]. The tight clustering at a ~300ms floor with no heavy tail is the signature of a fixed per-operation delay inserted into the network path, not server-side contention. The cartservice change log independently records a traffic-shaping container attached to the cart-service network namespace adding fixed egress delay on eth0, applied and reverted in repeating cycles by platform-automation [tr_8c23c4d6c8e8]. Nothing is erroring at the cart layer [tr_5f846f914e7b][tr_3984cc69c503]. checkoutservice is a victim: its dominant latency is the cartservice redis hops [tr_17013007cead], its success path slowed from ~20-25ms to ~600-650ms per order [tr_b00c5e027670], and its 1.1%-mean/6.7%-peak error ratio [tr_90d42a699f94] fits a small fraction of requests tipping over a client deadline. The mechanism is a slow dependency call path on cartservice's cart-store egress; the service failed because it waited.
+  OPEN        : The change log shows every traffic-shaping container reverted, the latest ~1.6h before onset, and nothing in the hour before onset [tr_8c23c4d6c8e8], yet traces at 11:21 show the delay [tr_3984cc69c503]; whether an injection cycle went unrecorded or a revert failed to take effect is unsettled and decides whether config_revert is an available lever.
+  OPEN        : No evidence was gathered from the cart backing store itself - no redis-cart metrics, logs, or change history - so a genuine server-side ~300ms stall was excluded only by latency shape, not direct observation.
+  OPEN        : The source of checkoutservice's errors is inferred: no span carries an error status [tr_17013007cead] and the checkout log slice was truncated past the ~11:00 onset [tr_b00c5e027670], so no failing RPC or status code was named; cartservice's own error ratio is unmeasurable due to an empty calls_total series [tr_235ca2bc63c4].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-dependency-latency', 'scenario:redis-cart-dependency-latency'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T111636Z-redis-cart-dependency-latency/971c0b60-9e31-4542-bd9a-7bddfb29317d-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T111636Z-redis-cart-dependency-latency/971c0b60-9e31-4542-bd9a-7bddfb29317d-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9114.97it/s]
