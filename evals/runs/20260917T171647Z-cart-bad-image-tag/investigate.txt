@@ -1,0 +1,38 @@
+incident 7dc840a2-313e-4e4f-b25b-fbb5d09a34b0  state triaging  anchor 17:21:15
+triage: 14 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: c5aeadc5-8676-4829-adbb-9c89488eb1ef
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical, ten services alerting within two minutes starting at checkoutservice and fanning out — this cannot be dismissed. Origin at checkout/frontend with downstream spread is consistent with several causes, so no prior is honest yet.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if the stall is in fact a pure process-state hang in quoteservice that a restart would clear, and the delay in restarting extends customer-visible checkout failure. Two observations would show that: quoteservice logs or traces during 17:19-17:23 showing accepted requests with no completions and no error output, and no pre-17:19 change record for quoteservice. Either of those arriving would convert this into a restart_service proposal on quoteservice. Note also that the effect of a restart here is only weakly observable from the evidence we hold: checkoutservice error ratio is the nearest signal [tr_5fcac3511390], but it is highly volatile (sd of the same order as the mean) and has genuine traffic gaps, so a short post-restart window could not cleanly distinguish recovery from noise — a further reason not to act blind.
+  rests on    : tr_85d28d498e0b, tr_9fea75aec3e6, tr_3391d631f80b, tr_517bb1d1f417
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 26828 pushed / 11905 pulled (pull rate 0.3074), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : restart
+  confidence  : low
+  evidence    : tr_9fea75aec3e6, tr_3391d631f80b, tr_85d28d498e0b, tr_5fcac3511390, tr_517bb1d1f417
+  root cause  : Around 17:19 UTC checkoutservice stopped completing PlaceOrder requests: order-start lines keep arriving through 17:23:17, but no request after 17:19:07 reaches payment confirmation, email, or order publish, and checkoutservice logs no errors at all [tr_9fea75aec3e6]. paymentservice sees none of those charges - its logs stop at 17:16:42 with every prior receipt paired to a sub-millisecond completion, so charges stopped arriving rather than being processed slowly [tr_3391d631f80b]. The block therefore sits in a pre-charge hop. Of those hops, cartservice, currencyservice and productcatalogservice are closed sub-millisecond spans through 17:12, while the only hop flagged as degrading in all five sampled traces is shippingservice/GetQuote and its internal HTTP call to quoteservice, already 20-25% of trace self-time before onset [tr_85d28d498e0b]. Best reading: the quote hop became unresponsive at ~17:19, leaving checkoutservice blocked in-flight with spans never closing - which also explains the span-derived traffic gaps and the 8.9% mean / 67% peak error ratio as waits time out [tr_5fcac3511390], and why quoteservice and shippingservice only alerted at 17:22:45.
+  OPEN        : No dispatch queried quoteservice or shippingservice at all; the attribution rests on elimination plus a pre-stall latency signal, not direct observation during the stall.
+  OPEN        : Both change-history windows start at onset and run forward, so any pre-incident deploy, config push or flag flip on any service remains unchecked [tr_517bb1d1f417].
+  OPEN        : No trace evidence covers 17:19 onward, so the open span that is actually blocking PlaceOrder was never identified [tr_85d28d498e0b]; cartservice also has no usable metrics in either window [tr_52e65f3d3eca].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-bad-image-tag'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T171647Z-cart-bad-image-tag/7dc840a2-313e-4e4f-b25b-fbb5d09a34b0-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T171647Z-cart-bad-image-tag/7dc840a2-313e-4e4f-b25b-fbb5d09a34b0-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 11063.65it/s]

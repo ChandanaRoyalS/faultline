@@ -1,0 +1,43 @@
+incident 403de255-c5f3-404f-b5a2-41e3458bd281  state triaging  anchor 17:41:00
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 95ac7e92-91bf-44c5-8957-1177fcb49722
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Four services alerted within 15 seconds along the cart-checkout-frontend path, which is a coherent multi-service failure rather than an isolated warning. Cart alerting first and the rest fanning out downstream suggests a shared dependency or backing store degradation worth confirming.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Reverting cartservice to its recorded prior configuration and recreating the container should detach the traffic-shaping container bound to its network namespace, removing the fixed ~300ms egress delay. Expect in Tempo: cartservice Redis HGET/HMSET self time leaves the ~301-307ms band and falls to single-digit ms; cartservice AddItem/GetCart spans drop from ~603-613ms to a few ms; checkout traces fall from ~2.4s. Expect in Prometheus: checkoutservice error ratio falls from the incident mean ~0.18 toward the ~0.001 baseline. cartservice's own error-ratio series is empty in both windows, so confirmation must come from traces plus checkoutservice's ratio.
+  within      : 300s
+  risk        : If the diagnosis is wrong, this recreates a service that logs show is healthy and serving traffic continuously, for no benefit: cart in-memory/cache state is discarded and in-flight cart RPCs fail during the recreate. The reverted config also includes a REDIS_ADDR value; if change history's 'previous' configuration is the alternate-port override rather than baseline, the revert could point cartservice at the wrong redis and turn a latency incident into a hard cart outage. Verify the target config before applying.
+  blast radius: cartservice only, but its inbound callers notice the connection reset: frontend (CartService/AddItem, GetCart) and checkoutservice (GetCart, EmptyCart), and through them loadgenerator-driven checkout flows. Expect a brief error spike in frontend and checkoutservice during the recreate, which must not be mistaken for the fix failing.
+  if wrong    : Falsified if, 3-5 minutes after the recreate, cartservice Redis spans still sit at ~300ms with ~1ms server self time - meaning the shaping rule survives container recreation or is re-applied by the platform-automation cycle, and only the missing teardown step (outside this allowlist) fixes it. Also falsified if latency normalises but checkoutservice error ratio stays far above baseline, consistent with the unexplained 17:19:15 change point.
+  rests on    : tr_8fe3c3e43f8d, tr_9a736ec83a3b, tr_cff02bc6c377
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 25958 pushed / 5974 pulled (pull rate 0.1871), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_8fe3c3e43f8d, tr_9a736ec83a3b, tr_cff02bc6c377
+  root cause  : A platform-automation traffic-shaping container was attached to cartservice's network namespace ~3 minutes before onset, imposing a fixed ~300ms egress delay with zero jitter on eth0; unlike every prior cycle of this scripted apply/revert pattern, the matching removal never ran, so the delay was still active at onset [tr_8fe3c3e43f8d]. Traces show exactly that signature: all cartservice Redis operations sit in a tight ~301-307ms band while cartservice's own span self time is ~0.4-1.2ms, and callers carry a matching ~300ms per RPC, with trace totals scaling additively with cartservice hop count [tr_9a736ec83a3b]. cartservice never crashed and logged no errors [tr_f605a5fd6392]. checkoutservice, which makes the most cartservice round trips per checkout, converts that accumulated wait into failed calls at ~170x baseline error ratio [tr_cff02bc6c377]. The mechanism is injected wait on the cartservice call path; running the absent teardown step stops it.
+  OPEN        : checkoutservice's only error-ratio change point is 17:19:15, ~18 minutes before the shaping container existed [tr_cff02bc6c377], so an earlier phase of the automation cycle may contribute an unexplained error component.
+  OPEN        : No cartservice traces before 17:42:48 and truncated logs from ~17:11-17:42 [tr_9a736ec83a3b, tr_f605a5fd6392] mean there is no pre-onset baseline confirming the 300ms floor was absent earlier.
+  OPEN        : checkoutservice logs/traces were never dispatched, so the actual failure mode of its errored calls (deadline exceeded vs. other) is unverified; cartservice latency, saturation and restart series were also never retrieved [tr_712aa1924b1d].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-dependency-latency'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T173731Z-cart-dependency-latency/403de255-c5f3-404f-b5a2-41e3458bd281-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T173731Z-cart-dependency-latency/403de255-c5f3-404f-b5a2-41e3458bd281-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7864.80it/s]

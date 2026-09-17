@@ -1,0 +1,171 @@
+{
+  "incident_id": "927be343-c2f0-4d81-b569-ea7fd0cd2620",
+  "trajectory_id": "186efb4a-ed3f-4a71-be06-cbc219d69844",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "Checkout orders abort at the shipping-quote step. Every sampled post-19:39 trace shows cart, product-catalog and currency hops completing cleanly and fast, then the checkoutservice-side client span for ShippingService/GetQuote carrying the error that propagates up through PlaceOrder to the frontend root [tr_4d9660bc87d3]. The shippingservice server span and its own outbound HTTP call complete in ~2ms with no error, so shipping is answering \u2014 the failure is on the checkout side's handling of that response/contract. This matches checkout logs showing order initiations after 19:37 with no payment, email or message-write completions and no error lines [tr_a129308b4eee], payment logs going silent after 19:35:16 with no failures of its own [tr_76d4f0d7b975], and a checkoutservice error-ratio step at 19:36:30 rising ~5.6x over baseline [tr_cd8afa3b416f]. No change record exists for checkoutservice, but the queried window began at onset and covered only the seed service, so an upstream change on shippingservice or a flag service was never examined [tr_0989f9e34431, tr_37a32c2ed632].",
+    "service": "checkoutservice",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_4d9660bc87d3",
+      "tr_a129308b4eee",
+      "tr_cd8afa3b416f",
+      "tr_76d4f0d7b975",
+      "tr_37a32c2ed632"
+    ],
+    "reasoning": "Traces localise the break precisely to the checkout->shipping hop and exonerate cart, catalog, currency, payment and email [tr_4d9660bc87d3]. Latency is ruled out: traces complete in 7-12ms, so this is fast failure, not waiting [tr_4d9660bc87d3]. Resource exhaustion is unsupported: checkout keeps accepting and logging traffic and no capacity wording appears anywhere [tr_a129308b4eee, tr_76d4f0d7b975]. But the mechanism behind the error on that one span is not established \u2014 no RPC status, exception or dependency name was captured [tr_a129308b4eee], and the change search was mis-scoped (seed-only, window starting at onset), so neither a bad shipping-quote response contract, a wrong shipping endpoint value, nor a rollout on shippingservice can be distinguished [tr_37a32c2ed632]. Naming bad_config or bad_deploy here would be a guess about which of those it is, so the class stays unknown and remediation cannot be named.",
+    "open_questions": [
+      "What error status/message the checkout-side GetQuote client span actually carries \u2014 the trace shows the error flag but no gRPC code or exception text.",
+      "Whether any change (deploy, config edit, flag flip) landed on shippingservice or featureflagservice in the hours before 19:36:30; the change query covered only checkoutservice and started at onset.",
+      "Whether paymentservice's log silence after 19:35:16 is simply the absence of upstream calls or an independent problem \u2014 it began ~3 minutes before the checkout error step point, which the evidence does not reconcile.",
+      "Whether checkoutservice's configured shipping endpoint/contract version changed, which would separate bad_config from a shipping-side bad_deploy.",
+      "cartservice health is genuinely unmeasured: both incident and baseline error-ratio windows were empty, a metric coverage gap [tr_a1c6fee8a8bb]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A deploy on shippingservice changed the GetQuote response so checkoutservice rejects an otherwise successful reply.",
+        "service": "shippingservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Consistent with the error sitting only on the checkout-side client span while the shipping server span is clean [tr_4d9660bc87d3], but no change record for shippingservice was ever queried \u2014 the change search was seed-scoped [tr_37a32c2ed632], so the artifact claim is unverified."
+      },
+      {
+        "root_cause": "A configuration value in checkoutservice naming the shipping endpoint or quote parameters is wrong, so every quote request is rejected on receipt.",
+        "service": "checkoutservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The shipping server span is entered and returns, so the address resolves and the call lands \u2014 inconsistent with a wrong-address config, and no config edit is recorded for checkoutservice in the queried window [tr_4d9660bc87d3, tr_0989f9e34431]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / Detection notes: - Onset to first page: **3m04s**, the fastest on this system. A dependency whose failure\n  is fatal to its caller pages quickly; one whose failure is tolerated does not.\n- Services alerting at the page: **1**. Over the whole incident: **8**, across 8 alerts.\n- Alerts that fired o",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25628,
+    "pulled_tokens": 11989,
+    "pull_rate": 0.3187,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 467,
+        "content_tokens": 469,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1616,
+        "content_tokens": 1619,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7810,
+        "content_tokens": 7786,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7264,
+        "content_tokens": 7267,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8471,
+        "content_tokens": 8474,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_4d9660bc87d3",
+      "tr_0989f9e34431",
+      "tr_37a32c2ed632",
+      "tr_a129308b4eee"
+    ],
+    "expected_effect": "No action is proposed, so no effect should be expected or measured. What should happen next is investigation, not remediation: pull the gRPC status code and exception text from the checkout-side ShippingService/GetQuote client span, and re-run change_history over shippingservice and featureflagservice with a window that starts several hours before 19:36:30 rather than at onset. Either of those returns a fact that would meet a precondition an action actually requires; right now nothing does.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a change record does exist for shippingservice or featureflagservice in the hours before 19:36:30 and was simply never queried \u2014 the change window in [tr_0989f9e34431] and [tr_37a32c2ed632] begins at onset and covers only the seed service, so it cannot exclude that. If such a record surfaces, rollback_image or revert_config on that service becomes a supportable proposal and this abstention cost time. It is also wrong if the checkout error ratio in [tr_cd8afa3b416f] keeps climbing toward total checkout failure while the open questions stay open; in that case a reader may reasonably prefer acting on a guess to waiting, and should know that is what they are doing.",
+    "risk": "The risk of abstaining is continued lost orders: every sampled checkout after 19:39 aborts at the shipping-quote step [tr_4d9660bc87d3] and that keeps happening while nobody acts. The risk of the actions I declined is worse and is why I declined them. rollback_image and revert_config both require a recorded prior image or configuration plus in-window evidence of a deploy, config edit, or flag flip; the change log is empty for checkoutservice [tr_0989f9e34431, tr_37a32c2ed632] and was never queried for shippingservice or featureflagservice, so there is no recorded prior state to roll back to and picking a target would be a guess. restart_service requires evidence of bad process state, and the evidence contradicts that: checkoutservice is alive and logging steady order initiations to the end of the window [tr_a129308b4eee], traces complete in 7-12ms rather than stalling, and the failure is uniform across all 10 sampled traces [tr_4d9660bc87d3]. A restart would discard cache, reset the counters and the log continuity that the next investigator needs to read the gRPC status off the failing span, and would very likely change nothing about a response-handling or contract mismatch \u2014 buying a destroyed audit trail for no fix.",
+    "blast_radius": "Nothing changes, so nobody sees anything new. The existing blast radius persists: frontend sees the propagated PlaceOrder error at its root span [tr_4d9660bc87d3], loadgenerator continues to drive failing checkouts, and downstream stages never execute \u2014 paymentservice, emailservice and the message write receive no calls, which is the most likely reading of the payment log silence after 19:35:16 [tr_76d4f0d7b975], though the evidence does not settle whether that silence is absence of upstream calls or an independent problem. Had I proposed restart_service on checkoutservice, the callers in the brief's graph \u2014 frontend directly, loadgenerator and end users through it \u2014 would have seen connection resets during the container recreate, on top of the failures they already see.",
+    "confidence": "low"
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on checkoutservice followed by loadgenerator indicates real user-facing order-flow failure, not a lone warning. No open incidents to attribute it to, and the alerts alone don't distinguish a bad deploy from a failing downstream dependency."
+  }
+}
