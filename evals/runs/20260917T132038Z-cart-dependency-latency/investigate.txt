@@ -1,0 +1,43 @@
+incident 88fff9ef-217e-4449-83de-4e19a89fff5a  state triaging  anchor 13:24:15
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 788ce237-eec4-42eb-9cb9-35077ed9ff14
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Multiple services alerted in a 15-second window starting at cartservice and spreading through checkoutservice and frontend, which is a propagating failure rather than an isolated warning. The cartservice-first ordering suggests a downstream dependency or its datastore degrading, but that needs evidence.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Detaching the traffic-shaping config attached at 13:20:48 should remove the fixed egress delay. Within minutes: cartservice Redis leaf spans (HGET/HMSET) leave the 300.5-311.6ms band for single-digit ms, checkout's CartService/GetCart client span drops from ~1.21s, PlaceOrder roots fall below ~2.5s, checkout-service log steps compress from ~1s apart back to tens of ms, and checkoutservice's error ratio returns toward its 0.0024 baseline mean. cartservice's own metrics cannot confirm anything - calls_total has no samples in either window - so confirmation must come from Tempo and checkoutservice.
+  within      : 420s
+  risk        : Container recreate drops in-flight cart calls and in-process cart state. Change history shows an apply/revert cycle over three mutations (image tag, REDIS_ADDR, shaping container), so the restored snapshot may carry an older REDIS_ADDR pointing at an alternate Redis port - turning a slow-but-working cart into a broken one. Inspect the target config before applying.
+  blast radius: cartservice's inbound callers see resets during recreate: frontend (Add/GetCart) and checkoutservice (GetCart, EmptyCart), and through them loadgenerator. If a dependency address changes, the Redis instance it pointed at sees traffic move.
+  if wrong    : Falsified if fresh traces still show the ~300ms Redis floor after the recreate: the delay would then live outside cartservice's config (host/bridge level) or the untrusted change record is wrong - the attachment was never independently confirmed. Also falsified if cart latency normalises but cartservice logs start emitting Redis connection/timeout errors, meaning the snapshot restored a stale REDIS_ADDR; revert immediately in that case.
+  rests on    : tr_4ba6c4f2425b, tr_4adfe9df6c0c, tr_c9e5a7b0bc37
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 25497 pushed / 9174 pulled (pull rate 0.2646), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_4ba6c4f2425b, tr_4adfe9df6c0c, tr_c9e5a7b0bc37, tr_5486a4f3c587, tr_449b2234a1ed
+  root cause  : A traffic-shaping container was attached to cartservice's network namespace by platform-automation ~3 minutes before onset, imposing a fixed 300ms zero-jitter egress delay that was never removed [tr_4ba6c4f2425b]. Traces confirm the mechanism: every Redis leaf span from cartservice sits in a tight 300.5-311.6ms band while cartservice's own gRPC server spans have 0.3-1.1ms self time, and each caller leg absorbs another ~300ms, so cart round trips compound to ~605ms-1.21s [tr_4adfe9df6c0c]. cartservice is otherwise healthy - serving continuously, no errors, no restarts [tr_449b2234a1ed]. The wait propagates upward: checkoutservice per-order steps stretched from tens of milliseconds to ~1s [tr_5486a4f3c587] and its error ratio rose ~70x intermittently without saturating, the signature of deadline breaches on the slowest cart calls rather than a hard failure [tr_c9e5a7b0bc37]. frontend and loadgenerator alerted one hop further out.
+  OPEN        : No evidence ties checkoutservice's errors specifically to the cart edge - the error-ratio query has no dependency dimension [tr_c9e5a7b0bc37] and no span among 188 was errored [tr_4adfe9df6c0c]; the link is inferred by timing and exclusion.
+  OPEN        : Checkout logs from 13:25:19 onward show clean successful orders [tr_5486a4f3c587] while traces in those same minutes still show the 300ms floor [tr_4adfe9df6c0c]; unreconciled, and the 13:24:30 alert-moment lines were truncated out entirely.
+  OPEN        : cartservice has no calls_total samples in either window [tr_f413b29612b1], so its error rate, latency, restarts and readiness were never measured; the change record is untrusted and the sidecar's present attachment was never independently confirmed.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-dependency-latency', 'scenario:redis-cart-dependency-latency'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T132038Z-cart-dependency-latency/88fff9ef-217e-4449-83de-4e19a89fff5a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T132038Z-cart-dependency-latency/88fff9ef-217e-4449-83de-4e19a89fff5a-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9085.45it/s]

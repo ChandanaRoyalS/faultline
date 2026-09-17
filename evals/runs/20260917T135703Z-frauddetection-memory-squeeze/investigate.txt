@@ -1,0 +1,46 @@
+incident 3b64399b-f02b-4ed7-9f53-cf5a54082d94  state triaging  anchor 14:03:00
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 4d257751-fdc0-45ca-b4e4-25d70fc7ca5c
+triage judged: investigate (low confidence, suspects unknown)
+  A single critical alert on frauddetectionservice with no open incidents to attribute it to; critical severity is not dismissible without evidence.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Restoring the configuration frauddetectionservice held before the 13:57:09 resource_limits edit (memory limit back off the 200m ceiling) should end the kill/restart cycle. Observable in Loki on {service="frauddetection-service"}: the JVM tool-options / OTel-agent startup banner should appear once after the recreate and then NOT recur at ~60s intervals, and the "Consumed record with orderId ... updated total count to: N" lines that stopped at 13:57:08 should resume and the count increment steadily. The two earlier lowerings that day were reverted and the service kept consuming, which is the precedent for this effect [tr_c79f3ed6b0c4].
+  within      : 240s
+  risk        : If the kills are probe-timeout rather than cgroup-OOM, this changes nothing and costs a container recreate: one more restart on top of a service already restarting, and the in-flight Kafka consumer position/cache is discarded again. If the recorded "previous configuration" contains more than the memory limit (the change entries only describe resource_limits, so the full reverted payload is unverified), reverting could restore other stale values alongside it. The revert also does not stop the automation loop; treating the incident as closed after it could mask a re-lowering. Finally, the unexplained monotonic span loss and whole-async-leg drop starting 13:55:47 - before this change - is not addressed by this action and may be a separate collector/sampling fault [tr_1b0076ceab28]; if that is the real reporting problem, this revert will appear to fail for the wrong reason.
+  blast radius: frauddetectionservice only - it is the sole service in this incident's blast radius. It is an async Kafka order consumer, so the recreate window has no synchronous caller to reset a connection; the effect on others is that fraud-check consumption of the orders topic pauses for the duration of the recreate and then begins draining whatever backlog accumulated since 13:57:08. Any dashboard or alert keyed on frauddetection-service restarts will see one further restart event at apply time before the count flattens. Trace coverage of the 13:57-14:05 period is absent entirely [tr_1b0076ceab28], so the downstream checkout/order impact both before and after this action is unmeasured - do not claim the order flow was restored, only that the consumer resumed.
+  if wrong    : Falsified if, after the recreate, startup banners keep repeating at roughly 60s spacing with no "Consumed record" line appearing within 4 minutes - that would mean the process is being killed for a reason other than the 200m ceiling (e.g. a liveness/startup-probe timeout, which fits the same silent ~60s pattern and was never separated from OOM because no container memory, restart-count or OOMKilled/termination-reason data was ever retrieved [tr_e6f3743d8265]). Also falsified in a different way if the loop stops but platform-automation writes another memory-limit lowering into change history shortly after: the same actor performed five such edits and the reason this one was not auto-reverted is unknown [tr_c79f3ed6b0c4], so the fix may be undone within minutes. Note the standard error-ratio metric for this service has no samples in any window [tr_de605d2905f2], so confirmation must come from logs, not metrics - do not expect a metric to move.
+  rests on    : tr_c79f3ed6b0c4, tr_9bdc8983d0c5
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 20667 pushed / 6985 pulled (pull rate 0.2526), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_c79f3ed6b0c4, tr_9bdc8983d0c5, tr_e6f3743d8265, tr_de605d2905f2, tr_1b0076ceab28
+  root cause  : At 13:57:09 platform-automation lowered the memory limit on frauddetection-service to 200m and, unlike the two earlier lowerings that day, did not revert it [tr_c79f3ed6b0c4]. Within ~17 seconds the service entered a restart loop: normal Kafka order-consumption logging stops at 13:57:08 and never resumes, and the JVM/OTel-agent startup banner repeats three times in quick succession and then roughly every 60 seconds through 14:04:23, including at 14:03:20 [tr_9bdc8983d0c5]. Every cycle ends silently with no throwable, shutdown message, or dependency error, which is the signature of the process being terminated externally before application logging is established rather than crashing in-process [tr_9bdc8983d0c5]. The mechanism that is failing right now is that the container cannot hold its working set inside the 200m ceiling and is killed for exceeding it, so the fraud consumer never reaches the point of processing a record; the 14:03 alert is mid-incident, not onset. The remedy is to restore the prior memory limit (and stop the automation loop that keeps re-applying it).
+  OPEN        : No container memory working-set, memory-limit, restart-count or OOMKilled/termination-reason data was ever retrieved, so the kill mechanism is inferred from log shape and timing rather than observed [tr_e6f3743d8265].
+  OPEN        : Whether the kills are OOM at the cgroup level or a liveness/startup-probe timeout caused by a memory-starved JVM starting too slowly — both fit silent ~60s-interval restarts, and pod events would separate them [tr_9bdc8983d0c5].
+  OPEN        : Why the two earlier lowerings the same day were reverted within 11-12 minutes and this one was not: whether the automation is expected to revert and failed, and whether it will re-lower the limit after a manual revert [tr_c79f3ed6b0c4].
+  OPEN        : The monotonic span-count decline (49→25) and the whole-async-leg loss at 13:55:47 — including the checkoutservice publish span, accounting consumer and emailservice call — is unexplained by a frauddetectionservice restart and begins before 13:57; it may be a separate collector/sampling issue [tr_1b0076ceab28].
+  OPEN        : Trace evidence stops at 13:55:47, so there is no trace coverage of the restart period at all, and error-ratio metrics are absent across all windows — the blast radius on checkout/order flow during 13:57-14:05 was never measured [tr_1b0076ceab28, tr_de605d2905f2].
+  OPEN        : The persistently degrading shippingservice→quoteservice hop was present before and during the window and was never investigated; it is unrelated to the fraud restarts but may be its own problem [tr_1b0076ceab28].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:ad-memory-squeeze', 'scenario:frauddetection-memory-squeeze'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T135703Z-frauddetection-memory-squeeze/3b64399b-f02b-4ed7-9f53-cf5a54082d94-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T135703Z-frauddetection-memory-squeeze/3b64399b-f02b-4ed7-9f53-cf5a54082d94-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7296.17it/s]

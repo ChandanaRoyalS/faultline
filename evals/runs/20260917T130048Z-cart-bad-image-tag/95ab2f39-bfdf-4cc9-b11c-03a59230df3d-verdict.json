@@ -1,0 +1,176 @@
+{
+  "incident_id": "95ab2f39-bfdf-4cc9-b11c-03a59230df3d",
+  "trajectory_id": "aa1c8e87-6857-44d0-aeb2-f5f900c937b4",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:cart-bad-image-tag",
+    "scenario:shipping-wrong-image"
+  ],
+  "verdict": {
+    "root_cause": "cartservice was replaced at 13:00:54 with a hotfix image tag (v1.2.1-cartservice-hotfix.2) and did not come back serving: its log stream ends at 13:00:53 with a graceful hosting-lifetime shutdown notice and emits nothing thereafter, including the whole 13:03-13:04:30 failure interval. With no cart process answering, checkoutservice's outbound CartService/GetCart call fails immediately (2.0-4.5ms), and that ERROR leaf propagates unchanged up through prepareOrderItemsAndShippingQuoteFromCart, checkoutservice PlaceOrder, frontend PlaceOrder and the frontend root, which is why checkoutservice and frontend alerted in the same second. checkoutservice itself has no registered changes, near-zero span self-time and no error lines at onset. The running cart artifact is not one that serves traffic: a bad deploy on cartservice.",
+    "service": "cartservice",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "medium",
+    "evidence": [
+      "tr_60f0309fc3f8",
+      "tr_f39555a31a12",
+      "tr_31b188036a49",
+      "tr_a4609a571d39",
+      "tr_07d86ece2fd1",
+      "tr_26bc1cd98727"
+    ],
+    "reasoning": "Traces [tr_31b188036a49] locate the first ERROR at the deepest span, checkoutservice's client call to CartService/GetCart, with every ancestor only inheriting it; the same result rules out the frontend hop, checkoutservice's own compute, and the unmeasured payment/currency/accounting edges, and shows fast millisecond failures rather than timeouts - the signature of a refused peer, not a slow one. cartservice logs [tr_f39555a31a12] stop at 13:00:53 on an orderly shutdown with nothing during the failure window, and rule out a Redis error, an internal crash and degraded-but-serving. Changes [tr_60f0309fc3f8] place an image-reference update one second after that last line, the only change in the preceding hour, and rule out the two rival cart changes (Redis address override, 300ms injected delay) as reverted ~3 hours before onset. Checkout-side evidence exonerates the alerting service: no exception text at onset and the older Kafka producer errors confined to ~12:33 [tr_a4609a571d39], no registered checkout change [tr_07d86ece2fd1], and a real event anchored by the 13:03 change point reaching ~0.67 error ratio [tr_26bc1cd98727]. Nothing is exhausted and nothing is slow, so the mechanism is the wrong/non-serving artifact; rollback of the cart image is the fix.",
+    "open_questions": [
+      "No one observed cartservice pod/container state, restart counts or image-pull status; the hotfix container failing to start is inferred from log silence rather than seen.",
+      "cartservice emits no call counters in incident or baseline [tr_0c5239388bf4], so its unavailability and any recovery cannot be confirmed or timed from metrics.",
+      "checkoutservice's error ratio shows only one change point at 13:03 with a window mean at baseline [tr_26bc1cd98727], which sits awkwardly with a cart outage running from 13:00:54 onward; true duration unresolved.",
+      "checkoutservice's change window began at onset [tr_07d86ece2fd1], so a checkout-side change in the minutes before 13:03:45 was never searched."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The hotfix cartservice image starts but is misconfigured at runtime (e.g. wrong backing-store address baked in), so it rejects GetCart calls rather than never starting.",
+        "service": "cartservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "cartservice produced no log output at all after 13:00:53 [tr_f39555a31a12]; a running-but-misconfigured process would log its rejections, and the recorded REDIS_ADDR override was reverted ~3h before onset [tr_60f0309fc3f8].",
+        "why_not_short": "no post-shutdown log output from a supposedly running process"
+      },
+      {
+        "root_cause": "cartservice was terminated and left unreplaced by platform automation (scheduling/capacity), independent of which image tag was set.",
+        "service": "cartservice",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "The image update is recorded one second after the shutdown line and is the only change in the preceding hour [tr_60f0309fc3f8], making the deploy the proximate act; no capacity or saturation evidence was gathered either way.",
+        "why_not_short": "image change coincides with shutdown to the second"
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-dependency-latency / What was never measured: Checkout's error-ratio change point sits ~19 minutes before the shaping attachment, overlapping the hotfix apply-and-restore window; that gap is unexplained and may be a second, independent story. No latency or request-rate series returned for either service, and traces cover onl",
+    "product-catalog-flag-failure / What ruled the alternatives out: Three discriminators did the work. (1) Frontend errors were raised on the grpc-js status-receive path, meaning frontend transcribed a peer-supplied status rather than manufacturing one; frontend also had no recorded change of any kind across the 24h spanning onset. That eliminate",
+    "runbook:service-frontend / The at-rest latency tail: **Measured over twelve hours at 15s resolution on a world at rest** (ADR-0025): frontend's\nmedian p95 is 42.3ms, and 127 of 2398 samples were above the 250ms threshold, 94 of them above\n1000ms, in excursions sustained past the rule's three-minute `for:` clause. Two episodes in th"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28513,
+    "pulled_tokens": 6899,
+    "pull_rate": 0.1948,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 486,
+        "content_tokens": 489,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2014,
+        "content_tokens": 2018,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8722,
+        "content_tokens": 8698,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7972,
+        "content_tokens": 7973,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9319,
+        "content_tokens": 9296,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_60f0309fc3f8",
+      "tr_f39555a31a12",
+      "tr_31b188036a49"
+    ],
+    "expected_effect": "Redeploying cartservice at the tag it ran before the 13:00:54 hotfix update [tr_60f0309fc3f8] should bring a serving cart process back. Observable as: the {service=\"cart-service\"} Loki stream resuming routine GetCartAsync/AddItemAsync info lines with fresh timestamps (it currently ends at 13:00:53 with a shutdown notice [tr_f39555a31a12]), and newly sampled checkoutservice traces showing the CartService/GetCart leaf returning OK instead of ERROR, with PlaceOrder continuing past prepareOrderItemsAndShippingQuoteFromCart [tr_31b188036a49]. Log resumption and trace status are the load-bearing checks; cartservice emits no call counters, so no metric can time recovery.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if cart logs are still silent 5 minutes after the redeploy (failure to start is not image-tag-related; nobody has observed container state or image-pull status), or if logs resume but checkout traces still show an ERROR GetCart leaf (fault is in the network/discovery path, not the artifact). If change history has no concrete prior tag to redeploy, refuse rather than guess.",
+    "risk": "Recreate discards cartservice in-memory state, so in-flight carts empty. If the hotfix fixed a real defect, reverting reintroduces it. This tag was applied and reverted repeatedly today by platform-automation [tr_60f0309fc3f8], so a reconciler may re-apply the hotfix and cause flapping; it also means the image change could be background churn rather than the trigger.",
+    "blast_radius": "cartservice, and its inbound caller checkoutservice sees connection resets during the recreate, propagating to frontend PlaceOrder and loadgenerator as a brief error burst."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts on checkoutservice and frontend simultaneously, with the load generator following, describe a user-facing failure that cannot be dismissed. No open incident to attribute it to, and the alerts alone don't distinguish a bad deploy from a failing downstream dependency."
+  }
+}

@@ -1,0 +1,43 @@
+incident 47d346b2-0d3a-40f4-b9ff-b52158eec0d2  state triaging  anchor 15:21:30
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 74ffc2cc-7cb9-4864-b392-d68334815f59
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts starting at checkoutservice and propagating to frontend and the load generator describe a user-facing checkout failure that cannot be dismissed, and no open incident covers it. The alert pattern alone does not distinguish a bad deploy of checkoutservice from a failing downstream dependency, so the fault class stays unknown.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : shippingservice
+  expect      : Restoring shippingservice's pre-15:19:07 environment (QUOTE_SERVICE_ADDR unset, i.e. the state before the platform-automation edit) and recreating the container should make GetQuote complete again. Observable, in this order: (1) shipping-service Loki stream resumes the pre-onset shape — each inbound 'GetQuoteRequest' INFO line followed within milliseconds by a quote-sent line, and ship-order/tracking-ID lines reappear; (2) in Tempo, the checkoutservice client span for ShippingService/GetQuote stops being marked ERROR in new traces, and PlaceOrder traces once again carry payment, email, EmptyCart and ShipOrder children instead of terminating inside prepareOrderItemsAndShippingQuoteFromCart; (3) checkout-service logs resume the payment / confirmation-email / message-write entries after each order-placement line; (4) checkoutservice error ratio (calls_total STATUS_CODE_ERROR / calls_total, 2m) falls back toward its ~0.03 baseline. Note that shippingservice's own error-ratio series is empty in both windows, so confirmation must come from shipping logs and checkout traces, not from shippingservice metrics.
+  within      : 300s
+  risk        : The causal link is inferred, not observed: no connection or DNS error line exists on shippingservice and the downstream http-client span is not marked ERROR [tr_5a04b0440243], so the bad address may not be the mechanism. If so, this recreate discards the failing process state — the one thing that could still be inspected — without fixing anything, and makes the next diagnosis harder. The recreate itself resets shippingservice's in-process cache and drops any in-flight GetQuote/ShipOrder calls, producing a short burst of additional checkout failures on top of the current ones. If the previous configuration is itself incomplete (the recorded prior value is None), reverting could leave shippingservice with a default target that is also unreachable, converting a known-bad state into an unclear one. Finally, shippingservice's metric series is empty [tr_479f55d42c39], so if log evidence is also ambiguous after the revert we will have no independent signal that the service is healthy.
+  blast radius: One service is changed: shippingservice. During the recreate its callers see connection resets — checkoutservice directly (GetQuote and ShipOrder), and through it frontend and loadgenerator, whose PlaceOrder requests are already failing. The reverted value is a dependency address, so the host named by the bad value (quoteservice-gone:8090) stops receiving attempts and whatever the prior configuration resolves to begins receiving them. No other service in the incident's blast radius is touched; checkoutservice has no recorded change and is not modified [tr_ee62daef3e7d].
+  if wrong    : Falsified if, more than ~2 minutes after the recreate, shipping-service still logs inbound GetQuote lines with no paired quote-sent line, or checkoutservice client spans for ShippingService/GetQuote are still ERROR in traces started after the recreate. Also treat as not-confirmed if the change log shows platform-automation re-applying QUOTE_SERVICE_ADDR=http://quoteservice-gone:8090 within the confirmation window — it did exactly this twice earlier in the day, so a recurrence would mask or undo the fix and the real remedy (stopping the automation loop) is outside this system's permitted actions. A third falsifier: the prior configuration had QUOTE_SERVICE_ADDR absent entirely, so if shippingservice needs some quote address to serve quotes, reverting to 'unset' may leave it equally unable to complete — visible as unchanged log shape after recreate.
+  rests on    : tr_4891b42b3bd9, tr_253b1eca761e, tr_5a04b0440243, tr_728eaeaa1680
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 28654 pushed / 14171 pulled (pull rate 0.3309), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_4891b42b3bd9, tr_253b1eca761e, tr_5a04b0440243, tr_728eaeaa1680, tr_ee62daef3e7d
+  root cause  : Two minutes before onset, platform-automation set QUOTE_SERVICE_ADDR on shippingservice to an address naming an absent quote host [tr_4891b42b3bd9]. From onset shippingservice still logs every inbound GetQuote but never emits the paired quote-sent line or any ship-order activity, with no error-level output at all [tr_253b1eca761e] — it can no longer produce a quote. checkoutservice consequently fails on exactly one hop: its client span for ShippingService/GetQuote is ERROR in every failing post-15:21:30 trace, and PlaceOrder aborts inside prepareOrderItemsAndShippingQuoteFromCart before payment, email or ShipOrder are attempted [tr_5a04b0440243], matching checkout logs where post-onset order lines lack all follow-on entries [tr_728eaeaa1680]. checkoutservice and frontend only noticed; the wrong value on shippingservice is the mechanism.
+  OPEN        : No evidence directly observes shippingservice failing to reach the configured host — no connection/DNS error line, and the downstream http-client span is not marked ERROR [tr_5a04b0440243]; the link is inferred from timing and log shape.
+  OPEN        : shippingservice has no call-count or error-ratio samples in either window [tr_479f55d42c39], so its request rate, restarts and readiness are unmeasured and its metric pipeline may itself be broken.
+  OPEN        : checkout logs are truncated across the onset minute [tr_728eaeaa1680], and the automation loop may re-revert the value on its own as it did twice before [tr_4891b42b3bd9], masking the fix.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-redis-misconfig', 'scenario:payment-telemetry-blackout', 'scenario:product-catalog-flag-failure', 'scenario:shipping-quote-misconfig'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T151859Z-shipping-quote-misconfig/47d346b2-0d3a-40f4-b9ff-b52158eec0d2-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T151859Z-shipping-quote-misconfig/47d346b2-0d3a-40f4-b9ff-b52158eec0d2-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9782.47it/s]

@@ -1,0 +1,43 @@
+incident 3bca7a99-2e10-43c9-8dd8-22f9a9cd69ce  state triaging  anchor 13:40:45
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 2bbb332c-cd71-41cb-b916-abdd340b9cb5
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts hit checkout and frontend simultaneously with user-facing impact and no open incident to fold into. The simultaneous onset across the checkout path suggests a shared dependency or a deploy, but nothing in the alerts picks between them.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Restoring cartservice's pre-13:38:07 environment (REDIS_ADDR unset / image default) and recreating it should end the startup crash loop: in Loki {service="cart-service"} the repeating Redis-connect + unhandled ApplicationException pair naming redis-cart:6380 stops and normal GetCartAsync/AddItemAsync lines resume; in Tempo the checkoutservice/hipstershop.CartService/GetCart leaf stops carrying ERROR and PlaceOrder traces reach payment/shipping/email spans; checkoutservice logs regain the full order lifecycle lines. Confirmation must come from logs and traces, as cartservice has no Prometheus calls_total series.
+  within      : 300s
+  risk        : If redis-cart is unreachable regardless of port, this fixes nothing and destroys the only live artefact of the harness edit. The prior state is recorded as unset rather than known-good, so the restored default could itself be wrong and the crash loop continues. The harness has re-applied this edit on a ~4.5h cycle four times, so the incident can recur; stopping it is outside this system.
+  blast radius: cartservice only. Callers frontend and checkoutservice see a connection reset during recreate, indistinguishable from the failure they already have; redis-cart sees cart traffic move off 6380. Downstream checkout stages resume receiving traffic once orders pass the cart hop.
+  if wrong    : Falsified if cartservice still crashes on startup after the recreate — naming 6380 (revert did not take) or 6379 (port was never the fault and redis-cart is itself down or dropping packets; its listening port is inferred, not confirmed). Also falsified if cartservice comes up clean but GetCart spans stay ERROR.
+  rests on    : tr_919214de917a, tr_44eefec950d0, tr_5643554a7104
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 30200 pushed / 7143 pulled (pull rate 0.1913), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_919214de917a, tr_44eefec950d0, tr_5643554a7104, tr_bb8b9d08b3a8, tr_58d24c8ac46e
+  root cause  : An automated change harness set cartservice's REDIS_ADDR to redis-cart:6380 (a non-default Redis port, from an unset state) about two minutes before onset, and unlike four prior cycles of the same experiment this edit was never reverted [tr_919214de917a]. cartservice's Redis connection to redis-cart:6380 never completes, and because the cart store's connection check runs in the startup path from the program entry point, the unhandled exception kills the process; it crash-loops roughly every second from ~13:39:20 [tr_44eefec950d0]. With no cart listener, every checkoutservice PlaceOrder aborts at the outbound hipstershop.CartService/GetCart leaf — the deepest error-bearing span, failing in under 1ms — and the ERROR propagates to the frontend HTTP root, explaining the simultaneous checkoutservice/frontend/loadgenerator alerts [tr_5643554a7104]. checkoutservice itself is healthy and unchanged [tr_bb8b9d08b3a8, tr_58d24c8ac46e].
+  OPEN        : No one queried the redis-cart service definition, so it is inferred rather than confirmed that redis-cart listens on 6379 and not 6380 [tr_44eefec950d0 rates this low].
+  OPEN        : The 20-45s hang before each failure is timeout-shaped, not the fast refusal a wrong-port dial to a live host usually gives [tr_44eefec950d0]; redis-cart was never dispatched on, and it may also be unreachable or dropping packets on 6380.
+  OPEN        : cartservice has no Prometheus series over 12 hours and checkoutservice's error-ratio baseline covers 01:40-07:40Z, excluding onset, so blast radius and the exact crash-loop start rest entirely on logs [tr_b5e85f0cad3f, tr_ef7813a3e1e6].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-redis-misconfig', 'scenario:payment-telemetry-blackout', 'scenario:product-catalog-flag-failure', 'scenario:shipping-quote-misconfig'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T133802Z-cart-redis-misconfig/3bca7a99-2e10-43c9-8dd8-22f9a9cd69ce-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T133802Z-cart-redis-misconfig/3bca7a99-2e10-43c9-8dd8-22f9a9cd69ce-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9489.38it/s]

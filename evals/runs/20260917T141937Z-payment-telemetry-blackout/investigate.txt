@@ -1,0 +1,43 @@
+incident 8eccf41c-303c-4a59-b4e2-4be5a90512bf  state triaging  anchor 14:25:45
+triage: 3 services, severity critical, start from paymentservice, 2 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 04e83b12-cc09-468d-98df-d660ef3b4b50
+triage judged: investigate (low confidence, suspects unknown)
+  A critical alert on paymentservice sits upstream of checkout and frontend, so a real payment failure path cannot be dismissed. Single-service signal gives no fault-class hint yet.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : paymentservice
+  expect      : Restoring paymentservice's prior environment removes OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://127.0.0.1:4317, which was absent before the 14:19:42 edit [tr_7970c9cda487], so the exporter returns to its default collector and span export resumes. Observable as a trace query for paymentservice returning Charge spans with start times after the recreate, nested under checkoutservice as at 14:09-14:17 [tr_79febd00f80b]; equivalently a per-minute span count going from zero to non-zero. Logs should keep showing paired charge/transaction-complete info lines at sub-millisecond latency from a new pid [tr_f60a43a23791].
+  within      : 300s
+  risk        : The recreate drops in-flight Charge RPCs on a process evidence shows is healthy - same pid, no errors, sub-millisecond charges through 14:27:32 [tr_f60a43a23791]. Any payment failure in the next minutes is caused by this action. If the diagnosis is wrong, cost is a needless payment-path interruption plus false comfort while an unexcluded latency fault continues. platform-automation has flapped this key three times in ~9h [tr_7970c9cda487], so it will likely re-apply; do not loop this action.
+  blast radius: paymentservice (container recreated, cache discarded); checkoutservice as immediate caller sees connection resets, a blip in its flat-zero error ratio; frontend and end users see failed or retried PlaceOrder during the recreate.
+  if wrong    : Falsified if, five minutes after the recreate, logs show charges served normally but trace queries over the post-revert window still return zero paymentservice spans - then export is broken by something else, consistent with the last span at ~14:17 predating the 14:19:42 edit [tr_79febd00f80b]. Also beside the point if the flagged frontend->checkout and shipping->quote degrading hops persist unchanged; a per-minute span count run first would settle this.
+  rests on    : tr_7970c9cda487, tr_79febd00f80b, tr_f60a43a23791
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 21072 pushed / 10123 pulled (pull rate 0.3245), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_7970c9cda487, tr_79febd00f80b, tr_f60a43a23791, tr_f7a92b0eca17, tr_bf5326f86bad
+  root cause  : The payment path never broke. platform-automation set OTEL_EXPORTER_OTLP_TRACES_ENDPOINT to a loopback address on paymentservice ~6 minutes before the 14:25:45 alert, the third application in a ~9h set/revert flap, touching no other key and no artifact [tr_7970c9cda487]. Spans stop arriving in the trace backend after ~14:17 despite a window extending to 14:27 [tr_79febd00f80b], while the process itself keeps serving successful sub-millisecond charges from one unchanged pid through 14:27:32 with no errors or restarts [tr_f60a43a23791], and caller checkoutservice shows a flat-zero error ratio across all 128 samples [tr_f7a92b0eca17]. The mechanism is a config value naming an address with no listener behind it: observability of paymentservice failed, not paymentservice.
+  OPEN        : The last observed span predates the 14:19:42 edit by 2-3 minutes and only 6 of 34 traces were sampled [tr_79febd00f80b]; a per-minute span count would settle whether export ceased at the change or earlier.
+  OPEN        : The alert rule that fired at 14:25:45 was never retrieved, so whether it is an absence-of-telemetry alert is unconfirmed.
+  OPEN        : Traces flag shippingservice->quoteservice and frontend->checkout as degrading [tr_79febd00f80b]; neither service was dispatched and triage reports 2 unmeasured edges, so a concurrent latency problem is unexcluded.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-redis-misconfig', 'scenario:payment-telemetry-blackout', 'scenario:product-catalog-flag-failure', 'scenario:shipping-quote-misconfig'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T141937Z-payment-telemetry-blackout/8eccf41c-303c-4a59-b4e2-4be5a90512bf-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T141937Z-payment-telemetry-blackout/8eccf41c-303c-4a59-b4e2-4be5a90512bf-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9937.51it/s]

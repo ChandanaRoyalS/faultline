@@ -1,0 +1,174 @@
+{
+  "incident_id": "65747f7b-ab86-4272-bd37-e2ab07f62e3c",
+  "trajectory_id": "656780ed-7ff8-44cd-9267-76d4ec0bc172",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [
+    "scenario:cart-bad-image-tag",
+    "scenario:shipping-wrong-image"
+  ],
+  "verdict": {
+    "root_cause": "At 15:39:15 platform-automation pointed shippingservice's image reference at ghcr.io/open-telemetry/demo:v1.2.1-adservice \u2014 an artifact belonging to a different service. From 15:39:32 onward shippingservice's logs contain only repeated JVM/OTel-agent startup banners with lengthening gaps (~6s to ~64s), a restart loop under backoff, with no request-handling lines after 15:39; the Java banners do not match the Rust process that served quotes earlier. checkoutservice consequently fails every cart path that needs a shipping quote: post-15:42:15 traces show the GetQuote client span erroring with no shippingservice server child and self-time equal to total (0.3-2.3ms), a fast connect-level failure, aborting PlaceOrder before payment. The frontend, loadgenerator, accounting, email and fraud alerts at 15:45 are propagation of failed checkouts. An earlier, already-reverted QUOTE_SERVICE_ADDR injection (15:19:07-15:28:39) explains the first error-ratio change point at 15:19:30 but ended 13 minutes before the alert.",
+    "service": "shippingservice",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_0621fcda4b47",
+      "tr_10cbee2bb0cb",
+      "tr_788cdbb6dc15",
+      "tr_92b46127de99",
+      "tr_14ffebb2ecab"
+    ],
+    "reasoning": "Traces [tr_788cdbb6dc15] localise the fault to the checkout to shipping hop: GetQuote errors with no server child and near-zero self-time while cartservice, currencyservice and productcatalogservice children stay error-free and sub-2ms, and payment/ad/recommendation spans never appear. A missing server span with a fast error means the callee is not accepting connections, not that a dependency is slow. Shipping's own logs [tr_10cbee2bb0cb] show exactly that: ten startup cycles between 15:39:32 and 15:45:04 spanning 15:41:49 and 15:42:53, no served traffic after 15:39, and a runtime mismatch versus the earlier healthy lines. The change log [tr_0621fcda4b47] supplies the act: an image reference set at 15:39:15 to an adservice-named tag, seconds before the first banner. That makes the mechanism a wrong running artifact, not a wrong config value, so bad_deploy and rollback. checkoutservice is exonerated as origin: no recorded changes [tr_c7f9c7ab201b], no error lines, live process with steady arrivals [tr_92b46127de99], and partial rather than total error ratio [tr_14ffebb2ecab] consistent with only shipping-quote paths failing.",
+    "open_questions": [
+      "The 15:19:30 error-ratio change point [tr_14ffebb2ecab] predates the image update by 20 minutes and fits the QUOTE_SERVICE_ADDR injection; nobody measured whether errors recovered between the 15:28:39 revert and 15:39:15, so one-cause-versus-two is unsettled.",
+      "Why each startup cycle dies is unevidenced - no panic, trace or bind error was retained [tr_10cbee2bb0cb], and no memory/CPU or restart-count metrics were collected, so an external kill versus immediate crash is undistinguished.",
+      "Span metrics for shippingservice and quoteservice are empty in both windows [tr_2dbf9c31c083, tr_1bbe818245bd], and quoteservice was never examined by logs or traces, so there is no metric-side corroboration."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The QUOTE_SERVICE_ADDR value on shippingservice named a nonexistent host, breaking quote lookups and erroring checkout's GetQuote calls.",
+        "service": "shippingservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "It was reverted at 15:28:39, 13 minutes before the checkoutservice alert, and shipping's logs show no failing quoteservice calls in the tail - only a restart loop; it likely caused the 15:19:30 change point, not the sustained failure."
+      },
+      {
+        "root_cause": "quoteservice became slow or unavailable, so shipping's quote path stalled and checkout errored.",
+        "service": "quoteservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "Post-incident failures are faster than the healthy trace, not slower, and shipping dies before serving any request; quoteservice metrics are empty in baseline too, so nothing indicates a change in it."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-quote-misconfig / What was observed: The page named **checkoutservice**: `ServiceHighErrorRate`, 3m04s after the first failing\nrequest, and it stayed the only error alert. Later in the fault, four services fell\nsilent together as orders stopped completing \u2014 accounting, email, fraud detection and quote \u2014\nfor five ale",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m35s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **2**. Over the",
+    "cart-dependency-latency / What was never measured: Checkout's error-ratio change point sits ~19 minutes before the shaping attachment, overlapping the hotfix apply-and-restore window; that gap is unexplained and may be a second, independent story. No latency or request-rate series returned for either service, and traces cover onl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 32502,
+    "pulled_tokens": 10828,
+    "pull_rate": 0.2499,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 499,
+        "content_tokens": 501,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2004,
+        "content_tokens": 2007,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 10111,
+        "content_tokens": 10087,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 9223,
+        "content_tokens": 9225,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10665,
+        "content_tokens": 10642,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "shippingservice",
+    "rests_on": [
+      "tr_0621fcda4b47",
+      "tr_10cbee2bb0cb",
+      "tr_788cdbb6dc15"
+    ],
+    "expected_effect": "Redeploying shippingservice at its pre-15:39:15 tag should end the restart loop: the shipping-service log stream stops emitting repeated JVM/OTel startup banners and resumes Rust-style GetQuoteRequest/GetQuoteResponse INFO lines; checkoutservice traces show GetQuote non-error with a shippingservice server child again; checkoutservice error ratio falls from the ~11% incident mean toward its ~0.4% baseline and PlaceOrder logs regain payment/email/message-write follow-ups.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if startup banners with lengthening gaps continue after the recreate (loop survives the image change, so an external kill or host cause is at play - no panic or bind error was ever retained), or if quotes return but checkoutservice error ratio stays elevated, implying the unexplained 15:19:30 change point has a second live cause. Note shippingservice's own span metrics are empty in both windows, so confirmation must come from logs, traces and checkoutservice-side metrics only. If change history records no concrete prior tag (the 15:39:15 entry reads 'None -> v1.2.1-adservice'), the precondition fails and this should be refused rather than executed.",
+    "risk": "If the crash loop is not image-caused, the recreate costs another cold start and resets backoff state for nothing. If the recorded prior reference is null or stale, the rollback may deploy an unresolvable tag and turn an intermittently-restarting container into one that never starts. A rollback that looks successful could also mask the still-unexplained 15:19:30 onset and the recurring automated env-injection pattern.",
+    "blast_radius": "One service, but its callers see the reset: checkoutservice loses GetQuote during the recreate, so frontend PlaceOrder and loadgenerator carts fail for that interval, with downstream accounting, email and fraud alerts following. quoteservice sees shipping's outbound traffic resume."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical, multi-service fanout starting at checkoutservice and spreading to its downstream consumers within three minutes \u2014 not dismissible. Cause could be checkout itself or one of its unalerted dependencies, so no fault class is warranted yet."
+  }
+}
