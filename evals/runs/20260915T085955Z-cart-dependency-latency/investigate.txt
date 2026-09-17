@@ -1,0 +1,38 @@
+incident 33196738-6ab0-4a9b-a82f-cb97b99395a9  state triaging  anchor 09:03:30
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 59d7e0fe-f7f0-4e90-9eef-83c0be62304a
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Multiple services alerting within seconds starting at cartservice and fanning through checkoutservice and frontend is a propagating failure, not a single quiet warning. Cart being first suggests a downstream dependency or its datastore degrading.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if change history on re-read holds a prior cartservice configuration that revert_config would restore, or if recreating the container is confirmed to drop the shaper's namespace attachment - either makes a config_revert legal rather than speculative. It is vindicated if a revert is attempted and Redis child spans stay pinned at ~300ms.
+  rests on    : tr_453388522751, tr_00648f14b2cc, tr_5902e13a22c6
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 24137 pushed / 8682 pulled (pull rate 0.2645), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_453388522751, tr_00648f14b2cc, tr_2e9a61da7944
+  root cause  : At 09:00:04, ~3 minutes before onset, platform automation attached a traffic-shaping container to cartservice's network namespace imposing a fixed 300ms zero-jitter egress delay on eth0 [tr_453388522751]. From ~09:04 every cartservice Redis round trip sits at a near-constant ~300-310ms against a sub-millisecond baseline, while the gRPC handler's own self-time stays ~1ms, and callers absorb integer multiples of the same quantum [tr_00648f14b2cc]. That propagation explains why checkoutservice, frontend and loadgenerator alerted seconds later while still completing orders successfully, only with per-step gaps stretched to ~1.2s [tr_2e9a61da7944]. cartservice serves continuously with no error or restart text [tr_d973409279b4]. The mechanism is waiting on a deliberately slowed call path; the fix is detaching the shaping container.
+  OPEN        : checkoutservice's only error change point is 08:43:30, ~17 minutes BEFORE the delay was attached [tr_5902e13a22c6][tr_453388522751] — the injected latency cannot explain an error onset that predates it, and errors did not clear after the 08:51 image revert.
+  OPEN        : Both log results are truncated, leaving 08:33:39-09:04:19 unreturned [tr_d973409279b4][tr_2e9a61da7944]; the 08:43 onset and any error burst or brief restart in that gap are unexamined.
+  OPEN        : cartservice has no metric samples in either window [tr_ce171ca4b48c], so its request rate, latency, restarts and saturation are entirely unmeasured.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:scenario:cart-dependency-latency'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260915T085955Z-cart-dependency-latency/33196738-6ab0-4a9b-a82f-cb97b99395a9-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260915T085955Z-cart-dependency-latency/33196738-6ab0-4a9b-a82f-cb97b99395a9-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9397.72it/s]

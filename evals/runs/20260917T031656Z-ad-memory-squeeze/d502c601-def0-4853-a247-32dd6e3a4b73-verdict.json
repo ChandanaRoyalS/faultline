@@ -1,0 +1,164 @@
+{
+  "incident_id": "d502c601-def0-4853-a247-32dd6e3a4b73",
+  "trajectory_id": "f7b6ea0a-8ef4-407c-b627-58453849e594",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:ad-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "About three minutes before onset, platform-automation lowered the ad-service memory limit to 256m where no explicit limit existed before [tr_89f50f6da970]. From onset frontend's newest lines are client-side gRPC code 14 UNAVAILABLE errors whose detail says no connection could be established to the callee \u2014 outbound failures, not frontend faults and not served application errors [tr_2090e4e7735b]. Frontend and checkoutservice have no recorded changes at all [tr_660f8c1d3d68][tr_b3e8f6fc81a3], frontend's aggregate error ratio fell below baseline (so no downstream is erroring on most calls) [tr_be68ab30c32c], and all sampled frontend traces complete in tens of milliseconds with cartservice, productcatalogservice, recommendationservice and featureflagservice fast and adservice absent from 92 spans [tr_538d145bb229]. The coherent reading: adservice containers began exceeding the new 256m cap and were killed/restarted, leaving no reachable endpoint for frontend's ad RPCs. The mechanism is memory exhaustion against the cap; the limit edit is the trigger, not the fault.",
+    "service": "adservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_89f50f6da970",
+      "tr_2090e4e7735b",
+      "tr_538d145bb229"
+    ],
+    "reasoning": "The only change anywhere in the dispatch set lands on adservice minutes pre-onset and caps memory [tr_89f50f6da970], while frontend and checkoutservice change logs are empty over 24 hours [tr_660f8c1d3d68][tr_b3e8f6fc81a3]. The frontend symptom is connection-level rather than served-error or timeout [tr_2090e4e7735b], which is what a caller sees when a callee's endpoints are gone or churning. Error ratio down and fast, error-free traces [tr_be68ab30c32c][tr_538d145bb229] fit a gracefully-degraded non-critical path (ads) dropping out rather than a slow or erroring core dependency, and adservice's absence from the trace sample fits a callee whose calls fail before a server span exists. I discount the adservice logs and metrics dispatches: both were queried over 2026-09-16 03:20-09:20, roughly a day before onset [tr_2874e5d36781][tr_1d3fe935dec1], so their exclusion of OOM/restart does not cover the incident; [tr_1d3fe935dec1] also notes no memory or restart series were queried. Class is resource_exhaustion because what the service is doing wrong now is dying against a ceiling it exceeds; the fix is restoring the limit or overriding the automation that set it.",
+    "open_questions": [
+      "No direct evidence of OOM kills, restarts, or memory-vs-limit for adservice during the incident window \u2014 both adservice dispatches covered a window a day earlier and never queried memory or restart series.",
+      "The code 14 errors name no host or callee, so the unreachable peer is inferred from the change record and adservice's trace absence, not observed.",
+      "Frontend logs were truncated to the oldest 8 and newest 32 lines, leaving the shift from the earlier product-catalog fail-flag (code 13) regime unobserved and the flag's current state unknown."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The unnamed callee behind the code 14 errors is a different service made unreachable by node loss or endpoint/DNS churn, and the adservice limit change is coincidental.",
+        "service": "frontend",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Every other candidate callee looks healthy and fast in the trace sample [tr_538d145bb229], and adservice is the only service with a change minutes before onset [tr_89f50f6da970]."
+      },
+      {
+        "root_cause": "The product-catalog fail feature flag remained enabled and is still the active fault driving user-visible failures.",
+        "service": "productcatalogservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The fail-flag code 13 signature appears only at 02:50; the post-onset lines are a distinct connection-level code 14 signature, and productcatalogservice server spans are sub-millisecond and error-free [tr_2090e4e7735b][tr_538d145bb229]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **4m16s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 3\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence two and a\n  half minutes la",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "ad-memory-squeeze / What was checked: **loadgenerator.** The page named it and it explains nothing. It is the synthetic\nclient; its error rate restates whatever the storefront is failing to do.\n\n**Error rate by service.** frontend intermittently over threshold, loadgenerator over,\neverything else flat. adservice itse"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 27619,
+    "pulled_tokens": 7409,
+    "pull_rate": 0.2115,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 438,
+        "content_tokens": 440,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1973,
+        "content_tokens": 1977,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8482,
+        "content_tokens": 8459,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7736,
+        "content_tokens": 7738,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8990,
+        "content_tokens": 8967,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "adservice",
+    "rests_on": [
+      "tr_89f50f6da970",
+      "tr_2090e4e7735b",
+      "tr_538d145bb229"
+    ],
+    "expected_effect": "Restoring adservice's pre-change configuration (no explicit memory limit, the recorded prior value) and recreating the container should, within a few minutes, (a) stop the repeated grpc-js client `14 UNAVAILABLE / no connection could be established` lines in the frontend log stream \u2014 measurable as that line pattern ceasing in `{service=\"frontend\"}` after the recreate timestamp; (b) make adservice reappear as a server span under frontend client spans in Tempo \u2014 measurable by re-running the frontend trace sample and finding non-zero adservice spans where the last sample had none across 92 spans; and (c) restore continuous `received ad request` lines in `{service=\"ad-service\"}`. Note explicitly: frontend's aggregate error ratio is NOT a valid confirmation signal here \u2014 it was already below baseline during the incident [tr_be68ab30c32c], so it will not move, and anyone watching only that metric will see nothing either way.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, five minutes after the recreate, frontend is still emitting code 14 lines with the same connection-establishment detail, or adservice is still absent from a fresh frontend trace sample. Either outcome means the unreachable peer was never adservice: the code 14 errors name no host or callee, so the callee identity is inferred from the change record plus adservice's trace absence, not observed. Also falsified in a subtler way if the code 14 lines stop but a code 13 `ProductCatalogService Fail Feature Flag Enabled` regime is what actually dominates the unobserved middle of the window \u2014 frontend logs were truncated to oldest 8 / newest 32 lines and the flag's current state is unknown. A third falsifier: adservice was never memory-constrained at all and the container comes back with identical behaviour, since no OOM-kill, restart-count, or memory-vs-limit series was ever queried for the incident window (both adservice dispatches covered a window a day earlier).",
+    "risk": "Three concrete ways this hurts if the diagnosis is wrong. (1) Removing the memory cap restores unbounded memory growth for adservice; if the platform-automation limit was applied for a real reason (a leak, a noisy-neighbour policy), adservice can grow until it pressures other containers on the same host, converting a single-service ad outage into a host-level problem. (2) The recorded actor is platform-automation, not a human \u2014 the controller that set 256m may reapply it, producing a flap loop of limit-set / container-recreate that is worse than the steady state. (3) The recreate itself drops in-flight ad RPCs and resets the connection frontend holds, so if adservice is currently partially serving, this converts partial availability into a short total outage for no gain.",
+    "blast_radius": "adservice is recreated; its inbound caller in this incident is frontend, which will see connection resets on ad RPCs for the duration of the recreate, and loadgenerator traffic flows through frontend so synthetic requests touching the ads path will see errors during that interval. Users of the ads surface see it change state twice (down, then hopefully up). Co-located containers on the same host inherit the memory-headroom change once the cap is gone. cartservice, productcatalogservice, recommendationservice, featureflagservice and checkoutservice are not touched by this action and should show no change \u2014 if they do, that is itself a signal the diagnosis was wrong."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical-severity alert on frontend with the load generator following it simultaneously indicates user-facing impact, not a lone synthetic blip. No open incident covers it, and the cause could be frontend itself or any of its five downstream dependencies, so evidence is needed."
+  }
+}
