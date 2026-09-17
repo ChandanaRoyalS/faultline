@@ -1,0 +1,43 @@
+incident 3e72a85a-0e73-4bbb-ab77-22e06232acad  state triaging  anchor 11:38:00
+triage: 10 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: d7ce86bb-eb38-4a3d-a81e-9dabefcfad2f
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alert on checkoutservice with loadgenerator following shortly, indicating real user-facing order flow failure rather than a lone synthetic or warning-level signal. No open incidents to attribute it to, and the many unmeasured downstream dependencies leave the cause genuinely open.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : shippingservice
+  expect      : After restoring shippingservice's pre-11:35 environment, newly sampled checkout traces should stop showing the checkoutservice client span for hipstershop.ShippingService/GetQuote flagged ERROR, and with it the ERROR propagation to PlaceOrder and the frontend HTTP root [tr_00cb71419679]. Second, independent check: checkoutservice logs should resume the four-line per-order sequence (order start, payment, confirmation email, message-write) instead of stopping at order-start [tr_d98de2cef145]. shippingservice's own error-ratio series has no samples in any window, so it cannot confirm anything.
+  within      : 300s
+  risk        : If the address is not the mechanism, this removes a quote backend shipping may be using successfully - its server spans are unflagged and return in 2.1-2.8ms - replacing a partial failure with a new one. The recreate alone drops in-flight GetQuote and ShipOrder calls. Reversible only via a second recreate.
+  blast radius: shippingservice is recreated; checkoutservice, its direct caller, sees connection resets that propagate to frontend and to loadgenerator's checkout traffic. Any host QUOTE_SERVICE_ADDR previously named sees traffic move.
+  if wrong    : Falsified if, five minutes on, GetQuote client spans still carry ERROR or checkout orders still stall after the order-start line. Note the causal link is timing-only: nothing records a call actually failing against quoteservice-gone, and the shipping server span carries no ERROR flag [tr_df91c2ae7515][tr_00cb71419679]. Also the recorded prior value is 'None' (unset), so the revert removes the variable rather than setting a known-good host. One failing trace has no shipping span at all, so a residue of failures is expected and is not evidence either way.
+  rests on    : tr_df91c2ae7515, tr_00cb71419679, tr_d98de2cef145
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 28861 pushed / 12207 pulled (pull rate 0.2972), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_df91c2ae7515, tr_00cb71419679, tr_233bf12317e1, tr_d98de2cef145, tr_c992ab65bf62
+  root cause  : Two minutes before onset, platform-automation set QUOTE_SERVICE_ADDR on shippingservice to http://quoteservice-gone:8090, an address that names a host which is not a live quote backend [tr_df91c2ae7515]. shippingservice's GetQuote can therefore not be satisfied, and checkoutservice's client span for hipstershop.ShippingService/GetQuote is the sole errored child in 10 of 11 shown failing checkout traces, propagating up through PlaceOrder to the frontend HTTP root [tr_00cb71419679]. checkoutservice has no change records in 24 hours [tr_233bf12317e1] and its logs show orders starting but never reaching the payment/email/message-write lines, i.e. stalling inside prepareOrderItemsAndShippingQuoteFromCart [tr_d98de2cef145]. The wrong address value is itself the failure, so the fix is reverting that environment variable to its pre-11:35 value.
+  OPEN        : No shipping log line, metric or span directly records a failure reaching quoteservice-gone; the change log records the edit, not its effect [tr_df91c2ae7515], and the shipping server span carries no ERROR flag [tr_00cb71419679].
+  OPEN        : The shippingservice log query covered 2026-09-16 11:38-17:38, roughly a day before onset, so its healthy-service findings and exonerations [tr_e2347fd30d25] do not describe the incident window.
+  OPEN        : checkoutservice error ratio shows no change point near 11:38 and an already-elevated baseline [tr_c992ab65bf62]; onset timing rests on the alert and change record. Trace coverage is 11 of 40, and one failing trace has no shipping span at all [tr_00cb71419679].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-redis-misconfig', 'scenario:payment-telemetry-blackout', 'scenario:product-catalog-flag-failure', 'scenario:shipping-quote-misconfig'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T113500Z-shipping-quote-misconfig/3e72a85a-0e73-4bbb-ab77-22e06232acad-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T113500Z-shipping-quote-misconfig/3e72a85a-0e73-4bbb-ab77-22e06232acad-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10209.22it/s]

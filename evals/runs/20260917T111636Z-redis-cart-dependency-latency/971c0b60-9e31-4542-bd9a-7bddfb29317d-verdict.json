@@ -1,0 +1,174 @@
+{
+  "incident_id": "971c0b60-9e31-4542-bd9a-7bddfb29317d",
+  "trajectory_id": "a42ec050-7101-47f2-8be5-e0053bb0c41a",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:cart-dependency-latency",
+    "scenario:redis-cart-dependency-latency"
+  ],
+  "verdict": {
+    "root_cause": "Every cart operation is paying a fixed ~300ms penalty on its call to the cart backing store. Traces at 11:21 show cartservice's redis child spans (HGET, HMSET) consuming ~301-307ms of self time each while the cartservice handler contributes under 1ms, and latency scales linearly with the number of redis round-trips (~305ms for one op, ~610ms for two, ~665ms for checkout's GetCart+EmptyCart) [tr_3984cc69c503]. The tight clustering at a ~300ms floor with no heavy tail is the signature of a fixed per-operation delay inserted into the network path, not server-side contention. The cartservice change log independently records a traffic-shaping container attached to the cart-service network namespace adding fixed egress delay on eth0, applied and reverted in repeating cycles by platform-automation [tr_8c23c4d6c8e8]. Nothing is erroring at the cart layer [tr_5f846f914e7b][tr_3984cc69c503]. checkoutservice is a victim: its dominant latency is the cartservice redis hops [tr_17013007cead], its success path slowed from ~20-25ms to ~600-650ms per order [tr_b00c5e027670], and its 1.1%-mean/6.7%-peak error ratio [tr_90d42a699f94] fits a small fraction of requests tipping over a client deadline. The mechanism is a slow dependency call path on cartservice's cart-store egress; the service failed because it waited.",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_3984cc69c503",
+      "tr_17013007cead",
+      "tr_8c23c4d6c8e8",
+      "tr_b00c5e027670",
+      "tr_90d42a699f94",
+      "tr_5f846f914e7b",
+      "tr_c0db7cb47df3"
+    ],
+    "reasoning": "Two independent trace dispatches put essentially all wall time in cartservice's redis spans and exonerate every other hop, including frontend/gRPC transport and payment, currency, productcatalog, shipping and email [tr_3984cc69c503][tr_17013007cead]. The delay is additive per redis operation and identical for reads and writes, excluding application logic and write-only faults [tr_3984cc69c503]. A uniform ~300ms floor with no errors or connection failures [tr_5f846f914e7b] matches an injected network delay, and the change log names exactly that artifact on the cart namespace [tr_8c23c4d6c8e8]. checkoutservice's symptoms follow: no recorded changes in 24h [tr_c0db7cb47df3], errors from a flat-zero baseline but under 7% - too low for a hard outage [tr_90d42a699f94] - and an intact but ~25x slower success path [tr_b00c5e027670]. The image apply/revert pairs put no hotfix artifact in effect at onset [tr_8c23c4d6c8e8], so removing the injected egress delay, not a rollback, is the fix.",
+    "open_questions": [
+      "The change log shows every traffic-shaping container reverted, the latest ~1.6h before onset, and nothing in the hour before onset [tr_8c23c4d6c8e8], yet traces at 11:21 show the delay [tr_3984cc69c503]; whether an injection cycle went unrecorded or a revert failed to take effect is unsettled and decides whether config_revert is an available lever.",
+      "No evidence was gathered from the cart backing store itself - no redis-cart metrics, logs, or change history - so a genuine server-side ~300ms stall was excluded only by latency shape, not direct observation.",
+      "The source of checkoutservice's errors is inferred: no span carries an error status [tr_17013007cead] and the checkout log slice was truncated past the ~11:00 onset [tr_b00c5e027670], so no failing RPC or status code was named; cartservice's own error ratio is unmeasurable due to an empty calls_total series [tr_235ca2bc63c4]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The cart backing store (redis-cart) is itself slow, adding ~300ms to every HGET/HMSET server-side.",
+        "service": "redis-cart",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "Redis was never directly observed, but a genuinely loaded store produces a heavy-tailed spread, not the tight ~301-307ms clustering seen identically on reads and writes [tr_3984cc69c503]; a fixed injected delay is recorded in the change log [tr_8c23c4d6c8e8] and explains the floor exactly."
+      },
+      {
+        "root_cause": "A stale REDIS_ADDR override left cartservice pointed at a non-default redis endpoint whose path is slower.",
+        "service": "cartservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "Both REDIS_ADDR updates have paired reverts to unset, the latest ~1.3h before onset [tr_8c23c4d6c8e8], and a wrong endpoint would more likely yield connection errors than a clean uniform delay; cart logs show no connection failures [tr_5f846f914e7b]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What the proposal rested on: Preconditions: none were recorded, which is itself notable \u2014 the whole chain assumes 6379 is serving and 6380 is closed, inferred from the change record plus connect failures, never from the Redis side. Blast radius as mechanism: one service's processes replaced, cart traffic shi",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What the investigation concluded: An automation cycle edited cartservice's REDIS_ADDR to point at the redis-cart host on 6380 rather than the default 6379 about two and a half minutes before onset, and \u2014 unlike every prior turn of that same cycle in the preceding day \u2014 that edit was still in force at onset. Each "
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 32452,
+    "pulled_tokens": 12027,
+    "pull_rate": 0.2704,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 479,
+        "content_tokens": 481,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1828,
+        "content_tokens": 1831,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 10064,
+        "content_tokens": 10041,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 9307,
+        "content_tokens": 9309,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 10774,
+        "content_tokens": 10751,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_8c23c4d6c8e8",
+      "tr_3984cc69c503",
+      "tr_17013007cead"
+    ],
+    "expected_effect": "No action is proposed, so no change in observables is expected. The ~300ms floor on cartservice's HGET/HMSET self-times and the ~650ms checkout end-to-end will persist until the injected egress delay is removed by whoever owns the injecting automation. If an injection cycle ends on its own, redis child-span self-time should drop back under ~5ms and checkoutservice's error ratio should return to a flat zero without any action from this system - which is itself the observation that would show the cause was the transient shaping cycle.",
+    "confirm_within_seconds": 600,
+    "if_wrong": "Abstention is wrong if a standing configuration on cartservice is in fact carrying the delay. That would show up as a REDIS_ADDR or image override still present in cartservice's live environment with no matching revert - the change log says the opposite, that every apply has a paired revert and the latest is ~1.6h before onset [tr_8c23c4d6c8e8]. It would also be wrong if direct observation of redis-cart (never gathered: no metrics, logs, or change history for the backing store) showed a genuine server-side ~300ms stall, since that is a different mechanism from the one the verdict names and none of the permitted actions target redis-cart anyway.",
+    "risk": "The risk of abstaining is that the latency continues: every cart read and write keeps paying ~300ms, checkout stays at ~650ms per order, and the 1.1%-mean/6.7%-peak checkoutservice error ratio [tr_90d42a699f94] keeps shedding a small fraction of orders for as long as the injection cycle runs. That is a real cost and it is accepted deliberately, because the alternatives are worse: revert_config's preconditions are not met - the mechanism is a traffic-shaping container attached to the cart-service network namespace, not a value in cartservice's environment, and the change log records no configuration change inside the incident window at all (nearest is a revert ~1.3h before onset) [tr_8c23c4d6c8e8]. Restoring a prior environment would recreate cartservice while changing nothing about the egress qdisc, dropping every in-flight cart RPC and its cache for no mechanistic gain, and could even re-apply a REDIS_ADDR override pointing at a non-default port. rollback_image is ruled out by the same evidence: the hotfix image was reverted ~1.9h before onset, so there is no bad image live to roll back. restart_service requires evidence of process state, and the evidence says the opposite - cartservice logs are clean and continuous through 11:22 with no panic or restart lines [tr_5f846f914e7b] and its handler self-time is under 1ms [tr_3984cc69c503]. scale_service is unavailable per ADR-0029.",
+    "blast_radius": "No service is touched, so nobody sees a change from this system. The ongoing incident continues to be visible to cartservice's callers - frontend on the cart read/add path and checkoutservice on GetCart+EmptyCart [tr_17013007cead] - and through frontend to loadgenerator. The correct next step is outside this system's permitted actions: identify the owner of the platform-automation injection cycles and have the traffic-shaping container on the cart-service network namespace removed, and gather direct evidence from redis-cart to close the open question about a server-side stall."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "medium",
+    "reasoning": "Multiple services alerting near-simultaneously with cartservice first and checkoutservice/frontend following fits downstream propagation from the cart path, not a single quiet warning. No open incident covers it, so it warrants investigation."
+  }
+}

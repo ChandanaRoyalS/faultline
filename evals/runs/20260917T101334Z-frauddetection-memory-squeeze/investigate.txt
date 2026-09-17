@@ -1,0 +1,45 @@
+incident 116f7408-2e74-421f-b799-b5fb6c3a1f3b  state triaging  anchor 10:19:45
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 334fd949-617d-49bf-9d2b-2554e839199c
+triage judged: investigate (medium confidence, suspects unknown)
+  A single critical alert on frauddetectionservice with no open incidents to fold into and nothing indicating recovery. Isolated seed with no downstream spread gives no hint of cause, so the fault class stays unknown.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Restoring frauddetectionservice's prior configuration (memory limit unset, the state it ran in from 05:32 to 10:13) and recreating the container should end the restart loop. Observable in Loki on {service="frauddetection-service"}: after one final startup triplet at recreate, the JAVA_TOOL_OPTIONS / class-sharing / OTel-agent triplet should stop recurring on the ~62s cadence, and "Consumed record with orderId: ... updated total count to: N" lines with an incrementing counter should reappear within roughly two minutes of recreate and continue. The absence of a further triplet past ~130s (two cadence periods) plus the return of consumption lines is the confirmation. Note the error-ratio series cannot confirm anything here: it is empty in both incident and baseline windows [tr_2e35cafc8272], so log content is the only available check unless a container memory/restart-count series is queried.
+  within      : 300s
+  risk        : If the diagnosis is wrong, this costs a container recreate for nothing: the in-flight Kafka consumption is interrupted and in-process cache discarded, and a service already flapping gets one more forced restart. If the 200m ceiling was applied deliberately by a VPA/reconciliation loop as a correction for real memory growth, reverting to unset removes the bound and lets the JVM expand until it pressures the host, which can harm co-located services in a way no per-service metric here would attribute correctly. The revert is also likely to be overwritten: the same value was applied and reverted once already, so this may produce a config flap rather than a stable state, and the underlying reason the automation re-applies 200m is not in the record. Whether 200m is simply below the JVM's baseline heap+metaspace footprint, or survivable under lighter load, was never tested — so this revert treats the symptom of the limit without establishing the service's actual floor.
+  blast radius: One service: frauddetectionservice, the only member of this incident's blast radius. Callers see a connection reset during the recreate; the reverted value is a resource limit, not a dependency address, so no traffic moves elsewhere. Consumers of the fraud-detection order stream were never examined by any dispatch, so their view is unmeasured — if the revert works they should see a backlog drain as consumption resumes, and if it fails they continue to see nothing consumed. Anyone watching frauddetectionservice's restart count sees it increment once more at the recreate.
+  if wrong    : Falsified if the startup triplet keeps repeating on the ~62s cadence after the recreate, or if consumption lines do not resume within ~3 minutes. That would mean the 200m limit was not the binding constraint and the kill has another cause — which is live, because no container working-set, memory-limit or OOMKill/restart-count series was ever queried and the kill reason is inferred from log signature plus change timing only [tr_6a587d310489]. Also falsified in a subtler way if consumption resumes and then the loop returns within minutes: that indicates platform-automation re-applied 200m (it has already done one apply-revert-reapply cycle), and the fix must move to the automation, which is outside what this system can touch.
+  rests on    : tr_606c0c8b2ae6, tr_f5f8d7b93060, tr_61ae9ef32aeb
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 21450 pushed / 2886 pulled (pull rate 0.1186), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_606c0c8b2ae6, tr_f5f8d7b93060, tr_61ae9ef32aeb, tr_2e35cafc8272, tr_6a587d310489
+  root cause  : At 10:13:38, about six minutes before onset, platform-automation re-applied a 200m container memory limit to frauddetection-service, taking it from unset to 200m [tr_606c0c8b2ae6][tr_f5f8d7b93060]. The JVM cannot complete initialization within that ceiling: from roughly 10:13 onward the service's logs contain nothing but a repeating three-line JVM/OpenTelemetry-agent startup triplet on a near-uniform ~62s cadence, with no application errors, no stack traces, no dependency names and no graceful-shutdown messages — the process is being killed abruptly during or shortly after bootstrap and restarted by the supervisor, never reaching the order-consumption loop that was producing normal output earlier in the window [tr_61ae9ef32aeb]. The failing mechanism is the service exhausting its (newly tightened) memory allocation and being killed for exceeding it; the limit edit is how it started, the kill-restart loop is what is happening now. The same 200m value was applied once before at 05:21 and reverted 11 minutes later, so the configuration is a known-bad repeat rather than a novel setting [tr_606c0c8b2ae6].
+  OPEN        : No container memory working-set, memory-limit or OOMKill/restart-count series was ever queried, so the kill reason is inferred from the log signature and change timing rather than observed [tr_6a587d310489].
+  OPEN        : The error-ratio series is empty in both incident and baseline windows, which the specialists attribute to a pre-existing instrumentation or service-name mismatch; whether frauddetectionservice emits span metrics under a different name is unresolved and leaves the service neither implicated nor cleared by metrics [tr_2e35cafc8272].
+  OPEN        : Why platform-automation re-applied a value that had already been reverted five hours earlier — whether an autoscaler/VPA recommendation, a reconciliation loop or a config drift correction — is not in the record, and until it is known the revert may be re-applied again.
+  OPEN        : Blast radius was scoped to this one service; no dispatch examined consumers of the fraud-detection order stream, so downstream backlog or caller-visible impact is unmeasured.
+  OPEN        : Whether 200m is simply below the JVM's baseline heap+metaspace footprint (making any restart futile) or whether the service could survive at 200m under lighter load was not tested.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:ad-memory-squeeze', 'scenario:frauddetection-memory-squeeze'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T101334Z-frauddetection-memory-squeeze/116f7408-2e74-421f-b799-b5fb6c3a1f3b-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T101334Z-frauddetection-memory-squeeze/116f7408-2e74-421f-b799-b5fb6c3a1f3b-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9378.14it/s]

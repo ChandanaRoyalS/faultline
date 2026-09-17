@@ -1,0 +1,39 @@
+incident dd8466a6-39c0-471f-a23e-3cf4581f454a  state triaging  anchor 11:58:00
+triage: 10 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 6c5c3e7b-d137-45c0-b275-db5aac77e372
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alert on checkoutservice with loadgenerator following a minute later indicates a real user-facing checkout failure, not a lone warning. No open incident to attribute it to, and the alerts alone don't distinguish a bad deploy from a failing downstream dependency.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention is wrong if a change-history query on shippingservice returns a config edit or image change in the pre-onset hours with a recorded prior value - at that point revert_config or rollback_image on shippingservice becomes supportable and the delay cost real orders. It is also wrong if shippingservice turns out to be down or crashlooping (no process, no server spans), in which case restart_service would have been the correct cheap move. Note that any fix here is observable: checkoutservice error ratio should fall from ~0.10 back toward the ~0.011 baseline [tr_c4a1c6d01ce7], the shipping-quote client span should stop being ERROR with a matching shippingservice server span reappearing, and checkoutservice logs should resume payment-confirmation, email, and message-write lines after each PlaceOrder entry [tr_7bd0108aeaaa] - so the absence of an observable effect is not the reason for abstaining.
+  rests on    : tr_34b49ab29005, tr_48edd7c2f586, tr_ad94e15c33c6
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 30784 pushed / 9964 pulled (pull rate 0.2445), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : low
+  evidence    : tr_34b49ab29005, tr_7bd0108aeaaa, tr_c4a1c6d01ce7, tr_ad94e15c33c6
+  root cause  : PlaceOrder fails at a single hop: the checkoutservice client span for the shipping-quote call is ERROR in 14 of 15 traces and propagates to the frontend root, while cartservice (plus Redis), productcatalogservice and currencyservice all return healthy sub-millisecond server spans in the same traces [tr_34b49ab29005]. The erroring hop completes in ~2-3ms with whole traces at 6-14ms, so this is immediate rejection, not a wait [tr_34b49ab29005]. The shipping-quote span has no server-side span from shippingservice at all, meaning the RPC is rejected before shippingservice records work - consistent with the call being refused at the connection/endpoint level. checkoutservice logs show PlaceOrder entries continuing normally but no payment/email/write completions after ~11:57 [tr_7bd0108aeaaa], and its error ratio rose ~10x [tr_c4a1c6d01ce7]. No checkoutservice change is recorded in-window [tr_ad94e15c33c6], and the pre-onset hours plus shippingservice's own change log were never queried [tr_48edd7c2f586], so the specific wrong value or artifact on the shipping path is inferred, not read.
+  OPEN        : No change history was ever queried for shippingservice, nor for checkoutservice before 11:58, so the actual triggering edit or deploy is unidentified [tr_48edd7c2f586, tr_ad94e15c33c6].
+  OPEN        : No shippingservice logs, metrics, or traces were collected: whether the process is up, crashlooping, or rejecting on a wrong address/port is unsettled.
+  OPEN        : The gRPC status code and message on the failing shipping-quote span were not read, which would distinguish UNAVAILABLE (unreachable) from INVALID_ARGUMENT or INTERNAL (bad value or bad build).
+  OPEN        : Error ratio is bursty with change points at ~11:36 and ~11:56 rather than a clean step at 11:58 [tr_c4a1c6d01ce7], so the true onset and whether failure is total on the shipping path remains unclear.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-bad-image-tag', 'scenario:shipping-wrong-image'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T115458Z-shipping-wrong-image/dd8466a6-39c0-471f-a23e-3cf4581f454a-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T115458Z-shipping-wrong-image/dd8466a6-39c0-471f-a23e-3cf4581f454a-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9740.78it/s]

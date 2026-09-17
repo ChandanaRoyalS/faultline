@@ -1,0 +1,43 @@
+incident 1371e37e-74cf-4371-87fa-7a69535a2849  state triaging  anchor 09:57:00
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: a7c9a20c-b586-4665-94dd-4ef56f0ee9e5
+triage judged: investigate (medium confidence, suspects unknown)
+  Simultaneous critical alerts on checkout and frontend plus the load generator indicate user-facing failure, not a quiet system. No open incident could account for it, and the shared downstream set gives no single prior yet.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Restoring cartservice's pre-09:54:19 environment (REDIS_ADDR unset, i.e. default 6379) and recreating it should end the startup crash-loop: the repeating connect-to-redis-cart:6380 -> failure -> unhandled ApplicationException cycle stops appearing in cart-service logs, normal GetCartAsync/AddItemAsync info lines resume, and in Tempo the checkoutservice CartService/GetCart leaf returns OK instead of ERROR in 10/10 traces, with ERROR clearing from PlaceOrder and the frontend root. checkout-service logs should again show payment/email/message-write completion lines after each order-start.
+  within      : 300s
+  risk        : If Redis was intentionally moved to 6380 and the real blocker is a missing listener or blocked path, this points cartservice at a port where nothing listens either: outage unchanged, plus one more config mutation on a service platform-automation is already cycling. The recreate discards in-process cart state and loses in-flight mutations; if automation re-applies 6380 the fix is transient.
+  blast radius: cartservice during the recreate; its callers frontend and checkoutservice see connection resets on an edge already erroring, visible to loadgenerator via frontend. redis-cart sees cart traffic move from 6380 back to 6379.
+  if wrong    : Falsified if cart-service logs still show the connect-then-exception cycle from Program main after the revert - especially if it now dials 6379 and still hangs 20-40s, which would mean the port value was not the mechanism and redis-cart is unreachable by path, policy, or DNS (never queried). cartservice error-ratio metrics cannot confirm this (calls_total absent in both windows), so confirmation rests on cart-service logs and checkoutservice traces only.
+  rests on    : tr_cbc753c16772, tr_dc63bf488e69, tr_2f62a6ad61ab
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 30603 pushed / 6851 pulled (pull rate 0.1829), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_cbc753c16772, tr_dc63bf488e69, tr_2f62a6ad61ab, tr_73a852d2f6ba, tr_43aa54226209
+  root cause  : cartservice cannot start because the Redis address it was handed is wrong. A platform-automation environment edit ~2 minutes before onset set REDIS_ADDR=redis-cart:6380 from a previously unset state and was never reverted [tr_cbc753c16772]. From ~09:56 cartservice crash-loops: startup dials redis-cart:6380, fails, and dies with an unhandled exception from the cart store's initialize/connect path called by program main, never reaching request handling [tr_dc63bf488e69]. With cartservice dead or restarting, checkoutservice's outbound CartService/GetCart span carries the error in 10/10 traces and propagates up through PlaceOrder to the frontend root [tr_2f62a6ad61ab], explaining the simultaneous checkoutservice/frontend/loadgenerator alerts while checkoutservice itself shows no change [tr_43aa54226209], no error-ratio shift [tr_dec0bdf34849], and only order-start log lines with no completion sequence [tr_73a852d2f6ba]. The wrong port value is the mechanism.
+  OPEN        : redis-cart was never queried: it is unsettled whether nothing listens on 6380 (value simply wrong) or Redis was intentionally moved there and a missing listener, policy, or DNS blocks the path.
+  OPEN        : The 20-40s hang before each connect failure [tr_dc63bf488e69] reads as unreachable address or packet drop rather than refusal on a closed port; residual network-namespace state from the removed shaping sidecar was not examined.
+  OPEN        : checkoutservice logs were truncated, so onset between 09:27 and 09:56 is unobserved [tr_73a852d2f6ba]; nine of twelve blast-radius services were never dispatched, and the checkoutservice change query covered the seed only at 0 hops [tr_43aa54226209].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-redis-misconfig', 'scenario:payment-telemetry-blackout', 'scenario:product-catalog-flag-failure', 'scenario:shipping-quote-misconfig'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T095414Z-cart-redis-misconfig/1371e37e-74cf-4371-87fa-7a69535a2849-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T095414Z-cart-redis-misconfig/1371e37e-74cf-4371-87fa-7a69535a2849-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9310.23it/s]

@@ -1,0 +1,172 @@
+{
+  "incident_id": "3e72a85a-0e73-4bbb-ab77-22e06232acad",
+  "trajectory_id": "d7ce86bb-eb38-4a3d-a81e-9dabefcfad2f",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:cart-redis-misconfig",
+    "scenario:payment-telemetry-blackout",
+    "scenario:product-catalog-flag-failure",
+    "scenario:shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "Two minutes before onset, platform-automation set QUOTE_SERVICE_ADDR on shippingservice to http://quoteservice-gone:8090, an address that names a host which is not a live quote backend [tr_df91c2ae7515]. shippingservice's GetQuote can therefore not be satisfied, and checkoutservice's client span for hipstershop.ShippingService/GetQuote is the sole errored child in 10 of 11 shown failing checkout traces, propagating up through PlaceOrder to the frontend HTTP root [tr_00cb71419679]. checkoutservice has no change records in 24 hours [tr_233bf12317e1] and its logs show orders starting but never reaching the payment/email/message-write lines, i.e. stalling inside prepareOrderItemsAndShippingQuoteFromCart [tr_d98de2cef145]. The wrong address value is itself the failure, so the fix is reverting that environment variable to its pre-11:35 value.",
+    "service": "shippingservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_df91c2ae7515",
+      "tr_00cb71419679",
+      "tr_233bf12317e1",
+      "tr_d98de2cef145",
+      "tr_c992ab65bf62"
+    ],
+    "reasoning": "Traces localise the error carrier to the checkoutservice->ShippingService/GetQuote client span and explicitly clear cart/redis, productcatalog, currency, payment and email [tr_00cb71419679]. checkoutservice logs show the order flow truncating exactly at the shipping-quote step with no panics, credential errors, or loss of inbound traffic [tr_d98de2cef145], and checkoutservice has no deploy, flag, image or rollback events at all [tr_233bf12317e1]. The only onset-proximate act found anywhere is the QUOTE_SERVICE_ADDR edit ~2 minutes before the 11:38 alert, an identical value having been applied and reverted earlier the same morning [tr_df91c2ae7515]. It is bad_config rather than dependency_latency because failing roots are 8-11ms with the shipping hop adding only ~3ms and no long stall [tr_00cb71419679] - a hard error, not a wait. Confidence is medium: the shippingservice server span is not itself flagged ERROR [tr_00cb71419679] and shipping's error ratio has no samples in either window [tr_137f717fbf1e], so the runtime effect of the value was never directly observed.",
+    "open_questions": [
+      "No shipping log line, metric or span directly records a failure reaching quoteservice-gone; the change log records the edit, not its effect [tr_df91c2ae7515], and the shipping server span carries no ERROR flag [tr_00cb71419679].",
+      "The shippingservice log query covered 2026-09-16 11:38-17:38, roughly a day before onset, so its healthy-service findings and exonerations [tr_e2347fd30d25] do not describe the incident window.",
+      "checkoutservice error ratio shows no change point near 11:38 and an already-elevated baseline [tr_c992ab65bf62]; onset timing rests on the alert and change record. Trace coverage is 11 of 40, and one failing trace has no shipping span at all [tr_00cb71419679]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The quote backend behind shippingservice became slow and GetQuote calls fail on client deadline while waiting.",
+        "service": "shippingservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "config_revert",
+        "why_not": "Failing traces total 8-11ms with only ~3ms in the shipping hop and no long stall [tr_00cb71419679], which is a hard error rather than a wait; a deadline failure would pin the client span near a timeout."
+      },
+      {
+        "root_cause": "Checkout failures are a pre-existing intermittent condition in checkoutservice that merely coincides with the shipping config edit.",
+        "service": "checkoutservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Admissible given the elevated baseline and absent change point [tr_c992ab65bf62], but it does not explain why errors concentrate on the GetQuote client span while all other dependencies are clean [tr_00cb71419679], nor the 2-minute proximity of the address edit [tr_df91c2ae7515]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What the investigation concluded: shippingservice was running an artifact that was not the shipping binary. About two minutes before onset (T-2m), platform-automation moved shippingservice's image reference to a demo artifact whose tag names a different service entirely (adservice). Four earlier change records in",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-dependency-latency / What was never measured: Checkout's error-ratio change point sits ~19 minutes before the shaping attachment, overlapping the hotfix apply-and-restore window; that gap is unexplained and may be a second, independent story. No latency or request-rate series returned for either service, and traces cover onl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28861,
+    "pulled_tokens": 12207,
+    "pull_rate": 0.2972,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 469,
+        "content_tokens": 471,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1922,
+        "content_tokens": 1925,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8875,
+        "content_tokens": 8851,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8134,
+        "content_tokens": 8136,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9461,
+        "content_tokens": 9438,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "shippingservice",
+    "rests_on": [
+      "tr_df91c2ae7515",
+      "tr_00cb71419679",
+      "tr_d98de2cef145"
+    ],
+    "expected_effect": "After restoring shippingservice's pre-11:35 environment, newly sampled checkout traces should stop showing the checkoutservice client span for hipstershop.ShippingService/GetQuote flagged ERROR, and with it the ERROR propagation to PlaceOrder and the frontend HTTP root [tr_00cb71419679]. Second, independent check: checkoutservice logs should resume the four-line per-order sequence (order start, payment, confirmation email, message-write) instead of stopping at order-start [tr_d98de2cef145]. shippingservice's own error-ratio series has no samples in any window, so it cannot confirm anything.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, five minutes on, GetQuote client spans still carry ERROR or checkout orders still stall after the order-start line. Note the causal link is timing-only: nothing records a call actually failing against quoteservice-gone, and the shipping server span carries no ERROR flag [tr_df91c2ae7515][tr_00cb71419679]. Also the recorded prior value is 'None' (unset), so the revert removes the variable rather than setting a known-good host. One failing trace has no shipping span at all, so a residue of failures is expected and is not evidence either way.",
+    "risk": "If the address is not the mechanism, this removes a quote backend shipping may be using successfully - its server spans are unflagged and return in 2.1-2.8ms - replacing a partial failure with a new one. The recreate alone drops in-flight GetQuote and ShipOrder calls. Reversible only via a second recreate.",
+    "blast_radius": "shippingservice is recreated; checkoutservice, its direct caller, sees connection resets that propagate to frontend and to loadgenerator's checkout traffic. Any host QUOTE_SERVICE_ADDR previously named sees traffic move."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on checkoutservice with loadgenerator following shortly, indicating real user-facing order flow failure rather than a lone synthetic or warning-level signal. No open incidents to attribute it to, and the many unmeasured downstream dependencies leave the cause genuinely open."
+  }
+}

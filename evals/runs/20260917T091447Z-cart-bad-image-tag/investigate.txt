@@ -1,0 +1,46 @@
+incident fa034425-7f02-4c09-acc7-eeb886d392b5  state triaging  anchor 09:19:15
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 0db28c4e-de59-4fb6-a20f-be03b17e9097
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on checkout and frontend plus the load generator indicate user-facing checkout failure, not a quiet warning. No open incident to attribute it to, and the alerts alone don't distinguish a bad deploy from a failing downstream dependency.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : cartservice
+  expect      : Redeploying cartservice at its pre-09:14:53 image tag should bring a serving cart process back: the {service="cart-service"} Loki stream resumes with startup and routine GetCartAsync lines, ending the silence since 09:14:53; newly sampled checkout traces stop showing the CartService GetCart leaf in ERROR; checkoutservice error ratio falls from ~8.4% toward its ~0.2% baseline and its logs resume the payment/email/message-write lines that follow PlaceOrder. cartservice's own calls_total series was absent even in baseline, so confirmation must come from cart-service logs and checkout-side traces, not cartservice metrics.
+  within      : 300s
+  risk        : If the deployed artifact is not the mechanism, this recreates a container for nothing and drops cartservice's in-process cart state, and reverting to an older tag may reintroduce whatever defect the hotfix was built to patch — the same tag flapped twice this morning, so the prior tag's health is asserted, not proven. It also discards the failed pod, destroying the container state, exit code and restart-count evidence that the investigation still lacks.
+  blast radius: cartservice only, but its inbound callers notice: frontend (direct cart calls) and checkoutservice via prepareOrderItemsAndShippingQuoteFromCart, and hence loadgenerator's checkout flow. During the recreate those callers see connection resets — briefly indistinguishable from the current failure.
+  if wrong    : Falsified if cart-service logs are still silent 180s after the recreate (a start-blocking problem like image-pull or a missing dependency, which no permitted action fixes), or if logs resume but GetCart still errors fast (a running-but-broken cartservice, i.e. application-level errors this rollback does not explain), or if checkoutservice stays at ~8.4% bursty errors, hinting at a second cause not excluded by the checkout change query's late window start.
+  rests on    : tr_b71528ba01fb, tr_2dd6158680cc, tr_256fa1231c8e
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 29623 pushed / 6571 pulled (pull rate 0.1815), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : medium
+  evidence    : tr_b71528ba01fb, tr_2dd6158680cc, tr_3a8525a625b7, tr_256fa1231c8e, tr_80f38a065db3, tr_c4e64bbd7e43, tr_21a7db79662b
+  root cause  : The cartservice image reference was updated at 09:14:53 to a hotfix build (`v1.2.1-cartservice-hotfix.2`) by platform-automation, and the running cartservice process shut down cleanly at exactly that timestamp and never resumed emitting anything [tr_b71528ba01fb][tr_2dd6158680cc]. From 09:14:53 onward cartservice produced no log lines and no RPC call metrics under its service name [tr_2dd6158680cc][tr_3a8525a625b7], i.e. the replacement artifact did not come up serving. Checkout requests continue to arrive and start normally, but every sampled failing trace has the same shape with the CartService GetCart leaf as the sole erroring span, failing in single-digit milliseconds — a fast rejection consistent with nothing listening, not a slow dependency [tr_256fa1231c8e]. The error propagates up through checkoutservice PlaceOrder to the frontend root, which explains why checkoutservice, frontend and loadgenerator alerted together at 09:19:15 while checkoutservice itself has no change record and no error logs of its own [tr_c4e64bbd7e43][tr_80f38a065db3][tr_21a7db79662b]. The failing mechanism is therefore that the artifact now deployed for cartservice is not a working one: the same hotfix reference had already been rolled forward and reverted twice that morning [tr_b71528ba01fb].
+  OPEN        : Direct evidence that the new cartservice pod failed to start is missing: no container/pod state, restart count, exit code or readiness data was gathered, and no logs from the replacement process were seen at all. Silence is consistent with a failed start, a crash loop before logging, an image-pull failure, or a log-label change.
+  OPEN        : cartservice call metrics were absent in the baseline window too, so the metric gap is partly an instrumentation or label mismatch and cannot independently time the outage [tr_3a8525a625b7].
+  OPEN        : Why checkoutservice's error ratio averages only ~8.4% and is bursty rather than near-total if its cart dependency has been down since 09:14:53 [tr_21a7db79662b] — unexplained; possible caching, retry, or metric-window artefacts were not investigated.
+  OPEN        : The checkoutservice change query started at the onset timestamp rather than before it, so a checkout-side change landing just before 09:19:15 is not excluded [tr_c4e64bbd7e43].
+  OPEN        : No gRPC status codes or error messages from the GetCart span were extracted, so 'connection refused / unavailable' versus an application-level error returned by a running-but-broken cartservice is not settled [tr_256fa1231c8e].
+  OPEN        : Whether the hotfix build has a known defect, and what the last-known-good cartservice image reference is, was not established.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-bad-image-tag', 'scenario:shipping-wrong-image'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T091447Z-cart-bad-image-tag/fa034425-7f02-4c09-acc7-eeb886d392b5-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T091447Z-cart-bad-image-tag/fa034425-7f02-4c09-acc7-eeb886d392b5-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8236.83it/s]

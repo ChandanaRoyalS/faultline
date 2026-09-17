@@ -1,0 +1,47 @@
+incident e04c740c-af4b-46e2-92c5-f626daff63c4  state triaging  anchor 08:57:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 5f7e6d00-924b-4453-a07e-cb7af027ce97
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts on frontend plus the load generator at the same moment indicate user-facing impact, not an isolated synthetic blip. No open incident covers it, and the cause could be frontend itself or any of its five downstream dependencies.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : adservice
+  expect      : Restoring adservice's pre-08:53:39 configuration (memory limit back to unset, the value both earlier cycles reverted to) should let the JVM complete initialisation. Observable as: (1) the repeating agent/VM boot banner triplet in {service="ad-service"} stops recurring and is followed, for the first time since 08:53:46, by a readiness / gRPC-server-started line and then by normal 'received ad request' lines as seen at 08:05 [tr_7e152c0bb12a]; (2) frontend traces for grpc.hipstershop.AdService/GetAds regain an adservice server span at ~0.5-1.1ms instead of terminating in a ~3.1s frontend tcp.connect error span [tr_51c35794df87]; (3) frontend's grpc-js 'Error: 14 UNAVAILABLE' lines cease [tr_5dbc89497852]; (4) frontend error ratio returns toward its exactly-zero 32-minute baseline, i.e. the ~2% mean / 9.6% peak series collapses to 0 [tr_f1cd77604556]. Note adservice's own calls_total series is absent from Prometheus even at baseline, so adservice health must be confirmed from logs and traces, not from its error-ratio metric [tr_f69249aa4680].
+  within      : 300s
+  risk        : The 256m cap may have been applied deliberately by platform-automation to contain memory growth in adservice; removing it lets the JVM grow unbounded again, which on a shared host can create memory pressure for co-located services rather than just adservice. Recreating the container also destroys the very state that would have confirmed the mechanism — container termination reason, restart counters, working-set history were never queried — so if this is wrong we have spent the evidence and still do not know why the process dies. If the death has a cause other than the cap (the unexplained 08:47:33 dropped-connection line six minutes before the change [tr_5dbc89497852] hints adservice may already have been unstable), the revert changes nothing and the crash loop continues while attention has moved on. The revert is itself reversible, which is the main thing limiting this.
+  blast radius: adservice only for the change itself; it is recreated, which for a process already in supervisor backoff costs little. frontend is the named inbound caller and sees the ad-bearing fraction of its requests transition from failing to succeeding (or, briefly, a reset during recreate). loadgenerator, which drives frontend, sees the same through frontend's error ratio. cartservice, checkoutservice, productcatalogservice and recommendationservice are untouched — their spans were all healthy at single-digit ms [tr_51c35794df87]. If the memory limit's absence causes host-level pressure, other co-located services could notice indirectly; that is the non-local tail of this action.
+  if wrong    : Falsified if, after the revert and one clean container recreate, adservice still emits repeated boot banners with no readiness line — the cap was not what killed the process (no OOM-kill, termination-reason or working-set evidence was ever retrieved [tr_7e152c0bb12a][tr_f69249aa4680], so the causal link is inferential). Also falsified if adservice comes up and stays up but frontend's error ratio stays materially above zero and UNAVAILABLE lines continue [tr_f1cd77604556][tr_5dbc89497852]: the error payloads name no target [tr_5dbc89497852] and only one error trace existed in the window [tr_51c35794df87], so a second failing downstream would be invisible in this sample. A third falsifier: adservice recovers and then crash-loops again within minutes — the platform-automation loop has run three times this morning [tr_7b7ab225733e] and may re-apply 256m; that is a fix that did not hold, and it needs the automation owner, which is outside what this system can do.
+  rests on    : tr_7b7ab225733e, tr_7e152c0bb12a, tr_51c35794df87, tr_f1cd77604556
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 29579 pushed / 7315 pulled (pull rate 0.1983), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_7b7ab225733e, tr_7e152c0bb12a, tr_51c35794df87, tr_5dbc89497852, tr_f1cd77604556, tr_8a9a5498eb41, tr_fc2284852228, tr_f69249aa4680
+  root cause  : At 08:53:39, roughly four minutes before onset, platform-automation lowered the memory limit on ad-service to 256m and, unlike the two identical lower-then-revert cycles earlier that morning, never reverted it [tr_7b7ab225733e]. Seven seconds later adservice began a crash loop: repeated JVM boot banners from 08:53:46 to the end of the window with progressively lengthening gaps, the signature of supervisor backoff, and no readiness or gRPC-server-started line between attempts — the process dies at or before service initialisation, and it had been serving normal ad requests as recently as 08:05 [tr_7e152c0bb12a]. The JVM cannot fit inside the new cap, so it is terminated externally before it can write a Java-level failure, which is why no OutOfMemoryError appears in stdout [tr_7e152c0bb12a]. With no listener accepting connections, frontend's outbound gRPC calls fail at transport establishment: the single error trace in the window is a frontend tcp.connect span consuming ~3113ms of a ~3119ms trace toward AdService GetAds with no adservice server span at all [tr_51c35794df87], and frontend logs show grpc-js client-side status 14 UNAVAILABLE with connection-dropped / no-connection details raised on the receive-status path [tr_5dbc89497852]. Frontend's error ratio moved from an exactly-zero 32-minute baseline to a bursty ~2% mean with a 9.6% peak, change point 08:55:45 [tr_f1cd77604556], consistent with only the ad-bearing fraction of requests failing while the rest succeed. Frontend itself has no recorded change of any kind [tr_8a9a5498eb41] and checkoutservice none either [tr_fc2284852228]; frontend is the service that noticed, adservice is the service that broke.
+  OPEN        : No direct kill evidence was retrieved. The OOM-kill / container-termination-reason signal, container_memory_working_set_bytes, and restart counters were never queried; the causal link from the 256m cap to the process death is inferred from timing and the absence of a Java-level failure line [tr_7e152c0bb12a][tr_f69249aa4680].
+  OPEN        : The 08:47:33 frontend UNAVAILABLE line predates the 08:53:39 limit change by six minutes and reports a dropped connection rather than a failure to connect [tr_5dbc89497852]. Either an earlier unrelated blip, a different dependency, or evidence that adservice was already unstable before the cap — unresolved.
+  OPEN        : frontend's error payloads name no target service, host or method [tr_5dbc89497852], so the log-level attribution to adservice rests on the trace [tr_51c35794df87], which contains exactly one error trace. A second failing downstream would not be visible in this sample.
+  OPEN        : The loki result was truncated to the oldest 8 and newest 32 lines, so the interval containing the 08:57:45 alert timestamp was not observed directly [tr_5dbc89497852].
+  OPEN        : Whether the automation loop will re-apply the 256m cap after a manual revert is unknown — it has run three times in one morning [tr_7b7ab225733e]. Why this cycle's revert did not fire is unexplained, and no owner or trigger condition for the automation was established.
+  OPEN        : Triage reports one unmeasured edge crossed; which edge, and whether anything on it contributes, was never resolved.
+  OPEN        : Whether 256m is simply too small for this JVM under any load, or only too small under current traffic, was not determined — this decides between restoring the prior limit and sizing a new one.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:ad-memory-squeeze', 'scenario:frauddetection-memory-squeeze'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T085334Z-ad-memory-squeeze/e04c740c-af4b-46e2-92c5-f626daff63c4-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260917T085334Z-ad-memory-squeeze/e04c740c-af4b-46e2-92c5-f626daff63c4-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7388.88it/s]
