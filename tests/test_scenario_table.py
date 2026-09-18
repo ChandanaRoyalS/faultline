@@ -427,3 +427,27 @@ def test_a_stamp_that_holds_two_corpora_has_at_most_one_the_table_admits() -> No
             f"stamp {stamp} holds corpora {digests} and the qualifier admits {admitted} - more "
             "than one set of retrievable documents would print as one figure (Q61)"
         )
+
+
+def test_the_retrieval_gate_is_founded_on_the_current_corpus() -> None:
+    """**The T6.5 omission, made impossible to repeat quietly.** The corpus pins moved on
+    2026-09-15 and the integration gate stayed founded on the previous corpus, so CI read the
+    recorded re-score and called it a regression for three days - behind a ledger failure that hid
+    it for the first two. A gate is founded per corpus pin; moving `CURRENT_CORPUS_BODY` without
+    re-founding the gate from that move's recorded re-score now fails here, in `make check`.
+
+    Read from source rather than imported: the integration module imports testcontainers and the
+    embedder at module level, which `make check` must never do."""
+    import re
+
+    from evalharness import generations
+
+    source = (REPO_ROOT / "tests" / "test_integration_retrieval_gate.py").read_text()
+    founded = re.search(r'^FOUNDED_ON_CORPUS = "([0-9a-f]{64})"', source, re.M)
+
+    assert founded, "the gate names the corpus it was measured on"
+    assert founded.group(1) == generations.CURRENT_CORPUS_BODY, (
+        "the corpus pin moved and the retrieval gate was not re-founded. Re-found it in this "
+        "commit from the re-score the pin move recorded, at the founding margins, and update "
+        "FOUNDED_ON_CORPUS - do not edit only the constant"
+    )

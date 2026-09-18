@@ -43,9 +43,45 @@ pytestmark = pytest.mark.integration
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEV_ROOT = REPO_ROOT / "evals" / "scenarios" / "artifacts" / "dev"
 
-MEASURED_RECALL_AT_5 = 0.442
-MEASURED_MRR_AT_5 = 0.286
-"""What the **second** measurement returned, 2026-09-13, on a two-armed hybrid (Q39).
+FOUNDED_ON_CORPUS = "cc473105c036ca668c08b87c8ce8c84ca1c30382b520bd76ca952eacf934cac9"
+"""**The corpus body digest these constants were measured on** - `CURRENT_CORPUS_BODY` at the
+time of founding, restated as a literal so that a unit test can hold the two equal.
+
+**Why the gate names its corpus.** These are regression gates over a fixed golden set on a fixed
+corpus; the margin below is slack for small authoring edits, not for a different corpus. T6.5
+seeded ten postmortems, moved both corpus pins, and recorded the re-score its Amendment 3 §5 had
+registered - `recall@3` 0.395 → 0.302, `recall@5` 0.442 → 0.372 - and *did not re-found this
+gate in the same commit*. CI's integration job then read exactly the recorded figures and failed
+against constants founded on the previous corpus, from 2026-09-15 until this line (the first
+twenty-five runs failed earlier still, on the acceptance ledger, and hid this one behind them).
+The registration's own §5 says why the old constants could not stand: *"0.395 was one draw from a
+two-query-wide instrument on a different corpus; 0.302 is reproducible on this one. They are not
+two measurements of one thing."*
+
+**The rule this adds**: a gate is founded per corpus pin. When `CURRENT_CORPUS_BODY` moves, the
+gate is re-founded in the same commit from the re-score that move recorded, at the same relative
+margins - and `tests/test_scenario_table.py`'s tripwire on this constant makes forgetting that
+fail `make check` rather than CI an hour later. **What the rule is not**: permission to loosen on
+a fixed corpus. On a fixed corpus the standing rule below applies - the tighter of the registered
+formula and the constant already standing - because there a fall *is* a regression.
+"""
+
+MEASURED_RECALL_AT_5 = 0.372
+MEASURED_MRR_AT_5 = 0.252
+"""**Third founding, 2026-09-18, on the T6.5 corpus** (311 chunks, 60 documents,
+`FOUNDED_ON_CORPUS`). The figures are `PREREGISTRATION-T6.5.md` §3's re-score - two independent
+re-seeds after Q68's tiebreaker, byte-identical - and CI's first reading on the committed
+acceptance ledger returned them to the digit: 0.3721 and 0.2519. The gate below is 9.5% and 9.1%
+under, the founding margins.
+
+**The two earlier foundings, kept because the margins descend from them.** Second, 2026-09-13, on
+the reconciled 261-chunk corpus: **0.442 and 0.286** (Q39, Q48). First, 2026-09-12, with a text arm
+that matched nothing: 0.465 and 0.219. The history of how 0.40 came to stand rather than the
+formula's 0.38 is below; it is the rule for a fixed corpus and it still applies to one.
+
+What follows is the second founding's docstring, kept as written:
+
+What the **second** measurement returned, 2026-09-13, on a two-armed hybrid (Q39).
 
 Reported on the **reconciled 261-chunk corpus** (Q48), which is what this container seeds; the
 2026-09-13 write-up leads with 0.442 and **0.311** because it ran against a database still holding
@@ -60,18 +96,27 @@ difference is **one query of 43** and that the registered decision rule said not
 Recorded here so the margin below is readable as a margin rather than as a number someone chose.
 """
 
-MEASURED_RECALL_AT_3 = 0.395
-MEASURED_MRR_AT_3 = 0.233
-"""The same measurement read at `k = 3`, which is the depth production retrieves at.
+MEASURED_RECALL_AT_3 = 0.302
+MEASURED_MRR_AT_3 = 0.198
+"""Third founding (2026-09-18, `FOUNDED_ON_CORPUS`): `PREREGISTRATION-T6.5.md` §3's re-score at
+`k = 3`, the depth production retrieves at; CI read 0.3023 and 0.1977. The second founding's values
+were **0.395 and 0.233**, and its note follows:
+
+The same measurement read at `k = 3`, which is the depth production retrieves at.
 
 Unchanged by Q48's reconciliation: removing the two orphan chunks moved `MRR@5` and left every
 `k = 3` figure byte-identical. Not a coincidence worth relying on - see ADR-0040 clause 3 - but
 recorded because it is the reason these two numbers have one date and the `k = 5` pair has two.
 """
 
-GATE_RECALL_AT_3 = 0.35
-GATE_MRR_AT_3 = 0.21
-"""**Calibrated at the same relative margins as the `k = 5` pair** - 11.4% and 9.9% below, from
+GATE_RECALL_AT_3 = 0.26
+GATE_MRR_AT_3 = 0.17
+"""Third founding: 0.302 * (1 - 0.114) = 0.268 → **0.26**; 0.198 * (1 - 0.099) = 0.178 → **0.17**,
+the second founding's margins (11.4% and 9.9%) applied to the third founding's measurement and
+rounded down to two places as before. The second founding's constants were **0.35 and 0.21**, and
+its note follows:
+
+**Calibrated at the same relative margins as the `k = 5` pair** - 11.4% and 9.9% below, from
 rounding the 9.5%/9.1% formula down to two places. Derived rather than chosen, so that the two
 depths cannot drift into being governed by different degrees of slack.
 
@@ -81,9 +126,14 @@ before anyone proposed a `k = 3` floor, so any number written now would be chose
 in hand. These are regression gates; they certify nothing.
 """
 
-GATE_RECALL_AT_5 = 0.40
-GATE_MRR_AT_5 = 0.26
-"""**Calibrated, not derived.** 9.5% and 9.1% below what was measured.
+GATE_RECALL_AT_5 = 0.33
+GATE_MRR_AT_5 = 0.22
+"""Third founding: 0.372 * (1 - 0.095) = 0.337 → **0.33**; 0.252 * (1 - 0.091) = 0.229 → **0.22**.
+The second founding's constants were **0.40 and 0.26**; how they came to stand rather than the
+registered formula's values is the note that follows, kept as written because it is the rule for
+a measurement that falls *on the same corpus* - and that rule is not what moved them here.
+
+**Calibrated, not derived.** 9.5% and 9.1% below what was measured.
 
 The margin is not a confidence interval - the golden set is fixed and the corpus is fixed, so
 there is no sampling to be noisy about. It is slack for legitimate corpus edits: adding a
