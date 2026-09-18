@@ -60,6 +60,17 @@ embeddings = ["sentence-transformers>=3.0", "torch>=2.0"]
 # The agent runtime's model client (ADR-0020). Optional and lazily imported for the same
 # reason: `make check` never calls a model, and the fake is the only one tests touch.
 agents = ["anthropic>=1.0"]
+# Faultline's own traces and metrics (T6.6). Optional and lazily imported for the same reason
+# again: `make check` imports no SDK, `faultline.observability.tracing.span` is a no-op until
+# `configure()` finds both the package and an `OTEL_EXPORTER_OTLP_ENDPOINT`, and the design note
+# (`docs/design/t6.6-self-observability.md`) says why the spans join the trajectory by id rather
+# than replacing it. gRPC exporter and not HTTP because the world's Tempo listens on 4317 only.
+observability = [
+    "opentelemetry-api>=1.25",
+    "opentelemetry-sdk>=1.25",
+    "opentelemetry-exporter-otlp-proto-grpc>=1.25",
+    "prometheus-client>=0.20",
+]
 archive = [
     "boto3>=1.35",
 ]
@@ -103,7 +114,7 @@ select = ["E", "F", "W", "I", "N", "UP", "B", "SIM", "RUF"]
 [[tool.mypy.overrides]]
 # Optional dependencies (faultline[embeddings], faultline[agents], faultline[archive]); the module is
 # imported lazily inside a function so nothing in `make check` loads it, and there are no stubs to install.
-module = ["sentence_transformers.*", "anthropic.*", "boto3.*"]
+module = ["sentence_transformers.*", "anthropic.*", "boto3.*", "opentelemetry.*", "prometheus_client.*"]
 ignore_missing_imports = true
 
 [tool.mypy]
