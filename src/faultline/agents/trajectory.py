@@ -24,7 +24,7 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from typing import Any, Protocol
 
@@ -238,6 +238,27 @@ class TrajectoryStore(Protocol):
         """The rendered envelope for one tool result, byte for byte as it was stored."""
 
 
+ORPHAN_OUTCOME = "orphaned"
+"""What a trajectory row is closed as when its process died before writing an outcome (Q72).
+
+**A new value, not a repurposed one.** `failed` is what `Investigation.run` writes when the
+investigation raised; these did not raise - they were killed, with the sweep, when the Mac slept
+or the operator hit Ctrl-C - and a dashboard should be able to tell the two apart. `outcome IS
+NULL` until then reads as `running` on `/metrics`, which the first scrape (2026-09-18) found four
+of in a process where nothing was running. `ended_at` is left NULL: the row does not know when it
+died, and a made-up end would put a made-up duration into the histogram."""
+
+
+def orphan_ceiling_seconds() -> int:
+    """How old a row with no outcome must be before it is called orphaned: twice the wall-clock
+    budget every investigation runs under. A run still inside its budget may simply be slow; one
+    past twice it has no process left to finish it - `Budget.wall_clock_seconds` would have
+    stopped a live one long before."""
+    from faultline.agents.budget import Budget
+
+    return 2 * Budget().wall_clock_seconds
+
+
 class InMemoryTrajectoryStore:
     """A dict. For tests, and for a dry run."""
 
@@ -246,6 +267,16 @@ class InMemoryTrajectoryStore:
 
     def save(self, trajectory: Trajectory) -> None:
         self.trajectories[trajectory.id] = trajectory
+
+    def close_orphans(self, *, older_than_seconds: int, now: datetime | None = None) -> list[str]:
+        moment = now or datetime.now(UTC)
+        closed: list[str] = []
+        for trajectory in self.trajectories.values():
+            age = (moment - trajectory.started_at).total_seconds()
+            if trajectory.outcome is None and age > older_than_seconds:
+                trajectory.outcome = ORPHAN_OUTCOME
+                closed.append(trajectory.id)
+        return sorted(closed)
 
     def get(self, trajectory_id: str) -> Trajectory | None:
         return self.trajectories.get(trajectory_id)
@@ -382,6 +413,25 @@ class PostgresTrajectoryStore:
                     )
         self._conn.commit()
         self._archive_envelopes(trajectory)
+
+    def close_orphans(self, *, older_than_seconds: int, now: datetime | None = None) -> list[str]:
+        """Close every row with no outcome older than the ceiling as `orphaned`; return their ids.
+
+        **Names, does not guess** (Q72's row): the predicate is `outcome IS NULL` and age, both
+        facts about the row, and the write is one value into one column. Run by `faultline-sweep`
+        before it starts and by `faultline-eval-db orphans` by hand; idempotent, because a closed
+        row no longer matches.
+        """
+        with self._conn.cursor() as cur:
+            cur.execute(
+                "UPDATE trajectories SET outcome = %s "
+                "WHERE outcome IS NULL AND started_at < %s - make_interval(secs => %s) "
+                "RETURNING id",
+                (ORPHAN_OUTCOME, now or datetime.now(UTC), older_than_seconds),
+            )
+            closed = sorted(str(row[0]) for row in cur.fetchall())
+        self._conn.commit()
+        return closed
 
     def _archive_envelopes(self, trajectory: Trajectory) -> None:
         """After the commit, never before, and never fatal.

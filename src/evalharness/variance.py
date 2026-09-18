@@ -282,6 +282,17 @@ It carries R = 1 and the same warning CLAUDE.md rule 6 gives: one run is an obse
 that get published."* At dev sweep 8's measured $0.70 a run, a published 30-scenario paired
 comparison at R=5 is 300 runs and roughly **$210** - which is the number that decides whether a
 comparison is worth publishing, and it belongs beside the tier rather than in someone's head.
+
+**T4.6 addendum, 2026-09-18 (Q65): the clause binds future figures.** Nothing in this repository
+has ever run at `published`; over 548 manifests the archive read `weekly` 97, `manual` 58,
+`nightly` 10 and zero at R=5, and every comparison printed so far - the README headline,
+RESULTS.md, T6.5's table - came from `weekly` or below. Read strictly, *"the only tier a printed
+comparison may come from"* would make each of those a claim the plan did not authorise, without
+changing any of them; read loosely, as *whatever tier comparisons here are scored at*, the clause
+says nothing. Neither. **A comparison printed after this date comes from `published`, or names
+its tier where it is printed**; every comparison printed before it stands as recorded, at the
+tier it was run at, labelled rather than withdrawn. The $210 above is therefore the price of a
+future unlabelled claim, and the tier label is the alternative, in the open.
 """
 
 SEED_POLICY = "unseeded: non-deterministic model, live world"

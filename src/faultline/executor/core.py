@@ -50,6 +50,7 @@ from typing import Any
 
 from faultline.executor.audit import SPENDING_OUTCOMES, AuditRecord, AuditStore
 from faultline.executor.tokens import Claims, TokenError, verify
+from faultline.observability.tracing import span
 from faultline.orchestrator.machine import is_terminal
 from faultline.orchestrator.models import Incident, IncidentState
 
@@ -289,7 +290,30 @@ class Executor:
         self._now = now or (lambda: datetime.now(UTC))
 
     def execute(self, token: str, *, caller: str) -> AuditRecord:
-        """Steps 1-10 above. Always returns the audit row it wrote; never raises for a refusal."""
+        """Steps 1-10 above, inside one `action.execute` span (T6.6, Q74).
+
+        **What the span carries, and what it never does.** The audit row's structural fields -
+        incident, action, target, outcome, the token's *id*, the audit row's id, the exit code -
+        so a trace of the investigation and the action it led to can be read together. **Never
+        the token**: the token is the credential; its id is the audit's name for it, and the
+        audit already carries that (`audit.py`). Never `reason`, `command` or `output`: a refusal
+        reason quotes the world, and a span attribute is not the place for untrusted text.
+        """
+        with span("action.execute", caller=caller) as handle:
+            record = self._execute(token, caller=caller)
+            handle.set(
+                incident_id=record.incident_id,
+                action_id=record.action_id,
+                target=record.target,
+                outcome=record.outcome,
+                token_id=record.token_id,
+                audit_id=record.id,
+                exit_code=record.exit_code,
+            )
+            return record
+
+    def _execute(self, token: str, *, caller: str) -> AuditRecord:
+        """Always returns the audit row it wrote; never raises for a refusal."""
         claims: Claims | None = None
         incident: Incident | None = None
         try:

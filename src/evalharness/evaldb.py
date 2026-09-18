@@ -570,10 +570,29 @@ def main(argv: list[str] | None = None) -> int:  # pragma: no cover - console en
         prog="faultline-eval-db",
         description="The eval database: load run manifests, and describe what they contain (T4.4).",
     )
-    parser.add_argument("command", choices=("summary", "load"))
+    parser.add_argument("command", choices=("summary", "load", "orphans"))
     parser.add_argument("--runs", default="evals/runs", type=Path)
     parser.add_argument("--postgres-dsn", default=None)
     args = parser.parse_args(argv)
+
+    if args.command == "orphans":
+        # Q72, by hand: the same reconciler `faultline-sweep` runs before it starts, for an
+        # operator reading `/metrics` and seeing `running` in a process where nothing is.
+        import psycopg
+
+        from faultline.agents.trajectory import PostgresTrajectoryStore, orphan_ceiling_seconds
+
+        dsn = args.postgres_dsn or ContextSettings().postgres_dsn
+        with psycopg.connect(dsn) as conn:
+            closed = PostgresTrajectoryStore(conn).close_orphans(
+                older_than_seconds=orphan_ceiling_seconds()
+            )
+        named = ": " + ", ".join(closed) if closed else ""
+        print(
+            f"closed {len(closed)} trajectory row(s) with no outcome older than "
+            f"{orphan_ceiling_seconds()}s as orphaned{named}"
+        )
+        return 0
 
     rows = read_runs(args.runs)
     for line in summarise(rows):

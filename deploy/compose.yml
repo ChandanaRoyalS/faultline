@@ -256,9 +256,7 @@ services:
       FAULTLINE_CONTEXT_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
       # T6.6: same variable as on `faultline` above. `faultline-investigate` is a subprocess of
       # this container and inherits it, so the investigation's root span, its model calls and
-      # its tool calls export from here. The executor does not get it: nothing there calls
-      # `tracing.configure`, and an environment variable that nothing reads is documentation
-      # that lies eventually (the rule on the DSN classes).
+      # its tool calls export from here.
       OTEL_EXPORTER_OTLP_ENDPOINT: http://otelcol:4317
       # T5.2's links into T5.1's screen, for the same reason: a Slack message has no origin, so
       # this is configuration or the message carries a marked absence instead of a link.
@@ -319,6 +317,10 @@ services:
       # not chosen: `openssl rand -hex 32`. With the switch on nothing verifies against it yet; it
       # is here so that the day the surface lands the key already exists and is already secret.
       FAULTLINE_EXECUTOR_TOKEN_KEY: ${FAULTLINE_EXECUTOR_TOKEN_KEY:?set FAULTLINE_EXECUTOR_TOKEN_KEY in deploy/.env}
+      # T6.6 / Q74: the fourth daemon exports too - one `action.execute` span per token, carrying
+      # the audit row's structural fields and never the token, so the action a trace led to can
+      # be read beside the investigation that proposed it.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otelcol:4317
       FAULTLINE_INJECTOR_WORLD_DIR: ${FAULTLINE_CHECKOUT:?set FAULTLINE_CHECKOUT in deploy/.env}/world
       FAULTLINE_INJECTOR_STATE_DIR: ${FAULTLINE_CHECKOUT:?set FAULTLINE_CHECKOUT in deploy/.env}/.faultline
     command:

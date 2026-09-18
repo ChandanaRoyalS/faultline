@@ -217,6 +217,19 @@ def run_execute(argv: list[str] | None = None) -> int:
     if args.postgres_dsn:
         settings = settings.model_copy(update={"postgres_dsn": args.postgres_dsn})
 
+    # T6.6 / Q74: the fourth daemon. Same two calls as the other three, same order, so the
+    # action plane's span and lines join the investigation's by trace id. `run` gets them too:
+    # one execution from a terminal is still an action against the world.
+    import atexit
+    import os
+
+    from faultline.observability import logs, tracing
+
+    logs.configure(component="executor")
+    if tracing.configure(component="executor"):
+        print(f"tracing: exporting to {os.environ.get(tracing.ENDPOINT_VAR)}", file=sys.stderr)
+        atexit.register(tracing.shutdown)
+
     if args.command == "run":
         executor = build_executor(settings)
         record = executor.execute(args.token, caller=getpass.getuser())
@@ -236,7 +249,9 @@ def run_execute(argv: list[str] | None = None) -> int:
         f"{'ON' if settings.kill_switch else 'off'}",
         file=sys.stderr,
     )
-    uvicorn.run(build_app(settings), host=args.host, port=args.port)
+    # `log_config=None` for the reason `ingest/app.py` gives: uvicorn's own loggers otherwise
+    # keep their handlers and the access log arrives as plain text beside our JSON.
+    uvicorn.run(build_app(settings), host=args.host, port=args.port, log_config=None)
     return 0
 
 

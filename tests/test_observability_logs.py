@@ -158,6 +158,7 @@ def test_an_unknown_format_value_is_json(monkeypatch: pytest.MonkeyPatch) -> Non
         ("src/faultline/ingest/app.py", "api"),
         ("src/faultline/orchestrator/cli.py", "orchestrator"),
         ("src/faultline/agents/cli.py", "investigator"),
+        ("src/faultline/executor/cli.py", "executor"),
     ],
 )
 def test_each_daemon_configures_logs_beside_tracing(path: str, component: str) -> None:
@@ -172,10 +173,11 @@ def test_each_daemon_configures_logs_beside_tracing(path: str, component: str) -
     )
 
 
-def test_uvicorn_is_started_without_its_own_logging_config() -> None:
+@pytest.mark.parametrize("path", ["src/faultline/ingest/app.py", "src/faultline/executor/cli.py"])
+def test_uvicorn_is_started_without_its_own_logging_config(path: str) -> None:
     """Otherwise its loggers keep their own handlers and `propagate=False`, and the access log
     comes out beside ours as plain text - two shapes on one stream."""
-    source = (REPO_ROOT / "src/faultline/ingest/app.py").read_text()
+    source = (REPO_ROOT / path).read_text()
 
     assert "log_config=None" in source
 
