@@ -14,7 +14,7 @@ help:
 # The clean-clone rehearsal found exactly that: `make check` green, `make demo` refusing
 # on a missing model client, and README claiming `uv sync` "installs everything" (T5.4b).
 install:
-	uv sync --extra agents --extra embeddings
+	uv sync --extra agents --extra embeddings --extra observability
 
 lint:
 	uv run ruff check src tests

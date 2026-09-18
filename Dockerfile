@@ -3,13 +3,16 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 WORKDIR /app
 # Dependency layer first, so code changes don't invalidate the dependency cache.
 COPY pyproject.toml uv.lock ./
-# **Both extras, and that is the point** - the same sentence `make install` carries. A bare
+# **Every runtime extra, and that is the point** - the same sentence `make install` carries. A bare
 # `uv sync` gives a tree that passes every check and cannot run the demo or a scored run (T5.4b),
 # and it gave an image whose orchestrator could not open a model client and whose seeder could not
 # import its embedder: the deployment could remember investigations and not produce one, which is
-# T5.5b's deviation three, reintroduced by the build (T5.5c, defect twenty-six). `archive` is
-# deliberately left out: nothing in the deployment writes to an object store.
-RUN uv sync --frozen --no-dev --no-install-project --extra agents --extra embeddings
+# T5.5b's deviation three, reintroduced by the build (T5.5c, defect twenty-six). `observability`
+# (T6.6) joined for the same reason from the other side: without it the image's daemons were
+# handed `OTEL_EXPORTER_OTLP_ENDPOINT` and had no SDK to honour it, and `/metrics` declined to
+# mount - each said so on stdout, and each was a deployment that could not watch itself. `archive`
+# is deliberately left out: nothing in the deployment writes to an object store.
+RUN uv sync --frozen --no-dev --no-install-project --extra agents --extra embeddings --extra observability
 # Project layer: hatchling reads readme/license from pyproject, so both must be present.
 COPY README.md LICENSE ./
 COPY src ./src
@@ -30,7 +33,7 @@ COPY evals/scenarios/artifacts/dev ./evals/scenarios/artifacts/dev
 # live investigation on the first live deployment (T5.5c, defect thirty). `tests/test_packaging.py`
 # now derives this list from the resolvers in the code rather than from anyone's memory.
 COPY docs/evidence/t2.4-dependency-graph/dependencies.json ./docs/evidence/t2.4-dependency-graph/dependencies.json
-RUN uv sync --frozen --no-dev --extra agents --extra embeddings
+RUN uv sync --frozen --no-dev --extra agents --extra embeddings --extra observability
 
 FROM python:3.12-slim
 RUN useradd --create-home appuser

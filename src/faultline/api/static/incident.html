@@ -33,8 +33,9 @@
   .verdict { border-left: 3px solid currentColor; }
   .role { font-weight: 600; }
   ol.timeline { list-style: none; padding: 0; margin: 0; }
-  ol.timeline li { display: grid; grid-template-columns: 5.5rem 7rem 1fr; gap: .5rem;
+  ol.timeline li { display: grid; grid-template-columns: 5.5rem 7rem 1fr 4.5rem; gap: .5rem;
                    padding: .2rem 0; border-bottom: 1px solid var(--line); }
+  ol.timeline .took { text-align: right; font-variant-numeric: tabular-nums; }
   .cite { display: inline-block; margin: .15rem .3rem .15rem 0; padding: .1rem .4rem;
           border: 1px solid var(--line); border-radius: 4px; font-size: .8rem; }
   .cite.unresolved { border-style: dashed; color: var(--bad); }
@@ -153,10 +154,17 @@
 
   function render(v) {
     document.getElementById("title").textContent = `Incident ${v.incident_id}`;
-    clear(document.getElementById("meta")).append(
+    const meta = clear(document.getElementById("meta"));
+    meta.append(
       text("span", `${v.state} · ${v.severity} · opened ${v.opened_at ?? "—"} · ` +
                    v.episodes.map(e => `${e.alertname} on ${e.service}`).join(", "))
     );
+    if (v.trace_link) {                           // T6.6: the run's own trace, when it has one
+      const a = text("a", ` · trace ${v.trace_id.slice(0, 12)}…`, "meta");
+      a.href = v.trace_link;                        // built server-side, like a citation's
+      a.title = v.trace_id;
+      meta.append(a);
+    }
 
     const report = clear(document.getElementById("report"));
     if (v.report) {
@@ -240,9 +248,13 @@
     const timeline = clear(document.getElementById("timeline"));
     v.timeline.forEach(entry => {
       const li = document.createElement("li");
+      // Duration is what the trajectory recorded and this page dropped until T6.6. Zero is
+      // "not measured" - a bookkeeping step - and reads as blank rather than as 0.0 s.
+      const took = entry.latency_ms ? `${(entry.latency_ms / 1000).toFixed(1)} s` : "";
       li.append(text("span", entry.at.slice(11, 19), "meta"),
                 text("span", entry.role, "role"),
-                text("span", entry.summary));
+                text("span", entry.summary),
+                text("span", took, "meta took"));
       timeline.append(li);
     });
   }

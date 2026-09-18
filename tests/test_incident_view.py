@@ -449,3 +449,73 @@ def test_the_timeline_names_the_proposal_by_its_catalog_ids_only() -> None:
 
     assert summaries == ["proposed revert-image-tag on cartservice", "proposed abstained"]
     assert not any("<" in s for s in summaries)
+
+
+# --- T6.6 piece 6: durations on the timeline, and the run's own trace -----------------------------
+
+TRACE = "e420efea2fe46357cc202aaf0a53802e"
+
+
+def test_the_timeline_carries_the_latency_the_trajectory_always_recorded() -> None:
+    """`TimelineEntry.as_dict` dropped `latency_ms` from T5.1 to T6.6, so the screen showed when
+    each step happened and nothing about how long it took - while the trajectory carried the
+    number for every tool call all along and, since piece 2, for every model call. Zero stays
+    zero: the page reads it as *not measured* and shows nothing, not `0.0 s`."""
+    quick = Step(1, "planner", {"plan": {"dispatches": []}})
+    quick.latency_ms, quick.span_id = 14_312, "a1b2c3d4e5f60718"
+    bookkeeping = Step(2, "system", {})
+
+    entries = [e.as_dict() for e in view.timeline([quick, bookkeeping])]
+
+    assert entries[0]["latency_ms"] == 14_312 and entries[0]["span_id"] == "a1b2c3d4e5f60718"
+    assert entries[1]["latency_ms"] == 0 and entries[1]["span_id"] == ""
+
+
+def test_a_traced_run_links_to_its_trace_on_the_tempo_datasource_with_its_own_range() -> None:
+    """**Grafana asks Tempo with the time picker's range attached** (first-trace note): the trace
+    was found by `curl` and *not found* in Explore until the range was widened past the run. So
+    the link carries the run's own window, widened by `TRACE_MARGIN`, and uses the `traceId`
+    query type this world's Grafana resolves rather than TraceQL, which it read as a search."""
+    started = datetime(2026, 9, 18, 5, 21, 38, tzinfo=UTC)
+    ended = datetime(2026, 9, 18, 5, 25, 59, tzinfo=UTC)
+    tempo = yaml.safe_load((REPO_ROOT / "compose" / "grafana-tempo-datasource.yml").read_text())
+
+    link = view.trace_link(TRACE, started, ended, grafana_url="https://faultline.example/")
+    assert link is not None
+    left = json.loads(unquote(link.split("left=", 1)[1]))
+
+    assert link.startswith("https://faultline.example/explore?left=")
+    assert left["datasource"] == tempo["datasources"][0]["uid"]
+    assert left["queries"] == [{"queryType": "traceId", "query": TRACE}]
+    assert left["range"] == {
+        "from": (started - view.TRACE_MARGIN).isoformat(),
+        "to": (ended + view.TRACE_MARGIN).isoformat(),
+    }
+
+
+def test_an_untraced_run_has_no_trace_link_rather_than_a_link_to_nothing() -> None:
+    assert view.trace_link("") is None
+    assert view.trace_link("", NOW, NOW, grafana_url="https://faultline.example") is None
+
+
+def test_the_view_carries_the_trace_when_the_trajectory_has_one_and_says_so_when_not() -> None:
+    traced = Trajectory([])
+    traced.trace_id, traced.started_at, traced.ended_at = TRACE, NOW, NOW
+
+    with_trace = view.incident_view(Incident(), traced)
+    without = view.incident_view(Incident(), Trajectory([]))
+    none_at_all = view.incident_view(Incident(), None)
+
+    assert with_trace["trace_id"] == TRACE and TRACE in unquote(with_trace["trace_link"])
+    assert without["trace_id"] == "" and without["trace_link"] is None
+    assert none_at_all["trace_id"] == "" and none_at_all["trace_link"] is None
+
+
+def test_the_page_renders_the_duration_and_the_trace_link_it_is_now_given() -> None:
+    """A payload field the page never reads is a column that is still missing. The page reads
+    both, and the link's `href` is the server's string, as a citation's is."""
+    page = (REPO_ROOT / "src" / "faultline" / "api" / "static" / "incident.html").read_text()
+
+    assert "entry.latency_ms" in page
+    assert "v.trace_link" in page and "a.href = v.trace_link" in page
+    assert "grid-template-columns: 5.5rem 7rem 1fr 4.5rem" in page, "a fourth column for it"
