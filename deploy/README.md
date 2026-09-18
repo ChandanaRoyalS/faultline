@@ -314,13 +314,16 @@ curl -sS https://$SITE_ADDRESS/healthz                                          
 curl -sS -o /dev/null -w '%{http_code}\n' https://$SITE_ADDRESS/api/v1/incidents    # 401
 curl -sS -o /dev/null -w '%{http_code}\n' https://$SITE_ADDRESS/api/v1/alerts       # 404
 curl -sS -o /dev/null -w '%{http_code}\n' https://$SITE_ADDRESS/grafana/            # 401
+curl -sS -o /dev/null -w '%{http_code}\n' https://$SITE_ADDRESS/metrics             # 404
 docker compose exec executor curl -fsS localhost:8100/healthz                      # {"status":"ok","kill_switch":true}
 curl -sS -u faultline:$FAULTLINE_API_PASSWORD https://$SITE_ADDRESS/api/v1/incidents | head -c 200
 ```
 
-**Lines two, three and four are the checks that matter** — they are the ones that fail open. The
+**Lines two to five are the checks that matter** — they are the ones that fail open. The
 401s mean the credential is doing its job; the **404 on `/api/v1/alerts` means the receiver is not
-on the internet**, which is what stops a stranger from opening incidents that bill your key.
+on the internet**, which is what stops a stranger from opening incidents that bill your key; the
+**404 on `/metrics` means the platform's own spend and outcome counters are not either** (T6.6 —
+that surface has no credential of its own, because its reader is Prometheus on the compose network).
 
 Then open `https://$SITE_ADDRESS/` in a browser — the credential prompt, then the incident list —
 and pick one, or take an `incident_id` from the last line and open
@@ -345,6 +348,28 @@ cd ~/faultline && uv run faultline-inject stop --all        # the world does not
 
 `triaging` at four minutes is the defect; `planning`, `investigating` or a verdict is the pass.
 About \$0.70 of model spend, once.
+
+**The `investigating` line in that grep had never been printed before T6.6.** It is `log.info`,
+and nothing in the platform configured logging until piece 4, so the root logger sat at `WARNING`
+and dropped it in every deployment that ran this check — the grep matched `states:` alone. It
+comes out now, as one JSON object per line with `"component": "orchestrator"`.
+
+**Then prove the deployment can watch itself** (T6.6). Each daemon prints one line at start for
+each surface, on stdout, so an operator who expected traces and sees none has one line to read:
+
+```bash
+docker compose logs faultline orchestrator --since 1h | grep -E "tracing:|metrics:"
+# tracing: exporting to http://otelcol:4317        (both containers)
+# metrics: /metrics mounted                        (faultline)
+docker compose exec faultline python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/metrics').read()[:300].decode())"
+```
+
+`tracing: exporting` missing means the image predates T6.6 piece 6 or the endpoint is unset;
+`metrics: prometheus_client not installed` means the image was built without the `observability`
+extra. After the injected fault above, the incident page carries a `trace …` link in its header
+that opens the investigation's waterfall in Grafana with the run's own range set. The dashboard
+`/grafana/d/faultline-self` shows the same numbers — except its Prometheus panels, which stay
+empty until Q73 lands the scrape job, and say so.
 
 ### 3.6a Changing the Caddyfile
 

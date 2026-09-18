@@ -397,6 +397,25 @@ def test_the_receiver_is_not_reachable_from_the_internet() -> None:
     )
 
 
+def test_the_metrics_surface_is_answered_by_caddy_not_proxied() -> None:
+    """**T6.6 piece 3 mounted `/metrics` outside the API's credential** - the scraper is
+    Prometheus on the compose network, and a scraper carrying the operator password would put it
+    in Prometheus' config. That reasoning was right and did not read this file: the catch-all
+    forwards every other path to `faultline:8000`, so on the VM the surface would have served
+    lifetime spend, tokens and outcomes to the internet. Found rereading the Caddyfile after the
+    surface landed. Same shape as the alert receiver, same answer: a 404 at the edge, and the
+    in-network consumer reaches the container directly."""
+    caddyfile = CADDYFILE.read_text()
+
+    assert "handle /metrics" in caddyfile
+    assert re.search(r"handle /metrics\s*\{[^}]*respond[^}]*404", caddyfile), (
+        "the metrics path must be answered by Caddy, not proxied"
+    )
+    assert caddyfile.index("handle /metrics") < caddyfile.rindex("handle {"), (
+        "a block after the catch-all never matches"
+    )
+
+
 def test_the_health_endpoint_stays_open_for_the_uptime_check() -> None:
     """T5.5 names *"an uptime check"*. A monitor holding a credential has "the credential expired"
     among its failure modes, and `/healthz` returns a status and nothing about the incidents."""
@@ -607,6 +626,7 @@ def test_the_uptime_check_would_notice_more_than_the_process_being_alive() -> No
     assert "/healthz" in script
     assert "/api/v1/incidents" in script, "liveness alone would miss an unmounted read surface"
     assert "/api/v1/alerts" in script, "nothing else would notice the receiver going public"
+    assert "/metrics" in script, "nothing else would notice the metrics surface going public"
 
 
 def test_an_unconfigured_uptime_check_skips_rather_than_failing_forever() -> None:
