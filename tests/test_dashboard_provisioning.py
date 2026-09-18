@@ -24,10 +24,15 @@ from injector.settings import InjectorSettings
 REPO_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = REPO_ROOT / "scripts" / "provision_dashboards.py"
 DASHBOARDS = sorted((REPO_ROOT / "compose" / "dashboards").glob("*.json"))
+SELF_DASHBOARD = REPO_ROOT / "compose" / "dashboards" / "faultline-self.json"
 
 ALLOWED_BASES = {"http://localhost:3000/grafana", "http://localhost:3000"}
 ALLOWED_PATHS = {"/api/health", "/api/dashboards/db"}
 PINNED_DATASOURCE_UID = "webstore-metrics"
+PINNED_DATASOURCES = {"prometheus": PINNED_DATASOURCE_UID, "loki": "loki", "tempo": "tempo"}
+"""One uid per datasource type, each provisioned as a file: the demo's Prometheus, and this
+repository's Loki (T1.2) and Tempo (T6.1) datasource files. A panel pointing anywhere else is
+blank. `text` panels have no datasource and are exempt."""
 
 
 def _string_constants(source: str) -> set[str]:
@@ -115,13 +120,90 @@ def test_every_dashboard_is_valid_json_with_an_identity() -> None:
         assert dashboard.get("panels")
 
 
-def test_every_panel_uses_the_pinned_prometheus_datasource() -> None:
-    """The demo provisions Prometheus at a fixed uid; a panel pointing anywhere else is blank."""
+def test_every_panel_uses_a_pinned_datasource_of_its_own_type() -> None:
+    """The demo provisions Prometheus at a fixed uid, and T6.6's self dashboard adds one Loki and
+    one Tempo panel at the uids this repository's own datasource files pin. A panel pointing
+    anywhere else is blank. Until T6.6 every panel was Prometheus and the assertion said so."""
     for path in DASHBOARDS:
         for panel in json.loads(path.read_text())["panels"]:
-            assert panel["datasource"]["uid"] == PINNED_DATASOURCE_UID, panel["title"]
+            if panel["type"] == "text":
+                assert "datasource" not in panel and "targets" not in panel, panel["title"]
+                continue
+            kind = panel["datasource"]["type"]
+            assert panel["datasource"]["uid"] == PINNED_DATASOURCES[kind], panel["title"]
             for target in panel["targets"]:
-                assert target["datasource"]["uid"] == PINNED_DATASOURCE_UID, panel["title"]
+                assert target["datasource"] == panel["datasource"], panel["title"]
+
+
+def test_the_pinned_uids_are_the_ones_the_datasource_files_provision() -> None:
+    """The dashboard names `loki` and `tempo`; the files under `compose/` are where those uids
+    are set. A rename on either side leaves a blank panel, so the two are held together here."""
+    for name, uid in (("loki", "loki"), ("tempo", "tempo")):
+        text = (REPO_ROOT / "compose" / f"grafana-{name}-datasource.yml").read_text()
+        assert f"uid: {uid}" in text, name
+        assert PINNED_DATASOURCES[name] == uid
+
+
+def test_the_self_dashboard_shows_what_metrics_exposes_and_nothing_else() -> None:
+    """**Piece 5 reads piece 3.** Every `faultline_` series a panel queries is one `/metrics`
+    serves, spelled from `observability.metrics.NAMESPACE`; a panel over a series that does not
+    exist is blank, and a series nobody shows is a scrape for nothing."""
+    import re
+
+    from faultline.observability import metrics
+
+    exposed = {
+        f"{metrics.NAMESPACE}_{suffix}"
+        for suffix in (
+            "incidents_queued",
+            "investigations_active",
+            "investigations_total",
+            "investigation_seconds_bucket",
+            "model_tokens_total",
+            "model_usd_total",
+        )
+    }
+    dashboard = json.loads(SELF_DASHBOARD.read_text())
+    queried = {
+        name
+        for panel in dashboard["panels"]
+        if panel.get("datasource", {}).get("type") == "prometheus"
+        for target in panel["targets"]
+        for name in re.findall(rf"{metrics.NAMESPACE}_[a-z_]+", target["expr"])
+    }
+
+    assert queried == exposed, f"missing: {exposed - queried}, unknown: {queried - exposed}"
+
+
+def test_the_self_dashboard_says_why_its_prometheus_panels_may_be_empty() -> None:
+    """Nothing scrapes `/metrics` until Q73 lands, because the scrape job is digest-locked. A
+    dashboard that was blank without saying why would read as broken; this one says so on the
+    screen, and names the row."""
+    dashboard = json.loads(SELF_DASHBOARD.read_text())
+    notes = [p for p in dashboard["panels"] if p["type"] == "text"]
+
+    assert notes and "Q73" in notes[0]["options"]["content"]
+    assert "observability_digest" in notes[0]["options"]["content"]
+
+
+def test_the_loki_datasource_links_trace_ids_to_the_tempo_uid() -> None:
+    """Piece 4 puts `trace_id` on the line; this is the half that makes it a link. The regex
+    reads the JSON field, not free text, and the target is the uid `grafana-tempo-datasource.yml`
+    pins - which `test_the_pinned_uids_are_the_ones_the_datasource_files_provision` guards."""
+    import re
+
+    text = (REPO_ROOT / "compose" / "grafana-loki-datasource.yml").read_text()
+
+    assert "derivedFields" in text
+    assert "datasourceUid: tempo" in text
+    match = re.search(r"matcherRegex: '(.+)'", text)
+    assert match
+    pattern = match.group(1)
+    trace_id = "e420efea2fe46357cc202aaf0a53802e"
+    line = f'{{"ts": "t", "msg": "m", "trace_id": "{trace_id}", "span_id": "a1"}}'
+    found = re.search(pattern, line)
+    assert found and found.group(1) == trace_id
+    assert "$${__value.raw}" in text, "a single $ is expanded by Grafana's provisioning and lost"
 
 
 def test_the_dashboard_stays_tied_to_the_alert_rules() -> None:

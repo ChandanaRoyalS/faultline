@@ -10,3 +10,14 @@ datasources:
     url: http://loki:3100
     isDefault: false
     editable: false
+    # T6.6 piece 4/5 - a `trace_id` on a log line is a link to that trace in Tempo. The daemons
+    # write one JSON object per line with `trace_id` set when a span was in scope, so the regex
+    # reads the field, not free text. `$$` is how a provisioning file writes a literal `$`:
+    # Grafana expands `$VAR` in these files, and `${__value.raw}` must survive to the datasource.
+    # Outside every digest by the decision `evalharness.provenance` records: a human reads this.
+    jsonData:
+      derivedFields:
+        - name: trace_id
+          matcherRegex: '"trace_id":\s*"([0-9a-f]{32})"'
+          url: '$${__value.raw}'
+          datasourceUid: tempo
