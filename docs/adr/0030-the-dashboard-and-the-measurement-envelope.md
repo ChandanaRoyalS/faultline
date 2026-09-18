@@ -150,3 +150,44 @@ on a pull request with no key and no cost before a scheduled workflow spends mon
 The third thing proposed for this path, whenever it comes, should read this addendum as the bar:
 a recorded, generation-separated, one-line change that turns *no world* into *a world*, argued in
 the file's own header. Anything less than that is the moment the original text was written for.
+
+## Addendum 3 — 2026-09-18: one datasource joins the path, and why it is the same class of thing
+
+**The occasion.** T6.6 gave the API a `/metrics` surface and a dashboard with panels over it, and
+nothing scraped it (Q73). The obvious four lines - a scrape job in
+`compose/prometheus/prometheus-config.yaml` - are inside `observability_digest`, which
+`generations.CURRENT_OBSERVABILITY` pins for the headline table. Landing them would have cost either
+every recorded figure its stamp or every future run its admission, for a change no bundle can
+observe. The `up`-count argument (`evalharness.run` counts scrapes across that Prometheus' targets,
+so the target set *is* a measurement input) says the digest was right to include the file; it does
+not say the platform's counters belong in it. They do not, for a third reason the first two hide:
+the agent's `promql_query` reads that Prometheus, and an agent that can read its own spend and
+outcome counters has been handed something no specialist should see.
+
+**The decision.** The platform watches itself with its own Prometheus - `prometheus-self`, on the
+platform's compose project in development and in `deploy/compose.yml` on the VM, scraping the
+platform's `/metrics` and nothing else. The world's telemetry stack is untouched. Grafana reads it
+through a datasource that `scripts/provision_dashboards.py` pushes over the API beside the
+dashboards, under the uid the dashboard's panels name.
+
+**Why the datasource belongs on this path and not in `telemetry.yml`.** This ADR's argument was
+classification: what belongs inside the digest is what can move a recorded measurement, and a
+human-facing viewing surface cannot. A datasource pointing at a Prometheus the agent never
+queries is that surface's other half. Mounting it through `telemetry.yml` would move
+`compose_digest` mechanically while nothing measurable moved - the exact case the original text
+declined. The inconsistency the original text named - the Loki datasource file *is* inside the
+envelope - stands and now has a third instance on the other side of it, which is the honest
+description of where the line was drawn when each file arrived.
+
+**The guard, extended rather than relaxed.** `tests/test_dashboard_provisioning.py`'s allowed API
+surface widens by exactly one resource - `/api/datasources` and `/api/datasources/uid/` - and the
+test's own docstring says the next addition is the moment this path is being routed around rather
+than extended. The datasource's address is a value posted to Grafana, never a host the script
+contacts, and a test distinguishes the two. The script still may not import `os` or `subprocess`,
+write a file, or name a digest-covered file in code. `isDefault` stays false: the demo's own
+Prometheus is what a person expects Explore to open.
+
+**What a reader of this addendum should check.** That `compose/prometheus/self.yaml` is not in
+`OBSERVABILITY_FILES` (a test holds it); that the dashboard's Prometheus panels all read
+`faultline-self-metrics` (a test holds it); and that the world's `prometheus-config.yaml` carries
+no `faultline` job, which is the one thing this addendum promises will stay true.

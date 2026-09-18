@@ -137,9 +137,18 @@ services:
       - default
       - faultline
 
-  # Not on the platform's network - nothing queries them across projects - but they did not survive
-  # the reboot either. Grafana is what a citation click lands in; promtail is how logs reach Loki.
+  # Grafana joins the platform's network since T6.6 / Q73: the `faultline-self-metrics` datasource
+  # `scripts/provision_dashboards.py` pushes reads the platform's own Prometheus at
+  # `http://prometheus-self:9090`, which lives on the platform's project. Nothing on the platform
+  # queries Grafana; this is Grafana reading the platform. `default` too, for the reason the
+  # services above spell out - an explicit list replaces the implicit membership.
   grafana:
     restart: always
+    networks:
+      - default
+      - faultline
+
+  # Not on the platform's network - nothing queries it across projects - but it did not survive the
+  # reboot either. Promtail is how logs reach Loki.
   promtail:
     restart: always

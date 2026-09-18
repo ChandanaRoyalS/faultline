@@ -23,7 +23,7 @@
       "description": "From the incident store, in memory, on each scrape - a gauge that mirrors state rather than a counter that drifts from it.",
       "datasource": {
         "type": "prometheus",
-        "uid": "webstore-metrics"
+        "uid": "faultline-self-metrics"
       },
       "gridPos": {
         "h": 4,
@@ -35,7 +35,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "webstore-metrics"
+            "uid": "faultline-self-metrics"
           },
           "expr": "faultline_incidents_queued",
           "refId": "A",
@@ -81,7 +81,7 @@
       "description": "In-flight now, from the incident store. Compare with the `running` line in the outcomes panel: that one is the trajectory table, and a killed run leaves a row there that reads as running forever (Q72). The two disagreeing is a finding, not a rendering error.",
       "datasource": {
         "type": "prometheus",
-        "uid": "webstore-metrics"
+        "uid": "faultline-self-metrics"
       },
       "gridPos": {
         "h": 4,
@@ -93,7 +93,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "webstore-metrics"
+            "uid": "faultline-self-metrics"
           },
           "expr": "faultline_investigations_active",
           "refId": "A",
@@ -139,7 +139,7 @@
       "description": "Every trajectory row with an outcome, lifetime. The surface re-reads the tables on each scrape, so this is the database's count, not a process counter.",
       "datasource": {
         "type": "prometheus",
-        "uid": "webstore-metrics"
+        "uid": "faultline-self-metrics"
       },
       "gridPos": {
         "h": 4,
@@ -151,7 +151,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "webstore-metrics"
+            "uid": "faultline-self-metrics"
           },
           "expr": "sum(faultline_investigations_total{outcome!=\"running\"})",
           "refId": "A",
@@ -197,7 +197,7 @@
       "description": "Lifetime, derived at scrape time from the trajectory steps' token counts and AgentSettings' price table - so a price change re-prices history consistently. Not an eval score: those never cross this surface.",
       "datasource": {
         "type": "prometheus",
-        "uid": "webstore-metrics"
+        "uid": "faultline-self-metrics"
       },
       "gridPos": {
         "h": 4,
@@ -209,7 +209,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "webstore-metrics"
+            "uid": "faultline-self-metrics"
           },
           "expr": "faultline_model_usd_total",
           "refId": "A",
@@ -255,7 +255,7 @@
       "description": "Raw values, not `increase()`: every label but `running` is monotonic, and `running` is not - it falls when a run finishes - so counter arithmetic would lie about it. `baseline`, `smoke` and `stage1` are kinds of run rather than outcomes; the column does double duty for anything that was not an agent investigation.",
       "datasource": {
         "type": "prometheus",
-        "uid": "webstore-metrics"
+        "uid": "faultline-self-metrics"
       },
       "gridPos": {
         "h": 8,
@@ -267,7 +267,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "webstore-metrics"
+            "uid": "faultline-self-metrics"
           },
           "expr": "faultline_investigations_total",
           "legendFormat": "{{outcome}}",
@@ -311,7 +311,7 @@
       "description": "Over the cumulative buckets, not a rate: the histogram is the whole table on every scrape. Edges 30s..900s; the first traced run took 4m21s and the lifetime mean is under four minutes, so the 180-300s edges are where the mass resolves.",
       "datasource": {
         "type": "prometheus",
-        "uid": "webstore-metrics"
+        "uid": "faultline-self-metrics"
       },
       "gridPos": {
         "h": 8,
@@ -323,7 +323,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "webstore-metrics"
+            "uid": "faultline-self-metrics"
           },
           "expr": "histogram_quantile(0.50, faultline_investigation_seconds_bucket)",
           "legendFormat": "p50",
@@ -332,7 +332,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "webstore-metrics"
+            "uid": "faultline-self-metrics"
           },
           "expr": "histogram_quantile(0.95, faultline_investigation_seconds_bucket)",
           "legendFormat": "p95",
@@ -376,7 +376,7 @@
       "description": "Summed from trajectory_steps on each scrape. Flat at zero between runs, which is the correct reading of a system that spends only when investigating.",
       "datasource": {
         "type": "prometheus",
-        "uid": "webstore-metrics"
+        "uid": "faultline-self-metrics"
       },
       "gridPos": {
         "h": 8,
@@ -388,7 +388,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "webstore-metrics"
+            "uid": "faultline-self-metrics"
           },
           "expr": "rate(faultline_model_tokens_total{direction=\"in\"}[15m]) * 60",
           "legendFormat": "in",
@@ -397,7 +397,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "webstore-metrics"
+            "uid": "faultline-self-metrics"
           },
           "expr": "rate(faultline_model_tokens_total{direction=\"out\"}[15m]) * 60",
           "legendFormat": "out",
@@ -441,7 +441,7 @@
       "description": "The same price table as the spend stat. T6.5's sixty runs came to $44.79; a sweep in flight reads as a step here.",
       "datasource": {
         "type": "prometheus",
-        "uid": "webstore-metrics"
+        "uid": "faultline-self-metrics"
       },
       "gridPos": {
         "h": 8,
@@ -453,7 +453,7 @@
         {
           "datasource": {
             "type": "prometheus",
-            "uid": "webstore-metrics"
+            "uid": "faultline-self-metrics"
           },
           "expr": "rate(faultline_model_usd_total[1h]) * 3600",
           "legendFormat": "USD/h",
@@ -564,7 +564,7 @@
     {
       "id": 11,
       "type": "text",
-      "title": "Why the Prometheus panels may be empty",
+      "title": "Where these numbers come from",
       "gridPos": {
         "h": 5,
         "w": 24,
@@ -573,7 +573,7 @@
       },
       "options": {
         "mode": "markdown",
-        "content": "**`/metrics` is served and nothing scrapes it yet.** The scrape job belongs in `compose/prometheus/prometheus-config.yaml`, which is inside `observability_digest`, and the harness reads that Prometheus' target set as a measurement (`max(count_over_time(up[...]))` counts scrapes). A digest-locked change queues rather than lands: **Q73** in `docs/QUEUE.md`. Until it lands, `curl -s <api>/metrics` reads the same numbers directly. The Loki and Tempo panels do not depend on it."
+        "content": "**The platform's own Prometheus, not the world's.** `prometheus-self` (in `docker-compose.yml` and `deploy/compose.yml`) scrapes the API's `/metrics` every 15s; the datasource `faultline-self-metrics` that these panels read is pushed by `scripts/provision_dashboards.py` beside this dashboard, outside every digest (ADR-0030, addendum for Q73). The world's Prometheus - the one the agent queries and the harness measures - carries none of this, so the agent cannot read its own spend, and no recorded figure moved to make these panels light up. `/metrics` itself sits outside the API credential and is closed at the edge by Caddy; this Prometheus is its only reader. Empty panels here mean `prometheus-self` is not running (`make up`) or cannot reach the API (`up{job=\"faultline\"}` in Explore says which)."
       }
     }
   ]

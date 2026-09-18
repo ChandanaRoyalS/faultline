@@ -494,7 +494,8 @@ def world() -> dict:
 
 
 @pytest.mark.parametrize(
-    "service", ["alertmanager", "prometheus", "loki", "tempo", "frontendproxy", "otelcol"]
+    "service",
+    ["alertmanager", "prometheus", "loki", "tempo", "frontendproxy", "otelcol", "grafana"],
 )
 def test_every_service_the_platform_talks_to_shares_its_network(world: dict, service: str) -> None:
     """Two compose projects, one network. The orchestrator queries four of these (Tempo since
@@ -746,6 +747,32 @@ def test_the_image_installs_the_sdk_the_endpoint_needs() -> None:
 
     assert syncs and all("--extra observability" in ln for ln in syncs), syncs
     assert "--extra observability" in makefile_recipe("install"), "the same sentence as the image"
+
+
+def test_the_platform_has_its_own_prometheus_and_grafana_can_reach_it(
+    compose: dict, world: dict
+) -> None:
+    """**Q73.** The platform's `/metrics` is scraped by a Prometheus on the platform's project,
+    not by the world's - whose config is inside `observability_digest`, whose target set the
+    harness measures, and which the agent queries. Grafana joins the platform's network to read
+    it; nothing on the platform reads Grafana. No `ports:`: Caddy forwards nothing to it and the
+    API's `/metrics` is already closed at the edge."""
+    service = compose["services"]["prometheus-self"]
+
+    assert "ports" not in service
+    assert "faultline" in service["networks"]
+    assert any(v.startswith("../deploy/prometheus-self.yaml:") for v in service["volumes"])
+    assert service.get("restart") == "unless-stopped"
+    assert "faultline" in world["services"]["grafana"]["networks"]
+    assert "default" in world["services"]["grafana"]["networks"]
+
+
+def test_the_readme_provisions_the_datasource_with_the_deployment_s_url() -> None:
+    """The script's default is Docker Desktop's name for the host, which resolves to nothing on
+    the VM; the README has to pass the container's name or the dashboard is blank there."""
+    readme = (DEPLOY / "README.md").read_text()
+
+    assert "--self-metrics-url http://prometheus-self:9090" in readme
 
 
 # --- T6.2: the one container that can act ---------------------------------------------------------

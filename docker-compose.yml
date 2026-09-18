@@ -65,6 +65,29 @@ services:
       timeout: 3s
       retries: 10
 
+  prometheus-self:
+    # T6.6 / Q73: the platform's own Prometheus, scraping the platform's own `/metrics` (piece 3).
+    # **Its own, not the world's** - `compose/prometheus/self.yaml` carries the argument: the
+    # world's Prometheus config is inside `observability_digest`, the harness reads that target
+    # set as a measurement, and the agent's own counters must not be one `promql_query` away from
+    # the agent. This service is deployment configuration on the platform's project, the same
+    # standing as postgres above; editing it invalidates no recorded bundle.
+    #
+    # 9091 on the host, because 9090 is the world's Prometheus. Grafana - the world's - reaches it
+    # here at `host.docker.internal:9091` through the datasource `scripts/provision_dashboards.py`
+    # pushes, the way it pushes the dashboards (ADR-0030). `extra_hosts` gives the scrape target's
+    # name a meaning on a Linux host, where Docker Engine does not define it; on Docker Desktop
+    # the entry is redundant and harmless (compose/linux-host-gateway.override.yml explains).
+    image: prom/prometheus:v2.54.1
+    profiles: ["platform"]
+    ports: ["9091:9090"]
+    volumes: ["./compose/prometheus/self.yaml:/etc/prometheus/prometheus.yml:ro"]
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+      - --web.enable-lifecycle
+    extra_hosts: ["host.docker.internal:host-gateway"]
+
   # T1.1-T1.3 add here (world profile): OpenTelemetry demo services, Prometheus, Loki,
   # Grafana, Alertmanager. Deliberately absent until Phase 1 - see the execution plan.
 

@@ -270,7 +270,14 @@ docker compose \
   -f ../compose/telemetry.yml \
   -f ../deploy/compose.world.yml \
   up -d --no-build
+cd ~/faultline && uv run python scripts/provision_dashboards.py --self-metrics-url http://prometheus-self:9090
 ```
+
+The last line is T6.6 / Q73's: `make world-up` pushed the dashboards with the *development*
+address for the platform's own Prometheus (`host.docker.internal:9091`, which resolves to nothing
+on the VM), and this re-pushes the `faultline-self-metrics` datasource with the container's name
+on the shared network. Idempotent, like the dashboards. `compose.world.yml` puts Grafana on that
+network for exactly this read; `prometheus-self` itself is in `compose.yml` and came up in §3.3.
 
 **`world-arm64.override.yml` stays, and the first version of this section said to drop it.** Its
 name is misleading. Kafka's heap cap and `MALLOC_ARENA_MAX` fix a glibc arena problem on any Linux
@@ -368,8 +375,10 @@ docker compose exec faultline python -c "import urllib.request; print(urllib.req
 `metrics: prometheus_client not installed` means the image was built without the `observability`
 extra. After the injected fault above, the incident page carries a `trace …` link in its header
 that opens the investigation's waterfall in Grafana with the run's own range set. The dashboard
-`/grafana/d/faultline-self` shows the same numbers — except its Prometheus panels, which stay
-empty until Q73 lands the scrape job, and say so.
+`/grafana/d/faultline-self` shows the same numbers, read from the platform's own Prometheus
+(`prometheus-self`, §3.4's last line) - never from the world's, whose config is digest-locked and
+whose queries the agent can see (Q73). `up{job="faultline"}` in Explore on the
+`Faultline self-metrics` datasource is 1 when the scrape is reaching the API.
 
 ### 3.6a Changing the Caddyfile
 
