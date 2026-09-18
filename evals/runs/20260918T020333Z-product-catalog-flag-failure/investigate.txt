@@ -1,0 +1,38 @@
+incident 64c90578-74bb-4471-b671-2ce3c45fae44  state triaging  anchor 02:07:00
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: ea64ff66-4432-4d18-8063-fd22f66004d6
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical severity with near-simultaneous alerts on frontend and productcatalogservice plus the load generator indicates a real user-facing failure, not a single quiet latency warning. No open incidents to attribute it to, and the alert pattern alone does not distinguish a deploy, config, or downstream latency cause.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : Two things would falsify this abstention and should be checked before anyone accepts it. (1) A change-history query for productcatalogservice over the hours *before* 02:07 — both existing queries started at onset and only looked forward, so they establish nothing about the flip [tr_ae444808eb01, tr_08c3f30a364d] — returning a recorded flag or config change with a prior value would satisfy revert_config's preconditions and make a config_revert on productcatalogservice the correct proposal. (2) A re-query of productcatalogservice logs with the correct label value (the earlier attempt used 'product-catalog-service' and matched zero lines, a selector bug rather than an absence of logs [tr_1af498671872]) plus inspection of featureflagservice's flag store would locate where the value actually lives. If the flag value is stored in featureflagservice rather than in productcatalogservice's own environment, then no permitted action on any service in this blast radius reverts it — featureflagservice is not in the legal target list at all — and the fix is outside this system's reach regardless of confidence in the diagnosis. Also note the unexplained gap: logs show a sustained condition from 02:03:54 while traces place errors only in the last ~2 seconds of the window and metrics show no departure from baseline peaks; that inconsistency is unresolved and argues for probabilistic or product-ID-scoped firing, which affects how any fix would be verified.
+  rests on    : tr_ae444808eb01, tr_08c3f30a364d, tr_1af498671872, tr_b9d2da652e80, tr_c589e8868180
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 24877 pushed / 5969 pulled (pull rate 0.1935), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_config
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_b9d2da652e80, tr_c589e8868180, tr_b297be64c1d7, tr_a5b285673559, tr_ae444808eb01
+  root cause  : productcatalogservice's GetProduct handler is deliberately returning gRPC INTERNAL because a 'product catalog fail' feature flag is enabled. frontend's error lines name productcatalogservice as the callee, carry the flag's own message, and consist of client-side receive-status frames, so frontend is relaying a status authored downstream [tr_b9d2da652e80]. Traces place the error on the productcatalogservice server span for GetProduct, caller-independent (both frontend- and checkoutservice-initiated), with a fast successful FeatureFlagService/GetFlag child — so the flag lookup is healthy and the handler is not slow or saturated [tr_c589e8868180]. The flag value itself is the failing mechanism. Failure is partial (sibling GetProduct calls succeeded, ListProducts clean), matching the modest service error ratio [tr_b297be64c1d7]. No change is recorded for the service, but the change window begins at onset and looks only forward, so the flip is unlocated rather than disproven [tr_ae444808eb01, tr_08c3f30a364d].
+  OPEN        : Who enabled the flag and when: both change queries covered onset forward 24h and returned nothing, giving no visibility into the hours before 02:07 [tr_ae444808eb01, tr_08c3f30a364d].
+  OPEN        : Where the flag value lives and must be reverted — featureflagservice's store was never inspected, and productcatalogservice's own logs were missed due to a wrong label selector [tr_1af498671872].
+  OPEN        : Why quantitative signals are muted (sub-0.5% error ratio, peak no above baseline [tr_b297be64c1d7]) while logs show a sustained condition from ~02:03:54 [tr_b9d2da652e80] — suggests probabilistic or product-ID-scoped firing; also loadgenerator alerted first and was never examined.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-redis-misconfig', 'scenario:payment-telemetry-blackout', 'scenario:product-catalog-flag-failure', 'scenario:shipping-quote-misconfig'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260918T020333Z-product-catalog-flag-failure/64c90578-74bb-4471-b671-2ce3c45fae44-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260918T020333Z-product-catalog-flag-failure/64c90578-74bb-4471-b671-2ce3c45fae44-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10594.79it/s]

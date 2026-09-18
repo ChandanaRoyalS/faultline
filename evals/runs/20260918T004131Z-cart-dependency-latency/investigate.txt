@@ -1,0 +1,38 @@
+incident 2cfe49ce-693a-48bc-8c9e-26ff8894b762  state triaging  anchor 00:45:15
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: fbc89e35-8f7f-4acc-91c2-69ce7c2cf2d1
+triage judged: investigate (medium confidence, suspects dependency_latency)
+  Multiple services alerted within 15 seconds starting at cartservice and spreading up through checkout and frontend, which is a propagating failure rather than a single quiet warning. No open incident covers it, so it warrants investigation with cartservice and its backing store as the first thread.
+investigation: 2 round(s), 6 dispatch(es), 20 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : If the shaping container is in fact bound to cartservice's recorded container configuration, then a revert_config would clear the ~300ms per-call penalty in cart traces within ~2 minutes; that would show abstention was too conservative. Confirm by checking whether the netns attachment is listed in cartservice's stored config, and whether cart traces still carry ~300ms now (cart traces at 00:46:09 still did, while checkout's tail looks recovered).
+  rests on    : tr_d4304d852c3c, tr_bb25958836ff, tr_7f11aad5b931
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 26533 pushed / 7414 pulled (pull rate 0.2184), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_d4304d852c3c, tr_bb25958836ff, tr_486ff2e60d91, tr_7f11aad5b931, tr_14cf4af246df
+  root cause  : A traffic-shaping container was attached to cartservice's network namespace by platform-automation about three minutes before onset, injecting a fixed ~300ms egress delay with zero jitter on eth0, and it was never removed [tr_d4304d852c3c]. Every sampled cartservice trace shows that exact signature: a uniform ~300-311ms penalty per call leg, identical for cheap reads and writes, with handler self-time under ~2ms and the same increment on the frontend's client span to CartService [tr_bb25958836ff]. Because the cost is per-call, latency scales linearly with call count (single-read flows ~605ms, AddItem flows ~1.5s) and propagates to callers: checkoutservice PlaceOrder stages that completed in tens of milliseconds early in the window are separated by roughly a second in the tail [tr_486ff2e60d91], and its error ratio sits in an elevated bursty regime with most requests still succeeding, consistent with timeouts on slow cart calls [tr_7f11aad5b931]. cartservice itself is otherwise healthy: no crash loop, no startup or cache errors, still serving traffic at window close [tr_14cf4af246df], and no error status on any sampled span [tr_bb25958836ff].
+  OPEN        : checkoutservice's error change point is ~00:23, about 19 minutes before the shaping container was attached [tr_7f11aad5b931, tr_d4304d852c3c]; the delay cannot explain error elevation that predates it, so an earlier automation action or a second overlapping fault may be involved.
+  OPEN        : No log lines from the 00:45:15-00:45:30 onset interval were returned for either service - both results were truncated [tr_14cf4af246df, tr_486ff2e60d91] - so the failure mode at the alert moment (timeout vs refused vs application error) is unobserved.
+  OPEN        : cartservice's own error ratio, latency, restart and saturation metrics are unmeasured [tr_d9a7131639af], and whether the shaping container is still attached now is unconfirmed: checkout's tail looks recovered [tr_486ff2e60d91] while cart traces at 00:46:09 still carry the full penalty [tr_bb25958836ff].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-dependency-latency', 'scenario:redis-cart-dependency-latency'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260918T004131Z-cart-dependency-latency/2cfe49ce-693a-48bc-8c9e-26ff8894b762-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260918T004131Z-cart-dependency-latency/2cfe49ce-693a-48bc-8c9e-26ff8894b762-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 9681.40it/s]

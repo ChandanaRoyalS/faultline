@@ -1,0 +1,46 @@
+incident 536f60d8-36c0-4993-a14c-634293838d43  state triaging  anchor 01:25:15
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 013c71cc-7222-4c08-995f-35c3b8a794c7
+triage judged: investigate (medium confidence, suspects unknown)
+  A single critical-severity alert on frauddetectionservice with no open incidents to attribute it to; critical severity is not dismissible without evidence. Nothing in the alert pattern points to a specific fault class yet.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : frauddetectionservice
+  expect      : Restoring the pre-01:19:06 resource configuration (memory limit back to its prior value) and recreating the container should end the crash loop. Observable in Loki on {service="frauddetection-service"}: the JVM/OTel startup triple (JAVA_TOOL_OPTIONS pickup, class-sharing warning, javaagent banner) stops recurring after one final post-recreate occurrence — no further startup triples at the ~62s cadence seen at 01:20:16 through 01:26:20 — and the steady-state line 'Consumed record with orderId: ..., and updated total count to: N' reappears with a monotonically incrementing counter, as it did through 00:55:52. Two clean minutes with consumption lines and no new startup banner is the pass condition. Container restart-count metrics would confirm it independently if they exist, but none were ever queried [tr_3a97ddc6f233], and the error-ratio series is empty in both baseline and incident windows, so error ratio cannot be used to confirm anything here.
+  within      : 300s
+  risk        : If the real killer is a liveness probe whose threshold the JVM cannot meet, this change restores memory headroom, quiets the loop, and hides a probe misconfiguration that will fire again under any slow start. The recreate itself restarts the process, which briefly masks the fault regardless of whether the config was the cause — so a short quiet period alone is not evidence; wait the full confirmation window. The revert also fights the automation that owns this value: if platform-automation is mid-cycle it may re-lower the limit, producing flapping config and a second outage that looks unrelated. And recreating the container discards in-process state and loses the live crash-looping instance, destroying the chance to read last-terminated-reason from it.
+  blast radius: One service, frauddetectionservice, for the duration of the recreate. It is the only service in this incident's blast radius. checkoutservice is the upstream order producer, and its synchronous path completed orders with contiguous queue-write offsets right through 01:26:55 [tr_1ba4efbbb4c2], so it should see no change during the recreate — the fraud check is consumed asynchronously off the queue. The unmeasured consequence is the backlog of unprocessed order records that accumulated since ~01:19; when the consumer comes back it will drain that backlog, and the resulting burst of consumption may itself stress the service. Nobody downstream of the fraud check is named in this brief, so who notices the backlog clearing is unknown.
+  if wrong    : If the startup triple keeps recurring at ~62s intervals after the revert lands, the memory ceiling is not the proximate killer and the diagnosis is wrong — the near-constant 62s period already fits a fixed-period liveness-probe kill better than an OOM kill, whose interval would vary with allocation rate [tr_a0b113bbadc9]. A second falsifier: if consumption lines never resume even though the restarts stop, the process is failing to reach working state for a reason unrelated to the limit (e.g. a broker or dependency problem invisible in these logs). A third: if the loop stops for a few minutes and then resumes, platform-automation has re-applied the lowering on its own cadence [tr_d49b790390e0] and the fix is durable only until the next cycle. Note the kill mechanism was never directly observed — working-set bytes versus the 200m limit, restart counts, and last-terminated-reason were never queried [tr_3a97ddc6f233] — so this proposal is a test of an inference, not a confirmed cause.
+  rests on    : tr_d49b790390e0, tr_a0b113bbadc9, tr_1ba4efbbb4c2
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 21666 pushed / 4902 pulled (pull rate 0.1845), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : resource_exhaustion
+  fix class   : config_revert
+  confidence  : medium
+  evidence    : tr_d49b790390e0, tr_a0b113bbadc9, tr_1ba4efbbb4c2, tr_5a491baa21b4, tr_3a97ddc6f233
+  root cause  : At 01:19:06, roughly six minutes before the alert, platform-automation lowered the memory limit on frauddetection-service to 200m [tr_d49b790390e0]. The service, which had been consuming order records normally through at least 00:55:52, stopped doing productive work from ~01:19 onward and entered a sustained restart loop: the same JVM/OTel-agent startup triple reappears at 01:20:16, 01:21:09, 01:22:11, 01:23:14, 01:24:16, 01:25:18 and 01:26:20, with no application exceptions, no stack traces and no shutdown or graceful-stop lines between iterations [tr_a0b113bbadc9]. That signature — a working process that begins dying abruptly and externally minutes after its memory ceiling was cut, never reaching working state again — is the container being killed for exceeding the newly constrained limit. The failing mechanism is the process running out of the memory it needs and being terminated for it; the limit edit is how it started, exhaustion is what is happening. Blast radius is contained: checkoutservice's synchronous order path continued completing orders with contiguous queue-write offsets right through 01:26:55 [tr_1ba4efbbb4c2], so frauddetectionservice is the failing service and not merely the one that noticed.
+  OPEN        : No container-level evidence was ever gathered: working-set bytes versus the 200m limit, restart counts, and last-terminated-reason (OOMKilled vs. probe failure) remain unqueried [tr_3a97ddc6f233], so the kill mechanism is inferred rather than observed.
+  OPEN        : The near-constant ~62s restart interval is unusual for OOM kills, which typically vary with allocation rate, and the logs specialist noted it fits a fixed-period health-check kill better than backoff [tr_a0b113bbadc9]. Whether a liveness probe is the proximate killer — possibly because the JVM cannot warm up within its threshold under 200m — is unsettled.
+  OPEN        : The same lowering occurred five times over the preceding 20 hours without a recorded incident [tr_d49b790390e0]. What differs about this instance — traffic level, heap growth, or simply that it was not reverted on schedule — is unexplained.
+  OPEN        : The error-ratio series for this service is empty across six hours of baseline as well as the incident window [tr_3a97ddc6f233]. That instrumentation gap predates the incident and is itself unexplained; it may be hiding prior occurrences of this failure.
+  OPEN        : Downstream consequence is unmeasured: checkout's logs never name the fraud-check dependency [tr_1ba4efbbb4c2], so the backlog of unprocessed order records accumulating during the loop, and when it would surface, is unknown.
+  OPEN        : Whether the automation that toggles this limit will revert it on its own cadence, or has stalled mid-cycle, was not established.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:ad-memory-squeeze', 'scenario:frauddetection-memory-squeeze'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260918T011902Z-frauddetection-memory-squeeze/536f60d8-36c0-4993-a14c-634293838d43-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260918T011902Z-frauddetection-memory-squeeze/536f60d8-36c0-4993-a14c-634293838d43-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8869.45it/s]

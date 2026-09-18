@@ -1,0 +1,171 @@
+{
+  "incident_id": "971b73a0-4d72-4867-b705-e9a957a5ca46",
+  "trajectory_id": "0b23b813-cab9-4536-8b40-016633ae0ca3",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:cart-bad-image-tag",
+    "scenario:shipping-wrong-image"
+  ],
+  "verdict": {
+    "root_cause": "Platform-automation updated the cartservice image reference to a hotfix tag at 00:21:35 and, uniquely among the 33 changes in the window, never reverted it [tr_ea6aa6500bb0]. cartservice's log stream ends at that exact moment with an orderly .NET hosting-lifetime shutdown banner and no subsequent startup banner [tr_1dd11f2bccf7] \u2014 the old container stopped for the image swap and the replacement never came up serving. Thereafter every checkoutservice error trace terminates at the outbound CartService/GetCart client span, all self-time, with no cartservice server-side child span at all, and checkout aborts in cart preparation before payment, shipping, email or the orders publish [tr_3a1f2f231d57]. That error propagates unchanged to frontend and loadgenerator, explaining the simultaneous alerts, while checkoutservice itself shows no local fault. The mechanism is that the artifact now referenced for cartservice is not running and serving: a bad deploy on cartservice.",
+    "service": "cartservice",
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "confidence": "high",
+    "evidence": [
+      "tr_ea6aa6500bb0",
+      "tr_1dd11f2bccf7",
+      "tr_3a1f2f231d57"
+    ],
+    "reasoning": "Three signals converge on 00:21:35: an unreverted cartservice image update [tr_ea6aa6500bb0], a graceful cartservice shutdown with no restart following it [tr_1dd11f2bccf7], and checkout errors whose only ERROR leaf is the GetCart call with no server-side counterpart, locating the break on the unmeasured checkoutservice->cartservice edge rather than inside cartservice's Redis work [tr_3a1f2f231d57]. Competing mechanisms on cartservice were closed: the REDIS_ADDR:6380 edit and the 300ms eth0 traffic-shaping container were both reverted hours before onset [tr_ea6aa6500bb0]. checkoutservice as origin was excluded three ways: no deploys or config edits against it [tr_7395d0a20a50], no non-info log lines and one continuously-running process since its unrelated 23:55 Kafka restart [tr_2e816159d37b], and an incident-window error ratio below its own noisy baseline [tr_b68e79cdc310]. cartservice metrics are empty in both windows, which reflects a missing series rather than onset silence [tr_30b975280d48]. The fix is restoring the prior cartservice artifact.",
+    "open_questions": [
+      "No orchestrator evidence: whether the new cartservice container is in ImagePullBackOff, CrashLoopBackOff, or failing readiness is unverified, so why the hotfix image does not serve is unknown.",
+      "The ~3.5 minute gap between the 00:21:35 shutdown and the 00:25:00 alert is unexplained; alert lag is plausible but unconfirmed.",
+      "One 00:26:33 error trace contains only frontend spans with no checkoutservice span [tr_3a1f2f231d57], hinting at a second failure mode at the frontend->checkout hop that was never examined."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The hotfix image does start but is itself broken at runtime (e.g. rejects RPCs or mis-points its cart store), so cartservice runs while refusing to serve GetCart.",
+        "service": "cartservice",
+        "fault_class": "bad_config",
+        "remediation_class": "rollback",
+        "why_not": "cartservice logged no startup banner after 00:21:35 and produced no lines at all during 00:23-00:27 [tr_1dd11f2bccf7]; a running-but-broken process would be expected to log something, and no cartservice span appears in any error trace [tr_3a1f2f231d57]. Either way the remedy is the same rollback.",
+        "note": ""
+      },
+      {
+        "root_cause": "checkoutservice is degraded following its 23:55 Kafka-broker fatal and restart, and fails cart preparation for a local reason the traces attribute to the outbound edge.",
+        "service": "checkoutservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "restart",
+        "why_not": "The Kafka fatal is ~30 minutes before onset and followed by a successful restart and sustained normal PlaceOrder traffic [tr_2e816159d37b]; checkoutservice self-time in error traces is 0.1-0.4ms with the ERROR on the GetCart span [tr_3a1f2f231d57], and its error ratio did not rise above baseline [tr_b68e79cdc310]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:service-frontend / The at-rest latency tail: **Measured over twelve hours at 15s resolution on a world at rest** (ADR-0025): frontend's\nmedian p95 is 42.3ms, and 127 of 2398 samples were above the 250ms threshold, 94 of them above\n1000ms, in excursions sustained past the rule's three-minute `for:` clause. Two episodes in th",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m35s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **2**. Over the",
+    "payment-telemetry-blackout / What ruled the alternatives out: Crash-loop, credential rejection and charge-path failure: paired charge/completion log lines continued at info level through the end of the window \u2014 there were no repeated startup banners and no gap in request handling. paymentservice latency and errors: root latencies stayed fla"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 30085,
+    "pulled_tokens": 10802,
+    "pull_rate": 0.2642,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 486,
+        "content_tokens": 489,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 2118,
+        "content_tokens": 2122,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9218,
+        "content_tokens": 9194,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8459,
+        "content_tokens": 8461,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9804,
+        "content_tokens": 9782,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "rollback",
+    "action_id": "rollback_image",
+    "target": "cartservice",
+    "rests_on": [
+      "tr_ea6aa6500bb0",
+      "tr_1dd11f2bccf7",
+      "tr_3a1f2f231d57"
+    ],
+    "expected_effect": "Redeploying cartservice at its pre-hotfix image tag and recreating the container should bring a serving process back. Observable as: (1) the {service=\"cart-service\"} Loki stream resumes \u2014 a .NET hosting-lifetime startup banner followed by GetCartAsync/AddItemAsync lines, which have been absent since the 00:21:35 shutdown banner; (2) new checkoutservice traces for PlaceOrder stop terminating at the ERROR-marked CartService/GetCart client leaf and again contain a cartservice server-side child span plus the downstream payment/shipping/email/orders spans (trace span counts returning from ~5 to the ~36 seen in healthy 00:16\u201300:18 traces); (3) the frontend and loadgenerator checkout-failure alerts clear as those traces stop carrying ERROR status.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "Falsified if, after the recreate, the cart-service log stream still emits no startup banner (container never reaches running/ready), or if it starts but checkoutservice error traces continue to terminate at GetCart with no cartservice child span. Also falsified in part if cartservice comes back healthy yet error traces persist in the shape seen at 00:26:33 \u2014 frontend-only spans with no checkoutservice span \u2014 which would point at a second, unexamined failure at the frontend->checkout hop that this rollback does not touch. Note a gap in confirmability: cartservice has no calls_total series in Prometheus in either the incident or baseline window [tr_30b975280d48], so recovery cannot be confirmed from cartservice's own error-ratio metric; confirmation must come from its logs and from checkoutservice-rooted traces.",
+    "risk": "The change-log entry records the prior tag as 'None' rather than a concrete tag, so 'the image it ran before the most recent change' may resolve ambiguously; if it resolves to an absent or unpullable reference, cartservice stays down in a new way and we have burned the obvious fix. No orchestrator evidence was gathered \u2014 if the hotfix image is actually fine and the container is failing for an environment reason (pull credentials, port conflict, readiness probe, host resource), the rollback recreates the container into the same broken environment and the outage continues while attention is misdirected away from the real cause. The recreate also discards in-process state; cart contents live in redis-cart so user carts should survive, but any in-memory cache warmth is lost and the first requests after recreate may be slower.",
+    "blast_radius": "One service, cartservice, plus its inbound callers named in the graph: frontend (direct) and checkoutservice (via CartService/GetCart during PlaceOrder). Both see connection resets for the duration of the container recreate \u2014 though both are already seeing total failure on this edge, so the incremental harm is small. Because checkout aborts in cart preparation, the browse path through frontend/adservice/productcatalogservice/recommendationservice is unaffected either way, and loadgenerator will see its checkout success rate move first."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alerts hitting checkout and frontend simultaneously with loadgenerator confirming user-facing impact; this is not dismissible and no open incident covers it. The simultaneous onset across the checkout path suggests a shared downstream dependency, but nothing in the alerts pins a class yet."
+  }
+}

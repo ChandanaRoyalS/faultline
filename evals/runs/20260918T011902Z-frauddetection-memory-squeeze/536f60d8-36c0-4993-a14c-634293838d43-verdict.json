@@ -1,0 +1,165 @@
+{
+  "incident_id": "536f60d8-36c0-4993-a14c-634293838d43",
+  "trajectory_id": "013c71cc-7222-4c08-995f-35c3b8a794c7",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [
+    "scenario:ad-memory-squeeze",
+    "scenario:frauddetection-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "At 01:19:06, roughly six minutes before the alert, platform-automation lowered the memory limit on frauddetection-service to 200m [tr_d49b790390e0]. The service, which had been consuming order records normally through at least 00:55:52, stopped doing productive work from ~01:19 onward and entered a sustained restart loop: the same JVM/OTel-agent startup triple reappears at 01:20:16, 01:21:09, 01:22:11, 01:23:14, 01:24:16, 01:25:18 and 01:26:20, with no application exceptions, no stack traces and no shutdown or graceful-stop lines between iterations [tr_a0b113bbadc9]. That signature \u2014 a working process that begins dying abruptly and externally minutes after its memory ceiling was cut, never reaching working state again \u2014 is the container being killed for exceeding the newly constrained limit. The failing mechanism is the process running out of the memory it needs and being terminated for it; the limit edit is how it started, exhaustion is what is happening. Blast radius is contained: checkoutservice's synchronous order path continued completing orders with contiguous queue-write offsets right through 01:26:55 [tr_1ba4efbbb4c2], so frauddetectionservice is the failing service and not merely the one that noticed.",
+    "service": "frauddetectionservice",
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_d49b790390e0",
+      "tr_a0b113bbadc9",
+      "tr_1ba4efbbb4c2",
+      "tr_5a491baa21b4",
+      "tr_3a97ddc6f233"
+    ],
+    "reasoning": "Three independent strands converge. (1) Timing: the only change of any kind on this service in 24h is a resource_limits toggle, and the most recent instance \u2014 memory lowered to 200m \u2014 landed ~6 minutes before onset and was still in force when the incident began, unlike the four prior cycles which were reverted after ~11 minutes [tr_d49b790390e0]. (2) Failure shape: the logs show process recreation, not degradation \u2014 repeated JVM startup banners with no exception output and no lifecycle-stop messages, which points to abrupt external termination rather than self-exit; normal order-record consumption present earlier in the window is absent from every post-01:19 iteration [tr_a0b113bbadc9]. (3) Scope: checkoutservice shows an unbroken healthy pattern at both ends of the same window with no gaps in publish offsets, so nothing upstream or downstream is contributing and the fraud path is asynchronous enough that its death has not yet surfaced in checkout [tr_1ba4efbbb4c2]. Deploys, feature flags, dependency bumps and human edits are all excluded by the change record [tr_d49b790390e0]. The error-ratio metric was useless in both directions \u2014 empty in the incident window and equally empty six hours earlier \u2014 so it neither corroborates nor contradicts anything, and the specialist explicitly flagged that no container-level memory or OOMKilled evidence was ever retrieved [tr_5a491baa21b4, tr_3a97ddc6f233]. Confidence is medium rather than high precisely because the kill reason was inferred from log shape and change timing, not read from kubelet data. The fix is to restore the memory limit to its prior value; a restart alone reproduces the loop, and there is no artifact to roll back.",
+    "open_questions": [
+      "No container-level evidence was ever gathered: working-set bytes versus the 200m limit, restart counts, and last-terminated-reason (OOMKilled vs. probe failure) remain unqueried [tr_3a97ddc6f233], so the kill mechanism is inferred rather than observed.",
+      "The near-constant ~62s restart interval is unusual for OOM kills, which typically vary with allocation rate, and the logs specialist noted it fits a fixed-period health-check kill better than backoff [tr_a0b113bbadc9]. Whether a liveness probe is the proximate killer \u2014 possibly because the JVM cannot warm up within its threshold under 200m \u2014 is unsettled.",
+      "The same lowering occurred five times over the preceding 20 hours without a recorded incident [tr_d49b790390e0]. What differs about this instance \u2014 traffic level, heap growth, or simply that it was not reverted on schedule \u2014 is unexplained.",
+      "The error-ratio series for this service is empty across six hours of baseline as well as the incident window [tr_3a97ddc6f233]. That instrumentation gap predates the incident and is itself unexplained; it may be hiding prior occurrences of this failure.",
+      "Downstream consequence is unmeasured: checkout's logs never name the fraud-check dependency [tr_1ba4efbbb4c2], so the backlog of unprocessed order records accumulating during the loop, and when it would surface, is unknown.",
+      "Whether the automation that toggles this limit will revert it on its own cadence, or has stalled mid-cycle, was not established."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "A liveness/startup probe with too short a threshold is killing the container on a fixed ~62s cycle, independent of memory pressure.",
+        "service": "frauddetectionservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The restart cadence does fit a fixed-period probe kill [tr_a0b113bbadc9], but no probe or health-check change appears anywhere in the 24h change record \u2014 the only edits are resource_limits [tr_d49b790390e0] \u2014 and the loop begins six minutes after the memory limit was cut, which a static probe configuration does not explain. A constrained JVM failing to become ready in time is more plausibly a downstream effect of the limit than an independent cause.",
+        "_note": "would be promoted if last-terminated-reason comes back as anything other than OOMKilled"
+      },
+      {
+        "root_cause": "The 200m value is simply too small for this JVM to ever initialize, so the wrong value itself \u2014 not gradual exhaustion \u2014 is what breaks every start attempt.",
+        "service": "frauddetectionservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "The logs show the JVM and OTel agent reaching their startup banners on each iteration before dying [tr_a0b113bbadc9], meaning the process does come up and is then terminated, rather than failing outright on an impossible allocation. That makes the mechanism exceeding a ceiling during operation \u2014 exhaustion \u2014 rather than a value that is wrong on its face. The practical remediation is identical either way."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:service-accountingservice / Its resting behaviour: p95 **1.9ms flat** - min, mean and max identical to four decimal places over 181\nsamples of a clean 45-minute baseline. Call\nrate mean **0.156 req/s**, joint sparsest served service here, with the same consequence for\n`ServiceNoTraffic`'s windows that `service-frauddetectionservi",
+    "shipping-wrong-image / What was checked: **checkoutservice, named in the page.** Errors on its calls to shipping. Its own\nprocess was healthy, its configuration unchanged, its other dependencies fine.\n\n**shippingservice's logs.** The service was starting and dying, over and over. Fifteen\nattempts inside the fault window",
+    "shipping-wrong-image / What was observed: The page was a single alert: `ServiceHighErrorRate` on **checkoutservice**, 3m04s after\nonset. The fastest page this system has produced, and unusually it named a service one\nhop from the problem rather than the edge.\n\n**loadgenerator** crossed two and a half minutes later and **"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 21666,
+    "pulled_tokens": 4902,
+    "pull_rate": 0.1845,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 329,
+        "content_tokens": 331,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1303,
+        "content_tokens": 1307,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 6464,
+        "content_tokens": 6440,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 6262,
+        "content_tokens": 6264,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 7308,
+        "content_tokens": 7286,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "frauddetectionservice",
+    "rests_on": [
+      "tr_d49b790390e0",
+      "tr_a0b113bbadc9",
+      "tr_1ba4efbbb4c2"
+    ],
+    "expected_effect": "Restoring the pre-01:19:06 resource configuration (memory limit back to its prior value) and recreating the container should end the crash loop. Observable in Loki on {service=\"frauddetection-service\"}: the JVM/OTel startup triple (JAVA_TOOL_OPTIONS pickup, class-sharing warning, javaagent banner) stops recurring after one final post-recreate occurrence \u2014 no further startup triples at the ~62s cadence seen at 01:20:16 through 01:26:20 \u2014 and the steady-state line 'Consumed record with orderId: ..., and updated total count to: N' reappears with a monotonically incrementing counter, as it did through 00:55:52. Two clean minutes with consumption lines and no new startup banner is the pass condition. Container restart-count metrics would confirm it independently if they exist, but none were ever queried [tr_3a97ddc6f233], and the error-ratio series is empty in both baseline and incident windows, so error ratio cannot be used to confirm anything here.",
+    "confirm_within_seconds": 300,
+    "if_wrong": "If the startup triple keeps recurring at ~62s intervals after the revert lands, the memory ceiling is not the proximate killer and the diagnosis is wrong \u2014 the near-constant 62s period already fits a fixed-period liveness-probe kill better than an OOM kill, whose interval would vary with allocation rate [tr_a0b113bbadc9]. A second falsifier: if consumption lines never resume even though the restarts stop, the process is failing to reach working state for a reason unrelated to the limit (e.g. a broker or dependency problem invisible in these logs). A third: if the loop stops for a few minutes and then resumes, platform-automation has re-applied the lowering on its own cadence [tr_d49b790390e0] and the fix is durable only until the next cycle. Note the kill mechanism was never directly observed \u2014 working-set bytes versus the 200m limit, restart counts, and last-terminated-reason were never queried [tr_3a97ddc6f233] \u2014 so this proposal is a test of an inference, not a confirmed cause.",
+    "risk": "If the real killer is a liveness probe whose threshold the JVM cannot meet, this change restores memory headroom, quiets the loop, and hides a probe misconfiguration that will fire again under any slow start. The recreate itself restarts the process, which briefly masks the fault regardless of whether the config was the cause \u2014 so a short quiet period alone is not evidence; wait the full confirmation window. The revert also fights the automation that owns this value: if platform-automation is mid-cycle it may re-lower the limit, producing flapping config and a second outage that looks unrelated. And recreating the container discards in-process state and loses the live crash-looping instance, destroying the chance to read last-terminated-reason from it.",
+    "blast_radius": "One service, frauddetectionservice, for the duration of the recreate. It is the only service in this incident's blast radius. checkoutservice is the upstream order producer, and its synchronous path completed orders with contiguous queue-write offsets right through 01:26:55 [tr_1ba4efbbb4c2], so it should see no change during the recreate \u2014 the fraud check is consumed asynchronously off the queue. The unmeasured consequence is the backlog of unprocessed order records that accumulated since ~01:19; when the consumer comes back it will drain that backlog, and the resulting burst of consumption may itself stress the service. Nobody downstream of the fraud check is named in this brief, so who notices the backlog clearing is unknown."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "A single critical-severity alert on frauddetectionservice with no open incidents to attribute it to; critical severity is not dismissible without evidence. Nothing in the alert pattern points to a specific fault class yet."
+  }
+}

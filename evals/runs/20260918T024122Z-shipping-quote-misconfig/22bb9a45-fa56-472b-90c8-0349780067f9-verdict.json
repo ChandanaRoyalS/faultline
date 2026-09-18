@@ -1,0 +1,175 @@
+{
+  "incident_id": "22bb9a45-fa56-472b-90c8-0349780067f9",
+  "trajectory_id": "c460ae9e-8a14-4ddf-9838-13e8d6c0ebec",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [
+    "scenario:cart-redis-misconfig",
+    "scenario:payment-telemetry-blackout",
+    "scenario:product-catalog-flag-failure",
+    "scenario:shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "checkoutservice is the reporter, not the fault. Every sampled PlaceOrder trace in the degraded window aborts at the checkoutservice -> shippingservice GetQuote hop, the only consistently ERROR-marked downstream call, with the error propagating up to frontend [tr_dde609429310]. It is a fast error, not a wait: GetQuote spans are ~2.5-3.5ms and whole traces finish in 6-11.6ms [tr_dde609429310]. Shipping's own server span and its HTTP child are short and unmarked, so the bad status surfaces at the checkout/shipping boundary rather than from slow shipping processing [tr_dde609429310]. Checkout logs show PlaceOrder entries continuing through 02:49:25 with no downstream completion lines and no error text of its own [tr_3eb575d93fcc]. No dispatch ever queried shippingservice's logs, metrics, or change history, so the mechanism behind the returned error is unestablished \u2014 most likely a wrong value on the shipping call path (address, quote backend, or currency/format contract) given a fast deterministic reject with no latency and no checkout-side change [tr_15d52c435af0].",
+    "service": "shippingservice",
+    "fault_class": "unknown",
+    "remediation_class": "none",
+    "confidence": "low",
+    "evidence": [
+      "tr_dde609429310",
+      "tr_3eb575d93fcc",
+      "tr_15d52c435af0",
+      "tr_80c363efc66d",
+      "tr_ea8f741ff321"
+    ],
+    "reasoning": "Traces localize the failure precisely and consistently across all 12 sampled traces to one hop, and rule out cartservice, currencyservice, productcatalog/featureflag, payment, email, and latency/timeout generally [tr_dde609429310]. checkoutservice itself has no change in or after the window [tr_15d52c435af0] and no error-ratio regression at onset \u2014 its error ratio is actually below baseline with an unchanged maximum and change points hours earlier [tr_ea8f741ff321], which argues the checkout binary and config are unchanged and the new behaviour arrives from the shipping dependency. cartservice is exonerated on three fronts: healthy logs through 02:49:26 with no Redis errors [tr_5ff39364ac73], fast unmarked spans [tr_dde609429310], and all fault-injection changes reverted ~1.6h before onset [tr_80c363efc66d]. That leaves shippingservice as the blamed service. I decline to name a fault_class because no evidence was gathered on shippingservice at all: a fast error with no latency rules out dependency_latency for the checkout->shipping hop and argues against resource_exhaustion (no queueing or saturation signature), but bad_config versus bad_deploy on shipping cannot be separated without its change log.",
+    "open_questions": [
+      "No dispatch queried shippingservice logs, metrics, or change history \u2014 the actual mechanism and any change record on shipping are entirely unexamined.",
+      "Whether the GetQuote error is a returned non-OK gRPC status from shipping or a client-side failure in checkout's handling of a valid response; the trace shows the error only on the checkout-side span.",
+      "Onset timing is unpinned: the checkout log query omitted the middle of the window and checkout's error-ratio metric flags no transition at 02:44:45, so nothing localizes the change to that minute.",
+      "Whether shippingservice's own upstream (the reqwest-http-client target, likely quoteservice, which also alerted at 02:47:30) is returning bad data that shipping surfaces as an error."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "quoteservice returns invalid or error responses to shippingservice, which shippingservice passes back as a failed GetQuote.",
+        "service": "quoteservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "quoteservice alerted at 02:47:30, consistent with this, but its span inside shipping is short and not error-marked in any sampled trace [tr_dde609429310]; blaming it requires a hop nobody queried.",
+        "_": ""
+      },
+      {
+        "root_cause": "A checkoutservice-side defect or config in how it constructs or validates the shipping quote request causes a deterministic reject before shipping does real work.",
+        "service": "checkoutservice",
+        "fault_class": "bad_config",
+        "remediation_class": "config_revert",
+        "why_not": "checkoutservice has no recorded change at or after onset [tr_15d52c435af0] and its error ratio shows no regression or step at 02:44:45 [tr_ea8f741ff321], so nothing on the checkout side changed to start this."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-dependency-latency / What was never measured: Checkout's error-ratio change point sits ~19 minutes before the shaping attachment, overlapping the hotfix apply-and-restore window; that gap is unexplained and may be a second, independent story. No latency or request-rate series returned for either service, and traces cover onl",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "shipping-wrong-image / What the investigation concluded: shippingservice was running an artifact that was not the shipping binary. About two minutes before onset (T-2m), platform-automation moved shippingservice's image reference to a demo artifact whose tag names a different service entirely (adservice). Four earlier change records in"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26776,
+    "pulled_tokens": 11213,
+    "pull_rate": 0.2952,
+    "dropped_sections": 1,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 439,
+        "content_tokens": 441,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1513,
+        "content_tokens": 1516,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8306,
+        "content_tokens": 8282,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7615,
+        "content_tokens": 7618,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8903,
+        "content_tokens": 8906,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_dde609429310",
+      "tr_15d52c435af0",
+      "tr_3eb575d93fcc",
+      "tr_ea8f741ff321"
+    ],
+    "expected_effect": "No action proposed, so no effect is expected or claimed. The observable that would justify a future action does not yet exist: nothing in the evidence board names a deploy, image change, or configuration edit on shippingservice inside the incident window, and nothing points at process state. The next step is investigative, not remedial \u2014 query shippingservice's change history, logs, and error-ratio metric, plus quoteservice's (the reqwest-http-client target that also alerted at 02:47:30), and only then re-open the remediation question.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a dispatch against shippingservice's change history returns a config or image change landing between roughly 02:40 and 02:45 \u2014 in that case revert_config or rollback_image on shippingservice becomes proposable with a concrete precondition met, and the expected effect would be the checkoutservice->shippingservice GetQuote span losing its ERROR marking within a few minutes and checkout logs resuming payment/email/message-write completion lines after each PlaceOrder start. It is also wrong if shippingservice turns out to be restart-fixable process state (e.g. a stale cached quote-backend address or exhausted client pool), which would show as shipping-side error logs naming connection or parse failures. Neither observation exists on this board.",
+    "risk": "The risk of abstaining is continued customer-visible PlaceOrder failure at the frontend for as long as the investigation takes \u2014 the fault is live through 02:49:25 and every sampled trace aborts. The risk of not abstaining is worse and specific: the three candidate mechanisms (bad address, wrong quote backend, currency/format contract mismatch) are distinguished by evidence nobody has collected, so any of the permitted actions would be a guess. rollback_image or revert_config on checkoutservice in particular is affirmatively contraindicated \u2014 checkout has zero recorded changes from onset forward and its error-ratio metric flags no transition at 02:44:45, so there is no prior state to roll back to and recreating the container would reset a healthy reporter while leaving the shipping-boundary error intact. A restart_service on shippingservice would discard cache, briefly reset connections for its callers, and, if it accidentally cleared the fault, destroy the evidence needed to explain it.",
+    "blast_radius": "No services touched. For the record, had an action been proposed the reachable targets and their observers would be: shippingservice (called by checkoutservice on the GetQuote path, itself reached from quoteservice; a recreate resets connections seen by checkout and cascades to frontend and loadgenerator), checkoutservice (called by frontend, which is already ERROR-marked end to end and would additionally see connection resets), and quoteservice (shipping's own upstream, which alerted at 02:47:30). accountingservice, emailservice, frauddetectionservice, paymentservice, productcatalogservice, currencyservice, and cartservice are in the incident's reach but downstream of the abort point and unaffected either way."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Checkout alerted first and its downstream consumers followed within three minutes, which is a real fan-out pattern rather than a lone warning. No open incident covers it and the trigger could be checkout itself or any of its dependencies, so the fault class stays unknown pending evidence."
+  }
+}

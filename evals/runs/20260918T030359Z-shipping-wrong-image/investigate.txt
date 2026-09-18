@@ -1,0 +1,38 @@
+incident f6ca22fb-6033-44f5-ac23-743540ac510f  state triaging  anchor 03:07:00
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: a3cf285d-edf7-4a8e-ae21-666eb98b06c6
+triage judged: investigate (medium confidence, suspects unknown)
+  Checkout alerted first and its downstream consumers (accounting, email, fraud, quote, shipping) followed three minutes later, which reads as a real failure fanning out from the order path rather than a quiet world. No open incident to attribute it to, and nothing in the alerts distinguishes a deploy from a dependency or resource cause yet.
+investigation: 2 round(s), 8 dispatch(es), 24 step(s)
+
+=== PROPOSAL ===
+  ABSTAINED - no permitted action fits the evidence
+  if wrong    : This abstention would look wrong if shippingservice were in a hard, monotonic failure where every second of delay costs orders. It is not: checkoutservice's error ratio is ~0.137 with a window minimum of 0 and peaks near 0.3, so roughly seven in eight requests still succeed and the failure is intermittent [tr_72591eb7ac95], and checkout continues to accept and begin orders at normal cadence through 03:11:59 [tr_15d3a5d80b51]. It would also be wrong if a restart were free, but restart_service is marked irreversible, and the only available evidence about shippingservice is indirect - absent server spans on 2-3ms client-side failures [tr_70620c52f77a] - which is equally consistent with a bad artifact, a wrong endpoint or connection limit, or a fault in quoteservice one hop deeper. None of those is fixed by recreating the container, and a restart destroys the very process state that would have identified which it was.
+  rests on    : tr_70620c52f77a, tr_72591eb7ac95, tr_15d3a5d80b51
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 31662 pushed / 9746 pulled (pull rate 0.2354), 1 section(s) dropped
+
+=== VERDICT ===
+  fault class : unknown
+  fix class   : restart
+  confidence  : low
+  evidence    : tr_70620c52f77a, tr_15d3a5d80b51, tr_72591eb7ac95
+  root cause  : checkoutservice is the noticer, not the fault. In all 10 sampled failing traces the deepest ERROR span is checkoutservice's outbound ShippingService GetQuote client span; the frontend and PlaceOrder errors above it are inherited, and cartservice, currencyservice and productcatalogservice calls all complete cleanly in those same traces [tr_70620c52f77a]. The failing GetQuote calls produce no shippingservice server span and return in 2-3ms, so a fraction of requests are being refused or rejected at connection/handshake rather than waiting [tr_70620c52f77a]. This matches checkout's symptom set: orders start at normal cadence but never reach payment/email/queue, with no error-severity lines of its own [tr_15d3a5d80b51], and an error ratio ~13x baseline that dips to zero intermittently [tr_72591eb7ac95]. Blame therefore sits on shippingservice, which also alerted at 03:10. The mechanism inside shippingservice is not established: no shippingservice logs, metrics, or change history were collected, so the failing mechanism is left unknown rather than guessed.
+  OPEN        : No shippingservice logs, metrics, change history or resource signals were collected - the actual mechanism (rejects from saturation, a bad artifact, or a wrong endpoint/limit) is entirely unmeasured.
+  OPEN        : quoteservice alerted at 03:10 and shippingservice's GetQuote path depends on it, but quoteservice was never dispatched; the fault may sit one hop deeper.
+  OPEN        : Onset is unresolved: checkout's error regime began ~02:43, before the 03:07 alert, while sampled traces cluster near 03:11, so nothing ties a specific event to 02:43 [tr_72591eb7ac95, tr_70620c52f77a].
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-bad-image-tag', 'scenario:shipping-wrong-image'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260918T030359Z-shipping-wrong-image/f6ca22fb-6033-44f5-ac23-743540ac510f-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260918T030359Z-shipping-wrong-image/f6ca22fb-6033-44f5-ac23-743540ac510f-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 10131.88it/s]
