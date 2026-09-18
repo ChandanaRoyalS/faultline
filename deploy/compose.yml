@@ -331,6 +331,27 @@ services:
     networks:
       - faultline
 
+  prometheus-self:
+    # T6.6 / Q73: the platform's own Prometheus, scraping `faultline:8000/metrics` on this network.
+    # **Not the world's** - `deploy/prometheus-self.yaml` and `compose/prometheus/self.yaml` carry
+    # the argument (a digest-locked config, a measured target set, and an agent that must not be
+    # able to read its own counters). Deployment configuration, like `restart:` and network
+    # membership in compose.world.yml; nothing a bundle records changes because this runs.
+    #
+    # **No `ports:`.** Grafana reads it across the shared network (`compose.world.yml` puts
+    # grafana on it for this), and Caddy forwards nothing to it. The API's `/metrics` is already
+    # closed at the edge (Caddyfile); this is where that surface's only reader lives.
+    image: prom/prometheus:v2.54.1
+    restart: unless-stopped
+    volumes:
+      - ../deploy/prometheus-self.yaml:/etc/prometheus/prometheus.yml:ro
+      - promdata:/prometheus
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=15d
+    networks:
+      - faultline
+
   caddy:
     # Automatic TLS from Let's Encrypt on first request, which is the cheapest correct answer to
     # "a stable URL" and the reason this container exists at all rather than a bare port.
@@ -363,5 +384,6 @@ services:
 
 volumes:
   pgdata:
+  promdata:
   caddydata:
   caddyconfig:

@@ -27,11 +27,25 @@ DASHBOARDS = sorted((REPO_ROOT / "compose" / "dashboards").glob("*.json"))
 SELF_DASHBOARD = REPO_ROOT / "compose" / "dashboards" / "faultline-self.json"
 
 ALLOWED_BASES = {"http://localhost:3000/grafana", "http://localhost:3000"}
-ALLOWED_PATHS = {"/api/health", "/api/dashboards/db"}
+DATASOURCE_URLS = {"http://host.docker.internal:9091"}
+"""A URL the script *posts to Grafana* as the self-metrics datasource's address (Q73). The script
+never contacts it; Grafana does. Named here so that the host test below stays a test of what the
+script talks to, and so that a second such value is a decision rather than a drift."""
+ALLOWED_PATHS = {"/api/health", "/api/dashboards/db", "/api/datasources", "/api/datasources/uid/"}
+"""Health, dashboards - and since T6.6 / Q73 one datasource, read by uid and created or updated.
+**Widened by exactly one resource, on purpose, and this set is where that decision is held**: the
+next path added here is the moment ADR-0030's guard is being routed around rather than extended,
+and the person adding it should be able to say why in the ADR's next addendum."""
 PINNED_DATASOURCE_UID = "webstore-metrics"
-PINNED_DATASOURCES = {"prometheus": PINNED_DATASOURCE_UID, "loki": "loki", "tempo": "tempo"}
-"""One uid per datasource type, each provisioned as a file: the demo's Prometheus, and this
-repository's Loki (T1.2) and Tempo (T6.1) datasource files. A panel pointing anywhere else is
+SELF_METRICS_UID = "faultline-self-metrics"
+PINNED_DATASOURCES = {
+    "prometheus": {PINNED_DATASOURCE_UID, SELF_METRICS_UID},
+    "loki": {"loki"},
+    "tempo": {"tempo"},
+}
+"""The uids a panel may point at, per datasource type: the demo's Prometheus (`webstore-metrics`),
+this repository's Loki (T1.2) and Tempo (T6.1) datasource files, and the platform's own
+Prometheus, pushed over the API by the script under test (Q73). A panel pointing anywhere else is
 blank. `text` panels have no datasource and are exempt."""
 
 
@@ -49,8 +63,20 @@ def source() -> str:
 
 
 def test_the_script_talks_only_to_grafana_on_localhost(source: str) -> None:
-    urls = {s for s in _string_constants(source) if s.startswith("http")}
-    assert urls <= ALLOWED_BASES, f"unexpected host: {urls - ALLOWED_BASES}"
+    """Every URL literal is a Grafana base the script requests, except the one datasource address
+    it hands to Grafana - and that one must be built into a request body, never requested."""
+    urls = {s for s in _string_constants(source) if s.startswith(("http://", "https://"))}
+    assert urls <= ALLOWED_BASES | DATASOURCE_URLS, f"unexpected host: {urls - ALLOWED_BASES}"
+    tree = ast.parse(source)
+    requested = {
+        node.args[0].id
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Call)
+        and getattr(node.func, "attr", "") == "Request"
+        and node.args
+        and isinstance(node.args[0], ast.Name)
+    }
+    assert requested and "url" in requested and "SELF_METRICS_URL" not in requested
 
 
 def test_the_only_api_paths_are_health_and_dashboards(source: str) -> None:
@@ -130,7 +156,7 @@ def test_every_panel_uses_a_pinned_datasource_of_its_own_type() -> None:
                 assert "datasource" not in panel and "targets" not in panel, panel["title"]
                 continue
             kind = panel["datasource"]["type"]
-            assert panel["datasource"]["uid"] == PINNED_DATASOURCES[kind], panel["title"]
+            assert panel["datasource"]["uid"] in PINNED_DATASOURCES[kind], panel["title"]
             for target in panel["targets"]:
                 assert target["datasource"] == panel["datasource"], panel["title"]
 
@@ -141,7 +167,7 @@ def test_the_pinned_uids_are_the_ones_the_datasource_files_provision() -> None:
     for name, uid in (("loki", "loki"), ("tempo", "tempo")):
         text = (REPO_ROOT / "compose" / f"grafana-{name}-datasource.yml").read_text()
         assert f"uid: {uid}" in text, name
-        assert PINNED_DATASOURCES[name] == uid
+        assert PINNED_DATASOURCES[name] == {uid}
 
 
 def test_the_self_dashboard_shows_what_metrics_exposes_and_nothing_else() -> None:
@@ -175,15 +201,64 @@ def test_the_self_dashboard_shows_what_metrics_exposes_and_nothing_else() -> Non
     assert queried == exposed, f"missing: {exposed - queried}, unknown: {queried - exposed}"
 
 
-def test_the_self_dashboard_says_why_its_prometheus_panels_may_be_empty() -> None:
-    """Nothing scrapes `/metrics` until Q73 lands, because the scrape job is digest-locked. A
-    dashboard that was blank without saying why would read as broken; this one says so on the
-    screen, and names the row."""
+def test_the_self_dashboard_reads_the_platform_s_prometheus_and_not_the_world_s() -> None:
+    """**Q73's decision, held.** The world's Prometheus is inside `observability_digest`, its
+    target set is a measurement, and the agent queries it; the platform's counters must not be
+    there. Every Prometheus panel on this dashboard reads the datasource the script pushes, and
+    the note panel says where the numbers come from rather than why they might be missing."""
     dashboard = json.loads(SELF_DASHBOARD.read_text())
+    prometheus_panels = [
+        p for p in dashboard["panels"] if p.get("datasource", {}).get("type") == "prometheus"
+    ]
     notes = [p for p in dashboard["panels"] if p["type"] == "text"]
 
-    assert notes and "Q73" in notes[0]["options"]["content"]
-    assert "observability_digest" in notes[0]["options"]["content"]
+    assert prometheus_panels
+    assert all(p["datasource"]["uid"] == SELF_METRICS_UID for p in prometheus_panels)
+    assert notes and "prometheus-self" in notes[0]["options"]["content"]
+    assert "not the world's" in notes[0]["options"]["content"]
+
+
+def test_the_script_pushes_the_datasource_the_dashboard_names(source: str) -> None:
+    """Two spellings of one uid, held equal: the script creates `faultline-self-metrics` and the
+    dashboard's panels read it. Rename either alone and every Prometheus panel goes blank."""
+    namespace: dict[str, object] = {}
+    exec(  # the module's constants, without running main()
+        compile(
+            "\n".join(
+                line for line in source.splitlines() if line.startswith("SELF_METRICS_UID = ")
+            ),
+            "provision_dashboards",
+            "exec",
+        ),
+        namespace,
+    )
+
+    assert namespace["SELF_METRICS_UID"] == SELF_METRICS_UID
+    assert "isDefault" in source and '"isDefault": False' in source, (
+        "the demo's own Prometheus stays what Explore opens by default"
+    )
+
+
+def test_the_self_prometheus_config_is_outside_the_world_digest_and_says_so() -> None:
+    """The file exists so that the world's config need not change; if it ever joined
+    `OBSERVABILITY_FILES` the reason for it would be void. Both copies scrape one job, the
+    same job, and differ only in the target - the Alertmanager shape (deploy/README §3.4)."""
+    import yaml
+
+    from evalharness import provenance
+
+    dev = yaml.safe_load((REPO_ROOT / "compose" / "prometheus" / "self.yaml").read_text())
+    vm = yaml.safe_load((REPO_ROOT / "deploy" / "prometheus-self.yaml").read_text())
+    hashed = {name for name, _ in provenance.OBSERVABILITY_FILES}
+
+    assert "compose/prometheus/self.yaml" not in hashed
+    assert [j["job_name"] for j in dev["scrape_configs"]] == ["faultline"]
+    assert dev["scrape_configs"][0]["static_configs"][0]["targets"] == ["host.docker.internal:8000"]
+    assert vm["scrape_configs"][0]["static_configs"][0]["targets"] == ["faultline:8000"]
+    vm["scrape_configs"][0]["static_configs"][0]["targets"] = dev["scrape_configs"][0][
+        "static_configs"
+    ][0]["targets"]
+    assert vm == dev, "the two copies may differ in the target and nothing else"
 
 
 def test_the_loki_datasource_links_trace_ids_to_the_tempo_uid() -> None:

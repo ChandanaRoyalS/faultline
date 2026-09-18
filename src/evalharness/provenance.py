@@ -204,6 +204,11 @@ Deliberately excluded, and named so the exclusions are decisions rather than ove
 * `compose/grafana-loki-datasource.yml`, `compose/grafana-tempo-datasource.yml` and
   `world/src/grafana/**` - Grafana provisioning. A human reads those; no capture, tool or score
   does. (The deep link's uid is read from the Tempo file by test, which is a different guard.)
+* `compose/prometheus/self.yaml`, `deploy/prometheus-self.yaml` and the `prometheus-self` service
+  in the platform's compose files (T6.6 / Q73) - the platform's own Prometheus, scraping the
+  platform's own `/metrics`. It exists *so that* `prometheus-config.yaml` above need not change:
+  a scrape job there would move this digest for a change no capture can observe, and would put
+  the agent's own counters in the Prometheus the agent queries. No capture, tool or score reads it.
 * `world/src/prometheus/prometheus-config.yaml` - **dead.** `compose/telemetry.yml` points
   Prometheus at `--config.file=/etc/prometheus/faultline-prometheus.yaml`, so the demo's own
   config is mounted by the demo's compose file and never read.

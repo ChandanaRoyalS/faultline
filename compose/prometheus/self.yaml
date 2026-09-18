@@ -1,0 +1,28 @@
+# T6.6 / Q73 - the platform's own Prometheus, scraping the platform's own `/metrics`.
+#
+# **Not the world's Prometheus, and that is the whole decision.** `prometheus-config.yaml` beside
+# this file is inside `observability_digest`; a scrape job added there moves the digest for every
+# future run, and `generations.CURRENT_OBSERVABILITY` pins that digest for the headline table - so
+# the four lines would have cost either every recorded figure its stamp or every future run its
+# admission (Q73). The harness also reads that Prometheus' target set as a measurement
+# (`max(count_over_time(up[...]))` counts scrapes). And an agent whose `promql_query` reached the
+# same Prometheus could read its own spend and outcome counters, which no specialist should see.
+#
+# So the platform watches itself from here, on the platform's compose project, and the world's
+# telemetry stack stays the world's. This file is deployment configuration - `docker-compose.yml`
+# and `deploy/compose.yml` both mount a copy - and is deliberately not in `OBSERVABILITY_FILES`:
+# no capture, tool or score reads it (`evalharness.provenance` records the exclusion).
+#
+# `host.docker.internal:8000` is where `faultline-ingest` listens on a development machine - the
+# same address `alertmanager.yml` posts to, for the same reason. The deployment's copy
+# (`deploy/prometheus-self.yaml`) names the container instead; Prometheus expands no variables in
+# its configuration, so one file cannot serve both, exactly as with Alertmanager (README §3.4 there).
+#
+# 15s, not the world's 5s: nothing here is an alert, and `/metrics` reads Postgres on every scrape.
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: faultline
+    static_configs:
+      - targets: ["host.docker.internal:8000"]

@@ -242,8 +242,9 @@ a firing alert is explicable on the screen where it is visible. Open it before y
 the demo's narration and the dashboard tell the same story from two ends. Beside it since T6.6,
 [the agent watching itself](http://localhost:3000/grafana/d/faultline-self): queue, in-flight
 investigations, outcomes, durations and spend from `/metrics`, its own log lines from Loki and
-its traces from Tempo, joined by `trace_id`. Its Prometheus panels stay empty until Q73 lands
-the scrape job, and the dashboard says so on the screen.
+its traces from Tempo, joined by `trace_id`. The numbers come from the platform's own
+Prometheus (`prometheus-self`, part of `make up`), not the world's - so the agent cannot read its
+own spend through `promql_query`, and no digest moved to light the panels (Q73).
 
 **Five minutes, not two.** The baseline gate refuses to inject into a world whose containers are
 younger than **300 seconds** — a container still warming up produces readings that are not a
