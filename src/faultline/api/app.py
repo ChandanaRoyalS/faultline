@@ -96,7 +96,39 @@ def read_surface(app: FastAPI, postgres_dsn: str) -> FastAPI:
     app.include_router(incidents.page_router(), dependencies=[credential])
     accept_surface(app, connection, credential)
     write_surface(app, connection, incident_store, trajectory_store, credential)
+    metrics_surface(app, incident_store, connection)
     return app
+
+
+def metrics_surface(app: FastAPI, incident_store: Any, connection: Any) -> bool:
+    """Mount `GET /metrics` (T6.6, piece 3). **Not behind the credential**, deliberately.
+
+    Prometheus scrapes without a password and `/metrics` carries counts and durations - no
+    incident text, no trajectory content, nothing `auth.guard()` exists to protect. A scrape
+    target that needed a bearer token would be one nobody configured, which is the silent absence
+    the design note names as this task's cost. The price table comes from `AgentSettings`, so the
+    USD counter and the per-run `cost_usd` in every manifest are the same arithmetic.
+
+    Returns whether it mounted: `False` without the `observability` extra, and the API serves
+    everything else exactly as before.
+    """
+    from faultline.agents.settings import AgentSettings
+    from faultline.observability import metrics
+
+    settings = AgentSettings()
+    mounted = metrics.mount(
+        app,
+        incident_store,
+        connection,
+        usd_per_mtok=(settings.usd_per_mtok_in, settings.usd_per_mtok_out),
+    )
+    print(
+        "metrics: /metrics mounted"
+        if mounted
+        else "metrics: prometheus_client not installed, no /metrics",
+        flush=True,
+    )
+    return mounted
 
 
 def accept_surface(app: FastAPI, connection: Any, credential: Any) -> FastAPI:
