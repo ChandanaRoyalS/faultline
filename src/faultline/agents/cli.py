@@ -7,7 +7,9 @@ model: every backend is imported inside `run()`, the same discipline as the othe
 from __future__ import annotations
 
 import argparse
+import atexit
 import json
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -166,8 +168,13 @@ def parser() -> argparse.ArgumentParser:
 def run(argv: list[str] | None = None) -> int:
     """Entry point. Imports its backends late so `--help` needs no Postgres and no model."""
     args = parser().parse_args(argv)
+    # T6.6: one call per process, by the entry point and not a library module. Prints which
+    # way it went so an operator who expected traces and sees none has one line to read.
+    from faultline.observability import tracing
 
-    import os
+    if tracing.configure(component="investigator"):
+        print(f"tracing: exporting to {os.environ.get(tracing.ENDPOINT_VAR)}", flush=True)
+        atexit.register(tracing.shutdown)
 
     import psycopg
 

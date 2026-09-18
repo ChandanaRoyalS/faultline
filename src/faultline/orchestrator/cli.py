@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import atexit
+import os
 
 from faultline.orchestrator.settings import OrchestratorSettings
 
@@ -77,6 +79,13 @@ def parser() -> argparse.ArgumentParser:
 def run(argv: list[str] | None = None) -> int:
     """Entry point. Imports its backends late so `--help` needs no Redis and no Postgres."""
     args = parser().parse_args(argv)
+    # T6.6: one call per process, by the entry point and not a library module. Prints which
+    # way it went so an operator who expected traces and sees none has one line to read.
+    from faultline.observability import tracing
+
+    if tracing.configure(component="orchestrator"):
+        print(f"tracing: exporting to {os.environ.get(tracing.ENDPOINT_VAR)}", flush=True)
+        atexit.register(tracing.shutdown)
 
     from datetime import timedelta
 
