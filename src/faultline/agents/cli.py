@@ -170,8 +170,11 @@ def run(argv: list[str] | None = None) -> int:
     args = parser().parse_args(argv)
     # T6.6: one call per process, by the entry point and not a library module. Prints which
     # way it went so an operator who expected traces and sees none has one line to read.
-    from faultline.observability import tracing
+    from faultline.observability import logs, tracing
 
+    # Piece 4: JSON lines with the trace id, on the daemons. Before `tracing.configure`, so
+    # anything the SDK logs while installing comes out in the same shape.
+    logs.configure(component="investigator")
     if tracing.configure(component="investigator"):
         print(f"tracing: exporting to {os.environ.get(tracing.ENDPOINT_VAR)}", flush=True)
         atexit.register(tracing.shutdown)
