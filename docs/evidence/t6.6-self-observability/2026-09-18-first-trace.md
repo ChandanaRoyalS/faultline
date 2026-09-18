@@ -96,3 +96,16 @@ same family as Q31's *"blind to the last five minutes"*, though this lasted long
 recorded as an observation rather than a queue row, because a search that recovered with no
 change is not yet something anyone can act on. The dashboard's Tempo panel says so in its
 description; the trace-id link on the incident page does not depend on search.
+
+## Addendum 3, 2026-09-18 — addendum 2's search anomaly, reproduced with its mechanism
+
+*"Not reproduced since"* lasted until the afternoon. The first `action.execute` span on the VM was
+absent from Tempo search for twenty minutes and answered 404 by id at 12:37, then 200 at 12:42
+with nothing changed, while Jaeger served it throughout. The cause is in `compose/tempo.yaml`:
+`max_block_duration: 30s` and `complete_block_timeout: 2m` (T6.1, so the trace tool sees an
+incident quickly) push a trace out of the ingester ~2.5 minutes after arrival, after which only
+the tenant's block index reaches it - rewritten every ten minutes, and failing whenever the
+compactor has just removed a block. This morning's two-day search that found nothing and the
+twenty-minute window that did are the same thing: the window covered the ingester, the wider
+search depended on an index that had not caught up. Full account and the probes that ruled out
+everything else: *the first action on the deployment*. Queue row Q76.
