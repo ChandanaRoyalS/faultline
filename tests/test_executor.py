@@ -740,3 +740,53 @@ def test_approve_is_idempotent_while_awaiting_and_refused_once_executing_or_term
     store.save(closed)
     with pytest.raises(ApproveError, match="no world left"):
         approve(incident_id=closed.id, **kwargs)
+
+
+# --- T6.6 / Q74: the action plane's span --------------------------------------------------------
+
+
+def test_an_execution_is_one_span_carrying_the_audit_s_structure_and_never_the_token(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The fourth daemon. One `action.execute` span per token, whether it executed or was refused,
+    carrying what the audit row carries structurally - incident, action, target, outcome, the
+    token's *id*, the row's id - so the action a trace led to can be read beside the investigation
+    that proposed it. **The token itself is a credential and appears nowhere on the span**; nor
+    does `reason`, which quotes the world."""
+    from contextlib import contextmanager
+
+    from faultline.executor import core
+
+    opened: list[dict[str, Any]] = []
+
+    @contextmanager
+    def recording_span(name: str, **attributes: Any) -> Any:
+        record: dict[str, Any] = {"name": name, **attributes}
+        opened.append(record)
+
+        class Handle:
+            trace_id = ""
+            span_id = ""
+
+            def set(self, **more: Any) -> None:
+                record.update({k: v for k, v in more.items() if v is not None})
+
+        yield Handle()
+
+    monkeypatch.setattr(core, "span", recording_span)
+    store, audit = InMemoryIncidentStore(), InMemoryAuditStore()
+    inc = incident(IncidentState.AWAITING_APPROVAL)
+    store.save(inc)
+    token, claims = token_for(inc)
+
+    refused = make_executor(store, audit, kill_switch=True).execute(token, caller="t")
+    executed = make_executor(store, audit).execute(token, caller="t")
+
+    assert [o["name"] for o in opened] == ["action.execute", "action.execute"]
+    assert opened[0]["outcome"] == "kill_switch" and opened[1]["outcome"] == "executed"
+    assert opened[1]["token_id"] == claims.token_id and opened[1]["audit_id"] == executed.id
+    assert opened[1]["incident_id"] == inc.id and opened[1]["target"] == executed.target
+    for record in opened:
+        assert token not in str(record), "the credential is never a span attribute"
+        assert "reason" not in record and "command" not in record and "output" not in record
+    assert refused.outcome == "kill_switch"

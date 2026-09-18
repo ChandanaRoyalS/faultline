@@ -717,22 +717,21 @@ def test_every_telemetry_container_survives_a_reboot(world: dict, service: str) 
 # --- T6.6: the platform's own spans reach the world's collector -----------------------------------
 
 
-def test_the_daemons_that_trace_are_pointed_at_the_collector_and_the_executor_is_not(
-    compose: dict, world: dict
-) -> None:
+def test_every_daemon_that_traces_is_pointed_at_the_collector(compose: dict, world: dict) -> None:
     """`tracing.configure` reads `OTEL_EXPORTER_OTLP_ENDPOINT` and nothing else. `faultline`
     calls it as the API, `orchestrator` calls it and hands the variable to every
-    `faultline-investigate` it spawns; the executor never calls it, and the rule on the DSN classes
-    applies - a variable nothing reads is documentation that lies eventually.
+    `faultline-investigate` it spawns, and since Q74 the executor calls it too - one
+    `action.execute` span per token, so the action a trace led to sits beside the investigation
+    that proposed it. Until Q74 this test asserted the executor did *not* have the variable, by
+    the rule that a variable nothing reads is documentation that lies; something reads it now.
 
     The target is the collector's *service* name on the shared network, which is the name Docker's
     DNS resolves across the two projects; `compose.world.yml` is what puts it there."""
     endpoint = "http://otelcol:4317"
 
-    for name in ("faultline", "orchestrator"):
+    for name in ("faultline", "orchestrator", "executor"):
         env = compose["services"][name]["environment"]
         assert env.get("OTEL_EXPORTER_OTLP_ENDPOINT") == endpoint, name
-    assert "OTEL_EXPORTER_OTLP_ENDPOINT" not in compose["services"]["executor"]["environment"]
     assert "faultline" in world["services"]["otelcol"]["networks"], (
         "the endpoint names a service the platform cannot reach"
     )

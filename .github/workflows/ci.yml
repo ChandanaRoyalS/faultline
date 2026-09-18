@@ -31,6 +31,14 @@ jobs:
         run: uv run pytest
   docker:
     runs-on: ubuntu-latest
+    # **An image sha promises that every job passed** (Q75, 2026-09-18). This job had no
+    # `needs:`, so a red `integration` job cost nothing anyone noticed: the image the deployment
+    # names still appeared in the registry, and the job that exists to say *the corpus CI seeds
+    # is the one the measurement ran against* said no for twenty-five consecutive commits while
+    # images kept publishing. Found by trying to deploy one. The cost of this line is the point
+    # of it: a flaky integration job now blocks every deploy until someone fixes it rather than
+    # ignores it, and a registry sha can be read as "green", not "built".
+    needs: [checks, integration]
     permissions:
       contents: read
       packages: write

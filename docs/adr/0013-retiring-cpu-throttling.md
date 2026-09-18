@@ -108,3 +108,12 @@ the implementation.
 
 Revisit if: the load generator is run at a level that produces meaningful CPU demand, or
 the project moves to hardware where these services are not effectively idle.
+
+---
+
+**Erratum recorded here, 2026-09-18 (Q37).** `evals/scenarios/SPLIT.md` line 73 attributes the
+latency-magnitude ceiling — *"past the caller's timeout the signal inverts from latency to
+absence"* — to ADR-0007. The reasoning is this ADR's (*"push a latency fault past the completion
+point and the signal inverts from latency to absence"*). SPLIT.md is committed allocation
+evidence and is not edited, for factual corrections included; a reader following its citation
+arrives at ADR-0007, finds no timeout reasoning, and should read here instead.

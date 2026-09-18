@@ -653,6 +653,24 @@ def _shell(argv: list[str]) -> int:  # pragma: no cover - the subprocess path
     return subprocess.run(argv, check=False).returncode
 
 
+def _close_orphans(dsn: str) -> str:  # pragma: no cover - needs the store
+    """One line for the log: what Q72's reconciler did, or why it could not run."""
+    from faultline.agents.trajectory import PostgresTrajectoryStore, orphan_ceiling_seconds
+
+    try:
+        import psycopg
+
+        with psycopg.connect(dsn) as conn:
+            closed = PostgresTrajectoryStore(conn).close_orphans(
+                older_than_seconds=orphan_ceiling_seconds()
+            )
+    except Exception as unreachable:  # the sweep's own gate will say the same thing, louder
+        return f"not reconciled - {type(unreachable).__name__}: {unreachable}"
+    if not closed:
+        return f"none older than {orphan_ceiling_seconds()}s with no outcome"
+    return f"closed {len(closed)} trajectory row(s) as orphaned: {', '.join(closed)}"
+
+
 RECYCLE_SETTLE_SECONDS = 300
 """Kept for the record. **`wait_until_settled` replaced the sleep this named** - see its
 docstring: a fixed wait equal to the gate's threshold is always short by the restart's duration."""
@@ -939,6 +957,11 @@ def main(argv: list[str] | None = None) -> int:
     from faultline.context.settings import ContextSettings
 
     dsn = args.postgres_dsn or ContextSettings().postgres_dsn
+    # **Q72: close what the last killed sweep left open, before this one starts.** A trajectory
+    # whose process died mid-run keeps `outcome IS NULL` forever and reads as running on
+    # `/metrics`; the sweep is the process that kills them, so it is the process that reconciles
+    # them - beside `faultline-inject stop --all`, which is the same cleanup for the world.
+    print(f"orphans: {_close_orphans(dsn)}")
     read_spend = partial(spend_module.session_spend, session, dsn)
     if args.max_usd is not None:
         so_far = read_spend()

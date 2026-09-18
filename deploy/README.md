@@ -488,6 +488,13 @@ memory. **Every forward deploy adds a row here, in the same PR that changes what
 times are the image's CI build time (`docker images --format '{{.CreatedAt}}'`); deploy times were not
 recorded before this table existed and are not invented for it.
 
+**What a sha in this table promises, from 2026-09-18 (Q75):** every CI job on that commit passed -
+lint, types, unit tests *and* the integration job that seeds the corpus and holds the retrieval
+gate - because `docker` now `needs` both. Before that date the `docker` job ran on any push to
+`main`, so every row below was published whether or not the rest of the workflow was green, and
+`a1a6c412` was preceded by twenty-five commits whose images existed while their integration job
+was red. A red integration job now means no image, and a deploy waits for the fix.
+
 | image sha (`FAULTLINE_IMAGE`) | built (UTC) | what it carried | status |
 |---|---|---|---|
 | `adbb136f2c88b3d91c1687e72dc1b7ba672d0636` | 2026-09-18 (CI, #374) | `faultline.pgread`: every Postgres read ends its own transaction, so the platform no longer holds share locks against its own migrations between reads - the defect the row below found. Deployed 2026-09-18 ~10:50 UTC by §3.7's shape (no migration: `schema at 0010` before and after); **thirty seconds after start, with `/metrics` scraped and the queue polled, `pg_stat_activity` showed 0 sessions idle in transaction** - the number that was 2 for the whole life of the previous image | **running** |

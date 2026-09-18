@@ -78,7 +78,7 @@
       "id": 2,
       "type": "stat",
       "title": "Investigations active",
-      "description": "In-flight now, from the incident store. Compare with the `running` line in the outcomes panel: that one is the trajectory table, and a killed run leaves a row there that reads as running forever (Q72). The two disagreeing is a finding, not a rendering error.",
+      "description": "In-flight now, from the incident store. Compare with the `running` line in the outcomes panel: that one is the trajectory table, and a killed run leaves a row there with no outcome until `faultline-sweep` (or `faultline-eval-db orphans`) closes it as `orphaned` - a value of its own, because it did not fail, it was killed (Q72). The two disagreeing for longer than one sweep is a finding.",
       "datasource": {
         "type": "prometheus",
         "uid": "faultline-self-metrics"

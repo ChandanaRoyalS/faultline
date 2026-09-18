@@ -267,6 +267,17 @@ def test_the_required_checks_are_still_only_the_world_free_ones() -> None:
         assert "faultline-eval " not in runs, "ci must not inject faults"
 
 
+def test_an_image_is_published_only_when_every_other_job_passed() -> None:
+    """**Q75.** `docker` had no `needs:`, so the integration job was red on twenty-five
+    consecutive main commits (2026-09-15 to 09-18) and every one of them still published an
+    image - the one thing that would have made anyone look. An image sha in the registry now
+    means the checks and the seeded-corpus measurement both passed at that commit; the
+    deployment's `.env` names a commit, and this is what naming it promises."""
+    ci = workflow("ci")
+
+    assert set(ci["jobs"]["docker"].get("needs", [])) == {"checks", "integration"}
+
+
 # --- neither workflow may hand-roll a catalog loop (T4.5) --------------------------------------
 
 
