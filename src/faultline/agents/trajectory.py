@@ -29,6 +29,7 @@ from enum import StrEnum
 from typing import Any, Protocol
 
 from faultline.archive import Archive, archive_trajectory
+from faultline.pgread import reading
 
 
 class StepKind(StrEnum):
@@ -407,7 +408,7 @@ class PostgresTrajectoryStore:
         """The newest trajectory for one incident. Two statements rather than a join, because
         `get` already assembles steps, tool calls and retrievals and duplicating that here is how
         the two readers drift apart."""
-        with self._conn.cursor() as cur:
+        with reading(self._conn) as cur:
             cur.execute(
                 "SELECT id FROM trajectories WHERE incident_id = %s "
                 "ORDER BY started_at DESC LIMIT 1",
@@ -417,7 +418,7 @@ class PostgresTrajectoryStore:
         return self.get(row[0]) if row else None
 
     def get(self, trajectory_id: str) -> Trajectory | None:
-        with self._conn.cursor() as cur:
+        with reading(self._conn) as cur:
             cur.execute(
                 "SELECT id, incident_id, model, role_models, effort, runtime_version, "
                 "started_at, ended_at, outcome, budget_exhausted, trace_id FROM trajectories "
@@ -499,7 +500,7 @@ class PostgresTrajectoryStore:
         return trajectory
 
     def envelope(self, result_id: str) -> str | None:
-        with self._conn.cursor() as cur:
+        with reading(self._conn) as cur:
             cur.execute(
                 "SELECT envelope FROM trajectory_tool_calls WHERE result_id = %s LIMIT 1",
                 (result_id,),

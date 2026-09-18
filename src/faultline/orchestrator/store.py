@@ -23,6 +23,7 @@ from faultline.orchestrator.models import (
     JoinRule,
     Severity,
 )
+from faultline.pgread import reading
 
 
 class IncidentStore(Protocol):
@@ -186,7 +187,7 @@ class PostgresIncidentStore:
         self._conn = connection
 
     def already_applied(self, episode_key: str, status: str) -> bool:
-        with self._conn.cursor() as cur:
+        with reading(self._conn) as cur:
             cur.execute(
                 "SELECT 1 FROM applied_events WHERE episode_key = %s AND status = %s",
                 (episode_key, status),
@@ -315,7 +316,7 @@ class PostgresIncidentStore:
         return self._load("WHERE state = 'rejected' ORDER BY opened_at", ())
 
     def active_count(self) -> int:
-        with self._conn.cursor() as cur:
+        with reading(self._conn) as cur:
             # Derived from `INVESTIGATING_STATES`. The literal list this replaced was
             # written when there were seven; `REJECTED` and `BUDGET_EXHAUSTED` hold a slot
             # too, and a hand-maintained copy of that set is a drift waiting to happen.
@@ -327,7 +328,10 @@ class PostgresIncidentStore:
             return int(row[0]) if row else 0
 
     def _load(self, where: str, params: tuple[Any, ...]) -> list[Incident]:
-        with self._conn.cursor() as cur:
+        # `reading`: the orchestrator polls `queued()` for its whole life, and a bare cursor left
+        # it idle in transaction between polls, holding `incidents` against any migration
+        # (`faultline.pgread`, 2026-09-18).
+        with reading(self._conn) as cur:
             cur.execute(
                 "SELECT id, state, opened_at, last_activity_at, resolved_at, resolution, "
                 f"state_before_resolution, investigation_id FROM incidents {where}",

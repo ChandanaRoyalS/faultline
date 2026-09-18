@@ -43,6 +43,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from faultline.context.corpus import body_digest_of
+from faultline.pgread import reading
 
 if TYPE_CHECKING:
     from faultline.context.postmortem import Postmortem
@@ -148,7 +149,7 @@ class PostgresAcceptanceStore:
         self._conn.commit()
 
     def accepted(self, scenario_id: str, body_digest: str) -> Acceptance | None:
-        with self._conn.cursor() as cur:
+        with reading(self._conn) as cur:
             cur.execute(
                 f"SELECT {self.COLUMNS} FROM postmortem_acceptances "
                 "WHERE scenario_id = %s AND body_digest = %s ORDER BY at LIMIT 1",
@@ -167,7 +168,7 @@ class PostgresAcceptanceStore:
             )
 
     def callers(self) -> list[str]:
-        with self._conn.cursor() as cur:
+        with reading(self._conn) as cur:
             cur.execute("SELECT DISTINCT caller FROM postmortem_acceptances ORDER BY caller")
             return [str(row[0]) for row in cur.fetchall()]
 

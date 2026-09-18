@@ -399,3 +399,32 @@ def test_the_text_arm_survives_a_query_with_no_searchable_terms(virgin_dsn: str)
         )
         for query in ("", "the and of", "!!!"):
             assert conn.execute(arm, {"q": query}).fetchall() == [], query
+
+
+def test_a_read_leaves_the_connection_idle_not_in_transaction(dsn: str) -> None:
+    """**The T6.6 rollout's finding, asserted on a real connection.** Every read path rolls its
+    transaction back when it is done (`faultline.pgread`), so a long-lived reader holds no share
+    lock between reads and a migration is never left waiting on `/metrics` or on the
+    orchestrator's poll. `IDLE`, not `INTRANS`, after each of these."""
+    from psycopg.pq import TransactionStatus
+
+    from faultline.agents.trajectory import PostgresTrajectoryStore
+    from faultline.context.acceptance import PostgresAcceptanceStore
+    from faultline.observability import metrics
+
+    upgrade_head(dsn)
+    with psycopg.connect(dsn) as conn:
+        incidents = PostgresIncidentStore(conn)
+        trajectories = PostgresTrajectoryStore(conn)
+        acceptances = PostgresAcceptanceStore(conn)
+
+        incidents.queued()
+        assert conn.info.transaction_status == TransactionStatus.IDLE, "queued()"
+        incidents.active_count()
+        assert conn.info.transaction_status == TransactionStatus.IDLE, "active_count()"
+        trajectories.latest_for_incident("none")
+        assert conn.info.transaction_status == TransactionStatus.IDLE, "latest_for_incident()"
+        acceptances.accepted("none", "none")
+        assert conn.info.transaction_status == TransactionStatus.IDLE, "accepted()"
+        metrics.snapshot(incidents, conn, usd_per_mtok=(5.0, 25.0))
+        assert conn.info.transaction_status == TransactionStatus.IDLE, "/metrics snapshot"

@@ -490,8 +490,10 @@ recorded before this table existed and are not invented for it.
 
 | image sha (`FAULTLINE_IMAGE`) | built (UTC) | what it carried | status |
 |---|---|---|---|
-| `7f2edff48b13ae7924ca6a9035cd1db34e2e4f20` | 2026-09-11 (CI, #255) | T6.2: the executor container — the only one with the Docker socket, joining the docker group by id, **kill switch on** — plus the repair replay's write-up and the running-state drift fix. Deployed 2026-09-11 22:07 UTC with three new `.env` values (§3.1); prediction 9 measured against it: `/healthz` reports `kill_switch: true`, a token is refused as `kill_switch` and recorded in the VM's `action_audit`, the orchestrator unaffected | **running** |
-| `4dfcc53e0fc6877ab3c5404a2aafc4012ac12753` | 2026-09-11 04:46 | T6.1: the trace analyst and Tempo — the VM's first world with traces; the orchestrator's terminal-state guard (ADR-0016 Addendum 3); dev sweep 12's write-up; T4.5's Actions work (#247–#249). Deployed 2026-09-11 ~05:15 UTC, after the reboot below, with the world re-applied from the current three files | previous — §3.7's argument |
+| `a1a6c4123d50e03002cbd8bad394b546f16e787e` | 2026-09-18 09:44:53 | T6.6 self-observability, whole: spans at six seams exporting to the world's collector, `/metrics` with `prometheus-self` scraping it, JSON logs, the self dashboard and its datasource, `/metrics` closed at the edge; T6.5's ten postmortems and the committed acceptance ledger (`--import-acceptances`); migrations 0008-0010 (0009 renames a column - snapshot taken first, §3.7). **Deployed 2026-09-18 ~10:40 UTC, and the migration waited 46 minutes for a lock** the platform itself held: the API's `/metrics` snapshot and the orchestrator's `queued()` poll each sat idle in transaction since their process started. Released by terminating both backends; fixed in the next image (`faultline.pgread`). The first image after the T6.6 recheck; CI was red on the integration job for every commit before it (Q67, Q75) | **running** |
+| `2e097dc9bd6085f6119646ae74175a64ffab508e` | 2026-09-11 (CI, #262) | T6.3's last piece - the rejection loop's driver. **Deployed without a row here**, found on 2026-09-18 when the next deploy read what was running; the date is the image's, the deploy time was not recorded. The rule at the top of this table was skipped once, and this row is the correction, not a replacement of the rule | previous - §3.7's argument |
+| `7f2edff48b13ae7924ca6a9035cd1db34e2e4f20` | 2026-09-11 (CI, #255) | T6.2: the executor container — the only one with the Docker socket, joining the docker group by id, **kill switch on** — plus the repair replay's write-up and the running-state drift fix. Deployed 2026-09-11 22:07 UTC with three new `.env` values (§3.1); prediction 9 measured against it: `/healthz` reports `kill_switch: true`, a token is refused as `kill_switch` and recorded in the VM's `action_audit`, the orchestrator unaffected | superseded |
+| `4dfcc53e0fc6877ab3c5404a2aafc4012ac12753` | 2026-09-11 04:46 | T6.1: the trace analyst and Tempo — the VM's first world with traces; the orchestrator's terminal-state guard (ADR-0016 Addendum 3); dev sweep 12's write-up; T4.5's Actions work (#247–#249). Deployed 2026-09-11 ~05:15 UTC, after the reboot below, with the world re-applied from the current three files | superseded |
 | `28fcaf7f3bd14eeceeffe8d0ce7c8063c14fca93` | 2026-09-07 22:57 | T5.6's audit: the proposal card and open questions on the incident screen, `GET /ui/incidents` and the `/` redirect, the demo's `remediation_class` fix; T5.7's visibility reporting; sweep 11's table | superseded |
 | `b310bd9f2b1adfb69cb3016a60371314421dca0e` | 2026-09-07 08:43 | the image the video's part 3 shows: the first incident the deployment opened and investigated itself (T5.5c) | superseded |
 | `eb486066f99dadd30cad3ea9c1beed2d1a8abdef` | 2026-09-07 08:16 | T5.5c's forward deploys while findings twenty-three to thirty-one were being closed on the machine the procedure was written for | superseded |
@@ -499,10 +501,25 @@ recorded before this table existed and are not invented for it.
 | `4ff5e0f170e1a021afd335da51fc7b3607bdc852` | 2026-09-07 07:12 | ″ | superseded |
 | `25ad0a08f4295098bc682ad115d2c996977b7c5c` | 2026-09-07 06:01 | the first image ever deployed: the snapshot-only deployment, before the orchestrator ran investigations (T5.5b/c) | superseded |
 
-All eight are still in the registry and in the VM's cache, so any row is a §3.7 target in seconds.
-The schema constraint in §3.7 still applies across rows: no migration between `25ad0a08` and
-`7f2edff4` dropped or renamed anything (0005 adds `action_audit`; nothing is dropped) (`faultline-migrate` reported `schema at 0004` before and
-after the 2026-09-11 deploy), so today every row is a safe target.
+All ten are still in the registry and in the VM's cache, so any row is a §3.7 target in seconds.
+The schema constraint in §3.7 applies across rows: no migration between `25ad0a08` and `7f2edff4`
+dropped or renamed anything (0005 adds `action_audit`; nothing is dropped) (`faultline-migrate`
+reported `schema at 0004` before and after the 2026-09-11 deploy). **`a1a6c412` carried 0009, which
+renames `trajectory_retrievals.exclude_origin` to `exclude_origins` and changes its type**, so a
+rollback from it to any earlier row crosses a destructive boundary: restore
+`/tmp/snapshot-before-deploy-2026-09-18.sql.gz` first, per §3.7.
+
+**A migration that hangs is waiting for a lock, and the holder is probably this platform.** On
+2026-09-18 `faultline-migrate` sat 46 minutes on `ALTER TABLE trajectories`; `pg_stat_activity`
+showed the API's and the orchestrator's connections *idle in transaction* since they started -
+every read opened a transaction and nothing closed it. Read paths now roll back when they finish
+(`faultline.pgread`), but if it happens again:
+
+```bash
+docker compose exec -T postgres psql -U faultline faultline -c "select pid, state, wait_event_type, now()-xact_start as age, left(query,80) from pg_stat_activity where datname='faultline' and pid <> pg_backend_pid()"
+docker compose exec -T postgres psql -U faultline faultline -c "select pid, pg_terminate_backend(pid) from pg_stat_activity where datname='faultline' and state = 'idle in transaction'"
+docker compose up -d --force-recreate faultline        # the API's connection was one of them
+```
 
 ### 3.10 Rebooting the VM
 
