@@ -529,7 +529,7 @@
       "id": 10,
       "type": "table",
       "title": "Recent investigation traces - service faultline",
-      "description": "Tempo search for the agent's own spans: one root `investigation` per run with `model.call`, `tool.call` and `backend.get` beneath it. Click a trace id to open the waterfall. Grafana attaches the time picker's range to trace lookups, so a run older than the range reads as not found (first-trace note).",
+      "description": "Tempo search for the agent's own spans: one root `incident` per run - opened by the runner before triage, so the triage judgement's model call is inside it rather than a trace of its own (first-trace note, addendum 2) - with `investigation` beneath it and `model.call`, `tool.call`, `backend.get` beneath that. A run triage declines has the root and the triage call and no `investigation`, and this panel filters on `investigation`, so it lists runs that investigated. Click a trace id to open the waterfall. Grafana attaches the time picker's range to trace lookups, so a run older than the range reads as not found; search over a wide range was once observed to miss a block a narrow range found, and recovered on its own (addendum 2).",
       "datasource": {
         "type": "tempo",
         "uid": "tempo"

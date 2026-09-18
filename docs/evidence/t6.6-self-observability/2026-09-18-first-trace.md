@@ -66,3 +66,33 @@ clock is the model, and it is the *last* model calls most of all. What the traje
 `latency_ms` column now records for every completion step is exactly this shape, and it was
 readable in the span list too — the sentence was written from the overlap at the five-second
 mark and generalised. Kept above as written; corrected here.
+
+## Addendum 2, 2026-09-18 — the run made two traces, and search lost one of them for a while
+
+**"One root means `tracing.propagate` did what it exists for"** is true of trace `e420efea…`
+and blind to the run around it. Tempo's search for `resource.service.name = "faultline"` over the
+last 48 hours returns **two** traces from the one `--demo` run:
+
+| trace | root | start | duration |
+|---|---|---|---|
+| `e420efea2fe46357cc202aaf0a53802e` | `investigation` | 05:27:03Z | 4m 21s |
+| `ea12a29e3ec5983c64a8f5aa6a8452e9` | **`model.call`** | 05:26:59Z | **4.3s** |
+
+The second is the **triage judgement**. `run_investigation` asks the triager whether to
+investigate at all *before* `Investigation.run` opens its root, so triage's model call had no
+parent and became a trace of its own - four seconds long, four seconds earlier, and absent from
+the waterfall the note above describes. Triage is part of the run, and a run triage declines
+used to leave no trace but that orphan. **Fixed the same day**: the runner opens an `incident`
+span before the judgement and closes it after the state write-back; `investigation` is its
+child; a live-SDK test asserts every span of a run shares one trace id and exactly one has no
+parent. The trajectory's `trace_id` is unchanged by this - it names the trace, not the root.
+
+**Search also disagreed with itself.** At 07:03Z, with the trace 1h 42m old and `GET
+/api/traces/{id}` returning 200, a search over the last two days returned nothing with one job,
+while a twenty-minute window around the run found it, and half an hour later every window from
+two hours to forty-eight found both traces with a job count that scaled with the window. Not
+reproduced since. The likeliest shape is the querier's block list lagging the backend - the
+same family as Q31's *"blind to the last five minutes"*, though this lasted longer - and it is
+recorded as an observation rather than a queue row, because a search that recovered with no
+change is not yet something anyone can act on. The dashboard's Tempo panel says so in its
+description; the trace-id link on the incident page does not depend on search.
