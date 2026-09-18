@@ -214,3 +214,71 @@ def test_propagate_carries_the_span_onto_another_thread() -> None:  # pragma: no
     finally:
         tracing._tracer = None
         tracing._live = False
+
+
+# --- the fifth seam: retrieval (T6.6 recheck) ----------------------------------------------------
+
+
+def test_a_retrieval_step_carries_its_latency_and_its_own_span_s_ids(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """**The plan row says a span per agent step, and retrieval was the step without one.** A
+    pgvector search on every investigation, twice, recorded as a bookkeeping step sharing the
+    root's ids with no duration. Both retrieval sites now go through `Investigation._search`,
+    which opens a `retrieval` span and times the call; the RETRIEVAL step carries both.
+
+    The span is a recording fake here so the test needs no SDK; the ids it hands back are what
+    the step must carry, which is the join this seam adds."""
+    from collections.abc import Iterator
+    from contextlib import contextmanager
+
+    from faultline.agents import investigation
+    from faultline.agents.budget import Budget
+    from faultline.agents.trajectory import StepKind
+    from tests.test_roles import (
+        ONE_DISPATCH,
+        VERDICT_REPLY,
+        FakeCorpus,
+        ScriptedModel,
+        draft_reply,
+        full_engine,
+        triage_of,
+    )
+    from tests.test_runner import ANCHOR
+
+    opened: list[dict[str, object]] = []
+
+    @contextmanager
+    def recording_span(name: str, **attributes: object) -> Iterator[object]:
+        record: dict[str, object] = {"name": name, **attributes}
+        opened.append(record)
+
+        class Handle:
+            trace_id = "ab" * 16
+            span_id = f"{len(opened):016x}"
+
+            def set(self, **more: object) -> None:
+                record.update(more)
+
+        yield Handle()
+
+    monkeypatch.setattr(investigation, "span", recording_span)
+    monkeypatch.delenv("FAULTLINE_EVAL_SCENARIO", raising=False)
+    model = ScriptedModel(
+        {"planner": [ONE_DISPATCH], "synthesizer": [VERDICT_REPLY], "scribe": [draft_reply([])]}
+    )
+    engine, store = full_engine(model, Budget(max_dispatch_rounds=1), FakeCorpus())
+
+    result = engine.run("incident-r", triage_of("cartservice"), ANCHOR)
+
+    retrievals = [o for o in opened if o["name"] == "retrieval"]
+    assert [o["role"] for o in retrievals] == ["planner", "synthesizer"], "both sites, one shape"
+    assert all(o["k"] == 3 and o["returned"] == 0 for o in retrievals)
+    steps = [
+        s for s in store.trajectories[result.trajectory.id].steps if s.kind is StepKind.RETRIEVAL
+    ]
+    assert len(steps) == 2
+    assert all(s.latency_ms >= 0 and s.trace_id == "ab" * 16 for s in steps)
+    handed_out = {f"{i:016x}" for i in range(1, len(opened) + 1)}
+    assert all(s.span_id in handed_out for s in steps), "the id of the span that did the search"
+    assert len({s.span_id for s in steps}) == 2, "two searches, two spans, not one root id twice"
