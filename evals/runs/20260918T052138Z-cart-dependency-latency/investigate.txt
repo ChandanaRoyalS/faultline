@@ -1,0 +1,45 @@
+tracing: exporting to http://localhost:59941
+incident 29afb6ec-b7a5-4137-badc-57e903660880  state triaging  anchor 05:25:00
+triage: 12 services, severity warning, start from cartservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 8ca5aa20-4277-44ed-994b-56a524f3b1e3
+triage judged: investigate (low confidence, suspects dependency_latency)
+  Four services alerting within 15 seconds along the cart-checkout-frontend path is a coherent propagating failure, not a single quiet warning. Cartservice leading by 15s makes it the plausible origin, likely a slow or failing dependency behind checkout.
+investigation: 2 round(s), 5 dispatch(es), 18 step(s)
+
+=== PROPOSAL ===
+  action      : revert_config (config_revert)
+  target      : cartservice
+  expect      : Restoring cartservice's pre-05:21:47 configuration and recreating the container should detach the traffic-shaping attachment and remove the fixed ~300ms egress delay. In Tempo traces sampled after the recreate: cart's HGET/HMSET spans fall from ~300-304ms self time to single-digit ms; frontend->cart client spans lose their ~301-315ms unaccounted self time; checkout->cart spans fall from ~1206ms with the cart child starting within a few ms rather than +605ms; frontend cart views drop from ~608ms and PlaceOrder from ~2.45s. Confirmation must come from traces, not Prometheus, since no cart latency series exists [tr_a31334102793].
+  within      : 300s
+  risk        : The same automation cycle also set REDIS_ADDR=redis-cart:6380 and a hotfix image tag, each with a paired revert. If the revert restores the wrong point in that cycle, cartservice returns pointing at 6380 and fails all cart calls - turning a zero-error latency incident into an outage. Confirm the restored config is the baseline first. The recreate also destroys the live evidence of the shaping container, which was never confirmed on the running pods.
+  blast radius: cartservice during the recreate, plus its named callers: frontend (cart views, AddItem, GetCart) and checkoutservice (GetCart, EmptyCart) see resets and failed cart calls; loadgenerator registers those failures. In-flight PlaceOrder flows fail. If the reverted value includes a dependency address, redis-cart sees traffic move.
+  if wrong    : Falsified if traces 2-5 min after the recreate still show ~300ms on cart's Redis legs or caller client spans. That would mean the delay is not owned by cartservice config - the shaping may be a separate container object a config revert does not detach, or it sits on redis-cart (never inspected) or shared network. If it reappears minutes later, the recurring platform-automation cycle is re-injecting it and the harness must be stopped instead.
+  rests on    : tr_c693fdf24eef, tr_02879345d918
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 21627 pushed / 6582 pulled (pull rate 0.2333), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : dependency_latency
+  fix class   : config_revert
+  confidence  : high
+  evidence    : tr_c693fdf24eef, tr_02879345d918, tr_9e702118bff8
+  root cause  : At 05:21:47, about three minutes before onset, platform-automation attached a traffic-shaping container to cart-service's network namespace imposing a fixed 300ms egress delay with zero jitter on eth0 [tr_c693fdf24eef]. Every round trip crossing that namespace pays ~300ms: cart's outbound Redis leg shows ~300-304ms self time on both HGET and HMSET while cart's own gRPC handlers use 0.4-1.0ms, and caller client spans carry another ~300ms per leg (frontend→cart ~301-315ms; checkout→cart ~904-910ms with the cart child span starting ~605ms late) [tr_02879345d918]. Trace totals are exactly additive in the number of cart/Redis hops (~608ms cart view, ~1.5s AddItem+GetCart, ~2.45s PlaceOrder) [tr_02879345d918]. Nothing errors: checkoutservice error ratio is zero across all 129 samples in both windows [tr_9e702118bff8], and cart logged normal operations to the end of the window with no restart or backing-store failure [tr_4657d029c4b2]. The mechanism is waiting, not breaking; checkoutservice, frontend and loadgenerator alerted because they sit upstream of the slowed cart path.
+  OPEN        : No latency or request-rate series were ever measured — only error-ratio templates ran [tr_a31334102793, tr_9e702118bff8] — so the 05:25 step-up rests on traces and the change record, not a metric before/after boundary.
+  OPEN        : redis-cart was never inspected directly, and the shaping container's presence at onset was not confirmed on the live pods; the change log is a single untrusted source [tr_c693fdf24eef].
+  OPEN        : Loki returned only the oldest 8 and newest 32 lines, leaving the minutes just before 05:25 unexamined [tr_4657d029c4b2], and no service beyond cart and checkout was probed despite 4 unmeasured edges.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-dependency-latency'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260918T052138Z-cart-dependency-latency/29afb6ec-b7a5-4137-badc-57e903660880-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260918T052138Z-cart-dependency-latency/29afb6ec-b7a5-4137-badc-57e903660880-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+I0918 00:27:07.118993 8555462 ev_poll_posix.cc:587] FD from fork parent still in poll list: fd(14, generation: 1)
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 8586.00it/s]
