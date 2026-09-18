@@ -36,6 +36,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from faultline.pgread import reading
+
 NAMESPACE = "faultline"
 
 DURATION_BUCKETS_SECONDS = (30.0, 60.0, 120.0, 180.0, 240.0, 300.0, 420.0, 600.0, 900.0)
@@ -72,7 +74,9 @@ def snapshot(queue: QueueReader, connection: Any, *, usd_per_mtok: tuple[float, 
     """Read everything `/metrics` reports. One function, so the dashboard and a test read the
     same numbers the same way."""
     snap = Snapshot(queued=len(queue.queued()), active=queue.active_count())
-    with connection.cursor() as cur:
+    # `reading`, not a bare cursor: the first version held its transaction open for the life of
+    # the process and blocked migration 0010 on the deployment for 46 minutes (`faultline.pgread`).
+    with reading(connection) as cur:
         cur.execute("SELECT COALESCE(outcome, 'running'), count(*) FROM trajectories GROUP BY 1")
         snap.investigations_by_outcome = {str(k): int(v) for k, v in cur.fetchall()}
 
