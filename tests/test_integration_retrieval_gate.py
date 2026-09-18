@@ -32,6 +32,7 @@ import pytest
 from testcontainers.community.postgres import PostgresContainer
 
 from evalharness.retrieval import PREDATES_T6_4, load_golden, measure
+from faultline.context.acceptance import ledger_path, ledger_store
 from faultline.context.embedding import SentenceTransformerEmbedder
 from faultline.context.seed import seed, seed_runbooks
 from faultline.context.store import PgVectorPastIncidentStore
@@ -116,7 +117,10 @@ def seeded_store() -> Iterator[PgVectorPastIncidentStore]:
         upgrade_head(dsn)
         with psycopg.connect(dsn) as conn:
             store = PgVectorPastIncidentStore(conn, SentenceTransformerEmbedder())
-            seed(store, DEV_ROOT)
+            # The committed ledger, not an empty one: this fixture refused all ten postmortems
+            # on every main commit from 2026-09-15 to 2026-09-18 - twenty-five red runs - while
+            # the image job beside it kept publishing (`acceptance.LEDGER_FILE`).
+            seed(store, DEV_ROOT, ledger_store(ledger_path(DEV_ROOT)))
             seed_runbooks(store)
             conn.commit()
             yield store

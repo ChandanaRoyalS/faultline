@@ -325,31 +325,24 @@ def test_the_seed_cli_offers_no_way_to_point_at_the_holdout() -> None:
     assert not {"--split", "--holdout", "--all-splits"} & flags
 
 
-def test_the_seed_cli_dry_run_now_refuses_the_dev_tree_because_it_cannot_read_the_ledger(
+def test_the_seed_cli_dry_run_reads_the_committed_ledger_and_reproduces_the_dev_tree(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    """**This test used to assert `--dry-run` reproduces the ten documents, and it cannot.**
-
-    `--dry-run` runs with no database, and the CLI therefore hands `seed` an empty
-    `InMemoryAcceptanceStore` - its own comment says why: *reporting "this would seed" about a
-    document whose acceptance it never checked is worse than reporting that it cannot tell*.
-    That was written before any postmortem was on disk. Ten of them are now, so the first bundle
-    raises `UnacceptedError` and the command exits 2 on a tree where nothing is wrong.
-
-    The refusal is not relaxed here, and the flag is not repaired here either. **Pinned instead**,
-    so the loss is visible rather than inferred from a deleted test: `--dry-run`'s stated purpose
-    - check a new narrative before a download is spent on it - no longer works against the real
-    dev tree. Whether the dry run should grow a third state (*unchecked*, distinct from seeded and
-    from skipped) or should read the ledger over the DSN is **Q67**, and it is a design question
-    rather than something to settle inside a test-fixing commit.
-    """
+    """**Q67, closed by the ledger travelling with the tree.** From 2026-09-15 to 2026-09-18
+    this test pinned the opposite: `--dry-run` had no database, handed `seed` an empty ledger,
+    and exited 2 on a tree where nothing was wrong - the flag's stated purpose, *check a new
+    narrative before a download is spent on it*, was unavailable against the real dev tree.
+    Q67 posed two repairs and this is neither: not a third *unchecked* state, and not a read
+    over the DSN that costs the dry run its *no Postgres* property. The committed ledger is the
+    same decisions the table holds; reading it writes nothing. A tree without the file still
+    gets the empty ledger and the refusal (the test below)."""
     from faultline.context.cli import run
 
-    assert run(["--dry-run", "--no-runbooks", "--dev-root", str(DEV)]) == 2
+    assert run(["--dry-run", "--no-runbooks", "--dev-root", str(DEV)]) == 0
 
-    err = capsys.readouterr().err
-    assert "has no acceptance for its current text" in err
-    assert "postmortem.md" in err
+    out = capsys.readouterr().out
+    assert "acceptances: 10 row(s) read from" in out
+    assert "documents=" in out
 
 
 def test_the_dry_run_still_reproduces_a_tree_whose_bundles_carry_no_postmortem(

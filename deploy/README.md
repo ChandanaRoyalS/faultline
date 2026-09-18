@@ -240,7 +240,7 @@ cd faultline/deploy
 docker network create faultline-deploy-net    # once; harmless to re-run and fails loudly if it exists
 docker compose up -d --wait
 docker compose exec faultline faultline-migrate
-docker compose exec faultline faultline-seed
+docker compose exec faultline faultline-seed --import-acceptances
 ```
 
 `--wait` and not bare `up -d`: on a new volume Postgres runs initdb, so the port is bound before
@@ -250,6 +250,15 @@ the connection unexpectedly`. Found by T5.4's first clean-clone rehearsal.
 **`faultline-seed` is not optional.** The leave-one-out filter (ADR-0008) excludes nothing from an
 empty corpus, asserts nothing, and marks the run `INVALID` however good its verdict. T5.4's first
 rehearsal lost a correct `bad_config` exactly this way.
+
+**`--import-acceptances`, since T6.5's postmortems (2026-09-18).** Ten accepted postmortems are in
+the dev tree and the seeder admits a postmortem only when the ledger holds a row for its exact
+words. A fresh deployment's `postmortem_acceptances` is empty, so without the flag the seed refuses
+all ten and exits 2 - which is the gate working, on a database that has not heard the decision. The
+flag replicates the committed ledger (`evals/scenarios/artifacts/dev/ACCEPTANCES.json`) into the
+table first, verbatim: the rows keep the caller and the date of the original acceptance, so the
+deployment's ledger says who decided and when rather than that the deployment did. Idempotent;
+re-running the procedure imports nothing the second time.
 
 ### 3.4 The world
 
