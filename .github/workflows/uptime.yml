@@ -143,3 +143,24 @@ jobs:
             echo "deploy/Caddyfile's handle /api/v1/alerts* block is what stops it."
             exit 1
           fi
+
+      # T6.6: `/metrics` is deliberately outside the API's credential - its consumer is Prometheus
+      # on the compose network - so the only thing between it and the internet is Caddy's 404.
+      # What it would hand out is lifetime model spend, token counts and investigation outcomes.
+      - name: The metrics surface is not on the internet
+        if: steps.site.outputs.configured == 'true'
+        env:
+          SITE: ${{ vars.FAULTLINE_SITE_ADDRESS }}
+        run: |
+          set -u
+          code="$(curl -sS --max-time 10 -o /dev/null -w '%{http_code}' \
+            "https://${SITE}/metrics" || echo 000)"
+          echo "GET /metrics -> ${code}"
+          if [ "$code" = "404" ]; then
+            echo "blocked at the edge, as deploy/Caddyfile intends."
+          else
+            echo "::error::/metrics answered ${code} from the public internet."
+            echo "It is served without a credential for the in-network scraper; Caddy is what keeps it there."
+            echo "deploy/Caddyfile's handle /metrics block is what stops it."
+            exit 1
+          fi

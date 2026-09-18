@@ -37,6 +37,15 @@
 	handle /api/v1/alerts* {
 		respond "the alert receiver is reachable from this deployment's own Alertmanager, not from the internet" 404
 	}
+	# T6.6: `/metrics` is served outside the API's credential on purpose - the scraper is
+	# Prometheus on the compose network, and a scraper carrying the operator password would put
+	# that password in Prometheus' config. Which is exactly why it must not be forwarded here:
+	# the catch-all below would hand lifetime model spend, token counts and investigation
+	# outcomes to anyone on the internet. Found by rereading this file after the surface landed,
+	# not by a request - the uptime check now asks for it the way it asks for /api/v1/alerts.
+	handle /metrics {
+		respond "the metrics surface is scraped from this deployment's own compose network, not from the internet" 404
+	}
 
 	# --- the world's own UIs, which have no authentication of their own ------------------------
 	#
