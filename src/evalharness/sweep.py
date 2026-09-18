@@ -38,6 +38,7 @@ import time
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -281,6 +282,18 @@ class SweepResult:
     an outside condition stopped (`--start-pass`). The passes before it are the operator's claim
     to have run elsewhere, and `divergence` expects only the passes this invocation ran."""
 
+    ceiling_usd: float | None = None
+    """The hard ceiling this invocation was given (`--max-usd`), or `None` for none.
+
+    **A registration that writes "hard ceiling" gets one only if it passes this.** Q70: T6.5 §6
+    registered $55, Amendment 3 made it $70, and the harness enforced neither - the operator did,
+    at block boundaries. `None` is printed as such so an omission is visible in the log rather
+    than inferred from a missing line."""
+
+    spent: Any = None
+    """`spend.Spend` at the last read - before the final launch, or at the stop. `None` when the
+    sweep had no reader (no session, or a library call)."""
+
     end_pass: int | None = None
     """The last pass this invocation ran, or `None` for *through to the declared R*.
 
@@ -332,8 +345,14 @@ class SweepResult:
         **Not "nothing crashed".** A sweep where half the catalog was discarded ran perfectly and
         produced half a measurement, and a driver that exited 0 on it would let CI and a reader
         take a partial catalog for a whole one.
+
+        **And not "everything launched scored".** A sweep stopped at its ceiling (Q70) may have
+        scored every slot it launched and still not be the catalog; `aborted` says so and so
+        does this. The world-abort path never hit this because it stops only after a catalog's
+        worth of non-scores, so the first version's test was passing by coincidence.
         """
-        return 0 if self.outcomes and self.scored == len(self.outcomes) else 1
+        whole = self.outcomes and self.scored == len(self.outcomes) and self.aborted is None
+        return 0 if whole else 1
 
     def render(self) -> list[str]:
         counts = Counter(o.name for o in self.outcomes)
@@ -361,6 +380,10 @@ class SweepResult:
                 "operator's claim to have scored elsewhere (--start-pass); the figures below are "
                 "for this invocation only, and `faultline-eval-db` is where the whole arm is read.",
             ]
+        if self.ceiling_usd is not None or self.spent is not None:
+            ceiling = f"${self.ceiling_usd:.2f}" if self.ceiling_usd is not None else "none"
+            spent = self.spent.render() if self.spent is not None else "not read"
+            lines += ["", f"  spend: {spent}; ceiling {ceiling}"]
         if self.aborted is not None:
             lines += [
                 "",
@@ -410,8 +433,18 @@ def sweep(
     start_pass: int = 1,
     end_pass: int | None = None,
     session: str | None = None,
+    max_usd: float | None = None,
+    spend: Any = None,
 ) -> SweepResult:
     """The catalog, `repeats` times, counting `--runs-remaining` down **within each pass**.
+
+    **`max_usd` and `spend` are Q70's ceiling.** `spend` is a callable returning `spend.Spend` -
+    what this sweep's id has cost so far, read from the trajectory store - and it is consulted
+    **before every launch**; when it reads at or above `max_usd` the sweep stops where it stands
+    and reports the slots it did not attempt, the way `aborted` already reports a world that
+    stopped it. Checked before rather than after so a run in flight is never interrupted, which
+    bounds the overshoot at one run. `main()` wires `spend` to `spend.session_spend`; a library
+    call without one runs the catalog out, as every test that predates Q70 expects.
 
     **`repeats` exists because the tier flag alone was a lie.** `faultline-eval --tier weekly`
     writes `repeat_count = 3` into the manifest and runs **once**; nothing in it repeats. A driver
@@ -501,6 +534,7 @@ def sweep(
 
     result.start_pass = start_pass
     result.end_pass = end_pass
+    result.ceiling_usd = max_usd
     for pass_number in range(start_pass, (end_pass if end_pass is not None else repeats) + 1):
         if recycler is not None:
             # **Before every pass, including the first**, never during one: the gate's projection
@@ -545,6 +579,19 @@ def sweep(
                     "--sweep-pass",
                     str(pass_number),
                 ]
+            # **Q70: read what the sweep has cost, and stop at the ceiling.** Before the settle
+            # wait, so a sweep that has hit its ceiling does not sit five minutes to be told so.
+            if spend is not None:
+                result.spent = spend()
+                if max_usd is not None and result.spent.usd >= max_usd:
+                    result.aborted = (
+                        f"the hard ceiling was reached: {result.spent.render()} against a "
+                        f"ceiling of ${max_usd:.2f}. Stopped before launching {scenario_id}; "
+                        f"the remaining {total - done + 1} slot(s) were not attempted. This is "
+                        "the registration's ceiling doing what it says, not a fault in the world."
+                    )
+                    print(f"\n*** CEILING: {result.aborted}", flush=True)
+                    return result
             # **Wait before, not after.** The block is the *previous* incident's settle window, so
             # the pause belongs in front of the run that would trip over it - and only when
             # something has actually been injected, so a sweep whose first scenarios all refuse
@@ -597,6 +644,8 @@ def sweep(
                 )
                 print(f"\n*** ABORTING: {result.aborted}", flush=True)
                 return result
+    if spend is not None:
+        result.spent = spend()
     return result
 
 
@@ -742,6 +791,17 @@ def parser() -> argparse.ArgumentParser:
     )
     p.add_argument("--postgres-dsn", default=None)
     p.add_argument(
+        "--max-usd",
+        type=float,
+        default=None,
+        help=(
+            "hard ceiling on what this sweep id may cost, read from the trajectory store before "
+            "every launch; at or above it the sweep stops where it stands and reports the slots "
+            "it did not attempt (Q70). Counts every block that carried the same --label. Without "
+            "it the sweep runs the catalog out whatever it costs, and says so"
+        ),
+    )
+    p.add_argument(
         "--label",
         default=None,
         help=(
@@ -873,6 +933,24 @@ def main(argv: list[str] | None = None) -> int:
     )
     session = args.label or datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ")
     print(f"sweep id: {session}  (pass it back as --label to resume into this same record)")
+    # **Q70.** The ceiling reads the trajectory store, so it needs the DSN the runs write to -
+    # the same one `faultline-eval` is handed, or the context settings' default when none is.
+    from evalharness import spend as spend_module
+    from faultline.context.settings import ContextSettings
+
+    dsn = args.postgres_dsn or ContextSettings().postgres_dsn
+    read_spend = partial(spend_module.session_spend, session, dsn)
+    if args.max_usd is not None:
+        so_far = read_spend()
+        print(
+            f"ceiling: ${args.max_usd:.2f}, read from the trajectory store before every launch; "
+            f"this sweep id stands at {so_far.render()}."
+        )
+    else:
+        print(
+            "ceiling: none - this sweep runs the catalog out whatever it costs (Q70). A "
+            "registration that names a hard ceiling passes it as --max-usd."
+        )
     result = sweep(
         ids,
         repeats=repeats,
@@ -883,6 +961,8 @@ def main(argv: list[str] | None = None) -> int:
         start_pass=args.start_pass,
         end_pass=args.end_pass,
         session=session,
+        max_usd=args.max_usd,
+        spend=read_spend,
     )
     result.declared_repeats = repeats
     print("\n".join(result.render()))
