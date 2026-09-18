@@ -174,6 +174,30 @@ def span(name: str, **attributes: Any) -> Iterator[SpanHandle]:
             raise
 
 
+def propagate(fn: Any) -> Any:
+    """Wrap a callable so it runs under the caller's span on another thread.
+
+    OpenTelemetry's context is thread-local and `ThreadPoolExecutor` does not carry it, so a
+    `tool.call` span opened on a specialist worker would otherwise be a root of its own - four
+    unrelated traces per fan-out instead of four children of one investigation. `_fan_out`
+    wraps what it submits in this. Returns `fn` unchanged when nothing is live.
+    """
+    if not _live:
+        return fn
+    from opentelemetry import context
+
+    captured = context.get_current()
+
+    def wrapped(*args: Any, **kwargs: Any) -> Any:
+        token = context.attach(captured)
+        try:
+            return fn(*args, **kwargs)
+        finally:
+            context.detach(token)
+
+    return wrapped
+
+
 def current_ids() -> tuple[str, str]:
     """`(trace_id, span_id)` of the span in scope, or `("", "")`.
 

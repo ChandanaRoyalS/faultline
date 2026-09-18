@@ -45,6 +45,7 @@ from faultline.agents.trajectory import (
     TrajectoryStore,
 )
 from faultline.agents.triage import TriageResult
+from faultline.observability.tracing import propagate, span
 from faultline.tools import envelope as envelope_renderer
 from faultline.tools.ranking import RadiusStanding, RankingContext
 
@@ -315,23 +316,48 @@ class Investigation:
         )
         state = BudgetState(self._budget)
         result = InvestigationResult(trajectory=trajectory)
-        try:
-            return self._run(trajectory, state, result, incident_id, triage, anchor)
-        except Exception as exc:
-            # **The partial record survives the failure.** Found at T3.5: a run that died in the
-            # synthesizer left nothing in the store at all, because the only saves were at the
-            # end - so three specialists' worth of evidence went with the exception. The
-            # trajectory is what T4.2 scores and T5.3 replays, and a crashed run is exactly the
-            # one worth reading.
-            #
-            # A trajectory with no steps is not saved. Nothing ran, so there is nothing to
-            # score, and an empty row would be indistinguishable from an investigation that
-            # produced no evidence.
-            if trajectory.steps:
-                trajectory.ended_at = datetime.now(UTC)
-                trajectory.outcome = "failed"
-                self._store.save(trajectory)
-            raise InvestigationFailedError(trajectory, exc) from exc
+        # **The root span** (T6.6). Its trace id goes onto the trajectory row, which is the join
+        # from a scored run to its trace; every step added on this thread takes it too, through
+        # `Trajectory.add`. The specialist workers get it through `tracing.propagate` in
+        # `_fan_out`, because OpenTelemetry's context is thread-local and a pool does not carry
+        # it. Outcome and totals are set on the way out, on both the good path and the failed one.
+        with span(
+            "investigation",
+            incident_id=incident_id,
+            trajectory_id=trajectory.id,
+            model=self._model.name,
+        ) as root:
+            trajectory.trace_id = root.trace_id
+            try:
+                outcome = self._run(trajectory, state, result, incident_id, triage, anchor)
+            except Exception as exc:
+                root.set(outcome="failed", tokens_in=state.tokens_in, tokens_out=state.tokens_out)
+                self._save_failed(trajectory, exc)
+            else:
+                root.set(
+                    outcome=trajectory.outcome,
+                    tokens_in=state.tokens_in,
+                    tokens_out=state.tokens_out,
+                    usd=round(state.usd_spent(), 6),
+                    budget_exhausted=trajectory.budget_exhausted,
+                )
+                return outcome
+        raise AssertionError("unreachable")
+
+    def _save_failed(self, trajectory: Trajectory, exc: Exception) -> None:
+        """**The partial record survives the failure.** Found at T3.5: a run that died in the
+        synthesizer left nothing in the store at all, because the only saves were at the end -
+        so three specialists' worth of evidence went with the exception. The trajectory is what
+        T4.2 scores and T5.3 replays, and a crashed run is exactly the one worth reading.
+
+        A trajectory with no steps is not saved. Nothing ran, so there is nothing to score, and
+        an empty row would be indistinguishable from an investigation that produced no evidence.
+        """
+        if trajectory.steps:
+            trajectory.ended_at = datetime.now(UTC)
+            trajectory.outcome = "failed"
+            self._store.save(trajectory)
+        raise InvestigationFailedError(trajectory, exc) from exc
 
     def _run(
         self,
@@ -366,6 +392,9 @@ class Investigation:
                     at=datetime.now(UTC),
                     tokens_in=completion.response.input_tokens,
                     tokens_out=completion.response.output_tokens,
+                    latency_ms=completion.latency_ms,
+                    trace_id=completion.trace_id,
+                    span_id=completion.span_id,
                     payload={
                         "round": state.rounds,
                         "attempts": completion.attempts,
@@ -768,8 +797,12 @@ class Investigation:
             outcomes = [self._run_dispatch(dispatch, anchor, trajectory.started_at, ranking, at)]
         else:
             pool = ThreadPoolExecutor(max_workers=len(admitted), thread_name_prefix="specialist")
+            # `propagate` carries the investigation's span onto each worker; without it every
+            # `tool.call` would be a root of its own and the trace in Tempo would be five
+            # unrelated fragments (T6.6).
+            run_dispatch = propagate(self._run_dispatch)
             futures = [
-                pool.submit(self._run_dispatch, d, anchor, trajectory.started_at, ranking, at)
+                pool.submit(run_dispatch, d, anchor, trajectory.started_at, ranking, at)
                 for d, at in admitted
             ]
             outcomes = []
@@ -932,8 +965,18 @@ class Investigation:
         steps: list[TrajectoryStep] = []
 
         began = time.monotonic()
-        tool_result = specialist.query(service, start, end, ranking=ranking)
-        rendered = envelope_renderer.render(tool_result)
+        # **The one span every tool call passes through** (T6.6). Around the query and the
+        # render, because the envelope's size is part of what the call cost. The step below
+        # carries this span's ids; the `backend.get` spans the query makes are its children.
+        with span(
+            "tool.call",
+            tool=name,
+            service=service,
+            window_seconds=int((end - start).total_seconds()),
+        ) as call:
+            tool_result = specialist.query(service, start, end, ranking=ranking)
+            rendered = envelope_renderer.render(tool_result)
+            call.set(envelope_bytes=len(rendered), result_id=tool_result.id)
 
         # The envelope goes into the trajectory verbatim, before anything reads it: a replay
         # that re-renders from the typed result is replaying a different prompt (ADR-0020 §3).
@@ -953,11 +996,18 @@ class Investigation:
                     result_id=tool_result.id,
                     envelope=rendered,
                 ),
+                trace_id=call.trace_id,
+                span_id=call.span_id,
             )
         )
 
         try:
-            findings, response, attempts = specialist.run(service, question, start, end, rendered)
+            completion = specialist.run(service, question, start, end, rendered)
+            findings, response, attempts = (
+                completion.value,
+                completion.response,
+                completion.attempts,
+            )
         except SchemaValidationError as failure:
             # One specialist's failure, not the investigation's. Recorded as a step so it is
             # visible to scoring rather than merely absent, and the other dispatches continue.
@@ -1003,6 +1053,9 @@ class Investigation:
                 at=datetime.now(UTC),
                 tokens_in=response.input_tokens,
                 tokens_out=response.output_tokens,
+                latency_ms=completion.latency_ms,
+                trace_id=completion.trace_id,
+                span_id=completion.span_id,
                 payload={
                     "attempts": attempts,
                     "result_id": tool_result.id,

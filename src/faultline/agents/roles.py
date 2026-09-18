@@ -9,6 +9,7 @@ confident-looking finding nobody can trace.
 from __future__ import annotations
 
 import json
+import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
@@ -36,6 +37,7 @@ from faultline.agents.model import LanguageModel, ModelRequest, ModelResponse
 from faultline.agents.triage import TriageResult
 from faultline.context.allowlist import ActionStatus, load_allowlist
 from faultline.context.runbooks import Runbook, load_runbooks
+from faultline.observability.tracing import span
 from faultline.tools.metrics import MetricTemplate
 from faultline.tools.ranking import RankingContext
 from faultline.tools.results import ToolResult
@@ -101,6 +103,17 @@ class Completion:
     rejected: tuple[str, ...] = ()
     """Parts of the reply dropped after the re-ask, each with why. Recorded, never silent."""
 
+    latency_ms: int = 0
+    """Wall time of the whole logical call - both attempts, when there were two (T6.6). The
+    trajectory had never measured this: `latency_ms` was set in one place, around the tool
+    query, so every COMPLETION step recorded 0. Carried here so the step that records the
+    completion can carry it too."""
+
+    trace_id: str = ""
+    span_id: str = ""
+    """The `model.call` span this completion was made inside, for the step to carry (T6.6).
+    Empty when nothing is exporting."""
+
 
 def ask(
     model: LanguageModel,
@@ -117,43 +130,70 @@ def ask(
     """
     messages = list(request.messages)
     last: ModelResponse | None = None
-    for attempt in (1, 2):
-        response = model.complete(
-            ModelRequest(
-                system=request.system,
-                messages=messages,
-                role=request.role,
-                max_tokens=request.max_tokens,
-                effort=request.effort,
+    # **The one span every model call passes through** (T6.6). Around the logical call - a
+    # rejected reply and its re-ask are one span with `attempts = 2` - because a span per wire
+    # call would sit in `Resilient._try`, which exists only when a `Resilient` is installed, and
+    # would give a reader two spans to add up. The step that records this completion carries
+    # the span's ids, which is the join from the trajectory to the trace.
+    began = time.monotonic()
+    # `getattr`, because a span attribute must never be what breaks a model call: the
+    # protocol has `name` and the test fakes do not all bother.
+    with span("model.call", role=request.role, model=getattr(model, "name", "")) as handle:
+        for attempt in (1, 2):
+            response = model.complete(
+                ModelRequest(
+                    system=request.system,
+                    messages=messages,
+                    role=request.role,
+                    max_tokens=request.max_tokens,
+                    effort=request.effort,
+                )
             )
-        )
-        last = response
-        parsed: Any = None
-        try:
-            parsed = _parse(response.text, schema)
-            if check is not None:
-                check(parsed)
-            return Completion(parsed, response, attempt)
-        except (ValidationError, ValueError) as exc:
-            if attempt == 2:
-                raise SchemaValidationError(response, exc, parsed) from exc
-            # A reply cut off at `max_tokens` is a truncated JSON document, and it arrives here
-            # looking like a malformed one. Found on the first live dispatch: a 40-line log
-            # envelope produced a findings object longer than the cap, and the re-ask that
-            # merely said "that did not validate" invited the same too-long reply again. Say
-            # which failure it was, and ask for less.
-            truncated = response.stop_reason == "max_tokens"
-            nudge = (
-                "Your reply was cut off at the token limit, so the JSON was incomplete. "
-                "Reply again, complete and much shorter - at most three entries per list."
-                if truncated
-                else f"That did not validate against the schema: {exc}."
-            )
-            messages = [
-                *messages,
-                {"role": "assistant", "content": response.text},
-                {"role": "user", "content": f"{nudge} Reply with JSON only."},
-            ]
+            last = response
+            parsed: Any = None
+            try:
+                parsed = _parse(response.text, schema)
+                if check is not None:
+                    check(parsed)
+                handle.set(
+                    attempts=attempt,
+                    tokens_in=response.input_tokens,
+                    tokens_out=response.output_tokens,
+                    stop_reason=response.stop_reason,
+                )
+                return Completion(
+                    parsed,
+                    response,
+                    attempt,
+                    latency_ms=int((time.monotonic() - began) * 1000),
+                    trace_id=handle.trace_id,
+                    span_id=handle.span_id,
+                )
+            except (ValidationError, ValueError) as exc:
+                if attempt == 2:
+                    handle.set(
+                        attempts=2,
+                        tokens_in=response.input_tokens,
+                        tokens_out=response.output_tokens,
+                    )
+                    raise SchemaValidationError(response, exc, parsed) from exc
+                # A reply cut off at `max_tokens` is a truncated JSON document, and it arrives here
+                # looking like a malformed one. Found on the first live dispatch: a 40-line log
+                # envelope produced a findings object longer than the cap, and the re-ask that
+                # merely said "that did not validate" invited the same too-long reply again. Say
+                # which failure it was, and ask for less.
+                truncated = response.stop_reason == "max_tokens"
+                nudge = (
+                    "Your reply was cut off at the token limit, so the JSON was incomplete. "
+                    "Reply again, complete and much shorter - at most three entries per list."
+                    if truncated
+                    else f"That did not validate against the schema: {exc}."
+                )
+                messages = [
+                    *messages,
+                    {"role": "assistant", "content": response.text},
+                    {"role": "user", "content": f"{nudge} Reply with JSON only."},
+                ]
     raise AssertionError(f"unreachable; last response {last}")
 
 
@@ -460,7 +500,7 @@ class Specialist:
 
     def run(
         self, service: str, question: str, start: datetime, end: datetime, envelope: str
-    ) -> tuple[SpecialistFindings, ModelResponse, int]:
+    ) -> Completion:
         brief = (
             f"Question: {question}\nService: {service}\n"
             f"Window: {start.isoformat()} to {end.isoformat()}\n\n{envelope}"
@@ -476,7 +516,7 @@ class Specialist:
             ),
             SpecialistFindings,
         )
-        return completion.value, completion.response, completion.attempts
+        return completion
 
 
 def build_specialists(
