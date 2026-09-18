@@ -472,7 +472,7 @@ class Investigation:
         result.exclude_origins = exclude
         if self._corpus is not None:
             query = self._retrieval_query(triage, result)
-            hits = self._corpus.search(query, k=self._retrieval_k, exclude_origins=exclude)
+            hits, timing = self._search(Synthesizer.ROLE, query, exclude)
             result.retrieved = [
                 f"{_label(hit.chunk)} / {hit.chunk.section}: {hit.chunk.text[:280]}" for hit in hits
             ]
@@ -497,6 +497,7 @@ class Investigation:
                     rendered=list(result.retrieved),
                     excluded_count=self._excluded_count(exclude),
                 ),
+                timing=timing,
             )
 
         try:
@@ -670,7 +671,7 @@ class Investigation:
             return [], seq
         exclude = self._exclusion_for(incident_id)
         query = self._planner_query(triage)
-        hits = self._corpus.search(query, k=self._retrieval_k, exclude_origins=exclude)
+        hits, timing = self._search(Planner.ROLE, query, exclude)
         rendered = [
             f"{_label(hit.chunk)} / {hit.chunk.section}: {hit.chunk.text[:280]}" for hit in hits
         ]
@@ -689,8 +690,26 @@ class Investigation:
                 rendered=list(rendered),
                 excluded_count=self._excluded_count(exclude),
             ),
+            timing=timing,
         )
         return rendered, seq
+
+    def _search(self, role: str, query: str, exclude: frozenset[str]) -> tuple[list[Any], Timing]:
+        """The corpus search, inside a `retrieval` span and timed.
+
+        **The fifth seam, found by the row it was measured against** (T6.6 recheck). The design
+        note's four seams are the model, the tools, the backends and the run; retrieval - a
+        pgvector search on every investigation, twice - was a bookkeeping step that shared the
+        root's ids and recorded no duration. The plan row says *a span per agent step*, and this
+        was the step without one. Both retrieval sites call this so there is one span shape.
+        """
+        assert self._corpus is not None
+        started = time.perf_counter()
+        with span("retrieval", role=role, k=self._retrieval_k, excluded=len(exclude)) as handle:
+            hits = self._corpus.search(query, k=self._retrieval_k, exclude_origins=exclude)
+            handle.set(returned=len(hits))
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        return hits, Timing(latency_ms, handle.trace_id, handle.span_id)
 
     def _excluded_count(self, exclude: frozenset[str]) -> int | None:
         """How many chunks this exclusion made unreachable, or `None` when there is no
@@ -1078,11 +1097,28 @@ class Investigation:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class Timing:
+    """What `Investigation._search` measured: how long, and which span (empty when not traced)."""
+
+    latency_ms: int = 0
+    trace_id: str = ""
+    span_id: str = ""
+
+
 def record_retrieval(
-    trajectory: Trajectory, seq: int, role: str, record: RetrievalRecord
+    trajectory: Trajectory,
+    seq: int,
+    role: str,
+    record: RetrievalRecord,
+    timing: Timing | None = None,
 ) -> TrajectoryStep:
     """Attach a retrieval to the trajectory. `exclude_origins` is on the record, and T4.1b reads
-    it from the column rather than from a log line (ADR-0008)."""
+    it from the column rather than from a log line (ADR-0008). Since T6.6 the step also carries
+    the search's duration and the `retrieval` span's ids, the way a completion carries its
+    `model.call`'s; `Trajectory.add` fills empty ids from the span in scope, so a caller without
+    a timing still gets the root's."""
+    timing = timing or Timing()
     return trajectory.add(
         TrajectoryStep(
             seq=seq,
@@ -1090,5 +1126,8 @@ def record_retrieval(
             kind=StepKind.RETRIEVAL,
             at=datetime.now(UTC),
             retrieval=record,
+            latency_ms=timing.latency_ms,
+            trace_id=timing.trace_id,
+            span_id=timing.span_id,
         )
     )
