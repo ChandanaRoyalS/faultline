@@ -122,8 +122,11 @@ def run(argv: list[str] | None = None) -> int:
 
     # T6.6: one call per process, by the entry point and not a library module. Prints which
     # way it went so an operator who expected traces and sees none has one line to read.
-    from faultline.observability import tracing
+    from faultline.observability import logs, tracing
 
+    # Piece 4: JSON lines with the trace id, on the daemons. Before `tracing.configure`, so
+    # anything the SDK logs while installing comes out in the same shape.
+    logs.configure(component="api")
     if tracing.configure(component="api"):
         print(f"tracing: exporting to {os.environ.get(tracing.ENDPOINT_VAR)}", flush=True)
         atexit.register(tracing.shutdown)
@@ -145,5 +148,8 @@ def run(argv: list[str] | None = None) -> int:
         print(refusal)
         return 3
 
-    uvicorn.run(served, host=args.host, port=args.port)
+    # `log_config=None`: uvicorn's own dictConfig gives its loggers handlers of their own and
+    # `propagate=False`, which would put the access log beside ours in a different shape. With
+    # none, they propagate to the root and come out as the same JSON lines.
+    uvicorn.run(served, host=args.host, port=args.port, log_config=None)
     return 0
