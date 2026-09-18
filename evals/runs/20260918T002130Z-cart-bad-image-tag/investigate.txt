@@ -1,0 +1,43 @@
+incident 971b73a0-4d72-4867-b705-e9a957a5ca46  state triaging  anchor 00:25:00
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+states: triaging -> planning -> investigating -> synthesizing -> proposing
+trajectory: 0b23b813-cab9-4536-8b40-016633ae0ca3
+triage judged: investigate (medium confidence, suspects unknown)
+  Critical alerts hitting checkout and frontend simultaneously with loadgenerator confirming user-facing impact; this is not dismissible and no open incident covers it. The simultaneous onset across the checkout path suggests a shared downstream dependency, but nothing in the alerts pins a class yet.
+investigation: 2 round(s), 7 dispatch(es), 22 step(s)
+
+=== PROPOSAL ===
+  action      : rollback_image (rollback)
+  target      : cartservice
+  expect      : Redeploying cartservice at its pre-hotfix image tag and recreating the container should bring a serving process back. Observable as: (1) the {service="cart-service"} Loki stream resumes — a .NET hosting-lifetime startup banner followed by GetCartAsync/AddItemAsync lines, which have been absent since the 00:21:35 shutdown banner; (2) new checkoutservice traces for PlaceOrder stop terminating at the ERROR-marked CartService/GetCart client leaf and again contain a cartservice server-side child span plus the downstream payment/shipping/email/orders spans (trace span counts returning from ~5 to the ~36 seen in healthy 00:16–00:18 traces); (3) the frontend and loadgenerator checkout-failure alerts clear as those traces stop carrying ERROR status.
+  within      : 300s
+  risk        : The change-log entry records the prior tag as 'None' rather than a concrete tag, so 'the image it ran before the most recent change' may resolve ambiguously; if it resolves to an absent or unpullable reference, cartservice stays down in a new way and we have burned the obvious fix. No orchestrator evidence was gathered — if the hotfix image is actually fine and the container is failing for an environment reason (pull credentials, port conflict, readiness probe, host resource), the rollback recreates the container into the same broken environment and the outage continues while attention is misdirected away from the real cause. The recreate also discards in-process state; cart contents live in redis-cart so user carts should survive, but any in-memory cache warmth is lost and the first requests after recreate may be slower.
+  blast radius: One service, cartservice, plus its inbound callers named in the graph: frontend (direct) and checkoutservice (via CartService/GetCart during PlaceOrder). Both see connection resets for the duration of the container recreate — though both are already seeing total failure on this edge, so the incremental harm is small. Because checkout aborts in cart preparation, the browse path through frontend/adservice/productcatalogservice/recommendationservice is unaffected either way, and loadgenerator will see its checkout success rate move first.
+  if wrong    : Falsified if, after the recreate, the cart-service log stream still emits no startup banner (container never reaches running/ready), or if it starts but checkoutservice error traces continue to terminate at GetCart with no cartservice child span. Also falsified in part if cartservice comes back healthy yet error traces persist in the shape seen at 00:26:33 — frontend-only spans with no checkoutservice span — which would point at a second, unexamined failure at the frontend->checkout hop that this rollback does not touch. Note a gap in confirmability: cartservice has no calls_total series in Prometheus in either the incident or baseline window [tr_30b975280d48], so recovery cannot be confirmed from cartservice's own error-ratio metric; confirmation must come from its logs and from checkoutservice-rooted traces.
+  rests on    : tr_ea6aa6500bb0, tr_1dd11f2bccf7, tr_3a1f2f231d57
+  execution   : not executed - a proposal is a claim, never the change (ADR-0028 §1)
+
+context: 30085 pushed / 10802 pulled (pull rate 0.2642), 2 section(s) dropped
+
+=== VERDICT ===
+  fault class : bad_deploy
+  fix class   : rollback
+  confidence  : high
+  evidence    : tr_ea6aa6500bb0, tr_1dd11f2bccf7, tr_3a1f2f231d57
+  root cause  : Platform-automation updated the cartservice image reference to a hotfix tag at 00:21:35 and, uniquely among the 33 changes in the window, never reverted it [tr_ea6aa6500bb0]. cartservice's log stream ends at that exact moment with an orderly .NET hosting-lifetime shutdown banner and no subsequent startup banner [tr_1dd11f2bccf7] — the old container stopped for the image swap and the replacement never came up serving. Thereafter every checkoutservice error trace terminates at the outbound CartService/GetCart client span, all self-time, with no cartservice server-side child span at all, and checkout aborts in cart preparation before payment, shipping, email or the orders publish [tr_3a1f2f231d57]. That error propagates unchanged to frontend and loadgenerator, explaining the simultaneous alerts, while checkoutservice itself shows no local fault. The mechanism is that the artifact now referenced for cartservice is not running and serving: a bad deploy on cartservice.
+  OPEN        : No orchestrator evidence: whether the new cartservice container is in ImagePullBackOff, CrashLoopBackOff, or failing readiness is unverified, so why the hotfix image does not serve is unknown.
+  OPEN        : The ~3.5 minute gap between the 00:21:35 shutdown and the 00:25:00 alert is unexplained; alert lag is plausible but unconfirmed.
+  OPEN        : One 00:26:33 error trace contains only frontend spans with no checkoutservice span [tr_3a1f2f231d57], hinting at a second failure mode at the frontend->checkout hop that was never examined.
+
+flags: none
+
+retrieval: exclude_origins=['scenario:cart-bad-image-tag', 'scenario:shipping-wrong-image'], 3 hit(s)
+
+no notification sent: this is a scored run (--exclude-origin was given), and a benchmark is not an incident lifecycle
+wrote /Users/chandana/dev/faultline/evals/runs/20260918T002130Z-cart-bad-image-tag/971b73a0-4d72-4867-b705-e9a957a5ca46-verdict.json
+wrote /Users/chandana/dev/faultline/evals/runs/20260918T002130Z-cart-bad-image-tag/971b73a0-4d72-4867-b705-e9a957a5ca46-narrative.md
+Warning: You are sending unauthenticated requests to the HF Hub. Please set a HF_TOKEN to enable higher rate limits and faster downloads.
+
+Loading weights:   0%|          | 0/103 [00:00<?, ?it/s]
+Loading weights: 100%|██████████| 103/103 [00:00<00:00, 7850.65it/s]

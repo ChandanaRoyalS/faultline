@@ -1,0 +1,170 @@
+{
+  "incident_id": "fbd2452a-69bb-46b2-9af7-2c8fd414d06b",
+  "trajectory_id": "81035e97-8de7-49e4-957f-4e2474c5b775",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:ad-memory-squeeze",
+    "scenario:frauddetection-memory-squeeze"
+  ],
+  "verdict": {
+    "root_cause": "Frontend's outbound gRPC calls are failing at DNS name resolution before any connection is established: code 14 UNAVAILABLE naming a resolution failure for the adservice target on 9555, and earlier a code 13 wrapping an Unavailable dial error for shippingservice, both against the container resolver at 127.0.0.11:53 [tr_eeb5c79271e6]. Two distinct downstream targets failing with the same pre-connect resolution mode points at the name-resolution/service-discovery layer frontend depends on, not at either backend's process health [tr_eeb5c79271e6]. No frontend or checkoutservice change is on record in the queried interval [tr_0d596a098a6e][tr_b32f5f48a50c], and neither frontend nor checkoutservice error ratios departed from baseline [tr_07cac1a6f03b][tr_47b03673f532], so the failing calls are a minority of traffic riding on an otherwise healthy request path. Because the mechanism is an unresolvable name in frontend's client configuration/discovery path, I class this as bad_config: the target the client resolves is not resolvable, and that wrongness is itself the failure.",
+    "service": "frontend",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "low",
+    "evidence": [
+      "tr_eeb5c79271e6",
+      "tr_0d596a098a6e",
+      "tr_07cac1a6f03b",
+      "tr_47b03673f532",
+      "tr_75360b5c1870"
+    ],
+    "reasoning": "The only direct failure signature anywhere on the board is in frontend logs: gRPC 14 and 13 errors whose detail is DNS lookup failure against 127.0.0.11:53 for two different downstream names [tr_eeb5c79271e6]. That result also rules out timeout/deadline modes, adservice process failure, and frontend business-logic faults, and shows the same failure already present at 23:34, well before the 00:04:15 alert. Traces corroborate that nothing is slow: the largest root is 35.2ms, the only ERROR spans are in a 0.7ms AdService trace, and frontend self-time on the checkout path is ~0 [tr_75360b5c1870] - which is why I do not call this dependency_latency. Error-ratio baselines for frontend and checkoutservice are flat or slightly down [tr_07cac1a6f03b][tr_47b03673f532], and adservice/shippingservice series are absent in both windows, a standing instrumentation gap rather than an onset symptom [tr_b44efcb05064][tr_51c9e78c8228]. With no change record for frontend or checkoutservice [tr_0d596a098a6e][tr_b32f5f48a50c], the surviving mechanism is a resolution/discovery misconfiguration on frontend's outbound client path.",
+    "open_questions": [
+      "No latency series was returned for any service; every metric dispatch ran the error-ratio template only [tr_07cac1a6f03b][tr_47b03673f532][tr_51c9e78c8228], so what the frontend alert actually fired on is unestablished.",
+      "Nothing observed covers 00:04:15. All sampled traces start at or after 00:06:05 [tr_75360b5c1870] and the log result drops everything between 23:34 and 00:06 [tr_eeb5c79271e6], so onset behaviour is unmeasured.",
+      "Both change queries begin at onset and extend forward, never covering the hours before 00:04:15 [tr_b32f5f48a50c]; a pre-onset config or DNS change would be invisible.",
+      "Whether the resolution failure is a wrong target value in frontend's config or a fault in the cluster DNS/resolver itself was never tested - no DNS, resolver, or service-registry evidence was gathered.",
+      "The DNS errors predate the alert and affect only some calls; whether they are steady background noise or the actual alerting condition is unresolved."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "Cluster DNS / service-discovery infrastructure is failing to resolve service names, and frontend is merely the loudest client of it.",
+        "service": "frontend",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Fits the two-target pre-connect resolution signature in [tr_eeb5c79271e6] equally well, but no resolver, CoreDNS, or registry evidence was ever collected, and no other service was checked for the same errors, so the infrastructure layer cannot be named as the failing component."
+      },
+      {
+        "root_cause": "Latency accumulating on the checkout path - frontend/PlaceOrder into shippingservice/GetQuote into quoteservice - breached a frontend latency threshold.",
+        "service": "quoteservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "The trace sample flags the shipping-to-quoteservice hop as degrading [tr_75360b5c1870], but absolute times are tiny (largest root 35.2ms) and the logs show immediate resolution failures rather than deadline-exceeded [tr_eeb5c79271e6]; no latency series exists to show any step [tr_47b03673f532]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "runbook:service-emailservice / A reading of its error ratio was withdrawn, and the reason generalises: A 2026-08-23 measurement put this service's error ratio at **4.77%** on what was taken to be a\nquiet world. ADR-0012 withdrew it: *\"an averaging artifact of a contaminated window - its only\nnon-zero samples were an injected incident's recovery phase.\"* No threshold change was war",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "runbook:service-frontend / The at-rest latency tail: **Measured over twelve hours at 15s resolution on a world at rest** (ADR-0025): frontend's\nmedian p95 is 42.3ms, and 127 of 2398 samples were above the 250ms threshold, 94 of them above\n1000ms, in excursions sustained past the rule's three-minute `for:` clause. Two episodes in th"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 28687,
+    "pulled_tokens": 5295,
+    "pull_rate": 0.1558,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 440,
+        "content_tokens": 442,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1643,
+        "content_tokens": 1646,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8899,
+        "content_tokens": 8875,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8199,
+        "content_tokens": 8201,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9506,
+        "content_tokens": 9484,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_0d596a098a6e",
+      "tr_b32f5f48a50c",
+      "tr_eeb5c79271e6",
+      "tr_07cac1a6f03b"
+    ],
+    "expected_effect": "No action proposed, so no effect is predicted. The observable state expected to persist unchanged: frontend continues to emit sporadic gRPC code 14 UNAVAILABLE / code 13 INTERNAL lines naming DNS resolution failures against 127.0.0.11:53 for adservice:9555 and shippingservice, while frontend's error ratio stays statistically flat against baseline (mean ~0.021 vs ~0.025) [tr_07cac1a6f03b][tr_eeb5c79271e6]. What should happen next is investigation, not remediation: query cluster DNS/resolver and service-registry state, query change history for the hours *before* 00:04:15 (both existing change queries start at onset and look forward only [tr_b32f5f48a50c]), and fetch the p95 latency series that no metric dispatch ever returned, to establish what the frontend alert actually fired on.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if someone produces (a) a change record for frontend predating 00:04:15 that names a dependency address or resolver config value \u2014 which would satisfy revert_config's preconditions and make the revert the right move \u2014 or (b) a latency series showing a step at onset that ties the alert to these DNS errors rather than to background noise. Either would convert a low-confidence guess into an actionable diagnosis. Note also that the effect of any config revert here is barely observable with the signals in hand: frontend's error ratio did not move at onset, so a successful fix would not show as a ratio falling, only as those specific DNS log lines ceasing \u2014 and log coverage is truncated (oldest 8 / newest 32 lines, nothing between 23:34 and 00:06) [tr_eeb5c79271e6]. An effect we cannot reliably see is not a prediction worth acting on.",
+    "risk": "The risk is in acting, and it is why I am not. revert_config on frontend would recreate the container and restore a prior environment; if the true fault is in the cluster DNS/resolver rather than in frontend's target values \u2014 a distinction no evidence gathered even tested \u2014 the revert changes nothing about resolution, adds an unexplained config delta to the incident record, and may overwrite correct current dependency addresses with stale ones, converting a minority of failing calls into a broad outage. rollback_image and restart_service are worse: change history is empty for frontend, so no prior image tag is recorded and no deploy is named in the window [tr_0d596a098a6e], and the evidence points at name resolution before any connection, explicitly not at frontend process state [tr_eeb5c79271e6]. scale_service is unavailable in this world by ADR-0029. The residual risk of abstaining is that a genuine minority-traffic failure continues for as long as investigation takes; that is tolerable because frontend and checkoutservice error ratios are at baseline [tr_07cac1a6f03b][tr_47b03673f532] and the DNS errors predate the alert.",
+    "blast_radius": "None from this proposal, since nothing is changed. For contrast, the action I am declining would have been felt by: frontend itself (container recreate, in-flight requests reset), loadgenerator and every real user path through frontend during the recreate, and the five downstreams frontend calls \u2014 adservice, cartservice, checkoutservice, productcatalogservice, recommendationservice \u2014 which would see traffic drop and then move if a reverted value is a dependency address."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical alert on frontend with the load generator reflecting user-facing impact, not a lone synthetic or warning-only signal. Cause could be frontend itself or any of its direct dependencies, so a real investigation is warranted."
+  }
+}

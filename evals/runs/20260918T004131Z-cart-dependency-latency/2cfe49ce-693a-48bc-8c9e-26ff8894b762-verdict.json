@@ -1,0 +1,173 @@
+{
+  "incident_id": "2cfe49ce-693a-48bc-8c9e-26ff8894b762",
+  "trajectory_id": "fbc89e35-8f7f-4acc-91c2-69ce7c2cf2d1",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:cart-dependency-latency",
+    "scenario:redis-cart-dependency-latency"
+  ],
+  "verdict": {
+    "root_cause": "A traffic-shaping container was attached to cartservice's network namespace by platform-automation about three minutes before onset, injecting a fixed ~300ms egress delay with zero jitter on eth0, and it was never removed [tr_d4304d852c3c]. Every sampled cartservice trace shows that exact signature: a uniform ~300-311ms penalty per call leg, identical for cheap reads and writes, with handler self-time under ~2ms and the same increment on the frontend's client span to CartService [tr_bb25958836ff]. Because the cost is per-call, latency scales linearly with call count (single-read flows ~605ms, AddItem flows ~1.5s) and propagates to callers: checkoutservice PlaceOrder stages that completed in tens of milliseconds early in the window are separated by roughly a second in the tail [tr_486ff2e60d91], and its error ratio sits in an elevated bursty regime with most requests still succeeding, consistent with timeouts on slow cart calls [tr_7f11aad5b931]. cartservice itself is otherwise healthy: no crash loop, no startup or cache errors, still serving traffic at window close [tr_14cf4af246df], and no error status on any sampled span [tr_bb25958836ff].",
+    "service": "cartservice",
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_d4304d852c3c",
+      "tr_bb25958836ff",
+      "tr_486ff2e60d91",
+      "tr_7f11aad5b931",
+      "tr_14cf4af246df"
+    ],
+    "reasoning": "The mechanism is waiting, not exhaustion or a wrong artifact: the added time lives in call legs, not handler code or datastore work. Read and write Redis spans are indistinguishable at ~300ms, excluding command-cost explanations, and the distribution is uniformly shifted with zero fast calls, excluding tail latency and retry/backoff [tr_bb25958836ff]. The magnitude and zero-jitter character match the injected shaping parameter, and that attachment is the only change from the automation cycle still in effect at onset - the hotfix image was reverted ~14 minutes prior and the REDIS_ADDR override ~3.2 hours prior [tr_d4304d852c3c]. cartservice is named rather than its callers because the delay is attached to its namespace and the callers' symptoms follow from it. The fix is removing the injected shaping rule, not an image rollback or restart [tr_14cf4af246df].",
+    "open_questions": [
+      "checkoutservice's error change point is ~00:23, about 19 minutes before the shaping container was attached [tr_7f11aad5b931, tr_d4304d852c3c]; the delay cannot explain error elevation that predates it, so an earlier automation action or a second overlapping fault may be involved.",
+      "No log lines from the 00:45:15-00:45:30 onset interval were returned for either service - both results were truncated [tr_14cf4af246df, tr_486ff2e60d91] - so the failure mode at the alert moment (timeout vs refused vs application error) is unobserved.",
+      "cartservice's own error ratio, latency, restart and saturation metrics are unmeasured [tr_d9a7131639af], and whether the shaping container is still attached now is unconfirmed: checkout's tail looks recovered [tr_486ff2e60d91] while cart traces at 00:46:09 still carry the full penalty [tr_bb25958836ff]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "checkoutservice has an independent fault that began ~00:23, and the cart-path delay is a concurrent but separate condition.",
+        "service": "checkoutservice",
+        "fault_class": "unknown",
+        "remediation_class": "none",
+        "why_not": "Nothing in checkoutservice's own evidence names a mechanism - its logs show only happy-path info lines and the onset interval was never returned [tr_486ff2e60d91] - whereas the cart delay has a measured magnitude, a matching change record, and an explanation for checkout's slowdown [tr_bb25958836ff, tr_d4304d852c3c]. It survives only because of the ~19-minute timing gap.",
+        "note": ""
+      },
+      {
+        "root_cause": "The cart Redis backend or the network path to it became slow on its own, unrelated to the shaping container.",
+        "service": "cartservice",
+        "fault_class": "dependency_latency",
+        "remediation_class": "none",
+        "why_not": "The penalty also appears on the frontend-to-cartservice leg, not just the cart-to-Redis leg, and is identical for HGET and HMSET [tr_bb25958836ff] - a datastore or single-path problem would not affect both legs uniformly, and the ~300ms matches the injected parameter exactly [tr_d4304d852c3c]."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "cart-redis-misconfig / What the proposal rested on: Preconditions: none were recorded, which is itself notable \u2014 the whole chain assumes 6379 is serving and 6380 is closed, inferred from the change record plus connect failures, never from the Redis side. Blast radius as mechanism: one service's processes replaced, cart traffic shi",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-redis-misconfig / What the investigation concluded: An automation cycle edited cartservice's REDIS_ADDR to point at the redis-cart host on 6380 rather than the default 6379 about two and a half minutes before onset, and \u2014 unlike every prior turn of that same cycle in the preceding day \u2014 that edit was still in force at onset. Each "
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 26533,
+    "pulled_tokens": 7414,
+    "pull_rate": 0.2184,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 479,
+        "content_tokens": 481,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1979,
+        "content_tokens": 1982,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7960,
+        "content_tokens": 7935,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7400,
+        "content_tokens": 7402,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8715,
+        "content_tokens": 8692,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_d4304d852c3c",
+      "tr_bb25958836ff",
+      "tr_7f11aad5b931"
+    ],
+    "expected_effect": "No action proposed. The mechanism is a traffic-shaping container attached to cartservice's network namespace injecting a fixed ~300ms egress delay; the fix is removal of that shaping container / tc qdisc, which no permitted action performs. Neither revert_config (restores env/config, would not detach a sidecar netns attachment) nor rollback_image (hotfix image was already reverted ~14m before onset and ruled out) nor restart_service (no process-state evidence; logs show healthy serving) addresses it.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "If the shaping container is in fact bound to cartservice's recorded container configuration, then a revert_config would clear the ~300ms per-call penalty in cart traces within ~2 minutes; that would show abstention was too conservative. Confirm by checking whether the netns attachment is listed in cartservice's stored config, and whether cart traces still carry ~300ms now (cart traces at 00:46:09 still did, while checkout's tail looks recovered).",
+    "risk": "Abstaining leaves the ~300ms per-call delay in place, so cart-dependent flows stay slow (single reads ~605ms, AddItem ~1.5s) and checkoutservice keeps timing out on a minority of orders until an operator removes the shaping container out of band.",
+    "blast_radius": "Nothing changes, so no service sees a disruption; frontend, checkoutservice and loadgenerator continue to see the degraded cart latency they already see."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "dependency_latency",
+    "confidence": "medium",
+    "reasoning": "Multiple services alerted within 15 seconds starting at cartservice and spreading up through checkout and frontend, which is a propagating failure rather than a single quiet warning. No open incident covers it, so it warrants investigation with cartservice and its backing store as the first thread."
+  }
+}
