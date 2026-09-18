@@ -53,7 +53,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timedelta
 from functools import lru_cache
 from typing import Any
 from urllib.parse import quote
@@ -225,6 +225,13 @@ class TimelineEntry:
     summary: str
     """**Structural text only** - the role, the tool, the service. Never a log line: a summary
     built from world-produced content would put untrusted text outside the `untrusted` block."""
+    latency_ms: int = 0
+    """How long the step's call took. **Recorded on every step since T3 and dropped here until
+    T6.6**: the trajectory carried `latency_ms` for tool calls all along and for model calls
+    since piece 2, and the screen showed a timestamp column and nothing about duration. Zero
+    means *not measured* - a bookkeeping step - and the page shows nothing for it."""
+    span_id: str = ""
+    """The span that did the work, empty when the run was not traced (piece 2)."""
 
     def as_dict(self) -> dict[str, Any]:
         return {
@@ -233,6 +240,8 @@ class TimelineEntry:
             "kind": self.kind,
             "at": self.at.isoformat(),
             "summary": self.summary,
+            "latency_ms": self.latency_ms,
+            "span_id": self.span_id,
         }
 
 
@@ -264,9 +273,47 @@ def timeline(steps: list[Any]) -> list[TimelineEntry]:
                 kind=str(kind),
                 at=step.at,
                 summary=summary,
+                latency_ms=int(getattr(step, "latency_ms", 0) or 0),
+                span_id=str(getattr(step, "span_id", "") or ""),
             )
         )
     return entries
+
+
+TRACE_MARGIN = timedelta(minutes=5)
+"""Either side of the run, on the trace link's range. **Grafana asks Tempo with the time picker's
+range attached**, and the first trace (2026-09-18) read *404 trace not found* in Explore until the
+range was widened past the run's start, while a `curl` to Tempo's API found it at once. A link
+that opened on `now-1h` would fail for every run older than an hour, which is every run a reader
+comes back to."""
+
+
+def trace_link(
+    trace_id: str,
+    started_at: datetime | None = None,
+    ended_at: datetime | None = None,
+    grafana_url: str | None = None,
+) -> str | None:
+    """Explore on the Tempo datasource, opened on this trace. `None` when the run was not traced.
+
+    `queryType: "traceId"` rather than a TraceQL query that happens to be a hex string: the
+    Grafana this world ships resolves the former and read the latter as a search (first-trace
+    note). The range is the run's own, widened by `TRACE_MARGIN`, when the trajectory knows it.
+    """
+    if not trace_id:
+        return None
+    left: dict[str, Any] = {
+        "datasource": DATASOURCE_BY_TOOL["trace_query"],
+        "queries": [{"queryType": "traceId", "query": trace_id}],
+    }
+    if started_at is not None:
+        end = ended_at if ended_at is not None else started_at
+        left["range"] = {
+            "from": (started_at - TRACE_MARGIN).isoformat(),
+            "to": (end + TRACE_MARGIN).isoformat(),
+        }
+    base = _grafana_base() if grafana_url is None else grafana_url.rstrip("/")
+    return f"{base}{GRAFANA_EXPLORE}?left={quote(json.dumps(left, separators=(',', ':')))}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -376,6 +423,19 @@ def incident_view(incident: Any, trajectory: Any | None) -> dict[str, Any]:
             )
         ],
         "trajectory_id": getattr(trajectory, "id", None) if trajectory else None,
+        # T6.6: the run's trace, when it has one. The id is structural (32 hex characters the
+        # SDK minted, never world text) and the link is built here for the same reason a
+        # citation's is - the page never assembles a URL.
+        "trace_id": str(getattr(trajectory, "trace_id", "") or "") if trajectory else "",
+        "trace_link": (
+            trace_link(
+                str(getattr(trajectory, "trace_id", "") or ""),
+                getattr(trajectory, "started_at", None),
+                getattr(trajectory, "ended_at", None),
+            )
+            if trajectory
+            else None
+        ),
         "timeline": [entry.as_dict() for entry in timeline(steps)],
         "evidence": [card.as_dict() for card in evidence(steps, calls)],
         "report": report,

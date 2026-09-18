@@ -475,12 +475,14 @@ def world() -> dict:
 
 
 @pytest.mark.parametrize(
-    "service", ["alertmanager", "prometheus", "loki", "tempo", "frontendproxy"]
+    "service", ["alertmanager", "prometheus", "loki", "tempo", "frontendproxy", "otelcol"]
 )
 def test_every_service_the_platform_talks_to_shares_its_network(world: dict, service: str) -> None:
     """Two compose projects, one network. The orchestrator queries four of these (Tempo since
-    T6.1) and Caddy forwards the demo's UIs through the fifth; a service left off the network is a
-    tool that times out at the moment it is asked a question.
+    T6.1), Caddy forwards the demo's UIs through the fifth, and the platform *writes* its own
+    spans to the sixth (the collector, T6.6); a service left off the network is a tool that times
+    out at the moment it is asked a question - or, for the collector, an exporter that retries a
+    batch nobody receives, every five seconds, in every daemon.
 
     **This list said `frontend-proxy` and passed for two merges** - it was checking the overlay's
     keys against a copy of the overlay's keys, and both were the container name rather than the
@@ -689,6 +691,41 @@ def test_every_telemetry_container_survives_a_reboot(world: dict, service: str) 
     assert world["services"][service].get("restart") == "always", (
         f"{service} will not come back after a reboot"
     )
+
+
+# --- T6.6: the platform's own spans reach the world's collector -----------------------------------
+
+
+def test_the_daemons_that_trace_are_pointed_at_the_collector_and_the_executor_is_not(
+    compose: dict, world: dict
+) -> None:
+    """`tracing.configure` reads `OTEL_EXPORTER_OTLP_ENDPOINT` and nothing else. `faultline`
+    calls it as the API, `orchestrator` calls it and hands the variable to every
+    `faultline-investigate` it spawns; the executor never calls it, and the rule on the DSN classes
+    applies - a variable nothing reads is documentation that lies eventually.
+
+    The target is the collector's *service* name on the shared network, which is the name Docker's
+    DNS resolves across the two projects; `compose.world.yml` is what puts it there."""
+    endpoint = "http://otelcol:4317"
+
+    for name in ("faultline", "orchestrator"):
+        env = compose["services"][name]["environment"]
+        assert env.get("OTEL_EXPORTER_OTLP_ENDPOINT") == endpoint, name
+    assert "OTEL_EXPORTER_OTLP_ENDPOINT" not in compose["services"]["executor"]["environment"]
+    assert "faultline" in world["services"]["otelcol"]["networks"], (
+        "the endpoint names a service the platform cannot reach"
+    )
+
+
+def test_the_image_installs_the_sdk_the_endpoint_needs() -> None:
+    """The variable without the extra is the T5.5c shape again: a deployment configured to do a
+    thing and unable to import the code that does it. `tracing.configure` returns False and the
+    entry point prints so, which is honest and is still a deployment that cannot watch itself."""
+    dockerfile = (REPO_ROOT / "Dockerfile").read_text()
+    syncs = [ln for ln in dockerfile.splitlines() if ln.startswith("RUN") and "uv sync" in ln]
+
+    assert syncs and all("--extra observability" in ln for ln in syncs), syncs
+    assert "--extra observability" in makefile_recipe("install"), "the same sentence as the image"
 
 
 # --- T6.2: the one container that can act ---------------------------------------------------------

@@ -124,6 +124,12 @@ services:
       # Where the executor answers. Compose network only; Caddy forwards nothing to it.
       FAULTLINE_API_EXECUTOR_URL: http://executor:8100
       FAULTLINE_INGEST_REDIS_URL: redis://redis:6379/0
+      # T6.6: the agent's own spans go to the world's collector, which `compose.world.yml` puts on
+      # the shared network for this. The standard variable, not a `FAULTLINE_` one, because the
+      # SDK and every other OTel client read the same name; unset would mean no export, silently
+      # (the entry point prints which way it went). The collector forwards to Tempo, where the
+      # trace sits beside the outage's - one query away rather than three.
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otelcol:4317
       # **The database password reaches libpq here, not through the DSN below.** Two reasons,
       # and the first was found by running it:
       #
@@ -248,6 +254,12 @@ services:
       # an investigation in this container would look for its corpus on the container's own
       # loopback and find nothing there. See the same line on `faultline` above (T5.5c).
       FAULTLINE_CONTEXT_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
+      # T6.6: same variable as on `faultline` above. `faultline-investigate` is a subprocess of
+      # this container and inherits it, so the investigation's root span, its model calls and
+      # its tool calls export from here. The executor does not get it: nothing there calls
+      # `tracing.configure`, and an environment variable that nothing reads is documentation
+      # that lies eventually (the rule on the DSN classes).
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otelcol:4317
       # T5.2's links into T5.1's screen, for the same reason: a Slack message has no origin, so
       # this is configuration or the message carries a marked absence instead of a link.
       FAULTLINE_NOTIFY_PUBLIC_BASE_URL: https://${SITE_ADDRESS:?set SITE_ADDRESS in deploy/.env}

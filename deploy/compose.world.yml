@@ -126,6 +126,17 @@ services:
       - default
       - faultline
 
+  # T6.6: the platform's own spans arrive here over OTLP/gRPC on 4317 - `OTEL_EXPORTER_OTLP_ENDPOINT`
+  # on `faultline` and `orchestrator` in compose.yml - and the collector forwards them to Tempo the
+  # way it forwards the shop's. Nothing queries the collector; it is the one service the platform
+  # *writes* to across the projects, which is a network membership and not a change to what the
+  # world is. The service key is `otelcol`; the container is `otel-col` (see the note above).
+  otelcol:
+    restart: always
+    networks:
+      - default
+      - faultline
+
   # Not on the platform's network - nothing queries them across projects - but they did not survive
   # the reboot either. Grafana is what a citation click lands in; promtail is how logs reach Loki.
   grafana:
