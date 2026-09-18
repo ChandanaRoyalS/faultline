@@ -84,3 +84,29 @@ select count(*) from pg_stat_activity where datname='faultline' and state='idle 
 
 The same query read 2 for the entire life of the previous image. The next migration against this
 deployment will not wait on the platform.
+
+## Addendum 2, 2026-09-18 11:38 UTC — the fourth daemon, and the first gated image
+
+`d89876cc` (#377) is on the VM: the first image CI could not have published with a red job
+behind it, and the first on which `faultline-execute` exports. Within the minute of `up -d
+--wait` returning:
+
+```
+executor-1  | tracing: exporting to http://otelcol:4317
+executor-1  | {"ts": "2026-09-18T11:38:55.912+00:00", "level": "INFO", "logger": "uvicorn.error", "msg": "Started server process [1]", "component": "executor", ...}
+idle in transaction: 0
+trajectories with no outcome, or orphaned: (none)
+```
+
+The last line is the VM's answer to Q72: the deployment has never had a sweep killed under it,
+so there was nothing for the reconciler to name - the development database's four are the only
+orphans this project has produced, and they are closed (first-scrape note, addendum). Still not
+shown: an `action.execute` span with anything in it. The kill switch is off and no action has been
+approved on the VM since the deploy, so the span exists as code that runs and not yet as a trace
+anyone has read; the first approved action puts one in Tempo, and it costs whatever the
+investigation that proposes it costs.
+
+One thing the JSON lines show that a test did not: uvicorn passes `color_message` as an `extra=`
+field, so its startup lines carry a key with an ANSI escape in it. Faithful - the formatter puts
+every extra on the line, as designed - and harmless, and noted here rather than filtered, because
+a filter for one library's key is the kind of special case that accumulates.
