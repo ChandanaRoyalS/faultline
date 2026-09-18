@@ -239,7 +239,11 @@ documentation's job; it is written down here now as well.
 [the world at a glance](http://localhost:3000/grafana/d/faultline-shop-health). Every panel
 below the top row is one alert rule's own expression with its threshold drawn as a line, so
 a firing alert is explicable on the screen where it is visible. Open it before you inject:
-the demo's narration and the dashboard tell the same story from two ends.
+the demo's narration and the dashboard tell the same story from two ends. Beside it since T6.6,
+[the agent watching itself](http://localhost:3000/grafana/d/faultline-self): queue, in-flight
+investigations, outcomes, durations and spend from `/metrics`, its own log lines from Loki and
+its traces from Tempo, joined by `trace_id`. Its Prometheus panels stay empty until Q73 lands
+the scrape job, and the dashboard says so on the screen.
 
 **Five minutes, not two.** The baseline gate refuses to inject into a world whose containers are
 younger than **300 seconds** — a container still warming up produces readings that are not a
