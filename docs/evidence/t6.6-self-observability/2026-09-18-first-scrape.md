@@ -57,3 +57,20 @@ its environment; the shell relaunching it did not, and `read_surface` refused ra
 the incident log unauthenticated — as designed. The relaunch reads the password out of its file
 into that one process's environment. Worth carrying into piece 5: the scraper never needs that
 credential, because `/metrics` sits outside it on purpose.
+
+## Addendum, 2026-09-18 — the four rows, closed
+
+Q72 closed in #377 and the reconciler was run once by hand against the development database,
+after the merge, from a terminal:
+
+```
+$ uv run faultline-eval-db orphans
+closed 4 trajectory row(s) with no outcome older than 1200s as orphaned: 63d94706-…, e5741704-…, e670d4a3-…, fd4e3453-…
+```
+
+**Four**, the number this note counted from `running` at the first scrape, so nothing opened and
+died in between and the metric was right about the rows as well as the count. They are
+`orphaned` now, not `failed`; `ended_at` is still NULL on each, so the duration histogram did not
+move. The next scrape of `/metrics` reads `…{outcome="running"}` 0 and `…{outcome="orphaned"}` 4,
+and the in-memory gauge and the trajectory table agree for the first time since the table has
+existed. $0.00.
