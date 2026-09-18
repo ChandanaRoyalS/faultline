@@ -35,9 +35,11 @@ here should be read as claiming to.
 
 from __future__ import annotations
 
+import json
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Protocol
 
 from faultline.context.corpus import body_digest_of
@@ -168,3 +170,79 @@ class PostgresAcceptanceStore:
         with self._conn.cursor() as cur:
             cur.execute("SELECT DISTINCT caller FROM postmortem_acceptances ORDER BY caller")
             return [str(row[0]) for row in cur.fetchall()]
+
+
+# --- the committed ledger ------------------------------------------------------------------------
+
+LEDGER_FILE = "ACCEPTANCES.json"
+"""The rows above, exported and committed beside the bundles they admit
+(`evals/scenarios/artifacts/dev/ACCEPTANCES.json`).
+
+**Why a file, when the table is the ledger.** An acceptance is a fact about a person's decision,
+and until 2026-09-18 that fact lived in one Postgres - the development machine's - and nowhere
+else. Every other place that seeds the dev tree had an empty ledger and refused all ten
+postmortems: CI's integration job (red on every commit since the postmortems landed, twenty-five
+runs, while the image job beside it kept publishing), `faultline-seed --dry-run` (Q67), and the
+deployment's own Postgres. Committing the rows carries the fact without remaking the decision -
+each row keeps its id, its timestamp and its caller, so what a reader sees is *who accepted these
+words, when*, not *this machine accepted them*.
+
+**What the file cannot do.** It cannot accept anything. A postmortem edited after acceptance has
+a new digest and no row, here or in any table, and `postmortem_chunks` refuses it exactly as
+before; `tests/test_acceptance_ledger.py` makes that refusal fire in `make check`, an hour before
+CI would. Adding a row by hand is the same act as inserting one into the table by hand - possible,
+recorded as the caller's, and outside the approval surface that was built so it need not happen.
+"""
+
+
+def ledger_path(dev_root: Path) -> Path:
+    return dev_root / LEDGER_FILE
+
+
+def read_ledger(path: Path) -> list[Acceptance]:
+    """The committed rows, as `Acceptance`s, in file order. Every field required; nothing defaulted,
+    because a defaulted `at` or `caller` would be this process claiming the decision."""
+    rows = json.loads(path.read_text())
+    if not isinstance(rows, list):
+        raise ValueError(f"{path}: expected a list of acceptance rows")
+    out: list[Acceptance] = []
+    for index, row in enumerate(rows):
+        missing = {"id", "at", "scenario_id", "body_digest", "caller"} - set(row)
+        if missing:
+            raise ValueError(f"{path}: row {index} lacks {sorted(missing)}")
+        out.append(
+            Acceptance(
+                id=str(row["id"]),
+                at=datetime.fromisoformat(row["at"]),
+                scenario_id=str(row["scenario_id"]),
+                body_digest=str(row["body_digest"]),
+                caller=str(row["caller"]),
+                note=str(row.get("note", "")),
+            )
+        )
+    return out
+
+
+def ledger_store(path: Path) -> InMemoryAcceptanceStore:
+    """An in-memory ledger holding exactly the committed rows. What CI and `--dry-run` seed with."""
+    store = InMemoryAcceptanceStore()
+    for row in read_ledger(path):
+        store.append(row)
+    return store
+
+
+def import_ledger(rows: list[Acceptance], into: AcceptanceStore) -> int:
+    """Replicate committed rows into a ledger that lacks them. Returns how many were appended.
+
+    Idempotent by the question the seeder asks - `(scenario_id, body_digest)` - so a row already
+    admitting those words is left alone and a second import appends nothing. Rows go in verbatim:
+    the deployment's table then says the development machine's caller accepted these words on the
+    development machine's date, which is the truth, rather than a fresh row saying the deployment
+    did.
+    """
+    appended = 0
+    for row in rows:
+        if into.accepted(row.scenario_id, row.body_digest) is None:
+            into.append(row)
+            appended += 1
+    return appended

@@ -62,6 +62,16 @@ def parser() -> argparse.ArgumentParser:
             "not-exclude without them"
         ),
     )
+    p.add_argument(
+        "--import-acceptances",
+        action="store_true",
+        help=(
+            "before seeding, replicate the committed ledger (ACCEPTANCES.json in the dev root) "
+            "into this database's postmortem_acceptances, for rows it lacks. Rows go in "
+            "verbatim - the caller and date of the original decision - so a fresh deployment "
+            "can admit the postmortems a person accepted elsewhere without anyone re-deciding"
+        ),
+    )
     return p
 
 
@@ -73,7 +83,13 @@ def run(argv: list[str] | None = None) -> int:
         AcceptanceStore,
         InMemoryAcceptanceStore,
         PostgresAcceptanceStore,
+        import_ledger,
+        ledger_path,
+        ledger_store,
+        read_ledger,
     )
+
+    ledger = ledger_path(Path(args.dev_root))
     from faultline.context.seed import QuarantineError, UnacceptedError, seed, seed_runbooks
 
     if args.dry_run:
@@ -84,11 +100,17 @@ def run(argv: list[str] | None = None) -> int:
         from faultline.context.store import InMemoryPastIncidentStore
 
         store: object = InMemoryPastIncidentStore(HashingEmbedder())
-        # **An empty ledger, so a dry run refuses every postmortem.** It is not a lie about
-        # the deployment: a dry run has no database and therefore cannot know what was
-        # accepted, and reporting "this would seed" about a document whose acceptance it never
-        # checked is worse than reporting that it cannot tell.
-        acceptances: AcceptanceStore = InMemoryAcceptanceStore()
+        # **The committed ledger, when the tree carries one** (Q67). A dry run has no database
+        # and used to hand `seed` an empty ledger, so it refused every postmortem on a tree
+        # where nothing was wrong. The committed rows are the same decisions the database
+        # holds; reading them writes nothing, which is what a dry run promises. A tree without
+        # the file - a fresh scenario's narrative being checked before a download - still gets
+        # the empty ledger and the refusal it always had.
+        if ledger.is_file():
+            acceptances: AcceptanceStore = ledger_store(ledger)
+            print(f"acceptances: {len(read_ledger(ledger))} row(s) read from {ledger}")
+        else:
+            acceptances = InMemoryAcceptanceStore()
     else:
         import psycopg
 
@@ -103,6 +125,10 @@ def run(argv: list[str] | None = None) -> int:
             upgrade_head(args.postgres_dsn)
         store = real
         acceptances = PostgresAcceptanceStore(connection)
+        if args.import_acceptances:
+            rows = read_ledger(ledger)
+            appended = import_ledger(rows, acceptances)
+            print(f"acceptances: imported {appended} of {len(rows)} row(s) from {ledger}")
 
     try:
         result = seed(store, Path(args.dev_root), acceptances)  # type: ignore[arg-type]
