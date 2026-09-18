@@ -441,29 +441,29 @@ def record_from_run(run_dir: Path) -> Record:
     if not verdicts:
         raise RecordError(f"{run_dir} holds no *-verdict.json")
     payload = json.loads(verdicts[0].read_text())
-    if payload.get("baseline"):
-        raise RecordError(
-            f"{run_dir.name} is a baseline run. B0 and B1 are controls for the pipeline, and a "
-            "postmortem of a control is a document about a lookup table."
-        )
+    # Late, like `agents/cli.py`'s three: the harness may import production and not the
+    # other way round at module level. This function reads a run manifest, which is the
+    # harness's own record, so the predicate that reads it belongs there.
+    from evalharness.run import is_standing_pipeline
+
     manifest_path = run_dir / "manifest.json"
     manifest = json.loads(manifest_path.read_text()) if manifest_path.is_file() else {}
-    ablation = manifest.get("ablation") or []
-    if ablation:
-        # **The fourth time this hole has been found, and the first three are on the record.**
-        # `scenario_table._qualifies` excludes ablation runs from every figure and says why: a
-        # `--without traces` run "is a different pipeline in exactly the sense [a baseline] means
-        # it", and T6.1 put `ablation` in `FINGERPRINT_INPUTS` so one can never pool with a full
-        # run. Its comment records the same hole taking `observability_digest` and the B0 arm
-        # before that. This function refused a baseline and said nothing about an ablation, so
-        # the first live drafting run took **nine of nine donors from the without-traces arm** -
-        # the newest run per scenario happened to be that arm - and produced postmortems scoring
-        # 4 of 9 on fault class where the full pipeline scores 8 of 10. README's own text
-        # predicts it: "nine of nine with traces, three of eleven without".
+    # `baseline` is on the verdict artifact and on the manifest; the predicate reads the
+    # manifest, so a run with one and not the other is still refused.
+    standing, why = is_standing_pipeline(
+        {**manifest, "baseline": payload.get("baseline") or manifest.get("baseline")}
+    )
+    if not standing:
+        # **One predicate, Q66's** (`evalharness.run.is_standing_pipeline`). This refused a
+        # baseline and said nothing about an ablation until T6.5's first drafting run took nine
+        # of nine donors from the `--without traces` arm and wrote postmortems scoring 4 of 9 on
+        # fault class where the full pipeline scores 8 of 10. $0.797 discarded, and the hole was
+        # found by reading a draft rather than by any test. It now refuses on the same rule
+        # README's table filters on, so a new arm cannot reach one and miss the other.
         raise RecordError(
-            f"{run_dir.name} is an ablation run ({', '.join(sorted(ablation))} withheld). A "
-            "postmortem of a degraded pipeline teaches a reader what that pipeline concluded "
-            "without its evidence, which is not what the corpus is for."
+            f"{run_dir.name} is {why}. A postmortem is drafted from what the standing pipeline "
+            "concluded; drafting from anything else would put a control's reasoning into the "
+            "corpus the pipeline retrieves from."
         )
     body = payload.get("verdict") or {}
     if not body.get("root_cause"):

@@ -382,18 +382,27 @@ def test_a_baseline_run_is_not_a_donor() -> None:
 
 def test_a_real_run_reads_into_a_record_the_drafter_can_use() -> None:
     """End to end over the archive: the artifact the scorer read is the artifact the drafter
-    drafts from, which is what keeps a postmortem about a run that was actually scored."""
+    drafts from, which is what keeps a postmortem about a run that was actually scored.
+
+    **This test used to restate the donor filter and was the fourth copy of it** - baseline and
+    ablation, and nothing about `exclusion_policy`. It began picking a T6.5 WITHOUT-arm run the
+    day that key landed, and the drafter refused it: the guard and the test that exercises it
+    disagreed about what a donor is. It now asks `is_standing_pipeline`, which is the same
+    question `record_from_run` and `scenario_table._qualifies` ask (Q66).
+    """
+    from evalharness.run import is_standing_pipeline
     from faultline.agents.postmortem import record_from_run
 
     usable = []
     for path in sorted(RUNS.glob("*/*-verdict.json")):
         payload = json.loads(path.read_text())
-        if payload.get("baseline") or not (payload.get("verdict") or {}).get("root_cause"):
+        if not (payload.get("verdict") or {}).get("root_cause"):
             continue
         manifest_path = path.parent / "manifest.json"
         if not manifest_path.is_file():
             continue
-        if json.loads(manifest_path.read_text()).get("ablation"):
+        manifest = json.loads(manifest_path.read_text())
+        if not is_standing_pipeline({**manifest, "baseline": payload.get("baseline")})[0]:
             continue
         usable.append(path.parent)
     if not usable:
