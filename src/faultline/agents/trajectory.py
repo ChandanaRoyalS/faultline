@@ -150,6 +150,12 @@ class TrajectoryStep:
     latency_ms: int = 0
     tool_call: ToolCallRecord | None = None
     retrieval: RetrievalRecord | None = None
+    trace_id: str = ""
+    span_id: str = ""
+    """The OpenTelemetry span this step was recorded inside (T6.6). Empty when the process was
+    not exporting, so *not traced* is legible as emptiness. The tool-call and model-call steps
+    carry the span that did the work; every other step carries the investigation's root span,
+    stamped by `Trajectory.add`. Either way a reader with the step can find the trace."""
 
 
 @dataclass(slots=True)
@@ -175,9 +181,25 @@ class Trajectory:
     """ADR-0020 §5: exhaustion finishes the investigation early with a flagged verdict rather
     than failing it, and T4.2 must report those separately rather than pooling them."""
 
+    trace_id: str = ""
+    """The root `investigation` span's trace, set by `Investigation.run` (T6.6). Empty when not
+    exporting. This is the join from a scored run to its trace in Tempo."""
+
     steps: list[TrajectoryStep] = field(default_factory=list)
 
     def add(self, step: TrajectoryStep) -> TrajectoryStep:
+        """Append, stamping the enclosing span's ids on a step that has none.
+
+        The precise joins - a tool-call step to its `tool.call` span, a model-call step to its
+        `model.call` span - are set by the code that opened those spans. Everything else lands
+        here with empty ids and takes the span in scope, which on the investigation's thread is
+        the root. **A step never carries a made-up id**: with nothing live, `current_ids` is
+        two empty strings and the step keeps them.
+        """
+        if not step.trace_id:
+            from faultline.observability.tracing import current_ids
+
+            step.trace_id, step.span_id = current_ids()
         self.steps.append(step)
         return step
 
@@ -257,10 +279,10 @@ class PostgresTrajectoryStore:
         with self._conn.cursor() as cur:
             cur.execute(
                 "INSERT INTO trajectories (id, incident_id, model, role_models, effort, "
-                "runtime_version, started_at, ended_at, outcome, budget_exhausted) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO UPDATE SET "
+                "runtime_version, started_at, ended_at, outcome, budget_exhausted, trace_id) "
+                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT (id) DO UPDATE SET "
                 "ended_at = EXCLUDED.ended_at, outcome = EXCLUDED.outcome, "
-                "budget_exhausted = EXCLUDED.budget_exhausted",
+                "budget_exhausted = EXCLUDED.budget_exhausted, trace_id = EXCLUDED.trace_id",
                 (
                     trajectory.id,
                     trajectory.incident_id,
@@ -272,13 +294,15 @@ class PostgresTrajectoryStore:
                     trajectory.ended_at,
                     trajectory.outcome,
                     trajectory.budget_exhausted,
+                    trajectory.trace_id,
                 ),
             )
             for step in trajectory.steps:
                 cur.execute(
                     "INSERT INTO trajectory_steps (trajectory_id, seq, role, kind, at, "
-                    "tokens_in, tokens_out, latency_ms, payload) VALUES (%s,%s,%s,%s,%s,%s,%s,"
-                    "%s,%s) ON CONFLICT (trajectory_id, seq) DO NOTHING",
+                    "tokens_in, tokens_out, latency_ms, payload, trace_id, span_id) VALUES "
+                    "(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                    "ON CONFLICT (trajectory_id, seq) DO NOTHING",
                     (
                         trajectory.id,
                         step.seq,
@@ -289,6 +313,8 @@ class PostgresTrajectoryStore:
                         step.tokens_out,
                         step.latency_ms,
                         json.dumps(step.payload),
+                        step.trace_id,
+                        step.span_id,
                     ),
                 )
                 if step.tool_call is not None:
@@ -394,7 +420,7 @@ class PostgresTrajectoryStore:
         with self._conn.cursor() as cur:
             cur.execute(
                 "SELECT id, incident_id, model, role_models, effort, runtime_version, "
-                "started_at, ended_at, outcome, budget_exhausted FROM trajectories "
+                "started_at, ended_at, outcome, budget_exhausted, trace_id FROM trajectories "
                 "WHERE id = %s",
                 (trajectory_id,),
             )
@@ -412,10 +438,11 @@ class PostgresTrajectoryStore:
                 ended_at=row[7],
                 outcome=row[8],
                 budget_exhausted=row[9],
+                trace_id=row[10] or "",
             )
             cur.execute(
-                "SELECT seq, role, kind, at, tokens_in, tokens_out, latency_ms, payload "
-                "FROM trajectory_steps WHERE trajectory_id = %s ORDER BY seq",
+                "SELECT seq, role, kind, at, tokens_in, tokens_out, latency_ms, payload, "
+                "trace_id, span_id FROM trajectory_steps WHERE trajectory_id = %s ORDER BY seq",
                 (trajectory_id,),
             )
             steps = {
@@ -428,6 +455,8 @@ class PostgresTrajectoryStore:
                     tokens_out=r[5],
                     latency_ms=r[6],
                     payload=r[7] or {},
+                    trace_id=r[8] or "",
+                    span_id=r[9] or "",
                 )
                 for r in cur.fetchall()
             }

@@ -27,6 +27,8 @@ import urllib.request
 from datetime import UTC, datetime
 from typing import Any
 
+from faultline.observability.tracing import span
+
 PROMETHEUS = "http://localhost:9090"
 LOKI = "http://localhost:3100"
 
@@ -54,9 +56,19 @@ def stamp(moment: datetime | None) -> str | None:
 
 
 def get_json(base: str, path: str, params: dict[str, str]) -> dict[str, Any]:
+    """One backend read. **Every Prometheus, Loki and Tempo query passes through here**, which
+    is why the `backend.get` span lives here and nowhere else (T6.6): the host and path say which
+    backend and which endpoint, and the status and byte count say what came back - never the
+    query text, which is in the tool-call step beside it."""
     url = f"{base}{path}?{urllib.parse.urlencode(params)}"
-    with urllib.request.urlopen(url, timeout=HTTP_TIMEOUT) as response:
-        payload: Any = json.loads(response.read().decode())
+    host = urllib.parse.urlsplit(base).netloc or base
+    with (
+        span("backend.get", backend=host, path=path) as handle,
+        urllib.request.urlopen(url, timeout=HTTP_TIMEOUT) as response,
+    ):
+        raw = response.read()
+        handle.set(status=getattr(response, "status", None), bytes=len(raw))
+        payload: Any = json.loads(raw.decode())
     if not isinstance(payload, dict):
         raise QueryError(f"{url} did not return a JSON object")
     return payload
