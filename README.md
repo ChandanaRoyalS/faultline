@@ -23,15 +23,31 @@ shows is `20260907T103142Z-cart-redis-misconfig`: `bad_config` against `bad_conf
 
 ## Results at a glance
 
-**Culprit service 0 / 0, fault class 0 / 0, no abstentions — because no scored run has been
-made on the corpus this pipeline now retrieves from.** T6.4 grew the past-incident corpus from
-**25 documents to 50** on 2026-09-12, the day after the newest scored run, and
-[Q48](docs/QUEUE.md) settled that the 261-chunk corpus is the canonical one: it is what the source
-files produce and what CI seeds. Every scored run in [`evals/runs/`](evals/runs/) read the
-25-document corpus. **A figure belongs to the corpus it was retrieved against**, the same way it
-belongs to its world, so the table below is empty rather than populated with runs that answer a
-different question ([Q61](docs/QUEUE.md), and the design note
-[here](docs/design/q61-which-corpus-did-a-run-read.md)). T6.5's forty runs are what will fill it.
+**Culprit service 21 / 30, fault class 20 / 24, six abstentions** — thirty runs on the
+60-document corpus this pipeline now retrieves from, at `prompts:06f24e827915`. They are T6.5's
+WITH arm, ten dev scenarios three times each, pre-registered in
+[`PREREGISTRATION-T6.5.md`](evals/runs/PREREGISTRATION-T6.5.md) with seven amendments merged
+before any of them ran.
+
+**The abstentions are the number to read first**, and there are six where the last figure at this
+scale had three. **Its WITHOUT arm is not in this table and that is deliberate**: it is the
+control for a registered comparison, it reads a narrower corpus by design, and a table that
+summed the experiment with its own control would report neither. `exclusion_policy` is the fourth
+key to need saying so here after joining the config fingerprint, which is
+[Q66](docs/QUEUE.md) — the three clauses are now one predicate, `run.is_standing_pipeline`.
+
+**What the comparison found: nothing measurable, and the sign reversed.** −9.3pp on fault class,
+inside both registered floors, with the WITHOUT arm *higher*
+([TRANSFER-2026-09-18-t6.5.md](evals/runs/TRANSFER-2026-09-18-t6.5.md)). Within the WITH arm the
+runs that actually retrieved a same-class prior incident scored identically to those that did not
+— 12 / 18 against 8 / 12 — which is the measurement that says the arm difference is variance
+rather than transfer. Four of seven predictions failed, and they are scored one by one there.
+
+**These thirty replaced an empty table.** T6.4 grew the corpus from 25 documents to 50 on
+2026-09-12, the day after what had been the newest scored run, and **a figure belongs to the
+corpus it was retrieved against** the same way it belongs to its world ([Q61](docs/QUEUE.md), and
+the design note [here](docs/design/q61-which-corpus-did-a-run-read.md)). The table stood at zero
+until these ran rather than counting runs that answered a different question.
 
 **What the last figure was, and what it is about.** Arm A of dev sweep 12 — **culprit service 23
 of 30, fault class 26 of 27, three abstentions** — thirty runs on 2026-09-09 at
@@ -85,34 +101,42 @@ abstentions are counted in `abst`, not as wrong. The last two columns pool every
 on this world - **context, not a figure**: a prompt change is a different pipeline, and
 the pooled column is here so a reader can see how thin `n` is at any one stamp. Holdout
 scenarios have no run on this world at all; the zeros are the record.
-No dev scenario has a run at this stamp.
+R = 3 on every dev scenario with a run, which is what makes a row a small
+sample rather than a single observation (RESULTS.md).
 
 | scenario | split | n | class | abst | service | n, all stamps | class, all stamps |
 |---|---|---:|---:|---:|---:|---:|---:|
-| `ad-memory-squeeze` | dev | 0 | — | 0 | — | 4 | 1 / 3 |
-| `cart-bad-image-tag` | dev | 0 | — | 0 | — | 4 | 4 / 4 |
-| `cart-dependency-latency` | dev | 0 | — | 0 | — | 5 | 5 / 5 |
-| `cart-redis-misconfig` | dev | 0 | — | 0 | — | 5 | 4 / 4 |
-| `frauddetection-memory-squeeze` | dev | 0 | — | 0 | — | 4 | 4 / 4 |
-| `payment-telemetry-blackout` | dev | 0 | — | 0 | — | 4 | 4 / 4 |
-| `product-catalog-flag-failure` | dev | 0 | — | 0 | — | 4 | 3 / 3 |
-| `redis-cart-dependency-latency` | dev | 0 | — | 0 | — | 5 | 5 / 5 |
-| `shipping-quote-misconfig` | dev | 0 | — | 0 | — | 5 | 3 / 4 |
-| `shipping-wrong-image` | dev | 0 | — | 0 | — | 5 | 3 / 4 |
+| `ad-memory-squeeze` | dev | 3 | 1 / 2 | 1 | 2 / 3 | 7 | 2 / 5 |
+| `cart-bad-image-tag` | dev | 3 | 0 / 2 | 1 | 2 / 3 | 7 | 4 / 6 |
+| `cart-dependency-latency` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 8 | 8 / 8 |
+| `cart-redis-misconfig` | dev | 3 | 1 / 2 | 1 | 3 / 3 | 8 | 5 / 6 |
+| `frauddetection-memory-squeeze` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 7 | 7 / 7 |
+| `payment-telemetry-blackout` | dev | 3 | 3 / 3 | 0 | 3 / 3 | 7 | 7 / 7 |
+| `product-catalog-flag-failure` | dev | 3 | 2 / 2 | 1 | 0 / 3 | 7 | 5 / 5 |
+| `redis-cart-dependency-latency` | dev | 3 | 3 / 3 | 0 | 0 / 3 | 8 | 8 / 8 |
+| `shipping-quote-misconfig` | dev | 3 | 2 / 2 | 1 | 2 / 3 | 8 | 5 / 6 |
+| `shipping-wrong-image` | dev | 3 | 2 / 2 | 1 | 3 / 3 | 8 | 5 / 6 |
 | `email-wrong-image` | holdout | 0 | — | 0 | — | 0 | — |
 | `productcatalog-dependency-latency` | holdout | 0 | — | 0 | — | 0 | — |
 | `recommendation-memory-squeeze` | holdout | 0 | — | 0 | — | 0 | — |
-| **all** | | **0** | **—** | **0** | **—** | **45** | **36 / 40** |
+| **all** | | **30** | **20 / 24** | **6** | **21 / 30** | **75** | **56 / 64** |
 
 Regenerate with `uv run python -m evalharness.scenario_table --write`; `tests/test_scenario_table.py` fails when this block and the tree disagree.
 <!-- scenario-table:end -->
 
-**Read the abstentions before the accuracy.** 0 of 0 runs at this stamp named no class, because
-the stamp has no run on this corpus yet; in dev sweep 12, on the 25-document corpus, it was 3 of
-30 — and the system is built to say `unknown` rather than guess:
-coverage and accuracy are reported apart on purpose
-([ADR-0022](docs/adr/0022-evaluation-harness.md)). Two of the three still named the culprit service
-correctly, which is the shape of abstention worth having.
+**Read the abstentions before the accuracy.** 6 of 30 runs at this stamp named no class, against
+3 of 30 in dev sweep 12 on the 25-document corpus — the system is built to say `unknown` rather
+than guess, and coverage and accuracy are reported apart on purpose
+([ADR-0022](docs/adr/0022-evaluation-harness.md)).
+
+**Doubling is the finding T6.5 did not predict.** Its §7 registered abstention as *at least as
+common* in the arm with the narrower corpus, and the opposite happened: this arm, with the wider
+one, declined twice as often as its control
+([TRANSFER-2026-09-18-t6.5.md](evals/runs/TRANSFER-2026-09-18-t6.5.md) §4). Every extra
+abstention sits on a scenario whose accuracy also fell, so the larger corpus made the agent less
+willing to commit rather than better informed. Unlike the accuracy delta, that direction is
+consistent across every scenario where anything moved — which is why it survives the variance
+argument and the accuracy number does not.
 
 **The two service misses are structural, and Q27 did not fix either.** The targets are
 `featureflagservice`, which is in the service catalog and emits no spans, and `redis-cart`, which
@@ -123,8 +147,8 @@ in the catalog (Q27, an `INFRASTRUCTURE` node with no telemetry of its own) and 
 node was still missed 0 / 3, and so was the control, which says the catalog entry alone does not
 move the culprit axis and points at Q28 — a prompt-side change, and Phase 7's.
 
-**0 of the 10 dev scenarios carry a run at this stamp; 0 of the 3 holdout scenarios do** — the
-dev zeros are the corpus boundary above and will fill; the holdout zeros never will: the set has been entered three times and a fourth entry is blocked by
+**10 of the 10 dev scenarios carry a run at this stamp; 0 of the 3 holdout scenarios do** — the
+dev row filled when T6.5 ran on this corpus; the holdout zeros never will: the set has been entered three times and a fourth entry is blocked by
 [ADR-0029](docs/adr/0029-four-fault-classes-and-why-there-is-no-fifth.md) — a three-scenario holdout
 read four times is not a holdout. Every one of the 13 has been scored at least once across the four
 world generations in [`evals/runs/`](evals/runs/), and all thirteen are **recorded** on this one.

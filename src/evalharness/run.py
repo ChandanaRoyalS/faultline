@@ -159,6 +159,50 @@ def counts_toward_aggregates(manifest: dict[str, Any]) -> bool:
     return not manifest.get("demo", False)
 
 
+STANDING_PIPELINE_KEYS = ("baseline", "ablation", "exclusion_policy")
+"""What makes a run something other than the standing pipeline. **Named, so the next one is.**"""
+
+
+def is_standing_pipeline(manifest: dict[str, Any]) -> tuple[bool, str]:
+    """Whether this run is the full pipeline in its standing configuration, and why not.
+
+    **Q66's shared predicate, built after the fifth copy learned it the same way as the first
+    four.** `scenario_table._qualifies` carries a comment counting three occasions when a key
+    joined `evaldb.FINGERPRINT_INPUTS` and this repository's *other* run filters did not learn
+    about it: arm B's first six runs landing in arm A's column, `observability_digest` two days
+    earlier, the B0 arm before that. T6.5's donor selection was the fourth. Its own row ended
+    *"what is not acceptable is a fifth copy learning it the same way"* - and `exclusion_policy`
+    joined the fingerprint on 2026-09-17 and reached this filter on 2026-09-18, after sixty runs
+    of two arms pooled into one README row.
+
+    `counts_toward_aggregates` made this argument one function above, for demo runs: *"one
+    predicate rather than a convention, because 'remember to exclude the demo' is the kind of rule
+    that holds until the first person who did not know it writes the next aggregate."* It was
+    right, and it was never extended past the axis it was written for.
+
+    **Returns why, not just whether**, because the three callers each want to say something
+    different to a different reader: a table drops the run silently, a drafter refuses with a
+    message, and a report names what it excluded.
+
+    **An absent key reads as standing**, which is every run made before that key existed. That is
+    deliberate and it is the weak spot: a run predating an axis is indistinguishable from one that
+    declared the standing value, and `evaldb`'s `missing` column is the only place the difference
+    is visible.
+    """
+    baseline = manifest.get("baseline")
+    if baseline:
+        # `str()` because it is a label on the manifest and a block on some verdict artifacts.
+        # A predicate that crashed on the shape would be a filter that does not filter.
+        return False, f"a {str(baseline).upper()} baseline, which is a control"
+    ablation = manifest.get("ablation") or []
+    if ablation:
+        return False, f"an ablation run ({', '.join(sorted(ablation))} withheld)"
+    policy = manifest.get("exclusion_policy") or "own"
+    if policy != "own":
+        return False, f"a {policy!r} retrieval arm, which reads a narrower corpus (T6.5 §4)"
+    return True, ""
+
+
 EVENT_PREFIX = "@@EVENT "
 """Marks a machine-readable progress line on stdout.
 

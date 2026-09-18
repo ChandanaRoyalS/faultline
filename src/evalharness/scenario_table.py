@@ -49,7 +49,7 @@ from evalharness.generations import (
     WORLD_90E,
     generation_of,
 )
-from evalharness.run import counts_toward_aggregates
+from evalharness.run import counts_toward_aggregates, is_standing_pipeline
 from evalharness.scenario import Scenario
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -134,7 +134,6 @@ def _qualifies(
         # The pipeline arm only. A B0 baseline run (`manifest["baseline"]`, stamp
         # `+baseline:B0`) is scored on the same axes and would otherwise be summed in as if
         # the control were the system - RESULTS.md gives the baselines their own column.
-        and not manifest.get("baseline")
         # **And the full arm only.** A `--without traces` run is a different pipeline in exactly
         # the sense the line above means it: T6.1 put `ablation` in `evaldb.FINGERPRINT_INPUTS`
         # *"so an ablation run can never pool with a full run"*, and this table has its own filter
@@ -144,7 +143,12 @@ def _qualifies(
         # took `observability_digest` two days earlier and the B0 arm before that. A key joining
         # the fingerprint is not the same as a key joining this filter, and the fingerprint is not
         # what a reader of README sees.
-        and not (manifest.get("ablation") or [])
+        # **and `exclusion_policy` since T6.5, which is the fourth key to take this route.** The
+        # comment above counted three; `exclusion_policy` joined `FINGERPRINT_INPUTS` on
+        # 2026-09-17 and this filter learned it a day later, after sixty runs of two arms - an
+        # experiment and its own control - pooled into one row reading `n = 60`. The three
+        # clauses are now one predicate (`run.is_standing_pipeline`), which is Q66's ask.
+        and is_standing_pipeline(manifest)[0]
         and outcome_of(manifest) == "scored"
         and generation_of(manifest).world == world
         and _observability_agrees(manifest, observability)
