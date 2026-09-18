@@ -15,6 +15,7 @@ task's.
 from __future__ import annotations
 
 import argparse
+import atexit
 import os
 from datetime import UTC, datetime
 from functools import lru_cache
@@ -118,6 +119,14 @@ def run(argv: list[str] | None = None) -> int:
     """
     args = parser().parse_args(argv)
     import uvicorn
+
+    # T6.6: one call per process, by the entry point and not a library module. Prints which
+    # way it went so an operator who expected traces and sees none has one line to read.
+    from faultline.observability import tracing
+
+    if tracing.configure(component="api"):
+        print(f"tracing: exporting to {os.environ.get(tracing.ENDPOINT_VAR)}", flush=True)
+        atexit.register(tracing.shutdown)
 
     # The route builds its receiver from settings on first use, so the flags have to reach
     # it that way rather than by being passed down through FastAPI.
