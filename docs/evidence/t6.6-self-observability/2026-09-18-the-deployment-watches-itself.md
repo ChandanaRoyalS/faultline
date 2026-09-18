@@ -69,3 +69,18 @@ because no incident has opened since the deploy; the first one that does will pu
 root with its `investigation` beneath it into the VM's Tempo, beside the outage's own trace — the
 demo beat the plan row names. That costs one investigation (~$0.70) and either happens on its own
 with the next real alert or by §3.6's injected fault. Neither was spent today.
+
+## Addendum, 2026-09-18 ~10:50 UTC — the fix is on the VM
+
+*"The image on the VM still has the defect"* stopped being true about an hour after it was
+written. `adbb136` (#374, `faultline.pgread`) went out by §3.7's shape - no migration, `schema at
+0010` before and after, seconds - and thirty seconds after the containers started, with `/metrics`
+scraped at least twice and the orchestrator's queue polled several times:
+
+```
+select count(*) from pg_stat_activity where datname='faultline' and state='idle in transaction'
+0
+```
+
+The same query read 2 for the entire life of the previous image. The next migration against this
+deployment will not wait on the platform.
