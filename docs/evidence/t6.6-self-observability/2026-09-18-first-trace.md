@@ -51,3 +51,18 @@ could see it because a library that is inert until its process opts in is exactl
 **Grafana asks Tempo with the time picker's range attached.** A `curl` to `/api/traces/{id}`
 found the trace; Grafana's TraceID query said *404 trace not found* until the range was widened
 past the run's start. Worth knowing before the dashboard's trace panel is built.
+
+## Addendum, 2026-09-18 — the sentence about 14–19 seconds is wrong at the tail
+
+Written the same day, after the trace was opened in Grafana's Trace View rather than read back
+as a span list. **"Every `model.call` is 14–19 seconds" describes the first six calls and not the
+last four.** The waterfall reads, in order: 14.49s, 18.39s, 15.92s, 19.16s, 17.51s, 14.93s — then
+**33.09s, 1m 3s, 1m 9s, 39.16s.** The planner and the four specialists are the short calls; the
+synthesis end of the run — the synthesizer, the proposer, the verdict — is the long one, and the
+two calls over a minute are about half of the investigation's 4m 21s between them.
+
+The conclusion the sentence was supporting stands and is stronger for the correction: the wall
+clock is the model, and it is the *last* model calls most of all. What the trajectory's
+`latency_ms` column now records for every completion step is exactly this shape, and it was
+readable in the span list too — the sentence was written from the overlap at the five-second
+mark and generalised. Kept above as written; corrected here.
