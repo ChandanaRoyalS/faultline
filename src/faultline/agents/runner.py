@@ -32,6 +32,7 @@ from faultline.agents.investigation import (
 from faultline.agents.roles import OperatorRejection, SchemaValidationError, Triager
 from faultline.agents.triage import TriageResult
 from faultline.archive import Archive, report_key
+from faultline.observability.tracing import span
 from faultline.orchestrator import machine
 from faultline.orchestrator.models import Incident, IncidentState
 from faultline.orchestrator.rejections import RejectionStore
@@ -159,6 +160,37 @@ def run_investigation(
     triager: Triager | None = None,
 ) -> RunReport:
     """One investigation, with the incident's state moved to match what happened.
+
+    **One trace per run, and this is the span that makes it so** (T6.6). The first traced run
+    produced *two* traces: `Investigation.run` opens its `investigation` root, and the triage
+    judgement runs before it, so triage's `model.call` had no parent and became a trace of its
+    own - four seconds long, four seconds earlier, and invisible from the investigation's
+    waterfall. Triage is part of the run: it is the decision to investigate at all, and a run
+    triage declines should still leave a trace saying so. So the root is here, around
+    everything `run_investigation` does, and `investigation` is its child. The trajectory's
+    `trace_id` is unchanged by this - it is the trace's id, not the root span's.
+    """
+    with span("incident", incident_id=incident.id, services=len(triage.blast_radius)) as root:
+        report = _run_investigation(store, incident, engine, triage, anchor, triager)
+        root.set(
+            disposition=report.judgement.disposition if report.judgement else None,
+            judgement_error=report.judgement_error,
+            trajectory_id=report.trajectory_id,
+            states=",".join(report.states),
+            error=report.error,
+        )
+        return report
+
+
+def _run_investigation(
+    store: IncidentStore,
+    incident: Incident,
+    engine: Investigation,
+    triage: TriageResult,
+    anchor: datetime,
+    triager: Triager | None = None,
+) -> RunReport:
+    """The run itself. See `run_investigation` for the span around it.
 
     The incident is saved after every transition rather than once at the end: a crash between
     two phases should leave the state it had actually reached, not the state it started in.

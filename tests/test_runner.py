@@ -746,3 +746,156 @@ def test_the_machine_no_longer_claims_a_re_entry_reuses_a_stored_triage() -> Non
 
     assert "reuses the triage it already has, because" not in machine
     assert "there is no stored triage" in machine
+
+
+# --- T6.6: one trace per run, triage included -----------------------------------------------------
+
+
+HAS_SDK = __import__("importlib").util.find_spec("opentelemetry") is not None
+
+
+def test_the_run_opens_one_span_around_triage_and_the_investigation_alike(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """**The first traced run made two traces.** `Investigation.run` opens the `investigation`
+    root; triage runs before it, so triage's `model.call` had no parent and was a trace of its
+    own, four seconds long and four seconds earlier. Tempo's search for `service.name=faultline`
+    returned both, which is how it was noticed. The runner's own span now opens before the
+    judgement and closes after the state write-back, with `investigation` beneath it.
+
+    Without the SDK: a recording `span` fake, and the triager and the engine both assert they
+    were called while it was open."""
+    from contextlib import contextmanager
+
+    from faultline.agents import runner
+
+    opened: list[dict[str, Any]] = []
+    depth = {"now": 0}
+
+    @contextmanager
+    def recording_span(name: str, **attributes: Any) -> Any:
+        depth["now"] += 1
+        record = {"name": name, "attributes": dict(attributes), "set": {}}
+        opened.append(record)
+
+        class Handle:
+            trace_id = ""
+            span_id = ""
+
+            def set(self, **more: Any) -> None:
+                record["set"].update({k: v for k, v in more.items() if v is not None})
+
+            def record_exception(self, exc: BaseException) -> None:  # pragma: no cover
+                pass
+
+        try:
+            yield Handle()
+        finally:
+            depth["now"] -= 1
+
+    monkeypatch.setattr(runner, "span", recording_span)
+
+    store = InMemoryIncidentStore()
+    incident = incident_in(IncidentState.TRIAGING)
+    store.save(incident)
+    model = healthy_model()
+    model._replies["triage"] = [judgement_reply(), judgement_reply()]
+    engine, _ = engine_over(model)
+    seen_inside: list[str] = []
+    real_judge, real_run = Triager.judge, engine.run
+
+    def judge_inside(self: Any, *a: Any, **k: Any) -> Any:
+        seen_inside.append(f"triage@{depth['now']}")
+        return real_judge(self, *a, **k)
+
+    def run_inside(*a: Any, **k: Any) -> Any:
+        seen_inside.append(f"investigation@{depth['now']}")
+        return real_run(*a, **k)
+
+    monkeypatch.setattr(Triager, "judge", judge_inside)
+    monkeypatch.setattr(engine, "run", run_inside)
+
+    report = run_investigation(
+        store, incident, engine, triage_for(incident), ANCHOR, triager=Triager(model)
+    )
+
+    assert seen_inside == ["triage@1", "investigation@1"], "both inside the one runner span"
+    assert [o["name"] for o in opened] == ["incident"]
+    assert opened[0]["attributes"]["incident_id"] == incident.id
+    assert opened[0]["set"]["disposition"] == "investigate"
+    assert opened[0]["set"]["trajectory_id"] == report.trajectory_id
+    assert opened[0]["set"]["states"].startswith("triaging,")
+
+
+def test_a_run_triage_declines_still_leaves_a_span_that_says_so(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A declined run used to leave no `investigation` span at all and therefore no trace but
+    the orphaned triage call. Now the runner's span carries the disposition."""
+    from contextlib import contextmanager
+
+    from faultline.agents import runner
+
+    recorded: dict[str, Any] = {}
+
+    @contextmanager
+    def recording_span(name: str, **attributes: Any) -> Any:
+        class Handle:
+            trace_id = ""
+            span_id = ""
+
+            def set(self, **more: Any) -> None:
+                recorded.update({k: v for k, v in more.items() if v is not None})
+
+        yield Handle()
+
+    monkeypatch.setattr(runner, "span", recording_span)
+
+    report, _, _ = gated_run(judgement_reply(disposition="noise", reasoning="one warning"))
+
+    assert report.gated
+    assert recorded["disposition"] == "noise"
+    assert "trajectory_id" not in recorded, "None is not set; a declined run has no trajectory"
+    assert recorded["states"] == "triaging,resolved"
+
+
+@pytest.mark.skipif(not HAS_SDK, reason="needs the observability extra")
+def test_with_the_sdk_triage_and_investigation_share_one_trace_id() -> None:  # pragma: no cover
+    """The live half: every span the run emits carries the same trace id, and exactly one of
+    them has no parent."""
+    from opentelemetry.sdk.trace import TracerProvider
+    from opentelemetry.sdk.trace.export import SimpleSpanProcessor
+    from opentelemetry.sdk.trace.export.in_memory_span_exporter import InMemorySpanExporter
+
+    from faultline.observability import tracing
+
+    exporter = InMemorySpanExporter()
+    provider = TracerProvider()
+    provider.add_span_processor(SimpleSpanProcessor(exporter))
+    # The provider's own tracer, not the global one: OpenTelemetry lets a process set its global
+    # provider once, and `test_observability_tracing` has already done so by the time this runs -
+    # a second `set_tracer_provider` is ignored with a warning, and this exporter would see nothing.
+    tracing._tracer = provider.get_tracer("test")
+    tracing._live = True
+    try:
+        store = InMemoryIncidentStore()
+        incident = incident_in(IncidentState.TRIAGING)
+        store.save(incident)
+        model = healthy_model()
+        model._replies["triage"] = [judgement_reply(), judgement_reply()]
+        engine, _ = engine_over(model)
+        run_investigation(
+            store, incident, engine, triage_for(incident), ANCHOR, triager=Triager(model)
+        )
+        finished = exporter.get_finished_spans()
+    finally:
+        tracing._tracer = None
+        tracing._live = False
+
+    names = [s.name for s in finished]
+    assert "incident" in names and "investigation" in names
+    assert names.count("model.call") >= 3, "triage, planner, synthesizer at least"
+    trace_ids = {format(s.context.trace_id, "032x") for s in finished}
+    assert len(trace_ids) == 1, f"one run, one trace: {trace_ids}"
+    roots = [s.name for s in finished if s.parent is None]
+    assert roots == ["incident"]
