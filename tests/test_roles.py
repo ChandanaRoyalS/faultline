@@ -677,6 +677,38 @@ def test_the_trajectory_is_persisted_before_the_scribe_resolves_citations() -> N
     assert cited in result.narrative
 
 
+def test_the_trajectory_row_exists_before_the_first_model_call() -> None:
+    """**T6.7 piece 3b, from the crash drill.** The row used to be written first after synthesis,
+    so a run killed before that left nothing - no row for the orphan reconciler to name, nothing
+    for `running` on `/metrics` to count. The 2026-09-19 drill could only kill its run at step 19
+    because a poll on the table could not see the run until then. Now the first save is the first
+    thing the run does inside its span, with no outcome, and the later saves fill it in."""
+    saves: list[tuple[int, str | None]] = []
+
+    class WatchingStore(InMemoryTrajectoryStore):
+        def save(self, trajectory: Any) -> None:
+            saves.append((len(trajectory.steps), trajectory.outcome))
+            super().save(trajectory)
+
+    model = ScriptedModel({"planner": [ONE_DISPATCH], "synthesizer": [VERDICT_REPLY]})
+    tools = Tools(ToolSettings(), changes=InMemoryChangeLog())
+    store = WatchingStore()
+    engine = Investigation(
+        planner=Planner(model),
+        specialists=build_specialists(tools, model),
+        store=store,
+        model=model,
+        budget=Budget(max_dispatch_rounds=1),
+    )
+
+    engine.run("incident-kill", triage_of("cartservice"), ANCHOR)
+
+    assert saves[0] == (0, None), "the first save is the empty row with no outcome"
+    assert saves[-1][1] is not None, "and the last one carries the outcome"
+    trajectory = next(iter(store.trajectories.values()))
+    assert trajectory.trace_id == "" or len(trajectory.trace_id) == 32
+
+
 def test_three_dispatches_of_one_specialist_all_reach_the_synthesizer() -> None:
     """**The T3.4 defect, at its cause.** `InvestigationResult.findings` keyed on specialist
     name, so a dict comprehension over the runs kept the last one - and T3.4's three `changes`

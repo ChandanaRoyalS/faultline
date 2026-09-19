@@ -156,3 +156,52 @@ def test_the_bounds_are_the_ones_make_eval_passes() -> None:
     command = investigate_command(OrchestratorSettings(_env_file=None))  # type: ignore[call-arg]
     assert command[0] == "faultline-investigate"
     assert command[1:] == expected, (command[1:], expected)
+
+
+# --- T6.7 piece 3b: the process that kills investigations reconciles them --------------------
+
+
+class RecordingTrajectories:
+    """A trajectory store that remembers each `close_orphans` call and answers what it is told."""
+
+    def __init__(self, closes: list[str]) -> None:
+        self.calls: list[int] = []
+        self._closes = closes
+
+    def close_orphans(self, *, older_than_seconds: int) -> list[str]:
+        self.calls.append(older_than_seconds)
+        return list(self._closes)
+
+
+def test_every_poll_reconciles_orphans_before_it_investigates(caplog: object) -> None:
+    """**The 2026-09-19 drill's row had to be closed by hand.** Q72's reconciler ran in the
+    sweep, which the deployment never runs, and this runner - whose subprocess is the thing that
+    dies - never called it. Now every poll does, at the same ceiling the sweep uses, before it
+    looks at what is due, so a killed run's row is `orphaned` by the next poll after the ceiling
+    rather than whenever an operator remembers."""
+    from faultline.agents.trajectory import orphan_ceiling_seconds
+
+    store = InMemoryIncidentStore()
+    trajectories = RecordingTrajectories(closes=["traj-killed"])
+    runner = InvestigationRunner(
+        store,
+        settle=timedelta(seconds=90),
+        command=["faultline-investigate"],
+        run=lambda command: 0,
+        now=lambda: NOW,
+        trajectories=trajectories,
+    )
+
+    assert runner.run_once() == []
+    assert runner.run_once() == []
+
+    assert trajectories.calls == [orphan_ceiling_seconds(), orphan_ceiling_seconds()]
+    assert runner.reconcile_orphans() == ["traj-killed"]
+
+
+def test_without_a_trajectory_store_the_runner_reconciles_nothing_and_says_nothing() -> None:
+    """A development machine's runner has none; the sweep is the reconciler there."""
+    store = InMemoryIncidentStore()
+    calls: list[list[str]] = []
+
+    assert _runner(store, calls).reconcile_orphans() == []

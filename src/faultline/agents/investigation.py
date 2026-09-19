@@ -328,6 +328,13 @@ class Investigation:
             model=self._model.name,
         ) as root:
             trajectory.trace_id = root.trace_id
+            # **The row exists from the first second, with no outcome** (T6.7 piece 3b). Until
+            # this line the trajectory was first written after synthesis, so a run killed before
+            # that - the 2026-09-19 drill killed one at step 19 only because a poll could not see
+            # it earlier - left nothing: no row for Q72's reconciler to name, nothing for
+            # `running` on `/metrics` to count, and a kill in the first minute was invisible.
+            # `save` is an upsert, so the later saves are the same row with its outcome filled in.
+            self._store.save(trajectory)
             try:
                 outcome = self._run(trajectory, state, result, incident_id, triage, anchor)
             except Exception as exc:
@@ -350,13 +357,20 @@ class Investigation:
         so three specialists' worth of evidence went with the exception. The trajectory is what
         T4.2 scores and T5.3 replays, and a crashed run is exactly the one worth reading.
 
-        A trajectory with no steps is not saved. Nothing ran, so there is nothing to score, and
-        an empty row would be indistinguishable from an investigation that produced no evidence.
+        **A trajectory with no steps is saved too, as `failed`, since T6.7 piece 3b.** T3.5's
+        rule was the opposite - *nothing ran, so nothing to score, and an empty row would be
+        indistinguishable from an investigation that produced no evidence* - and it held while
+        the row was first written late. The row now exists from the run's first second (`run`),
+        so a failed start already has one, and leaving it with `outcome IS NULL` would make a
+        `ModuleNotFoundError` read as a running investigation until the orphan ceiling named it
+        a kill. `failed` with zero steps and an `ended_at` is distinguishable from both: no
+        evidence-free investigation has zero steps (the planner's completion is one), and no
+        killed run has an `ended_at`. The runner still reports it as *did not start* and leaves
+        the incident where it was.
         """
-        if trajectory.steps:
-            trajectory.ended_at = datetime.now(UTC)
-            trajectory.outcome = "failed"
-            self._store.save(trajectory)
+        trajectory.ended_at = datetime.now(UTC)
+        trajectory.outcome = "failed"
+        self._store.save(trajectory)
         raise InvestigationFailedError(trajectory, exc) from exc
 
     def _run(

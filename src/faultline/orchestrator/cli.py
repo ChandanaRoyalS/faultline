@@ -152,6 +152,7 @@ def run(argv: list[str] | None = None) -> int:
         print(f"applied {len(applied)} event(s)")
         return 0
     if args.investigate:
+        from faultline.agents.trajectory import PostgresTrajectoryStore
         from faultline.orchestrator.rejections import PostgresRejectionStore
         from faultline.orchestrator.runner import InvestigationRunner, investigate_command
 
@@ -165,6 +166,9 @@ def run(argv: list[str] | None = None) -> int:
             # for a Friday.
             rejections=PostgresRejectionStore(psycopg.connect(args.postgres_dsn)),
             max_rejections=settings.max_rejections,
+            # T6.7 piece 3b: the reconciler for killed investigations runs here, every poll, on
+            # the runner's own connection for the reason the line above gives.
+            trajectories=PostgresTrajectoryStore(psycopg.connect(args.postgres_dsn)),
         )
         runner.start_in_background(settings.investigate_poll_seconds)
         print(

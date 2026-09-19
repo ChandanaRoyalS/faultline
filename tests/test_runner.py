@@ -320,7 +320,12 @@ def test_a_failure_before_anything_ran_leaves_the_incident_where_it_was() -> Non
     assert report.states == ("triaging",)
     assert report.error is not None and report.error.startswith("did not start")
     assert report.exit_code is Exit.NO_VERDICT, "it still failed, and says so"
-    assert trajectories.trajectories == {}, "an empty trajectory is not worth a row"
+    (row,) = trajectories.trajectories.values()
+    assert (row.steps, row.outcome) == ([], "failed"), (
+        "T6.7 piece 3b: the row exists from the first second, so a failed start closes it as "
+        "failed with zero steps rather than leaving a row that reads as running"
+    )
+    assert row.ended_at is not None, "and it is not a kill, which has no ended_at"
     assert investigable(store, incident.id) is incident, "retryable"
 
 
