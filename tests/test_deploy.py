@@ -1026,3 +1026,36 @@ def test_the_readme_names_the_two_servers_the_demo_needs() -> None:
     )
     for command in needed:
         assert command in demo, f"README's Demo section never mentions `{command}`"
+
+
+# --- T6.7 piece 2: the restore runbook was drilled, and the nightly snapshot exists ---
+
+
+def test_the_restore_procedure_stops_the_writers_and_never_downs_the_database() -> None:
+    """The drill's first finding (2026-09-19): §3.7 began with `docker compose down`, which
+    removes the Postgres container the next line `exec`s into. The runbook had never been run.
+    The block now names `stop` and the four services that read or write the database."""
+    readme = (REPO_ROOT / "deploy" / "README.md").read_text()
+    procedure = readme[readme.index("### 3.7") : readme.index("### 3.8")]
+
+    assert "docker compose stop faultline orchestrator executor prometheus-self" in procedure
+    assert "-v ON_ERROR_STOP=1" in procedure
+    assert "docker compose down " not in procedure.split("```bash")[1].split("```")[0], (
+        "the restore block downs the database it is about to restore into"
+    )
+    assert "Drilled 2026-09-19" in procedure
+
+
+def test_the_nightly_snapshot_script_is_the_runbook_s_own_dump() -> None:
+    """Same command as the drill restored from, run by cron; refuses a dump too small to be a
+    database; keeps a window. README §4 stopped saying "no backups" on the strength of this file."""
+    script = (REPO_ROOT / "deploy" / "snapshot.sh").read_text()
+
+    assert "set -euo pipefail" in script
+    assert "pg_dump -U faultline --clean --if-exists faultline" in script
+    assert "docker compose exec -T postgres" in script
+    assert "-mtime" in script and "-delete" in script
+    assert "10240" in script, "a half-failed dump must be refused"
+    readme = (REPO_ROOT / "deploy" / "README.md").read_text()
+    assert "deploy/snapshot.sh" in readme and "crontab" in readme
+    assert "no backups beyond" not in readme

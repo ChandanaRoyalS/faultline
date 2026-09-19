@@ -75,8 +75,8 @@ reference is 0 of 4 attempts, and its design ceiling is a responder who authored
 a floor on human time produced by the most advantaged possible responder, not a comparison to a
 working on-call engineer.
 
-**Not "99% uptime" or any operational claim.** One VM, no replicas, no backups beyond a manual
-snapshot, a fifteen-minute uptime check that emails rather than pages, and a month-to-month contract
+**Not "99% uptime" or any operational claim.** One VM, no replicas, nightly snapshots on the same
+disk and none off it (T6.7), a fifteen-minute uptime check that emails rather than pages, and a month-to-month contract
 that ends on 2026-10-07 unless renewed. The deployment investigates — one incident, once, watched —
 and that is the whole of its operational record.
 

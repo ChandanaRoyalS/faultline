@@ -445,19 +445,46 @@ migrations — a new table, a nullable column — are safe. A migration that dro
 is not, and the honest procedure for one is:
 
 ```bash
-docker compose down                                                  # stop, do not destroy
-gunzip -c /tmp/snapshot-before-deploy.sql.gz | docker compose exec -T postgres psql -U faultline faultline
-$EDITOR .env                                                         # the previous sha
+cd ~/faultline/deploy
+docker compose stop faultline orchestrator executor prometheus-self   # the writers and readers; NOT `down`
+gunzip -c ~/snapshots/faultline-<stamp>.sql.gz \
+  | docker compose exec -T postgres psql -U faultline -v ON_ERROR_STOP=1 -q faultline
+$EDITOR .env                                                          # the previous sha, if rolling back
 docker compose up -d --wait
+docker compose exec faultline faultline-migrate                       # says `schema at NNNN`; applies nothing
+docker compose exec faultline curl -fsS localhost:8000/healthz        # not from the host: 8000 is not published
 ```
 
-which means **taking that snapshot before a deploy that carries a destructive migration**, not
-after discovering you need it:
+**Drilled 2026-09-19 21:23 UTC, over the live database** (T6.7 piece 2; the evidence note is
+`docs/evidence/t6.7-reliability/2026-09-19-restore-drill.md`). Snapshot 979 KB, seventeen tables,
+1,155 rows. `stop` took 10.3 s (the orchestrator's graceful exit is the ten seconds); the restore
+took **0.48 s** with `ON_ERROR_STOP` and exit 0; `up -d --wait` 7.1 s; **18 seconds from the first
+command to every container healthy**, `schema at 0010`, and every table at exactly the count it
+had before. Caddy stays up throughout and answers 502 for the platform's paths while the readers
+are stopped; the world is untouched.
+
+**What the drill found: this procedure used to begin with `docker compose down`**, which removes
+the Postgres container along with the rest, so its second line - `exec` into Postgres - could
+never have run. The runbook had never been executed and was wrong in its first word. `stop`, and
+only the services that read or write the database, is the shape that works, and it is what the
+block above now says. `-v ON_ERROR_STOP=1` is there so that a restore that fails half-way exits
+non-zero instead of leaving a database that is partly the snapshot; `-q` so the log is the errors.
+
+**Where snapshots live, and when they are taken.** `~/snapshots/` on the VM, dated to the minute
+in UTC, **nightly by `deploy/snapshot.sh` from cron** (T6.7) with a seven-day window:
 
 ```bash
-docker compose exec -T postgres pg_dump -U faultline --clean --if-exists faultline \
-  | gzip > /tmp/snapshot-before-deploy.sql.gz
+mkdir -p ~/snapshots
+( crontab -l 2>/dev/null; echo '17 3 * * * /home/deploy/faultline/deploy/snapshot.sh >> /home/deploy/snapshots/cron.log 2>&1' ) | crontab -
+~/faultline/deploy/snapshot.sh            # once by hand, to see it work
 ```
+
+The script refuses to keep a dump under 10 KB (a half-failed dump restores to nothing) and prints
+one line per run. **Still take one by hand before a deploy that carries a destructive migration**
+- the nightly one is up to a day old - with the same script, which is the same command. Before
+this, the only snapshot lived in `/tmp` and would not have survived the reboot the VM keeps asking
+for. The snapshots are on the same disk as the database: this is a backup against a bad migration
+or a bad deploy, not against the disk (§4).
 
 **The world does not roll back at all**, and does not need to: it is pinned at `v1.2.1` and nothing
 here changes it. If it wedges, `docker compose ... down && ... up -d --no-build` from §3.4 is the
@@ -596,10 +623,10 @@ writer's second copy and nothing here needs it.
 flakiness produces. Watch it for the first week, and if the world alerts more than it should, the
 lever is Alertmanager's `repeat_interval` in `deploy/alertmanager.yml`.
 
-**It is not a production deployment and does not claim to be.** One VM, no replicas, no backups
-beyond §3.7's manual snapshot, shared vCPUs, and a world that exists to be broken on purpose.
-Phase 6 is where reliability becomes a deliverable; this is a stable URL for an application to
-point at.
+**It is not a production deployment and does not claim to be.** One VM, no replicas, nightly
+snapshots on the same disk as the database and none off the machine (§3.7), shared vCPUs, and a
+world that exists to be broken on purpose. Phase 6 is where reliability becomes a deliverable;
+this is a stable URL for an application to point at.
 
 ---
 

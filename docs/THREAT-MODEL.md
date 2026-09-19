@@ -297,7 +297,7 @@ the access log (`log { output stdout }`) is the only thing that would show it ha
   process that reads attacker-influenced input. Secret scrubbing before model calls is T6.8's;
   egress restriction on that container is T6.8's; both matter more now than when the key lived
   only on a laptop.
-- **One host, no backups beyond a manual snapshot**, no rate limit on the credential, no alert on
+- **One host, nightly snapshots on that host's own disk and none off it** (T6.7; was *no backups beyond a manual snapshot*), no rate limit on the credential, no alert on
   the access log. `docs/GATES.md` G6 is where reliability becomes a deliverable and this addendum
   does not pretend otherwise.
 
