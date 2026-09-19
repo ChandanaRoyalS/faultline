@@ -78,6 +78,16 @@ class OrchestratorSettings(BaseSettings):
     could be one model's bad minute; two runs in a row, each having exhausted its own retries, is
     the provider."""
 
+    max_usd_per_day: float = 5.0
+    """The deployment's ceiling on model spend over any rolling 24 hours (T6.7 piece 6, failure
+    row 10 one level up from where the spec put it). `Budget.max_usd` caps one incident; nothing
+    capped the deployment, and on 2026-09-19 it investigated three times unattended for $0.69
+    while paging itself (T6.6 evidence). Before every run the runner sums the last day's tokens
+    from the trajectory tables at the harness's prices; at or above the ceiling it defers every
+    due incident, says so once, and the incidents wait in `TRIAGING`. Five dollars is about seven
+    investigations, which is more than any day on the deployment has needed and less than the
+    loop would have spent had the series not gone stale. `0` disables it, and says so at start."""
+
     max_rejections: int = 2
     """How many times one incident may be rejected and re-investigated (T6.3,
     `PREREGISTRATION-T6.3.md` §2.3). **Two, and the cap is on the loop rather than on the

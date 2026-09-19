@@ -74,14 +74,20 @@ class InvestigationRunner:
         trajectories: Any | None = None,
         provider_cooldown_seconds: float = 300.0,
         provider_open_after: int = 2,
+        max_usd_per_day: float = 0.0,
+        usd_per_mtok: tuple[float, float] = (5.0, 25.0),
     ) -> None:
         self._store = store
         self._trajectories = trajectories
         self._provider_cooldown = provider_cooldown_seconds
         self._provider_open_after = max(1, provider_open_after)
         self._provider_was_open = False
+        self._max_usd_per_day = max_usd_per_day
+        self._usd_per_mtok = usd_per_mtok
+        self._ceiling_was_hit = False
         self.deferred: int = 0
-        """Polls on which every due incident was deferred because the provider was open."""
+        """Polls on which every due incident was deferred - the provider open, or the day's
+        ceiling reached."""
         """A trajectory store with `close_orphans`, or `None`. **The process that kills
         investigations is the process that reconciles them** (Q72's rule): the sweep ran the
         reconciler for the development machine, and nothing ran it on the deployment, where this
@@ -198,11 +204,49 @@ class InvestigationRunner:
         remaining = self._provider_cooldown - since
         return remaining if remaining > 0 else None
 
+    def spent_today(self) -> float | None:
+        """Dollars over the last 24 hours at the harness's prices, or `None` without a store."""
+        if self._trajectories is None:
+            return None
+        tokens_in, tokens_out = self._trajectories.tokens_since(self._now() - timedelta(days=1))
+        usd_in, usd_out = self._usd_per_mtok
+        return float(int(tokens_in) / 1e6 * usd_in + int(tokens_out) / 1e6 * usd_out)
+
+    def over_ceiling(self) -> float | None:
+        """The day's spend when it is at or above `max_usd_per_day`, else `None` (T6.7 piece 6).
+
+        Read before every run from the trajectory tables - every token billed in the last day,
+        whatever came of it - so the check sees what the ledger sees. A ceiling of 0 is off.
+        """
+        if self._max_usd_per_day <= 0:
+            return None
+        spent = self.spent_today()
+        if spent is None or spent < self._max_usd_per_day:
+            return None
+        return spent
+
     def run_once(self) -> list[str]:
         """Investigate everything due, sequentially. Returns the incident ids that were run."""
         self.reconcile_orphans()
         ran: list[str] = []
         due = self.due()
+        spent = self.over_ceiling()
+        if spent is not None:
+            if due:
+                self.deferred += 1
+            if not self._ceiling_was_hit:
+                log.warning(
+                    "spend ceiling reached: $%.2f in the last 24h against $%.2f "
+                    "(FAULTLINE_ORCH_MAX_USD_PER_DAY); deferring %d due incident(s)",
+                    spent,
+                    self._max_usd_per_day,
+                    len(due),
+                )
+            self._ceiling_was_hit = True
+            return ran
+        if self._ceiling_was_hit:
+            log.info("spend ceiling: the last 24h are back under $%.2f", self._max_usd_per_day)
+            self._ceiling_was_hit = False
         wait = self.provider_open()
         if wait is not None:
             if due:

@@ -308,3 +308,79 @@ def test_the_exit_code_and_the_cooldown_are_the_same_on_both_sides() -> None:
     assert OrchestratorSettings().provider_cooldown_seconds == (
         AgentSettings().breaker_cooldown_seconds
     )
+
+
+# --- T6.7 piece 6: the deployment's ceiling ------------------------------------------------------
+
+
+class SpendingTrajectories(OutcomeTrajectories):
+    def __init__(self, tokens: tuple[int, int]) -> None:
+        super().__init__(outcomes=[])
+        self._tokens = tokens
+        self.asked: list[datetime] = []
+
+    def tokens_since(self, moment: datetime) -> tuple[int, int]:
+        self.asked.append(moment)
+        return self._tokens
+
+
+def _ceiling_runner(
+    store: InMemoryIncidentStore,
+    calls: list[list[str]],
+    trajectories: SpendingTrajectories,
+    ceiling: float,
+) -> InvestigationRunner:
+    def fake_run(command: list[str]) -> int:
+        calls.append(list(command))
+        return 0
+
+    return InvestigationRunner(
+        store,
+        settle=timedelta(seconds=90),
+        command=["faultline-investigate"],
+        run=fake_run,
+        now=lambda: NOW,
+        trajectories=trajectories,
+        max_usd_per_day=ceiling,
+        usd_per_mtok=(5.0, 25.0),
+    )
+
+
+def test_at_the_day_s_ceiling_every_due_incident_waits_and_the_attempt_budget_is_untouched() -> (
+    None
+):
+    """**Failure row 10, one level up.** On 2026-09-19 the deployment investigated three times
+    unattended for $0.69 and nothing above the per-incident budget existed to stop it. The last
+    24 hours' tokens, at the harness's prices, against `max_usd_per_day`, before every run."""
+    store = InMemoryIncidentStore()
+    store.save(_incident("a", IncidentState.TRIAGING, timedelta(minutes=5)))
+    calls: list[list[str]] = []
+    trajectories = SpendingTrajectories(tokens=(1_000_000, 0))  # $5.00 in
+    runner = _ceiling_runner(store, calls, trajectories, ceiling=5.0)
+
+    assert runner.spent_today() == pytest.approx(5.0)
+    assert runner.over_ceiling() == pytest.approx(5.0)
+    assert runner.run_once() == []
+    assert calls == [] and runner.attempts == {} and runner.deferred == 1
+    assert trajectories.asked and trajectories.asked[0] == NOW - timedelta(days=1)
+
+
+def test_under_the_ceiling_runs_proceed_and_zero_means_no_ceiling() -> None:
+    store = InMemoryIncidentStore()
+    store.save(_incident("a", IncidentState.TRIAGING, timedelta(minutes=5)))
+    calls: list[list[str]] = []
+
+    under = _ceiling_runner(store, calls, SpendingTrajectories((900_000, 0)), ceiling=5.0)
+    assert under.over_ceiling() is None
+    assert under.run_once() == ["a"]
+
+    store.save(_incident("b", IncidentState.TRIAGING, timedelta(minutes=5)))
+    off = _ceiling_runner(store, calls, SpendingTrajectories((10_000_000, 0)), ceiling=0.0)
+    assert off.over_ceiling() is None, "0 is off: $50 in a day and it still runs"
+    assert "b" in off.run_once()
+
+
+def test_the_default_ceiling_is_five_dollars_and_the_yesterday_loop_would_have_stopped() -> None:
+    """The loop of 2026-09-19 spent $0.69 in three runs; the ceiling would not have caught that
+    day. It exists for the day the series does not go stale."""
+    assert OrchestratorSettings().max_usd_per_day == 5.0
