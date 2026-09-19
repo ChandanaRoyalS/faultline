@@ -152,10 +152,12 @@ def run(argv: list[str] | None = None) -> int:
         print(f"applied {len(applied)} event(s)")
         return 0
     if args.investigate:
+        from faultline.agents.settings import AgentSettings
         from faultline.agents.trajectory import PostgresTrajectoryStore
         from faultline.orchestrator.rejections import PostgresRejectionStore
         from faultline.orchestrator.runner import InvestigationRunner, investigate_command
 
+        agent_settings = AgentSettings()
         runner = InvestigationRunner(
             store,
             settle=timedelta(seconds=settings.investigate_settle_seconds),
@@ -169,6 +171,15 @@ def run(argv: list[str] | None = None) -> int:
             # T6.7 piece 3b: the reconciler for killed investigations runs here, every poll, on
             # the runner's own connection for the reason the line above gives.
             trajectories=PostgresTrajectoryStore(psycopg.connect(args.postgres_dsn)),
+            provider_cooldown_seconds=settings.provider_cooldown_seconds,
+            provider_open_after=settings.provider_open_after,
+            max_usd_per_day=settings.max_usd_per_day,
+            usd_per_mtok=(agent_settings.usd_per_mtok_in, agent_settings.usd_per_mtok_out),
+        )
+        print(
+            f"spend ceiling: ${settings.max_usd_per_day:.2f} per rolling 24h"
+            if settings.max_usd_per_day > 0
+            else "spend ceiling: none (FAULTLINE_ORCH_MAX_USD_PER_DAY=0)"
         )
         runner.start_in_background(settings.investigate_poll_seconds)
         print(

@@ -268,6 +268,18 @@ class InMemoryTrajectoryStore:
     def save(self, trajectory: Trajectory) -> None:
         self.trajectories[trajectory.id] = trajectory
 
+    def recent_outcomes(self, limit: int) -> list[tuple[str | None, datetime | None]]:
+        ordered = sorted(self.trajectories.values(), key=lambda t: t.started_at, reverse=True)
+        return [(t.outcome, t.ended_at) for t in ordered[:limit]]
+
+    def tokens_since(self, moment: datetime) -> tuple[int, int]:
+        tokens_in = tokens_out = 0
+        for trajectory in self.trajectories.values():
+            if trajectory.started_at >= moment:
+                tokens_in += sum(step.tokens_in for step in trajectory.steps)
+                tokens_out += sum(step.tokens_out for step in trajectory.steps)
+        return tokens_in, tokens_out
+
     def close_orphans(self, *, older_than_seconds: int, now: datetime | None = None) -> list[str]:
         moment = now or datetime.now(UTC)
         closed: list[str] = []
@@ -413,6 +425,37 @@ class PostgresTrajectoryStore:
                     )
         self._conn.commit()
         self._archive_envelopes(trajectory)
+
+    def recent_outcomes(self, limit: int) -> list[tuple[str | None, datetime | None]]:
+        """The newest `limit` trajectories' `(outcome, ended_at)`, newest first (T6.7 piece 5).
+
+        What the orchestrator's runner reads to know whether the provider is open across runs:
+        no second store, the record itself.
+        """
+        with reading(self._conn) as cur:
+            cur.execute(
+                "SELECT outcome, ended_at FROM trajectories ORDER BY started_at DESC LIMIT %s",
+                (limit,),
+            )
+            return [(row[0], row[1]) for row in cur.fetchall()]
+
+    def tokens_since(self, moment: datetime) -> tuple[int, int]:
+        """Tokens in and out over every trajectory started at or after `moment` (T6.7 piece 6).
+
+        What the orchestrator's spend ceiling reads: the same two columns `/metrics` sums for
+        the lifetime figure and `evalharness.spend` sums per sweep, over a window, including
+        runs that failed, were killed or ended `provider_unavailable` - every token that was
+        billed, whether or not anything came of it.
+        """
+        with reading(self._conn) as cur:
+            cur.execute(
+                "SELECT COALESCE(SUM(s.tokens_in), 0), COALESCE(SUM(s.tokens_out), 0) "
+                "FROM trajectory_steps s JOIN trajectories t ON t.id = s.trajectory_id "
+                "WHERE t.started_at >= %s",
+                (moment,),
+            )
+            row = cur.fetchone() or (0, 0)
+        return int(row[0]), int(row[1])
 
     def close_orphans(self, *, older_than_seconds: int, now: datetime | None = None) -> list[str]:
         """Close every row with no outcome older than the ceiling as `orphaned`; return their ids.

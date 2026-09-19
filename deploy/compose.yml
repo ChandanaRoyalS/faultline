@@ -276,6 +276,12 @@ services:
       # the bounds `make eval` uses. Off everywhere else, because `make demo` and `make eval`
       # launch the investigation themselves and would otherwise pay twice.
       FAULTLINE_ORCH_INVESTIGATE: "1"
+      # T6.7 piece 6: the deployment's own ceiling, $5 over any rolling 24 hours (about seven
+      # investigations), read from the trajectory tables before every run. The default in
+      # `OrchestratorSettings` is the same number; it is written here so that the value the
+      # deployment runs under is in the file a reader opens, and so the day it is raised is a
+      # commit. `Budget.max_usd` still caps one incident; this caps the day.
+      FAULTLINE_ORCH_MAX_USD_PER_DAY: "5"
     command:
       - faultline-orchestrate
     networks:

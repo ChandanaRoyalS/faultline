@@ -8,6 +8,8 @@ pin both halves: that transient failures are retried, and that a substitution is
 
 from __future__ import annotations
 
+from typing import Any
+
 import pytest
 
 from faultline.agents.model import ModelRequest, ModelResponse, Resilient, is_transient
@@ -194,3 +196,93 @@ def test_no_deadline_leaves_the_retry_count_in_charge() -> None:
         Resilient(stub, attempts=3, sleep=_quiet).complete(REQUEST)
 
     assert stub.calls == 3
+
+
+# --- T6.7 piece 5: the provider breaker ---------------------------------------------------------
+
+
+def _resilient(primary: _Stub, fallbacks: list[_Stub] | None = None, **kw: Any) -> Resilient:
+    return Resilient(
+        primary,
+        fallbacks or [],
+        attempts=2,
+        sleep=_quiet,
+        jitter=_ceiling,
+        breaker_cooldown_seconds=300.0,
+        **kw,
+    )
+
+
+def test_one_exhausted_schedule_opens_the_model_and_the_next_call_is_refused_at_once() -> None:
+    """**The tenth call of a run against a dead provider used to cost the same schedule as the
+    first.** Now one exhaustion opens the model's breaker and every later call in the run is
+    refused without a request, as `ProviderUnavailableError` - an outcome of its own, not a
+    failure of the investigation."""
+    from faultline.agents.model import ProviderUnavailableError
+
+    primary = _Stub("m", failures=99)
+    gateway = _resilient(primary)
+
+    with pytest.raises(_OverloadedError):
+        gateway.complete(REQUEST)
+    assert primary.calls == 2, "the schedule, once"
+
+    with pytest.raises(ProviderUnavailableError, match="provider unavailable: m open"):
+        gateway.complete(REQUEST)
+    assert primary.calls == 2, "open: nothing was sent"
+    assert gateway.breakers["m"].trips == 1
+
+
+def test_a_permanent_failure_does_not_count_against_the_provider() -> None:
+    primary = _Stub("m", failures=1, error=_BadRequestError)
+    gateway = _resilient(primary)
+
+    with pytest.raises(_BadRequestError):
+        gateway.complete(REQUEST)
+
+    assert gateway.breakers["m"].trips == 0
+    assert gateway.complete(REQUEST).text == "ok"
+
+
+def test_an_open_primary_goes_straight_to_the_fallback_and_records_the_substitution() -> None:
+    primary = _Stub("m", failures=99)
+    spare = _Stub("spare")
+    gateway = _resilient(primary, [spare])
+
+    first = gateway.complete(REQUEST)
+    second = gateway.complete(REQUEST)
+
+    assert first.model == second.model == "spare"
+    assert primary.calls == 2, "exhausted once, then refused at once - not exhausted again"
+    assert spare.calls == 2
+    assert [s.after for s in gateway.substitutions][1].startswith("m: circuit open")
+
+
+def test_every_model_open_is_provider_unavailable_naming_all_of_them() -> None:
+    from faultline.agents.model import ProviderUnavailableError
+
+    primary = _Stub("m", failures=99)
+    spare = _Stub("spare", failures=99)
+    gateway = _resilient(primary, [spare])
+
+    with pytest.raises(_OverloadedError):
+        gateway.complete(REQUEST)
+    with pytest.raises(ProviderUnavailableError) as refused:
+        gateway.complete(REQUEST)
+
+    assert refused.value.models == ["m", "spare"]
+    assert primary.calls == spare.calls == 2
+
+
+def test_after_the_cooldown_one_trial_call_half_opens_and_a_success_closes() -> None:
+    clock = {"now": 0.0}
+    primary = _Stub("m", failures=2)  # exhausts the first schedule, then answers
+    gateway = _resilient(primary, clock=lambda: clock["now"])
+
+    with pytest.raises(_OverloadedError):
+        gateway.complete(REQUEST)
+    clock["now"] += 300
+
+    assert gateway.complete(REQUEST).text == "ok", "the trial"
+    assert gateway.breakers["m"].state.value == "closed"
+    assert gateway.complete(REQUEST).text == "ok"

@@ -904,3 +904,37 @@ def test_with_the_sdk_triage_and_investigation_share_one_trace_id() -> None:  # 
     assert len(trace_ids) == 1, f"one run, one trace: {trace_ids}"
     roots = [s.name for s in finished if s.parent is None]
     assert roots == ["incident"]
+
+
+# --- T6.7 piece 5: the provider was unavailable, not the investigation ------------------------
+
+
+class OpenProviderModel(ScriptedModel):
+    """What `Resilient` raises once every model it knows is open."""
+
+    def complete(self, request: object) -> object:
+        from faultline.agents.model import ProviderUnavailableError
+
+        raise ProviderUnavailableError(["m"], 240.0)
+
+
+def test_a_provider_outage_leaves_the_incident_triaging_and_exits_6() -> None:
+    """Failure row 1. `FAILED` is terminal and would retire a live incident for somebody else's
+    outage; the incident stays where `due()` finds it, the trajectory says
+    `provider_unavailable`, and the exit code tells the orchestrator's runner not to count the
+    attempt."""
+    from faultline.agents.investigation import PROVIDER_UNAVAILABLE_OUTCOME
+
+    store = InMemoryIncidentStore()
+    incident = incident_in(IncidentState.TRIAGING)
+    store.save(incident)
+    engine, trajectories = engine_over(OpenProviderModel({"planner": [ONE_DISPATCH]}))
+
+    report = run_investigation(store, incident, engine, triage_for(incident), ANCHOR)
+
+    assert incident.state is IncidentState.TRIAGING
+    assert report.exit_code is Exit.PROVIDER_UNAVAILABLE and report.exit_code == 6
+    assert report.error is not None and report.error.startswith("provider unavailable")
+    (row,) = trajectories.trajectories.values()
+    assert row.outcome == PROVIDER_UNAVAILABLE_OUTCOME and row.ended_at is not None
+    assert investigable(store, incident.id) is incident, "still retryable, once the provider is"

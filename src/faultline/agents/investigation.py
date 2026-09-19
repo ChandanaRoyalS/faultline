@@ -119,6 +119,19 @@ def as_origin(name: str) -> str:
     return name if name.startswith(ORIGIN_PREFIX) else f"{ORIGIN_PREFIX}{name}"
 
 
+PROVIDER_UNAVAILABLE_OUTCOME = "provider_unavailable"
+"""A run that ended because every model it could ask was open (T6.7 piece 5). **Not `failed`**:
+nothing about the investigation went wrong; the provider did, and the incident should wait for
+it rather than be retired. The orchestrator's runner reads this outcome off the last trajectories
+to decide whether to start the next run at all."""
+
+
+def _failure_outcome(exc: BaseException) -> str:
+    from faultline.agents.model import ProviderUnavailableError
+
+    return PROVIDER_UNAVAILABLE_OUTCOME if isinstance(exc, ProviderUnavailableError) else "failed"
+
+
 class InvestigationFailedError(RuntimeError):
     """A run that raised, carrying what it had got to. **The distinction the runner needs.**
 
@@ -338,8 +351,9 @@ class Investigation:
             try:
                 outcome = self._run(trajectory, state, result, incident_id, triage, anchor)
             except Exception as exc:
-                root.set(outcome="failed", tokens_in=state.tokens_in, tokens_out=state.tokens_out)
-                self._save_failed(trajectory, exc)
+                failed_as = _failure_outcome(exc)
+                root.set(outcome=failed_as, tokens_in=state.tokens_in, tokens_out=state.tokens_out)
+                self._save_failed(trajectory, exc, outcome=failed_as)
             else:
                 root.set(
                     outcome=trajectory.outcome,
@@ -351,7 +365,9 @@ class Investigation:
                 return outcome
         raise AssertionError("unreachable")
 
-    def _save_failed(self, trajectory: Trajectory, exc: Exception) -> None:
+    def _save_failed(
+        self, trajectory: Trajectory, exc: Exception, *, outcome: str = "failed"
+    ) -> None:
         """**The partial record survives the failure.** Found at T3.5: a run that died in the
         synthesizer left nothing in the store at all, because the only saves were at the end -
         so three specialists' worth of evidence went with the exception. The trajectory is what
@@ -369,7 +385,7 @@ class Investigation:
         the incident where it was.
         """
         trajectory.ended_at = datetime.now(UTC)
-        trajectory.outcome = "failed"
+        trajectory.outcome = outcome
         self._store.save(trajectory)
         raise InvestigationFailedError(trajectory, exc) from exc
 

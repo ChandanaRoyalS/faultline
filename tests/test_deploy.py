@@ -1059,3 +1059,15 @@ def test_the_nightly_snapshot_script_is_the_runbook_s_own_dump() -> None:
     readme = (REPO_ROOT / "deploy" / "README.md").read_text()
     assert "deploy/snapshot.sh" in readme and "crontab" in readme
     assert "no backups beyond" not in readme
+
+
+# --- T6.7 piece 6: the deployment has a ceiling above the per-incident budget ---
+
+
+def test_the_orchestrator_runs_under_a_daily_spend_ceiling(compose: dict) -> None:
+    """2026-09-19: three unattended investigations, $0.69, nothing above `Budget.max_usd` to
+    stop a fourth. The value is in the compose file so raising it is a commit."""
+    env = compose["services"]["orchestrator"]["environment"]
+
+    assert float(env["FAULTLINE_ORCH_MAX_USD_PER_DAY"]) == 5.0
+    assert env["FAULTLINE_ORCH_INVESTIGATE"] == "1", "the ceiling is beside the thing it bounds"
