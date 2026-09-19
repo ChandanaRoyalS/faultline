@@ -110,3 +110,25 @@ One thing the JSON lines show that a test did not: uvicorn passes `color_message
 field, so its startup lines carry a key with an ANSI escape in it. Faithful - the formatter puts
 every extra on the line, as designed - and harmless, and noted here rather than filtered, because
 a filter for one library's key is the kind of special case that accumulates.
+
+## Addendum 3, 2026-09-19 ~19:57 UTC — the spans go to Tempo directly (Q77)
+
+Applied by `git pull` and a recreate of the three daemons - no image change, `2ddc2e6` (#381) is
+compose configuration - then a re-up of the world overlay for the collector alone. Read back
+within the minute:
+
+```
+executor-1     | tracing: exporting to http://tempo:4317
+orchestrator-1 | tracing: exporting to http://tempo:4317
+faultline-1    | tracing: exporting to http://tempo:4317
+otel-col networks: opentelemetry-demo            (faultline-deploy-net gone)
+probe.direct-to-tempo -> in Tempo by search in 10 s
+calls_total{service_name="faultline"}: 0 series
+```
+
+The last line is the observable ADR-0030 addendum 4 promised, already further along than
+promised: the series is not frozen, it is gone - Prometheus had marked it stale in the thirty-one
+hours since the platform last sent a span through the collector, so there is no counter left to
+watch. The platform is no longer a service in the world's metrics. Its traces reach the same
+Tempo they always did, by the same name the traces specialist reads. Jaeger holds nothing of the
+platform's from here on. $0.00.
