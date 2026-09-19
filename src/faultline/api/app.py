@@ -57,6 +57,9 @@ from fastapi import FastAPI
 from faultline.api import auth, incidents
 from faultline.ingest.app import app as receiver_app
 
+STATEMENT_TIMEOUT_MS = 30_000
+"""Per statement on the read surface's connection (T6.7). See `build`."""
+
 NO_TOKEN_KEY = (
     "the approve / reject routes are NOT mounted: FAULTLINE_EXECUTOR_TOKEN_KEY is unset, so this "
     "process cannot mint an approval token. The screen still serves; approve at a terminal with "
@@ -87,7 +90,14 @@ def read_surface(app: FastAPI, postgres_dsn: str) -> FastAPI:
     # after a connection timeout to a database they were about to expose anyway.
     credential = auth.guard()
 
-    connection = psycopg.connect(postgres_dsn)
+    # `statement_timeout` (T6.7): this connection serves every page, `/metrics` and the approve
+    # routes, on one process. A query that never returns - a lock held by a migration, the
+    # 2026-09-18 shape in reverse - would otherwise hold the request, and the scrape, forever.
+    # Thirty seconds is longer than any read this surface makes and shorter than a scrape
+    # interval's worth of patience; migrations run through `faultline-migrate`, not here.
+    connection = psycopg.connect(
+        postgres_dsn, options=f"-c statement_timeout={STATEMENT_TIMEOUT_MS}"
+    )
     incident_store = PostgresIncidentStore(connection)
     # No archive: `latest_for_incident` and `get` read Postgres only, and handing this a
     # writer's object-store credentials would put them in a process that never writes.
