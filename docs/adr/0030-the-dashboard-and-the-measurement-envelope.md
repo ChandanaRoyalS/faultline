@@ -230,3 +230,9 @@ who finds a second key in that file has found this path being used as a way roun
 test holds both); that `otelcol-extras.yml` and `tempo.yaml` are unchanged since #380 (the digest
 says so); and, on the running world, that `calls_total{service_name="faultline"}` stops
 increasing after the change - the one observable this addendum promises.
+
+**Written as a decision; it was a fix.** The evening this addendum landed, the Loki panel showed
+that the exposure had run its course five hours before the fix was applied: four incidents about
+`faultline`, three investigations, two failed, $0.69, from 15:43 to 17:00 UTC on 2026-09-19, ending
+only when the platform's own series went stale (*the platform paged itself*, in the T6.6 evidence).
+The paragraph above stands; the word *could* in Q77's row did not.
