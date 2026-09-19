@@ -23,6 +23,7 @@ from evalharness import provenance
 REPO_ROOT = Path(__file__).resolve().parents[1]
 OVERRIDE = REPO_ROOT / "compose" / provenance.ACTIONS_KAFKA_JVM_OVERRIDE
 GATEWAY = REPO_ROOT / "compose" / provenance.LINUX_HOST_GATEWAY_OVERRIDE
+DEV_TEMPO = f"../compose/{provenance.DEV_TEMPO_OTLP_OVERRIDE}"
 
 
 def test_the_override_sets_one_flag_on_one_service_and_does_nothing_else() -> None:
@@ -67,20 +68,25 @@ def _files_for(tmp_path: Path, kernel: str, actions: bool) -> list[str]:
 
 def test_the_makefile_layers_it_fifth_and_only_on_a_runner(tmp_path: Path) -> None:
     """The digest inputs first, in `InjectorSettings.compose_files` order; the Linux shim fourth;
-    this file fifth, and only when `GITHUB_ACTIONS` is `true`. On the reference platform the
-    command is byte-for-byte what it was before either shim existed."""
+    this file fifth, and only when `GITHUB_ACTIONS` is `true`; the Tempo port last, everywhere
+    (Q77). On the reference platform the command is the digest inputs plus that one port file."""
     from injector.settings import InjectorSettings
 
     hashed = list(InjectorSettings().compose_files)
 
     on_a_runner = _files_for(tmp_path, "Linux", actions=True)
-    assert on_a_runner == [*hashed, f"../compose/{GATEWAY.name}", f"../compose/{OVERRIDE.name}"]
+    assert on_a_runner == [
+        *hashed,
+        f"../compose/{GATEWAY.name}",
+        f"../compose/{OVERRIDE.name}",
+        DEV_TEMPO,
+    ]
 
     on_a_linux_host = _files_for(tmp_path, "Linux", actions=False)
-    assert on_a_linux_host == [*hashed, f"../compose/{GATEWAY.name}"]
+    assert on_a_linux_host == [*hashed, f"../compose/{GATEWAY.name}", DEV_TEMPO]
 
     on_the_mac = _files_for(tmp_path, "Darwin", actions=False)
-    assert on_the_mac == hashed
+    assert on_the_mac == [*hashed, DEV_TEMPO]
 
 
 def test_the_freeze_records_exactly_what_the_makefile_layers(tmp_path: Path) -> None:
@@ -99,25 +105,34 @@ def test_host_overrides_reads_the_runner_variable_the_way_the_runner_sets_it() -
     """GitHub sets `GITHUB_ACTIONS=true`, the string. Anything else - absent, `1`, `false` - is
     not a runner, and a developer who exported `GITHUB_ACTIONS=false` to silence a tool must not
     get a kafka flag for it."""
+    tempo = provenance.DEV_TEMPO_OTLP_OVERRIDE
     assert provenance.host_overrides("Linux", {"GITHUB_ACTIONS": "true"}) == [
         provenance.LINUX_HOST_GATEWAY_OVERRIDE,
         provenance.ACTIONS_KAFKA_JVM_OVERRIDE,
+        tempo,
     ]
     assert provenance.host_overrides("Darwin", {"GITHUB_ACTIONS": "true"}) == [
-        provenance.ACTIONS_KAFKA_JVM_OVERRIDE
+        provenance.ACTIONS_KAFKA_JVM_OVERRIDE,
+        tempo,
     ]
     assert provenance.host_overrides("Linux", {"GITHUB_ACTIONS": "false"}) == [
-        provenance.LINUX_HOST_GATEWAY_OVERRIDE
+        provenance.LINUX_HOST_GATEWAY_OVERRIDE,
+        tempo,
     ]
     assert provenance.host_overrides("Linux", {"GITHUB_ACTIONS": "1"}) == [
-        provenance.LINUX_HOST_GATEWAY_OVERRIDE
+        provenance.LINUX_HOST_GATEWAY_OVERRIDE,
+        tempo,
     ]
-    assert provenance.host_overrides("Darwin", {}) == []
+    assert provenance.host_overrides("Darwin", {}) == [tempo]
 
 
 def test_every_override_the_freeze_can_name_exists() -> None:
     """A manifest naming a file that is not in the tree is a manifest nobody can act on."""
-    for name in (provenance.LINUX_HOST_GATEWAY_OVERRIDE, provenance.ACTIONS_KAFKA_JVM_OVERRIDE):
+    for name in (
+        provenance.LINUX_HOST_GATEWAY_OVERRIDE,
+        provenance.ACTIONS_KAFKA_JVM_OVERRIDE,
+        provenance.DEV_TEMPO_OTLP_OVERRIDE,
+    ):
         assert (REPO_ROOT / "compose" / name).is_file(), name
 
 

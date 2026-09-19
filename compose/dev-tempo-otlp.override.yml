@@ -1,0 +1,35 @@
+# Q77 (2026-09-19) - the platform's own spans go to Tempo directly, and on a development host
+# that needs one published port.
+#
+# Until this file, the platform exported its traces to the world's collector (`otelcol:4317` on
+# the VM, the collector's published `localhost:4317` on a development machine) and the collector
+# forwarded them to Tempo beside the shop's. It also ran them through its `spanmetrics`
+# processor, so the platform became a *service in the world's metrics*: `calls_total{service_name=
+# "faultline"}`, a `ServiceNoTraffic faultline` alert when the platform went quiet between
+# investigations (2026-09-18 12:24 UTC), and call rates the agent's own `promql_query` could read
+# - the exposure Q73 closed for `/metrics`, open again from the trace side. Exporting straight to
+# Tempo's OTLP receiver keeps the demo beat (the agent's trace beside the outage's, in one store)
+# and takes the platform out of the world's metrics and out of Jaeger.
+#
+# On the VM the daemons are containers on the shared network and reach `tempo:4317` by name
+# (`deploy/compose.yml`); nothing here applies there. On a development host the daemons run
+# outside Docker and `compose/tempo.yaml`'s receiver is not published - 4317 on the host is the
+# collector's - so this file publishes it as 4327. `OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4327`
+# is the development setting from now on.
+#
+# **Why a separate file and not a line in `telemetry.yml`.** `telemetry.yml` is one of the three
+# files `compose_digest` hashes; a published host port changes nothing any bundle records - not a
+# capture, not an alert, not what Tempo holds - and a digest that moved for it would move
+# mechanically while nothing measurable did, which is the boundary ADR-0030 drew and
+# `linux-host-gateway.override.yml` already stands on. So it is layered by the Makefile **outside**
+# `InjectorSettings.compose_files`, on every development host, and `evalharness.provenance.
+# host_overrides` records that it was, so a manifest can still say exactly which files were in
+# force. **The reference platform's compose command is no longer byte-for-byte what it was before
+# T5.4c**: it gains this one file, which publishes one port and changes no container. The guard in
+# `tests/test_dev_tempo_override.py` holds it to that - one service, one key, one entry.
+#
+# **The deployment does not use this file.** `deploy/compose.world.yml` is the fourth file there.
+services:
+  tempo:
+    ports:
+      - "4327:4317"

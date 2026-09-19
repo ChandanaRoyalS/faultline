@@ -375,7 +375,7 @@ each surface, on stdout, so an operator who expected traces and sees none has on
 
 ```bash
 docker compose logs faultline orchestrator --since 1h | grep -E "tracing:|metrics:"
-# tracing: exporting to http://otelcol:4317        (both containers)
+# tracing: exporting to http://tempo:4317          (all three containers; `otelcol:4317` before Q77, 2026-09-19)
 # metrics: /metrics mounted                        (faultline)
 docker compose exec faultline python -c "import urllib.request; print(urllib.request.urlopen('http://localhost:8000/metrics').read()[:300].decode())"
 ```

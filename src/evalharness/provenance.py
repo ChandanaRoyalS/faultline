@@ -102,6 +102,11 @@ def compose_digest(settings: InjectorSettings | None = None) -> str | None:
 
 LINUX_HOST_GATEWAY_OVERRIDE = "linux-host-gateway.override.yml"
 ACTIONS_KAFKA_JVM_OVERRIDE = "actions-kafka-jvm.override.yml"
+DEV_TEMPO_OTLP_OVERRIDE = "dev-tempo-otlp.override.yml"
+"""Q77 (2026-09-19): publishes Tempo's OTLP receiver on the development host as 4327, so the
+platform's daemons export to Tempo directly and stop being a service in the world's span-metrics.
+Unconditional - every host that uses the Makefile runs the daemons outside Docker - and outside the
+digest on the argument its header makes: a published port changes nothing a bundle records."""
 
 
 def host_overrides(
@@ -109,18 +114,19 @@ def host_overrides(
 ) -> list[str]:
     """The compose files the Makefile layers **outside** the digest for this host, in its order.
 
-    Two, both conditional, both describing the host rather than the world: the Linux
-    host-gateway shim (T5.4c - Docker Engine has no `host.docker.internal`) and the
-    GitHub-runner kafka JVM flag (T4.5 - the demo's kafka JDK cannot start there). Neither joins
-    `compose_digest`, on the argument each file's header makes; this function exists so a run's
-    freeze can still say which of them were in force, because a manifest that is silent about a
-    file that changed a container's command line is not a complete record of what ran.
+    Three, all describing the host rather than the world: the Linux host-gateway shim (T5.4c -
+    Docker Engine has no `host.docker.internal`), the GitHub-runner kafka JVM flag (T4.5 - the
+    demo's kafka JDK cannot start there), and - unconditionally since Q77 - the Tempo OTLP port
+    for the platform's daemons, which run outside Docker on every host this Makefile serves. None
+    joins `compose_digest`, on the argument each file's header makes; this function exists so a
+    run's freeze can still say which of them were in force, because a manifest that is silent
+    about a file that changed a container's command line is not a complete record of what ran.
 
-    **Mirrors the Makefile's two `ifeq` blocks, and a test holds the mirror** -
-    `tests/test_actions_kafka_override.py` asks `make -n` under both conditions and compares. The
-    conditions are the same facts make consults: `uname -s` and the `GITHUB_ACTIONS` variable the
-    runner sets. `system` and `environ` are parameters so the test can exercise every branch from
-    one machine.
+    **Mirrors the Makefile's two `ifeq` blocks and its one unconditional line, and a test holds
+    the mirror** - `tests/test_actions_kafka_override.py` asks `make -n` under both conditions and
+    compares. The conditions are the same facts make consults: `uname -s` and the `GITHUB_ACTIONS`
+    variable the runner sets. `system` and `environ` are parameters so the test can exercise
+    every branch from one machine.
     """
     system = system or platform.system()
     environ = os.environ if environ is None else environ
@@ -129,6 +135,7 @@ def host_overrides(
         layered.append(LINUX_HOST_GATEWAY_OVERRIDE)
     if environ.get("GITHUB_ACTIONS") == "true":
         layered.append(ACTIONS_KAFKA_JVM_OVERRIDE)
+    layered.append(DEV_TEMPO_OTLP_OVERRIDE)
     return layered
 
 

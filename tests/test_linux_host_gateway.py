@@ -44,8 +44,11 @@ def test_the_override_is_outside_the_digest() -> None:
 def test_the_makefile_layers_it_fourth_and_only_on_linux(tmp_path: Path) -> None:
     """Asserted against `make -n` rather than by reading the Makefile, because the conditional is
     what is being checked and only make evaluates it. The digest inputs come first, in
-    `InjectorSettings.compose_files` order; the shim is last; and on a non-Linux host it is absent,
-    so the reference platform's command is byte-for-byte what it was before this file existed."""
+    `InjectorSettings.compose_files` order; the shim follows them; and on a non-Linux host it is
+    absent. **Since Q77 the reference platform's command is no longer byte-for-byte what it was
+    before this file existed**: `dev-tempo-otlp.override.yml` is layered last on every host, and
+    `tests/test_dev_tempo_override.py` holds that file to one published port."""
+    from evalharness.provenance import DEV_TEMPO_OTLP_OVERRIDE
     from injector.settings import InjectorSettings
 
     def files_for(kernel: str) -> list[str]:
@@ -67,11 +70,13 @@ def test_the_makefile_layers_it_fourth_and_only_on_linux(tmp_path: Path) -> None
 
     hashed = list(InjectorSettings().compose_files)
 
+    dev_tempo = f"../compose/{DEV_TEMPO_OTLP_OVERRIDE}"
+
     on_linux = files_for("Linux")
-    assert on_linux == [*hashed, f"../compose/{OVERRIDE.name}"], on_linux
+    assert on_linux == [*hashed, f"../compose/{OVERRIDE.name}", dev_tempo], on_linux
 
     elsewhere = files_for("Darwin")
-    assert elsewhere == hashed, elsewhere
+    assert elsewhere == [*hashed, dev_tempo], elsewhere
 
 
 def test_the_release_checklist_and_readme_name_the_firewall_rule() -> None:

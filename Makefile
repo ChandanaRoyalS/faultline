@@ -184,6 +184,12 @@ endif
 ifeq ($(GITHUB_ACTIONS),true)
 COMPOSE_WORLD_FILES += -f ../compose/actions-kafka-jvm.override.yml
 endif
+# Last, outside the digest, on every development host (Q77, 2026-09-19): publishes Tempo's OTLP
+# receiver as host port 4327 so the platform's daemons - which run on the host here - can export
+# their spans to Tempo directly instead of through the world's collector, whose `spanmetrics` made
+# the platform a service in the world's metrics. The file explains the argument. Not conditional:
+# every host that uses this Makefile runs the daemons outside Docker; the VM does not use it.
+COMPOSE_WORLD_FILES += -f ../compose/dev-tempo-otlp.override.yml
 COMPOSE_WORLD := docker compose --progress plain $(COMPOSE_WORLD_FILES)
 
 # Rebuild the stub only when its source changes. An unconditional build re-resolves the

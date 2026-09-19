@@ -495,14 +495,15 @@ def world() -> dict:
 
 @pytest.mark.parametrize(
     "service",
-    ["alertmanager", "prometheus", "loki", "tempo", "frontendproxy", "otelcol", "grafana"],
+    ["alertmanager", "prometheus", "loki", "tempo", "frontendproxy", "grafana"],
 )
 def test_every_service_the_platform_talks_to_shares_its_network(world: dict, service: str) -> None:
     """Two compose projects, one network. The orchestrator queries four of these (Tempo since
-    T6.1), Caddy forwards the demo's UIs through the fifth, and the platform *writes* its own
-    spans to the sixth (the collector, T6.6); a service left off the network is a tool that times
-    out at the moment it is asked a question - or, for the collector, an exporter that retries a
-    batch nobody receives, every five seconds, in every daemon.
+    T6.1), Caddy forwards the demo's UIs through the fifth, Grafana reads the platform's own
+    Prometheus (Q73), and the platform *writes* its own spans to Tempo (T6.6; to the collector
+    until Q77 took it off this network); a service left off the network is a tool that times out
+    at the moment it is asked a question - or, for Tempo, an exporter that retries a batch nobody
+    receives, every five seconds, in every daemon.
 
     **This list said `frontend-proxy` and passed for two merges** - it was checking the overlay's
     keys against a copy of the overlay's keys, and both were the container name rather than the
@@ -714,26 +715,35 @@ def test_every_telemetry_container_survives_a_reboot(world: dict, service: str) 
     )
 
 
-# --- T6.6: the platform's own spans reach the world's collector -----------------------------------
+# --- T6.6 / Q77: the platform's own spans reach the world's Tempo, directly ----------------------
 
 
-def test_every_daemon_that_traces_is_pointed_at_the_collector(compose: dict, world: dict) -> None:
+def test_every_daemon_that_traces_is_pointed_at_tempo_and_not_at_the_collector(
+    compose: dict, world: dict
+) -> None:
     """`tracing.configure` reads `OTEL_EXPORTER_OTLP_ENDPOINT` and nothing else. `faultline`
     calls it as the API, `orchestrator` calls it and hands the variable to every
-    `faultline-investigate` it spawns, and since Q74 the executor calls it too - one
-    `action.execute` span per token, so the action a trace led to sits beside the investigation
-    that proposed it. Until Q74 this test asserted the executor did *not* have the variable, by
-    the rule that a variable nothing reads is documentation that lies; something reads it now.
+    `faultline-investigate` it spawns, and since Q74 the executor calls it too.
 
-    The target is the collector's *service* name on the shared network, which is the name Docker's
-    DNS resolves across the two projects; `compose.world.yml` is what puts it there."""
-    endpoint = "http://otelcol:4317"
+    **Tempo, not the collector (Q77).** Through `otelcol` the platform's spans also went through
+    the world's `spanmetrics` processor and made the platform a service in the world's metrics:
+    `calls_total{service_name="faultline"}`, a `ServiceNoTraffic faultline` alert the world fired
+    on 2026-09-18, and call rates the agent's `promql_query` could read - Q73's exposure by another
+    door. Tempo's OTLP receiver is the same store the collector forwarded to, so the demo beat
+    (the agent's trace beside the outage's) is unchanged and the platform leaves the world's
+    metrics. The target is the *service* name on the shared network, which Docker's DNS resolves
+    across the two projects; `compose.world.yml` puts Tempo there for the traces specialist."""
+    endpoint = "http://tempo:4317"
 
     for name in ("faultline", "orchestrator", "executor"):
         env = compose["services"][name]["environment"]
         assert env.get("OTEL_EXPORTER_OTLP_ENDPOINT") == endpoint, name
-    assert "faultline" in world["services"]["otelcol"]["networks"], (
+    assert "faultline" in world["services"]["tempo"]["networks"], (
         "the endpoint names a service the platform cannot reach"
+    )
+    assert "otelcol" not in world["services"], (
+        "the collector is back on the platform's network; nothing on the platform should talk to "
+        "it (Q77)"
     )
 
 
