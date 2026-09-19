@@ -268,6 +268,10 @@ class InMemoryTrajectoryStore:
     def save(self, trajectory: Trajectory) -> None:
         self.trajectories[trajectory.id] = trajectory
 
+    def recent_outcomes(self, limit: int) -> list[tuple[str | None, datetime | None]]:
+        ordered = sorted(self.trajectories.values(), key=lambda t: t.started_at, reverse=True)
+        return [(t.outcome, t.ended_at) for t in ordered[:limit]]
+
     def close_orphans(self, *, older_than_seconds: int, now: datetime | None = None) -> list[str]:
         moment = now or datetime.now(UTC)
         closed: list[str] = []
@@ -413,6 +417,19 @@ class PostgresTrajectoryStore:
                     )
         self._conn.commit()
         self._archive_envelopes(trajectory)
+
+    def recent_outcomes(self, limit: int) -> list[tuple[str | None, datetime | None]]:
+        """The newest `limit` trajectories' `(outcome, ended_at)`, newest first (T6.7 piece 5).
+
+        What the orchestrator's runner reads to know whether the provider is open across runs:
+        no second store, the record itself.
+        """
+        with reading(self._conn) as cur:
+            cur.execute(
+                "SELECT outcome, ended_at FROM trajectories ORDER BY started_at DESC LIMIT %s",
+                (limit,),
+            )
+            return [(row[0], row[1]) for row in cur.fetchall()]
 
     def close_orphans(self, *, older_than_seconds: int, now: datetime | None = None) -> list[str]:
         """Close every row with no outcome older than the ceiling as `orphaned`; return their ids.

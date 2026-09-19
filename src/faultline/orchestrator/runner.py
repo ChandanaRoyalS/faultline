@@ -52,6 +52,11 @@ def _run_subprocess(command: Sequence[str]) -> int:
     return subprocess.run(list(command), check=False).returncode
 
 
+PROVIDER_UNAVAILABLE_EXIT = 6
+"""`agents.runner.Exit.PROVIDER_UNAVAILABLE`, restated: the orchestrator does not import the
+agent runtime (the arrow points the other way), and a test holds the two equal."""
+
+
 class InvestigationRunner:
     """Turns admitted incidents into investigations, one at a time, after the settle window."""
 
@@ -67,9 +72,16 @@ class InvestigationRunner:
         rejections: RejectionStore | None = None,
         max_rejections: int = 2,
         trajectories: Any | None = None,
+        provider_cooldown_seconds: float = 300.0,
+        provider_open_after: int = 2,
     ) -> None:
         self._store = store
         self._trajectories = trajectories
+        self._provider_cooldown = provider_cooldown_seconds
+        self._provider_open_after = max(1, provider_open_after)
+        self._provider_was_open = False
+        self.deferred: int = 0
+        """Polls on which every due incident was deferred because the provider was open."""
         """A trajectory store with `close_orphans`, or `None`. **The process that kills
         investigations is the process that reconciles them** (Q72's rule): the sweep ran the
         reconciler for the development machine, and nothing ran it on the deployment, where this
@@ -159,16 +171,68 @@ class InvestigationRunner:
             )
         return closed
 
+    def provider_open(self) -> float | None:
+        """Seconds until the cross-run breaker half-opens, or `None` when it is closed.
+
+        **The breaker across runs is computed from the record, not kept** (T6.7 piece 5, design
+        note §2): the last `provider_open_after` trajectories all ended `provider_unavailable`,
+        and the newest of them ended less than `provider_cooldown_seconds` ago. A run's own
+        breaker (`Resilient.breakers`) bounds what one run spends on a dead provider; this bounds
+        how many runs are started to learn the same thing. Half-open is the first run after the
+        cooldown: it either closes the breaker by finishing, or re-opens it by ending the same
+        way. No persisted state, so nothing can disagree with the trajectory table.
+        """
+        if self._trajectories is None:
+            return None
+        from faultline.agents.investigation import PROVIDER_UNAVAILABLE_OUTCOME
+
+        recent = list(self._trajectories.recent_outcomes(self._provider_open_after))
+        if len(recent) < self._provider_open_after:
+            return None
+        if any(outcome != PROVIDER_UNAVAILABLE_OUTCOME for outcome, _ in recent):
+            return None
+        ended = [at for _, at in recent if at is not None]
+        if not ended:
+            return None
+        since = (self._now() - max(ended)).total_seconds()
+        remaining = self._provider_cooldown - since
+        return remaining if remaining > 0 else None
+
     def run_once(self) -> list[str]:
         """Investigate everything due, sequentially. Returns the incident ids that were run."""
         self.reconcile_orphans()
         ran: list[str] = []
-        for incident in self.due():
+        due = self.due()
+        wait = self.provider_open()
+        if wait is not None:
+            if due:
+                self.deferred += 1
+            if not self._provider_was_open:
+                log.warning(
+                    "provider breaker open: the last %d investigations ended provider_unavailable; "
+                    "deferring %d due incident(s), trial run in %.0fs",
+                    self._provider_open_after,
+                    len(due),
+                    wait,
+                )
+            self._provider_was_open = True
+            return ran
+        if self._provider_was_open:
+            log.info("provider breaker half-open: the next investigation is the trial")
+            self._provider_was_open = False
+        for incident in due:
             self.attempts[incident.id] = self.attempts.get(incident.id, 0) + 1
             log.info("investigating %s (attempt %d)", incident.id, self.attempts[incident.id])
             code = self._run([*self._command, incident.id])
             self.exit_codes.append((incident.id, code))
-            if code != 0:
+            if code == PROVIDER_UNAVAILABLE_EXIT:
+                # Not the incident's fault and not an attempt against it: the provider was open.
+                # The next poll reads the record and defers; the attempt budget is untouched.
+                self.attempts[incident.id] -= 1
+                log.warning(
+                    "faultline-investigate found the provider unavailable for %s", incident.id
+                )
+            elif code != 0:
                 log.warning("faultline-investigate exited %d for %s", code, incident.id)
             ran.append(incident.id)
         return ran

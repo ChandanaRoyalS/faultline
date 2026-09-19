@@ -132,6 +132,21 @@ def is_transient(exc: BaseException) -> bool:
     return type(exc).__name__ in _TRANSIENT_NAMES
 
 
+class ProviderUnavailableError(RuntimeError):
+    """Every model this gateway could ask is open: the retry schedule was exhausted against
+    each within the cooldown, and nothing is attempted. **Not a failed investigation** - the
+    run has nothing to say about the incident and should end fast so the incident can wait for
+    the provider rather than be retired (failure row 1; `machine.record_provider_unavailable`)."""
+
+    def __init__(self, models: list[str], seconds_until_trial: float) -> None:
+        self.models = models
+        self.seconds_until_trial = seconds_until_trial
+        super().__init__(
+            f"provider unavailable: {', '.join(models)} open after exhausted retries; "
+            f"a trial call is allowed in {seconds_until_trial:.0f}s"
+        )
+
+
 @dataclass(frozen=True, slots=True)
 class Substitution:
     """A model answered that was not the model asked for. Never silent - see `Resilient`."""
@@ -171,10 +186,13 @@ class Resilient:
         base_delay: float = 1.0,
         max_delay: float = 30.0,
         deadline_seconds: float | None = None,
+        breaker_cooldown_seconds: float = 300.0,
         sleep: Callable[[float], None] = time.sleep,
         jitter: Callable[[float, float], float] = random.uniform,
         clock: Callable[[], float] = time.monotonic,
     ) -> None:
+        from faultline.reliability.breaker import CircuitBreaker
+
         self._primary = primary
         self._fallbacks = tuple(fallbacks)
         self._attempts = max(1, attempts)
@@ -185,6 +203,17 @@ class Resilient:
         self._sleep = sleep
         self._jitter = jitter
         self.substitutions: list[Substitution] = []
+        # **One breaker per model, threshold 1** (T6.7 piece 5): an exhausted retry schedule is
+        # already four transient failures in a row, so one exhaustion opens it. While open, calls
+        # to that model are refused at once - the tenth call of a run against a dead provider
+        # costs nothing instead of another schedule - and after the cooldown one trial call
+        # half-opens it. `breakers` is public so the run can record the trips.
+        self.breakers = {
+            model.name: CircuitBreaker(
+                model.name, threshold=1, cooldown_seconds=breaker_cooldown_seconds, clock=clock
+            )
+            for model in (primary, *self._fallbacks)
+        }
 
     @property
     def name(self) -> str:
@@ -226,25 +255,57 @@ class Resilient:
             return False
         return (self._clock() - started) >= self._deadline_seconds
 
-    def complete(self, request: ModelRequest) -> ModelResponse:
+    def _guarded(self, model: LanguageModel, request: ModelRequest) -> ModelResponse:
+        """`_try` behind the model's breaker. A non-transient failure is not the provider's
+        fault and does not count against it; an exhausted schedule does."""
+        breaker = self.breakers[model.name]
+        breaker.allow()
         try:
-            return self._try(self._primary, request)
+            response = self._try(model, request)
+        except Exception as exc:
+            if is_transient(exc):
+                breaker.record_failure()
+            raise
+        breaker.record_success()
+        return response
+
+    def complete(self, request: ModelRequest) -> ModelResponse:
+        from faultline.reliability.breaker import CircuitOpenError
+
+        primary_failure: BaseException
+        try:
+            return self._guarded(self._primary, request)
+        except CircuitOpenError as refused:
+            if not self._fallbacks:
+                raise ProviderUnavailableError(
+                    [self._primary.name], refused.seconds_until_trial
+                ) from refused
+            failure = str(refused)
+            primary_failure = refused
         except Exception as exc:
             if not (self._fallbacks and is_transient(exc)):
                 raise
             failure = f"{type(exc).__name__}: {exc}"
-            for spare in self._fallbacks:
-                try:
-                    response = self._try(spare, request)
-                except Exception:
-                    continue
-                self.substitutions.append(
-                    Substitution(
-                        replaced=self._primary.name, answered=response.model, after=failure
-                    )
-                )
-                return response
-            raise
+            primary_failure = exc
+        refused_all: list[str] = [self._primary.name]
+        wait = 0.0
+        for spare in self._fallbacks:
+            try:
+                response = self._guarded(spare, request)
+            except CircuitOpenError as refused:
+                refused_all.append(spare.name)
+                wait = max(wait, refused.seconds_until_trial)
+                continue
+            except Exception:
+                continue
+            self.substitutions.append(
+                Substitution(replaced=self._primary.name, answered=response.model, after=failure)
+            )
+            return response
+        if len(refused_all) == 1 + len(self._fallbacks):
+            # Every model this gateway knows is open: nothing was even attempted.
+            raise ProviderUnavailableError(refused_all, wait)
+        raise primary_failure
 
 
 class AnthropicModel:

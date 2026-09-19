@@ -75,3 +75,11 @@ class ToolSettings(BaseSettings):
     precede symptoms". Its ceiling is this plus `max_window_seconds` (see `WindowPolicy`)."""
 
     max_spans: int = 200
+
+    breaker_threshold: int = 3
+    """Consecutive failed calls before a backend is open for the rest of the run (T6.7 piece 5,
+    `reliability.breaker`). One Loki timeout is weather; three in a row is a backend that is down,
+    and a specialist with twelve calls against it should spend three `HTTP_TIMEOUT`s, not twelve.
+    While open every call to that backend returns a typed result whose `error` says *modality
+    unavailable* without contacting it - failure row 12's Detection and Mitigation. No half-open
+    inside a run: runs are minutes long and the next run starts closed."""

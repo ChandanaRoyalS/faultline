@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import patch
 
+import pytest
+
 from faultline.tools import envelope
 from faultline.tools.changelog import InMemoryChangeLog
 from faultline.tools.changes import (
@@ -1135,3 +1137,70 @@ def test_the_baseline_result_says_how_many_samples_had_no_value() -> None:
     assert result.incident["samples"] == 0.0
     assert "NO DEFINED VALUE" in result.body()
     assert "no traffic in the interval" in result.body()
+
+
+# --- T6.7 piece 5: the tool breaker ---------------------------------------------------------------
+
+
+def test_three_consecutive_backend_failures_open_it_for_the_rest_of_the_run(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """**A dead Loki used to cost a specialist twelve timeouts.** After three consecutive failed
+    calls the backend is open for the run: every further call returns a typed result whose
+    `error` says *modality unavailable* without a request leaving the process. Failure row 12's
+    Detection (*consecutive tool-error threshold*) and Mitigation (*typed evidence*)."""
+    from faultline import telemetry
+
+    calls = {"n": 0}
+
+    def down(*_a: object, **_k: object) -> dict[str, object]:
+        calls["n"] += 1
+        raise TimeoutError("loki: timed out")
+
+    monkeypatch.setattr(telemetry, "get_json", down)
+    tools = Tools(ToolSettings(), changes=InMemoryChangeLog())
+
+    results = [tools.logql_query('{service="cart"}', START, END) for _ in range(5)]
+
+    assert calls["n"] == 3, "three requests, then none"
+    assert all(r.empty and r.error for r in results)
+    assert "timed out" in (results[2].error or "")
+    assert "modality unavailable: loki failed 3 consecutive calls" in (results[3].error or "")
+    assert tools.breakers["loki"].state.value == "open"
+
+
+def test_backends_open_independently_and_a_success_resets_the_count(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from faultline import telemetry
+
+    def flaky(base: str, *_a: object, **_k: object) -> dict[str, object]:
+        if "3100" in base:  # loki
+            raise TimeoutError("loki down")
+        return {"data": {"result": []}}
+
+    monkeypatch.setattr(telemetry, "get_json", flaky)
+    monkeypatch.setattr(telemetry, "query_range", lambda *a, **k: {"data": {"result": []}})
+    tools = Tools(ToolSettings(), changes=InMemoryChangeLog())
+
+    for _ in range(4):
+        tools.logql_query('{service="cart"}', START, END)
+    ok = tools.promql_query("up", START, END)
+
+    assert tools.breakers["loki"].state.value == "open"
+    assert tools.breakers["prometheus"].state.value == "closed"
+    assert ok.error is None
+    assert tools.breakers["changes"].state.value == "closed"
+
+
+def test_the_change_log_is_a_backend_too(monkeypatch: pytest.MonkeyPatch) -> None:
+    class Dead:
+        def records_for(self, *_a: object) -> list[object]:
+            raise ConnectionError("postgres gone")
+
+    tools = Tools(ToolSettings(breaker_threshold=2), changes=Dead())
+
+    _first, second, third = (tools.change_history("cartservice", START, END) for _ in range(3))
+
+    assert "postgres gone" in (second.error or "")
+    assert "modality unavailable: changes" in (third.error or "")

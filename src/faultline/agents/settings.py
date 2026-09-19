@@ -62,6 +62,13 @@ class AgentSettings(BaseSettings):
     retry_base_delay: float = 1.0
     """Seconds. Doubles per attempt, full-jittered, capped at 30s."""
 
+    breaker_cooldown_seconds: float = 300.0
+    """How long a model stays open after one exhausted retry schedule before a trial call is
+    allowed (T6.7 piece 5, `reliability.breaker`). Five minutes is Anthropic's own guidance for
+    a 529 storm and longer than any run, so within a run an open breaker stays open: the run
+    ends fast with `provider_unavailable` and the incident waits in `QUEUED`. The orchestrator's
+    runner reads the same value when deciding whether to start the next run at all."""
+
     effort: str = "high"
     role_efforts: dict[str, str] = {}
     """Same shape, same reason. A specialist reading one tool result does not need what the

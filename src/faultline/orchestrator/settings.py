@@ -66,6 +66,18 @@ class OrchestratorSettings(BaseSettings):
 
     investigate_poll_seconds: float = 15.0
 
+    provider_cooldown_seconds: float = 300.0
+    """How long the runner waits after the last two investigations ended `provider_unavailable`
+    before starting another (T6.7 piece 5, the cross-run half of the provider breaker). The same
+    five minutes as `AgentSettings.breaker_cooldown_seconds`, and `tests/test_investigation_runner`
+    holds the two equal: a run's own breaker and the runner's read of the record describe one
+    outage. Read from the trajectory table, never from a second store."""
+
+    provider_open_after: int = 2
+    """How many consecutive `provider_unavailable` outcomes open the cross-run breaker. Two: one
+    could be one model's bad minute; two runs in a row, each having exhausted its own retries, is
+    the provider."""
+
     max_rejections: int = 2
     """How many times one incident may be rejected and re-investigated (T6.3,
     `PREREGISTRATION-T6.3.md` §2.3). **Two, and the cap is on the loop rather than on the

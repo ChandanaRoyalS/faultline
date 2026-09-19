@@ -108,7 +108,7 @@ Seven console entry points reach the product; the rest are the harness's.
 | `faultline-inject` | break the world on purpose, reversibly |
 | `faultline-eval` and friends | scoring, judging, comparing, calibrating — `src/evalharness` |
 
-`faultline-investigate`'s exit codes are four distinct outcomes, not a boolean, because a harness
+`faultline-investigate`'s exit codes are distinct outcomes, not a boolean, because a harness
 that cannot tell *diagnosed* from *diagnosed with half its budget missing* from *never got a
 verdict* will pool them:
 
@@ -119,6 +119,7 @@ verdict* will pool them:
 | `3` | refused — no such incident, or one in a state the machine does not investigate |
 | `4` | ran, produced no verdict; the trajectory is persisted up to the failure |
 | `5` | **gated** — triage declined it before any specialist ran. Not a failure and not a refusal |
+| `6` | **provider unavailable** — every model the gateway could ask was open (`reliability.breaker`, T6.7): nothing about the investigation failed, the incident stays `TRIAGING`, the trajectory says `provider_unavailable`, and the orchestrator's runner does not count it as an attempt |
 
 ---
 
@@ -297,8 +298,11 @@ Listed because a document that omits this is a brochure.
   to anything on the compose network. See [thesis 3 and the addendum](THREAT-MODEL.md).
 - **Credentials on Prometheus and Loki.** Deferred to T6.8 explicitly; read-only is a property of
   the tool surface today, not of a credential.
-- **Model substitution.** `Resilient` is a retry wrapper unless `fallback_models` is set, which it
-  is not by default. ADR-0031 records what T2.5 never built.
+- **Model substitution.** `Resilient` retries, and since T6.7 breaks: one breaker per model,
+  opened by one exhausted retry schedule, half-opened after `breaker_cooldown_seconds`; a run
+  whose every model is open ends as `provider_unavailable` (exit 6) and the orchestrator's runner
+  reads that off the last trajectories to defer the next run. It substitutes only when
+  `fallback_models` is set, which it is not by default. ADR-0031 records what T2.5 never built.
 - **A/A validation of the harness.** Built and invokable, and it needs R ≥ 2. Every sweep so far
   has been R = 1, so it cannot yet run on any data that exists.
 

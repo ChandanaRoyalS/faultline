@@ -169,6 +169,8 @@ def run(argv: list[str] | None = None) -> int:
             # T6.7 piece 3b: the reconciler for killed investigations runs here, every poll, on
             # the runner's own connection for the reason the line above gives.
             trajectories=PostgresTrajectoryStore(psycopg.connect(args.postgres_dsn)),
+            provider_cooldown_seconds=settings.provider_cooldown_seconds,
+            provider_open_after=settings.provider_open_after,
         )
         runner.start_in_background(settings.investigate_poll_seconds)
         print(

@@ -318,6 +318,7 @@ def run(argv: list[str] | None = None) -> int:
         attempts=_settings.retry_attempts,
         base_delay=_settings.retry_base_delay,
         deadline_seconds=float(args.wall_clock),
+        breaker_cooldown_seconds=_settings.breaker_cooldown_seconds,
     )
     archive = connect_or_none()
     engine = Investigation(

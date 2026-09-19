@@ -13,6 +13,8 @@ import re
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+import pytest
+
 from faultline.orchestrator.models import Incident, IncidentState
 from faultline.orchestrator.runner import InvestigationRunner, investigate_command
 from faultline.orchestrator.settings import OrchestratorSettings
@@ -172,6 +174,9 @@ class RecordingTrajectories:
         self.calls.append(older_than_seconds)
         return list(self._closes)
 
+    def recent_outcomes(self, limit: int) -> list[tuple[str | None, datetime | None]]:
+        return []
+
 
 def test_every_poll_reconciles_orphans_before_it_investigates(caplog: object) -> None:
     """**The 2026-09-19 drill's row had to be closed by hand.** Q72's reconciler ran in the
@@ -205,3 +210,101 @@ def test_without_a_trajectory_store_the_runner_reconciles_nothing_and_says_nothi
     calls: list[list[str]] = []
 
     assert _runner(store, calls).reconcile_orphans() == []
+
+
+# --- T6.7 piece 5: the cross-run half of the provider breaker -------------------------------------
+
+
+class OutcomeTrajectories(RecordingTrajectories):
+    def __init__(self, outcomes: list[tuple[str | None, datetime | None]]) -> None:
+        super().__init__(closes=[])
+        self.outcomes = outcomes
+
+    def recent_outcomes(self, limit: int) -> list[tuple[str | None, datetime | None]]:
+        return self.outcomes[:limit]
+
+
+def _breaker_runner(
+    store: InMemoryIncidentStore,
+    calls: list[list[str]],
+    trajectories: OutcomeTrajectories,
+    *,
+    code: int = 0,
+    now: datetime = NOW,
+) -> InvestigationRunner:
+    def fake_run(command: list[str]) -> int:
+        calls.append(list(command))
+        return code
+
+    return InvestigationRunner(
+        store,
+        settle=timedelta(seconds=90),
+        command=["faultline-investigate"],
+        run=fake_run,
+        now=lambda: now,
+        trajectories=trajectories,
+        provider_cooldown_seconds=300.0,
+        provider_open_after=2,
+    )
+
+
+def test_two_provider_unavailable_runs_defer_every_due_incident_until_the_cooldown() -> None:
+    """**Computed from the record, not kept.** The last two trajectories ended
+    `provider_unavailable` a minute ago, so nothing is started for four more minutes: the
+    incidents stay `triaging`, the attempt budget is untouched, one warning line says so."""
+    store = InMemoryIncidentStore()
+    store.save(_incident("a", IncidentState.TRIAGING, timedelta(minutes=5)))
+    store.save(_incident("b", IncidentState.TRIAGING, timedelta(minutes=4)))
+    calls: list[list[str]] = []
+    a_minute_ago = NOW - timedelta(seconds=60)
+    trajectories = OutcomeTrajectories(
+        [("provider_unavailable", a_minute_ago), ("provider_unavailable", a_minute_ago)]
+    )
+    runner = _breaker_runner(store, calls, trajectories)
+
+    assert runner.provider_open() == pytest.approx(240.0)
+    assert runner.run_once() == []
+    assert runner.run_once() == []
+
+    assert calls == [] and runner.attempts == {} and runner.deferred == 2
+
+
+def test_one_provider_unavailable_run_is_not_an_outage() -> None:
+    store = InMemoryIncidentStore()
+    store.save(_incident("a", IncidentState.TRIAGING, timedelta(minutes=5)))
+    calls: list[list[str]] = []
+    trajectories = OutcomeTrajectories(
+        [("provider_unavailable", NOW - timedelta(seconds=60)), ("dispatched", NOW)]
+    )
+
+    assert _breaker_runner(store, calls, trajectories).provider_open() is None
+    assert _breaker_runner(store, calls, trajectories).run_once() == ["a"]
+
+
+def test_after_the_cooldown_the_next_run_is_the_trial_and_a_6_does_not_cost_an_attempt() -> None:
+    store = InMemoryIncidentStore()
+    store.save(_incident("a", IncidentState.TRIAGING, timedelta(minutes=10)))
+    calls: list[list[str]] = []
+    six_minutes_ago = NOW - timedelta(seconds=360)
+    trajectories = OutcomeTrajectories(
+        [("provider_unavailable", six_minutes_ago), ("provider_unavailable", six_minutes_ago)]
+    )
+    runner = _breaker_runner(store, calls, trajectories, code=6)
+
+    assert runner.provider_open() is None, "cooldown passed: half-open"
+    assert runner.run_once() == ["a"], "the trial run"
+    assert runner.attempts["a"] == 0, "exit 6 is the provider's, not the incident's attempt"
+    assert runner.run_once() == ["a"], "and it is still due, not given up on"
+
+
+def test_the_exit_code_and_the_cooldown_are_the_same_on_both_sides() -> None:
+    """The orchestrator restates the agent runtime's exit code and the agent's cooldown; the two
+    packages import in one direction only, so a test holds the restatements."""
+    from faultline.agents.runner import Exit
+    from faultline.agents.settings import AgentSettings
+    from faultline.orchestrator import runner as orchestrator_runner
+
+    assert orchestrator_runner.PROVIDER_UNAVAILABLE_EXIT == Exit.PROVIDER_UNAVAILABLE
+    assert OrchestratorSettings().provider_cooldown_seconds == (
+        AgentSettings().breaker_cooldown_seconds
+    )

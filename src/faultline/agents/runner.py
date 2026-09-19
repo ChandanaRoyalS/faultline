@@ -68,6 +68,14 @@ class Exit(IntEnum):
     Distinct from `REFUSED` because something did run and made a judgement, and distinct from
     `NO_VERDICT` because no verdict was *owed*."""
 
+    PROVIDER_UNAVAILABLE = 6
+    """The run ended because every model it could ask was open - the provider breaker (T6.7
+    piece 5, failure row 1). **Not a failure of the investigation**: the incident is left where it
+    was, `TRIAGING`, so the runner finds it again; the trajectory row says `provider_unavailable`;
+    and the orchestrator's runner, reading that off the record, defers every run until the
+    cooldown has passed rather than spending a retry schedule per incident to learn the same
+    fact. Distinct from `NO_VERDICT` because the runner must not count it as an attempt."""
+
 
 class NotInvestigableError(RuntimeError):
     """Refused before any model call. Carries why, for the operator and the exit code."""
@@ -100,6 +108,9 @@ class RunReport:
 
     unmeasured_edges: int = 0
 
+    provider_unavailable: bool = False
+    """The run ended on `ProviderUnavailableError` (T6.7 piece 5). `Exit.PROVIDER_UNAVAILABLE`."""
+
     @property
     def gated(self) -> bool:
         return self.judgement is not None and self.judgement.disposition != "investigate"
@@ -108,6 +119,8 @@ class RunReport:
     def exit_code(self) -> Exit:
         if self.gated:
             return Exit.GATED
+        if self.provider_unavailable:
+            return Exit.PROVIDER_UNAVAILABLE
         if self.result is None or self.result.verdict is None:
             return Exit.NO_VERDICT
         return Exit.FLAGGED if self.result.flags else Exit.CLEAN
@@ -242,6 +255,26 @@ def _run_investigation(
         result = engine.run(incident.id, triage, anchor)
     except InvestigationFailedError as failure:
         why = str(failure)
+        from faultline.agents.model import ProviderUnavailableError
+
+        if isinstance(failure.cause, ProviderUnavailableError):
+            # **The provider was unavailable, not the investigation** (T6.7 piece 5). No
+            # transition: the incident stays `TRIAGING`, where `due()` will find it once the
+            # runner's cross-run breaker lets it, and the trajectory row already says
+            # `provider_unavailable`. `FAILED` is terminal and would retire a live incident for
+            # somebody else's outage.
+            return RunReport(
+                incident_id=incident.id,
+                trajectory_id=failure.trajectory.id,
+                states=tuple(states),
+                result=None,
+                error=f"provider unavailable - {why}",
+                judgement=judgement,
+                judgement_error=judgement_error,
+                blast_radius=radius,
+                unmeasured_edges=edges,
+                provider_unavailable=True,
+            )
         if not failure.started:
             # **Nothing ran, so nothing about the incident changed.** A missing dependency or an
             # unreachable database is a failed start, not a failed investigation, and marking it

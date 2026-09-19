@@ -23,7 +23,9 @@ listed there.
 from __future__ import annotations
 
 import urllib.parse
+from collections.abc import Callable
 from datetime import datetime
+from functools import partial
 from typing import Any
 
 from faultline import telemetry
@@ -130,6 +132,17 @@ ALLOWED_PATHS = frozenset({PROMETHEUS_QUERY_RANGE, LOKI_QUERY_RANGE, TEMPO_SEARC
 is a prefix: the id appended to it is Tempo's own answer to the search, not an input."""
 
 
+class ModalityUnavailableError(RuntimeError):
+    """A backend's breaker is open for the rest of this run (T6.7 piece 5, failure row 12)."""
+
+    def __init__(self, backend: str, threshold: int) -> None:
+        self.backend = backend
+        super().__init__(
+            f"modality unavailable: {backend} failed {threshold} consecutive calls this run and "
+            "is not retried; reason with what the other tools returned and say so"
+        )
+
+
 class Tools:
     """The agent-facing tool set. One object, four methods, no others that reach the world."""
 
@@ -143,6 +156,31 @@ class Tools:
         """A change-record reader. `None` means change history is unavailable, which is
         reported as an error rather than as an empty result - the difference is the whole
         point (ADR-0019)."""
+        from faultline.reliability.breaker import CircuitBreaker
+
+        self.breakers = {
+            name: CircuitBreaker(
+                name, threshold=self._settings.breaker_threshold, cooldown_seconds=float("inf")
+            )
+            for name in ("prometheus", "loki", "tempo", "changes")
+        }
+        """One per backend, for the life of this object - one run (T6.7 piece 5). Infinite
+        cooldown: no half-open inside a run. `ToolSettings.breaker_threshold` says why three."""
+
+    def _trace_by_id(self, trace_id: str) -> dict[str, Any]:
+        return telemetry.get_json(self._settings.tempo_url, TEMPO_TRACE + trace_id, {})
+
+    def _backend[T](self, name: str, call: Callable[[], T]) -> T:
+        """Every backend read goes through here. Open means *modality unavailable*, raised as
+        an error the tool's own `except` turns into its typed result - so a specialist reading
+        a dead Loki sees a result that says so, not twelve timeouts."""
+        from faultline.reliability.breaker import CircuitOpenError
+
+        breaker = self.breakers[name]
+        try:
+            return breaker.call(call)
+        except CircuitOpenError as refused:
+            raise ModalityUnavailableError(name, breaker.threshold) from refused
 
     # --- window discipline ----------------------------------------------------
 
@@ -169,8 +207,11 @@ class Tools:
         if refusal is not None:
             return MetricResult(query=query, window=window, error=refusal, empty=True)
         try:
-            payload = telemetry.query_range(
-                query, start, end, step=step, base=self._settings.prometheus_url
+            payload = self._backend(
+                "prometheus",
+                lambda: telemetry.query_range(
+                    query, start, end, step=step, base=self._settings.prometheus_url
+                ),
             )
         except Exception as exc:
             return MetricResult(query=query, window=window, error=str(exc), empty=True)
@@ -283,8 +324,11 @@ class Tools:
         Prometheus listed first.
         """
         try:
-            payload = telemetry.query_range(
-                query, start, end, step=step, base=self._settings.prometheus_url
+            payload = self._backend(
+                "prometheus",
+                lambda: telemetry.query_range(
+                    query, start, end, step=step, base=self._settings.prometheus_url
+                ),
             )
         except Exception as exc:
             return str(exc)
@@ -317,16 +361,19 @@ class Tools:
         head, tail = two_ended_split(cap)
 
         def fetch(direction: str, count: int) -> list[LogLine]:
-            payload = telemetry.get_json(
-                self._settings.loki_url,
-                LOKI_QUERY_RANGE,
-                {
-                    "query": selector,
-                    "start": str(int(start.timestamp() * 1e9)),
-                    "end": str(int(end.timestamp() * 1e9)),
-                    "limit": str(count),
-                    "direction": direction,
-                },
+            payload = self._backend(
+                "loki",
+                lambda: telemetry.get_json(
+                    self._settings.loki_url,
+                    LOKI_QUERY_RANGE,
+                    {
+                        "query": selector,
+                        "start": str(int(start.timestamp() * 1e9)),
+                        "end": str(int(end.timestamp() * 1e9)),
+                        "limit": str(count),
+                        "direction": direction,
+                    },
+                ),
             )
             found: list[LogLine] = []
             for stream in payload.get("data", {}).get("result", []):
@@ -385,15 +432,18 @@ class Tools:
             return TraceResult(service=canonical, window=window, error=refusal, empty=True)
 
         try:
-            found = telemetry.get_json(
-                self._settings.tempo_url,
-                TEMPO_SEARCH,
-                {
-                    "q": f'{{resource.service.name="{canonical}"}}',
-                    "start": str(int(start.timestamp())),
-                    "end": str(int(end.timestamp())),
-                    "limit": str(self._settings.max_traces),
-                },
+            found = self._backend(
+                "tempo",
+                lambda: telemetry.get_json(
+                    self._settings.tempo_url,
+                    TEMPO_SEARCH,
+                    {
+                        "q": f'{{resource.service.name="{canonical}"}}',
+                        "start": str(int(start.timestamp())),
+                        "end": str(int(end.timestamp())),
+                        "limit": str(self._settings.max_traces),
+                    },
+                ),
             )
         except Exception as exc:
             return TraceResult(service=canonical, window=window, error=str(exc), empty=True)
@@ -412,7 +462,7 @@ class Tools:
             if len(spans) >= self._settings.max_spans:
                 break
             try:
-                trace = telemetry.get_json(self._settings.tempo_url, TEMPO_TRACE + trace_id, {})
+                trace = self._backend("tempo", partial(self._trace_by_id, trace_id))
             except Exception as exc:
                 return TraceResult(service=canonical, window=window, error=str(exc), empty=True)
             members = _spans_of_otlp(trace_id, trace, start.tzinfo)
@@ -467,7 +517,9 @@ class Tools:
                 empty=True,
             )
         try:
-            records = self._changes.records_for(canonical, start, end)
+            records = self._backend(
+                "changes", lambda: self._changes.records_for(canonical, start, end)
+            )
         except Exception as exc:
             return ChangeResult(service=canonical, window=window, error=str(exc), empty=True)
         if ranking is None:
