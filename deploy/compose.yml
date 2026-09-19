@@ -111,6 +111,13 @@ services:
       redis:
         condition: service_healthy
     environment:
+      # T6.7 (2026-09-19, the a07344d6 rollout): every startup line a daemon `print`s - the spend
+      # ceiling, the settle window, `metrics: /metrics mounted` - is stdout, and a container's
+      # stdout is block-buffered without a tty, so those lines reached `docker compose logs`
+      # only when the buffer filled, which for a line-a-day process is never. The JSON log
+      # lines go to stderr and always arrived, which is why nobody noticed. Unbuffered, so a
+      # print is a log line when it is printed.
+      PYTHONUNBUFFERED: "1"
       # The read surface mounts only when this is passed, and refuses to start without a
       # password — see `faultline.api.auth`. Both come from deploy/.env.
       FAULTLINE_API_USER: ${FAULTLINE_API_USER:-faultline}
@@ -239,6 +246,13 @@ services:
       redis:
         condition: service_healthy
     environment:
+      # T6.7 (2026-09-19, the a07344d6 rollout): every startup line a daemon `print`s - the spend
+      # ceiling, the settle window, `metrics: /metrics mounted` - is stdout, and a container's
+      # stdout is block-buffered without a tty, so those lines reached `docker compose logs`
+      # only when the buffer filled, which for a line-a-day process is never. The JSON log
+      # lines go to stderr and always arrived, which is why nobody noticed. Unbuffered, so a
+      # print is a log line when it is printed.
+      PYTHONUNBUFFERED: "1"
       FAULTLINE_ORCH_REDIS_URL: redis://redis:6379/0
       FAULTLINE_ORCH_POSTGRES_DSN: postgresql://faultline@postgres:5432/faultline
       PGPASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
@@ -314,6 +328,13 @@ services:
       # override files the state names resolve inside the container exactly as they do outside.
       - ${FAULTLINE_CHECKOUT:?set FAULTLINE_CHECKOUT in deploy/.env - the absolute path of this clone on the VM}:${FAULTLINE_CHECKOUT:?set FAULTLINE_CHECKOUT in deploy/.env}
     environment:
+      # T6.7 (2026-09-19, the a07344d6 rollout): every startup line a daemon `print`s - the spend
+      # ceiling, the settle window, `metrics: /metrics mounted` - is stdout, and a container's
+      # stdout is block-buffered without a tty, so those lines reached `docker compose logs`
+      # only when the buffer filled, which for a line-a-day process is never. The JSON log
+      # lines go to stderr and always arrived, which is why nobody noticed. Unbuffered, so a
+      # print is a log line when it is printed.
+      PYTHONUNBUFFERED: "1"
       # **Off since T6.3** (2026-09-12), which is the PR that landed the approval surface, exactly
       # as ADR-0038's consequence said it would take: *"it cannot act until T6.3 lands a surface
       # and the switch is turned off in the same PR."* A click on the screen can now change this

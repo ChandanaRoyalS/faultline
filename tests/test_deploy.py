@@ -1071,3 +1071,17 @@ def test_the_orchestrator_runs_under_a_daily_spend_ceiling(compose: dict) -> Non
 
     assert float(env["FAULTLINE_ORCH_MAX_USD_PER_DAY"]) == 5.0
     assert env["FAULTLINE_ORCH_INVESTIGATE"] == "1", "the ceiling is beside the thing it bounds"
+
+
+# --- T6.7: a print is a log line when it is printed ---
+
+
+@pytest.mark.parametrize("service", ["faultline", "orchestrator", "executor"])
+def test_every_daemon_s_stdout_is_unbuffered(compose: dict, service: str) -> None:
+    """Found on the a07344d6 rollout (2026-09-19): the orchestrator's `spend ceiling` and
+    `investigating what this process admits` lines never reached the log, because stdout in a
+    container has no tty and Python block-buffers it. Every operator line since T5.5 had the
+    same problem; the JSON lines on stderr did not, which is why it went unseen."""
+    env = compose["services"][service]["environment"]
+
+    assert env.get("PYTHONUNBUFFERED") == "1", service

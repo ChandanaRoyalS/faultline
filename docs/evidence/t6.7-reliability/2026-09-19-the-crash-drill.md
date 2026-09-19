@@ -110,3 +110,25 @@ $0 by construction, so the task ends at $1.85 against $1.00. **The ceiling is no
 exceeded, here is where, and the design note carries this as an amendment rather than a new
 number. Two of the three overruns were tooling mistakes that a rehearsal against the development
 platform would have caught for nothing; the third is the finding.
+
+## Addendum, 2026-09-19 23:48 UTC — the deployment closed the row itself
+
+`a07344d6` (piece 3b and after) rolled out at 23:47. The new orchestrator's first poll:
+
+```
+23:48:12 WARNING faultline.orchestrator.runner  orphaned 1 trajectory row(s) from killed investigations: 7d230673-515a-47c4-aa4b-c2d157646f15
+7d230673  orphaned
+ce5d223d  dispatched
+```
+
+Nobody ran `faultline-eval-db orphans` after 22:47; the runner did it on its first look, seventy
+minutes after the kill and fifty after the ceiling, which is the gap between *reconciled by the
+sweep the deployment never runs* and *reconciled by the process that did the killing*.
+
+One more thing the rollout found, on the same read: the orchestrator's `spend ceiling: $5.00 per
+rolling 24h` and `investigating what this process admits …` lines were not in the log, and never
+had been on any deployment - they are `print`s to stdout, which a container block-buffers without
+a tty, while the JSON lines on stderr always arrived. `PYTHONUNBUFFERED=1` on the three daemons
+(`deploy/compose.yml`, a guard in `tests/test_deploy.py`). T6.6's *"prints stay on stdout because a
+person is reading those"* assumed a person at a terminal; on the deployment the person reads the
+log, and the log now gets them.
