@@ -191,3 +191,42 @@ Prometheus is what a person expects Explore to open.
 `OBSERVABILITY_FILES` (a test holds it); that the dashboard's Prometheus panels all read
 `faultline-self-metrics` (a test holds it); and that the world's `prometheus-config.yaml` carries
 no `faultline` job, which is the one thing this addendum promises will stay true.
+
+## Addendum 4 — 2026-09-19: the platform's spans leave the world's collector (Q77)
+
+**What was found.** T6.6 exported the platform's traces to the world's collector, which forwarded
+them to Tempo beside the shop's - and ran them through its `spanmetrics` processor first, so the
+platform became a service in the world's metrics: `calls_total{service_name="faultline"}`, a
+`ServiceNoTraffic faultline` alert the world fired at 12:24 UTC on 2026-09-18 when the platform
+went quiet between investigations, and call rates the agent's `promql_query` could read. Addendum 3
+closed exactly that exposure for `/metrics` by giving the platform its own Prometheus; the trace
+path had reopened it from the other side, and nothing in the sixty T6.5 runs or the thirty
+headline runs could have seen it, because the platform emitted no spans before T6.6. The platform
+changed the world's metric namespace for every run after it and no digest moved - which is the
+failure ADR-0014 exists to name.
+
+**The decision.** The platform exports to Tempo's OTLP receiver directly. Same store, so the demo
+beat - the agent's trace beside the outage's, one query away - is unchanged; no `spanmetrics`, so
+the platform leaves the world's metrics and the world's alerting; no Jaeger copy, which Q76 shows
+was the more available of the two on the day, and which is the price. The `filter` processor route
+(drop `service.name=faultline` before `spanmetrics` in `otelcol-extras.yml`) was not taken: that
+file is in `OBSERVABILITY_FILES`, and moving the digest for a change that removes the platform's
+own artefact from the world would be moving it for something the world never had in it.
+
+**What this costs the boundary.** On the VM it costs nothing: `deploy/compose.yml` names
+`tempo:4317` instead of `otelcol:4317`, Tempo is already on the shared network for the traces
+specialist, and the collector leaves that network. On a development host the daemons run outside
+Docker and Tempo's receiver is not published, so a fourth compose file
+(`compose/dev-tempo-otlp.override.yml`) publishes it as 4327 - layered by the Makefile outside
+`compose_digest` on the argument the Linux gateway shim made and this ADR drew: a published port
+changes nothing a bundle records. **Unlike the two shims before it, it is unconditional**, so the
+reference platform's compose command is no longer byte-for-byte what it was before T5.4c; it
+gains one file that publishes one port. `host_overrides` records it in every freeze, and
+`tests/test_dev_tempo_override.py` holds the file to one service, one key, one entry. A reader
+who finds a second key in that file has found this path being used as a way round the digest.
+
+**What a reader of this addendum should check.** That no service in `deploy/compose.yml` names
+`otelcol` as an endpoint and `compose.world.yml` no longer puts it on the platform's network (a
+test holds both); that `otelcol-extras.yml` and `tempo.yaml` are unchanged since #380 (the digest
+says so); and, on the running world, that `calls_total{service_name="faultline"}` stops
+increasing after the change - the one observable this addendum promises.

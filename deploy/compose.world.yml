@@ -126,16 +126,11 @@ services:
       - default
       - faultline
 
-  # T6.6: the platform's own spans arrive here over OTLP/gRPC on 4317 - `OTEL_EXPORTER_OTLP_ENDPOINT`
-  # on `faultline` and `orchestrator` in compose.yml - and the collector forwards them to Tempo the
-  # way it forwards the shop's. Nothing queries the collector; it is the one service the platform
-  # *writes* to across the projects, which is a network membership and not a change to what the
-  # world is. The service key is `otelcol`; the container is `otel-col` (see the note above).
-  otelcol:
-    restart: always
-    networks:
-      - default
-      - faultline
+  # T6.6 put the collector (`otelcol`) on the platform's network so the platform's spans could
+  # arrive through it; **Q77 (2026-09-19) took it off again.** Routed through the collector, the
+  # platform's spans went through the world's `spanmetrics` and made it a service in the world's
+  # metrics. The daemons now export to `tempo:4317` directly - below, already on the network for
+  # the traces specialist - and nothing on the platform talks to the collector any more.
 
   # Grafana joins the platform's network since T6.6 / Q73: the `faultline-self-metrics` datasource
   # `scripts/provision_dashboards.py` pushes reads the platform's own Prometheus at
