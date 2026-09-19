@@ -66,8 +66,15 @@ class InvestigationRunner:
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
         rejections: RejectionStore | None = None,
         max_rejections: int = 2,
+        trajectories: Any | None = None,
     ) -> None:
         self._store = store
+        self._trajectories = trajectories
+        """A trajectory store with `close_orphans`, or `None`. **The process that kills
+        investigations is the process that reconciles them** (Q72's rule): the sweep ran the
+        reconciler for the development machine, and nothing ran it on the deployment, where this
+        runner's own subprocess is the thing that dies. `faultline-eval-db orphans` by hand had
+        to close the 2026-09-19 drill's row; from here on every poll does (T6.7 piece 3b)."""
         self._settle = settle
         self._command = list(command)
         self._max_attempts = max_attempts
@@ -130,8 +137,31 @@ class InvestigationRunner:
             due.append(incident)
         return due
 
+    def reconcile_orphans(self) -> list[str]:
+        """Close every trajectory row with no outcome older than the ceiling as `orphaned`.
+
+        A killed `faultline-investigate` leaves its row with `outcome IS NULL` (since T6.7 piece
+        3b the row exists from the run's first second, so *every* kill leaves one). Named, not
+        guessed: twice the wall-clock budget, the same predicate the sweep uses.
+        """
+        if self._trajectories is None:
+            return []
+        from faultline.agents.trajectory import orphan_ceiling_seconds
+
+        closed: list[str] = self._trajectories.close_orphans(
+            older_than_seconds=orphan_ceiling_seconds()
+        )
+        if closed:
+            log.warning(
+                "orphaned %d trajectory row(s) from killed investigations: %s",
+                len(closed),
+                ", ".join(closed),
+            )
+        return closed
+
     def run_once(self) -> list[str]:
         """Investigate everything due, sequentially. Returns the incident ids that were run."""
+        self.reconcile_orphans()
         ran: list[str] = []
         for incident in self.due():
             self.attempts[incident.id] = self.attempts.get(incident.id, 0) + 1

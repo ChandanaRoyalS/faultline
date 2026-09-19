@@ -362,8 +362,13 @@ docker compose logs orchestrator --since 10m | grep -E "investigating|states:"
 cd ~/faultline && uv run faultline-inject stop --all        # the world does not put itself back
 ```
 
-`triaging` at four minutes is the defect; `planning`, `investigating` or a verdict is the pass.
-About \$0.70 of model spend, once.
+**Read the `investigating` line and the trajectory row, not the state.** The incident reads
+`triaging` for the whole of a healthy run - the runner writes its state transitions after
+`faultline-investigate` returns (Q78) - so `triaging` at four minutes is *not* the defect this
+paragraph used to call it. The defect is no `investigating … (attempt 1)` line ninety seconds
+after the incident opened, or no `states:` line within about five minutes of that. A row in
+`trajectories` with `outcome` NULL is a run in progress (or, past twenty minutes, one that was
+killed - the runner names those `orphaned` on its next poll). About \$0.70 of model spend, once.
 
 **The `investigating` line in that grep had never been printed before T6.6.** It is `log.info`,
 and nothing in the platform configured logging until piece 4, so the root logger sat at `WARNING`
