@@ -85,7 +85,14 @@ class AgentSettings(BaseSettings):
     """
 
     max_tokens: int = 16000
-    timeout_seconds: float = 600.0
+    timeout_seconds: float = 180.0
+    """Per model call, at the client. **Had no reader until T6.7** - `build_model` constructed
+    both clients without it, so the value here (600 s, the whole wall-clock budget) was
+    decoration and the clients' own 600 s default was what ran: one hung call could spend the
+    entire budget before `Resilient`'s deadline was consulted, which is Q33's 6596 s shape. 180 s
+    is three times the longest model call T6.6 measured (1 m 9 s, the synthesizer) and less than a
+    third of the budget, so a hang costs one call's worth of budget and the retry that follows it
+    is still inside the run. `tests/test_timeouts.py` holds it below the budget."""
 
     # --- the budget's four bounds (ADR-0020 §5), exposed so an operator can set them ---------
     #

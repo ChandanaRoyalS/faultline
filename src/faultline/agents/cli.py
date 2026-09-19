@@ -300,7 +300,12 @@ def run(argv: list[str] | None = None) -> int:
     _settings = _Settings()
 
     def _model(name: str) -> LanguageModel:
-        return build_model(name, provider=_settings.provider, base_url=_settings.openai_base_url)
+        return build_model(
+            name,
+            provider=_settings.provider,
+            base_url=_settings.openai_base_url,
+            timeout=_settings.timeout_seconds,
+        )
 
     # **The retry loop is bounded by the run's own budget (Q33).** Without this, four attempts
     # against a 600 s per-call timeout is forty minutes inside a 600 s budget, and the wall-clock

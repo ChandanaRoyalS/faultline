@@ -259,7 +259,7 @@ class AnthropicModel:
     specialist reading one tool result does not need what the synthesizer needs (ADR-0020 §1).
     """
 
-    def __init__(self, model: str, timeout: float = 600.0) -> None:
+    def __init__(self, model: str, timeout: float = 180.0) -> None:
         self._model = model
         self._timeout = timeout
         self._client: Any | None = None
@@ -274,7 +274,11 @@ class AnthropicModel:
 
             # No api_key argument, deliberately: the SDK reads it from the environment, and a
             # key that never passes through this repo's configuration cannot be logged by it.
-            self._client = anthropic.Anthropic(timeout=self._timeout)
+            # **`max_retries=0`** (T6.7): the SDK retries twice on its own by default, silently and
+            # inside `Resilient`'s four attempts - twelve network attempts for one logical call,
+            # none of the inner eight recorded anywhere. `Resilient` is the one retry loop, because
+            # it is the one that counts, records substitutions and respects the run's deadline.
+            self._client = anthropic.Anthropic(timeout=self._timeout, max_retries=0)
         return self._client
 
     def complete(self, request: ModelRequest) -> ModelResponse:  # pragma: no cover - as above
@@ -321,7 +325,7 @@ class OpenAICompatibleModel:
         model: str,
         base_url: str,
         api_key: str | None = None,
-        timeout: float = 600.0,
+        timeout: float = 180.0,
     ) -> None:
         self._model = model
         self._base_url = base_url.rstrip("/")
@@ -365,18 +369,25 @@ class OpenAICompatibleModel:
 
 
 def build_model(
-    name: str, *, provider: str = "anthropic", base_url: str | None = None
+    name: str,
+    *,
+    provider: str = "anthropic",
+    base_url: str | None = None,
+    timeout: float = 180.0,
 ) -> LanguageModel:
     """The one place a provider is chosen.
 
     Roles never see this - they hold a `LanguageModel` and cannot tell which one. That is what
     makes the self-hosted lane a configuration change rather than a rewrite, and it is the
     claim T2.5's deliverable asks to have proven rather than asserted.
+
+    `timeout` is `AgentSettings.timeout_seconds`, passed by the entry point. Until T6.7 nothing
+    passed it and the setting was dead; the clients ran on their own default.
     """
     if provider == "anthropic":
-        return AnthropicModel(name)
+        return AnthropicModel(name, timeout=timeout)
     if provider == "openai-compatible":
         if not base_url:
             raise ValueError("provider 'openai-compatible' needs a base_url")
-        return OpenAICompatibleModel(name, base_url)
+        return OpenAICompatibleModel(name, base_url, timeout=timeout)
     raise ValueError(f"unknown provider {provider!r}; expected anthropic or openai-compatible")
