@@ -261,8 +261,8 @@ self-instrumentation included — still holding median time-to-report ≤ 3 minu
 incident on the dev set."* The summary row abbreviates the first two clauses; the last one is the
 one to read now, because **it inherits G4's failing latency clause** — dev-set median 247.5 s on
 sweep 11, 248.2 s on sweep 10, every run over 180 s — and asks for it to hold with *more* pipeline,
-not less. Cost holds today (\$0.51–0.87 per run). Nothing in the first three clauses exists yet:
-no executor, zero injection scenarios, no storm test, no platform traces. The Phase 6 audit in
+not less. Cost holds today (\$0.51–0.87 per run). Nothing in the first three clauses existed at the audit:
+no executor, zero injection scenarios, no storm test, no platform traces. **Since**: the executor (T6.2), the platform's traces on the dashboard (T6.6), and the storm test (T6.7, `PREREGISTRATION-T6.7.md`, ten of ten) exist; the injection scenarios are T6.8's. The Phase 6 audit in
 `docs/PLAN.md` (2026-09-07) grades each task and sets the order.
 
 **2026-09-03, the Phase 4 audit.** Every clause of the plan's §7 graded against the tree, now
