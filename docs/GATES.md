@@ -20,7 +20,7 @@ authoritative; verify wording against it before relying on it.
 | G4 | one command runs and scores all 10 scenarios into a report | Not declared — **assessed 2026-09-20**, latency failing and two baselines never run |
 | G5 | full demo runs from clean clone; MVP tagged | **Declared 2026-09-07** — qualified |
 | G6 | approval-gated remediation works; injection + storm tests pass | Not declared — **assessed 2026-09-20**, one clause failing and one undefined |
-| G7 | repo + video + benchmark and ablation reports are application-ready | Not declared — **assessed 2026-09-20**, the front door and the video are behind the product |
+| G7 | repo + video + benchmark and ablation reports are application-ready | Not declared — **assessed 2026-09-20**, the four named blockers closed the same day |
 
 ## G0 — declared 2026-09-01
 
@@ -591,6 +591,41 @@ things were measured rather than by what a reader needs first."*
 
 **None of the four needs world time or a model call.** This gate is blocked on writing, not on
 measurement — which makes it the only undeclared gate whose blockers cost nothing but attention.
+
+### Addendum, later on 2026-09-20 — the four are closed, and the gate is still not declared
+
+Written the same day as the assessment above, which would otherwise read as outstanding work
+within hours of being written — the defect this file exists to catch, and the one the assessment
+itself found nine instances of.
+
+1. **The front door** (#412). The pitch no longer says remediation is *never executed*; `## Results`
+   leads to the generated table above it and to `RESULTS.md`, with the sweep-10 block titled as the
+   superseded history it is and **kept**, because the variance finding is still the best paragraph
+   on the page. *Every figure this project publishes is R=1* is past tense with the date that ended
+   it; *on this world* names `f5bd108f4f70`; the demo is recorded as re-run on 09-07 from a clean
+   clone; the incident screen is described with T6.3's controls. The trailing *19 scored runs* was
+   **deleted rather than corrected** — the table above it is generated so that nobody has to
+   remember, and a count that went nine days stale had already shown that nobody does.
+2. **The video is dated** (#412). `docs/demo/README.md` carries a table of what it shows against
+   what this repository runs: three specialists against four, 25 corpus documents against 60, no
+   executor against one, no self-instrumentation against seven seams. Not re-cut — a new take's
+   outcome is a lottery the note would have to disclose again, and saying what it shows costs
+   nothing.
+3. **`RESULTS.md` forward** (#413). T6.5's sixty runs — the figure the front door headlines — **were
+   not in it at all**. Its banner read *80 scored pipeline runs, 65 at the reporting digest*
+   against a tree holding **168 and 153**: the most-read document in the repository understating
+   its own evidence base by more than half, for nine days. Both fixed, and the three counts now
+   read from the manifests by `tests/test_results_run_counts.py`.
+4. **[`ABLATIONS.md`](ABLATIONS.md)** (#413). The four in one document, with both noise floors — the
+   registered 16.2 pp MDE and the 10.0 pp the A/A check measured between two halves of one
+   configuration — stated before any result, because three of the four sit under both.
+
+**And it is still not declared, deliberately.** *Application-ready* is a judgement about whether a
+reviewer would find this repository ready, and the four items above were closed by the same pass
+that named them. Nobody has read the front door cold since. **The honest state is: every blocker
+this gate recorded is closed, and the gate waits on someone other than its own author saying so.**
+That is a different status from G4's and G6's, which wait on a sweep and a number.
+
 
 ## Known blockers on later gates
 
