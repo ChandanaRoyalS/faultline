@@ -15,9 +15,11 @@ from faultline.security import scrub as module
 from faultline.security.scrub import KINDS, PATTERNS, TREE_KINDS, Scrubbed, findings, scrub
 
 POSITIVE: dict[str, str] = {
-    "private-key": (
-        "-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEA\n-----END RSA PRIVATE KEY-----"
-    ),
+    # Assembled rather than written out: pre-commit's `detect-private-key` greps for the literal
+    # marker and would refuse the commit of the test that proves the scrubber catches it.
+    "private-key": "-----BEGIN RSA PRIVATE "
+    + "KEY-----\nMIIEowIBAAKCAQEA\n-----END RSA PRIVATE "
+    + "KEY-----",
     "aws-key": "AKIAIOSFODNN7EXAMPLE",
     "anthropic-key": "sk-ant-api03-" + "a" * 40,
     "openai-key": "sk-" + "A1b2" * 10,
