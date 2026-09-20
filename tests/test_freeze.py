@@ -303,3 +303,32 @@ def test_agent_roles_covers_every_role_that_calls_a_model() -> None:
         f"{missing} call a model under a role name that freeze.AGENT_ROLES does not list, so "
         "model_map() would not record which model answered for them"
     )
+
+
+def test_the_two_fault_class_definitions_name_the_same_classes() -> None:
+    """**Two copies exist and nothing bound them until T7.0 was closed.**
+
+    `evalharness.scenario.FaultClass` is the StrEnum the catalog, the scenario schema and the
+    injector validate against; `faultline.agents.contracts.FaultClass` is the `Literal` the models
+    are held to, carried by `Verdict`, `Candidate` and `TriageJudgement` - all three in
+    `_CONTRACTS`, whose schemas `prompt_digest` hashes. `injector/models.py` warned that *"two
+    copies of this enum would drift"* while pointing at the scenario enum as though it were the
+    only one.
+
+    So the two must gain a member together or not at all, and by ADR-0029 the answer is *not at
+    all*: a fifth class moves the stamp and strands six dev sweeps and all three holdout entries.
+    This test does not forbid a fifth - that is a decision, not a guard - it forbids **half** of
+    one, which is the failure that would move the stamp while the catalog still validated against
+    four.
+
+    `unknown` belongs to the contract alone: a model may answer *I could not tell*, and no
+    scenario may be authored that way.
+    """
+    from typing import get_args
+
+    from evalharness.scenario import FaultClass as Authored
+    from faultline.agents.contracts import FaultClass as Answered
+
+    answered = set(get_args(Answered))
+    assert answered - {"unknown"} == {c.value for c in Authored}
+    assert "unknown" in answered, "a model must be able to decline a class"

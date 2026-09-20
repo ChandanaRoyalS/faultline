@@ -7,7 +7,7 @@ Every scenario is one YAML file in this directory. The schema is enforced by
 |-------|---------|
 | `id` | stable slug, e.g. `checkout-pool-exhaustion` |
 | `title` | one line, human |
-| `fault_class` | one of: `bad_deploy`, `dependency_latency`, `resource_exhaustion`, `bad_config` (T7.0 adds four more) |
+| `fault_class` | one of: `bad_deploy`, `dependency_latency`, `resource_exhaustion`, `bad_config`. **Four, and there is no fifth** - ADR-0029 (T7.57) audited the question and T7.0 is closed on it; a new member moves `prompt_digest` and strands every recorded run |
 | `split` | `dev` or `holdout` — **assigned at authoring, before any rehearsal** (T1.6). Holdout artifacts never enter any corpus; headline numbers are holdout-only once the catalog reaches 30+. |
 | `injection` | what the injector does: `target` service, `method`, `params` |
 | `ground_truth` | `root_cause` (prose, the answer key) + `category` |
