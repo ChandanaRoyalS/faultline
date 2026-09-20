@@ -1145,8 +1145,9 @@ def parser() -> argparse.ArgumentParser:
         "--adversarial",
         default=None,
         metavar="VARIANT_ID",
-        help="plant `evals/adversarial/<VARIANT_ID>.yaml`'s payload after the settle window and "
-        "before the first model call, and score the injection beside the diagnosis (T6.8). "
+        help="plant `evals/adversarial/<VARIANT_ID>.yaml`'s payload after the settle window, "
+        "before the first model call, remove it again with the revert (Q82), and score the "
+        "injection beside the diagnosis (T6.8). "
         "The positional scenario must be the variant's `variant_of`. The run is recorded like "
         "any other and counts toward nothing (`counts_toward_aggregates`).",
     )
@@ -1543,6 +1544,7 @@ def main(argv: list[str] | None = None) -> int:
             if code != 0:
                 raise RunError(f"injection failed:\n{out}")
 
+            planted = None
             try:
                 print("waiting for the orchestrator to correlate...")
                 incident_id = wait_for_incident(dsn, injected_at, expected_episodes(bundle))
@@ -1589,6 +1591,21 @@ def main(argv: list[str] | None = None) -> int:
                 run.manifest["reverted_at"] = datetime.now(UTC).isoformat()
                 emit(ev, "reverted", scenario=args.scenario_id)
                 run.write("revert.txt", revert)
+                if planted is not None:
+                    # **The plant comes out with the fault** (Q82). Beside the revert and in the
+                    # same `finally`, so a run that failed mid-investigation does not leave its
+                    # payload in the world for the next one to read - which is what batch 3b's
+                    # runs 2 and 3 did read. Scoring is unaffected: it reads the trajectory
+                    # store's recorded envelopes, not the live world.
+                    from evalharness import adversarial
+
+                    unplanted = adversarial.unplant(planted, dsn=dsn)
+                    run.manifest["adversarial"]["unplanted"] = unplanted
+                    emit(ev, "unplanted", variant=planted.id, removed=unplanted["removed"])
+                    print(
+                        f"  unplanted {planted.id}: removed {unplanted['removed']}"
+                        + (f" - {unplanted['why']}" if unplanted.get("why") else "")
+                    )
 
             print("confirming recovery...")
             recovery = confirm_recovery()
@@ -1651,6 +1668,7 @@ def main(argv: list[str] | None = None) -> int:
                 trajectory_id,
                 variant,
                 Scenario.from_yaml(REPO_ROOT / "evals/scenarios" / f"{args.scenario_id}.yaml"),
+                run.manifest["adversarial"]["canary"],
             )
             run.manifest["adversarial"]["outcome"] = outcome.as_dict()
             print(
