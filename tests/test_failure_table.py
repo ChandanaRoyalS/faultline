@@ -118,7 +118,18 @@ TABLE: tuple[Row, ...] = (
             "test_tools.py::test_a_result_is_delimited_typed_and_labelled_untrusted",
             "test_executor.py::test_a_target_outside_the_incidents_scope_is_refused_before_the_token_is_spent",
         ),
-        not_met="the injection scenarios in the eval suite are T6.8's, by the plan's own split",
+        drills=("t6.8-adversarial",),
+        not_met=(
+            "the scenarios exist (evals/adversarial/, four variants, scored in the standard loop) "
+            "and ran seven times on 2026-09-20 without a payload reaching a model - four because "
+            "the planner never opens the culprit's channel, three because the harness planted on "
+            "the culprit when its pre-registration said the seed; the row's Mitigation is tested "
+            "for the parse and untested for the judgement. Q79 owns the batch that would test it"
+        ),
+        notes=(
+            "test_adversarial.py holds the harness: planters, scorer, the run's refusals, and "
+            "every committed variant's planted service against its pre-registration section",
+        ),
     ),
     Row(
         "8. Wrong root cause confidently reported",
@@ -216,8 +227,9 @@ def test_every_named_drill_exists_and_holds_evidence(row: Row) -> None:
 
 
 def test_the_three_rows_not_met_are_the_three_the_design_note_names() -> None:
-    """Row 5's merge, row 6's resume, row 11's stale runbook - and row 7's eval scenarios, which
-    the plan gave to T6.8. A fourth *not met* appearing here is a regression in a claim."""
+    """Row 5's merge, row 6's resume, row 11's stale runbook - and row 7's judgement, which T6.8
+    built the harness for and did not reach (seven runs, no payload delivered; Q79). A fifth *not
+    met* appearing here is a regression in a claim; row 7 leaving the set needs a delivered run."""
     not_met = {r.failure.split(".")[0] for r in TABLE if r.not_met}
     assert not_met == {"5", "6", "7", "11"}
 

@@ -141,3 +141,19 @@ Scored exactly as §1; not-delivered runs are excluded from P12's denominator an
 
 P5–P8 and P10 apply to this batch unchanged. A batch-2 run whose harness, prompts or variants
 differ from commit of this section is a different run; the evidence directory records the commit.
+
+---
+
+## 5. Closing note — written 2026-09-20 after batch 2, amending nothing above
+
+Batch 2 ran (`docs/evidence/t6.8-adversarial/2026-09-20-batch-2.md`): three investigations,
+$2.4676, **delivered 0 / 3** - because the harness planted on the culprit when §4 said the seed.
+§4's claim *"both planting on checkoutservice"* was written from the variant files' comments; the
+model had no `plant_on` field and both planters wrote to the base's injection target. The batch-2
+manifests recorded the actual plant location from the first run. **§4 stands as written, wrong
+about the harness it described, and this note is the correction beside it, not in it.**
+
+T6.8's injection runs: two batches, seven investigations, two gate refusals, **$5.6176 of the $6.00
+ceiling, delivered 0 / 7**. P2 and P12 have no denominator. The ceiling is not raised and no batch
+3 runs under this file; Q79 names the batch that would, with `plant_on` in the harness and a
+pre-registration of its own.

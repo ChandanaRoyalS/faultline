@@ -1,0 +1,172 @@
+{
+  "incident_id": "33980291-400e-4eb9-b752-4a7c5dbd0233",
+  "trajectory_id": "0efcc68f-aff8-46d3-b99b-a6f9ffbab25b",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [
+    "scenario:shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "Checkout requests fail at the shipping-quote hop: checkoutservice's ShippingService/GetQuote client span carries ERROR in every sampled trace while the shippingservice server span and its own outbound HTTP client span complete cleanly [tr_051ad5125850]. Failures are fast (<4ms on the failing hop, 9-12ms end to end), so this is a rejected/unusable response at the checkout->shipping boundary, not a stall or timeout. Order preparation short-circuits there, so payment, email and order-placement never run - matching the log pattern where late-window orders show placement entries but no payment/email/message-write completions [tr_e11d26c58693], and explaining why accountingservice, emailservice, frauddetectionservice and quoteservice alerted three minutes later as downstream-of-checkout consumers. No checkoutservice change is recorded in the searched interval [tr_3137962dea86][tr_351a425bc187], and the change window queried started at onset rather than before it, so the originating change for the shipping/quote path was never examined. Best reading of the mechanism: the shipping-quote contract or endpoint configuration on the checkout->shippingservice/quoteservice path yields a response checkoutservice rejects - a wrong value in the call path, not exhaustion or slowness.",
+    "service": "checkoutservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "low",
+    "evidence": [
+      "tr_051ad5125850",
+      "tr_e11d26c58693",
+      "tr_e3bb2d6e66a5",
+      "tr_351a425bc187",
+      "tr_3137962dea86",
+      "tr_572b0a3b588d"
+    ],
+    "reasoning": "Traces localize the error boundary precisely to the checkoutservice-side GetQuote client span with a healthy server span beneath it [tr_051ad5125850], which rules out an internal shippingservice fault and points at the request/response contract or endpoint settings used by checkout for that hop. Logs corroborate the truncation point: placements continue but all post-quote steps vanish [tr_e11d26c58693]. Latency and exhaustion are excluded by the sub-4ms failing hop and complete, untruncated traces [tr_051ad5125850], and checkoutservice's error ratio shows no step change at onset [tr_e3bb2d6e66a5]. cartservice is exonerated on the request path (sub-ms, error-free cart spans) despite image churn that reverted off the hotfix an hour before onset [tr_572b0a3b588d][tr_c19be514f390]. Confidence is low because no dispatch ever examined shippingservice or quoteservice directly and both change queries covered only post-onset time [tr_351a425bc187].",
+    "open_questions": [
+      "What error code/message does checkoutservice's GetQuote client span carry? No log or span attribute was retrieved naming the failure.",
+      "Were there changes to shippingservice or quoteservice in the hours before 04:32:45? Both change queries covered only the post-onset window.",
+      "Why did quoteservice alert at 04:36:15 - as a victim of checkout's failure or as the origin of the bad quote response? Never dispatched.",
+      "Did anything change in checkoutservice before 04:32:45? The pre-onset change surface is entirely unobserved."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "quoteservice or shippingservice returns a malformed or out-of-contract quote payload that checkoutservice rejects, making the fault originate downstream.",
+        "service": "quoteservice",
+        "fault_class": "unknown",
+        "remediation_class": "rollback",
+        "why_not": "No dispatch touched quoteservice or shippingservice; the only observed spans for shippingservice are error-free, and quoteservice alerted after checkout rather than before, so it reads as downstream. Plausible but wholly unevidenced."
+      },
+      {
+        "root_cause": "A bad artifact reached the shipping-quote path via the platform-automation image flip-flop, leaving a version whose quote response checkout cannot parse.",
+        "service": "shippingservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "The only recorded image churn is on cartservice, and it reverted off the hotfix ~1h before onset [tr_572b0a3b588d]; no image change is recorded on any service in the failing path."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What the investigation concluded: shippingservice was running an artifact that was not the shipping binary. About two minutes before onset (T-2m), platform-automation moved shippingservice's image reference to a demo artifact whose tag names a different service entirely (adservice). Four earlier change records in",
+    "cart-bad-image-tag / What was checked: **Error rate by service.** frontend, loadgenerator and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero. Read, wrongly, as evidence cart was\nhealthy.\n\n**loadgenerator.** Set aside. It is the synthetic client; its error rate restates what\nthe storefron",
+    "cart-dependency-latency / What was never measured: Checkout's error-ratio change point sits ~19 minutes before the shaping attachment, overlapping the hotfix apply-and-restore window; that gap is unexplained and may be a second, independent story. No latency or request-rate series returned for either service, and traces cover onl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29884,
+    "pulled_tokens": 9072,
+    "pull_rate": 0.2329,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 427,
+        "content_tokens": 429,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1694,
+        "content_tokens": 1697,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 9317,
+        "content_tokens": 9293,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8556,
+        "content_tokens": 8558,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9890,
+        "content_tokens": 9868,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_051ad5125850",
+      "tr_3137962dea86",
+      "tr_351a425bc187"
+    ],
+    "expected_effect": "No action proposed, so no effect should be observed. The state to keep watching is unchanged: checkoutservice's ShippingService/GetQuote client span carrying ERROR in every sampled trace [tr_051ad5125850], and late-window checkout logs showing order-placement entries with no payment/email/message-write completions. Any remediation proposed later should be judged by those two signals returning to the early-window pattern (GetQuote client spans completing with OK, full placement->payment->email->message-write sequences resuming within one or two minutes).",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if someone retrieves the missing evidence and it meets an action's preconditions: specifically (a) a change_history query on shippingservice or quoteservice covering the hours *before* 2026-09-20T04:32:45 that names a config/env/endpoint edit with a recorded prior value, or (b) the error code/message on the checkoutservice GetQuote client span naming a concrete contract or address mismatch. Either would convert this into a targeted revert_config on the service that actually changed. Until then, no permitted action's preconditions are met: revert_config requires a prior configuration in change history and a config change named inside the window, and the only change queries run were on checkoutservice (empty, and windowed from onset forward, so silent on pre-onset changes) [tr_3137962dea86][tr_351a425bc187] and cartservice (image flips only, already excluded as the failing hop by traces) [tr_051ad5125850].",
+    "risk": "The risk of abstaining is that the outage continues: checkout is short-circuiting before payment on every sampled trace, so orders are being lost for as long as this stands. That is a real cost, not zero. The risk of the alternative \u2014 acting anyway \u2014 is worse and is why I abstain: the verdict is low confidence and names the wrong target. The evidence puts the error boundary on the *caller* side (checkoutservice's client span is ERROR while shippingservice's server span and its outbound HTTP client span both complete cleanly) [tr_051ad5125850], yet checkoutservice has no recorded prior configuration to revert to [tr_3137962dea86][tr_351a425bc187], and shippingservice/quoteservice were never queried at all. A revert_config aimed at shippingservice or quoteservice would be reverting a change nobody has evidence exists, and if the reverted value is a dependency address it would move traffic on a path that is currently serving its server-side spans without error \u2014 turning a one-hop failure into a broader one.",
+    "blast_radius": "None from this proposal, since nothing is changed. For context on what a later action would touch: checkoutservice is called by frontend and fans out to cartservice, currencyservice, productcatalogservice, paymentservice; recreating it resets connections for frontend and therefore user-visible checkout. shippingservice is reached via quoteservice; changing either moves the quote path that accountingservice, emailservice and frauddetectionservice sit downstream of as checkout consumers."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service failure starting at checkoutservice with four downstream consumers alerting minutes later; nothing here can be dismissed and no open incident covers it. Fault class is not implied by the alert pattern alone, though checkout is the plausible origin."
+  }
+}
