@@ -83,6 +83,9 @@ services:
     # rather than merges - so the development config stays mounted, unused, and unchanged.
     volumes:
       - ../deploy/alertmanager.yml:/etc/alertmanager/alertmanager.deploy.yml:ro
+      # T6.8: the receiver's credential, one line, gitignored, written from `.env` in §3.1.
+      # A file rather than the value in the config, because the config is committed.
+      - ../deploy/alertmanager.password:/etc/alertmanager/receiver.password:ro
     command:
       - --config.file=/etc/alertmanager/alertmanager.deploy.yml
       - --web.listen-address=:9093

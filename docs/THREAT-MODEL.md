@@ -176,6 +176,21 @@ public-surface work, not bolted onto a receiver in isolation. Defences at T6.8: 
 mTLS, network-level restriction to the Alertmanager host, and rate limiting so a flood cannot
 exhaust the cap.
 
+**T6.8 (2026-09-20): the premise above was half wrong, and the half that was wrong is fixed.**
+Alertmanager sends no credential *by default*; it sends whatever `http_config.basic_auth` names, and
+the eight deliveries were measured against a config that named none. The correction: the receiver
+takes the API pair when `FAULTLINE_INGEST_REQUIRE_CREDENTIAL=1` (`faultline.ingest.app.credential_gate`,
+through the same `auth.verify` as the read routes), `deploy/compose.yml` sets it, and
+`deploy/alertmanager.yml` sends the pair from a mounted, gitignored password file. A container on
+the compose network can no longer open an incident by knowing a URL. The development machine is
+unchanged - its Alertmanager reads the digest-locked `compose/prometheus/alertmanager.yml`, which
+sends none - so *"a well-formed one from anywhere at all is accepted"* is still true there and false
+on the deployment, and the sentence that says which is which is this one. The rate limit is the same
+day's work: ten failed credentials from one address in a minute answer 429 for the rest of it, on the
+receiver and the read routes alike (`auth.FailureLimiter`; `faultline_credential_lockouts_total`).
+Not built: mTLS, and a network policy narrower than *"on the compose network"* - that is the egress
+piece, which restricts what leaves rather than what arrives.
+
 ---
 
 ## Thesis 4: the same unauthenticated port now reads, and that is the wider exposure
@@ -266,6 +281,8 @@ Faultline and the monitored world in two compose projects on one shared network
 |---|---|---|---|
 | read routes and pages (thesis 4) | unauthenticated | basic auth **in the application**: `auth.guard()` is a dependency on the mount, read before `psycopg.connect`, refused at startup without a credential | `faultline.api.app`, `tests/test_api_app.py` |
 | alert receiver from the internet (thesis 3) | unauthenticated, `0.0.0.0` | **404 at the edge**: Caddy answers `/api/v1/alerts*` itself and proxies nothing. The world's Alertmanager posts to `faultline:8000` on the compose network and never crosses Caddy | `deploy/Caddyfile`, `tests/test_deploy.py` |
+| alert receiver from the compose network (thesis 3) | unauthenticated | **the API pair, in the application** (T6.8): `FAULTLINE_INGEST_REQUIRE_CREDENTIAL=1` on the deployment; Alertmanager sends it from a mounted password file | `faultline.ingest.app`, `deploy/alertmanager.yml`, `tests/test_api_app.py`, `tests/test_deploy.py` |
+| the credential, guessed (theses 3, 4) | brute-forceable at the rate Caddy serves | **429 after ten failures a minute per address** (T6.8), one `WARNING` per lock-out, a counter on `/metrics` | `faultline.api.auth.FailureLimiter`, `tests/test_auth_limiter.py` |
 | the world's own UIs (Grafana, Jaeger, load generator) | no authentication of their own | basic auth **at the edge**, credential stripped before Grafana sees it (`header_up -Authorization`) | `deploy/Caddyfile` |
 | transport | — | TLS terminates at Caddy; :80 redirects; basic auth is never sent in the clear | `deploy/Caddyfile` |
 | host | — | `ufw` default-deny; 22, 80, 443 only; the receiver's port is not published to the host | `deploy/README.md` §3.2 |
@@ -277,8 +294,10 @@ demo's UIs check nothing, so the proxy is the only thing in front of them. Drift
 real failure mode and `deploy/README.md` §3.1 derives the hash from the one plaintext. **The 404 on the alert path is
 a blocklist, not an allowlist** — a new unauthenticated route added to the receiver would be on the
 internet until someone added a `handle` for it. What the table does *not* say is that the credential
-is strong: it is one username and one password, brute-forceable at the rate Caddy will serve, and
-the access log (`log { output stdout }`) is the only thing that would show it happening.
+is strong: it is one username and one password. *Brute-forceable at the rate Caddy will serve, and
+the access log the only thing that would show it happening* - as written on 2026-09-07; since T6.8
+the application answers 429 after ten failures a minute from one address and says so in its log and
+on `/metrics`. Caddy's own basic auth in front of Grafana and Jaeger has no such limit.
 
 **Still open, on the internal network.**
 
@@ -288,21 +307,22 @@ the access log (`log { output stdout }`) is the only thing that would show it ha
   is one compose network on one host with nothing else on it; the fix (credentials on the datasources
   and a network policy between the agent container and the rest) is T6.8's and is not made smaller
   by being deferred again.
-- **The alert receiver is unauthenticated from the network** (thesis 3). Anything on the compose
-  network can open an incident and spend model calls. Today that is the world's own containers; a
-  compromised one would have this path.
+- ~~**The alert receiver is unauthenticated from the network** (thesis 3). Anything on the compose
+  network can open an incident and spend model calls.~~ **Closed 2026-09-20 (T6.8)**: the
+  receiver demands the API pair on the deployment; thesis 3's addendum has the mechanism.
 - **The model API key is in the orchestrator container's environment**, because the orchestrator
   now runs `faultline-investigate` itself (`FAULTLINE_ORCH_INVESTIGATE=1`). That container also
   reads the world's telemetry — the thesis-1 text — so the process that holds the key is the
   process that reads attacker-influenced input. Secret scrubbing before model calls is T6.8's;
   egress restriction on that container is T6.8's; both matter more now than when the key lived
   only on a laptop.
-- **One host, nightly snapshots on that host's own disk and none off it** (T6.7; was *no backups beyond a manual snapshot*), no rate limit on the credential, no alert on
+- **One host, nightly snapshots on that host's own disk and none off it** (T6.7; was *no backups beyond a manual snapshot*), ~~no rate limit on the credential~~ (T6.8: 429 after ten a minute), no alert on
   the access log. `docs/GATES.md` G6 is where reliability becomes a deliverable and this addendum
   does not pretend otherwise.
 
 **What this changes in the list at the end.** *"Authentication on the ingest webhook and the read
-routes"* is half done — the read routes are; the webhook is blocked at the edge and open inside.
+routes"* ~~is half done — the read routes are; the webhook is blocked at the edge and open inside~~
+is done on the deployment since T6.8 (2026-09-20); the development receiver stays open by design.
 *"Public-surface hardening of the deployed instance"* is now a task against a real surface with a
 real access log, rather than a placeholder.
 
@@ -334,8 +354,8 @@ in a URL is a secret in every stack trace that URL appears in.
 - Egress restriction on the agent container.
 - Secret scrubbing before model calls.
 - Credentials and network policy on Prometheus and Loki (thesis 2).
-- Authentication on the ingest webhook from inside the network (thesis 3); the read routes are
-  authenticated since T5.5 and the webhook is blocked at the edge (addendum).
+- ~~Authentication on the ingest webhook from inside the network (thesis 3); the read routes are
+  authenticated since T5.5 and the webhook is blocked at the edge (addendum).~~ Done 2026-09-20.
 - Corpus-poisoning attack against retrieval (thesis 6).
 - Public-surface hardening of the deployed instance; audit-log review; kill-switch drill.
 

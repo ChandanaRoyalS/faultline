@@ -29,3 +29,9 @@ class IngestSettings(BaseSettings):
 
     port: int = 8000
     """Alertmanager posts to host.docker.internal:8000 - see compose/prometheus/alertmanager.yml."""
+
+    require_credential: bool = False
+    """T6.8: demand the API pair (`FAULTLINE_API_USER` / `FAULTLINE_API_PASSWORD`) on
+    `POST /api/v1/alerts`. **Off by default** because the development Alertmanager's config is
+    digest-locked and sends none; `deploy/compose.yml` sets it and `deploy/alertmanager.yml`
+    sends the pair from a password file. See `faultline.ingest.app.credential_gate`."""

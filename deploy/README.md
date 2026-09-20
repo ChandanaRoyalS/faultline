@@ -198,6 +198,21 @@ override files resolve inside exactly as they do outside. `compose.yml` refuses 
 any of the three. The same key is passed to the `faultline` container too, because **T6.3's approve
 button mints the token** and the web process is where the button is - one secret, two containers.
 
+**One file beside `.env`, since T6.8 (2026-09-20): the receiver's credential as Alertmanager
+reads it.** `POST /api/v1/alerts` demands the API pair on this deployment
+(`FAULTLINE_INGEST_REQUIRE_CREDENTIAL` in `compose.yml`), and Alertmanager sends it from a file it
+mounts, because its config is committed and expands no variables:
+
+```bash
+grep '^FAULTLINE_API_PASSWORD=' .env | cut -d= -f2- | tr -d "\"'" > alertmanager.password
+chmod 600 alertmanager.password
+wc -c alertmanager.password                                      # the password's length + 1, never 0
+```
+
+Gitignored like `.env`. Without it the alertmanager container refuses to start (a missing mount
+source), which is the right failure: a world that cannot alert is visible, a receiver answering 401
+to every delivery is not. If the API password is ever rotated, this file is rotated with it.
+
 **The kill switch is off since T6.3** (`FAULTLINE_EXECUTOR_KILL_SWITCH: "0"`). Until 2026-09-12 it
 was on and nothing could mint; now an approval on the screen executes an allowlisted action against
 this VM's world. §3.11 is the drill for turning it back on.
@@ -344,8 +359,10 @@ that surface has no credential of its own, because its reader is Prometheus on t
 Then open `https://$SITE_ADDRESS/` in a browser — the credential prompt, then the incident list —
 and pick one, or take an `incident_id` from the last line and open
 `https://$SITE_ADDRESS/ui/incidents/<id>` directly. On the incident, read the **Proposed remediation**
-card down to its last line (*not executed - no executor exists*), and **click a citation** — it should land you in Grafana's explore view with the agent's own query
-already filled in. That link was broken until T5.1's fix and clicking it is the only way to know.
+card down to its buttons (*approve and execute*, *reject* - since T6.3; until 2026-09-20 this
+sentence still said the card ended *"not executed - no executor exists"*), and **click a
+citation** — it should land you in Grafana's explore view with the agent's own query already
+filled in. That link was broken until T5.1's fix and clicking it is the only way to know.
 
 **Then prove the deployment investigates, not only remembers.** The orchestrator runs
 `faultline-investigate` itself 90 seconds after an incident opens (`FAULTLINE_ORCH_INVESTIGATE=1`
@@ -611,23 +628,36 @@ prompt. Type the `ssh` line alone, wait for `deploy@ubuntu:~$`, then paste.
 
 ## 4. What this deployment deliberately does not do
 
-**It does not accept alerts from the internet.** `POST /api/v1/alerts` takes no credential and
-cannot — Alertmanager sends none, so a password there would stop alerts rather than attackers
-(`docs/THREAT-MODEL.md`, thesis 3). That was harmless when the deployment investigated nothing. It
-is not harmless now: an alert opens an incident, an incident runs an investigation, and an
-investigation bills the key in §3.1. Caddy answers that path with a 404 and the world's own
-Alertmanager reaches the receiver on the compose network instead, so blocking it costs nothing.
+**It does not accept alerts from the internet, or from anything on its network that lacks the
+password.** An alert opens an incident, an incident runs an investigation, and an investigation
+bills the key in §3.1. Caddy answers `/api/v1/alerts` with a 404, and since T6.8 the receiver
+behind it demands the API pair (`FAULTLINE_INGEST_REQUIRE_CREDENTIAL`), which the world's own
+Alertmanager sends from the file §3.1 writes. Until 2026-09-20 this paragraph said the receiver
+*"takes no credential and cannot - Alertmanager sends none"*; Alertmanager sends what its
+`http_config` names, and the second half was never true (`docs/THREAT-MODEL.md`, thesis 3).
 
-**It does not execute remediation.** No executor exists at all (ADR-0028 §4) — T6.2's action plane
-is Phase 6. Every proposal on the screen is a proposal, and the screen says so.
+**It does not execute remediation without a person.** Until 2026-09-20 this paragraph read *"No
+executor exists at all (ADR-0028 §4) - T6.2's action plane is Phase 6"*, six weeks after T6.2 built
+one and nine days after this deployment started running it (§3.9, 2026-09-11). The executor is a
+container on this VM that performs an allowlisted action against the world when an operator
+approves a proposal on the screen, and only then; it has no published port, Caddy forwards nothing
+to it, and `FAULTLINE_EXECUTOR_KILL_SWITCH` (§3.11) stops it minting anything. Every proposal on
+the screen is a proposal until someone clicks.
+
+**It does not rate-limit at the edge.** Ten wrong passwords from one address inside a minute are
+answered 429 for the rest of that minute by the application (`faultline.api.auth`, T6.8), on the
+read routes and on the receiver alike, with a `WARNING` line in `docker compose logs faultline` and
+`faultline_credential_lockouts_total` on `/metrics`. Caddy's own basic auth in front of Grafana and
+Jaeger has no such limit.
 
 **It does not archive.** No MinIO. Reads take the inline copies in Postgres; the archive is the
 writer's second copy and nothing here needs it.
 
-**It does not cap its own spend beyond the per-run budget.** Each investigation is bounded by
-`max_usd` and the tool-call ceilings, and nothing bounds how many investigations a day of world
-flakiness produces. Watch it for the first week, and if the world alerts more than it should, the
-lever is Alertmanager's `repeat_interval` in `deploy/alertmanager.yml`.
+**It caps its own spend at `FAULTLINE_ORCH_MAX_USD_PER_DAY` (T6.7, $5) and nowhere higher.** Each
+investigation is bounded by `max_usd` and the tool-call ceilings; the orchestrator sums the last
+day's tokens before every run and defers at the ceiling. Until 2026-09-20 this paragraph said
+nothing bounded the count - true until T6.7's a07344d6 (§3.9), stale after. If the world alerts more
+than it should, the lever is still Alertmanager's `repeat_interval` in `deploy/alertmanager.yml`.
 
 **It is not a production deployment and does not claim to be.** One VM, no replicas, nightly
 snapshots on the same disk as the database and none off the machine (§3.7), shared vCPUs, and a
