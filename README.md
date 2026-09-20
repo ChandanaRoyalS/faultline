@@ -6,8 +6,10 @@
 
 When a production alert fires, Faultline's agents investigate it the way a good on-call engineer
 would — querying logs, metrics, traces and recent deploys in parallel — and produce a root-cause
-report in which **every claim cites verifiable evidence**. Remediation is proposed, never
-executed. It is built measurement-first: the environment is broken on purpose with labelled,
+report in which **every claim cites verifiable evidence**. Remediation is proposed, and carried
+out only when a person approves it — through a separate action plane with its own credential, an
+allowlisted set of actions and a kill switch. The agents never act on the world themselves. It is
+built measurement-first: the environment is broken on purpose with labelled,
 reversible faults, held-out scenarios are quarantined from every prompt and corpus from the day
 they are authored, and no figure leaves the repository without its n. The point is not that the
 agent works; it is that you can find out whether it does, and so can we.
@@ -407,7 +409,18 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 
 ## Results
 
-> **The current benchmark — dev sweep 10, at the stamp this repository ships.** Under
+**The current benchmark is at the top of this file, not here.**
+[Results at a glance](#results-at-a-glance) carries it — T6.5's thirty runs at
+`prompts:06f24e827915` on world `90e9f29e578e`, and dev sweep 12's arm A before it — and
+[`docs/RESULTS.md`](docs/RESULTS.md) is the report. **Everything in this section is older than
+both.** It is kept rather than cut because dev sweep 10 is where the variance finding came from,
+and that finding is still the most important paragraph on this page.
+
+*This heading said "the current benchmark" about dev sweep 10 until 2026-09-20, nine days after
+sweep 12 superseded it and twelve after the world moved — found by G7's assessment
+(`docs/GATES.md`), along with eight other things this front door had stopped being true about.*
+
+> **Dev sweep 10 — a superseded stamp and a superseded world, kept for what it established.** Under
 > `prompts:b6837dd449ca`, capability `cap:c4d52d00`, world generation `f5bd108f4f70`: five dev
 > scenarios, R=1, both arms, **\$3.6366 all in**
 > ([`SWEEP-2026-09-06-sweep10.md`](evals/runs/SWEEP-2026-09-06-sweep10.md), pre-registered before
@@ -437,10 +450,12 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 > came back wrong** — same prompt digest, same capability, same world generation, with `bad_deploy`
 > absent from all three of its ranked candidates.
 >
-> **Every figure this project publishes is R=1.** `repeat_count: 1` appears on every run ever
-> recorded; the variance protocol's `weekly` (R=3) and `published` (R=5) tiers have never run. So
-> run-to-run variance at a fixed stamp had never been measured here, and the first measurement
-> arrived by accident, at n=2.
+> **Every figure this project had published at this point was R=1.** `repeat_count: 1` appeared on
+> every run recorded before dev sweep 12, and the variance protocol's `weekly` (R=3) and
+> `published` (R=5) tiers had never run. So run-to-run variance at a fixed stamp had never been
+> measured here, and the first measurement arrived by accident, at n=2. *(Dev sweep 12 ran the
+> `weekly` tier at R=3 on 2026-09-09 — the first R=3 figure in the repository. This paragraph
+> stated it in the present tense until 2026-09-20.)*
 >
 > It invalidates nothing above. It establishes that **a single run at this stamp is not reproducible
 > to ±1 scenario on fault class** — which is a statement about all five figures above, about dev
@@ -454,7 +469,7 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 > [`SWEEP-2026-08-30-refound-again.md`](evals/runs/SWEEP-2026-08-30-refound-again.md) stands
 > unedited.
 >
-> **On this world: 35 scored runs across 6 scenarios, 11 of them at the current stamp.** Every
+> **On `f5bd108f4f70`: 35 scored runs across 6 scenarios, 11 of them at `b6837dd449ca`.** Every
 > earlier figure in this README describes a superseded world, a superseded stamp, or both, and says
 > which.
 >
@@ -476,10 +491,12 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 > *rebuild* is identical and not that a cold clone-and-pull is; the registry tag was separately
 > confirmed to still resolve to the image every bundle records, which is a **weaker substitute**
 > for a cold pull, not a replacement. **No scored run has happened since the rebuild**, so the
-> *world* is identical and whether it yields comparable *figures* is untested. And the demo end to
-> end **remains unverified** — it has not been re-run since the rebuild.
-> *(Was "for want of API credit"; credit has since been available and 19 scored runs have been made
-> on this world. The demo simply has not been re-run — corrected T7.59.)*
+> *world* is identical and whether it yields comparable *figures* is untested. And **the demo was
+> re-run end to end on 2026-09-07** — three `make demo` runs from a clean clone on a fresh x86 VM,
+> which is part of what declared G5 (`docs/GATES.md`).
+> *(This clause read "the demo end to end remains unverified" until 2026-09-20: true when written,
+> false from the day G5 was declared thirteen days earlier. Before that it read "for want of API
+> credit" — corrected T7.59.)*
 >
 > **Every figure below this banner, and in [`docs/RESULTS.md`](docs/RESULTS.md) except where it
 > says otherwise, was measured on an earlier world and is labelled as such.** Comparing across
@@ -495,8 +512,11 @@ Every non-obvious decision is in [`docs/adr/`](docs/adr/); the task-by-task reco
 > [docs/RESULTS.md](docs/RESULTS.md) and the
 > [reconciliation record](docs/evidence/t7.1-reconciliation/README.md).
 
-**The current-world result — 19 scored runs, what each of the three assessments can see, and what
-the label score cannot — leads [docs/RESULTS.md](docs/RESULTS.md#the-current-world-result).**
+**The current-world result — what each of the three assessments can see, and what the label score
+cannot — leads [docs/RESULTS.md](docs/RESULTS.md#the-current-world-result).** The run count is
+deliberately not repeated here: this sentence said *19 scored runs* for nine days after it stopped
+being nineteen, and the table at the top of this file is generated from the tree by
+`evalharness.scenario_table` precisely so that no one has to remember to update it.
 Everything below in this README describes earlier worlds and is labelled as such.
 
 Full method and findings: **[docs/RESULTS.md](docs/RESULTS.md)**. Raw runs and reports:
@@ -644,8 +664,8 @@ FAULTLINE_API_PASSWORD=local-only make ui
 
 Then `http://localhost:8000/` — it lands on the incident list, and each row opens
 `/ui/incidents/<id>`: that incident's timeline, verdict with its open questions, the remediation
-proposal with its risk note and the line saying it was not executed, evidence cards and citation
-deep-links. `/api/v1/incidents` and `/api/v1/incidents/<id>` are the JSON the pages poll. **The password is mandatory and has no default** — the screen serves every log
+proposal with its risk note, approve and reject controls that mint a signed token for the executor
+rather than acting from the page itself (T6.3), evidence cards and citation deep-links. `/api/v1/incidents` and `/api/v1/incidents/<id>` are the JSON the pages poll. **The password is mandatory and has no default** — the screen serves every log
 line an agent quoted and every query it ran. To put it on a URL, see
 [`deploy/README.md`](deploy/README.md).
 
