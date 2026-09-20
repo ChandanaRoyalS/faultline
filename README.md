@@ -40,7 +40,8 @@ key to need saying so here after joining the config fingerprint, which is
 
 **What the comparison found: nothing measurable, and the sign reversed.** −9.3pp on fault class,
 inside both registered floors, with the WITHOUT arm *higher*
-([TRANSFER-2026-09-18-t6.5.md](evals/runs/TRANSFER-2026-09-18-t6.5.md)). Within the WITH arm the
+([TRANSFER-2026-09-18-t6.5.md](evals/runs/TRANSFER-2026-09-18-t6.5.md); it and the three other
+component ablations are together in [docs/ABLATIONS.md](docs/ABLATIONS.md)). Within the WITH arm the
 runs that actually retrieved a same-class prior incident scored identically to those that did not
 — 12 / 18 against 8 / 12 — which is the measurement that says the arm difference is variance
 rather than transfer. Four of seven predictions failed, and they are scored one by one there.
