@@ -17,7 +17,7 @@ authoritative; verify wording against it before relying on it.
 | G1 | injected fault → alert fires → visible on dashboards, zero AI | **Declared 2026-08-23** |
 | G2 | one alert → one agent → one persisted, rendered finding | **Declared 2026-09-01** — qualified |
 | G3 | end-to-end investigation passes on 3 scenario classes | **Declared 2026-09-02** — qualified |
-| G4 | one command runs and scores all 10 scenarios into a report | Not declared — blocked |
+| G4 | one command runs and scores all 10 scenarios into a report | Not declared — **assessed 2026-09-20**, latency failing and two baselines never run |
 | G5 | full demo runs from clean clone; MVP tagged | **Declared 2026-09-07** — qualified |
 | G6 | approval-gated remediation works; injection + storm tests pass | Not declared — **assessed 2026-09-20**, one clause failing and one undefined |
 | G7 | repo + video + benchmark and ablation reports are application-ready | Not declared |
@@ -188,6 +188,118 @@ Phase 3 is **98.2% of its clauses** after Batch C (`docs/PLAN.md`, Phase 3 audit
 undelivered and neither blocks this gate: T3.1's cheap-model routing tier, deferred to T4.2's
 measured accuracy, and T3.4's repo-compare, declined as **Q19** because this world runs pulled
 images rather than checkouts.
+
+## G4 — assessed 2026-09-20, not declared
+
+Full condition, as the blocker below transcribes it (the table row abbreviates): *"one command runs
+and scores all 10 scenarios into a report"*, and *"an A/A check declaring null, a dev-set median
+time-to-report ≤ 3 minutes and cost ≤ \$2 per incident, and the T4.7 baseline suite."*
+
+**Read because G6 inherits from here and could not be declared without it.** G6's fourth clause asks
+for *"the Gate 4 thresholds … re-asserted"*, which presupposes an assertion this gate never made.
+The blocker paragraph below dates from before `faultline-sweep`, before the A/A check, and before
+T4.7 closed: **three of the five things it names are done.** What it was right about is latency, and
+the reading adds one blocker it did not name.
+
+### Met — the driver, and both halves of the sentence that said there wasn't one
+
+*"`make eval` takes one `SCENARIO` per invocation and there is no all-scenarios driver"* is false.
+`make eval` with no `SCENARIO` runs `faultline-sweep` over the catalog (`Makefile`), and
+`sweep.runnable()` returns **exactly the ten dev scenarios** — eighteen files less five holdout,
+five blocked, and the two dev bundles carrying an `INVALID.md`. The Makefile names the blocker it
+closed: *"It used to refuse without SCENARIO, so the command the gate names could only ever run one
+scenario and the gate could not be met by the thing it named."*
+
+*"`faultline-eval` refuses rather than waits when invoked back to back"* is also false, and the fix
+is the interesting half: `SETTLE_SECONDS = 300` between runs, because *"every scored run leaves a
+resolved incident, and a firing inside the orchestrator's 300 s settle window **reopens that
+incident rather than opening a new one** — so the next scenario's alerts would be attributed to the
+previous scenario. The first real sweep scored 1 of 5 and the gate refused the other four for
+exactly this."* Beside it: `--retries` re-launching clearable refusals (*"a refusal means nothing
+was injected … so this is not a re-run"*), a world recycle between passes, and an abort once a
+catalog's worth of runs has stood refused.
+
+**One qualification on *unattended*.** The code runs ten scenarios from one command; dev sweep 12
+took four nights, and its §7 is a table of the eight things that stopped it — gate refusals at
+kafka 24 %, a run frozen for 1 h 50 m, credit exhaustion after the first pass. *Unattended* has held
+for a pass, not for a sweep.
+
+### Met, with the record's own caveat — the A/A check declares null
+
+`faultline-compare --aa ca4f1d837d2b` split arm A's runs alternately within each scenario and
+compared the halves: every proportion under the 16.2 pp MDE, the largest **fault class at +10 pp
+with an interval touching zero**, cost −\$0.03, latency +4.6 s. **Nothing moved.** The check first
+printed `FAILED on 2 metric(s)` against data that had passed — `aa.Result.passed` required the
+phrase *"no measurable effect"* in every verdict, and the two non-proportion metrics answered with a
+sentence that could never contain it. Fixed the same day; re-run clean.
+
+The caveats belong to the gate and are the module's own: at n = 10 the MDE is 16 pp, so a pass is
+weak evidence, and `aa.py` says outright that *"a test that nearly always passes is not much of a
+test, and a green A/A check should not be read as 'the harness is sound'."* The number worth
+reading is the one the instrument produced between two halves of one configuration — **10 pp,
+half the effect the sweep reports between its two arms.**
+
+### Met — cost
+
+Median **\$0.713** with traces and **\$0.602** without, against \$2 (sweep 12). `Budget.max_usd`
+now defaults to this gate's \$2 per Q16, so a run that would breach it halts rather than reports it.
+
+### Partly met — *"…into a report"*
+
+One command runs the ten; **four commands score them into a report.** `faultline-sweep` writes no
+file: it prints a count of outcomes, and says so — *"it does not judge, and it does not aggregate."*
+Per-run artifacts land in `evals/runs/<ts>-<scenario>/`. The report the clause means is
+`faultline-compare`'s `COMPARISON-<a>-vs-<b>.md`, which needs `faultline-judge` and
+`faultline-eval-db load` in front of it. **`evals/reports/` is empty by design, not by defect** —
+it is gitignored, and sweep 12 states the policy: *"Comparison reports are regenerated rather than
+committed."* The chain exists end to end in `eval-nightly.yml`, whose `schedule:` was removed by
+the owner on 2026-09-11. So the artifact exists, the pipeline exists, and *one command* does not
+reach it from a terminal.
+
+### Not met — latency
+
+Median **251.6 s** with traces, **214.4 s** without, against **180 s** (sweep 12). Failing, not
+unmeasured, and measured more than once: dev sweep 9 timed 273 s, 165 s, 237 s, 279 s, 183 s —
+four of five over, median 237 s. **This is the clause G6 inherits**, and the arm both gates care
+about is the one that misses by 71.6 s.
+
+### Not met — the T4.7 baseline suite has never been run
+
+All three baselines are **built**: `b0` (no-LLM heuristic), `b1` (one agent, four tools, no
+fan-out), `b2` (the model's prior, no tools), all wired into `faultline-eval --baseline` and
+`faultline-sweep --baseline`, with `BaselinePanel` refusing to exist unless it carries an entry for
+every one — *"an unrun baseline is a row that says so, never an absent row."*
+
+**Built is not run.** Across the whole run tree: **42 `b0` manifests, zero `b1`, zero `b2`.** And
+the 42 are `b0` version 2, which **Q34 superseded on 2026-09-14** after finding B0's third signal
+had never executed — *"`Signals.error_deltas` said 'frequently empty, and that is real': it was
+always empty and it was not real"* — leaving the record's own note that *"B0.3 has no runs; the
+next baseline comparison quoting B0 as a control needs them."* So the headline table cannot today
+carry the three baselines the brief makes mandatory, and the one column it does carry is a
+two-signal baseline under a retired version. The reason is recorded and is not a defect: *"B1 and
+B2 runs need credits"*, *"out of scope for this sweep as a budget decision."*
+
+### And the stamp has moved under all of it
+
+Every number above comes from dev sweep 12, 2026-09-11, stamp `prompts:06f24e827915`.
+**Self-instrumentation landed 2026-09-18 and no dev sweep has run since** — the same gap that
+stops G6's fourth clause having the measurement it names. Whatever is declared here would be
+declared against a pipeline the repository no longer runs.
+
+### What it would take
+
+1. **One sweep at the current stamp with all three baselines.** It is the same sweep G6's clause 4
+   needs, and running it once satisfies the baseline clause here and the measurement there. B2 is
+   cheap (no tools); B0 needs re-running at version 3 regardless.
+2. **A median under 180 s.** The only clause that fails on its own terms rather than for want of a
+   run, and the one both gates share. Sweep 12's full-pipeline arm is 251.6 s.
+3. **A terminal path from one command to a scored report**, or the clause read as *one command runs
+   them* and the scoring chain acknowledged as three more. The record should pick one rather than
+   leave the sentence ambiguous.
+
+**Three of the five things the blocker below names are done, and it has said otherwise since
+2026-09-03.** What actually stands between this gate and a declaration is one failing number and
+two baselines nobody has paid for.
 
 ## G5 — declared 2026-09-07
 
@@ -382,7 +494,7 @@ never written — and of those, only the first is expensive.
 
 Recorded here so they are not rediscovered.
 
-**G4.** Its condition names `make eval` running all ten scenarios unattended. `make eval`
+**G4.** *(Superseded 2026-09-20 by the assessment above: the driver exists and waits, the A/A check passed, and T4.7's baselines are built. Kept as written, because what it was right about is the latency clause.)* Its condition names `make eval` running all ten scenarios unattended. `make eval`
 takes one `SCENARIO` per invocation and there is no all-scenarios driver; separately,
 `faultline-eval` refuses rather than waits when invoked back to back, so successive calls
 are rejected inside seconds. The condition also requires an A/A check declaring null, a
