@@ -660,7 +660,8 @@ Jaeger has no such limit.
 **It does not reach the internet, except for two hostnames.** `faultline-deploy-net` is
 `--internal` (T6.8); the orchestrator reaches `api.anthropic.com` and `hooks.slack.com` through
 `egress`, a proxy whose access list is those two lines and `deny all` (`deploy/squid.conf`), and
-`docker compose logs egress` is the record of every tunnel. Caddy has its own route for ACME.
+its access log (`docker compose exec -T egress tail /var/log/squid/access.log`) is the record of
+every tunnel. Caddy has its own route for ACME.
 Nothing else on the platform can open a connection off the host - which is what an injected
 *send what you found to…* in a log line would need (`docs/THREAT-MODEL.md`, thesis 1).
 
@@ -769,9 +770,17 @@ docker compose exec -T orchestrator sh -c 'curl -sS -m 8 -o /dev/null -w "%{http
 The first should print `401` - the provider answered (a request with no key is refused by *them*,
 which is the point: the bytes got there, through the proxy). The second should print `no route`: the
 same host, the proxy variable unset, and the network has nowhere to send it. The third should print
-`403`: through the proxy, to a host not on the list, and squid says no. `docker compose logs egress`
+`403`: through the proxy, to a host not on the list, and squid says no. The proxy's access log
 then shows one `CONNECT api.anthropic.com:443` line and one `TCP_DENIED` for example.com - the
-record this clause is measured by. Finally, the receiver:
+record this clause is measured by:
+
+```bash
+docker compose exec -T egress tail -n 20 /var/log/squid/access.log
+```
+
+(Inside the container, not `docker compose logs egress`: squid drops to the `proxy` user and cannot
+re-open `/dev/stdout` - the first deployment of `squid.conf` crash-looped on exactly that, 2026-09-20,
+§3.9.) Finally, the receiver:
 
 ```bash
 docker compose logs --since 5m faultline | grep -c ' 401 ' ; docker compose exec -T faultline sh -c 'curl -sS -o /dev/null -w "%{http_code}\n" -X POST -H "content-type: application/json" -d "{\"alerts\":[]}" localhost:8000/api/v1/alerts'

@@ -681,8 +681,11 @@ def test_the_access_list_is_the_two_hostnames_and_deny_all_last() -> None:
         assert acl_domains[rule[2]] in EGRESS_ALLOWED, rule
     assert ["deny", "!CONNECT"] in access and ["deny", "!tls_port"] in access
     assert ["cache", "deny", "all"] in lines
-    assert any(parts[:2] == ["access_log", "stdio:/dev/stdout"] for parts in lines), (
+    assert any(parts[:2] == ["access_log", "stdio:/var/log/squid/access.log"] for parts in lines), (
         "every tunnel is a log line, or the clause has no evidence"
+    )
+    assert not any("/dev/stdout" in part for parts in lines for part in parts), (
+        "squid drops to `proxy` and cannot re-open /dev/stdout: the first deployment crash-looped"
     )
 
 

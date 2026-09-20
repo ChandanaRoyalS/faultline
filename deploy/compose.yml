@@ -334,7 +334,9 @@ services:
     # networks: `faultline`, where the orchestrator finds it as `egress:3128`, and `egress`,
     # the only network here that is not `--internal`. `deploy/squid.conf` allows CONNECT to
     # `api.anthropic.com:443` and `hooks.slack.com:443` and denies everything else; every tunnel
-    # is one line on stdout, so `docker compose logs egress` is the record of what left.
+    # is one line in `/var/log/squid/access.log` inside the container (`docker compose exec -T
+    # egress tail /var/log/squid/access.log`), the record of what left. Squid's own startup and
+    # error lines are what `docker compose logs egress` shows.
     image: ubuntu/squid:6.6-24.04_beta
     restart: unless-stopped
     volumes:
