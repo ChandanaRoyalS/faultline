@@ -195,3 +195,76 @@ Not a cleverer scenario. One of:
 
 **None of these is a scenario build**, which is why this ADR exists rather than another abandoned
 YAML.
+
+---
+
+## Addendum, 2026-09-20 (T7.0's closure) — the seventh candidate: disk, and why this world has none
+
+§5's table has six candidates. T7.0's spec row names a seventh this ADR never assessed — **disk
+fill** — and it is added here rather than in the task's own note, because the next person to ask
+will read §5 and not a PLAN entry. It was assessed as a **mechanism** under `resource_exhaustion`,
+not as a class: disk is a resource the way memory and CPU are, ADR-0010 draws the line that a
+mechanism is not a class, and a mechanism costs no stamp. §1's fix criterion therefore never had to
+be reached. **It dies before that, four times, and three of the four are measured rather than
+argued.**
+
+**1. No container in this world has a disk of its own.** `docker compose config` over the three
+world files, read 2026-09-20: **zero named volumes, 27 services, and six services carrying any
+mount at all** — `grafana`, `prometheus`, `otelcol`, `alertmanager`, `tempo`, `promtail` — every one
+of them a read-only bind of a config file, plus promtail's `docker.sock`. No shop service has a
+mount. Nothing persists. So *"fill a container's disk"* has no referent here: a write goes to the
+container's writable layer, which is the host's filesystem.
+
+**2. Which makes the blast radius the host, and that alone disqualifies it.** ADR-0007's first
+requirement is that **reversibility is the product**. A mechanism that fills the writable layer
+fills the disk the rest of the machine is on — and on the deployment that disk also carries the
+platform's own Postgres and its backups: `deploy/README.md` §4 records *"nightly snapshots on the
+same disk as the database and none off the machine"*. An injector whose failure mode is *the
+platform's storage is full* is not reversible in the sense that matters, and no `restore` record
+can undo a disk that filled somewhere else while the fault was live. The only route that avoids
+this is a **quota rather than a fill** — a sized `tmpfs` at the write path, applied by a generated
+override and reverted by dropping it, which is `_ComposeOverrideFault` exactly as it stands. That
+route survives to (3).
+
+**3. The only service worth capping cannot be made to fire deterministically.** Redis is the one
+process here that writes anything it needs. Read from the running container, 2026-09-20:
+
+```
+dir                         /data
+appendonly                  no
+save                        3600 1 300 100 60 10000
+stop-writes-on-bgsave-error yes
+```
+
+The last line is the interesting one and it points the right way: with the snapshot target capped,
+a failed `BGSAVE` makes Redis **refuse writes**, so `cartservice` starts erroring — a real,
+documented, non-exotic failure. But the first save is on Redis's own timer: one changed key in an
+hour, a hundred in five minutes, ten thousand in a minute. **The fault would land up to five
+minutes after injection, and only at a change volume the load generator has to supply.** ADR-0007's
+second requirement is that *"faults must fire deterministically. A fault that manifests only under a
+load spike produces scenarios that fail intermittently for reasons unrelated to the agent under
+test."* This is that fault. Forcing the save with `docker exec redis-cli bgsave` would make it
+prompt, but that is the `docker exec` mechanism §5 already records as uncosted, and it would make
+the *injector*, not the world, the thing that produced the failure.
+
+**4. And when it did fire it would page nothing new.** §4 of this ADR: anything breaking a service
+on the checkout hot path produces `{frontend, loadgenerator, checkout}` errors plus `NoTraffic` on
+the tail. Cart writes refused is that shape, and `ServiceNoTraffic/cartservice` is already in both
+`cart-redis-misconfig`'s and `cart-bad-image-tag`'s recorded alert windows — the same collision that
+killed T7.56's wrong-port candidate. The fix would be *drop the override and recreate*, which is
+`config_revert`, which is `resource_exhaustion`'s existing fix. Legitimate for a mechanism, and
+worth nothing when the mechanism produces no distinguishable incident.
+
+| candidate | what the injector could do | why it dies |
+|---|---|---|
+| **Disk fill / disk quota** | a sized `tmpfs` at a write path, by generated override — the existing compose-override machinery | **zero named volumes across 27 services**, so a fill targets the host's disk and takes the platform's own database and backups with it (ADR-0007: reversibility). The quota form survives that and then fails determinism: Redis's `save 3600 1 300 100 60 10000` puts the failure up to five minutes late and load-contingent. When it does fire, `stop-writes-on-bgsave-error yes` makes it cart-errors-on-the-hot-path — §4's flattened shape, already occupied twice |
+
+**What this does not touch.** Q6 (`redis-cart` eviction / `maxmemory`) stays exactly as
+`docs/QUEUE.md` records it — a rejected candidate needing a fresh argument, not a trigger. The
+readings above are evidence *about* Redis's configuration and change nothing about that row; if
+anyone does revive it, `stop-writes-on-bgsave-error yes` and the save policy are written down here
+so the behaviour does not have to be re-established.
+
+**The decision above is unchanged and is now better supported.** Seven candidates, seven deaths,
+three of them measured in this addendum. The limit is structural: **a world with no volumes, no
+scalable services, one topology and four remediations.**
