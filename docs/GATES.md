@@ -20,7 +20,7 @@ authoritative; verify wording against it before relying on it.
 | G4 | one command runs and scores all 10 scenarios into a report | Not declared — **assessed 2026-09-20**, latency failing and two baselines never run |
 | G5 | full demo runs from clean clone; MVP tagged | **Declared 2026-09-07** — qualified |
 | G6 | approval-gated remediation works; injection + storm tests pass | Not declared — **assessed 2026-09-20**, one clause failing and one undefined |
-| G7 | repo + video + benchmark and ablation reports are application-ready | Not declared |
+| G7 | repo + video + benchmark and ablation reports are application-ready | Not declared — **assessed 2026-09-20**, the front door and the video are behind the product |
 
 ## G0 — declared 2026-09-01
 
@@ -489,6 +489,108 @@ be re-asserted; it can only be asserted for the first time, under a different na
 **Three of the four clauses went from nothing to substantially met in nine days.** The two that
 stand between here and a declaration are a number that is failing by 40 % and a definition that was
 never written — and of those, only the first is expensive.
+
+## G7 — assessed 2026-09-20, not declared
+
+Full condition: *"repo + video + benchmark and ablation reports are application-ready."*
+
+**The last gate, and the first reading of it.** Three of its four items exist and one of them is
+good; what stops the gate is that **the two things a reviewer meets first — the front door and the
+video — describe a product two weeks behind this one**, and that nothing in the repository was
+watching for it.
+
+### The repo — **the front door contradicted the gate record, and eight other things besides**
+
+Found by reading README.md top to bottom against the tree on 2026-09-20:
+
+| # | README said | the tree says |
+|---|---|---|
+| 1 | roadmap table: G0 *in progress*, **G1–G7 unchecked** | **five gates declared**, the oldest 2026-08-23. Fixed, and now held by `tests/test_readme_gate_table.py` |
+| 2 | *"The current benchmark — **dev sweep 10**, at the stamp this repository ships … `prompts:b6837dd449ca`"*, opening `## Results` | the shipping stamp is `prompts:06f24e827915` — **README's own scenario table says so 300 lines above**. Two sentences on one page each claiming to name the stamp this repository ships, naming different ones |
+| 3 | *"**Every figure this project publishes is R=1.** … the variance protocol's `weekly` (R=3) … tiers have never run"* | **sweep 12 is R = 3**, and README says *"the first figure in this repository at R = 3"* — 385 lines earlier |
+| 4 | *"Seventeen scenarios authored, thirteen valid and **four** blocked"* | **18 files, 13 valid, 5 blocked.** Recorded as correction C1 by T7.59's record audit and never applied — the audit's own failure mode, *"an audit that reports its corrections without re-reading the file it corrected"*. **Fixed** |
+| 5 | *"an **eleven**-state machine"* | `orchestrator/models.py`: *"**Fourteen states**: the eleven `docs/spec/` names, plus three."* **Fixed** |
+| 6 | *"Remediation is proposed, **never executed**"*, twice | the executor landed at T6.2 on 2026-09-11; the repair replay recovered **7 of 8**, and the deployment has executed one approved action. README's own command table lists `faultline-approve` and `faultline-execute` |
+| 7 | *"On this world: 35 scored runs across 6 scenarios"* | describes `f5bd108f…`, **two worlds back**, in the present tense |
+| 8 | *"the whole evidence base is **19 scored runs**"* | sweep 12 alone ran 64 |
+| 9 | *"the demo end to end **remains unverified**"* | G5 was declared on three `make demo` runs from a fresh x86 VM on 2026-09-07 |
+
+**Rows 1, 4 and 5 are corrected in the commit that carries this section.** Rows 2, 3, and 6–9 are
+recorded and **not** rewritten here: each needs an editorial decision about what the front door
+should now say, not a find-and-replace, and doing that inside a gate assessment would be changing
+the thing being assessed while assessing it.
+
+**Nothing guarded any of it.** README had three tests — the generated scenario table and the three
+figures above it, that every console script is named, and nothing else. `test_results_staleness.py`
+guards stamp claims **in `RESULTS.md` only**. The gate table now has a guard; the prose does not,
+and prose is where eight of the nine sit.
+
+### The video — **exists, is qualified honestly, and is two weeks out of date**
+
+`faultline-demo-v0.1.mp4`, **4 min 25 s**, attached to the `v0.1` release rather than committed
+(*"a 20 MB binary in a repository whose pre-commit hook refuses large files is the wrong shape"*).
+Four parts: `make demo` on the reference platform, the incident screen with a citation clicked into
+Grafana, the live deployment, README's table. `docs/demo/README.md` qualifies it better than most
+projects would: **three takes were recorded and the third was used**, the other two kept in
+`evals/runs/` marked `demo`, and the reason said out loud — *"the take **was** selected by its
+outcome from three, and a reader should know that: on this scenario the current world's record is
+roughly two correct in three, and the video shows one of the two."* A known defect is in the
+filmed take (`Class of fix: None`, fixed in code, not re-filmed).
+
+**What no document says is that it is stale.** `docs/demo/README.md` claims *"the stamp is the same
+`b6837dd449ca` every published figure carries"* — true on 2026-09-07, false since T6.1 on the 8th.
+Since the take was cut: Tempo and the traces specialist arrived and every bundle was re-recorded on
+a new world, the executor was built, the corpus went from 25 to 50 documents, and the platform
+gained self-instrumentation. The video shows a three-specialist pipeline on a superseded world
+under a superseded stamp. **Nothing in `QUEUE.md` or `PLAN.md` proposes re-cutting it**, and no
+line anywhere marks it out of date. That is the gap this assessment closes by naming it.
+
+### The benchmark report — **the strongest of the four, and it has not been updated since 09-14**
+
+`docs/RESULTS.md` leads with the current-world result at the shipping stamp: sweep 12, arm A, fault
+class 26/27, culprit service 23/30, three abstentions, median 251.6 s, \$0.713 — with the limits
+carried beside the numbers rather than beneath them (*"the MDE at R = 3 is 16 pp"*; *"a figure here
+says the agent reached the right answer; **no figure here says the agent had the right reasons**"*;
+the residue banner's *"the median investigation reads 12 change records left by earlier runs against
+1 of its own"*; and the holdout arm *"finished at three entries … blocked indefinitely rather than
+pending"*).
+
+**Its problem is omission, not overclaim.** Nothing after 2026-09-14 is in it: **T6.5's 60-run,
+\$44.79 corpus-transfer measurement is absent entirely** — while README's own headline figure *is*
+T6.5's — and so is the retrieval work behind Q49, Q52 and Q53. A section the file itself marks
+*superseded* still carries *"19 scored runs"*, and README still forwards readers to that anchor.
+
+### The ablation reports — **the work exists; no document is called one**
+
+Four ablations are finished and one is explicitly a pilot:
+
+| ablated | result | status |
+|---|---|---|
+| the traces specialist (arm A vs `--without traces`) | fault class **+20.0 pp [−5.0, +46.7]**, n = 10, R = 3; cost **+\$0.10 [+0.06, +0.14]**, the only interval excluding zero | finished, in `SWEEP-2026-09-11-sweep12.md`, with *"what this sweep does not establish: that +20 pp is the size of it"* |
+| the past-incident corpus (T6.5) | **−9.3 pp** on fault class — *without* scoring higher — inside both the 16.2 pp MDE and the ~10 pp instrument noise, so **no measurable effect**; 4 of 7 predictions failed | finished, 60 runs, \$44.79, `TRANSFER-2026-09-18-t6.5.md`. **Not in RESULTS.md** |
+| text-normalisation flag 2, cross-validated | out-of-sample margin **−0.0288** at k = 3, shrinkage 224 % of the margin | finished decision: **not adopted** |
+| retrieval depth k = 3 vs k = 5 | **2 of 10 pairs** changed fault class, both in k = 5's favour | **a pilot**: *"nothing is adopted, and Q53 does not close"*; the real measurement is Q58 |
+
+So the ablations are real, intervalled, and honestly bounded — and they are **scattered across four
+sweep and pilot notes with no document a reviewer can be pointed at**. T7.59's record audit found
+the same shape and left it open: *"the front door and the results document are organised by when
+things were measured rather than by what a reader needs first."*
+
+### What it would take
+
+1. **The front door, read as a stranger and repaired** — rows 2, 3 and 6–9 above, plus a decision
+   about what `## Results` should open with now that sweep 12 exists. The nine were found in one
+   pass; there is no reason to think a second pass finds none.
+2. **Re-cut the video, or date it.** Re-cutting is a day and a new take's outcome is a lottery the
+   record would have to disclose again; **saying on the release page and in `docs/demo/README.md`
+   which world, stamp and pipeline it shows costs nothing** and is the honest minimum.
+3. **RESULTS.md brought forward to 09-20** — T6.5 and the retrieval work folded in, the superseded
+   section's *19 scored runs* stopped being the thing README links to.
+4. **One ablation document**, or a section of RESULTS.md that is one, so the four live somewhere a
+   reviewer is sent rather than somewhere they would have to find.
+
+**None of the four needs world time or a model call.** This gate is blocked on writing, not on
+measurement — which makes it the only undeclared gate whose blockers cost nothing but attention.
 
 ## Known blockers on later gates
 
