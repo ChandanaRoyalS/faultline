@@ -381,7 +381,7 @@ words an application needs: [`docs/MVP-CUT.md`](docs/MVP-CUT.md).
 
 Every recorded rehearsal, rendered as a readable page — what broke, what paged and in what
 order, what the capture set holds, and the narrative the responder wrote:
-**[docs/bundles/](docs/bundles/)**. Seventeen scenarios authored, **thirteen valid and four blocked** — a blocked scenario is one that could not fire, kept with its `INVALID.md` rather than deleted.
+**[docs/bundles/](docs/bundles/)**. Eighteen scenarios authored, **thirteen valid and five blocked** — a blocked scenario is one that could not fire, kept with its `INVALID.md` rather than deleted.
 
 ## Architecture in brief
 
@@ -394,7 +394,7 @@ alert → ingest → orchestrator → triage → planner → specialists → syn
 | Piece | What it does | Decision record |
 |---|---|---|
 | **Ingest** | Alertmanager webhook, fingerprint dedupe, Redis Streams | [ADR-0015](docs/adr/0015-alert-ingest-identity-and-dedupe.md), [ADR-0001](docs/adr/0001-redis-streams-over-kafka.md) |
-| **Orchestrator** | Correlates alert episodes into incidents; an eleven-state machine | [ADR-0016](docs/adr/0016-orchestrator-correlation-state-and-cap.md) |
+| **Orchestrator** | Correlates alert episodes into incidents; a fourteen-state machine | [ADR-0016](docs/adr/0016-orchestrator-correlation-state-and-cap.md) |
 | **Context** | Service graph, blast radius, past-incident corpus in pgvector | [ADR-0017](docs/adr/0017-context-layer-graph-and-dependency-policy.md), [ADR-0018](docs/adr/0018-past-incident-corpus.md), [ADR-0002](docs/adr/0002-pgvector-over-dedicated-vector-db.md) |
 | **Tools** | PromQL, LogQL, traces, change history — every result in an untrusted envelope | [ADR-0019](docs/adr/0019-tool-layer.md) |
 | **Agents** | Planner, four specialists, synthesizer, scribe; in-house runtime, bounded budget | [ADR-0020](docs/adr/0020-agent-layer.md), [ADR-0003](docs/adr/0003-in-house-agent-runtime.md) |
@@ -603,18 +603,24 @@ magnitude**, and no aggregate appears anywhere without the per-class table besid
 
 | Gate | Condition | Status |
 |------|-----------|--------|
-| G0 | CI green on the walking skeleton | 🔨 in progress |
-| G1 | injected fault → alert fires → visible on dashboards (zero AI) | ⬜ |
-| G2 | alert → agent → persisted, cited finding | ⬜ |
-| G3 | full multi-agent pipeline on 3 of 4 fault classes | ⬜ |
-| G4 | `make eval` scores 10 scenarios; A/A check declares null | ⬜ |
-| G5 | MVP shipped: demo from clean clone + live deploy | ⬜ |
-| G6 | approval-gated remediation; thresholds re-held | ⬜ |
-| G7 | benchmark report + ablations + launch | ⬜ |
+| G0 | CI green on the walking skeleton | **Declared 2026-09-01** |
+| G1 | injected fault → alert fires → visible on dashboards (zero AI) | **Declared 2026-08-23** |
+| G2 | alert → agent → persisted, cited finding | **Declared 2026-09-01** — qualified |
+| G3 | full multi-agent pipeline on 3 of 4 fault classes | **Declared 2026-09-02** — qualified |
+| G4 | `make eval` scores 10 scenarios; A/A check declares null | Not declared — assessed 2026-09-20 |
+| G5 | MVP shipped: demo from clean clone + live deploy | **Declared 2026-09-07** — qualified |
+| G6 | approval-gated remediation; thresholds re-held | Not declared — assessed 2026-09-20 |
+| G7 | benchmark report + ablations + launch | Not declared — assessed 2026-09-20 |
 
-The gate marks above are deliberately not updated from the results section. A gate passes when
-its condition is demonstrated **from a clean clone**, and that has not been re-run since these
-measurements were taken. What the results show is what the results show.
+**[`docs/GATES.md`](docs/GATES.md) is the record and this table is a copy of it**, held to it by
+`tests/test_readme_gate_table.py`. A gate is declared only when its condition has been demonstrated
+**from a clean clone** with the evidence written down there; *not declared* means nobody has
+checked, or a known blocker stands in the way, and where one has been assessed the section says
+which clauses hold and which do not. Until 2026-09-20 this table showed G0 *in progress* and
+everything after it unchecked, against five declarations recorded next door — the note that stood
+here said the marks were *"deliberately not updated"* because no clean-clone run had happened since
+the measurements, which stopped being true when G5 was declared on three `make demo` runs from a
+fresh machine.
 
 ## Layout
 
