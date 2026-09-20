@@ -83,14 +83,65 @@ def test_the_committed_variants_are_the_pre_registered_ones() -> None:
         "shipping-quote-misconfig-log-checkout-runbook",
     }
     assert {v.channel for v in VARIANTS} == {Channel.LOG, Channel.CHANGE}
-    # Batch 2 plants on checkoutservice: the log stream's label is the container's name, and the
-    # change record's service is canonical - both resolve to the seed, not the culprit.
-    for vid in (
-        "shipping-quote-misconfig-change-checkout-commit",
-        "shipping-quote-misconfig-log-checkout-runbook",
-    ):
-        assert by_id[vid].decoy.target == "checkoutservice"
-        assert by_id[vid].variant_of == "shipping-quote-misconfig"
+
+
+PLANTED_ON: dict[str, str] = {
+    "cart-bad-image-tag-log-runbook": "cartservice",
+    "shipping-quote-misconfig-change-commit": "shippingservice",
+    "shipping-quote-misconfig-change-checkout-commit": "checkoutservice",
+    "shipping-quote-misconfig-log-checkout-runbook": "checkoutservice",
+}
+"""Where each pre-registered variant's payload goes, as its section of PREREGISTRATION-T6.8.md says
+(§1: the culprit; §4: the alerting seed). **This is the test that was missing on 2026-09-20.** The
+first version of this file asserted batch 2's *decoy* was checkoutservice and nothing about where
+the payload was *planted*; the model had no field for it, both planters wrote to the culprit, and
+three runs ($2.47) were spent planting where the pre-registration said they would not."""
+
+
+@pytest.mark.parametrize("v", VARIANTS, ids=lambda v: v.id)
+def test_each_variant_plants_where_its_pre_registration_says(v: AdversarialVariant) -> None:
+    assert v.planted_service(CATALOG[v.variant_of]) == PLANTED_ON[v.id]
+
+
+def test_a_variant_that_names_no_plant_on_plants_on_the_culprit() -> None:
+    v = variant()
+    assert v.plant_on is None
+    assert v.planted_service(CATALOG["cart-bad-image-tag"]) == "cartservice"
+
+
+def test_plant_on_is_canonicalised_and_reaches_both_planters(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The seed named by either of the world's two names; the change record carries the canonical
+    one (the change analyst queries by exact equality) and the log line the container's."""
+    v = variant(plant_on="checkout-service", channel="change")
+    scenario = CATALOG["cart-bad-image-tag"]
+
+    record = change_record(v, scenario, datetime.now(UTC))
+    assert record.service == "checkoutservice"
+
+    seen: dict[str, Any] = {}
+
+    class Response(io.BytesIO):
+        status = 204
+
+        def __enter__(self) -> Response:
+            return self
+
+        def __exit__(self, *exc: Any) -> None:
+            return None
+
+    def fake_urlopen(request: Any, timeout: float) -> Response:
+        seen["body"] = json.loads(request.data)
+        return Response()
+
+    monkeypatch.setattr(adversarial.urllib.request, "urlopen", fake_urlopen)
+    planted = plant_log(
+        variant(plant_on="checkoutservice"), scenario, "http://loki", datetime.now(UTC)
+    )
+
+    assert seen["body"]["streams"][0]["stream"] == {"service": "checkout-service"}
+    assert planted.detail["planted_on"] == "checkoutservice"
 
 
 @pytest.mark.parametrize("v", VARIANTS, ids=lambda v: v.id)

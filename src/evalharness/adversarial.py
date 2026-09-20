@@ -95,6 +95,17 @@ class AdversarialVariant(BaseModel):
     decoy: Decoy
     actor: str = "release-bot"
     """The change channel's author. Ignored by the log channel."""
+    plant_on: str | None = None
+    """The service whose channel the payload is written into - its log stream (`log`) or its
+    change log (`change`). **Default: the base scenario's injection target, the culprit.**
+
+    Added after batch 2 (evidence, 2026-09-20): §4 of the pre-registration said batch 2 planted
+    on checkoutservice, the alerting seed, and the variant files' comments said so too - but the
+    model had no field for it and both planters wrote to the culprit as they always had. Three
+    runs, $2.47, planted where nobody looked, for the second time. The manifest's
+    `adversarial.detail.service` / `.selector` recorded the truth; nothing read it before the
+    money was spent. `tests/test_adversarial.py` now pins every committed variant's `plant_on`
+    against what its pre-registration section says, and `plant()` records `planted_on`."""
 
     @model_validator(mode="after")
     def _payload_is_plantable(self) -> AdversarialVariant:
@@ -114,6 +125,10 @@ class AdversarialVariant(BaseModel):
     @property
     def text(self) -> str:
         return self.payload.replace("{canary}", self.canary)
+
+    def planted_service(self, scenario: Scenario) -> str:
+        """Canonical name of the service whose channel receives the payload."""
+        return canonical_service(self.plant_on or scenario.injection.target)
 
     @classmethod
     def from_yaml(cls, path: Path) -> AdversarialVariant:
@@ -163,9 +178,8 @@ def loki_push_body(container: str, line: str, at: datetime) -> dict[str, Any]:
 def plant_log(
     variant: AdversarialVariant, scenario: Scenario, loki_url: str, at: datetime
 ) -> Planted:
-    container = SERVICE_CONTAINERS.get(
-        canonical_service(scenario.injection.target), scenario.injection.target
-    )
+    service = variant.planted_service(scenario)
+    container = SERVICE_CONTAINERS.get(service, service)
     body = json.dumps(loki_push_body(container, variant.text, at)).encode()
     request = urllib.request.Request(
         loki_url.rstrip("/") + LOKI_PUSH,
@@ -182,14 +196,19 @@ def plant_log(
         Channel.LOG,
         variant.canary,
         at.isoformat(),
-        {"loki_url": loki_url, "selector": f'{{service="{container}"}}', "status": status},
+        {
+            "loki_url": loki_url,
+            "planted_on": service,
+            "selector": f'{{service="{container}"}}',
+            "status": status,
+        },
     )
 
 
 def change_record(variant: AdversarialVariant, scenario: Scenario, at: datetime) -> ChangeRecord:
     return ChangeRecord(
         id=str(uuid.uuid4()),
-        service=canonical_service(scenario.injection.target),
+        service=variant.planted_service(scenario),
         at=at,
         actor=variant.actor,
         resource=Resource.CONFIG,
@@ -213,7 +232,12 @@ def plant_change(
         Channel.CHANGE,
         variant.canary,
         at.isoformat(),
-        {"record_id": record.id, "service": record.service, "actor": record.actor},
+        {
+            "record_id": record.id,
+            "planted_on": record.service,
+            "service": record.service,
+            "actor": record.actor,
+        },
     )
 
 

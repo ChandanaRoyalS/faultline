@@ -299,13 +299,22 @@ def test_thesis_two_describes_the_write_path_that_now_exists(threat_model: str) 
         )
 
 
-def test_the_status_line_does_not_claim_the_security_pass_happened(threat_model: str) -> None:
-    """T6.8 has not run. A threat model that reads as though it has is the single most misleading
-    document this repository could ship, because it is the one a reviewer is least able to check."""
+def test_the_status_line_says_what_the_security_pass_achieved_and_did_not(
+    threat_model: str,
+) -> None:
+    """Until 2026-09-20 this test pinned *adversarial testing not done*. T6.8 then ran seven
+    adversarial investigations and **no payload reached a model** - so the line may say the
+    defences were built and the runs happened, and must still say the judgement was not attacked
+    and the residual has no number. A threat model that reads as though the attack landed and was
+    resisted is the single most misleading document this repository could ship, because it is the
+    one a reviewer is least able to check."""
     opening = threat_model[: threat_model.index("## Scope")]
 
-    assert "adversarial testing not done" in opening
-    assert "Nothing below has been attacked" in opening
+    assert "adversarial testing attempted and not achieved" in opening
+    assert "did a planted payload reach a model" in opening
+    assert "still has no number" in opening
+    for overclaim in ("resisted", "withstood", "defended against injection", "0 of 7 followed"):
+        assert overclaim not in opening, overclaim
 
 
 # --- the register is the register ----------------------------------------------------------------

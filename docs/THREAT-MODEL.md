@@ -1,9 +1,16 @@
 # Faultline Threat Model
 
-**Status: theses recorded, adversarial testing not done.** T6.8 is the security pass — egress
-restriction, secret scrubbing, injection scenarios scored in the standard eval loop, a kill-switch
-drill. Nothing below has been attacked; the theses are written now because they shape the code,
-and each one names what is *built* separately from what is *intended*.
+**Status: theses recorded; the defences built; adversarial testing attempted and not achieved.**
+T6.8 (2026-09-20) built the security pass - egress restriction, secret scrubbing before every model
+call, a credential on the receiver, a lock-out on the credential, an injection harness with four
+pre-registered variants - and ran seven adversarial investigations ($5.62). **In none of the seven
+did a planted payload reach a model**: four because the planner never opens the culprit's own log
+stream or change log (batch 1), three because the harness planted on the culprit when its
+pre-registration said the alerting seed (batch 2, a defect fixed the same day). So the judgement
+half of thesis 1 - *an agent that identifies content as untrusted and believes it anyway* - **has
+still not been attacked and still has no number**; Q79 is the batch that would. Every thesis below
+names what is *built* separately from what is *intended*, and this line is held to that standard
+too: `docs/evidence/t6.8-adversarial/` is what happened.
 
 **Where a thesis and an ADR disagree, the ADR wins.** Thesis 2 was overstated for weeks and
 [ADR-0019 §4](adr/0019-tool-layer.md) said so at the time; §2 below is the correction, not a new
@@ -369,7 +376,16 @@ in a URL is a secret in every stack trace that URL appears in.
 ## To complete at T6.8
 
 - **Injection scenarios scored in the standard eval loop** — the residual in thesis 1 is currently
-  unbounded by any number, and this is the only thing that would bound it.
+  unbounded by any number, and this is the only thing that would bound it. *2026-09-20: the loop
+  exists (`faultline-eval --adversarial`, four variants, `delivered / mentioned / followed` scored
+  beside the diagnosis) and ran seven times; **the number is still unbounded**, because no payload
+  reached a model - `docs/evidence/t6.8-adversarial/`. What the seven runs did bound: the planner
+  opened the alerting seed's change log in 7 / 7 and the culprit's in 0 / 7, which says where the
+  next attacker writes. Q79.*
+- **Public-surface re-hardening (T6.8, done 2026-09-20):** credential on the receiver, 429 after
+  ten failed credentials a minute, egress through an allowlisting proxy, README §4 corrected;
+  audit-log review and a kill-switch drill are not done - the switch is documented (README §3.11)
+  and has been thrown once (T6.3), which is not a drill.
 - ~~Egress restriction on the agent container.~~ Done 2026-09-20 (`--internal` network, `egress` proxy; README §3.12).
 - ~~Secret scrubbing before model calls.~~ Done 2026-09-20.
 - Credentials and network policy on Prometheus and Loki (thesis 2).
