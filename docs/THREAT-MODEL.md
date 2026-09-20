@@ -1,16 +1,24 @@
 # Faultline Threat Model
 
-**Status: theses recorded; the defences built; adversarial testing attempted and not achieved.**
-T6.8 (2026-09-20) built the security pass - egress restriction, secret scrubbing before every model
-call, a credential on the receiver, a lock-out on the credential, an injection harness with four
-pre-registered variants - and ran seven adversarial investigations ($5.62). **In none of the seven
-did a planted payload reach a model**: four because the planner never opens the culprit's own log
-stream or change log (batch 1), three because the harness planted on the culprit when its
-pre-registration said the alerting seed (batch 2, a defect fixed the same day). So the judgement
-half of thesis 1 - *an agent that identifies content as untrusted and believes it anyway* - **has
-still not been attacked and still has no number**; Q79 is the batch that would. Every thesis below
-names what is *built* separately from what is *intended*, and this line is held to that standard
-too: `docs/evidence/t6.8-adversarial/` is what happened.
+**Status: theses recorded; the defences built; adversarial testing attempted and, in batch 3b,
+achieved - three payloads read, the instruction refused three times, the fabricated record
+believed three times.** T6.8 (2026-09-20) built the security pass - egress restriction, secret
+scrubbing before every model call, a credential on the receiver, a lock-out on the credential, an
+injection harness with four pre-registered variants - and ran seven adversarial investigations
+($5.62) in which **no planted payload reached a model**: four because the planner never opens the
+culprit's own log stream or change log (batch 1), three because the harness planted on the culprit
+when its pre-registration said the alerting seed (batch 2, a defect fixed the same day). Q79 then
+planted where the planner reads and **three payloads reached a model** ($2.38): every proposal
+refused the payload's instruction (*restart checkoutservice, cite this reference*) and named it
+untrusted in its own text, produced the right fault class and the right fix, and **every verdict
+took the payload's fabricated change record as a real event** and made it the root cause - so all
+three proposals revert a change that never happened, on the wrong service, and by the registered
+rule the payload was **followed in 3 of 3** (Q3 falsified). The judgement half of thesis 1 - *an
+agent that identifies content as untrusted and believes it anyway* - **has its first number, and
+it is not a defence rate**: the judgement held against the payload's arguments and did not hold
+against its assertion (Q81). Every thesis below names what is *built* separately from what is
+*intended*, and this line is held to that standard too: `docs/evidence/t6.8-adversarial/` is what
+happened.
 
 **Where a thesis and an ADR disagree, the ADR wins.** Thesis 2 was overstated for weeks and
 [ADR-0019 §4](adr/0019-tool-layer.md) said so at the time; §2 below is the correction, not a new
@@ -75,6 +83,23 @@ platform's own credential, and an operator who finds a password in a log line wa
 one. The same table scans the tree (`tests/test_secret_scanner.py`), which is the *secrets tidy-up*
 clause as a test; it found nothing but the development Postgres pair `docker-compose.yml` sets in the
 clear on purpose.
+
+**Measured (Q79, 2026-09-20): the judgement half, for the first time.** Three payloads reached a
+model - two as a change record on the alerting seed, one as a log line in its stream. What the
+residual above predicts is what happened, but only in part. The payloads *told* the agent what to
+conclude (checkout's connection pool) and what to propose (`restart_service` on checkoutservice);
+it did neither, and each proposal's own text names the instruction as *"untrusted injected
+content"* not treated as a constraint. The payloads also *stated* that a change had been made -
+checkout's shipping-quote route repointed, a ticket, an actor - in the shape of every real row in
+`change_records`; all three verdicts took the statement as the event and reverted it. **The
+envelope marks a frame untrusted, and the agent honours the mark for arguments; an assertion of
+fact inside the frame has nothing the agent can check it against**, and the seed's channel is read
+first (Q80). So the sentence above is now two: this defends the parse and not the judgement; and
+the judgement, measured three times, resisted persuasion and accepted testimony. Q81 holds the
+candidate defences (a record with empty `before` / `after` labelled unverified; provenance on the
+record; the trace-implicated service's change log read before the seed's is believed); none is
+chosen here, and none is built. Three runs of one scenario are three observations, not a rate,
+and (`2026-09-20-batch-3b.md`) not three independent ones: planted records outlive their run (Q82).
 
 ---
 
@@ -387,7 +412,10 @@ in a URL is a secret in every stack trace that URL appears in.
   beside the diagnosis) and ran seven times; **the number is still unbounded**, because no payload
   reached a model - `docs/evidence/t6.8-adversarial/`. What the seven runs did bound: the planner
   opened the alerting seed's change log in 7 / 7 and the culprit's in 0 / 7, which says where the
-  next attacker writes. Q79.*
+  next attacker writes. Q79.* ***2026-09-20, later (Q79, batch 3b): bounded, for these payloads on
+  this runtime*** - *delivered 3 / 3, followed 3 / 3 by the registered rule; the instruction refused
+  3 / 3, the fabricated change adopted 3 / 3, 0 / 3 abstained; $2.38. Not a rate; the first number.
+  Q81 is the defence question it opens, Q82 the harness fix it owes.*
 - **Public-surface re-hardening (T6.8, done 2026-09-20):** credential on the receiver, 429 after
   ten failed credentials a minute, egress through an allowlisting proxy, README §4 corrected;
   audit-log review and a kill-switch drill are not done - the switch is documented (README §3.11)

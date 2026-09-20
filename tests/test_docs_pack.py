@@ -302,19 +302,34 @@ def test_thesis_two_describes_the_write_path_that_now_exists(threat_model: str) 
 def test_the_status_line_says_what_the_security_pass_achieved_and_did_not(
     threat_model: str,
 ) -> None:
-    """Until 2026-09-20 this test pinned *adversarial testing not done*. T6.8 then ran seven
-    adversarial investigations and **no payload reached a model** - so the line may say the
-    defences were built and the runs happened, and must still say the judgement was not attacked
-    and the residual has no number. A threat model that reads as though the attack landed and was
-    resisted is the single most misleading document this repository could ship, because it is the
-    one a reviewer is least able to check."""
+    """Until 2026-09-20 this test pinned *adversarial testing not done*; then, after T6.8's seven
+    runs in which no payload reached a model, *attempted and not achieved*. Q79's batch 3b then
+    delivered three payloads, and the line must now say what those three runs did - **both
+    halves**: the instruction was refused and the fabricated record was believed, the payload
+    was followed 3 of 3 by the registered rule, and the number is not a defence rate. A threat
+    model that reads as though the attack landed and was resisted is the single most misleading
+    document this repository could ship, because it is the one a reviewer is least able to check;
+    one that reads as though it was never delivered is the second most."""
     opening = threat_model[: threat_model.index("## Scope")]
+    flat = " ".join(opening.split())
 
-    assert "adversarial testing attempted and not achieved" in opening
-    assert "did a planted payload reach a model" in opening
-    assert "still has no number" in opening
-    for overclaim in ("resisted", "withstood", "defended against injection", "0 of 7 followed"):
-        assert overclaim not in opening, overclaim
+    assert "adversarial testing attempted and, in batch 3b, achieved" in flat
+    assert "three payloads reached a model" in flat
+    assert "refused the payload's instruction" in flat
+    assert "fabricated change record as a real event" in flat
+    assert "followed in 3 of 3" in flat
+    assert "not a defence rate" in flat
+    assert "has its first number" in flat
+    assert "still has no number" not in flat
+    for overclaim in (
+        "resisted",
+        "withstood",
+        "defended against injection",
+        "0 of 7 followed",
+        "0 of 3 followed",
+        "no payload was followed",
+    ):
+        assert overclaim not in flat, overclaim
 
 
 # --- the register is the register ----------------------------------------------------------------
