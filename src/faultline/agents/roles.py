@@ -38,6 +38,7 @@ from faultline.agents.triage import TriageResult
 from faultline.context.allowlist import ActionStatus, load_allowlist
 from faultline.context.runbooks import Runbook, load_runbooks
 from faultline.observability.tracing import span
+from faultline.security.scrub import scrub
 from faultline.tools.metrics import MetricTemplate
 from faultline.tools.ranking import RankingContext
 from faultline.tools.results import ToolResult
@@ -114,6 +115,40 @@ class Completion:
     """The `model.call` span this completion was made inside, for the step to carry (T6.6).
     Empty when nothing is exporting."""
 
+    redactions: int = 0
+    """Secret-shaped spans replaced before the briefing left the process (T6.8,
+    `security.scrub`). Over both attempts when there were two. Recorded on the step, because a
+    briefing that carried a credential is a finding about the world as well as a thing not sent."""
+
+
+def _scrubbed(request: ModelRequest, messages: list[dict[str, Any]]) -> tuple[ModelRequest, int]:
+    """The request as it leaves the process: every string a model would read, scrubbed.
+
+    Message content is a string in this codebase (the tool-use shapes are built by the model
+    clients, not here); anything else is passed through untouched rather than guessed at.
+    """
+    system = scrub(request.system)
+    count = system.redactions
+    outgoing: list[dict[str, Any]] = []
+    for message in messages:
+        content = message.get("content")
+        if isinstance(content, str):
+            cleaned = scrub(content)
+            count += cleaned.redactions
+            outgoing.append({**message, "content": cleaned.text})
+        else:
+            outgoing.append(message)
+    return (
+        ModelRequest(
+            system=system.text,
+            messages=outgoing,
+            role=request.role,
+            max_tokens=request.max_tokens,
+            effort=request.effort,
+        ),
+        count,
+    )
+
 
 def ask(
     model: LanguageModel,
@@ -136,19 +171,19 @@ def ask(
     # would give a reader two spans to add up. The step that records this completion carries
     # the span's ids, which is the join from the trajectory to the trace.
     began = time.monotonic()
+    redactions = 0
     # `getattr`, because a span attribute must never be what breaks a model call: the
     # protocol has `name` and the test fakes do not all bother.
     with span("model.call", role=request.role, model=getattr(model, "name", "")) as handle:
         for attempt in (1, 2):
-            response = model.complete(
-                ModelRequest(
-                    system=request.system,
-                    messages=messages,
-                    role=request.role,
-                    max_tokens=request.max_tokens,
-                    effort=request.effort,
-                )
-            )
+            # **The one place a briefing leaves the process** (T6.8). Scrubbed here and not
+            # where the briefing is assembled, so a role added later is covered by construction,
+            # and so the re-ask's appended messages are covered too.
+            outgoing, count = _scrubbed(request, messages)
+            redactions += count
+            if count:
+                handle.set(redactions=redactions)
+            response = model.complete(outgoing)
             last = response
             parsed: Any = None
             try:
@@ -168,6 +203,7 @@ def ask(
                     latency_ms=int((time.monotonic() - began) * 1000),
                     trace_id=handle.trace_id,
                     span_id=handle.span_id,
+                    redactions=redactions,
                 )
             except (ValidationError, ValueError) as exc:
                 if attempt == 2:

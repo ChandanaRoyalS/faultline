@@ -29,14 +29,19 @@ class _Queue:
 
 
 class _Cursor:
-    """Answers the three queries `snapshot` makes, in order, from canned rows."""
+    """Answers the four queries `snapshot` makes, in order, from canned rows."""
 
     def __init__(
-        self, outcomes: list[tuple[str, int]], durations: list[float], tokens: tuple[int, int]
+        self,
+        outcomes: list[tuple[str, int]],
+        durations: list[float],
+        tokens: tuple[int, int],
+        redactions: int = 0,
     ) -> None:
         self._outcomes = outcomes
         self._durations = durations
         self._tokens = tokens
+        self._redactions = redactions
         self._pending: list[Any] = []
 
     def __enter__(self) -> _Cursor:
@@ -55,6 +60,8 @@ class _Cursor:
             self._pending = [(*counts, len(self._durations), float(sum(self._durations)))]
         elif "SUM(tokens_in)" in sql:
             self._pending = [self._tokens]
+        elif "redactions" in sql:
+            self._pending = [(self._redactions,)]
         else:  # pragma: no cover
             raise AssertionError(f"unexpected query: {sql}")
 
@@ -152,3 +159,13 @@ def test_mount_serves_the_snapshot_in_exposition_format() -> None:  # pragma: no
     assert 'faultline_investigations_total{outcome="dispatched"} 3.0' in body
     assert 'faultline_model_tokens_total{direction="in"} 1000.0' in body
     assert "faultline_investigation_seconds_bucket" in body
+
+
+def test_redactions_are_summed_over_every_completion_step() -> None:
+    """T6.8: the scrubber's count lives on the step that recorded the completion, and `/metrics`
+    is where an operator sees that briefings have been carrying credentials at all."""
+    snap = snapshot(
+        _Queue(0, 0), _Connection(_Cursor([], [], (0, 0), redactions=7)), usd_per_mtok=(1.0, 1.0)
+    )
+
+    assert snap.redactions == 7

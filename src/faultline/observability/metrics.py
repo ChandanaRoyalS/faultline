@@ -69,6 +69,9 @@ class Snapshot:
     tokens_in: int = 0
     tokens_out: int = 0
     usd: float = 0.0
+    redactions: int = 0
+    """Secret-shaped spans scrubbed out of briefings before they left the process, over every
+    recorded completion step (T6.8, `security.scrub`)."""
 
 
 def snapshot(queue: QueueReader, connection: Any, *, usd_per_mtok: tuple[float, float]) -> Snapshot:
@@ -103,6 +106,11 @@ def snapshot(queue: QueueReader, connection: Any, *, usd_per_mtok: tuple[float, 
         )
         tokens_in, tokens_out = cur.fetchone() or (0, 0)
         snap.tokens_in, snap.tokens_out = int(tokens_in), int(tokens_out)
+        cur.execute(
+            "SELECT COALESCE(SUM((payload->>'redactions')::int), 0) FROM trajectory_steps "
+            "WHERE payload ? 'redactions'"
+        )
+        snap.redactions = int((cur.fetchone() or (0,))[0])
     usd_in, usd_out = usd_per_mtok
     snap.usd = snap.tokens_in / 1e6 * usd_in + snap.tokens_out / 1e6 * usd_out
     return snap
@@ -190,6 +198,11 @@ def mount(
                 f"{NAMESPACE}_model_usd",
                 "Model spend across every recorded trajectory step, at the runtime's price table.",
                 value=snap.usd,
+            )
+            yield CounterMetricFamily(
+                f"{NAMESPACE}_briefing_redactions",
+                "Secret-shaped spans scrubbed out of briefings before a model saw them.",
+                value=float(snap.redactions),
             )
             if lockouts is not None:
                 yield CounterMetricFamily(
