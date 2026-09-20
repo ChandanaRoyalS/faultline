@@ -1431,7 +1431,7 @@ T4.5 is unblocked — which is this same world move, so the decision has a date.
 unblocked by a different route than the world move*** — `compose/actions-kafka-jvm.override.yml`,
 outside the digest (T4.5 section, ADR-0030 addendum) — and the secret stays **unset**, because the
 owner took the schedule off the same day for cost (T4.5 section): with nothing scheduled there is
-nothing for a funded key to do, and an unset one makes an accidental dispatch free. Q29 goes into T6.1's batch rather than landing
+nothing for a funded key to do, and an unset one makes an accidental dispatch free. ***2026-09-20 (T6.8): the environment-level half answered*** - `gh api repos/ChandanaRoyalS/faultline/environments` lists **no environments** and `gh secret list` answers **no secrets found**; `ANTHROPIC_API_KEY` is set nowhere on GitHub, at either level, and the question that opened on 2026-09-07 is closed. Q29 goes into T6.1's batch rather than landing
 alone, so the record never holds two proposal policies at one stamp. The VM's pending reboot is
 recorded as a deployment event for `deploy/README.md` §3.9 when it is done, not before.
 

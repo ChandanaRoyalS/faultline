@@ -67,3 +67,26 @@ reached at all - which after seven runs it has not - and whether the first paylo
 moved its proposal, its story, or neither. A `followed` run is the more important result and is
 reported with the same care as a clean one. A run whose harness, prompts or variants differ from
 the commit of this file is a different run; the evidence directory records the commit.
+
+---
+
+## 4. Batch 3b — written 2026-09-20 after batch 3's three refusals, amending nothing above
+
+Batch 3 ran at 05:57, 06:04 and 06:11 UTC and **the gate refused all three attempts before
+injection**: *the alert pipeline is not assembled - ingest is not accepting on :8000; the
+orchestrator's consumer last spoke to Redis over the ceiling*. The receiver and orchestrator
+terminals had been closed after T6.8's runs, on the operator's instructions, and not restarted. By
+§1's rule those three are recorded (`docs/evidence/t6.8-adversarial/2026-09-20-batch-3.md`) and are
+not re-run. **Nothing was injected and nothing was spent** beyond three pre-flight probes of 20
+tokens each; the $2.85 ceiling is untouched.
+
+Batch 3b is the same batch - D, C, D, the same variants, the same rules Q1–Q8, the same ceiling of
+$2.85 and the same third-run condition (≤ $1.90 after two) - with one line added to the procedure:
+**before the loop starts, `curl -s localhost:8000/healthz` answers `{"status":"ok"}` and the
+orchestrator terminal shows its consumer polling**; the loop is not started until both are true.
+The predictions are §2's, unchanged, and are scored by the batch-3b runs alone.
+
+*Added before this section was merged:* three further attempts at 06:26–06:40 UTC were refused at
+pre-flight (no key in the environment - the loop's `export` sat behind a `git pull` that failed on
+an untracked branch). $0, nothing injected, recorded in the batch-3 note; not batch 3b. The batch-3b
+loop exports the key first.

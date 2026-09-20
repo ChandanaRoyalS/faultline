@@ -362,6 +362,9 @@ real access log, rather than a placeholder.
 | Secret | Where | Handling |
 |---|---|---|
 | model API key | `ANTHROPIC_API_KEY`, environment only; on the VM, the orchestrator container's environment via `deploy/.env` | never in the tree; `pre-commit` runs `detect-private-key`; CI checks history; `deploy/.env` is gitignored and written from the key file without echoing it |
+| GitHub Actions secrets | **none** - checked 2026-09-20: `gh api …/environments` lists no environments, `gh secret list` finds no repository secrets | the two workflows that would read `ANTHROPIC_API_KEY` refuse cleanly without it (PLAN, T4.5); a funded key on a schedule nobody watches was judged the wrong default on 2026-09-08 and stays unset |
+| API password | `FAULTLINE_API_PASSWORD` on `faultline`; the same value as a bcrypt hash in Caddy (`FAULTLINE_API_PASSWORD_HASH`) and, since T6.8, as one line in `deploy/alertmanager.password` for Alertmanager | three forms of one credential, all from `deploy/.env` (README §3.1); the file is gitignored; ten failures a minute from one address lock the address out (T6.8) |
+| executor token key and tokens | `FAULTLINE_EXECUTOR_TOKEN_KEY` on `faultline` (mints) and `executor` (verifies); tokens single-use, action-bound | thesis 2; the key never leaves the two containers; the executor has no published port and, since T6.8, no route off the host |
 | Postgres DSN | `FAULTLINE_*_POSTGRES_DSN` | dev credentials are in `docker-compose.yml` and are dev-only by construction; a deployment supplies its own |
 | Slack webhook URL | `FAULTLINE_NOTIFY_SLACK_WEBHOOK_URL` | **a bearer credential, not an address.** `SecretStr`; plaintext transport refused; `__repr__` overridden; every error string scrubbed |
 | archive credentials | `boto3` environment | optional extra; absent by default |
