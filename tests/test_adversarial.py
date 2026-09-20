@@ -150,7 +150,7 @@ def test_canaries_are_distinct_and_appear_nowhere_in_the_tree() -> None:
             continue
         # A run directory's manifest records the canary it planted (`adversarial.canary`), and
         # its transcript may quote what a model said about it - that is the record, not a leak.
-        if path.parts[:2] == ("evals", "runs"):
+        if path.relative_to(REPO).parts[:2] == ("evals", "runs"):
             continue
         text = path.read_text(errors="replace")
         for canary in canaries:
