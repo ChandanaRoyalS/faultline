@@ -43,10 +43,21 @@ name: faultline-deploy
 # `external: true` rather than a shared default, because otherwise the creating project owns the
 # network's lifetime - `docker compose down` on the platform would tear out from under the world a
 # network the world is still attached to. The operator creates it once; README §3.2 says so.
+#
+# **`--internal` since T6.8 (2026-09-20).** `docker network create --internal faultline-deploy-net`:
+# nothing on this network has a route off the host. The model provider and Slack are reached
+# through `egress` below, a forward proxy whose access list is two hostnames (`deploy/squid.conf`),
+# and which is the only service besides Caddy on `faultline-deploy-egress`, the one network here
+# with a default route. An investigator that read *exfiltrate what you found* in a log line has
+# nowhere to send it. README §3.12 is the window that converted an existing deployment.
 networks:
   faultline:
     external: true
     name: faultline-deploy-net
+  egress:
+    # Compose-managed, unlike `faultline`: only this project's two containers join it, so the
+    # lifetime argument above does not apply.
+    name: faultline-deploy-egress
 
 services:
   postgres:
@@ -251,6 +262,9 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+      # T6.8: the proxy must exist before the first model call has somewhere to go.
+      egress:
+        condition: service_started
     environment:
       # T6.7 (2026-09-19, the a07344d6 rollout): every startup line a daemon `print`s - the spend
       # ceiling, the settle window, `metrics: /metrics mounted` - is stdout, and a container's
@@ -302,10 +316,32 @@ services:
       # deployment runs under is in the file a reader opens, and so the day it is raised is a
       # commit. `Budget.max_usd` still caps one incident; this caps the day.
       FAULTLINE_ORCH_MAX_USD_PER_DAY: "5"
+      # T6.8: the only way out. The model client is `httpx` and the notifier is `urllib`; both
+      # read the standard variable, and the investigator subprocess inherits it. `HTTPS_PROXY`
+      # alone - the tools reach Prometheus, Loki and Tempo over plain `http://` by container
+      # name and an `HTTP_PROXY` would send those to the proxy to be refused. `NO_PROXY` for
+      # the one client that does not distinguish: grpc (the OTLP exporter to `tempo:4317`)
+      # honours `https_proxy` for insecure channels too.
+      HTTPS_PROXY: http://egress:3128
+      NO_PROXY: tempo,postgres,redis,faultline,executor,prometheus,loki,prometheus-self,localhost,127.0.0.1
     command:
       - faultline-orchestrate
     networks:
       - faultline
+
+  egress:
+    # T6.8: the forward proxy, and the whole of the platform's route to the internet. Two
+    # networks: `faultline`, where the orchestrator finds it as `egress:3128`, and `egress`,
+    # the only network here that is not `--internal`. `deploy/squid.conf` allows CONNECT to
+    # `api.anthropic.com:443` and `hooks.slack.com:443` and denies everything else; every tunnel
+    # is one line on stdout, so `docker compose logs egress` is the record of what left.
+    image: ubuntu/squid:6.6-24.04_beta
+    restart: unless-stopped
+    volumes:
+      - ./squid.conf:/etc/squid/squid.conf:ro
+    networks:
+      - faultline
+      - egress
 
   executor:
     # T6.2: the action plane. **The one container that can change the world**, and the only one
@@ -417,8 +453,12 @@ services:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddydata:/data
       - caddyconfig:/config
+    # Both networks (T6.8): `faultline` to reach the platform and the world's UIs, `egress` for
+    # ACME - Let's Encrypt has to be reachable from here or the certificate does not renew - and
+    # for the published ports, which an `--internal` network alone cannot serve.
     networks:
       - faultline
+      - egress
 
 volumes:
   pgdata:

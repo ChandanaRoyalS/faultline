@@ -321,7 +321,9 @@ on `/metrics`. Caddy's own basic auth in front of Grafana and Jaeger has no such
   exact configuration §2 called *a finding, not a configuration*. It is a finding. The blast radius
   is one compose network on one host with nothing else on it; the fix (credentials on the datasources
   and a network policy between the agent container and the rest) is T6.8's and is not made smaller
-  by being deferred again.
+  by being deferred again. *2026-09-20: the network half is built the other way round - the whole
+  network lost its route out (`--internal`), so a compromised agent container reads the datasources
+  and can send what it read nowhere. The credentials half waits for a digest change (Q4).*
 - ~~**The alert receiver is unauthenticated from the network** (thesis 3). Anything on the compose
   network can open an incident and spend model calls.~~ **Closed 2026-09-20 (T6.8)**: the
   receiver demands the API pair on the deployment; thesis 3's addendum has the mechanism.
@@ -329,8 +331,10 @@ on `/metrics`. Caddy's own basic auth in front of Grafana and Jaeger has no such
   now runs `faultline-investigate` itself (`FAULTLINE_ORCH_INVESTIGATE=1`). That container also
   reads the world's telemetry — the thesis-1 text — so the process that holds the key is the
   process that reads attacker-influenced input. ~~Secret scrubbing before model calls is T6.8's~~
-  (built 2026-09-20 - thesis 1's addendum); egress restriction on that container is T6.8's; both
-  matter more now than when the key lived only on a laptop.
+  (built 2026-09-20 - thesis 1's addendum); ~~egress restriction on that container is T6.8's~~
+  (built the same day: the network is `--internal` and the container's only route out is a proxy
+  that admits two hostnames, `deploy/squid.conf`); both matter more now than when the key lived
+  only on a laptop.
 - **One host, nightly snapshots on that host's own disk and none off it** (T6.7; was *no backups beyond a manual snapshot*), ~~no rate limit on the credential~~ (T6.8: 429 after ten a minute), no alert on
   the access log. `docs/GATES.md` G6 is where reliability becomes a deliverable and this addendum
   does not pretend otherwise.
@@ -366,7 +370,7 @@ in a URL is a secret in every stack trace that URL appears in.
 
 - **Injection scenarios scored in the standard eval loop** — the residual in thesis 1 is currently
   unbounded by any number, and this is the only thing that would bound it.
-- Egress restriction on the agent container.
+- ~~Egress restriction on the agent container.~~ Done 2026-09-20 (`--internal` network, `egress` proxy; README §3.12).
 - ~~Secret scrubbing before model calls.~~ Done 2026-09-20.
 - Credentials and network policy on Prometheus and Loki (thesis 2).
 - ~~Authentication on the ingest webhook from inside the network (thesis 3); the read routes are
