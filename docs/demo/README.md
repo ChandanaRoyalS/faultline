@@ -97,10 +97,30 @@ marked `demo`, and are not deleted.**
 
 **What choosing the third take does and does not mean.** Demo runs are marked `demo` in their
 manifest and never enter a sweep aggregate, so nothing in `docs/RESULTS.md` moved. The infrastructure
-was fixed before the take, not the agent — no prompt, bound or tool changed, and the stamp is the
-same `b6837dd449ca` every published figure carries. But the take *was* selected by its outcome from
-three, and a reader should know that: on this scenario the current world's record is roughly two
-correct in three, and the video shows one of the two.
+was fixed before the take, not the agent — no prompt, bound or tool changed, and the stamp was the
+same `b6837dd449ca` every figure published **on 2026-09-07** carried. But the take *was* selected by
+its outcome from three, and a reader should know that: on this scenario the world's record at the
+time was roughly two correct in three, and the video shows one of the two.
+
+**What the video shows, and what this repository now runs — added 2026-09-20 by G7's assessment
+(`docs/GATES.md`).** The sentence above said *"the stamp … every published figure carries"* in the
+present tense for thirteen days after it stopped being true, and no document anywhere marked the
+video as dated. It is dated. It shows:
+
+| | the video, 2026-09-07 | this repository today |
+|---|---|---|
+| pipeline stamp | `prompts:b6837dd449ca` | `prompts:06f24e827915` |
+| world generation | `f5bd108f4f70` | `90e9f29e578e` |
+| specialists | three — metrics, logs, changes | **four**; traces arrived with Tempo at T6.1 on 2026-09-08, *the day after this was cut* |
+| retrieval corpus | 25 documents | **60** (T6.4, T6.5) |
+| remediation | proposed, no executor existed | **executed on human approval**; the action plane landed at T6.2 on 2026-09-11 |
+| the platform's own telemetry | none | seven spans, JSON logs and `/metrics`, on its own dashboard (T6.6) |
+
+**Nothing here is a reason to distrust the take** — a demo run enters no aggregate, and the run it
+shows is in `evals/runs/` marked `demo` for anyone who wants to read it. It is a reason not to show
+this video as a picture of the current pipeline. Re-cutting it costs a day and a new take's outcome
+is a lottery this note would have to disclose all over again; **saying what it shows costs nothing,
+so that is what this table is.**
 
 **How it was cut.** Four QuickTime screen recordings (⌘⇧5), one `ffmpeg` invocation, no editor. The
 script and the title-card images are kept beside this file in `docs/demo/video/` so the cut is
