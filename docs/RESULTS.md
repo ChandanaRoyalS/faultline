@@ -32,10 +32,46 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 > form a control (**Q59**). What is claimed here is the density, which is measured; what is not
 > claimed is what it costs.
 
-> **No world has ever held much of the record**, and this one now holds the most: **80 scored
-> pipeline runs** on `90e9f29e…` (65 at the current observability digest, 15 at the blind one),
-> against 49 on `f5bd108f…`. That is the R = 3 design doing what it was bought for.
+> **No world has ever held much of the record**, and this one now holds the most: **168 scored
+> pipeline runs** on `90e9f29e…` (153 at the observability digest this document reports,
+> 15 at the blind one), against 49 on `f5bd108f…`. That is the R = 3 design doing what it was
+> bought for. *(This paragraph read **80** and **65** until 2026-09-20, written before T6.5's sixty
+> runs and T6.8's ten. It is now read from the tree by
+> `tests/test_results_run_counts.py`, because a hand-maintained count on the most-read document
+> in the repository is a promise to remember, and the promise has now failed twice.)*
 >
+## T6.5 — the newest figure, and the corpus comparison it came from (2026-09-17/18)
+
+**This is the figure the front door headlines, and until 2026-09-20 it was not in this document at
+all** — found by G7's assessment ([`GATES.md`](GATES.md)). Sixty runs, **\$44.79**, world
+`90e9f29e…`, stamp `prompts:06f24e827915`, ten dev scenarios three times each in each arm,
+pre-registered in [`PREREGISTRATION-T6.5.md`](../evals/runs/PREREGISTRATION-T6.5.md) with seven
+amendments merged before any of them ran. Full report:
+[`TRANSFER-2026-09-18-t6.5.md`](../evals/runs/TRANSFER-2026-09-18-t6.5.md).
+
+**The WITH arm is the headline**: thirty runs against the 60-document corpus this pipeline now
+retrieves from — **culprit service 21 / 30, fault class 20 / 24, six abstentions.** Its WITHOUT arm
+is the control for a registered comparison and is deliberately not summed with it.
+
+| | WITH | WITHOUT | delta |
+|---|---|---|---|
+| **fault class**, abstentions excluded | 20 / 24 — 83.3 % | **25 / 27 — 92.6 %** | **−9.3 pp** |
+| culprit service | 21 / 30 | 23 / 30 | −6.7 pp |
+| **abstentions** | **6** | **3** | **+3** |
+
+**The comparison found nothing measurable and the sign reversed** — −9.3 pp sits under both
+registered floors, and the within-arm test settles it: inside the WITH arm, runs that actually
+surfaced a same-class document scored 12 / 14 against 8 / 10 for runs that surfaced none. **Four of
+seven predictions failed.** The one result that survives the variance argument is the abstentions:
+the arm that read more declined twice as often, on every scenario where anything moved.
+
+**Read beside the last figure, not instead of it.** Dev sweep 12 below is R = 3 on the same world
+and stamp against the 25-document corpus, and **a figure belongs to the corpus it was retrieved
+against** the same way it belongs to its world ([Q61](QUEUE.md)). Neither withdraws the other.
+
+**The three-way comparison and the two others are in [`ABLATIONS.md`](ABLATIONS.md)**, which is
+where the four component ablations this project has run now live together.
+
 ## Dev sweep 12 — the world that exists
 
 **World `compose_digest 90e9f29e…` / `observability_digest 7aaba381…`, stamp
