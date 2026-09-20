@@ -131,6 +131,12 @@ services:
       # Where the executor answers. Compose network only; Caddy forwards nothing to it.
       FAULTLINE_API_EXECUTOR_URL: http://executor:8100
       FAULTLINE_INGEST_REDIS_URL: redis://redis:6379/0
+      # T6.8: the receiver takes the API pair on this deployment. THREAT-MODEL thesis 3 was
+      # written when Alertmanager was assumed to send nothing; it sends whatever
+      # `http_config.basic_auth` in `deploy/alertmanager.yml` names, and here that is this
+      # same pair from `deploy/alertmanager.password` (§3.1). Every container on this network
+      # could open an incident that spends money; now only one that holds the password can.
+      FAULTLINE_INGEST_REQUIRE_CREDENTIAL: "1"
       # T6.6: the agent's own spans go to the world's Tempo, where the trace sits beside the
       # outage's - one query away rather than three. The standard variable, not a `FAULTLINE_`
       # one, because the SDK and every other OTel client read the same name; unset would mean no

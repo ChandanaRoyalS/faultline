@@ -23,8 +23,16 @@ receivers:
   - name: faultline
     webhook_configs:
       # Container to container on the compose network - never through Caddy, which returns 404 on
-      # this path. That is not a workaround: the receiver takes no credential (Alertmanager sends
-      # none, THREAT-MODEL thesis 3), so the only safe place for it is off the internet, and the
-      # only thing that needs to reach it is already inside.
+      # this path. Off the internet since T5.5 (THREAT-MODEL thesis 3), and since T6.8 behind the
+      # API pair as well - the network is not the only thing standing between a POST and a bill.
       - url: "http://faultline:8000/api/v1/alerts"
         send_resolved: true
+        # T6.8: the receiver demands the API pair on this deployment
+        # (`FAULTLINE_INGEST_REQUIRE_CREDENTIAL` in compose.yml). The username is the default
+        # `faultline.api.auth.DEFAULT_USER`, spelled here because this file expands nothing;
+        # the password is the mounted file, never this file. Anything else on the network that
+        # posts here without it is answered 401 - and after ten of those, 429.
+        http_config:
+          basic_auth:
+            username: faultline
+            password_file: /etc/alertmanager/receiver.password

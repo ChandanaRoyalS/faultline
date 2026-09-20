@@ -5,11 +5,19 @@
 posting to since T1.3 - the eight deliveries in `docs/evidence/t2.1-webhook/` were captured
 against that exact URL by a bare listener.
 
-**No authentication, and that is a recorded gap rather than an oversight.** Measured over
-those deliveries: Alertmanager sends no signature, no shared secret and no credential of
-any kind, only `User-Agent: Alertmanager/0.27.0`. Anything that can reach the port can
-fabricate an incident. See docs/THREAT-MODEL.md; the defence is T2.6/T6.8's, not this
-task's.
+**No authentication by default, and that is a recorded gap rather than an oversight.**
+Measured over those deliveries: Alertmanager sends no signature, no shared secret and no
+credential of any kind *unless configured to*, only `User-Agent: Alertmanager/0.27.0`.
+Anything that can reach the port can fabricate an incident. See docs/THREAT-MODEL.md thesis 3.
+
+**T6.8: a deployment switches the credential on.** `FAULTLINE_INGEST_REQUIRE_CREDENTIAL=1`
+makes this route demand the API pair (`faultline.api.auth`) in an `Authorization: Basic`
+header, which Alertmanager *can* send - `http_config.basic_auth.password_file` in
+`deploy/alertmanager.yml`. Off on a development machine, where the receiver is on the host
+and the world's Alertmanager reads the digest-locked development config, which carries none.
+The gate parses the header itself rather than declaring a security scheme, so the committed
+OpenAPI contract is the same document either way: the interface did not move, a deployment
+chose to use a header it always accepted.
 """
 
 from __future__ import annotations
@@ -21,7 +29,7 @@ from datetime import UTC, datetime
 from functools import lru_cache
 
 import redis
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI, Request
 
 from faultline.api import auth
 from faultline.ingest.dedupe import RedisEpisodeLog
@@ -65,7 +73,25 @@ def receiver() -> Receiver:
     )
 
 
-@app.post("/api/v1/alerts")
+@lru_cache(maxsize=1)
+def requires_credential() -> bool:
+    """Read once per process, like the receiver. Cleared alongside it when flags change it."""
+    return IngestSettings().require_credential
+
+
+def credential_gate(request: Request) -> None:
+    """Admit the API pair when the deployment asks for one; admit everything otherwise.
+
+    Runs through `auth.verify`, so a wrong password here counts into the same lock-out table as
+    one on the read surface - the receiver is on the same port and the same process, and a brute
+    force does not care which route it found.
+    """
+    if not requires_credential():
+        return
+    auth.verify(request, auth.basic_header(request), auth.credentials())
+
+
+@app.post("/api/v1/alerts", dependencies=[Depends(credential_gate)])
 def receive_alerts(payload: WebhookPayload) -> dict[str, int]:
     """Accept one Alertmanager delivery. Publishes what is new, counts what repeated."""
     result = receiver().receive(payload, received_at=datetime.now(UTC))
@@ -92,7 +118,10 @@ def parser() -> argparse.ArgumentParser:
             "Receive Alertmanager webhook deliveries, deduplicate them by alert episode, "
             "and publish alert-episode transitions to the Redis stream (T2.1, ADR-0015)."
         ),
-        epilog="The receiver has no authentication - see docs/THREAT-MODEL.md, thesis 3.",
+        epilog=(
+            "The receiver takes no credential unless FAULTLINE_INGEST_REQUIRE_CREDENTIAL=1 "
+            "- see docs/THREAT-MODEL.md, thesis 3."
+        ),
     )
     p.add_argument("--host", default=settings.host, help="default: %(default)s")
     p.add_argument("--port", type=int, default=settings.port, help="default: %(default)s")
@@ -136,6 +165,11 @@ def run(argv: list[str] | None = None) -> int:
     os.environ["FAULTLINE_INGEST_REDIS_URL"] = args.redis_url
     os.environ["FAULTLINE_INGEST_STREAM"] = args.stream
     receiver.cache_clear()
+    requires_credential.cache_clear()
+    if requires_credential():
+        # Fail at startup, not on the first delivery: the read surface's argument (`auth`).
+        auth.credentials()
+        print("receiver: a credential is required on POST /api/v1/alerts", flush=True)
 
     # **Not the module-level `app`.** That one is the receiver alone and is what T2.1's tests
     # import; serving it here is what left T5.1's routes reachable from nothing for two days.

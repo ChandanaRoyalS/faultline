@@ -11,6 +11,7 @@ nowhere in `src/` while the suite stayed green.
 from __future__ import annotations
 
 import base64
+from collections.abc import Iterator
 
 import pytest
 from fastapi.testclient import TestClient
@@ -175,13 +176,125 @@ def test_a_wrong_password_is_refused(served: TestClient) -> None:
     assert served.get("/api/v1/incidents", headers=header(password="wrong")).status_code == 401
 
 
-def test_the_write_path_stays_open(served: TestClient) -> None:
-    """**Deliberate.** Alertmanager sends no credential of any kind - measured over the eight
-    deliveries in docs/evidence/t2.1-webhook/. Basic auth here would not authenticate anyone, it
-    would stop the alerts arriving. That defence is T2.6/T6.8's."""
+def test_the_write_path_stays_open_by_default(served: TestClient) -> None:
+    """**Deliberate on a development machine.** The world's Alertmanager there reads a
+    digest-locked config that sends no credential, so a receiver that demanded one would stop the
+    alerts arriving. A deployment switches it on (T6.8) - the tests below."""
     response = served.post("/api/v1/alerts", json={"alerts": []})
 
     assert response.status_code != 401
+
+
+@pytest.fixture
+def credentialed_receiver(
+    served: TestClient, monkeypatch: pytest.MonkeyPatch
+) -> Iterator[TestClient]:
+    """The assembled app with `FAULTLINE_INGEST_REQUIRE_CREDENTIAL=1`, as `deploy/compose.yml`
+    sets it. The flag is read once per process, so the cache is cleared around the test."""
+    monkeypatch.setenv("FAULTLINE_INGEST_REQUIRE_CREDENTIAL", "1")
+    ingest_module.requires_credential.cache_clear()
+    yield served
+    ingest_module.requires_credential.cache_clear()
+
+
+def test_a_deployment_receiver_refuses_an_anonymous_post(
+    credentialed_receiver: TestClient,
+) -> None:
+    """Every container on the compose network could open an incident that spends money.
+    THREAT-MODEL thesis 3 assumed Alertmanager could send nothing; it sends what `http_config`
+    names (`deploy/alertmanager.yml`)."""
+    response = credentialed_receiver.post("/api/v1/alerts", json={"alerts": []})
+
+    assert response.status_code == 401
+    assert response.headers["WWW-Authenticate"] == "Basic"
+
+
+def test_a_deployment_receiver_admits_the_pair(credentialed_receiver: TestClient) -> None:
+    response = credentialed_receiver.post("/api/v1/alerts", json={"alerts": []}, headers=header())
+
+    assert response.status_code != 401
+
+
+def test_a_deployment_receiver_refuses_the_wrong_pair(credentialed_receiver: TestClient) -> None:
+    response = credentialed_receiver.post(
+        "/api/v1/alerts", json={"alerts": []}, headers=header(password="wrong")
+    )
+
+    assert response.status_code == 401
+
+
+def test_the_credential_does_not_move_the_committed_contract() -> None:
+    """The gate parses the header itself rather than declaring a security scheme, so the OpenAPI
+    document Alertmanager's interface is pinned to is the same document with the flag on or off."""
+    from faultline.ingest.app import app
+
+    operation = app.openapi()["paths"]["/api/v1/alerts"]["post"]
+
+    assert "security" not in operation
+
+
+# --- T6.8: ten wrong passwords a minute is a lock-out ------------------------------------------
+
+
+@pytest.fixture
+def fresh_limiter(monkeypatch: pytest.MonkeyPatch) -> auth.FailureLimiter:
+    """A limiter of this test's own, installed in place of the process-wide one."""
+    fresh = auth.FailureLimiter()
+    monkeypatch.setattr(auth, "limiter", fresh)
+    return fresh
+
+
+def test_ten_wrong_passwords_lock_the_address_out(
+    served: TestClient, fresh_limiter: auth.FailureLimiter
+) -> None:
+    """Nothing limited how fast the credential could be guessed, and the Caddyfile's comment said
+    where that would first show: on the bill."""
+    attacker = {"X-Forwarded-For": "203.0.113.7", **header(password="wrong")}
+    for _ in range(auth.LIMIT_FAILURES):
+        assert served.get("/api/v1/incidents", headers=attacker).status_code == 401
+
+    locked = served.get("/api/v1/incidents", headers=attacker)
+    assert locked.status_code == 429
+    assert "Retry-After" in locked.headers
+    assert fresh_limiter.lockouts == 1
+
+
+def test_a_locked_out_address_learns_nothing_from_the_right_password(
+    served: TestClient, fresh_limiter: auth.FailureLimiter
+) -> None:
+    """429 before the pair is looked at: a correct guess during the lock-out is answered the same
+    as a wrong one, so the lock-out cannot be used as an oracle."""
+    attacker = {"X-Forwarded-For": "203.0.113.7"}
+    for _ in range(auth.LIMIT_FAILURES):
+        served.get("/api/v1/incidents", headers={**attacker, **header(password="wrong")})
+
+    assert served.get("/api/v1/incidents", headers={**attacker, **header()}).status_code == 429
+
+
+def test_another_address_is_unaffected(
+    served: TestClient, fresh_limiter: auth.FailureLimiter
+) -> None:
+    for _ in range(auth.LIMIT_FAILURES):
+        served.get(
+            "/api/v1/incidents", headers={"X-Forwarded-For": "203.0.113.7", **header(password="x")}
+        )
+
+    operator = served.get(
+        "/api/v1/incidents", headers={"X-Forwarded-For": "198.51.100.2", **header()}
+    )
+    assert operator.status_code != 429
+
+
+def test_the_receiver_counts_into_the_same_table(
+    credentialed_receiver: TestClient, fresh_limiter: auth.FailureLimiter
+) -> None:
+    """Same port, same process: a brute force does not care which route it found."""
+    attacker = {"X-Forwarded-For": "203.0.113.7", **header(password="wrong")}
+    for _ in range(auth.LIMIT_FAILURES):
+        credentialed_receiver.post("/api/v1/alerts", json={"alerts": []}, headers=attacker)
+
+    read = credentialed_receiver.get("/api/v1/incidents", headers={**attacker, **header()})
+    assert read.status_code == 429
 
 
 def test_assembling_the_read_half_without_a_password_refuses(

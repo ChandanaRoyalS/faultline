@@ -14,11 +14,13 @@ to be: a string is not an import.
 from __future__ import annotations
 
 import ast
+import re
 from pathlib import Path
 
 import pytest
 
-SRC = Path(__file__).resolve().parents[1] / "src"
+REPO = Path(__file__).resolve().parents[1]
+SRC = REPO / "src"
 RUNTIME = ("faultline/agents", "faultline/tools")
 FORBIDDEN_MODULES = (
     "faultline.executor",
@@ -162,3 +164,23 @@ def test_no_surface_still_claims_the_executor_does_not_exist() -> None:
             if id(node) in prose:
                 continue
             assert "no executor exists" not in node.value, f"{path}:{node.lineno}"
+
+
+QUOTED = re.compile(r'\*"[^"]*"\*')
+"""An italicised quotation - `*"…"*` - is how the operator's runbook records what a paragraph used
+to say when it corrects it. Stripped before the check below, for the reason the test above gives
+for docstrings: a guard that forbade a document from quoting the defect it corrects would forbid
+the correction."""
+
+OPERATOR_DOCUMENTS = ("deploy/README.md", "docs/THREAT-MODEL.md")
+"""The two documents an operator reads before touching the deployment. **Not scanned until T6.8**:
+the test above covered `src/` and `deploy/README.md:621` said *"No executor exists at all"* for six
+weeks after T6.2 built one and nine days after the deployment started running it. A guard on the
+program's strings and none on the runbook's is a guard on the half a reviewer checks less."""
+
+
+@pytest.mark.parametrize("document", OPERATOR_DOCUMENTS)
+def test_no_operator_document_still_claims_the_executor_does_not_exist(document: str) -> None:
+    text = QUOTED.sub("", (REPO / document).read_text()).lower()
+
+    assert "no executor exists" not in text, document

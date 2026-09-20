@@ -23,10 +23,12 @@
 
 	# --- the receiver is not on the internet ---------------------------------------------------
 	#
-	# **This changed when the orchestrator arrived, and it had to.** `POST /api/v1/alerts` is
-	# unauthenticated by design - Alertmanager sends no credential of any kind, so a password there
-	# would stop alerts rather than attackers (THREAT-MODEL thesis 3). That was harmless while the
-	# deployment served a snapshot and investigated nothing.
+	# **This changed when the orchestrator arrived, and it had to.** `POST /api/v1/alerts` was
+	# unauthenticated by design - Alertmanager was assumed to send no credential of any kind, so a
+	# password there would stop alerts rather than attackers (THREAT-MODEL thesis 3). That was
+	# harmless while the deployment served a snapshot and investigated nothing. (Since T6.8 the
+	# receiver does take the API pair and Alertmanager does send it; this block stays, because a
+	# credentialed route on the internet is still a route on the internet.)
 	#
 	# It is not harmless now. An alert that reaches the receiver opens an incident, and an incident
 	# runs an investigation, and an investigation spends money on model calls. Left open, this path

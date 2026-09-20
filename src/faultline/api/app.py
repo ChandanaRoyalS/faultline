@@ -131,6 +131,7 @@ def metrics_surface(app: FastAPI, incident_store: Any, connection: Any) -> bool:
         incident_store,
         connection,
         usd_per_mtok=(settings.usd_per_mtok_in, settings.usd_per_mtok_out),
+        lockouts=lambda: auth.limiter.lockouts,
     )
     print(
         "metrics: /metrics mounted"

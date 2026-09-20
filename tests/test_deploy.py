@@ -556,6 +556,42 @@ def test_alertmanager_posts_to_the_container_not_a_developers_host(world: dict) 
     ], "an overlay replaces command, which is how the second config is selected"
 
 
+# --- T6.8: the receiver takes the pair, and Alertmanager sends it -------------------------------
+
+RECEIVER_PASSWORD_FILE = "/etc/alertmanager/receiver.password"
+
+
+def test_the_deployment_receiver_requires_the_credential(compose: dict) -> None:
+    """Every container on `faultline-deploy-net` - the world's telemetry included, since T6.6 -
+    could POST an alert and open an incident that spends money. THREAT-MODEL thesis 3 said a
+    credential here would stop alerts; Alertmanager sends whatever `http_config` names."""
+    env = compose["services"]["faultline"]["environment"]
+
+    assert env["FAULTLINE_INGEST_REQUIRE_CREDENTIAL"] == "1"
+
+
+def test_alertmanager_sends_the_pair_from_a_file_it_mounts(world: dict) -> None:
+    """The config is committed, so the password is a mounted file and the config names its path.
+    The username is the application's default, spelled out because this file expands nothing."""
+    config = yaml.safe_load(DEPLOY_ALERTMANAGER.read_text())
+    hook = config["receivers"][0]["webhook_configs"][0]
+
+    assert hook["http_config"]["basic_auth"] == {
+        "username": "faultline",
+        "password_file": RECEIVER_PASSWORD_FILE,
+    }
+    assert "password" not in hook["http_config"]["basic_auth"], "the value, never in the tree"
+    mounts = world["services"]["alertmanager"]["volumes"]
+    assert f"../deploy/alertmanager.password:{RECEIVER_PASSWORD_FILE}:ro" in mounts
+
+
+def test_the_receiver_password_file_is_ignored_by_git() -> None:
+    ignored = (REPO_ROOT / ".gitignore").read_text().splitlines()
+
+    assert "deploy/alertmanager.password" in ignored
+    assert not (DEPLOY / "alertmanager.password").exists(), "written on the VM, never here"
+
+
 def test_the_deployment_alertmanager_batches_exactly_as_development_does() -> None:
     """A deployment that grouped alerts differently would produce incidents of a different shape,
     and every figure in docs/RESULTS.md was measured under these numbers."""

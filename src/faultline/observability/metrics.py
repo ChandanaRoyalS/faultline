@@ -33,6 +33,7 @@ when it is absent, so an API without the extra serves everything else and has no
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
@@ -108,12 +109,20 @@ def snapshot(queue: QueueReader, connection: Any, *, usd_per_mtok: tuple[float, 
 
 
 def mount(
-    app: Any, queue: QueueReader, connection: Any, *, usd_per_mtok: tuple[float, float]
+    app: Any,
+    queue: QueueReader,
+    connection: Any,
+    *,
+    usd_per_mtok: tuple[float, float],
+    lockouts: Callable[[], int] | None = None,
 ) -> bool:
     """Add `GET /metrics` to a FastAPI app if the client is installed. Returns whether it did.
 
     A custom collector rather than module-level `Gauge()` objects, because the numbers are
     *read* at scrape time rather than *kept* between scrapes - there is nothing to increment.
+    `lockouts` (T6.8) is the one exception: the credential limiter's count lives in the web
+    process and nowhere else, so it is read from there, through a callable so this module still
+    imports without the API.
     """
     try:
         from prometheus_client import (
@@ -182,6 +191,12 @@ def mount(
                 "Model spend across every recorded trajectory step, at the runtime's price table.",
                 value=snap.usd,
             )
+            if lockouts is not None:
+                yield CounterMetricFamily(
+                    f"{NAMESPACE}_credential_lockouts",
+                    "Clients answered 429 for too many failed credentials, since process start.",
+                    value=float(lockouts()),
+                )
 
     registry = CollectorRegistry()
     registry.register(_Collector())
