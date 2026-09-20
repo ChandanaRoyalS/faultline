@@ -603,6 +603,98 @@ def test_the_deployment_alertmanager_batches_exactly_as_development_does() -> No
     }
 
 
+# --- T6.8 piece 3: the platform network has no route out, and the proxy is the only way -------
+
+SQUID_CONF = DEPLOY / "squid.conf"
+EGRESS_ALLOWED = {"api.anthropic.com", "hooks.slack.com"}
+"""The two hostnames the platform may open a connection to. **A third is a review**, and the
+design note says why: egress is the direction an injected instruction would use."""
+
+
+def test_the_egress_network_exists_and_is_compose_managed(compose: dict) -> None:
+    """`faultline` stays external (the world joins it); `egress` is this project's alone."""
+    assert compose["networks"]["faultline"] == {"external": True, "name": "faultline-deploy-net"}
+    assert compose["networks"]["egress"] == {"name": "faultline-deploy-egress"}
+
+
+def test_only_caddy_and_the_proxy_join_the_egress_network(compose: dict) -> None:
+    """Caddy for ACME and its published ports; the proxy because it is the proxy. A third service
+    on this network has a default route, and the whole point of the window is that nothing else
+    does."""
+    joined = {
+        name for name, svc in compose["services"].items() if "egress" in svc.get("networks", [])
+    }
+
+    assert joined == {"caddy", "egress"}
+    assert all("faultline" in svc.get("networks", []) for svc in compose["services"].values())
+
+
+def test_the_orchestrator_leaves_through_the_proxy_and_only_over_https(compose: dict) -> None:
+    """`HTTPS_PROXY` alone: the tools reach the world's telemetry over plain `http://` by container
+    name, and an `HTTP_PROXY` would send those to the proxy to be refused. `NO_PROXY` names the
+    OTLP endpoint, for the one client (grpc) that would otherwise proxy an insecure channel."""
+    env = compose["services"]["orchestrator"]["environment"]
+
+    assert env["HTTPS_PROXY"] == "http://egress:3128"
+    assert "HTTP_PROXY" not in env
+    assert "tempo" in env["NO_PROXY"].split(",")
+    assert compose["services"]["orchestrator"]["depends_on"]["egress"] == {
+        "condition": "service_started"
+    }
+    # The key lives in exactly one container, and that is the one given the way out.
+    keyed = {
+        n for n, s in compose["services"].items() if "ANTHROPIC_API_KEY" in s.get("environment", {})
+    }
+    proxied = {
+        n for n, s in compose["services"].items() if "HTTPS_PROXY" in s.get("environment", {})
+    }
+    assert keyed == proxied == {"orchestrator"}
+
+
+def test_the_proxy_is_pinned_and_reads_the_committed_config(compose: dict) -> None:
+    proxy = compose["services"]["egress"]
+
+    assert proxy["image"] == "ubuntu/squid:6.6-24.04_beta", "a version, never :latest"
+    assert "./squid.conf:/etc/squid/squid.conf:ro" in proxy["volumes"]
+    assert "ports" not in proxy, "reachable from the platform network only"
+
+
+def test_the_access_list_is_the_two_hostnames_and_deny_all_last() -> None:
+    """Read as squid reads it: `http_access` lines in order, the last one `deny all`, and every
+    `allow` naming an ACL whose `dstdomain` is one of the two. An allowlist, not a blocklist."""
+    lines = [
+        line.split("#", 1)[0].split()
+        for line in SQUID_CONF.read_text().splitlines()
+        if line.strip() and not line.lstrip().startswith("#")
+    ]
+    acl_domains = {
+        parts[1]: parts[3] for parts in lines if parts[0] == "acl" and parts[2] == "dstdomain"
+    }
+    access = [parts[1:] for parts in lines if parts[0] == "http_access"]
+
+    assert set(acl_domains.values()) == EGRESS_ALLOWED
+    assert access[-1] == ["deny", "all"]
+    allows = [rule for rule in access if rule[0] == "allow"]
+    assert allows, "something is allowed, or the orchestrator has no provider"
+    for rule in allows:
+        assert rule[1] == "CONNECT", rule
+        assert acl_domains[rule[2]] in EGRESS_ALLOWED, rule
+    assert ["deny", "!CONNECT"] in access and ["deny", "!tls_port"] in access
+    assert ["cache", "deny", "all"] in lines
+    assert any(parts[:2] == ["access_log", "stdio:/dev/stdout"] for parts in lines), (
+        "every tunnel is a log line, or the clause has no evidence"
+    )
+
+
+def test_the_runbook_creates_the_network_internal_and_has_the_window() -> None:
+    readme = (DEPLOY / "README.md").read_text()
+
+    assert "docker network create --internal faultline-deploy-net" in readme
+    assert "docker network create faultline-deploy-net" not in readme, "the old shape, anywhere"
+    assert "## 3.12 The egress window" in readme
+    assert "docker network rm faultline-deploy-net && docker network create --internal" in readme
+
+
 # --- --wait has something to wait on --------------------------------------------------------------
 
 

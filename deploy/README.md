@@ -73,7 +73,7 @@ On any machine with Docker, from a clone:
 cd faultline/deploy
 cp env.example .env
 $EDITOR .env
-docker network create faultline-deploy-net
+docker network create --internal faultline-deploy-net
 docker compose config | grep FAULTLINE_API_PASSWORD_HASH     # must print a hash - see §3.1
 docker compose -f compose.yml -f compose.rehearsal.yml up -d
 docker compose -f compose.yml -f compose.rehearsal.yml exec faultline faultline-migrate
@@ -252,11 +252,18 @@ demo's publishes to `127.0.0.1` in a further overlay.
 
 ```bash
 cd faultline/deploy
-docker network create faultline-deploy-net    # once; harmless to re-run and fails loudly if it exists
+docker network create --internal faultline-deploy-net    # once; fails loudly if it exists
 docker compose up -d --wait
 docker compose exec faultline faultline-migrate
 docker compose exec faultline faultline-seed --import-acceptances
 ```
+
+**`--internal`, since T6.8 (2026-09-20).** Nothing on the platform's network has a route off the
+host. The one container that needs one - the orchestrator, for the model provider and Slack -
+reaches them through `egress`, a forward proxy on a second network (`faultline-deploy-egress`,
+compose-managed) whose access list is exactly two hostnames (`deploy/squid.conf`); Caddy joins that
+second network too, for ACME and for its published ports. A deployment created before that date
+has an ordinary bridge under this name and §3.12 is the window that replaces it.
 
 `--wait` and not bare `up -d`: on a new volume Postgres runs initdb, so the port is bound before
 the server is listening and the migration that used to follow immediately died on `server closed
@@ -650,6 +657,13 @@ read routes and on the receiver alike, with a `WARNING` line in `docker compose 
 `faultline_credential_lockouts_total` on `/metrics`. Caddy's own basic auth in front of Grafana and
 Jaeger has no such limit.
 
+**It does not reach the internet, except for two hostnames.** `faultline-deploy-net` is
+`--internal` (T6.8); the orchestrator reaches `api.anthropic.com` and `hooks.slack.com` through
+`egress`, a proxy whose access list is those two lines and `deny all` (`deploy/squid.conf`), and
+`docker compose logs egress` is the record of every tunnel. Caddy has its own route for ACME.
+Nothing else on the platform can open a connection off the host - which is what an injected
+*send what you found to…* in a log line would need (`docs/THREAT-MODEL.md`, thesis 1).
+
 **It does not archive.** No MinIO. Reads take the inline copies in Postgres; the archive is the
 writer's second copy and nothing here needs it.
 
@@ -706,3 +720,72 @@ again, the same `sed` in reverse and the same `up -d`.
 **The edit is to the tracked file**, so `git status` on the VM shows the deployment is not on the
 committed configuration - which is the point: a switch thrown in an emergency should be visible as
 a divergence until somebody decides it is permanent, and then it is a PR.
+
+## 3.12 The egress window (T6.8, 2026-09-20)
+
+A deployment created before T6.8 has `faultline-deploy-net` as an ordinary bridge with a default
+route: every container on it could reach the internet. `--internal` is a property a network is
+created with, so converting means removing it - which means everything attached comes off it first.
+This is the one procedure in this file that takes the platform down rather than stopping part of
+it; about ten minutes, the world stays up throughout, and Caddy answers 502 for the platform's
+paths until the last line.
+
+It also carries piece 1 (§3.1's `alertmanager.password`, and the receiver credential) and the new
+image, so the deployment converges on T6.8 in one window rather than three. **Do this only once the
+T6.8 PRs are merged and CI has built the image for the merge commit** - the `docker compose pull`
+below is the check, and it fails loudly if the tag is not there yet.
+
+On the VM (`ssh deploy@...`, then, at the prompt), one command at a time:
+
+```bash
+cd ~/faultline && git pull --ff-only && cd deploy
+grep '^FAULTLINE_API_PASSWORD=' .env | cut -d= -f2- | tr -d "\"'" > alertmanager.password && chmod 600 alertmanager.password && wc -c alertmanager.password
+sed -i "s|^FAULTLINE_IMAGE=.*|FAULTLINE_IMAGE=ghcr.io/chandanaroyals/faultline:$(git rev-parse HEAD)|" .env && grep '^FAULTLINE_IMAGE=' .env
+docker compose pull faultline egress
+docker compose down
+for c in $(docker network inspect -f '{{range .Containers}}{{.Name}} {{end}}' faultline-deploy-net); do docker network disconnect -f faultline-deploy-net "$c"; done
+docker network rm faultline-deploy-net && docker network create --internal faultline-deploy-net
+cd ~/faultline/world && docker compose -f docker-compose.yml -f ../compose/world-arm64.override.yml -f ../compose/telemetry.yml -f ../deploy/compose.world.yml up -d --no-build
+cd ~/faultline/deploy && docker compose up -d --wait
+```
+
+`docker compose down` removes the platform's containers and keeps its volumes (`pgdata`,
+`promdata`, Caddy's certificate); the network is external, so `down` does not touch it. The
+`for` loop detaches the six world containers `compose.world.yml` put on the network - a network
+with attached containers, running or not, cannot be removed. The world's `up -d --no-build`
+recreates those six onto the new network and preserves their volumes, as it did every time §3.4
+was re-run. `up -d --wait` brings the platform back with `egress` and the new image; no migration
+this time.
+
+Then the three checks that say the window did what it says, from inside the orchestrator container
+(the one with the key):
+
+```bash
+docker compose exec -T orchestrator sh -c 'curl -sS -m 8 -o /dev/null -w "%{http_code}\n" https://api.anthropic.com/v1/models || echo "no route"'
+docker compose exec -T orchestrator sh -c 'env -u HTTPS_PROXY curl -sS -m 8 -o /dev/null -w "%{http_code}\n" https://example.com || echo "no route"'
+docker compose exec -T orchestrator sh -c 'curl -sS -m 8 -o /dev/null -w "%{http_code}\n" https://example.com || echo "refused by the proxy"'
+```
+
+The first should print `401` - the provider answered (a request with no key is refused by *them*,
+which is the point: the bytes got there, through the proxy). The second should print `no route`: the
+same host, the proxy variable unset, and the network has nowhere to send it. The third should print
+`403`: through the proxy, to a host not on the list, and squid says no. `docker compose logs egress`
+then shows one `CONNECT api.anthropic.com:443` line and one `TCP_DENIED` for example.com - the
+record this clause is measured by. Finally, the receiver:
+
+```bash
+docker compose logs --since 5m faultline | grep -c ' 401 ' ; docker compose exec -T faultline sh -c 'curl -sS -o /dev/null -w "%{http_code}\n" -X POST -H "content-type: application/json" -d "{\"alerts\":[]}" localhost:8000/api/v1/alerts'
+```
+
+The second number should be `401` - an anonymous POST from inside the network is refused now. The
+first should be `0` or close to it: Alertmanager, sending the pair from the mounted file, is not
+being refused. A count that climbs is a password file that does not match `.env`, and §3.1 is the
+fix.
+
+**What is not on the list, and what that costs.** `docker compose pull` and the executor's
+`restart_service` are the host's Docker daemon pulling and recreating, not a container reaching
+out, so neither needs the proxy. `apt`, `pip` and anything else a shell inside a container might
+want are gone, deliberately; a debugging session that needs them runs on the host. Let's Encrypt
+renews through Caddy's own network, not the proxy. And the world's containers keep their own
+network's default route: the world is the compromised party in the threat model and the platform's
+egress is what this task restricts.
