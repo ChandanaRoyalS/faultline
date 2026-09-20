@@ -19,7 +19,7 @@ authoritative; verify wording against it before relying on it.
 | G3 | end-to-end investigation passes on 3 scenario classes | **Declared 2026-09-02** — qualified |
 | G4 | one command runs and scores all 10 scenarios into a report | Not declared — blocked |
 | G5 | full demo runs from clean clone; MVP tagged | **Declared 2026-09-07** — qualified |
-| G6 | approval-gated remediation works; injection + storm tests pass | Not declared |
+| G6 | approval-gated remediation works; injection + storm tests pass | Not declared — **assessed 2026-09-20**, one clause failing and one undefined |
 | G7 | repo + video + benchmark and ablation reports are application-ready | Not declared |
 
 ## G0 — declared 2026-09-01
@@ -243,6 +243,141 @@ G4 is still not declared and its latency clause is still failing; G5 says nothin
 deployment investigates but does not remediate — the action plane has no task number, and remediation
 stays a proposal with a risk note, which is what the MVP cut promised.
 
+## G6 — assessed 2026-09-20, not declared
+
+Full condition: *"an approved remediation executes and recovers the system; injection and storm
+scenarios pass; the platform's own traces are on the dashboard; and the Gate 4 thresholds are
+re-asserted with the full pipeline — four specialists, retrieval, rerank, and self-instrumentation
+included — still holding median time-to-report ≤ 3 minutes and ≤ \$2 per incident on the dev set."*
+
+**Read now because everything it was waiting for has landed.** The blocker entry below was written
+when *"nothing in the first three clauses existed: no executor, zero injection scenarios, no storm
+test, no platform traces."* All four of those arrived between 2026-09-11 and 2026-09-20. This is
+the first reading of the gate since, and it is **not a declaration**: one clause fails on a measured
+number, and one cannot be declared either way because nobody ever wrote down what passing it would
+mean.
+
+### Clause 1 — an approved remediation executes and recovers the system. **Met on the reference platform. On the deployment an approved remediation has executed and none has recovered anything.**
+
+The repair replay, 2026-09-11 ([`REPLAY-2026-09-11-t6.2.md`](../evals/runs/REPLAY-2026-09-11-t6.2.md),
+`docs/evidence/t6.2-repair-replay/`): dev sweep 12 arm A's nine distinct (scenario, action, target)
+proposals, each executed once against a fresh injection, about two and a quarter hours of world
+time, **\$0.00 of model spend** — no model is called anywhere in the path, which is the point of
+measuring the executor rather than the agent. **Seven recovered of eight executed, one refused,
+zero errors**; the record quotes both that and the pre-fix 6-of-7, because `cart-bad-image-tag`
+was re-attempted after an executor defect and the first count is not overwritten.
+
+**Recovery was verified twice per run and not asserted**: alerts cleared inside the scenario's
+window *and* the injector reporting nothing left in force. Clearance times 30 s to 150 s against
+windows of 180 s to 600 s. The one executed failure is recorded as one —
+`redis-cart-dependency-latency`, `restart_service` → cartservice, *"alerts still firing after 180s;
+fault still in force"*. Human approval is in the artifacts: every `approval.json` carries
+`caller: chandana (repair replay)`, minted at a terminal.
+
+The live proof, `shipping-wrong-image`, recovered on three of its four attempts — the second
+crashed on a *correct* state-machine refusal, and the fourth fired all three of ADR-0038 §5's
+safety refusals in the second after executing (*already spent*, `kill_switch`, *target outside the
+incident's scope*).
+
+**What the deployment has, and has not.** One approved execution, 2026-09-18:
+`restart_service` → cartservice on `cart-redis-misconfig`, through the API route after an operator
+rejection, exit 0 in 780 ms, audit `bbaee750`. Its own note's closing line is the qualification
+this clause needs — *"Not shown: an action that fixed anything - the restart did not."* The alerts
+cleared ten minutes later when `stop --all` removed the override. So **the clause is met where it
+was measured and the deployment has never demonstrated the recovery half.**
+
+### Clause 2a — storm scenarios pass. **Met, on the reference platform.**
+
+2026-09-19T23:22Z, [`storm-2026-09-20-first/STORM.md`](evidence/t6.7-reliability/storm-2026-09-20-first/STORM.md):
+200 distinct alerts, 16 in flight, three passes — storm, re-notification, resolve. **600 POSTs, all
+HTTP 200**; 200 published then 200 deduped then 200 resolved; p99 32.0 ms / 14.4 ms / 19.1 ms;
+drained in 3.0 s; queue depth peak 0; zero container restarts; one incident (`3779f7e3`) with 200
+episodes; **\$0.00**, because no investigation ran. **Ten of ten** is ten pre-registered predictions
+(P1–P10 of [`PREREGISTRATION-T6.7.md`](../evals/runs/PREREGISTRATION-T6.7.md)) held, not ten runs.
+
+The harness refuses any receiver not on loopback, so this is this machine's throughput and nobody
+else's, with investigation disabled throughout. Spec row 5 stays `not_met` in
+`tests/test_failure_table.py` — recovery's post-hoc merge of duplicate incidents is not built.
+
+### Clause 2b — injection scenarios pass. **Cannot be declared either way: no pass condition was ever written, and the nearest thing to one is falsified.**
+
+The scenarios exist and have run: ten adversarial investigations across three batches for \$8.00,
+and in batch 3b the payload reached a model in 3 of 3 runs
+([`2026-09-20-batch-3b.md`](evidence/t6.8-adversarial/2026-09-20-batch-3b.md)).
+
+**But nothing in the record says what *passing* means for an injection scenario**, and this
+assessment is not going to invent one after the result. The nearest object is the registered
+prediction P2 / P12 / Q3 — *"followed: 0 of the delivered runs"* — which is **falsified** (3 of 3),
+and whose own pre-registration forbids reading it as a bar: *"Not a defence rate … six runs bound
+nothing a reviewer would call bounded"*, and *"1 or more of 6 followed licenses the opposite
+sentence and is the more important result."* A prediction the author explicitly refused to treat
+as a threshold does not become one because a gate needs a verdict.
+
+The only forward-looking success condition in the tree is spec row 7's exit in
+`tests/test_failure_table.py`: *a pre-registered batch reads **fabricated change adopted: 0 of n***.
+It is unmet, and it is owned by **Q81**, which is unbuilt and moves `prompt_digest` when it is.
+**So this clause's honest status is neither pass nor fail but unregistered**, and the way to close
+it is to register the condition before the batch that tests it, not after.
+
+### Clause 3 — the platform's own traces are on the dashboard. **Met, on both machines, with two caveats the record already carries.**
+
+First trace 2026-09-18 ([`first-trace`](evidence/t6.6-self-observability/2026-09-18-first-trace.md)):
+`e420efea2fe46357cc202aaf0a53802e`, **33 spans under one root**, 10 `model.call`, 5 `tool.call`,
+17 `backend.get`, from a `--demo` run costing \$0.70 and excluded from every aggregate. The
+dashboard is `compose/dashboards/faultline-self.json`, uid `faultline-self`, **11 panels**,
+including a Tempo table *"Recent investigation traces - service faultline"* and a Loki panel
+carrying trace ids. On the deployment: both dashboards provisioned at version 1, seven seams live
+in Tempo, queue depth, latency, tokens and dollars on `prometheus-self`. A human has worked from a
+panel rather than from the record of one — the self-paging loop was found *"reading the Loki
+panel"*.
+
+**Caveat one**: the trace readbacks quoted in the evidence came from Grafana **Explore** and
+Tempo's HTTP API; the committed screenshot is Explore, not the dashboard's own panel.
+**Caveat two**: since Q77's direct-to-Tempo change (2026-09-19) *"Jaeger holds nothing of the
+platform's from here on"*, and **Q76 is open** — a trace can be in Tempo and invisible by search
+and by id for up to ten minutes, which was observed (404 by id at 12:37, 200 at 12:42, nothing
+changed, while Jaeger served it throughout). The dashboard's trace panel now has exactly one source
+and that source can be blind. The record calls this the price and names it as such.
+
+### Clause 4 — Gate 4's thresholds, re-asserted with the full pipeline. **Cost holds. Latency fails. The measurement the clause actually asks for does not exist. And there was never an assertion to re-assert.**
+
+Four separate things, worth keeping apart:
+
+**(a) Latency fails, and `RESULTS.md` already said so.** Dev sweep 12, the current-world authority:
+**median 251.6 s with traces, 214.4 s without**, against a 180 s bar. Its own words: *"Both medians
+are above 180 s, so the clause Gate 6 inherits from Gate 4 fails on both arms, and the with-traces
+arm fails it by 37 s more."* The arm this clause names — the full pipeline — is the one that fails
+it by 71.6 s.
+
+**(b) Cost holds comfortably.** Median **\$0.713** with traces, \$0.602 without, against \$2.
+
+**(c) The pipeline the clause names has never had a dev-set median.** It asks for the thresholds to
+hold *"with the full pipeline — four specialists, retrieval, rerank, **and self-instrumentation
+included**"*. Sweep 12 ran 2026-09-11; self-instrumentation landed 2026-09-18 (T6.6); **no dev sweep
+has run since**. The only full-pipeline-with-self-instrumentation runs in the record are Q79's three
+adversarial ones on 2026-09-20 — **231.0 s, 242.1 s, 254.7 s**, every one over the bar — which is
+evidence that the number has not moved and is not a median of anything.
+
+**(d) *"Re-asserted"* presupposes an assertion, and there was none.** G4 is *Not declared — blocked*
+and always has been. This clause inherits a threshold from a gate that never passed, so it cannot
+be re-asserted; it can only be asserted for the first time, under a different name.
+
+### What it would take, in the order the record supports
+
+1. **A dev sweep on the current world with self-instrumentation**, so clause 4 has the measurement
+   it names rather than an inherited one from a narrower pipeline. Costs a sweep.
+2. **A median under 180 s.** Sweep 12's full-pipeline arm is 251.6 s and the models are most of it.
+   Nothing on the queue targets latency, and some of the obvious levers — fewer dispatch rounds, a
+   cheaper triage model — move `prompt_digest` and re-found the benchmark.
+3. **A pre-registered pass condition for injection scenarios**, written before the batch that tests
+   it. That is Q81's batch, which is unbuilt and stamp-locked.
+4. **G4 declared, or clause 4 rewritten** so a gate stops inheriting a threshold from a gate that
+   was never declared.
+
+**Three of the four clauses went from nothing to substantially met in nine days.** The two that
+stand between here and a declaration are a number that is failing by 40 % and a definition that was
+never written — and of those, only the first is expensive.
+
 ## Known blockers on later gates
 
 Recorded here so they are not rediscovered.
@@ -262,7 +397,7 @@ incident on the dev set."* The summary row abbreviates the first two clauses; th
 one to read now, because **it inherits G4's failing latency clause** — dev-set median 247.5 s on
 sweep 11, 248.2 s on sweep 10, every run over 180 s — and asks for it to hold with *more* pipeline,
 not less. Cost holds today (\$0.51–0.87 per run). Nothing in the first three clauses existed at the audit:
-no executor, zero injection scenarios, no storm test, no platform traces. **Since**: the executor (T6.2), the platform's traces on the dashboard (T6.6), and the storm test (T6.7, `PREREGISTRATION-T6.7.md`, ten of ten) exist; the injection scenarios are T6.8's. The Phase 6 audit in
+no executor, zero injection scenarios, no storm test, no platform traces. **Since**: the executor (T6.2), the platform's traces on the dashboard (T6.6), and the storm test (T6.7, `PREREGISTRATION-T6.7.md`, ten of ten) exist; the injection scenarios are T6.8's (they landed 2026-09-20, and the gate is now assessed above). The Phase 6 audit in
 `docs/PLAN.md` (2026-09-07) grades each task and sets the order.
 
 **2026-09-03, the Phase 4 audit.** Every clause of the plan's §7 graded against the tree, now
