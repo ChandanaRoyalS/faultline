@@ -63,9 +63,19 @@ price can be cleared; one without is indistinguishable from a blocker with no so
 operator about to spend an hour of world time and real money should see the number first.
 """
 
-DISCARD_RATE = 0.11
-"""**24 discarded against the runs that started** - the scored ones plus those 24. A sweep is
-budgeted against the runs it will start, and a run that never started costs nothing to budget for.
+DISCARD_RATE = 0.09
+"""**31 discarded against the 346 runs that started** (2026-09-20) - the scored ones plus those 31.
+A sweep is budgeted against the runs it will start, and a run that never started costs nothing to
+budget for.
+
+**0.11 → 0.09 on 2026-09-20**, when Q79's batch 3b added three adversarial runs that started and
+scored (`counts_toward_aggregates: false` - they count toward no accuracy figure, but a run that
+was injected, investigated and billed is a run a sweep budgets for, and `evaldb.outcome_of` reads
+them as `scored`). The record had read 31 / 343 = 0.0904 since T6.7 and sat inside the band at
+0.11; three more clean runs made it 0.0896 and `make check` caught it on the batch's own branch.
+`tests/test_sweep.py`'s lower bound moved from 0.1 to 0.05 in the same commit, because the sentence
+it guarded - *the true rate, after gate refusals were separated* - was about the rate not being
+the 0.33 that counted refusals, not about it never falling below a tenth.
 
 **0.15 → 0.13 on 2026-09-09**, when dev sweep 12's first attempt added 15 scored runs and no
 discards to the record. **0.13 → 0.11 on 2026-09-10**, when arm A's thirty and arm B's six did the
