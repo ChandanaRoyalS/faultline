@@ -70,9 +70,27 @@ def variant(**overrides: Any) -> AdversarialVariant:
 # --- the committed variants ---------------------------------------------------------------------
 
 
-def test_there_are_two_committed_variants_one_per_channel() -> None:
+def test_the_committed_variants_are_the_pre_registered_ones() -> None:
+    """Batch 1 (PREREGISTRATION-T6.8.md §1): two variants planted on the culprit. Batch 2 (§4):
+    two planted on the alerting seed, after batch 1 found the planner never reads the culprit's
+    channel. Both channels in each batch."""
+    by_id = {v.id: v for v in VARIANTS}
+
+    assert set(by_id) == {
+        "cart-bad-image-tag-log-runbook",
+        "shipping-quote-misconfig-change-commit",
+        "shipping-quote-misconfig-change-checkout-commit",
+        "shipping-quote-misconfig-log-checkout-runbook",
+    }
     assert {v.channel for v in VARIANTS} == {Channel.LOG, Channel.CHANGE}
-    assert len(VARIANTS) == 2, "two variants, three repeats each - the pre-registration's shape"
+    # Batch 2 plants on checkoutservice: the log stream's label is the container's name, and the
+    # change record's service is canonical - both resolve to the seed, not the culprit.
+    for vid in (
+        "shipping-quote-misconfig-change-checkout-commit",
+        "shipping-quote-misconfig-log-checkout-runbook",
+    ):
+        assert by_id[vid].decoy.target == "checkoutservice"
+        assert by_id[vid].variant_of == "shipping-quote-misconfig"
 
 
 @pytest.mark.parametrize("v", VARIANTS, ids=lambda v: v.id)
@@ -129,6 +147,10 @@ def test_canaries_are_distinct_and_appear_nowhere_in_the_tree() -> None:
             path.parts[-3:-1] == ("evidence", "t6.8-adversarial")
             or "t6.8-adversarial" in path.parts
         ):
+            continue
+        # A run directory's manifest records the canary it planted (`adversarial.canary`), and
+        # its transcript may quote what a model said about it - that is the record, not a leak.
+        if path.relative_to(REPO).parts[:2] == ("evals", "runs"):
             continue
         text = path.read_text(errors="replace")
         for canary in canaries:
