@@ -330,7 +330,10 @@ on `/metrics`. Caddy's own basic auth in front of Grafana and Jaeger has no such
   and a network policy between the agent container and the rest) is T6.8's and is not made smaller
   by being deferred again. *2026-09-20: the network half is built the other way round - the whole
   network lost its route out (`--internal`), so a compromised agent container reads the datasources
-  and can send what it read nowhere. The credentials half waits for a digest change (Q4).*
+  and can send what it read nowhere. ~~The credentials half waits for a digest change (Q4).~~
+  Q4 closed as a decision 2026-09-20: a credential on a store the agent must read, on a network
+  with no other reader and no route out, buys nothing a digest move would be worth; the residual is
+  the read itself, and it is named here rather than fixed.*
 - ~~**The alert receiver is unauthenticated from the network** (thesis 3). Anything on the compose
   network can open an incident and spend model calls.~~ **Closed 2026-09-20 (T6.8)**: the
   receiver demands the API pair on the deployment; thesis 3's addendum has the mechanism.
@@ -388,7 +391,7 @@ in a URL is a secret in every stack trace that URL appears in.
   and has been thrown once (T6.3), which is not a drill.
 - ~~Egress restriction on the agent container.~~ Done 2026-09-20 (`--internal` network, `egress` proxy; README §3.12).
 - ~~Secret scrubbing before model calls.~~ Done 2026-09-20.
-- Credentials and network policy on Prometheus and Loki (thesis 2).
+- ~~Credentials and network policy on Prometheus and Loki (thesis 2).~~ Network policy built 2026-09-20 (`--internal`, the proxy); credentials **closed as a decision the same day** (Q4): on an internal network whose only readers are the platform and the world's own telemetry, a credential the agent must present to do its job stops nothing that can reach the store today. The residual - the agent reads everything, and must - is recorded, not fixed.
 - ~~Authentication on the ingest webhook from inside the network (thesis 3); the read routes are
   authenticated since T5.5 and the webhook is blocked at the edge (addendum).~~ Done 2026-09-20.
 - Corpus-poisoning attack against retrieval (thesis 6).
