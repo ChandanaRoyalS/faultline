@@ -16,8 +16,11 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 # Fault classes live in the scenario schema (T1.5): it is the contract the eval
-# harness, the catalog and the injector all validate against, and two copies of
-# this enum would drift the first time T7.0 adds a class to one of them.
+# harness, the catalog and the injector all validate against. **A second copy
+# does exist** - the `FaultClass` Literal in `faultline.agents.contracts`, which
+# is what the models are held to - and the drift this comment warned about was
+# unguarded until T7.0's closure; `tests/test_freeze.py` now binds the two.
+# Neither may gain a member on its own, and a member moves the stamp (ADR-0029).
 from evalharness.scenario import FaultClass
 
 ParamValue = str | int | float

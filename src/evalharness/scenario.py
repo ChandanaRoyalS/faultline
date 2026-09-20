@@ -14,7 +14,15 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class FaultClass(StrEnum):
-    """Fault classes the injector supports. T1.4 builds these four; T7.0 adds four more."""
+    """Fault classes the injector supports. T1.4 built these four and **there is no fifth**.
+
+    ADR-0029 (T7.57) audited the question and T7.0 is closed on it: four mechanisms bound
+    one-to-one to these four by test, a remediation set in which `config_revert` already fixes
+    three of them, one unused remediation (`scale`) this world can neither cause nor perform, and
+    a topology that flattens every page. A new member here must also be added to the `FaultClass`
+    `Literal` in `faultline.agents.contracts` - `tests/test_freeze.py` binds the two - and that
+    moves `prompt_digest`, which strands every figure the repository has published.
+    """
 
     BAD_DEPLOY = "bad_deploy"
     DEPENDENCY_LATENCY = "dependency_latency"

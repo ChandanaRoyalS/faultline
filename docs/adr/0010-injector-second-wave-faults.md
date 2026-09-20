@@ -185,3 +185,30 @@ dependency in the reset path.
 Revisit if: a scenario needs two faults on one target at once (still unmeasured, per
 ADR-0007), or T7.0's new classes want the params-select-the-mechanism pattern generalised
 into something declarative.
+
+---
+
+## Addendum, 2026-09-20 — T7.0 is closed, and this ADR's line is the part that survives
+
+Two sentences above are now wrong about the future and right about the principle.
+
+**§Decision's *"No new fault classes: `FaultClass` is the contract the eval harness and the
+scenario schema validate against, and T7.0 owns extending it"*** — T7.0 owns nothing any more.
+[ADR-0029](0029-four-fault-classes-and-why-there-is-no-fifth.md) (T7.57) found this world has no
+fifth class and names T7.0 as unachievable in its Consequences; the task is closed on it
+(`docs/PLAN.md` §T7.0). Read the clause as it was meant rather than as a forward reference: **a
+mechanism is not a class**, and that distinction is exactly what makes this ADR's three mechanisms
+free and a fifth class expensive.
+
+**§Consequences' *"Revisit if … T7.0's new classes want the params-select-the-mechanism pattern
+generalised"*** — there are no new classes to want it. The pattern is not idle, though: it is the
+route by which an existing class gains a mechanism, which is the only kind of injector growth this
+world can still take. `ResourceExhaustionFault` selects memory or CPU on `"cpus" in params` today;
+a third mechanism would select the same way, cost no stamp, and need its own answer to ADR-0007's
+three requirements — reversible, deterministic, applied from outside the pinned world.
+
+**One candidate is open on exactly that footing**: disk, which ADR-0029 §5's table never assessed.
+It is carried as a mechanism question under `resource_exhaustion` — disk being a resource the way
+memory and CPU are — and not as a class. Nothing is claimed for it here; ADR-0029's own rule
+applies, that a candidate resting on a signal which cannot be established at desk is recorded and
+not counted.

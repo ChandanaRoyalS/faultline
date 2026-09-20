@@ -1,4 +1,8 @@
-"""The four fault classes T1.4 covers, each with an inject and a restore (T7.0 adds more).
+"""The four fault classes T1.4 covers, each with an inject and a restore.
+
+**Four classes, and no fifth** - ADR-0029 (T7.57), on which T7.0 is closed. What a class *may*
+still gain is another mechanism, which costs nothing: ADR-0010 draws that line and
+`resource_exhaustion` already owns two.
 
 A class may own more than one mechanism - resource_exhaustion squeezes either
 memory or CPU, bad_deploy ships either a bad build or a tag that resolves
