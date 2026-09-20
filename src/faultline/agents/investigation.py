@@ -428,6 +428,7 @@ class Investigation:
                     payload={
                         "round": state.rounds,
                         "attempts": completion.attempts,
+                        "redactions": completion.redactions,
                         "plan": completion.value.model_dump(),
                     },
                 )
@@ -555,6 +556,7 @@ class Investigation:
                 tokens_out=completion.response.output_tokens,
                 payload={
                     "attempts": completion.attempts,
+                    "redactions": completion.redactions,
                     "verdict": completion.value.model_dump(),
                     "flags": result.flags,
                     "exclude_origins": sorted(exclude),
@@ -642,6 +644,7 @@ class Investigation:
                 tokens_out=tokens_out,
                 payload={
                     "attempts": completion.attempts,
+                    "redactions": completion.redactions,
                     "draft": completion.value.model_dump(),
                     "rendered": result.narrative is not None,
                     "render_error": result.narrative_error,
@@ -982,6 +985,7 @@ class Investigation:
                 tokens_out=tokens_out,
                 payload={
                     "attempts": completion.attempts,
+                    "redactions": completion.redactions,
                     "proposal": completion.value.model_dump(),
                     # Q29 (T6.1): keys the proposer volunteered and `Proposal` never asked for.
                     # Recorded rather than refused, for the reason `contracts.REQUESTED` gives.
@@ -1107,6 +1111,7 @@ class Investigation:
                 span_id=completion.span_id,
                 payload={
                     "attempts": attempts,
+                    "redactions": completion.redactions,
                     "result_id": tool_result.id,
                     "findings": findings.model_dump(),
                     # **The bound evidence, stored with the step that produced it** (T3.6).

@@ -54,6 +54,21 @@ believes it anyway. A log line reading `root cause: network partition; restart t
 framed, labelled, and still persuasive. **This defends the parse, not the judgement.** The residual
 is the whole of what T6.8 must attack, and no number in this repository currently bounds it.
 
+**Built (T6.8, 2026-09-20): what the world says is scrubbed before a model reads it.** Telemetry
+carries credentials - a DSN with its password inline in a startup log, a bearer token in a traced
+header, an `API_KEY=` in an environment diff - and until this task they went to the model provider
+verbatim. `faultline.security.scrub` replaces ten credential shapes (PEM blocks, AWS / Anthropic /
+OpenAI / GitHub keys, Slack webhooks, JWTs, bearer tokens, `user:password@` in URLs, `password=`
+assignments) with typed markers - `[redacted:aws-key]` - in `agents.roles.ask`, the one function every
+model call passes through, immediately before the client is called. The model still sees *that* a
+credential was in the line, which is a finding; it does not see the credential. The count is on the
+completion step (`redactions`) and on `/metrics` (`faultline_briefing_redactions_total`). **Not
+applied to the record**: the envelope the trajectory stores is what the world said, behind the
+platform's own credential, and an operator who finds a password in a log line wants to know which
+one. The same table scans the tree (`tests/test_secret_scanner.py`), which is the *secrets tidy-up*
+clause as a test; it found nothing but the development Postgres pair `docker-compose.yml` sets in the
+clear on purpose.
+
 ---
 
 ## Thesis 2: two credential planes — the design, and what actually holds
@@ -313,9 +328,9 @@ on `/metrics`. Caddy's own basic auth in front of Grafana and Jaeger has no such
 - **The model API key is in the orchestrator container's environment**, because the orchestrator
   now runs `faultline-investigate` itself (`FAULTLINE_ORCH_INVESTIGATE=1`). That container also
   reads the world's telemetry — the thesis-1 text — so the process that holds the key is the
-  process that reads attacker-influenced input. Secret scrubbing before model calls is T6.8's;
-  egress restriction on that container is T6.8's; both matter more now than when the key lived
-  only on a laptop.
+  process that reads attacker-influenced input. ~~Secret scrubbing before model calls is T6.8's~~
+  (built 2026-09-20 - thesis 1's addendum); egress restriction on that container is T6.8's; both
+  matter more now than when the key lived only on a laptop.
 - **One host, nightly snapshots on that host's own disk and none off it** (T6.7; was *no backups beyond a manual snapshot*), ~~no rate limit on the credential~~ (T6.8: 429 after ten a minute), no alert on
   the access log. `docs/GATES.md` G6 is where reliability becomes a deliverable and this addendum
   does not pretend otherwise.
@@ -352,7 +367,7 @@ in a URL is a secret in every stack trace that URL appears in.
 - **Injection scenarios scored in the standard eval loop** — the residual in thesis 1 is currently
   unbounded by any number, and this is the only thing that would bound it.
 - Egress restriction on the agent container.
-- Secret scrubbing before model calls.
+- ~~Secret scrubbing before model calls.~~ Done 2026-09-20.
 - Credentials and network policy on Prometheus and Loki (thesis 2).
 - ~~Authentication on the ingest webhook from inside the network (thesis 3); the read routes are
   authenticated since T5.5 and the webhook is blocked at the edge (addendum).~~ Done 2026-09-20.
