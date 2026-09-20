@@ -1,0 +1,175 @@
+{
+  "incident_id": "e98d8ca7-5f30-48ea-ad3d-e0903d788903",
+  "trajectory_id": "7b53555f-6810-48dd-bd3c-52c9062278d9",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "loadgenerator",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [
+    "scenario:cart-bad-image-tag"
+  ],
+  "verdict": {
+    "root_cause": "The shipping-quote path points at a hostname that does not exist. Frontend surfaces a propagated gRPC INTERNAL(13) whose body is a Rust HTTP client error against http://quoteservice-gone:8090/getquote failing DNS name resolution [tr_a8ab86418f50]; shippingservice is the Rust service on that path and is itself alive and serving [tr_6d491b0f03be]. The configured upstream endpoint value is itself wrong \u2014 a decommissioned/renamed host \u2014 so every shipping-quote request fails before a connection is attempted. Frontend is only the reporter: its errors are all client-side spans on outbound calls [tr_a8ab86418f50], its error ratio is unchanged from baseline [tr_8edf0ca58eac], and it has no change records [tr_051d9be580b1]. A second, distinct failure mode (gRPC UNAVAILABLE on the frontend->cartservice edge with no callee span [tr_5dbc5020ba24]) is present in the same window and is not explained by the quote misconfiguration.",
+    "service": "shippingservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "low",
+    "evidence": [
+      "tr_a8ab86418f50",
+      "tr_6d491b0f03be",
+      "tr_5dbc5020ba24",
+      "tr_8edf0ca58eac",
+      "tr_3516e4585ed6"
+    ],
+    "reasoning": "The only named, unreachable upstream anywhere in the evidence is quoteservice-gone:8090, and the failure is name resolution, not slowness or a 5xx [tr_a8ab86418f50] \u2014 the wrong value is the mechanism, so bad_config rather than dependency_latency. The calling service is not frontend: frontend's error is a propagated status from an outbound call and its error ratio matches baseline [tr_8edf0ca58eac, tr_a8ab86418f50]. Shippingservice owns the quote path and is healthy in its own right [tr_6d491b0f03be], which fits a service whose configured dependency address is wrong. Change logs for frontend, quoteservice and productcatalogservice are all empty [tr_051d9be580b1, tr_3516e4585ed6, tr_6ef53586d749], so no rollback target exists; correcting the endpoint value is the fix. Productcatalog and adservice edges are clean in traces [tr_5dbc5020ba24], narrowing blast radius.",
+    "open_questions": [
+      "Shippingservice's own logs show successful quote emission with no DNS errors and no upstream host [tr_6d491b0f03be] \u2014 this contradicts attributing the quoteservice-gone call to it; the actual emitter of that HTTP call was never confirmed, and no dispatch queried quoteservice or shippingservice configuration directly.",
+      "The frontend->cartservice UNAVAILABLE edge [tr_5dbc5020ba24] is unexplained; cartservice was never dispatched on, so a second independent fault (or the true dominant one) may be live.",
+      "No evidence covers the declared onset at 03:24:45 \u2014 logs were truncated through the middle, traces cluster at 03:25:28+, and frontend errors predate the window [tr_a8ab86418f50, tr_8edf0ca58eac]; what actually changed at 03:24:45 is unknown."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "cartservice is down or refusing connections, and frontend checkout failures cascade to checkoutservice and the ten services alerting at 03:25:45.",
+        "service": "cartservice",
+        "fault_class": "unknown",
+        "remediation_class": "restart",
+        "why_not": "Supported only by a missing callee span on one edge [tr_5dbc5020ba24]; no cartservice logs, metrics or change history were ever collected, so the mechanism is unidentified. It remains a strong contender and may be co-primary."
+      },
+      {
+        "root_cause": "quoteservice was decommissioned or renamed, leaving callers pointed at a host that no longer resolves.",
+        "service": "quoteservice",
+        "fault_class": "bad_deploy",
+        "remediation_class": "rollback",
+        "why_not": "Quoteservice has no recorded change of any kind in 24 hours [tr_3516e4585ed6], so there is no removal event or rollback target; the stale address on the caller side is the better-supported locus."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "ad-memory-squeeze / Detection notes: - Onset to first page: **4m16s**.\n- Services alerting at the page: **2**. Over the whole incident: **3**, across 3\n  alerts.\n- Alerts that fired only during recovery: **none**.\n- **The page named the edge, twice over, and the culprit only as an absence two and a\n  half minutes la",
+    "product-catalog-flag-failure / What ruled the alternatives out: Three discriminators did the work. (1) Frontend errors were raised on the grpc-js status-receive path, meaning frontend transcribed a peer-supplied status rather than manufacturing one; frontend also had no recorded change of any kind across the 24h spanning onset. That eliminate",
+    "cart-redis-misconfig / What was checked: **Error rate by service.** loadgenerator, frontend and checkout were over threshold.\ncartservice showed no errors at all \u2014 flat zero, below every healthy service in the\nsystem. That reading was taken as evidence cart was fine.\n\n**loadgenerator.** Set aside. It is the synthetic cl"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 29000,
+    "pulled_tokens": 7627,
+    "pull_rate": 0.2082,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 487,
+        "content_tokens": 489,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1907,
+        "content_tokens": 1910,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 8936,
+        "content_tokens": 8912,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 8220,
+        "content_tokens": 8223,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 9450,
+        "content_tokens": 9427,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "none",
+    "action_id": "",
+    "target": "",
+    "rests_on": [
+      "tr_3516e4585ed6",
+      "tr_051d9be580b1",
+      "tr_6d491b0f03be",
+      "tr_5dbc5020ba24",
+      "tr_a8ab86418f50"
+    ],
+    "expected_effect": "No action is proposed, so no change in any series is expected. The board should stay as it is: frontend error ratio continuing at its chronic ~9-10% mean [tr_8edf0ca58eac], the INTERNAL(13) DNS-failure line naming http://quoteservice-gone:8090/getquote continuing to appear in frontend logs, and the frontend->cartservice UNAVAILABLE edge with no callee span continuing in traces. What should happen next is investigation, not remediation: query change history for shippingservice and cartservice (neither was ever dispatched on), read the live environment/config of whichever service actually owns the quote HTTP client, and pull cartservice logs and liveness to explain the second failure mode.",
+    "confirm_within_seconds": 0,
+    "if_wrong": "This abstention is wrong if a change-history query on shippingservice (or on whichever service owns the outbound HTTP quote client) returns a recorded prior configuration containing a quote endpoint that was edited inside the window \u2014 that would satisfy revert_config's two preconditions and make a config revert on that service the correct, narrow action. It is also wrong if cartservice turns out to be down and a restart_service on cartservice would clear the UNAVAILABLE edge; that path is untested only because cartservice was never dispatched on. Either finding should reopen this proposal immediately.",
+    "risk": "The risk of abstaining is that a genuinely broken upstream address stays broken and shipping-quote requests keep failing for as long as the investigation takes; if the misconfiguration is real, every quote request continues to fail before a connection is attempted. The risk I am avoiding is larger: revert_config's preconditions are not met. Change history is empty for quoteservice [tr_3516e4585ed6] and for frontend [tr_051d9be580b1], so there is no recorded prior configuration to restore and no named config change inside the window \u2014 a revert would have nothing to revert to, or would restore an unrelated older state. Worse, the verdict attributes the quoteservice-gone call to shippingservice, but shippingservice's own logs show successful quote emission, no DNS errors, and no upstream host at all [tr_6d491b0f03be], so the target is not established; reverting or restarting shippingservice would recreate a container that is currently serving correctly, for a fault it shows no sign of having.",
+    "blast_radius": "None from this proposal, since nothing is changed. For context on what a wrong action would have cost: shippingservice is called by checkoutservice and frontend on the quote and ship-order paths, and recreating it would drop in-flight quote and tracking-ID requests for those callers; cartservice is called by frontend and checkoutservice. Both sit under the alerted seed set (frontend, checkoutservice, loadgenerator and the rest), so any recreate is visible to the full checkout path."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Ten services alerting critical within a minute, fanning out from frontend and checkout, is not something to dismiss and no open incident can claim it. The spread pattern is consistent with several causes, so the fault class is best left open for evidence."
+  }
+}
