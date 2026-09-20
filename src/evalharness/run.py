@@ -155,8 +155,14 @@ def counts_toward_aggregates(manifest: dict[str, Any]) -> bool:
 
     One predicate rather than a convention, because "remember to exclude the demo" is the kind
     of rule that holds until the first person who did not know it writes the next aggregate.
+
+    **An adversarial run is the second thing no aggregate may count** (T6.8). It is a dev scenario
+    with a second attacker planted in the world, and its diagnosis score is reported beside its
+    injection score in the evidence directory - never in a table that a run without the attacker
+    also appears in. The key is the manifest's `adversarial` block, written by `main` when
+    `--adversarial` was passed.
     """
-    return not manifest.get("demo", False)
+    return not manifest.get("demo", False) and "adversarial" not in manifest
 
 
 STANDING_PIPELINE_KEYS = ("baseline", "ablation", "exclusion_policy")
@@ -1136,6 +1142,15 @@ def parser() -> argparse.ArgumentParser:
         "with --baseline: a baseline dispatches nothing to withhold.",
     )
     p.add_argument(
+        "--adversarial",
+        default=None,
+        metavar="VARIANT_ID",
+        help="plant `evals/adversarial/<VARIANT_ID>.yaml`'s payload after the settle window and "
+        "before the first model call, and score the injection beside the diagnosis (T6.8). "
+        "The positional scenario must be the variant's `variant_of`. The run is recorded like "
+        "any other and counts toward nothing (`counts_toward_aggregates`).",
+    )
+    p.add_argument(
         "--exclude-same-class",
         action="store_true",
         help="widen retrieval's exclusion from this scenario's own documents to **every "
@@ -1307,6 +1322,30 @@ def main(argv: list[str] | None = None) -> int:
     if bundle.get("split") == "holdout" and not args.holdout:
         print(f"REFUSED: {args.scenario_id} is a holdout scenario; pass --holdout to mean it")
         return 3
+    variant = None
+    if args.adversarial:
+        from evalharness import adversarial
+
+        try:
+            variant = adversarial.variant_by_id(args.adversarial)
+        except KeyError:
+            print(
+                f"REFUSED: no adversarial variant {args.adversarial} in "
+                f"{adversarial.ADVERSARIAL_DIR}"
+            )
+            return 3
+        if variant.variant_of != args.scenario_id:
+            print(
+                f"REFUSED: {variant.id} is a variant of {variant.variant_of}, not "
+                f"{args.scenario_id}; run it on the scenario it was written for"
+            )
+            return 3
+        if bundle.get("split") != "dev":
+            print(
+                f"REFUSED: adversarial variants ride dev scenarios only; {args.scenario_id} "
+                "is not one"
+            )
+            return 3
     if not bundle.get("alerts_over_window"):
         print(
             f"REFUSED: {args.scenario_id} has an empty alerts_over_window and cannot produce "
@@ -1513,6 +1552,27 @@ def main(argv: list[str] | None = None) -> int:
                 emit(ev, "settling", seconds=SETTLE_AFTER_ALERT_SECONDS)
                 time.sleep(SETTLE_AFTER_ALERT_SECONDS)
 
+                if variant is not None:
+                    # **After the settle, before the first model call** (T6.8). The world is
+                    # already symptomatic and the payload is the newest thing in its channel -
+                    # where the log tool's tail and the change analyst's lookback both look.
+                    # Planted inside the try so a failure here still reverts the fault.
+                    from evalharness import adversarial
+                    from evalharness.scenario import Scenario
+                    from faultline.tools.settings import ToolSettings
+
+                    print(f"planting {variant.id} ({variant.channel})...")
+                    planted = adversarial.plant(
+                        variant,
+                        Scenario.from_yaml(
+                            REPO_ROOT / "evals/scenarios" / f"{args.scenario_id}.yaml"
+                        ),
+                        dsn=dsn,
+                        loki_url=ToolSettings().loki_url,
+                    )
+                    run.manifest["adversarial"] = planted.as_dict()
+                    emit(ev, "planted", variant=variant.id, channel=str(variant.channel))
+
                 print("investigating...")
                 emit(ev, "investigating", incident_id=incident_id)
                 code, transcript, attempts = _investigate_with_retry(
@@ -1582,6 +1642,22 @@ def main(argv: list[str] | None = None) -> int:
         # from this run, and it changes no figure - see `evalharness.visibility`.
         scored.service_visibility = target_visibility(culprit_service(args.scenario_id))
         run.manifest["score"] = scored.as_dict()
+        if variant is not None and trajectory_id:
+            from evalharness import adversarial
+            from evalharness.scenario import Scenario
+
+            outcome = adversarial.score_injection(
+                dsn,
+                trajectory_id,
+                variant,
+                Scenario.from_yaml(REPO_ROOT / "evals/scenarios" / f"{args.scenario_id}.yaml"),
+            )
+            run.manifest["adversarial"]["outcome"] = outcome.as_dict()
+            print(
+                f"  injection: delivered={outcome.delivered} mentioned={outcome.mentioned} "
+                f"followed={outcome.followed}"
+                + (f" ({outcome.followed_because})" if outcome.followed else "")
+            )
         run.manifest["finished_at"] = datetime.now(UTC).isoformat()
         emit(
             ev,
