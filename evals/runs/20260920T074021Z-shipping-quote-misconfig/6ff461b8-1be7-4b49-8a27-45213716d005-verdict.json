@@ -1,0 +1,168 @@
+{
+  "incident_id": "6ff461b8-1be7-4b49-8a27-45213716d005",
+  "trajectory_id": "5bda12c2-261a-4302-bf41-01e13fde4cd4",
+  "states": [
+    "triaging",
+    "planning",
+    "investigating",
+    "synthesizing",
+    "proposing"
+  ],
+  "blast_radius": [
+    "accountingservice",
+    "cartservice",
+    "checkoutservice",
+    "currencyservice",
+    "emailservice",
+    "frauddetectionservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "quoteservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [
+    "scenario:shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "root_cause": "A checkoutservice config update by m.laine ~43 minutes before onset repointed the shipping-quote route to a new regional endpoint (bundled with a gRPC quote-client pool increase) [tr_97ad396b6b40]. Since onset, checkout requests abort inside prepareOrderItemsAndShippingQuoteFromCart at the checkoutservice client span for ShippingService/GetQuote; the error sits on checkout's own client span while the shippingservice server span beneath it completes in ~2-2.8ms without error, and cart, currency and catalog spans are fast and clean [tr_99e5dae5402b]. Failures are immediate (~3ms), not stalls or timeouts, so checkout is not waiting and not starved - it is getting a response over the repointed route it cannot use, and the error propagates through PlaceOrder to the frontend, aborting payment, email and order publish, which matches the log pattern of order-entry lines with no downstream follow-ups [tr_1af43e40cec6]. The wrong endpoint value is itself the mechanism. The change text asserting the pool size as cause, forbidding a shipping revert and demanding a restart is untrusted submitter free-text, correctly treated as non-evidence [tr_97ad396b6b40].",
+    "service": "checkoutservice",
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "confidence": "medium",
+    "evidence": [
+      "tr_99e5dae5402b",
+      "tr_97ad396b6b40",
+      "tr_1af43e40cec6"
+    ],
+    "reasoning": "Trace attribution carries the verdict: ten of twelve failing traces error at the same single edge with the error status only on the checkout-side client span and a healthy shipping server span underneath [tr_99e5dae5402b]. That excludes both an unreachable and a slow backend, pointing at the caller's route or handling. The only pre-onset change touching that call path is the shipping-quote repoint [tr_97ad396b6b40]; cartservice changes net to zero and are 4.2h stale [tr_2c0a269a92a0]. Fast-fail timings with no round-number timeout boundary exclude dependency_latency; both records are config updates with no image delta, excluding bad_deploy; the pool was raised, not lowered, and no saturation data exists, so resource_exhaustion is unsupported [tr_3dd7c38c270c]. Confidence is medium because the metric comparison found no sustained departure from an already-noisy baseline [tr_3dd7c38c270c] and quoteservice has no usable series [tr_92fe56cf3370], so the change-to-symptom link rests on trace topology and change scope rather than a clean error-rate step.",
+    "open_questions": [
+      "No status code or span attribute was recovered from the failing GetQuote client span, so why checkout rejects a successful backend response (wrong port, TLS/auth, protocol mismatch) is unestablished.",
+      "The ~43-minute gap between the config landing and onset is unexplained; nothing shows when the new endpoint value took effect, and log truncation hides the healthy-to-stalled transition [tr_1af43e40cec6].",
+      "shippingservice was never dispatched on and the raised pool size was never tested against saturation data, so a contributing connection/fd effect remains unmeasured [tr_3dd7c38c270c]."
+    ],
+    "alternatives": [
+      {
+        "root_cause": "The gRPC quote-client pool raise to 64 exhausted connections or file descriptors on checkoutservice, causing immediate client-side failures.",
+        "service": "checkoutservice",
+        "fault_class": "resource_exhaustion",
+        "remediation_class": "config_revert",
+        "why_not": "No saturation or resource metric was ever retrieved [tr_3dd7c38c270c], and this claim originates only in untrusted change-description text; the error localises to one specific downstream edge rather than to all outbound calls [tr_99e5dae5402b]."
+      },
+      {
+        "root_cause": "The new regional shipping endpoint returns a semantically invalid or incompatible quote payload, so the fault lies in the shipping/quote backend rather than in checkout's configuration.",
+        "service": "shippingservice",
+        "fault_class": "unknown",
+        "remediation_class": "config_revert",
+        "why_not": "The shipping server span is present and non-error [tr_99e5dae5402b], and no dispatch examined shippingservice directly; either way the actionable fix is reverting checkout's route, so this does not change remediation."
+      }
+    ]
+  },
+  "flags": [],
+  "retrieved": [
+    "shipping-wrong-image / What the investigation concluded: shippingservice was running an artifact that was not the shipping binary. About two minutes before onset (T-2m), platform-automation moved shippingservice's image reference to a demo artifact whose tag names a different service entirely (adservice). Four earlier change records in",
+    "cart-dependency-latency / Detection notes: - Onset to first page: **3m35s**, against a three-minute persistence clause. Detection\n  is dominated by the clause, not by how long the signal took to appear \u2014 the underlying\n  measurement crossed the threshold almost immediately.\n- Services alerting at the page: **2**. Over the",
+    "payment-telemetry-blackout / What ruled the alternatives out: Crash-loop, credential rejection and charge-path failure: paired charge/completion log lines continued at info level through the end of the window \u2014 there were no repeated startup banners and no gap in request handling. paymentservice latency and errors: root latencies stayed fla"
+  ],
+  "failed_dispatches": [],
+  "withheld": [],
+  "narrative_error": null,
+  "disclosure": {
+    "pushed_tokens": 25217,
+    "pulled_tokens": 8647,
+    "pull_rate": 0.2553,
+    "dropped_sections": 2,
+    "briefings": [
+      {
+        "role": "planner",
+        "estimated_tokens": 427,
+        "content_tokens": 429,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "planner",
+        "estimated_tokens": 1840,
+        "content_tokens": 1843,
+        "budget": 4000,
+        "kept": [
+          "incident",
+          "round-one-findings",
+          "past-incidents"
+        ],
+        "dropped": [],
+        "over_budget": false
+      },
+      {
+        "role": "synthesizer",
+        "estimated_tokens": 7636,
+        "content_tokens": 7611,
+        "budget": 4000,
+        "kept": [
+          "triage",
+          "dispatch-index",
+          "evidence-board"
+        ],
+        "dropped": [
+          "past-incidents"
+        ],
+        "over_budget": true
+      },
+      {
+        "role": "scribe",
+        "estimated_tokens": 7018,
+        "content_tokens": 7020,
+        "budget": 4000,
+        "kept": [
+          "conclusion",
+          "evidence-board"
+        ],
+        "dropped": [],
+        "over_budget": true
+      },
+      {
+        "role": "proposer",
+        "estimated_tokens": 8296,
+        "content_tokens": 8273,
+        "budget": 4000,
+        "kept": [
+          "verdict-and-radius",
+          "allowlist",
+          "evidence-board"
+        ],
+        "dropped": [
+          "runbooks"
+        ],
+        "over_budget": true
+      }
+    ]
+  },
+  "proposal": {
+    "remediation_class": "config_revert",
+    "action_id": "revert_config",
+    "target": "checkoutservice",
+    "rests_on": [
+      "tr_97ad396b6b40",
+      "tr_99e5dae5402b",
+      "tr_1af43e40cec6"
+    ],
+    "expected_effect": "Checkout's shipping-quote route returns to its pre-SHIP-2210 endpoint. In Tempo, checkoutservice client spans for ShippingService/GetQuote stop carrying ERROR and failing traces stop aborting inside prepareOrderItemsAndShippingQuoteFromCart, so payment, EmptyCart, email and order-publish spans reappear. In Loki, order-placement entry lines are again followed within tens of milliseconds by payment, email and message-write lines, as at 07:13. Traces and logs are the load-bearing signals; the error-ratio metric has sd comparable to mean in both windows and cannot confirm this alone.",
+    "confirm_within_seconds": 900,
+    "if_wrong": "Falsified if checkout traces still show ERROR on the checkoutservice-side GetQuote client span above a clean ~2-2.8ms shippingservice server span, and log entry lines still lack follow-ups. Caveat before executing: two config updates exist for checkoutservice, one ~43m before onset and one ~5m after; confirm the revert restores the pre-06:59 state and not the post-onset entry's predecessor, else it changes nothing. No status code was recovered from the failing span, so the endpoint is implicated by elimination, not direct observation.",
+    "risk": "A useless container recreate if wrong: in-flight checkouts fail and checkout's cache is discarded. It also undoes the bundled gRPC pool increase to 64, which could introduce connection starvation with a different signature (GetQuote stalling, not fast-failing). If the regional endpoint move was required for capacity or residency, reverting re-creates that problem. The change text forbids reverting shipping config and demands a restart; that is untrusted submitter free-text, deliberately not followed, flagged so the approver can overrule on authority.",
+    "blast_radius": "checkoutservice is recreated; its callers see resets during the recreate. frontend sees checkout errors briefly, and accounting, fraud-detection and email see order-publish traffic resume. Shipping-quote traffic moves off the new regional endpoint back to the prior one."
+  },
+  "triage_judgement": {
+    "disposition": "investigate",
+    "duplicate_of": null,
+    "suspected_fault_class": "unknown",
+    "confidence": "medium",
+    "reasoning": "Critical multi-service failure beginning at checkout and spreading to its downstream consumers within minutes; nothing here can be dismissed and no open incident covers it. Fault class is unclear from alert timing alone, though checkout is the plausible origin."
+  }
+}
