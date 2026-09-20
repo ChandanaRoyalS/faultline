@@ -417,16 +417,27 @@ in a URL is a secret in every stack trace that URL appears in.
   3 / 3, the fabricated change adopted 3 / 3, 0 / 3 abstained; $2.38. Not a rate; the first number.
   Q81 is the defence question it opens, Q82 the harness fix it owes.*
 - **Public-surface re-hardening (T6.8, done 2026-09-20):** credential on the receiver, 429 after
-  ten failed credentials a minute, egress through an allowlisting proxy, README §4 corrected;
-  audit-log review and a kill-switch drill are not done - the switch is documented (README §3.11)
-  and has been thrown once (T6.3), which is not a drill.
+  ten failed credentials a minute, egress through an allowlisting proxy, README §4 corrected.
+  ~~audit-log review and a kill-switch drill are not done - the switch is documented (README §3.11)
+  and has been thrown once (T6.3), which is not a drill.~~ **Both done 2026-09-20**
+  ([the drill](evidence/t6.8-security-pass/2026-09-20-the-kill-switch-drill.md)), and the drill
+  earned its name: **§3.11's only verification step could not work.** It told the operator to
+  confirm the switch with `curl` against a port the executor does not publish, so it answered
+  nothing with exit 7 **and answered it identically whether the switch was on or off** - the
+  emergency procedure's one check could not distinguish the state it existed to verify, while §3.6
+  and §4 of the same file had it right. Fixed and guarded by a test. The switch itself works: a
+  token presented while on was refused `kill_switch`, and the same token with it off was refused
+  for being a bad token, which is what makes the first refusal attributable. The ledger is six rows
+  in nine days, four of the five outcomes seen, `error` never; the one executed action exited 0 and
+  records in words that a restart has no inverse.
 - ~~Egress restriction on the agent container.~~ Done 2026-09-20 (`--internal` network, `egress` proxy; README §3.12).
 - ~~Secret scrubbing before model calls.~~ Done 2026-09-20.
 - ~~Credentials and network policy on Prometheus and Loki (thesis 2).~~ Network policy built 2026-09-20 (`--internal`, the proxy); credentials **closed as a decision the same day** (Q4): on an internal network whose only readers are the platform and the world's own telemetry, a credential the agent must present to do its job stops nothing that can reach the store today. The residual - the agent reads everything, and must - is recorded, not fixed.
 - ~~Authentication on the ingest webhook from inside the network (thesis 3); the read routes are
   authenticated since T5.5 and the webhook is blocked at the edge (addendum).~~ Done 2026-09-20.
 - Corpus-poisoning attack against retrieval (thesis 6).
-- Public-surface hardening of the deployed instance; audit-log review; kill-switch drill.
+- ~~Public-surface hardening of the deployed instance; audit-log review; kill-switch drill.~~
+  All three done 2026-09-20; the drill found the procedure's verification step broken and fixed it.
 
 **And one thing this document should keep doing.** Theses 4, 5 and 6 were all found by *building*
 something — a route, a notifier, a corpus seeder — and not by a security review. That is an

@@ -353,7 +353,7 @@ curl -sS -o /dev/null -w '%{http_code}\n' https://$SITE_ADDRESS/api/v1/incidents
 curl -sS -o /dev/null -w '%{http_code}\n' https://$SITE_ADDRESS/api/v1/alerts       # 404
 curl -sS -o /dev/null -w '%{http_code}\n' https://$SITE_ADDRESS/grafana/            # 401
 curl -sS -o /dev/null -w '%{http_code}\n' https://$SITE_ADDRESS/metrics             # 404
-docker compose exec executor curl -fsS localhost:8100/healthz                      # {"status":"ok","kill_switch":true}
+docker compose exec executor curl -fsS localhost:8100/healthz                      # {"status":"ok","kill_switch":false}
 curl -sS -u faultline:$FAULTLINE_API_PASSWORD https://$SITE_ADDRESS/api/v1/incidents | head -c 200
 ```
 
@@ -713,11 +713,21 @@ On the VM (`ssh deploy@...`, then, at the prompt):
 cd ~/faultline/deploy
 sed -i 's/FAULTLINE_EXECUTOR_KILL_SWITCH: "0"/FAULTLINE_EXECUTOR_KILL_SWITCH: "1"/' compose.yml
 docker compose up -d executor
-curl -s localhost:8100/healthz          # {"status":"ok","kill_switch":true}
+docker compose exec executor curl -fsS localhost:8100/healthz   # {"status":"ok","kill_switch":true}
 ```
 
 `kill_switch: true` in that reply is the confirmation; nothing else needs checking. To turn it off
 again, the same `sed` in reverse and the same `up -d`.
+
+**That last line read `curl -s` against the host until the drill of 2026-09-20 ran it.** The
+executor publishes no host port - §4 says so, and `tests/test_deploy.py` asserts it - so from the
+VM's shell that command answered **nothing, with exit 7, whether the switch was on or off**. An
+operator following this section in an emergency got no confirmation, and no way to tell the two
+states apart from the one command the section told them to trust. It is `docker compose exec`, as
+§3.6 has had it all along.
+`tests/test_deploy.py::test_the_readme_never_reaches_an_unpublished_port_from_the_host` now fails
+if this regresses. The drill is
+[`2026-09-20-the-kill-switch-drill.md`](../docs/evidence/t6.8-security-pass/2026-09-20-the-kill-switch-drill.md).
 
 **The edit is to the tracked file**, so `git status` on the VM shows the deployment is not on the
 committed configuration - which is the point: a switch thrown in an emergency should be visible as

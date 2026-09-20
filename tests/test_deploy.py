@@ -59,6 +59,47 @@ def test_only_caddy_publishes_a_port(compose: dict, service: str) -> None:
     )
 
 
+def test_the_readme_never_reaches_an_unpublished_port_from_the_host() -> None:
+    """A documented command must be runnable by the operator who reads it (drill, 2026-09-20).
+
+    `test_only_caddy_publishes_a_port` above pins that `faultline` (8000) and `executor` (8100)
+    have no `ports:`. §3.11 - **the kill-switch procedure, the one section run in an emergency** -
+    told the operator to confirm the switch with `curl -s localhost:8100/healthz` from the VM's
+    shell. That answers nothing, exit 7, **and answers it identically whether the switch is on or
+    off**: the section's single verification step could not distinguish the state it existed to
+    verify. §3.6 had the right form 360 lines earlier, and §4 states the principle in as many
+    words - *"it has no published port, Caddy forwards nothing to it"* - beside a line that already
+    says *"not from the host: 8000 is not published"*.
+
+    A document can disagree with itself for a month; a test cannot. Two things are deliberately
+    outside it: the rehearsal section's `localhost:8001`, because §1a runs a different and
+    deliberately published shape on a development machine, and every line outside a fenced block,
+    because prose quotes retired commands - including the note that explains this one.
+    """
+    unpublished = ("8000", "8100")
+    offenders = []
+    in_block = False
+    for line in (DEPLOY / "README.md").read_text().splitlines():
+        if line.startswith("```"):
+            in_block = not in_block
+            continue
+        # **Fenced blocks only.** Prose quotes retired commands - this section's own note quotes
+        # the `curl` the drill retired - and a rule about what an operator runs should read what
+        # an operator runs. The first version of this test failed on the sentence explaining it.
+        if not in_block:
+            continue
+        if any(f"localhost:{port}" in line for port in unpublished) and (
+            "docker compose exec" not in line
+        ):
+            offenders.append(line.strip())
+
+    assert offenders == [], (
+        "deploy/README.md reaches an unpublished port from the host: "
+        f"{offenders}. Those ports exist only on the compose network - run the command with "
+        "`docker compose exec <service>`, as §3.6 and §4 already do."
+    )
+
+
 def test_caddy_is_the_only_way_in(compose: dict) -> None:
     published = {
         name: service.get("ports")
