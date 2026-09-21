@@ -776,6 +776,13 @@ def _run_b1(
     # per-turn responses are not retained, and inventing a split across turns would put a number
     # in the record that nothing measured. The turn count is in the payload so a reader can see
     # how many calls the total covers.
+    #
+    # `latency_ms` is summed over those turns, for the same reason the tokens are, and it is the
+    # measurement that was missing from every one of the nineteen paid baseline runs of
+    # 2026-09-21: they printed `models 0.0s` beside a real dollar figure, which is what
+    # prediction P6 registered and caught (`BASELINES-2026-09-21.md`). No `trace_id` is carried
+    # here - a step summarising several calls cannot name one span, and pointing it at the last
+    # would be a link to the wrong thing rather than a missing link.
     trajectory.add(
         TrajectoryStep(
             seq=len(run.looks) + 1,
@@ -785,6 +792,7 @@ def _run_b1(
             payload={"turns": run.turns, "error": run.error},
             tokens_in=run.tokens_in,
             tokens_out=run.tokens_out,
+            latency_ms=run.latency_ms,
         )
     )
     trajectory.ended_at = datetime.now(UTC)
@@ -872,6 +880,8 @@ def _run_b2(
         runtime_version=baseline_prior.runtime_version(),
         role_models={baseline_prior.BASELINE_ID.lower(): run.model or args.model},
     )
+    # B2's one call, and therefore the one arm whose step can carry the span it was made inside
+    # rather than a summary of several. Untimed until 2026-09-21 for the same reason B1's was.
     trajectory.add(
         TrajectoryStep(
             seq=1,
@@ -881,6 +891,9 @@ def _run_b2(
             payload={"attempts": run.attempts, "error": run.error, "tool_calls": 0},
             tokens_in=run.tokens_in,
             tokens_out=run.tokens_out,
+            latency_ms=run.latency_ms,
+            trace_id=run.trace_id,
+            span_id=run.span_id,
         )
     )
     trajectory.ended_at = datetime.now(UTC)

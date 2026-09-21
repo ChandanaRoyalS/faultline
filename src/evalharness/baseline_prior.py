@@ -197,6 +197,19 @@ class B2Run:
     error: str | None = None
     tokens_in: int = 0
     tokens_out: int = 0
+    latency_ms: int = 0
+    """Wall time of the one model call, both attempts when there were two.
+
+    **B2's whole investigation is this number plus a few milliseconds of prompt assembly**, so
+    it is the one arm in this repository where model time and wall clock are the same
+    measurement and can be read against each other.
+    """
+
+    trace_id: str = ""
+    span_id: str = ""
+    """The `model.call` span the answer was made inside. B2 makes exactly one call, so unlike
+    B1 its step can name the span it came from rather than summarising several."""
+
     model: str = ""
     attempts: int = 0
     invented_evidence: list[str] = field(default_factory=list)
@@ -260,6 +273,9 @@ def investigate(
         return run
     run.tokens_in = completion.response.input_tokens
     run.tokens_out = completion.response.output_tokens
+    run.latency_ms = completion.latency_ms
+    run.trace_id = completion.trace_id
+    run.span_id = completion.span_id
     run.attempts = completion.attempts
     run.verdict = completion.value
     run.invented_evidence = list(getattr(completion.value, "evidence", []) or [])

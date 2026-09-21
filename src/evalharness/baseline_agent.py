@@ -254,6 +254,16 @@ class B1Run:
     budget_exhausted: bool = False
     tokens_in: int = 0
     tokens_out: int = 0
+    latency_ms: int = 0
+    """Summed wall time of every model call this run made, over `turns` of them.
+
+    **Here a sum is also a critical path**, which is not true of the pipeline's `model_ms`: B1
+    is one conversation on one thread, so its calls are strictly serial and adding them up is
+    the same quantity as walking them in order. The four-specialist pipeline fans out, and the
+    same arithmetic there double-counts the parallel middle (`Latency.model_ms`'s docstring,
+    and `LATENCY-2026-09-21`'s addendum).
+    """
+
     model: str = ""
     turns: int = 0
 
@@ -305,6 +315,7 @@ def investigate(
     def spend(completion: Any) -> None:
         run.tokens_in += completion.response.input_tokens
         run.tokens_out += completion.response.output_tokens
+        run.latency_ms += completion.latency_ms
         run.turns += 1
 
     while True:
