@@ -263,6 +263,18 @@ unmeasured, and measured more than once: dev sweep 9 timed 273 s, 165 s, 237 s, 
 four of five over, median 237 s. **This is the clause G6 inherits**, and the arm both gates care
 about is the one that misses by 71.6 s.
 
+***2026-09-21: read again at n = 139, and it is worse than this paragraph said***
+([`LATENCY-2026-09-21-the-shared-clause.md`](../evals/runs/LATENCY-2026-09-21-the-shared-clause.md)).
+Sweep 12's thirty runs are not the population: the tree holds **139 aggregate-counting runs on this
+world at this stamp**, median **232.8 s**, and **4 of them — 2.9 % — are inside the bar**. Every
+one of the ten scenarios has a median over it, the fastest (`frauddetection-memory-squeeze`) by
+15 s. The fastest investigation ever recorded here is **168.6 s**, so the four that pass do so by
+under twelve seconds and there is no fast tail. Tool time is **0.23 s** at the median — the whole
+evidence-gathering surface is a rounding error — and model time is **75 %** of wall, leaving about
+**58 s** that is neither, against a deficit of **52.8 s**. Whether that residue is harness time (a
+code lever, no stamp) or unattributed model time (prompt levers, every one re-founding the
+benchmark) is the open question, and `trajectory_steps.latency_ms` per role answers it.
+
 ### Not met — the T4.7 baseline suite has never been run
 
 All three baselines are **built**: `b0` (no-LLM heuristic), `b1` (one agent, four tools, no
@@ -470,14 +482,28 @@ has run since**. The only full-pipeline-with-self-instrumentation runs in the re
 adversarial ones on 2026-09-20 — **231.0 s, 242.1 s, 254.7 s**, every one over the bar — which is
 evidence that the number has not moved and is not a median of anything.
 
+***2026-09-21: (c) is withdrawn. The measurement existed and this assessment had not read it***
+([`LATENCY-2026-09-21-the-shared-clause.md`](../evals/runs/LATENCY-2026-09-21-the-shared-clause.md)).
+**`prompt_digest` has not moved since sweep 12** — it still reads `06f24e827915`, because nothing
+between the executor, self-instrumentation and the adversarial harness touched a prompt or a
+contract — so T6.5's sixty runs of 09-17/18 are at this stamp, this world and the 60-document
+corpus, and **ten of them postdate self-instrumentation**. Their median is **246.9 s**, the highest
+daily median on this world, on n = 10 against a day-to-day spread of 213–247 s — enough to measure
+the clause, not enough to blame self-instrumentation for it, and the note says so. Over all **139**
+runs: median **232.8 s**, **4 inside the bar**. So clause 4 is measured on the pipeline it names
+and **fails**; what is still missing from this gate is not a number but a sweep for B1 and B2,
+which is G4's.
+
 **(d) *"Re-asserted"* presupposes an assertion, and there was none.** G4 is *Not declared — blocked*
 and always has been. This clause inherits a threshold from a gate that never passed, so it cannot
 be re-asserted; it can only be asserted for the first time, under a different name.
 
 ### What it would take, in the order the record supports
 
-1. **A dev sweep on the current world with self-instrumentation**, so clause 4 has the measurement
-   it names rather than an inherited one from a narrower pipeline. Costs a sweep.
+1. ~~**A dev sweep on the current world with self-instrumentation**, so clause 4 has the measurement
+   it names rather than an inherited one from a narrower pipeline. Costs a sweep.~~ **Not needed
+   for this clause, 2026-09-21**: the stamp never moved and 139 runs already answer it. What a
+   sweep is still owed for is B1 and B2 — ten cheap runs each, G4's clause, not this one.
 2. **A median under 180 s.** Sweep 12's full-pipeline arm is 251.6 s and the models are most of it.
    Nothing on the queue targets latency, and some of the obvious levers — fewer dispatch rounds, a
    cheaper triage model — move `prompt_digest` and re-found the benchmark.
