@@ -39,10 +39,10 @@ from faultline.context.allowlist import ActionStatus, load_allowlist
 from faultline.context.runbooks import Runbook, load_runbooks
 from faultline.observability.tracing import span
 from faultline.security.scrub import scrub
+from faultline.tools.interface import ToolSet
 from faultline.tools.metrics import MetricTemplate
 from faultline.tools.ranking import RankingContext
 from faultline.tools.results import ToolResult
-from faultline.tools.tools import Tools
 from faultline.tools.window import ScopedWindow
 
 DEFAULT_BRIEFING_TOKENS = 4_000
@@ -490,7 +490,7 @@ class Specialist:
     def __init__(
         self,
         name: SpecialistName,
-        tools: Tools,
+        tools: ToolSet,
         model: LanguageModel,
         max_tokens: int = 3000,
         effort: str = "medium",
@@ -556,7 +556,7 @@ class Specialist:
 
 
 def build_specialists(
-    tools: Tools, model: LanguageModel, max_tokens: int = 3000, effort: str = "medium"
+    tools: ToolSet, model: LanguageModel, max_tokens: int = 3000, effort: str = "medium"
 ) -> dict[SpecialistName, Specialist]:
     return {
         name: Specialist(name, tools, model, max_tokens=max_tokens, effort=effort)
