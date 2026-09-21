@@ -176,25 +176,44 @@ def test_every_model_call_is_timed_whatever_kind_it_is_recorded_under() -> None:
     This reads the source rather than a fixture, because the defect was three missing keyword
     arguments in three constructor calls and a fixture would have been written from the same
     misunderstanding. Every `TrajectoryStep` built beside a `completion` must carry its latency.
+
+    **It walks the whole tree because the first version did not, and that is how it missed two**
+    (2026-09-21, second pass). Written to parse `investigation.py` alone, it passed while
+    `agents/cli.py` built B1's and B2's completion steps with tokens and no latency, so all
+    nineteen paid runs of the baseline suite printed `models 0.0s` beside a real cost. The
+    prediction registered against those runs caught it; this test did not
+    (`evals/runs/BASELINES-2026-09-21.md`, P6). A guard scoped to the file where a defect was
+    first noticed is a guard against remembering, not against the defect - so this one now
+    discovers its own inputs, and a new file constructing a `TrajectoryStep` is covered the day
+    it is written rather than the day someone adds it to a list here.
     """
     import ast
     from pathlib import Path
 
-    source = Path(__file__).resolve().parents[1] / "src/faultline/agents/investigation.py"
-    tree = ast.parse(source.read_text())
+    src = Path(__file__).resolve().parents[1] / "src"
+    sources = sorted(p for p in src.rglob("*.py") if "TrajectoryStep(" in p.read_text())
+
+    # A guard that finds nothing to check passes by measuring nothing, which is the failure mode
+    # this whole test exists to punish. The two files known to build model-call steps are named.
+    found = {str(p.relative_to(src)) for p in sources}
+    assert {"faultline/agents/investigation.py", "faultline/agents/cli.py"} <= found, (
+        f"the guard found no TrajectoryStep where two are known to be built; found {found}"
+    )
 
     untimed = []
-    for node in ast.walk(tree):
-        if not isinstance(node, ast.Call) or getattr(node.func, "id", "") != "TrajectoryStep":
-            continue
-        given = {kw.arg for kw in node.keywords}
-        # A step that records a model call is the one carrying the model's token counts.
-        if not {"tokens_in", "tokens_out"} <= given:
-            continue
-        if "latency_ms" not in given:
-            untimed.append(node.lineno)
+    for source in sources:
+        tree = ast.parse(source.read_text())
+        for node in ast.walk(tree):
+            if not isinstance(node, ast.Call) or getattr(node.func, "id", "") != "TrajectoryStep":
+                continue
+            given = {kw.arg for kw in node.keywords}
+            # A step that records a model call is the one carrying the model's token counts.
+            if not {"tokens_in", "tokens_out"} <= given:
+                continue
+            if "latency_ms" not in given:
+                untimed.append(f"{source.relative_to(src)}:{node.lineno}")
 
     assert untimed == [], (
-        f"TrajectoryStep at line(s) {untimed} records a model call's tokens and not its latency. "
+        f"TrajectoryStep at {untimed} records a model call's tokens and not its latency. "
         "A model call is timed because it is one, not because of the kind it is filed under."
     )

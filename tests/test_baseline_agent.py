@@ -7,6 +7,7 @@ decides whether the comparison means anything.
 from __future__ import annotations
 
 import json
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -39,6 +40,23 @@ class ScriptedModel:
         self.calls.append(request)
         text = self._replies.pop(0) if self._replies else CONCLUDE
         return ModelResponse(text=text, model=self._name, input_tokens=100, output_tokens=50)
+
+
+class SlowModel(ScriptedModel):
+    """A `ScriptedModel` that takes measurable time, so that a latency can be asserted.
+
+    **The instant fake is why the latency defect was invisible to tests**: a call that returns
+    in under a millisecond records `latency_ms == 0` whether it was timed or not, so no fixture
+    built on `ScriptedModel` can tell a working instrument from a missing one.
+    """
+
+    def __init__(self, replies: list[str], delay_ms: int, name: str = "slow-fake") -> None:
+        super().__init__(replies, name=name)
+        self._delay_s = delay_ms / 1000
+
+    def complete(self, request: ModelRequest) -> ModelResponse:
+        time.sleep(self._delay_s)
+        return super().complete(request)
 
 
 class RelentlessModel:
@@ -290,6 +308,31 @@ def test_usage_is_summed_across_every_turn() -> None:
     assert run.turns == 3
     assert run.tokens_in == 300
     assert run.tokens_out == 150
+
+
+def test_latency_is_summed_across_every_turn_like_the_tokens_beside_it() -> None:
+    """**The measurement all nineteen paid baseline runs of 2026-09-21 were missing.**
+
+    B1's single `COMPLETION` step carries the whole conversation, so its latency has to be summed
+    for the same reason its tokens are - and it was not summed, because it was not collected.
+    Prediction P6 caught it on live runs; the guard that should have caught it parsed
+    `investigation.py` alone (`evals/runs/BASELINES-2026-09-21.md`).
+
+    **A sum is the right quantity here and is the wrong one in the pipeline.** B1 is one
+    conversation on one thread, so its calls are serial and the sum is also the critical path.
+    The four specialists are not, which is why `Latency.model_ms` says in its own docstring that
+    it is a sum and not a critical path.
+    """
+    per_call_ms = 20
+    model = SlowModel([call("logs", "frontend"), CONCLUDE, VERDICT], delay_ms=per_call_ms)
+
+    run = investigate(model)
+
+    assert run.turns == 3
+    # Three calls of at least 20 ms each, summed - not one call's worth, which is the shape the
+    # defect would have had if the latency had been collected and then overwritten per turn. A
+    # floor and not a window: a loaded machine makes calls slower, never faster.
+    assert run.latency_ms >= 3 * per_call_ms
 
 
 def test_a_reply_that_never_validates_is_recorded_rather_than_raised() -> None:

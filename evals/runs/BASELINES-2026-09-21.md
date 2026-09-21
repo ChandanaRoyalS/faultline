@@ -138,3 +138,42 @@ baseline names a service.
 **And not a latency finding about the agent.** B1 and B2 are different pipelines; their being fast
 says the fan-out costs time, not where the agent's own 232.8 s goes. That decomposition needs an
 agent run recorded after the instrument fix, and nothing here registers one.
+
+---
+
+## Addendum — the P6 fix landed, and the guard was the wrong shape twice
+
+**Same day, $0.00, no run made.** The section above promised the fix *"lands after this note, with
+the guard extended to every file that constructs a `TrajectoryStep`."* It has. B1's completion step
+carries `latency_ms` summed over its turns; B2's carries its one call's latency **and the
+`trace_id` / `span_id` of the span it was made inside**, which B1's cannot — a step summarising
+several calls has no one span to name, and pointing it at the last would be a link to the wrong
+thing rather than a missing one.
+
+**The guard now discovers its own inputs**, walking every file under `src/` that constructs a
+`TrajectoryStep` instead of parsing `investigation.py`. Run against the pre-fix tree it names
+exactly the two sites P6 found, by path and line. **A guard scoped to the file where a defect was
+first noticed is a guard against forgetting, not against the defect**, and that is the sentence
+this batch paid to learn.
+
+**Two tests were added beside it, and the reason is the fixture.** Every existing baseline test
+uses a `ScriptedModel` that returns in well under a millisecond, so `latency_ms` reads `0` whether
+the call was timed or not: **no fixture built on it could distinguish a working instrument from a
+missing one**, which is why the old tests passed over the defect as comfortably as the guard did.
+A `SlowModel` that sleeps a fixed 20 ms per call makes the quantity assertable, and both new tests
+were run first against a tree where the field exists and is never populated — the shape a
+regression would actually take — and fail there.
+
+**What the fix did not cover, recorded as [Q83](../../docs/QUEUE.md).** Both baselines accumulate
+usage *after* `ask()` returns, so a run whose reply never validates records **zero tokens and
+therefore $0.00 for model calls that were made and paid for**. It is the same misunderstanding one
+layer along — T6.6's *is this filed under `COMPLETION`* became *did this call succeed* — and the
+new guard cannot see it either, because a call recorded with no tokens builds no step to inspect.
+**No published figure moves**: this batch had no schema failure, so the **$3.4552** above covers
+every call it made. Deferred rather than folded in, because the honest fix needs a decision this
+one did not — `SchemaValidationError` carries only the second attempt's response, so recovering
+the first attempt's tokens is a separate question from recording the second's.
+
+**And the decomposition is still not available for the agent.** These are B1's and B2's
+instruments. The nineteen runs above keep their zeros; nothing is backfilled, and the agent's own
+233 s remains unlocated until an agent run is recorded after this.

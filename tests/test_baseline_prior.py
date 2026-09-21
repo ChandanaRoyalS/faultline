@@ -6,6 +6,7 @@ The sharpest of the three baselines, because it is the one that can embarrass th
 from __future__ import annotations
 
 import json
+import time
 from datetime import UTC, datetime
 from typing import Any
 
@@ -45,6 +46,22 @@ class ScriptedModel:
         self.calls.append(request)
         text = self._replies.pop(0) if self._replies else verdict_reply()
         return ModelResponse(text=text, model=self._name, input_tokens=900, output_tokens=120)
+
+
+class SlowModel(ScriptedModel):
+    """A `ScriptedModel` that takes measurable time, so a latency can be asserted.
+
+    An instant fake records `latency_ms == 0` whether the call was timed or not, which is how a
+    missing instrument passed every test it had until 2026-09-21.
+    """
+
+    def __init__(self, replies: list[str], delay_ms: int, name: str = "slow-fake") -> None:
+        super().__init__(replies, name=name)
+        self._delay_s = delay_ms / 1000
+
+    def complete(self, request: ModelRequest) -> ModelResponse:
+        time.sleep(self._delay_s)
+        return super().complete(request)
 
 
 class Member:
@@ -273,6 +290,25 @@ def test_an_honest_empty_citation_is_not_flagged() -> None:
 
 
 # --- scored by the same code path as everything else ----------------------------------------
+
+
+def test_the_one_call_is_timed_and_carries_the_span_it_was_made_inside() -> None:
+    """**B2 is the one arm where model time and wall clock are the same measurement**, because
+    its whole investigation is one call and a brief. Untimed until 2026-09-21 for the same
+    reason B1's was, and caught the same way - by prediction P6 on live runs rather than by the
+    guard, which parsed `investigation.py` alone (`evals/runs/BASELINES-2026-09-21.md`).
+
+    `trace_id` is asserted alongside because one call *can* name the span it came from, which is
+    exactly what B1's summed step cannot do and is therefore not given.
+    """
+    per_call_ms = 20
+    run = investigate(SlowModel([verdict_reply()], delay_ms=per_call_ms))
+
+    assert run.latency_ms >= per_call_ms
+    # Empty when nothing is exporting, which is the case under test - but the field has to exist
+    # and be carried, because the step reads it unconditionally.
+    assert isinstance(run.trace_id, str)
+    assert isinstance(run.span_id, str)
 
 
 def test_concluding_without_looking_is_the_method_here_and_not_an_error() -> None:
