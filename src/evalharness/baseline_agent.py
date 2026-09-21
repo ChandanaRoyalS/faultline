@@ -93,7 +93,7 @@ from pydantic import BaseModel, ConfigDict, Field
 if TYPE_CHECKING:  # pragma: no cover - import cycle only matters to a type checker
     from faultline.agents.budget import Budget
     from faultline.agents.model import LanguageModel
-    from faultline.tools.tools import Tools
+    from faultline.tools.interface import ToolSet
 
 BASELINE_ID = "B1"
 
@@ -289,7 +289,7 @@ def investigate(
     triage: Any,
     anchor: datetime,
     now: datetime,
-    tools: Tools,
+    tools: ToolSet,
     model: LanguageModel,
     budget: Budget,
     effort: str = "medium",
