@@ -40,6 +40,42 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 > `tests/test_results_run_counts.py`, because a hand-maintained count on the most-read document
 > in the repository is a promise to remember, and the promise has now failed twice.)*
 >
+## The baseline panel — what the pipeline is measured against (2026-09-21)
+
+**Gate 4's condition names *"the T4.7 baseline suite"*, and until today it had never run.** The
+tree held 42 `b0` manifests at a version Q34 superseded and **zero `b1`, zero `b2`**. All three now
+have runs at this world and this stamp: thirty started, twenty-nine scored, one discarded,
+**\$3.4552**. Pre-registered in
+[`PREREGISTRATION-BASELINES.md`](../evals/runs/PREREGISTRATION-BASELINES.md) and reported in full in
+[`BASELINES-2026-09-21.md`](../evals/runs/BASELINES-2026-09-21.md), which is the authority for every
+number here.
+
+| axis | **B0.3** no LLM | **B2** prior, no tools | **B1** one agent, no fan-out | **agent** (sweep 12 arm A) |
+|---|---|---|---|---|
+| fault class, of answered | 4 / 10 | 6 / 10 | **9 / 9** | 26 / 27 |
+| fix class | 5 / 10 | 8 / 10 | 8 / 9 | 23 / 27 |
+| **culprit service** | not produced | not produced | not produced | **23 / 30** |
+| median latency | 0.0 s | 30.5 s | 60.5 s | 251.6 s |
+| median cost | \$0.0000 | \$0.0364 | \$0.3406 | \$0.7130 |
+
+**Two readings, and the second is the one to carry beside the headline.**
+
+**The fan-out is not what earns the fault-class figure.** One agent with the same four tools and no
+parallel specialists scored 9 / 9 at a quarter of the latency and under half the cost — inside the
+16.2 pp MDE of the pipeline's 26 / 27, so the defensible statement is *no measurable difference on
+fault class*, not that B1 is better. It is dev-only, at R = 1 against R = 3, and **B1 names no
+service**, so it says nothing about the axis below.
+
+**The pipeline's margin over not looking at all is about four scenarios in ten.** B2 — alert text,
+a service catalog, no tools — answered 6 / 10, substantially by guessing the modal class and
+reading the fault type out of the alert shape. That is the number a reader needs beside *26 / 27*,
+and it is the reason the brief makes this panel mandatory.
+
+**And the headline axis has no floor.** No baseline produces a culprit service — B0 cannot by
+design, B1 and B2 do not — so **`culprit service 23 / 30` has never been read against a control**
+and this panel cannot give it one. A reader asking what 23 / 30 beats is owed *nothing measured*.
+That is a gap in the suite, recorded rather than left to be noticed.
+
 ## T6.5 — the newest figure, and the corpus comparison it came from (2026-09-17/18)
 
 **This is the figure the front door headlines, and until 2026-09-20 it was not in this document at

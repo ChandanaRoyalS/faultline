@@ -17,7 +17,7 @@ authoritative; verify wording against it before relying on it.
 | G1 | injected fault → alert fires → visible on dashboards, zero AI | **Declared 2026-08-23** |
 | G2 | one alert → one agent → one persisted, rendered finding | **Declared 2026-09-01** — qualified |
 | G3 | end-to-end investigation passes on 3 scenario classes | **Declared 2026-09-02** — qualified |
-| G4 | one command runs and scores all 10 scenarios into a report | Not declared — **assessed 2026-09-20**, latency failing and two baselines never run |
+| G4 | one command runs and scores all 10 scenarios into a report | Not declared — **assessed 2026-09-20**; baselines run 2026-09-21, latency still failing |
 | G5 | full demo runs from clean clone; MVP tagged | **Declared 2026-09-07** — qualified |
 | G6 | approval-gated remediation works; injection + storm tests pass | Not declared — **assessed 2026-09-20**, one clause failing and one undefined |
 | G7 | repo + video + benchmark and ablation reports are application-ready | Not declared — **assessed 2026-09-20**, the four named blockers closed the same day |
@@ -275,12 +275,22 @@ evidence-gathering surface is a rounding error — and model time is **75 %** of
 code lever, no stamp) or unattributed model time (prompt levers, every one re-founding the
 benchmark) is the open question, and `trajectory_steps.latency_ms` per role answers it.
 
-### Not met — the T4.7 baseline suite has never been run
+### Met, 2026-09-21 — the T4.7 baseline suite, which had never been run
 
 All three baselines are **built**: `b0` (no-LLM heuristic), `b1` (one agent, four tools, no
 fan-out), `b2` (the model's prior, no tools), all wired into `faultline-eval --baseline` and
 `faultline-sweep --baseline`, with `BaselinePanel` refusing to exist unless it carries an entry for
 every one — *"an unrun baseline is a row that says so, never an absent row."*
+
+***2026-09-21: run, and the clause is met***
+([`BASELINES-2026-09-21.md`](../evals/runs/BASELINES-2026-09-21.md)). Thirty started, twenty-nine
+scored, one discarded, **\$3.4552** of an \$8.00 ceiling, pre-registered before the first run. All
+three arms exist at this world and this stamp: **B0.3 4 / 10, B2 6 / 10, B1 9 / 9** on fault class
+against the pipeline's 26 / 27. Two of the seven predictions were falsified and both are findings —
+**B1 matching the pipeline says the fan-out is not what earns the fault-class figure** (at R = 1,
+dev-only, inside the MDE), and **B2 at 6 / 10 puts the pipeline's margin over *no evidence at all*
+at about four scenarios in ten.** What the panel still cannot do is give **culprit service** a
+floor: no baseline produces one. The paragraph as written follows.
 
 **Built is not run.** Across the whole run tree: **42 `b0` manifests, zero `b1`, zero `b2`.** And
 the 42 are `b0` version 2, which **Q34 superseded on 2026-09-14** after finding B0's third signal
