@@ -803,12 +803,20 @@ def metric_panel(dsn: str, trajectory_id: str) -> metrics.MetricPanel:
         narrative = (found[0] or {}) if found else {}
 
     tool_ms, _ = by_kind.get("tool_call", (0, 0))
-    completion_ms, _ = by_kind.get("completion", (0, 0))
+    retrieval_ms, _ = by_kind.get("retrieval", (0, 0))
+    # **Every kind that is not a tool call or a retrieval is a model call**, rather than the
+    # `completion` kind alone. The verdict, the proposal and the narrative are model calls under
+    # their own kinds and were outside this sum until 2026-09-21; a kind that carries no latency
+    # (`runtime`'s bookkeeping message) contributes nothing and needs no exclusion.
+    model_ms = sum(
+        total for kind, (total, _) in by_kind.items() if kind not in ("tool_call", "retrieval")
+    )
     return metrics.MetricPanel(
         latency=metrics.Latency(
             investigation_ms=wall_ms,
             tool_ms=tool_ms,
-            model_ms=completion_ms,
+            model_ms=model_ms,
+            retrieval_ms=retrieval_ms,
             steps=sum(n for _, n in by_kind.values()),
         ),
         tools=metrics.tool_calls(calls),
