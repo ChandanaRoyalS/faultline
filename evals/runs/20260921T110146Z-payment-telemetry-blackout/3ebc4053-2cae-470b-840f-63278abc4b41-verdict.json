@@ -1,0 +1,60 @@
+{
+  "incident_id": "3ebc4053-2cae-470b-840f-63278abc4b41",
+  "trajectory_id": "3d4b2f19-dd95-44fa-b097-6208dde07372",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "paymentservice",
+    "checkoutservice",
+    "frontend"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origins": [
+    "scenario:scenario:payment-telemetry-blackout"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "summary": "A platform-automation environment change at 11:01:52 pointed paymentservice's OTLP traces endpoint at a loopback address on the pod itself, so its telemetry never reached the collector and the service disappeared from metrics and traces while still serving traffic normally.",
+    "confidence": "high",
+    "evidence": [
+      "tr_a99b0646ea87",
+      "tr_14874fd233da",
+      "tr_aa55d31c89b1",
+      "tr_cbe9caabde68",
+      "tr_b0d43b654af2",
+      "tr_121df3ef9ced",
+      "tr_bb233e6cdb96"
+    ],
+    "reasoning": "The alert on paymentservice is backed by no data at all: the error-ratio query returned no samples in either window (tr_14874fd233da) and tempo held no paymentservice spans (tr_aa55d31c89b1) - an absence of telemetry, not a rise in errors. Meanwhile paymentservice's own logs run continuously through and past onset with charge requests received and completed and no error-level lines (tr_cbe9caabde68), and the two other services in the blast radius show error ratios that fell to zero in the incident window rather than rising (tr_b0d43b654af2, tr_121df3ef9ced). Caller-side traces still contain PaymentService/Charge spans at a couple of milliseconds, but recorded only by checkoutservice with no child span contributed by paymentservice itself (tr_bb233e6cdb96) - exactly the shape of a producer whose exporter is shipping nowhere. The change log shows the same OTLP traces endpoint variable set to a loopback address and reverted twice earlier the same day, then set a third time at 11:01:52 and left in place, roughly six minutes before onset (tr_a99b0646ea87). The configuration value is itself wrong - a loopback exporter target where a collector address belongs - and that wrongness is the whole failure; nothing was starved, nothing waited on a slow dependency, and the serving artifact is behaving correctly.",
+    "open_questions": [
+      "Whether the hostname difference between the early and late log lines reflects a container restart applied with the config change or unrelated rescheduling.",
+      "Why the blast radius listed checkoutservice and frontend when neither showed elevated errors - likely graph-topology expansion rather than observed symptoms.",
+      "Whether any real customer-facing charge failures occurred in the unobserved window, since the only positive evidence of health is logs and caller-side spans.",
+      "Whether the recurring automation that sets this variable will reapply it after a manual revert."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 7,
+    "turns": 9,
+    "looked_at": [
+      "metrics:paymentservice",
+      "logs:paymentservice",
+      "changes:paymentservice",
+      "traces:paymentservice",
+      "metrics:checkoutservice",
+      "metrics:frontend",
+      "traces:checkoutservice"
+    ]
+  }
+}

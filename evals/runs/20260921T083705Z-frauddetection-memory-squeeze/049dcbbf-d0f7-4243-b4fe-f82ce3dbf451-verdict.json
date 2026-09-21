@@ -1,0 +1,42 @@
+{
+  "incident_id": "049dcbbf-d0f7-4243-b4fe-f82ce3dbf451",
+  "trajectory_id": "30c934c5-449f-45fc-8242-4b65313dac56",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [
+    "scenario:scenario:frauddetection-memory-squeeze"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "summary": "frauddetectionservice stopped receiving work entirely \u2014 most likely its Kafka consumer configuration (bootstrap broker address / topic / consumer group) points somewhere wrong, so the process is up but subscribed to nothing.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The only signal is ServiceNoTraffic on a single leaf service, and the blast radius does not expand: checkoutservice, its only listed caller, is not alerting and frontend is quiet. If the checkout\u2192frauddetection edge were a synchronous call, a dead fraud service would surface as errors or latency in checkout; it does not, which fits the known asynchronous Kafka path (kafka is explicitly absent from the graph). So the failure is a consumer that quietly stopped consuming rather than a caller that stopped calling. 'Zero traffic, no errors anywhere, nobody downstream hurt' is the signature of a process that is running but pointed at the wrong broker/topic, or of a pod that never came up. I favour bad config because a crashlooping artifact usually trips liveness/restart alerts alongside the traffic alert, and a resource problem would normally show degradation before silence rather than an instant cliff at onset.",
+    "open_questions": [
+      "Is the frauddetectionservice pod running and ready, or crashlooping/restarting?",
+      "What Kafka bootstrap servers, topic and consumer group is the running container configured with, and does that match the broker?",
+      "Consumer group lag on the orders topic \u2014 is the backlog growing (consumer gone) or empty (no messages being produced)?",
+      "Is checkoutservice still successfully producing order events to Kafka?",
+      "Any deploy, config-map or feature-flag change to frauddetectionservice just before 08:43?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

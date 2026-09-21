@@ -1,0 +1,52 @@
+{
+  "incident_id": "29ae4636-02cc-410b-9135-5f4319d499f2",
+  "trajectory_id": "860adacf-ba17-4a80-97dc-a49c063d1e86",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "accountingservice",
+    "emailservice",
+    "frauddetectionservice",
+    "quoteservice",
+    "shippingservice",
+    "cartservice",
+    "currencyservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [
+    "scenario:scenario:shipping-wrong-image"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "summary": "checkoutservice is running a broken artifact that fails requests before it makes any downstream calls, so every checkout-only dependency went idle while checkout returned errors to frontend.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "checkoutservice alerted first and alone with a high error rate; three minutes later the no-traffic alerts fire precisely for the services that only checkoutservice calls (emailservice, frauddetectionservice, shippingservice->quoteservice, accountingservice). Services checkout shares with frontend (cartservice, currencyservice, productcatalogservice, paymentservice) did not go silent, because frontend still drives them. That pattern says checkout is failing at or before the first outbound call rather than waiting on any dependency - no downstream service alerted before checkout, so nothing it depends on plausibly broke first. A request path that dies that early is usually a process that cannot correctly serve: a wrong or unstartable image/version. Remediation is to roll the checkout deployment back to the previously known-good revision.",
+    "open_questions": [
+      "Deployment/rollout history for checkoutservice in the 30 minutes before 07:06:15 - image tag and revision change",
+      "The actual error signature from checkoutservice: startup crashloop/panic vs. 5xx on a specific RPC vs. connection refused to a named host",
+      "Whether checkoutservice emitted any outbound spans at all after onset, or zero",
+      "checkoutservice pod restart count, memory/OOMKill status and connection-pool saturation to rule out resource exhaustion",
+      "Whether the absent kafka broker is in checkout's order-publish path and whether its endpoint config changed"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 1,
+    "cited_without_looking": []
+  }
+}

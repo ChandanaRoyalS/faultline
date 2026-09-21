@@ -1,0 +1,48 @@
+{
+  "incident_id": "f3a2d86b-cd7c-497c-97a8-c32f74179448",
+  "trajectory_id": "e446fc41-5d46-4927-af40-d255beabf95b",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "loadgenerator",
+    "frontend",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:ad-memory-squeeze"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "summary": "The frontend is misconfigured \u2014 most likely a wrong endpoint/port/timeout value for one of its backends (cart, productcatalog, ad or checkout) \u2014 so its outbound calls fail immediately while the backends themselves stay healthy.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "Only frontend and loadgenerator alert. loadgenerator is a pure client, so it is reporting what frontend returned, not a separate fault. None of frontend's downstreams (adservice, cartservice, checkoutservice, productcatalogservice, recommendationservice) alert at all, which argues the failure originates inside frontend rather than propagating up from a sick dependency \u2014 the blast radius is just frontend's fan-out, computed by graph traversal, not by observed damage. Error rate spikes first and latency only appears ~90s later as a secondary symptom (retries/connection timeouts piling up), which fits requests failing fast on a wrong address/credential/flag rather than a slow dependency, where latency would lead and downstream services would also look unhealthy. bad_config is preferred over bad_deploy because the process is clearly serving traffic and returning errors rather than failing to start, though a config-bearing deploy would look identical from here.",
+    "open_questions": [
+      "frontend error responses: HTTP status and error text \u2014 connection refused / DNS failure / 401 / 500 from handler?",
+      "Which downstream call is failing: per-dependency error breakdown in frontend's client metrics",
+      "Did a deploy or config/env-var change land on frontend just before 07:36:15?",
+      "frontend pod restart count, memory/CPU and connection-pool saturation, to rule out resource exhaustion",
+      "Latency percentiles at the named backends during the window \u2014 are any actually slow but below alert threshold?"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

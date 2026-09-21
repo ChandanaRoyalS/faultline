@@ -1,0 +1,23 @@
+incident 2cfd964b-2bc2-4517-837b-0ab921a7013e  state triaging  anchor 09:47:15
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+B1: bad_deploy / rollback (medium)
+  cartservice was redeployed onto a hotfix image at 09:43:52, and the restarted artifact fails GetCart calls, which propagates as errors through checkoutservice and frontend.
+  4 tool calls over 6 turns
+    metrics:checkoutservice  Confirm the error onset shape and timing on the earliest-alerting service before tracing upstream dependencies.
+    traces:checkoutservice  Identify which downstream dependency's spans are slow or erroring within checkout's calls.
+    logs:cartservice  See what cartservice is failing on — fast errors suggest a dependency (redis) failure or config, not latency.
+    changes:cartservice  Determine whether a deploy or config edit preceded cartservice's shutdown at 09:43:51.
+wrote /Users/chandana/dev/faultline/evals/runs/20260921T094346Z-cart-bad-image-tag/2cfd964b-2bc2-4517-837b-0ab921a7013e-verdict.json
+{"ts": "2026-09-21T09:49:05.779+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T09:49:05.823+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(calls_total{service_name=\"checkoutservice\",status_code=\"STATUS_CODE_ERROR\"}[2m])) / sum by(service_name) (rate(calls_total{service_name=\"checkoutservice\"}[2m])) start=2026-09-21T08:45:28.601612+00:00 end=2026-09-21T09:49:02.564388+00:00 span_s=3813 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T09:49:08.747+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T09:49:08.748+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkoutservice start=2026-09-21T09:17:15.583000+00:00 end=2026-09-21T09:49:02.564388+00:00 span_s=1906 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T09:49:12.644+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T09:49:12.646+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"cart-service\"} start=2026-09-21T09:17:15.583000+00:00 end=2026-09-21T09:49:02.564388+00:00 span_s=1906 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T09:49:16.567+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T09:49:16.568+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=cartservice start=2026-09-20T09:47:15.583000+00:00 end=2026-09-21T09:49:02.564388+00:00 span_s=86506 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T09:49:34.452+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T09:49:37.526+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T09:49:51.395+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T09:50:00.768+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

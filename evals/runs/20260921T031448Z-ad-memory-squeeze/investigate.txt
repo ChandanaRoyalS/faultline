@@ -1,0 +1,11 @@
+incident 86951ea9-648c-44d4-ac5d-c7bb068bc145  state triaging  anchor 03:17:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+B0: dependency_latency / restart
+  suspect: largest error-rate delta among alerting services (+0.099)
+  class: no change on any alerting service before onset
+  remediation: table lookup from dependency_latency
+wrote /Users/chandana/dev/faultline/evals/runs/20260921T031448Z-ad-memory-squeeze/86951ea9-648c-44d4-ac5d-c7bb068bc145-verdict.json
+{"ts": "2026-09-21T03:19:41.912+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=loadgenerator start=2026-09-20T03:17:45.583000+00:00 end=2026-09-21T03:19:41.907802+00:00 span_s=86516 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T03:19:41.913+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(calls_total{service_name=\"loadgenerator\",status_code=\"STATUS_CODE_ERROR\"}[2m])) / sum by(service_name) (rate(calls_total{service_name=\"loadgenerator\"}[2m])) start=2026-09-21T02:47:45.583000+00:00 end=2026-09-21T03:19:41.907802+00:00 span_s=1916 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T03:19:41.918+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-09-20T03:17:45.583000+00:00 end=2026-09-21T03:19:41.907802+00:00 span_s=86516 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T03:19:41.919+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[2m])) / sum by(service_name) (rate(calls_total{service_name=\"frontend\"}[2m])) start=2026-09-21T02:47:45.583000+00:00 end=2026-09-21T03:19:41.907802+00:00 span_s=1916 refused=False", "component": "investigator"}

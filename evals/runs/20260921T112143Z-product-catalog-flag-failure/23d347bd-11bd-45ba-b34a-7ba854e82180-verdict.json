@@ -1,0 +1,59 @@
+{
+  "incident_id": "23d347bd-11bd-45ba-b34a-7ba854e82180",
+  "trajectory_id": "60bb21ce-1167-4e41-81f2-c0d407175b4f",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend",
+    "loadgenerator",
+    "productcatalogservice",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:product-catalog-flag-failure"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "summary": "A feature-flag environment value on featureflagservice was set to enable productCatalogFailure at 11:21, and productcatalogservice consequently returns errors on GetProduct calls that consult that flag.",
+    "confidence": "high",
+    "evidence": [
+      "tr_de4adfafe584",
+      "tr_42cf030803b1",
+      "tr_68173ce04b9b",
+      "tr_05cd16ae4245",
+      "tr_fabe04765fba"
+    ],
+    "reasoning": "productcatalogservice error ratio rose from an exactly-zero baseline with change points at 11:25 and 11:28 (tr_de4adfafe584), yet nothing was deployed or changed on productcatalogservice itself (tr_42cf030803b1). Traces show every errored productcatalogservice span carries a child call to FeatureFlagService/GetFlag, while non-errored sibling spans do not, and the error propagates upward into frontend roots (tr_05cd16ae4245), which explains why frontend and loadgenerator alerted first without being broken. The change log shows a flag value enabling productCatalogFailure set at 11:21:51, minutes before onset, with two earlier set/revert cycles matching the same pattern (tr_fabe04765fba). The failing mechanism is the wrongness of the configured value itself, not a slow dependency or an exhausted resource: the errored spans complete in milliseconds.",
+    "open_questions": [
+      "Whether the earlier multi-second ListProducts slow-request warnings around 11:03-11:09 (tr_68173ce04b9b) share this cause or are an unrelated pre-existing latency condition.",
+      "Whether the 11:21 change was a deliberate fault-injection exercise or an automation error.",
+      "featureflagservice's own metrics and logs were not examined, so its post-11:21 serving behaviour is inferred from traces and the change log only."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "metrics:productcatalogservice",
+      "changes:productcatalogservice",
+      "logs:productcatalogservice",
+      "traces:productcatalogservice",
+      "changes:featureflagservice"
+    ]
+  }
+}

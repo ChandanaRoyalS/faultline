@@ -1,0 +1,25 @@
+incident e3700b32-33db-438f-982f-8aa32df87716  state triaging  anchor 12:02:00
+triage: 10 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+
+B1: bad_config / config_revert (high)
+  A configuration change at 11:59:19 set shippingservice's QUOTE_SERVICE_ADDR to a non-existent quote host, so GetQuote calls could no longer be fulfilled and the failure surfaced as errors in checkoutservice's PlaceOrder path.
+  5 tool calls over 7 turns
+    metrics:checkoutservice  Confirm the error onset shape and timing on the first alerting service before tracing to dependencies.
+    traces:checkoutservice  See which downstream dependency's spans are slow or erroring within checkout's failing requests.
+    changes:checkoutservice  Client-side span errors while shipping's server span succeeds — check whether checkout deployed/config changed at ~12:00.
+    changes:shippingservice  Checkout's client span to shipping errors while shipping's server span looks clean — check for a deploy/config change on shippingservice near 12:00.
+    logs:shippingservice  Confirm shipping's outbound quote calls are failing against the unreachable host after 11:59.
+wrote /Users/chandana/dev/faultline/evals/runs/20260921T115912Z-shipping-quote-misconfig/e3700b32-33db-438f-982f-8aa32df87716-verdict.json
+{"ts": "2026-09-21T12:04:33.833+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T12:04:33.878+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(calls_total{service_name=\"checkoutservice\",status_code=\"STATUS_CODE_ERROR\"}[2m])) / sum by(service_name) (rate(calls_total{service_name=\"checkoutservice\"}[2m])) start=2026-09-21T10:59:30.789382+00:00 end=2026-09-21T12:04:30.376618+00:00 span_s=3899 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T12:04:37.136+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T12:04:37.137+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=checkoutservice start=2026-09-21T11:32:00.583000+00:00 end=2026-09-21T12:04:30.376618+00:00 span_s=1949 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T12:04:43.432+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T12:04:43.434+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkoutservice start=2026-09-20T12:02:00.583000+00:00 end=2026-09-21T12:04:30.376618+00:00 span_s=86549 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T12:04:47.583+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T12:04:47.585+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=shippingservice start=2026-09-20T12:02:00.583000+00:00 end=2026-09-21T12:04:30.376618+00:00 span_s=86549 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T12:04:52.191+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T12:04:52.193+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"shipping-service\"} start=2026-09-21T11:32:00.583000+00:00 end=2026-09-21T12:04:30.376618+00:00 span_s=1949 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T12:04:58.310+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T12:05:19.328+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T12:05:30.896+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

@@ -1,0 +1,52 @@
+{
+  "incident_id": "63765801-cb89-4d1a-8cb6-7291f8eff990",
+  "trajectory_id": "43c8f983-a97a-4de1-8c09-a8da40c90e8f",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "accountingservice",
+    "frauddetectionservice",
+    "quoteservice",
+    "emailservice",
+    "cartservice",
+    "currencyservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [
+    "scenario:scenario:shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "summary": "checkoutservice is failing every PlaceOrder request internally - almost certainly a wrong configuration value (bad downstream address/port or credential for one of its early dependencies such as cart/shipping) - so it errors out before ever calling its later dependencies.",
+    "confidence": "medium",
+    "evidence": [],
+    "reasoning": "checkoutservice alerts first and alone with a critical error rate; every other alert is a ServiceNoTraffic three minutes later on services that exist only as checkout's callees (emailservice, accountingservice, frauddetectionservice) or behind one (quoteservice via shippingservice). Silence downstream is the signature of a caller that dies before dispatching, not of a broken callee - a broken callee would itself alert on errors or latency and would still be receiving traffic. No dependency of checkout shows errors or slowness, so the fault is inside checkoutservice. It is still serving and returning errors rather than being absent, which fits a wrong config value taking effect (bad endpoint, port, or credential) more than an unstartable artifact. That quoteservice is dark tells me the failure occurs at or before the shipping-quote step, i.e. very early in PlaceOrder, consistent with a misdirected client target.",
+    "open_questions": [
+      "The actual error status/message on checkoutservice spans - connection refused / DNS failure / unauthenticated would confirm a wrong address or credential",
+      "Whether checkoutservice's config or deployment changed just before 06:47 and what value changed",
+      "Whether cartservice and shippingservice still see calls from checkoutservice (as opposed to only from frontend) at onset",
+      "checkoutservice pod restart count and memory/CPU at onset, to rule out OOM-kill loops",
+      "Whether redis-cart (absent from the graph) was healthy, since a cart failure would also stall checkout early"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

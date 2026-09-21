@@ -1,0 +1,61 @@
+{
+  "incident_id": "6131e32c-c2bf-46f9-bc24-8c5e70cf6630",
+  "trajectory_id": "57c85891-41d9-442b-90ee-bfd02e7e9eea",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "loadgenerator",
+    "accountingservice",
+    "cartservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:scenario:shipping-wrong-image"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "summary": "shippingservice was redeployed at 12:16 with an image reference pointing at a different service's artifact (an adservice build), so its GetQuote RPC no longer exists and every checkout shipping-quote call fails.",
+    "confidence": "high",
+    "evidence": [
+      "tr_3c576ae37a4e",
+      "tr_7f23bd964593",
+      "tr_2fa08efdcfd5",
+      "tr_43e1f2976f6c",
+      "tr_94fd7a1c7f2a"
+    ],
+    "reasoning": "checkoutservice alerted first but its traces show the error originating at the checkout->shipping GetQuote hop, with no healthy server-side shipping span and all sibling dependency calls (cart, currency, productcatalog) fast and clean; errors therefore propagate upward from shipping into checkout and frontend/loadgenerator. The change record for shippingservice shows an image reference switched at 12:16 to an artifact belonging to a different component and not reverted, which matches the second error-ratio change point at 12:17 and the onset at 12:19. shippingservice logs flip at 12:16 from normal quote handling to a rejection of GetQuote by the running build, and runtime startup banners repeat from 12:16 onward, consistent with a newly rolled, wrong artifact. The earlier 11:59-12:05 spike had a different mechanism (a quote backend address pointing at a nonexistent host) but that env change was reverted at 12:05, so the sustained incident is the image, not that config.",
+    "open_questions": [
+      "Whether the 12:16 image change was also reverted after the observation window closed",
+      "Whether the repeated runtime startups indicate crash-looping pods or merely rollout churn",
+      "Whether the earlier 11:59-12:05 config episode contributed to the first change point at 12:00 independently of the image change"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 4,
+    "turns": 6,
+    "looked_at": [
+      "metrics:checkoutservice",
+      "traces:checkoutservice",
+      "changes:shippingservice",
+      "logs:shippingservice"
+    ]
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "incident_id": "e3700b32-33db-438f-982f-8aa32df87716",
+  "trajectory_id": "b78f4bc6-0008-487e-a56b-75563fbbad7f",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "loadgenerator",
+    "accountingservice",
+    "cartservice",
+    "currencyservice",
+    "emailservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:scenario:shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "summary": "A configuration change at 11:59:19 set shippingservice's QUOTE_SERVICE_ADDR to a non-existent quote host, so GetQuote calls could no longer be fulfilled and the failure surfaced as errors in checkoutservice's PlaceOrder path.",
+    "confidence": "high",
+    "evidence": [
+      "tr_800ba88abbf8",
+      "tr_463ac633c5ad",
+      "tr_cbe3ab7aba02",
+      "tr_a0dde5982de3",
+      "tr_a64fa48250b8"
+    ],
+    "reasoning": "checkoutservice error ratio departed from baseline at 12:00:15 (tr_800ba88abbf8), but every failing trace fails at the same hop: checkout's client span to ShippingService/GetQuote is the error-marked, dominant segment, while the rest of checkout's fan-out (cart, catalog, currency) is fast and clean (tr_463ac633c5ad). checkoutservice itself had no changes in the preceding 24h (tr_cbe3ab7aba02), which rules out its own artifact or settings. shippingservice, by contrast, had an environment edit applied at 11:59:19 repointing its quote-service address to a host that does not exist (tr_a0dde5982de3), about a minute before onset; the same edit-and-revert pair had been exercised twice earlier in the day. shippingservice's own log stream shows quote requests still arriving after that time without the completed-quote follow-ups that accompanied them earlier in the window (tr_a64fa48250b8), consistent with the outbound quote lookup no longer resolving. The wrongness of the address value is itself the failure, so this is bad_config rather than a deploy or exhaustion; checkoutservice and loadgenerator alerted because the error propagates toward the caller.",
+    "open_questions": [
+      "The elided middle of the shipping log window means I did not directly observe connection-failure lines between 11:32 and 12:00, only the absence of quote completions in the newest lines.",
+      "Whether the 11:59 change has since been reverted (no revert record appears yet), and whether any traffic still succeeded.",
+      "Why shippingservice's server span is not itself error-marked while checkout's client span is - the error may be carried in the gRPC status rather than the span flag."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "metrics:checkoutservice",
+      "traces:checkoutservice",
+      "changes:checkoutservice",
+      "changes:shippingservice",
+      "logs:shippingservice"
+    ]
+  }
+}

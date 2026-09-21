@@ -1,0 +1,62 @@
+{
+  "incident_id": "2cfd964b-2bc2-4517-837b-0ab921a7013e",
+  "trajectory_id": "892785c4-69af-4480-a423-a4a762c1c5c5",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "currencyservice",
+    "emailservice",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:scenario:cart-bad-image-tag"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "summary": "cartservice was redeployed onto a hotfix image at 09:43:52, and the restarted artifact fails GetCart calls, which propagates as errors through checkoutservice and frontend.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_7387ab4e248b",
+      "tr_e7692a561d9f",
+      "tr_11d793f2071f",
+      "tr_383b9e40b543"
+    ],
+    "reasoning": "checkoutservice's error ratio rose ~17x with a change point at 09:45:15 (tr_7387ab4e248b), just after cartservice's process shutdown at 09:43:51 (tr_11d793f2071f) and the image reference update at 09:43:52 (tr_383b9e40b543). Every failing trace terminates in an erroring, sub-5ms checkoutservice->CartService/GetCart span (tr_e7692a561d9f): fast failures, not waiting, which rules out dependency latency. The frontend and loadgenerator alerts are downstream consequences of the same call path. Earlier same-day traffic-shaping and REDIS_ADDR experiments were each reverted well before onset; the only change still standing at onset is the hotfix image, which was never reverted this time.",
+    "open_questions": [
+      "The cartservice logs returned no post-restart error lines (the window was truncated), so the specific failure mode inside the new image is unconfirmed.",
+      "Whether the hotfix image itself is broken or whether it merely lacks configuration the previous artifact had.",
+      "Whether redis-cart is healthy independently of cartservice."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 4,
+    "turns": 6,
+    "looked_at": [
+      "metrics:checkoutservice",
+      "traces:checkoutservice",
+      "logs:cartservice",
+      "changes:cartservice"
+    ]
+  }
+}

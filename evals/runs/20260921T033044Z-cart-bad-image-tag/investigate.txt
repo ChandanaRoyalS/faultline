@@ -1,0 +1,13 @@
+incident b31b9a78-883d-4e0e-8fc4-29b05de6c2fb  state triaging  anchor 03:35:15
+triage: 12 services, severity critical, start from checkoutservice, 4 unmeasured edge(s) crossed
+B0: bad_config / config_revert
+  suspect: service of the most recent pre-onset change in the window (07:48:19)
+  class: that change was to config
+  remediation: table lookup from bad_config
+wrote /Users/chandana/dev/faultline/evals/runs/20260921T033044Z-cart-bad-image-tag/b31b9a78-883d-4e0e-8fc4-29b05de6c2fb-verdict.json
+{"ts": "2026-09-21T03:37:05.455+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=checkoutservice start=2026-09-20T03:35:15.583000+00:00 end=2026-09-21T03:37:05.450358+00:00 span_s=86509 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T03:37:05.456+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(calls_total{service_name=\"checkoutservice\",status_code=\"STATUS_CODE_ERROR\"}[2m])) / sum by(service_name) (rate(calls_total{service_name=\"checkoutservice\"}[2m])) start=2026-09-21T03:05:15.583000+00:00 end=2026-09-21T03:37:05.450358+00:00 span_s=1909 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T03:37:05.463+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=frontend start=2026-09-20T03:35:15.583000+00:00 end=2026-09-21T03:37:05.450358+00:00 span_s=86509 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T03:37:05.464+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(calls_total{service_name=\"frontend\",status_code=\"STATUS_CODE_ERROR\"}[2m])) / sum by(service_name) (rate(calls_total{service_name=\"frontend\"}[2m])) start=2026-09-21T03:05:15.583000+00:00 end=2026-09-21T03:37:05.450358+00:00 span_s=1909 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T03:37:05.467+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=loadgenerator start=2026-09-20T03:35:15.583000+00:00 end=2026-09-21T03:37:05.450358+00:00 span_s=86509 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T03:37:05.467+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=promql_query subject=sum by(service_name) (rate(calls_total{service_name=\"loadgenerator\",status_code=\"STATUS_CODE_ERROR\"}[2m])) / sum by(service_name) (rate(calls_total{service_name=\"loadgenerator\"}[2m])) start=2026-09-21T03:05:15.583000+00:00 end=2026-09-21T03:37:05.450358+00:00 span_s=1909 refused=False", "component": "investigator"}
