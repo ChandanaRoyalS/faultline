@@ -1,0 +1,8 @@
+incident 2a85cf54-b8b2-42b8-aa3c-55d1b9110de2  state triaging  anchor 06:15:45
+triage: 3 services, severity critical, start from paymentservice, 2 unmeasured edge(s) crossed
+
+B2: bad_deploy / rollback (low)
+  paymentservice stopped serving entirely — most likely a rolled-out artifact that fails to start (crash loop / never becomes ready), so no requests are accepted or reported at all.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20260921T060936Z-payment-telemetry-blackout/2a85cf54-b8b2-42b8-aa3c-55d1b9110de2-verdict.json
+{"ts": "2026-09-21T06:17:51.651+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

@@ -1,0 +1,8 @@
+incident 29ae4636-02cc-410b-9135-5f4319d499f2  state triaging  anchor 07:06:15
+triage: 11 services, severity critical, start from checkoutservice, 5 unmeasured edge(s) crossed
+
+B2: bad_deploy / rollback (low)
+  checkoutservice is running a broken artifact that fails requests before it makes any downstream calls, so every checkout-only dependency went idle while checkout returned errors to frontend.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20260921T070316Z-shipping-wrong-image/29ae4636-02cc-410b-9135-5f4319d499f2-verdict.json
+{"ts": "2026-09-21T07:11:36.119+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

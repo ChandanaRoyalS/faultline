@@ -1,0 +1,48 @@
+{
+  "incident_id": "4853f681-7018-47d3-8c42-b10ac9322bf9",
+  "trajectory_id": "c283a845-c710-4125-9eec-09ccfa4a434a",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "checkoutservice",
+    "accountingservice",
+    "emailservice",
+    "frauddetectionservice",
+    "quoteservice",
+    "cartservice",
+    "currencyservice",
+    "frontend",
+    "paymentservice",
+    "productcatalogservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 5,
+  "exclude_origins": [
+    "scenario:scenario:shipping-quote-misconfig"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "summary": "suspect: service of the most recent pre-onset change in the window (04:24:10); class: that change was to resource_limits; remediation: table lookup from resource_exhaustion",
+    "confidence": "n/a - B0 is a rule, not an estimate"
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B0",
+    "service": "frauddetectionservice",
+    "fault_class": "resource_exhaustion",
+    "fix_class": "config_revert",
+    "why": [
+      "suspect: service of the most recent pre-onset change in the window (04:24:10)",
+      "class: that change was to resource_limits",
+      "remediation: table lookup from resource_exhaustion"
+    ]
+  }
+}

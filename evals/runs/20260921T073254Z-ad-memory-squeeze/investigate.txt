@@ -1,0 +1,9 @@
+incident f3a2d86b-cd7c-497c-97a8-c32f74179448  state triaging  anchor 07:36:15
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+B2: bad_config / config_revert (low)
+  The frontend is misconfigured — most likely a wrong endpoint/port/timeout value for one of its backends (cart, productcatalog, ad or checkout) — so its outbound calls fail immediately while the backends themselves stay healthy.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20260921T073254Z-ad-memory-squeeze/f3a2d86b-cd7c-497c-97a8-c32f74179448-verdict.json
+{"ts": "2026-09-21T07:38:49.922+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T07:38:58.727+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

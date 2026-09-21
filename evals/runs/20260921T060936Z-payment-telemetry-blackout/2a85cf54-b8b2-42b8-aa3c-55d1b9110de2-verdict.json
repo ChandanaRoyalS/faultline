@@ -1,0 +1,44 @@
+{
+  "incident_id": "2a85cf54-b8b2-42b8-aa3c-55d1b9110de2",
+  "trajectory_id": "2f0f5f74-f5d8-4bc6-81c4-04d7464fc7a8",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "paymentservice",
+    "checkoutservice",
+    "frontend"
+  ],
+  "unmeasured_edges": 2,
+  "exclude_origins": [
+    "scenario:scenario:payment-telemetry-blackout"
+  ],
+  "verdict": {
+    "fault_class": "bad_deploy",
+    "remediation_class": "rollback",
+    "summary": "paymentservice stopped serving entirely \u2014 most likely a rolled-out artifact that fails to start (crash loop / never becomes ready), so no requests are accepted or reported at all.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The only alert is ServiceNoTraffic on paymentservice, a leaf service with no downstream dependencies in the catalog. Zero traffic (rather than elevated latency or error rate) points at the process itself being absent or unready, not at anything it waits on \u2014 it waits on nothing here. Resource exhaustion and dependency latency would normally show up first as slow or erroring calls from checkoutservice, and paymentservice would still emit some traffic. The blast radius (checkoutservice, frontend) is pure upstream propagation toward the caller, which is consistent with the payment leaf being the true break. The two plausible mechanisms for a silent leaf are a non-starting build or a config value that points the server at the wrong port/address so registration and routing fail; a failed rollout is the more common of the two and is cheaply confirmed or refuted by a rollback.",
+    "open_questions": [
+      "Did paymentservice pods restart or enter CrashLoopBackOff around 06:15:45, and what does the container startup log say?",
+      "Was there a deploy, image tag change, or config/env change to paymentservice immediately before onset?",
+      "Does checkoutservice show connection-refused/DNS failures to paymentservice, or timeouts (which would suggest a live-but-hung process)?",
+      "Are paymentservice replicas registered/ready in service discovery, and is the listening port the one checkoutservice dials?",
+      "Memory/OOMKill counters and CPU throttling on paymentservice pods just before onset."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 1,
+    "cited_without_looking": []
+  }
+}

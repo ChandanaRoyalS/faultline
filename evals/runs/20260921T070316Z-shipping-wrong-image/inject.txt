@@ -1,0 +1,5 @@
+injected shipping-wrong-image (bad_deploy) on shippingservice
+  - compose: shippingservice recreated on ghcr.io/open-telemetry/demo:v1.2.1-adservice
+  - the image resolves, so the deploy itself succeeds - the fault is what the container does next
+  - override written to /Users/chandana/dev/faultline/.faultline/overrides/shipping-wrong-image.yml
+revert with: faultline-inject stop shipping-wrong-image

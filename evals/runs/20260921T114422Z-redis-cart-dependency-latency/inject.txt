@@ -1,0 +1,4 @@
+injected redis-cart-dependency-latency (dependency_latency) on redis-cart
+  - pumba gaiaadm/pumba:0.10.1: 300ms (+/-0ms) delay on redis-cart eth0
+  - sidecar faultline-pumba-redis-cart-dependency-latency holds the rule; it self-reverts after 1h
+revert with: faultline-inject stop redis-cart-dependency-latency

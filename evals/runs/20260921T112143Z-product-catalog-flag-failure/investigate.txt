@@ -1,0 +1,25 @@
+incident 23d347bd-11bd-45ba-b34a-7ba854e82180  state triaging  anchor 11:30:45
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+B1: bad_config / config_revert (high)
+  A feature-flag environment value on featureflagservice was set to enable productCatalogFailure at 11:21, and productcatalogservice consequently returns errors on GetProduct calls that consult that flag.
+  5 tool calls over 7 turns
+    metrics:productcatalogservice  Check whether the deepest alerting service shows errors at or before onset, suggesting it is the origin rather than the frontend that noticed.
+    changes:productcatalogservice  Errors began ~11:25, before the declared onset; see whether a deploy or config change on productcatalogservice precedes it.
+    logs:productcatalogservice  See what the failing requests report - resource limits, downstream waits, or config errors - since no change was recorded here.
+    traces:productcatalogservice  Determine whether the ~5s ListProducts time is self-contained (internal delay) or spent waiting on a downstream child span.
+    changes:featureflagservice  The failing productcatalog spans each consult FeatureFlagService; check whether a flag/config change there precedes the error onset.
+wrote /Users/chandana/dev/faultline/evals/runs/20260921T112143Z-product-catalog-flag-failure/23d347bd-11bd-45ba-b34a-7ba854e82180-verdict.json
+{"ts": "2026-09-21T11:32:46.547+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T11:32:46.591+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=metric_baseline subject=sum by(service_name) (rate(calls_total{service_name=\"productcatalogservice\",status_code=\"STATUS_CODE_ERROR\"}[2m])) / sum by(service_name) (rate(calls_total{service_name=\"productcatalogservice\"}[2m])) start=2026-09-21T10:28:48.379391+00:00 end=2026-09-21T11:32:42.786609+00:00 span_s=3834 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T11:32:49.414+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T11:32:49.416+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=productcatalogservice start=2026-09-20T11:30:45.583000+00:00 end=2026-09-21T11:32:42.786609+00:00 span_s=86517 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T11:33:00.066+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T11:33:00.068+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=logql_query subject={service=\"product-catalog-service\"} start=2026-09-21T11:00:45.583000+00:00 end=2026-09-21T11:32:42.786609+00:00 span_s=1917 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T11:33:05.697+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T11:33:05.699+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=trace_query subject=productcatalogservice start=2026-09-21T11:00:45.583000+00:00 end=2026-09-21T11:32:42.786609+00:00 span_s=1917 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T11:33:19.827+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T11:33:19.829+00:00", "level": "INFO", "logger": "faultline.tools.window", "msg": "window tool=change_history subject=featureflagservice start=2026-09-20T11:30:45.583000+00:00 end=2026-09-21T11:32:42.786609+00:00 span_s=86517 refused=False", "component": "investigator"}
+{"ts": "2026-09-21T11:33:25.052+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T11:33:39.386+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T11:33:49.516+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

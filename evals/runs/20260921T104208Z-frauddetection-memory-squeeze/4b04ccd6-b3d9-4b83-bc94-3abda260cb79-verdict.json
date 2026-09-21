@@ -1,0 +1,51 @@
+{
+  "incident_id": "4b04ccd6-b3d9-4b83-bc94-3abda260cb79",
+  "trajectory_id": "fd8bd033-41bb-477a-817a-a5ba6c0429cb",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frauddetectionservice"
+  ],
+  "unmeasured_edges": 0,
+  "exclude_origins": [
+    "scenario:scenario:frauddetection-memory-squeeze"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "summary": "A platform-automation change at 10:42 lowered frauddetectionservice's memory limit to 200m, and the process exceeded that limit and was killed, stopping all log, metric and trace emission at incident onset.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_b7cb5f5efccc",
+      "tr_39b18701a526",
+      "tr_24c44172fad2",
+      "tr_5a1d3bbb94fa"
+    ],
+    "reasoning": "The only alerting service produced no error-ratio samples in either window and no traces at all (tr_b7cb5f5efccc, tr_5a1d3bbb94fa), which is the signature of a process that stopped emitting rather than one returning errors. Its logs show steady, healthy record consumption up to roughly 10:42 and then nothing (tr_39b18701a526). The change history shows the same memory limit lowering applied twice earlier that day and each time reverted within about eight minutes, then applied again at 10:42:12 and not reverted (tr_24c44172fad2) - immediately coincident with the log cutoff and onset. The edit is how it started; the failing mechanism is the process running out of its memory allowance and being terminated. No downstream dependency is implicated: the blast radius is a single service and its own emission ceased entirely, which a slow dependency would not produce.",
+    "open_questions": [
+      "No OOM-kill or restart log line was directly observed; the kill is inferred from the abrupt cessation of output coinciding with the limit change.",
+      "Whether the earlier two limit-lowering episodes (04:16 and 08:37) also caused brief outages masked by the quick reverts.",
+      "Why platform-automation repeatedly applies this 200m limit - whether it is a faulty automation rule or an intentional policy with a wrong value."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 4,
+    "turns": 6,
+    "looked_at": [
+      "metrics:frauddetectionservice",
+      "logs:frauddetectionservice",
+      "changes:frauddetectionservice",
+      "traces:frauddetectionservice"
+    ]
+  }
+}

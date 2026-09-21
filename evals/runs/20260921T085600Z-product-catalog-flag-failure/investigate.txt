@@ -1,0 +1,9 @@
+incident b7ba70da-df51-46b4-9a5e-7a95175ab618  state triaging  anchor 08:59:15
+triage: 7 services, severity critical, start from frontend, 1 unmeasured edge(s) crossed
+
+B2: bad_config / config_revert (low)
+  productcatalogservice began returning errors on its own (most likely a wrong/toggled configuration value - a bad feature flag or catalog/data-source setting pushed at ~08:59), and those errors propagated up through frontend to the loadgenerator.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20260921T085600Z-product-catalog-flag-failure/b7ba70da-df51-46b4-9a5e-7a95175ab618-verdict.json
+{"ts": "2026-09-21T09:01:41.266+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T09:01:50.997+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}

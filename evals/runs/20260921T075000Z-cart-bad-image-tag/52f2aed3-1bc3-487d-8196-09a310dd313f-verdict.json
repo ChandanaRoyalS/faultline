@@ -1,0 +1,54 @@
+{
+  "incident_id": "52f2aed3-1bc3-487d-8196-09a310dd313f",
+  "trajectory_id": "7a22bb6b-0432-4cd3-9027-3c94b0cfd891",
+  "states": [
+    "triaging"
+  ],
+  "blast_radius": [
+    "frontend",
+    "loadgenerator",
+    "checkoutservice",
+    "accountingservice",
+    "adservice",
+    "cartservice",
+    "currencyservice",
+    "emailservice",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:scenario:cart-bad-image-tag"
+  ],
+  "verdict": {
+    "fault_class": "bad_config",
+    "remediation_class": "config_revert",
+    "summary": "checkoutservice is failing requests outright - most likely a wrong configuration value (a downstream endpoint address/port, credential, or timeout/limit set incorrectly) that makes its calls fail immediately rather than slowly - and the errors surface upward through frontend and loadgenerator.",
+    "confidence": "low",
+    "evidence": [],
+    "reasoning": "The alerting set is a single caller chain: loadgenerator -> frontend -> checkoutservice. checkoutservice is the deepest service alerting, and none of its own dependencies (emailservice, cartservice, currencyservice, paymentservice, shippingservice, productcatalogservice, frauddetectionservice, accountingservice) alert at all, so the fault most plausibly originates in checkoutservice itself rather than being inherited. The signal ordering matters: error-rate alerts fire first and everywhere at once, and latency only appears a minute later and only on frontend/loadgenerator (queueing behind failing checkout attempts), with no latency alert on checkoutservice itself. That pattern fits fast, deterministic failures - connection refused, auth rejected, invalid argument - rather than a dependency that got slow, which would have shown checkoutservice latency first and likely pulled the slow dependency into the alerting set. Among fast-failure causes, a wrong config value (pointing checkout at the wrong host/port or a bad credential/limit) is the most common shape; the blast radius is otherwise just graph reachability, not evidence.",
+    "open_questions": [
+      "The actual error codes/messages from checkoutservice - UNAVAILABLE/connection refused vs UNAUTHENTICATED vs DEADLINE_EXCEEDED vs panic/crash",
+      "Whether checkoutservice pods restarted or crash-looped around 07:53:30, and what image tag/digest is running versus the previous one",
+      "Recent config/env changes to checkoutservice (downstream service addresses, ports, timeouts, feature flags) in the 30 minutes before onset",
+      "checkoutservice's own outbound latency and error rates per downstream, to confirm no dependency (cartservice/redis-cart, paymentservice, frauddetectionservice) degraded silently without alerting",
+      "Whether the error rate is 100% or partial - partial would suggest one bad replica or a canary rather than a global config value",
+      "checkoutservice memory/CPU/connection-pool saturation at onset, to rule out resource exhaustion"
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B2",
+    "tool_calls": 0,
+    "attempts": 2,
+    "cited_without_looking": []
+  }
+}

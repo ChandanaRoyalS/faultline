@@ -1,0 +1,64 @@
+{
+  "incident_id": "ed782294-cf3b-405e-8e65-ac9090b96021",
+  "trajectory_id": "59a52601-eff6-4dc4-bb73-99a90ac42b1a",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "cartservice",
+    "checkoutservice",
+    "frontend",
+    "loadgenerator",
+    "accountingservice",
+    "adservice",
+    "currencyservice",
+    "emailservice",
+    "paymentservice",
+    "productcatalogservice",
+    "recommendationservice",
+    "shippingservice"
+  ],
+  "unmeasured_edges": 4,
+  "exclude_origins": [
+    "scenario:scenario:redis-cart-dependency-latency"
+  ],
+  "verdict": {
+    "fault_class": "dependency_latency",
+    "remediation_class": "config_revert",
+    "summary": "A traffic-shaping delay (~300ms) attached to cartservice's network namespace made every Redis call take ~300ms, so cart operations and everything upstream of them slowed and alerted.",
+    "confidence": "medium",
+    "evidence": [
+      "tr_fe5b0207a4bb",
+      "tr_46f08603a653",
+      "tr_4828ecce90c1",
+      "tr_8f29210058bb",
+      "tr_b0304c7bfe79"
+    ],
+    "reasoning": "Cartservice and checkoutservice logs show normal successful operations with no error text, and the cartservice error-ratio query returned no samples, so this is a latency incident rather than an error incident. Traces show every cartservice Redis hop (HGET/HMSET) taking a near-constant ~300ms of self-time, dominating trace duration and cascading into frontend and checkout latency; the flat, jitter-free magnitude is characteristic of injected network delay rather than organic Redis load. The change history for cartservice shows a repeating experiment pattern including a traffic-shaping container attached to cart-service's network namespace with a 300ms delay, matching the observed per-call penalty exactly.",
+    "open_questions": [
+      "The change records shown end before the 11:48 onset, so the specific delay-injection record for this incident was not directly observed; the recurring pattern is inferred.",
+      "Whether the alerts were latency-threshold based or true error-rate alerts was not settled, since the error-ratio series returned no samples.",
+      "Redis-side metrics were not examined, so an independent Redis slowdown coincident with the pattern is not fully excluded."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "metrics:cartservice",
+      "logs:cartservice",
+      "logs:checkoutservice",
+      "traces:cartservice",
+      "changes:cartservice"
+    ]
+  }
+}

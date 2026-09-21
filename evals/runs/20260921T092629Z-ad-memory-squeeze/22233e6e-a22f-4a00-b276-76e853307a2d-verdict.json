@@ -1,0 +1,59 @@
+{
+  "incident_id": "22233e6e-a22f-4a00-b276-76e853307a2d",
+  "trajectory_id": "f75168a1-b7d6-42d8-986b-c9730c5565d9",
+  "states": [
+    "triaging",
+    "investigating"
+  ],
+  "blast_radius": [
+    "frontend",
+    "loadgenerator",
+    "adservice",
+    "cartservice",
+    "checkoutservice",
+    "productcatalogservice",
+    "recommendationservice"
+  ],
+  "unmeasured_edges": 1,
+  "exclude_origins": [
+    "scenario:scenario:ad-memory-squeeze"
+  ],
+  "verdict": {
+    "fault_class": "resource_exhaustion",
+    "remediation_class": "config_revert",
+    "summary": "adservice's memory limit was lowered to 256Mi, after which the JVM was repeatedly killed for exceeding it, leaving adservice in a crash loop so frontend's gRPC calls to it failed with no connection.",
+    "confidence": "high",
+    "evidence": [
+      "tr_fd0a42a117de",
+      "tr_30de16b4a483",
+      "tr_9324f152334e",
+      "tr_be3d813a8c9c",
+      "tr_17dfe855da87"
+    ],
+    "reasoning": "frontend alerted first but its own error ratio showed no sustained departure and its sampled traces show healthy, fast calls to productcatalog, cart, checkout and shipping (tr_17dfe855da87, tr_be3d813a8c9c); the frontend errors near onset are connection-level gRPC failures to a downstream that is not answering (tr_9324f152334e). adservice logs show repeated JVM startup banners at increasing intervals from ~09:26 onward, the signature of a container being killed and restarted (tr_30de16b4a483), and a change at 09:26:33 lowered its memory limit to 256m with no revert in the window (tr_fd0a42a117de). The edit is how it began; the running failure is the process exceeding the lowered limit and being killed, so the class is resource exhaustion rather than the configuration value being intrinsically wrong.",
+    "open_questions": [
+      "No OOM-kill or exit-code record was retrieved directly, so the kill mechanism is inferred from restart cadence plus the limit change.",
+      "Onset is 09:29:45 while the limit change lands 09:26:33 and restarts appear from ~09:26; the lag between crash-looping and the frontend alert was not measured.",
+      "adservice's own error-ratio metrics and the state of the other blast-radius services (recommendationservice in particular) were not examined."
+    ]
+  },
+  "flags": [],
+  "retrieved": [],
+  "failed_dispatches": [],
+  "narrative_error": null,
+  "disclosure": {},
+  "proposal": null,
+  "triage_judgement": null,
+  "baseline": {
+    "baseline": "B1",
+    "tool_calls": 5,
+    "turns": 7,
+    "looked_at": [
+      "metrics:frontend",
+      "traces:frontend",
+      "logs:frontend",
+      "logs:adservice",
+      "changes:adservice"
+    ]
+  }
+}

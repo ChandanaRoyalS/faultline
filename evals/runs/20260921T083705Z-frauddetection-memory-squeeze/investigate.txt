@@ -1,0 +1,9 @@
+incident 049dcbbf-d0f7-4243-b4fe-f82ce3dbf451  state triaging  anchor 08:43:00
+triage: 1 services, severity critical, start from frauddetectionservice, 0 unmeasured edge(s) crossed
+
+B2: bad_config / config_revert (low)
+  frauddetectionservice stopped receiving work entirely — most likely its Kafka consumer configuration (bootstrap broker address / topic / consumer group) points somewhere wrong, so the process is up but subscribed to nothing.
+  looked at nothing - this is the model's prior
+wrote /Users/chandana/dev/faultline/evals/runs/20260921T083705Z-frauddetection-memory-squeeze/049dcbbf-d0f7-4243-b4fe-f82ce3dbf451-verdict.json
+{"ts": "2026-09-21T08:45:22.600+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
+{"ts": "2026-09-21T08:45:31.208+00:00", "level": "INFO", "logger": "httpx2", "msg": "HTTP Request: POST https://api.anthropic.com/v1/messages \"HTTP/1.1 200 OK\"", "component": "investigator"}
