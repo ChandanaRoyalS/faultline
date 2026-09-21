@@ -554,6 +554,15 @@ class Investigation:
                 at=datetime.now(UTC),
                 tokens_in=completion.response.input_tokens,
                 tokens_out=completion.response.output_tokens,
+                # **A model call is timed because it is one, not because of its kind.** T6.6
+                # carried `latency_ms` onto every COMPLETION step and stopped there - so the
+                # verdict, the proposal and the narrative, which are model calls under their own
+                # kinds, read 0 across 356 trajectories, and `model_ms` (COMPLETION only) left the
+                # whole serial tail of every investigation out of the panel's model share.
+                # `evals/runs/LATENCY-2026-09-21-the-shared-clause.md`.
+                latency_ms=completion.latency_ms,
+                trace_id=completion.trace_id,
+                span_id=completion.span_id,
                 payload={
                     "attempts": completion.attempts,
                     "redactions": completion.redactions,
@@ -642,6 +651,9 @@ class Investigation:
                 at=datetime.now(UTC),
                 tokens_in=tokens_in,
                 tokens_out=tokens_out,
+                latency_ms=completion.latency_ms,
+                trace_id=completion.trace_id,
+                span_id=completion.span_id,
                 payload={
                     "attempts": completion.attempts,
                     "redactions": completion.redactions,
@@ -983,6 +995,9 @@ class Investigation:
                 at=datetime.now(UTC),
                 tokens_in=tokens_in,
                 tokens_out=tokens_out,
+                latency_ms=completion.latency_ms,
+                trace_id=completion.trace_id,
+                span_id=completion.span_id,
                 payload={
                     "attempts": completion.attempts,
                     "redactions": completion.redactions,
@@ -1054,6 +1069,9 @@ class Investigation:
             )
         )
 
+        # Taken here rather than reusing `began`, which also covers the tool call: what the
+        # failure path below needs to record is the model's time and not the query's.
+        asked = time.monotonic()
         try:
             completion = specialist.run(service, question, start, end, rendered)
             findings, response, attempts = (
@@ -1072,6 +1090,9 @@ class Investigation:
                     at=datetime.now(UTC),
                     tokens_in=failure.response.input_tokens,
                     tokens_out=failure.response.output_tokens,
+                    # Two model calls happened and both cost wall clock. A specialist that
+                    # failed its schema is not a specialist that took no time.
+                    latency_ms=int((time.monotonic() - asked) * 1000),
                     payload={
                         "attempts": 2,
                         "result_id": tool_result.id,

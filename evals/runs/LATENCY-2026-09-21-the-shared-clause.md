@@ -128,3 +128,75 @@ whose only investigations are the four it opened about itself.
 **And not a new measurement.** Every figure is a reading of runs made for other registered
 questions. That is the reason it cost nothing, and also the reason it carries no pre-registration:
 there is nothing here to pre-register, because nothing was run.
+
+---
+
+## Addendum — the residue was the instrument, and four model calls were never timed
+
+**Read the same day, from `trajectory_steps` across all 356 trajectories (2026-08-25 to 09-20).**
+The §*Where the time goes* section above offered two readings of the ~58 s that is neither model
+nor tool, and said a per-role read would tell them apart. It did, and the answer is neither of
+them: **the panel that produced that 58 s cannot locate time, and the 75 % model share is not a
+quantity.**
+
+**Only five of the nine roles record a model call's latency at all.**
+
+| role · kind | steps | of them untimed | timed |
+|---|---|---|---|
+| `synthesizer` · verdict | 308 | **308** | 0.0 s |
+| `scribe` · message | 307 | **307** | 0.0 s |
+| `proposer` · proposal | 223 | **223** | 0.0 s |
+| `planner` · completion | 616 | 594 | 437.0 s |
+| `metrics` · completion | 709 | 681 | 423.5 s |
+| `changes` · completion | 634 | 609 | 301.3 s |
+| `logs` · completion | 479 | 460 | 342.9 s |
+| `traces` · completion | 272 | 261 | 265.1 s |
+
+The verdict, the proposal and the narrative are **model calls** — their steps carry `tokens_in`
+and `tokens_out` off the completion object — and **not one of the 838 of them has ever been
+timed.** `Completion.latency_ms` arrived at T6.6 with a docstring naming the problem it fixed:
+*"the trajectory had never measured this … so every COMPLETION step recorded 0."* It was carried
+onto the steps of kind `COMPLETION` and no further, and the three roles that record under
+`VERDICT`, `PROPOSAL` and `MESSAGE` were left exactly where they had been. **The fix was applied by
+kind, and the property it needed was *is this a model call*.**
+
+`metric_panel` then read `model_ms = by_kind["completion"]`, so **the entire serial tail of every
+investigation sat outside the panel's model share** — and the tail is where the long calls are
+(the first-trace note clocked single completions at 33 s, 39 s, 63 s and 69 s).
+
+**A fourth site, found by the guard rather than by the table.** A specialist whose reply fails its
+schema twice records a `COMPLETION` step off `failure.response` with no completion object and no
+latency — two real model calls, recorded as taking no time. The table above could not show it
+because the step is filed under a role that also has timed completions.
+
+**So the arithmetic in the section above does not hold, and it is withdrawn.** *Model time is 75 %
+of wall* was a sum over `COMPLETION` steps only, and those steps also run **concurrently** — the
+four specialists are one `ThreadPoolExecutor` per dispatch round — so the figure was simultaneously
+missing the serial tail and double-counting the parallel middle. It is neither a critical path nor
+a total. **`investigation_ms`, the wall clock, is the only latency number in this system that has
+ever meant what it appears to mean**, and the n = 139 finding above rests on it alone and stands.
+
+**Fixed in the same commit as this addendum, and it costs no stamp**: all four steps now carry
+`latency_ms` (and the three with a completion object carry its `trace_id` / `span_id`, so they link
+to their `model.call` spans); `model_ms` becomes every kind that is not a tool call or a retrieval;
+`retrieval_ms` is split out, because embedding and search are neither and folding them into either
+is how a real cost — 4.8 s a run at the planner — disappeared. `Latency.model_ms` now says in its
+own docstring that it is a sum and not a critical path.
+`tests/test_metrics.py::test_every_model_call_is_timed_whatever_kind_it_is_recorded_under` parses
+`investigation.py` and fails on any `TrajectoryStep` that records a model's tokens without its
+latency; it was run against the old source first and fails on it, and it is what found the fourth
+site.
+
+**What this does not fix.** The stored 356 trajectories keep their zeros — nothing is backfilled,
+because a latency invented after the fact is not a measurement. **The decomposition is therefore
+available from the next run onward and not before**, and until then *where the 233 s goes* has no
+answer in this repository. What did not change is the clause: 139 runs, median 232.8 s, four inside
+the bar.
+
+**And the parallel structure is worth keeping in view when the numbers do arrive.** Per timed run
+the four specialists average 12.1 s (`changes`), 15.1 s (`metrics`), 18.0 s (`logs`) and 24.1 s
+(`traces`), but run concurrently — so a dispatch round costs about `traces`, not their sum — while
+the planner's completions average **19.9 s** and are serial, twice per investigation. Tool calls
+remain free at 0.23 s a run in total, though `traces` queries cost 0.3 s each against `metrics` at
+0.015 s: **Tempo is twenty times slower per query than Prometheus**, and still not worth
+optimising.

@@ -161,3 +161,40 @@ def test_the_panel_prints_n_a_rather_than_inventing_a_rate() -> None:
 
     assert "validity n/a" in rendered
     assert "1.00" not in rendered.split("validity")[1].split("\n")[0]
+
+
+def test_every_model_call_is_timed_whatever_kind_it_is_recorded_under() -> None:
+    """**The defect the latency reading found, as a test** (2026-09-21).
+
+    T6.6 carried `latency_ms` onto the step that records a completion and stopped at the
+    `COMPLETION` kind. But the synthesizer's verdict, the proposer's proposal and the scribe's
+    narrative are model calls recorded under `VERDICT`, `PROPOSAL` and `MESSAGE`, and across 356
+    trajectories every one of them read zero - 308, 223 and 307 steps, none timed. `model_ms`
+    summed `COMPLETION` alone, so the panel's model share omitted the entire serial tail of every
+    investigation while appearing to account for it.
+
+    This reads the source rather than a fixture, because the defect was three missing keyword
+    arguments in three constructor calls and a fixture would have been written from the same
+    misunderstanding. Every `TrajectoryStep` built beside a `completion` must carry its latency.
+    """
+    import ast
+    from pathlib import Path
+
+    source = Path(__file__).resolve().parents[1] / "src/faultline/agents/investigation.py"
+    tree = ast.parse(source.read_text())
+
+    untimed = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.Call) or getattr(node.func, "id", "") != "TrajectoryStep":
+            continue
+        given = {kw.arg for kw in node.keywords}
+        # A step that records a model call is the one carrying the model's token counts.
+        if not {"tokens_in", "tokens_out"} <= given:
+            continue
+        if "latency_ms" not in given:
+            untimed.append(node.lineno)
+
+    assert untimed == [], (
+        f"TrajectoryStep at line(s) {untimed} records a model call's tokens and not its latency. "
+        "A model call is timed because it is one, not because of the kind it is filed under."
+    )

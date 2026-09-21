@@ -188,6 +188,20 @@ class Latency:
     investigation_ms: int = 0
     tool_ms: int = 0
     model_ms: int = 0
+    """**Summed model latency across steps, not a critical path.** The four specialists run
+    concurrently (`investigation.ThreadPoolExecutor`), so a round of them costs about the slowest
+    and this field adds them up. It is the right number for *what did the models cost us in
+    total*; it is the wrong number to subtract from `investigation_ms` and call overhead.
+
+    Until 2026-09-21 it was also **incomplete**: it summed `COMPLETION` steps alone, and the
+    verdict, the proposal and the narrative are model calls recorded under their own kinds with
+    no latency at all. Three of the pipeline's model calls - the whole serial tail - were outside
+    it (`evals/runs/LATENCY-2026-09-21-the-shared-clause.md`)."""
+
+    retrieval_ms: int = 0
+    """Embedding and search, kept apart from both. It is not a model call and not a tool call,
+    and folding it into either was how a real cost disappeared from the panel."""
+
     steps: int = 0
 
     @property
@@ -207,6 +221,7 @@ class Latency:
             "investigation_seconds": round(self.investigation_seconds, 1),
             "tool_ms": self.tool_ms,
             "model_ms": self.model_ms,
+            "retrieval_ms": self.retrieval_ms,
             "steps": self.steps,
             "within_gate4_threshold": self.within_gate4,
         }
@@ -249,7 +264,8 @@ class MetricPanel:
             "METRIC PANEL (T4.3) - reported beside accuracy, never averaged into it",
             f"  latency        {x.investigation_seconds:.1f}s "
             f"({'within' if x.within_gate4 else 'OVER'} G4's 3-minute per-run comparison) "
-            f"tools {x.tool_ms / 1000:.1f}s  models {x.model_ms / 1000:.1f}s  steps {x.steps}",
+            f"tools {x.tool_ms / 1000:.1f}s  models {x.model_ms / 1000:.1f}s (summed, not a "
+            f"critical path)  retrieval {x.retrieval_ms / 1000:.1f}s  steps {x.steps}",
             f"  tool calls     {t.total} total, {t.valid} valid, {t.errored} errored, "
             f"{t.redundant} redundant  validity {_pct(t.validity_rate)}  "
             f"redundancy {_pct(t.redundancy_rate)}",
