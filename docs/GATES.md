@@ -270,10 +270,32 @@ world at this stamp**, median **232.8 s**, and **4 of them — 2.9 % — are ins
 one of the ten scenarios has a median over it, the fastest (`frauddetection-memory-squeeze`) by
 15 s. The fastest investigation ever recorded here is **168.6 s**, so the four that pass do so by
 under twelve seconds and there is no fast tail. Tool time is **0.23 s** at the median — the whole
-evidence-gathering surface is a rounding error — and model time is **75 %** of wall, leaving about
-**58 s** that is neither, against a deficit of **52.8 s**. Whether that residue is harness time (a
-code lever, no stamp) or unattributed model time (prompt levers, every one re-founding the
-benchmark) is the open question, and `trajectory_steps.latency_ms` per role answers it.
+evidence-gathering surface is a rounding error.
+
+***Later the same day: the decomposition this paragraph offered is withdrawn, and there is none***
+([`LATENCY-2026-09-21`'s addendum](../evals/runs/LATENCY-2026-09-21-the-shared-clause.md)). It read
+*model time is 75 % of wall, leaving about 58 s that is neither, against a deficit of 52.8 s* — and
+concluded that the non-model overhead alone was larger than the amount the clause misses by, which
+would have put a code lever within reach at no cost to the stamp. **The per-role read that was meant
+to settle it instead destroyed the arithmetic.** `model_ms` summed `COMPLETION` steps only, so it
+omitted the verdict, the proposal and the narrative — **838 model calls that had never been timed
+at all** — while the four specialists it did count run concurrently in one `ThreadPoolExecutor`. The
+figure was missing the serial tail and double-counting the parallel middle at the same time: it is
+neither a critical path nor a total, and it is not a quantity. **`investigation_ms` is the only
+latency number in this system that has ever meant what it appears to mean**, which is why the n =
+139 finding above rests on it alone and stands.
+
+**So where the 232.8 s goes has no answer in this repository.** The stored trajectories keep their
+zeros — a latency invented after the fact is not a measurement — and the instrument that can locate
+it was fixed on 2026-09-21 and again after the baseline suite, so **the decomposition is available
+from the next agent run onward and not before.** No such run is registered.
+
+**What exists instead is a bound of a different kind, from the baseline suite.** B1 — one agent,
+the same four tools, no fan-out — has a median of **60.5 s** and put **19 of 19** baseline runs
+inside the 180 s bar. That says a pipeline with this evidence surface can clear the clause
+comfortably; it does **not** say where the four-specialist pipeline's time goes, because B1 is a
+different pipeline and not an ablation of this one. The lever it points at is structural, and
+choosing it is a design decision this gate does not get to make by arithmetic.
 
 ### Met, 2026-09-21 — the T4.7 baseline suite, which had never been run
 
@@ -513,10 +535,19 @@ be re-asserted; it can only be asserted for the first time, under a different na
 1. ~~**A dev sweep on the current world with self-instrumentation**, so clause 4 has the measurement
    it names rather than an inherited one from a narrower pipeline. Costs a sweep.~~ **Not needed
    for this clause, 2026-09-21**: the stamp never moved and 139 runs already answer it. What a
-   sweep is still owed for is B1 and B2 — ten cheap runs each, G4's clause, not this one.
-2. **A median under 180 s.** Sweep 12's full-pipeline arm is 251.6 s and the models are most of it.
-   Nothing on the queue targets latency, and some of the obvious levers — fewer dispatch rounds, a
-   cheaper triage model — move `prompt_digest` and re-found the benchmark.
+   sweep is still owed for is B1 and B2 — ten cheap runs each, G4's clause, not this one. **Both
+   ran 2026-09-21** ([`BASELINES-2026-09-21.md`](../evals/runs/BASELINES-2026-09-21.md)), so this
+   item is closed for G4 as well.
+2. **A median under 180 s**, and **nothing in the record says where the current 232.8 s goes.**
+   ~~the models are most of it~~ — that came from a `model_ms` that summed `COMPLETION` steps
+   alone, and it is withdrawn with the rest of that arithmetic (G4's latency section above). The
+   instrument that can locate the time was fixed on 2026-09-21; **the decomposition is available
+   from the next agent run onward and not before**, and none is registered. Nothing on the queue
+   targets latency. What the baseline suite adds is that **B1 clears the bar at a 60.5 s median
+   with the same four tools and no fan-out** — evidence that the clause is reachable by a
+   differently-shaped pipeline, not evidence about where this one spends its time. The obvious
+   levers still move `prompt_digest` and re-found the benchmark, so the cheap-lever question is
+   open rather than answered in either direction.
 3. **A pre-registered pass condition for injection scenarios**, written before the batch that tests
    it. That is Q81's batch, which is unbuilt and stamp-locked.
 4. **G4 declared, or clause 4 rewritten** so a gate stops inheriting a threshold from a gate that
