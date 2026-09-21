@@ -32,13 +32,14 @@ labelled, reversible faults. Raw runs, per-run manifests and the sweep reports a
 > form a control (**Q59**). What is claimed here is the density, which is measured; what is not
 > claimed is what it costs.
 
-> **No world has ever held much of the record**, and this one now holds the most: **168 scored
-> pipeline runs** on `90e9f29e…` (153 at the observability digest this document reports,
+> **No world has ever held much of the record**, and this one now holds the most: **197 scored
+> pipeline runs** on `90e9f29e…` (182 at the observability digest this document reports,
 > 15 at the blind one), against 49 on `f5bd108f…`. That is the R = 3 design doing what it was
 > bought for. *(This paragraph read **80** and **65** until 2026-09-20, written before T6.5's sixty
-> runs and T6.8's ten. It is now read from the tree by
-> `tests/test_results_run_counts.py`, because a hand-maintained count on the most-read document
-> in the repository is a promise to remember, and the promise has now failed twice.)*
+> runs and T6.8's ten; **168 and 153 until the baseline suite added twenty-nine on 2026-09-21, and
+> that update was made because `tests/test_results_run_counts.py` failed rather than because anyone
+> remembered.** A hand-maintained count on the most-read document in the repository is a promise to
+> remember, the promise failed twice, and the guard has now been right on its first real test.)*
 >
 ## The baseline panel — what the pipeline is measured against (2026-09-21)
 
