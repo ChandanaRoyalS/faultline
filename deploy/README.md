@@ -609,7 +609,12 @@ policy on three of them and `compose/telemetry.yml` declared none on the other f
 page answered and the world could not alert — the silent kind of outage. `compose.world.yml` now
 gives all seven `restart: always` (the header there says why the overlay and not the hashed file)
 and `tests/test_deploy.py` holds it; a VM running an overlay from before that change needs §3.4's
-two commands after any reboot.
+**three** commands after any reboot.
+
+**The second deliberate reboot (2026-09-21 13:24 UTC, kernel 6.8.0-139, 1 min of downtime) tested
+that fix and it held**: all seven came back on their own, before anything was run by hand. It also
+found two defects in the procedure below, both now corrected here
+([the drill](../docs/evidence/deploy-drills/2026-09-21-the-reboot-drill.md)).
 
 The procedure, then:
 
@@ -617,12 +622,30 @@ The procedure, then:
 sudo reboot                                     # from an ssh session; it drops you
 # wait a minute, ssh back in
 uptime && (cat /var/run/reboot-required 2>/dev/null || echo "no reboot pending")
-docker ps --format '{{.Names}}\t{{.Status}}' | sort   # 32 containers; anything missing is a finding
+docker ps --format '{{.Names}}\t{{.Status}}' | sort | wc -l   # 35; anything short is a finding
 cd ~/faultline && make world-up && cd world && docker compose -f docker-compose.yml -f ../compose/world-arm64.override.yml -f ../compose/telemetry.yml -f ../deploy/compose.world.yml up -d --no-build
+cd ~/faultline && uv run python scripts/provision_dashboards.py --self-metrics-url http://prometheus-self:9090
 ```
 
-The last line is idempotent and re-provisions the dashboard; run it whether or not everything came
-back. Then §3.6's checks from **another machine**, because the reboot re-created the DOCKER-USER
+**The last line is §3.4's third command and this section did not have it until 2026-09-21.** It is
+not optional and it is not a repeat: the line above it **recreates Grafana** — that is what
+`compose.world.yml` is for, it adds the `faultline` network and the restart policy — and **Grafana
+persists nothing**. Its four mounts are all configuration (`grafana.ini`, the provisioning
+directory, the Loki and Tempo datasource files); nothing mounts `/var/lib/grafana`, so the
+dashboards and the `faultline-self-metrics` datasource, which are pushed over the API, live in the
+container's writable layer and are destroyed with it. Measured in the drill: the provisioning step
+inside `make world-up` created them, the compose line recreated Grafana, and the next push reported
+them **created rather than updated** — they were gone. §3.4 survives only because its third command
+runs *after* the recreate. **Run it last, always.** [Q85](../docs/QUEUE.md) holds the durable fix.
+
+**35, and it is derived rather than remembered.** `injector.world.SERVICE_CONTAINERS` names 27 and
+`deploy/compose.yml` defines 8. This section said **32** from 2026-09-11 until the drill counted
+them, which is the wrong direction to be wrong in: an operator checking against 32 reads a world
+with three containers missing as correct, and *"anything missing is a finding"* is the whole point
+of the line. `tests/test_deploy.py` now derives the number from the compose files and fails when
+this page disagrees with them.
+
+Then §3.6's checks from **another machine**, because the reboot re-created the DOCKER-USER
 chain too — on 2026-09-11 both `:3000` and Tempo's new `:3200` timed out from outside, which is the
 answer. The baseline gate refuses containers younger than 300 s, so nothing investigates for the
 first five minutes; that is the design, not a defect.
@@ -759,7 +782,19 @@ for c in $(docker network inspect -f '{{range .Containers}}{{.Name}} {{end}}' fa
 docker network rm faultline-deploy-net && docker network create --internal faultline-deploy-net
 cd ~/faultline/world && docker compose -f docker-compose.yml -f ../compose/world-arm64.override.yml -f ../compose/telemetry.yml -f ../deploy/compose.world.yml up -d --no-build
 cd ~/faultline/deploy && docker compose up -d --wait
+cd ~/faultline && uv run python scripts/provision_dashboards.py --self-metrics-url http://prometheus-self:9090
 ```
+
+**That last line was added 2026-09-21 and this block ran without it on 2026-09-20.** The world
+command above recreates Grafana, Grafana persists nothing, and its dashboards and
+`faultline-self-metrics` datasource are pushed over the API — so this procedure destroyed the
+platform's own dashboard and left nothing to re-create it. **The gap was real and it lasted a
+day**: the next push, during the 2026-09-21 reboot drill, reported the datasource *created* rather
+than *updated* and both dashboards at *version 1*, which is what a Grafana with no memory of them
+looks like. §3.10 has the same correction and
+[the drill](../docs/evidence/deploy-drills/2026-09-21-the-reboot-drill.md) has the measurement;
+`tests/test_deploy.py` now fails on any block here that brings the world up with
+`compose.world.yml` and does not re-push afterwards. It found this one.
 
 `docker compose down` removes the platform's containers and keeps its volumes (`pgdata`,
 `promdata`, Caddy's certificate); the network is external, so `down` does not touch it. The

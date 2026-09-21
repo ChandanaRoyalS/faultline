@@ -100,6 +100,82 @@ def test_the_readme_never_reaches_an_unpublished_port_from_the_host() -> None:
     )
 
 
+def test_every_block_that_recreates_grafana_reprovisions_it() -> None:
+    """**Grafana persists nothing, and two procedures recreate it** (reboot drill, 2026-09-21).
+
+    Grafana's four mounts are all configuration - `grafana.ini`, the provisioning directory, and
+    the file-provisioned Loki and Tempo datasources. **Nothing mounts `/var/lib/grafana`**, so the
+    two dashboards and the `faultline-self-metrics` datasource - all pushed over the API, because
+    a file-provisioned datasource is `editable: false` and Grafana refuses API writes to it - live
+    in the container's writable layer and die with the container.
+
+    `deploy/compose.world.yml` recreates Grafana **by design**: it is the file that adds the
+    `faultline` network and the restart policy. So any documented block that brings the world up
+    with that overlay destroys what `make world-up` has just provisioned, and must re-push it.
+
+    §3.4 does, as its third command, and its prose explains why - `make world-up` pushes the
+    *development* self-metrics address, which resolves to nothing here. **§3.10's reboot procedure
+    did not**, from 2026-09-11 until the drill ran it cold, so a documented reboot left the
+    deployment with no self-dashboard and no self-metrics datasource at all. The drill measured it:
+    the push after the recreate reported *created*, not *updated*, and the dashboards came back at
+    version 1 rather than version 2.
+
+    This reads the fenced blocks, not the prose, for the reason the guard above it does.
+    """
+    marker = "compose.world.yml"
+    reprovision = "provision_dashboards.py"
+    offenders = []
+    in_block = False
+    block: list[str] = []
+    for line in (DEPLOY / "README.md").read_text().splitlines():
+        if line.startswith("```"):
+            if in_block:
+                if any(marker in ln for ln in block) and not any(reprovision in ln for ln in block):
+                    offenders.append(next(ln.strip() for ln in block if marker in ln))
+                block = []
+            in_block = not in_block
+            continue
+        if in_block:
+            block.append(line)
+
+    assert offenders == [], (
+        "deploy/README.md brings the world up with compose.world.yml and does not re-push "
+        f"Grafana's API-owned state afterwards: {offenders}. That overlay recreates Grafana, and "
+        "Grafana persists nothing - end the block with "
+        "`provision_dashboards.py --self-metrics-url http://prometheus-self:9090`, as §3.4 does."
+    )
+
+
+def test_the_readme_container_count_is_what_the_compose_files_define() -> None:
+    """**The reboot check said 32 and the world runs 35** (reboot drill, 2026-09-21).
+
+    §3.10 tells the operator to list the containers and says *"anything missing is a finding"* -
+    a check whose entire value is the number beside it. The number was written by hand on
+    2026-09-11 and the deployment grew past it, so an operator counting against 32 would read a
+    world with **three containers missing** as correct. That is the wrong direction for a
+    hand-maintained number to rot in, and it is the second time in a week one has
+    (`tests/test_results_run_counts.py`).
+
+    27 world containers (`injector.world.SERVICE_CONTAINERS`) plus 8 in `deploy/compose.yml`.
+    Derived here so the page cannot drift from the files again.
+    """
+    import re
+
+    from injector.world import SERVICE_CONTAINERS
+
+    deploy_services = len(yaml.safe_load(COMPOSE.read_text())["services"])
+    expected = len(SERVICE_CONTAINERS) + deploy_services
+
+    text = (DEPLOY / "README.md").read_text()
+    stated = [int(n) for n in re.findall(r"wc -l\s+#\s*(\d+); anything short", text)]
+
+    assert stated == [expected], (
+        f"deploy/README.md §3.10 states {stated} containers; the compose files define "
+        f"{expected} ({len(SERVICE_CONTAINERS)} world + {deploy_services} deploy). A count an "
+        "operator checks 'anything missing' against is worse than useless when it is high."
+    )
+
+
 def test_caddy_is_the_only_way_in(compose: dict) -> None:
     published = {
         name: service.get("ports")
