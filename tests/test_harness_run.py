@@ -69,9 +69,15 @@ def reading_with(settled: Exception | None = None, **overrides: Any) -> gate.Gat
         service: list(value) if isinstance(value, list) else [value] * SAMPLES_IN_WINDOW
         for service, value in world["p95"].items()
     }
+    # Keyed by the queries the gate will actually send, which depend on the world it is
+    # pointed at (T7.1). A test that asked for v2 and stubbed v1's strings would KeyError rather
+    # than quietly measure nothing - which is the failure this world-awareness exists to end.
+    from faultline.tools.spanmetrics import metrics_for
+
+    queries = gate.metric_queries(metrics_for(world.get("world", "v1")))
     latest = {
-        gate.METRIC_QUERIES["latency-p95"]: {s: v[-1] for s, v in windows.items()},
-        gate.METRIC_QUERIES["call-rate"]: world["rates"],
+        queries["latency-p95"]: {s: v[-1] for s, v in windows.items()},
+        queries["call-rate"]: world["rates"],
     }
     with (
         # The pipeline checks reach the ingest app and Redis, so every test stubs them healthy
@@ -94,7 +100,11 @@ def reading_with(settled: Exception | None = None, **overrides: Any) -> gate.Gat
         patch.object(gate, "now", return_value=world.get("now", NOW)),
         patch.object(gate, "settle_window", return_value=world.get("window", SETTLE)),
     ):
-        return gate.read(overrides.get("open_incidents"), overrides.get("resolved_incidents"))
+        return gate.read(
+            overrides.get("open_incidents"),
+            overrides.get("resolved_incidents"),
+            world=world.get("world", "v1"),
+        )
 
 
 # --- the gate ------------------------------------------------------------------
@@ -1190,7 +1200,7 @@ def test_a_service_with_no_measured_tail_gets_no_note() -> None:
 
     assert not reading.passed
     assert not any(why.startswith("note:") for why in reading.refusals)
-    assert "cartservice" not in gate.KNOWN_TAIL_SERVICES
+    assert "cartservice" not in gate.known_tail_services("v1")
 
 
 def test_a_genuinely_slow_service_still_pages() -> None:
@@ -2337,3 +2347,89 @@ def test_adding_the_corpus_regrouped_nothing_in_the_archive() -> None:
         "being read from the wrong place, since a fingerprint that includes the corpus cannot "
         "span two of them"
     )
+
+
+# --- the gate can be pointed at a world, and refuses one it cannot see (T7.1) ---------------
+
+
+def test_the_gate_refuses_a_world_it_cannot_see() -> None:
+    """**The gate approved everything on v2 for as long as v2 existed** (2026-09-22).
+
+    It read the v1 `METRIC_QUERIES` constant directly, so on the v2 world both telemetry checks
+    queried `calls_total` and `latency_bucket` - series that do not exist there. **PromQL over a
+    missing metric is an empty result, not an error**, so `p95_over_ceiling` was empty, `rates` was
+    empty, and neither produced a refusal. The gate recorded `services_reporting: 0` into the
+    manifest and never looked at the number.
+
+    The gate is what stands between a degraded world and an injected scenario. One that cannot see
+    the world must refuse rather than pass, and this is the check that makes the whole class loud:
+    it fires whether the cause is a stopped world, a wrong metric name, a collector that stopped
+    exporting, or a world nobody pointed it at.
+    """
+    reading = reading_with(p95={}, rates={})
+
+    assert not reading.passed
+    assert any("no service reports a call rate" in why for why in reading.refusals), (
+        f"a world reporting nothing was not refused: {reading.refusals}"
+    )
+    assert reading.services_reporting == 0
+
+
+def test_the_gate_refuses_when_traffic_is_visible_and_the_histogram_is_not() -> None:
+    """The asymmetric half, which the call-rate guard alone would miss.
+
+    Both series come from the same `spanmetrics`, so traffic without durations means the histogram
+    specifically is gone - a connector with histograms switched off, say. The p95 check would then
+    pass on every service by having nothing to look at, which is not the same as passing.
+    """
+    reading = reading_with(p95={}, rates={"cartservice": 1.0})
+
+    assert not reading.passed
+    assert any("duration histogram is empty" in why for why in reading.refusals), reading.refusals
+
+
+def test_the_gate_queries_the_world_it_was_pointed_at() -> None:
+    """A v2 gate must send v2's names, and the fixture KeyErrors if it does not."""
+    reading = reading_with(world="v2", rates={"cart": 1.0}, p95={"cart": 5.0})
+
+    assert reading.passed, reading.refusals
+    assert reading.world == "v2"
+    assert reading.as_dict()["world"] == "v2"
+
+
+def test_v2_has_no_characterised_tail_services_and_that_is_not_an_oversight() -> None:
+    """**T7.14's three names are a measurement on the v1 world**, taken over days of
+    characterising at-rest excursions. Porting them to v2 - where the spellings would have to
+    change to `checkout` and `load-generator` - would assert a measurement nobody took, in a
+    refusal note that tells the reader the excursion is understood."""
+    assert gate.known_tail_services("v1") == {"checkoutservice", "frontend", "loadgenerator"}
+    assert gate.known_tail_services("v2") == frozenset()
+    assert gate.known_tail_services("v3") == frozenset()
+
+
+def test_a_service_invisible_to_the_p95_check_is_recorded_but_does_not_refuse() -> None:
+    """**Recorded rather than refused, and the reason is that it is uncharacterised** (Q87).
+
+    On v2 the p95 query carries a span filter and the call counter does not, so a service whose
+    spans were all `SPAN_KIND_INTERNAL` would serve traffic, count it, and have no measurable
+    duration at all - and a latency fault injected there would score as a miss that reads as the
+    agent's failure. 18 of 18 services were measured to have a non-internal span on 2026-09-22.
+
+    That is one instant. A low-traffic service could plausibly hold a call-rate sample and no
+    duration sample across a 180s window without anything being wrong, and an uncharacterised
+    refusal in the path of every sweep costs more than it is worth. So it goes in the manifest,
+    where a reader sees it, and the refusal waits on a measurement.
+    """
+    reading = reading_with(rates={"cartservice": 4.2, "ghost": 1.0}, p95={"cartservice": 1.9})
+
+    assert reading.latency_invisible == ["ghost"]
+    assert reading.as_dict()["latency_invisible"] == ["ghost"]
+    assert reading.passed, (
+        "an uncharacterised observation must not block a sweep; see Q87 for what would change it"
+    )
+
+
+def test_a_service_at_zero_traffic_is_not_called_invisible() -> None:
+    """`frontend-proxy` serves nothing by design, so it has no duration to be missing. Counting
+    it would make the healthy state of the one service ADR-0022 exempts look like a defect."""
+    assert reading_with().latency_invisible == []

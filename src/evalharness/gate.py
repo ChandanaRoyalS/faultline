@@ -55,7 +55,13 @@ from statistics import median
 from typing import Any
 
 from evalharness import baseline as baseline_mod
-from evalharness.prom import METRIC_QUERIES, PROMETHEUS, firing_alerts, now, query_range
+from evalharness.prom import (
+    PROMETHEUS,
+    firing_alerts,
+    metric_queries,
+    now,
+    query_range,
+)
 from evalharness.rehearse import (
     MEMORY_HEADROOM_PERCENT,
     MIN_CONTAINER_UPTIME_SECONDS,
@@ -64,6 +70,8 @@ from evalharness.rehearse import (
     container_uptimes,
     require_settled_containers,
 )
+from faultline.tools.settings import ToolSettings
+from faultline.tools.spanmetrics import metrics_for
 
 P95_CEILING_MS = 1000.0
 """Above this, something is wrong that is not this run's fault. A placeholder: chosen because
@@ -406,6 +414,13 @@ class GateReading:
     like that day* is what makes two runs comparable, and a refusal is a measurement too.
     """
 
+    world: str = "v1"
+    """Which world's metric names and span filter these readings were taken with.
+
+    **Recorded because a reading is meaningless without it.** The same numbers mean different
+    things on the two worlds, and an empty reading means "quiet" or "asked in the wrong language"
+    depending only on this field."""
+
     firing_alerts: list[str] = field(default_factory=list)
     p95_over_ceiling: dict[str, float] = field(default_factory=dict)
     p95_excursions: dict[str, Excursion] = field(default_factory=dict)
@@ -414,6 +429,10 @@ class GateReading:
     pipeline_down: list[str] = field(default_factory=list)
     silent_services: list[str] = field(default_factory=list)
     unexpected_silent: list[str] = field(default_factory=list)
+    latency_invisible: list[str] = field(default_factory=list)
+    """Services serving traffic that the p95 query cannot see, because the world's span filter
+    removes all of their spans. Empty on both worlds as measured; see the check for why it is
+    watched anyway."""
     services_reporting: int = 0
     youngest_container: tuple[str, int] | None = None
     active_injections: str = ""
@@ -457,6 +476,7 @@ class GateReading:
     def as_dict(self) -> dict[str, Any]:
         return {
             "passed": self.passed,
+            "world": self.world,
             "firing_alerts": self.firing_alerts,
             "p95_over_ceiling_ms": self.p95_over_ceiling,
             "p95_excursions": {s: e.as_dict() for s, e in self.p95_excursions.items()},
@@ -465,6 +485,7 @@ class GateReading:
             "pipeline_down": self.pipeline_down,
             "silent_services": self.silent_services,
             "unexpected_silent": self.unexpected_silent,
+            "latency_invisible": self.latency_invisible,
             "services_reporting": self.services_reporting,
             "youngest_container": list(self.youngest_container)
             if self.youngest_container
@@ -540,13 +561,27 @@ class Excursion:
         }
 
 
-KNOWN_TAIL_SERVICES = frozenset({"checkoutservice", "frontend", "loadgenerator"})
+TAIL_SERVICES_BY_WORLD: dict[str, frozenset[str]] = {
+    "v1": frozenset({"checkoutservice", "frontend", "loadgenerator"}),
+    "v2": frozenset(),
+}
 """Services measured to enter multi-minute p95 excursions on a world at rest (T7.14).
 
 Named so a refusal can say "this is the characterised one" instead of leaving the next reader to
 rediscover it. **They are not exempted from anything** - the gate still refuses, because injecting
 during an excursion would put a pre-existing alert into the scenario's blast radius. Naming is not
-forgiveness; see ADR-0025 for why de-sensitising the rule would falsify two recorded bundles."""
+forgiveness; see ADR-0025 for why de-sensitising the rule would falsify two recorded bundles.
+
+**v2's set is empty because nobody has measured it, not because the world lacks the phenomenon**
+(2026-09-22). T7.14's set came from characterising excursions on the v1 world over days. Porting
+those three names across a world boundary would assert a measurement that was never taken - and
+the v2 spellings (`checkout`, `load-generator`) would make it look as though it had been. The set
+fills in when v2 produces its own excursions and somebody characterises them."""
+
+
+def known_tail_services(world: str) -> frozenset[str]:
+    """The characterised at-rest excursions for one world, empty when none are characterised."""
+    return TAIL_SERVICES_BY_WORLD.get(world, frozenset())
 
 
 def read(
@@ -554,6 +589,7 @@ def read(
     resolved_incidents: list[tuple[str, datetime]] | None = None,
     expected_run_hours: float | None = None,
     runs_remaining: int | None = None,
+    world: str | None = None,
 ) -> GateReading:
     """Take every reading. **Does not raise** - `require` decides what the readings mean.
 
@@ -569,7 +605,14 @@ def read(
     advance** - a caller that does know (a sweep driver with measured per-scenario timings) should
     say so rather than let this assume the bound.
     """
-    reading = GateReading(open_incidents=list(open_incidents or []))
+    # **The gate read the v1 metric names from a module constant until 2026-09-22**, so on the
+    # v2 world both of its telemetry checks queried series that do not exist, got empty results,
+    # and refused nothing - while recording `services_reporting: 0` and not looking at it. See
+    # `docs/evidence/world-v2-trial/2026-09-22-the-gate-that-could-not-see.md`.
+    world = world or ToolSettings().world
+    queries = metric_queries(metrics_for(world))
+
+    reading = GateReading(world=world, open_incidents=list(open_incidents or []))
 
     # **Before anything about the world**, because a world that alerts perfectly into a pipeline
     # nobody is running produces a run that looks like a scenario that does not alert (T7.24).
@@ -606,7 +649,7 @@ def read(
     if reading.firing_alerts:
         reading.refusals.append(f"{len(reading.firing_alerts)} alert(s) firing")
 
-    windows = _window_by_service(METRIC_QUERIES["latency-p95"])
+    windows = _window_by_service(queries["latency-p95"])
     reading.p95_over_ceiling = {
         s: v[-1] for s, v in windows.items() if v and v[-1] > P95_CEILING_MS
     }
@@ -626,7 +669,7 @@ def read(
             for s, v in sorted(reading.p95_over_ceiling.items())
         )
         reading.refusals.append(f"p95 above {P95_CEILING_MS:.0f}ms: {worst}")
-        known = sorted(set(reading.p95_over_ceiling) & KNOWN_TAIL_SERVICES)
+        known = sorted(set(reading.p95_over_ceiling) & known_tail_services(world))
         if known:
             reading.refusals.append(
                 f"note: {', '.join(known)} - the characterised at-rest excursion (ADR-0025), "
@@ -634,8 +677,50 @@ def read(
                 "would land in the injected fault's blast radius. Wait it out and retry."
             )
 
-    rates = _latest_by_service(METRIC_QUERIES["call-rate"])
+    rates = _latest_by_service(queries["call-rate"])
     reading.services_reporting = len(rates)
+
+    # **The one-line guard for the whole class** (2026-09-22). Every telemetry check above
+    # degrades to "nothing to refuse" when the query matches no series, and PromQL over a metric
+    # that does not exist is an empty result rather than an error. A world where NOTHING reports
+    # traffic is either not running or is being asked in a language it does not speak, and the
+    # gate cannot assess a world it cannot see. It is not a judgement about the world's health;
+    # it is the gate declining to certify one it never measured.
+    if not rates:
+        reading.refusals.append(
+            f"no service reports a call rate on world {world!r} - the gate queried "
+            f"{queries['call-rate']!r} and got nothing back. Either the world is not running, or "
+            f"it is not the world this gate was pointed at (FAULTLINE_TOOLS_WORLD, currently "
+            f"{ToolSettings().world!r}). A gate that cannot see a world must not certify it."
+        )
+    elif not windows:
+        # Both series come from the same spanmetrics source, so this asymmetry means the duration
+        # histogram specifically is missing - a connector with histograms disabled, say. The p95
+        # check above would pass silently on every service.
+        reading.refusals.append(
+            f"services report traffic on world {world!r} but the duration histogram is empty - "
+            f"the gate queried {queries['latency-p95']!r} and got nothing. The p95 check cannot "
+            "run, and an unrunnable check is not a passing one."
+        )
+
+    # **A service can report traffic and still be invisible to the latency rule**, because the
+    # p95 query carries the world's span filter and the call counter does not. On v2 a service
+    # whose spans were all `SPAN_KIND_INTERNAL` would serve requests, count them, and have no
+    # measurable duration - so a latency fault injected there would score as a miss and read as
+    # the agent failing to find it.
+    #
+    # **Recorded, not refused, and the distinction is deliberate** (Q87). 18 of 18 services were
+    # measured to have a non-internal span on 2026-09-22, but that is one instant, not a
+    # characterisation across a gate window: a low-traffic service could plausibly have a
+    # call-rate sample and no duration sample without anything being wrong, and this repository
+    # does not put an uncharacterised refusal in the path of every sweep. The number lands in the
+    # manifest so a sweep's reader sees it; what would turn it into a refusal is a measurement
+    # showing serving services always carry duration samples over 180s.
+    #
+    # Only services actually serving count - a service at zero has no duration to be missing.
+    serving = {s for s, v in rates.items() if v > 0.0}
+    reading.latency_invisible = sorted(serving - set(windows))
+
     reading.silent_services = sorted(s for s, v in rates.items() if v == 0.0)
     reading.unexpected_silent = [s for s in reading.silent_services if s not in EXPECTED_SILENT]
     if reading.unexpected_silent:
