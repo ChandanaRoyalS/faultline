@@ -285,7 +285,11 @@ def main(argv: list[str] | None = None) -> int:
         "--world",
         default="v1",
         choices=sorted(BY_WORLD),
-        help="which demo generation is being measured; selects the span-metric names (default: v1)",
+        help=(
+            "which demo generation is being measured; selects the span-metric names AND the "
+            "rate window the capture is smoothed over, which must be the one that world's "
+            "alert rules evaluate (default: v1)"
+        ),
     )
     args = parser.parse_args(argv)
     # Line-buffered: these runs are ten minutes long and are almost always watched

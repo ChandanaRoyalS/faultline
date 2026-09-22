@@ -164,7 +164,7 @@ whether a healthy world stays quiet**, and that is a 45-minute measurement rathe
 
 ## Addendum — the re-baseline was taken, and it is void
 
-**`evals/baselines/20260922T060414Z/` must not be cited as evidence about `[5m]`, and nothing may
+**`evals/baselines/20260922T060414Z-INVALID-stale-rules/` must not be cited as evidence about `[5m]`, and nothing may
 be scored against it.** It is kept rather than deleted, because a capture that was read wrongly is
 part of the record.
 

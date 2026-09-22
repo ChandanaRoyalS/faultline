@@ -15,7 +15,7 @@ than discarded.
 | 06:03:42 | `make world-v2-up` reports every container **Running**. Prometheus is **not recreated**. |
 | 06:03:42 | `POST /-/reload` returns `failed to reload config: one or more errors occurred while applying the new configuration`. |
 | 06:03:42 | `/api/v1/rules` still reports `2m / 2m / 3m`. |
-| 06:04:14 | The 45-minute baseline starts anyway (`evals/baselines/20260922T060414Z/`). |
+| 06:04:14 | The 45-minute baseline starts anyway (`evals/baselines/20260922T060414Z-INVALID-stale-rules/`). |
 
 ## The cause, in Prometheus's own words
 
@@ -92,7 +92,35 @@ silent breakage with another is not a fix. A side benefit: the rule file keeps i
 inside the container, so `alert-rules-v2.yml` can no longer be mistaken for v1's `alert-rules.yml`
 by anyone reading a shell.
 
-**Two guards, and they do different jobs.** `test_the_reloadable_services_mount_a_directory_not_a_file`
+## The fix, demonstrated rather than asserted
+
+**The whole argument is "a directory mount sees a file replaced by rename."** That is a claim about
+Docker's behaviour on this machine, and this project does not get to assert those. It was run, on
+the Mac, against the running container, for \$0:
+
+```
+$ printf 'one\n' > compose/prometheus/.mount-probe
+$ docker exec prometheus cat /etc/faultline/.mount-probe
+one
+$ printf 'two\n' > .mount-probe.tmp && mv .mount-probe.tmp .mount-probe    # what git am does
+$ docker exec prometheus cat /etc/faultline/.mount-probe
+two
+```
+
+**`one` then `two`.** The temp file is created in the same directory deliberately, so `mv` is a real
+`rename(2)` rather than a cross-filesystem copy — a copy would have proved nothing, since writing
+through an existing inode was never the failing case.
+
+Confirmed alongside it: `docker compose up -d` recreated **only** `prometheus` and `alertmanager`,
+leaving the other 28 containers running, so the fix cost no world state. The container's
+`md5sum /etc/faultline/alert-rules-v2.yml` matched the host's `9fae77fc993886ecf9f66b6a85eda87f`,
+`/api/v1/rules` reported `5m` on all three rules, and the log line read
+`Completed loading of configuration file ... filename=/etc/faultline/prometheus-config-v2.yaml`
+with no `previous rule set restored` beside it.
+
+## The guards
+
+**Two, and they do different jobs.** `test_the_reloadable_services_mount_a_directory_not_a_file`
 is the one that catches this bug, by removing the shape that permits it — it was checked against the
 exact pre-fix compose file and fails on it.
 `test_every_config_path_named_inside_the_v2_containers_is_a_file_we_ship` **would not have caught
