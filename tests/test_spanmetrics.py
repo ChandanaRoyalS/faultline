@@ -103,3 +103,29 @@ def test_an_unknown_world_raises_rather_than_falling_back() -> None:
         names_for("v3")
 
     assert set(BY_WORLD) == {"v1", "v2"}
+
+
+def test_the_baseline_recorder_cannot_capture_one_worlds_queries_against_another() -> None:
+    """**A capture's provenance is its summary, and a summary can lie silently** (T7.1).
+
+    `evalharness.baseline` writes the expressions it used into `summary.md` beside the numbers
+    they produced. While it read the module-level `METRIC_QUERIES`, a `--world v2` capture would
+    have queried v2 and *documented v1* - or, worse, queried v1's names against a v2 Prometheus and
+    written a summary full of empty series with no indication anything was wrong, because PromQL
+    over a missing metric is an empty result rather than an error.
+
+    Read as source rather than by running the recorder, which needs a live Prometheus and a
+    forty-five minute window.
+    """
+    from pathlib import Path
+
+    source = (Path(__file__).resolve().parents[1] / "src/evalharness/baseline.py").read_text()
+    body = "\n".join(line for line in source.splitlines() if not line.lstrip().startswith("#"))
+
+    assert "METRIC_QUERIES" not in body, (
+        "evalharness/baseline.py references the v1 METRIC_QUERIES constant. It takes --world, so "
+        "every query and the summary that documents them must come from metric_queries(names)."
+    )
+    assert "metric_queries(names)" in body, (
+        "the baseline recorder should build its queries from the world it was asked to measure"
+    )

@@ -26,15 +26,16 @@ from pathlib import Path
 from typing import Any
 
 from evalharness.prom import (
-    METRIC_QUERIES,
     PROMETHEUS,
     alert_intervals,
     firing_alerts,
+    metric_queries,
     now,
     query_range,
     series_points,
     stamp,
 )
+from faultline.tools.spanmetrics import BY_WORLD, names_for
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BASELINE_ROOT = REPO_ROOT / "evals" / "baselines"
@@ -122,8 +123,9 @@ def markdown_table(title: str, rows: dict[str, dict[str, float]], unit: str) -> 
     return lines
 
 
-def capture(minutes: int, step: int, out_root: Path) -> int:
+def capture(minutes: int, step: int, out_root: Path, world: str = "v1") -> int:
     require_quiet_world("before measuring")
+    names = names_for(world)
 
     start = now()
     out = out_root / start.strftime("%Y%m%dT%H%M%SZ")
@@ -165,7 +167,7 @@ def capture(minutes: int, step: int, out_root: Path) -> int:
     valid = not injections
 
     captured: dict[str, dict[str, Any]] = {}
-    for name, promql in METRIC_QUERIES.items():
+    for name, promql in metric_queries(names).items():
         payload = query_range(promql, start, end, step=step, base=PROMETHEUS)
         (out / "metrics" / f"{name}.json").write_text(json.dumps(payload, indent=2) + "\n")
         captured[name] = payload
@@ -183,6 +185,14 @@ def capture(minutes: int, step: int, out_root: Path) -> int:
         "valid": valid,
         "injections_during_window": injections,
         "recorded_by": "evalharness.baseline",
+        "world": world,
+        # **What `injector_status` does and does not cover on v2.** `faultline-inject status`
+        # reports the injector's own state, which is the whole of the fault plane on v1. On v2 the
+        # demo carries fifteen built-in failure flags served by flagd, and the injector cannot see
+        # them - so "no active injections" there means Faultline injected nothing, not that
+        # nothing is switched on. Recorded rather than papered over; a flag-aware check belongs
+        # with the v2 injector when it exists.
+        "quiet_check_covers_flagd": world == "v1",
         "window": {"start": stamp(start), "end": stamp(end), "minutes": minutes, "step": step},
         "injector_status": status_after,
         "alerts_during_window": alert_windows,
@@ -227,8 +237,11 @@ def capture(minutes: int, step: int, out_root: Path) -> int:
         ]
     else:
         report.append("None. The world was quiet for the whole window.")
-    report += ["", "## Queries", ""]
-    for name, promql in METRIC_QUERIES.items():
+    # **The queries actually sent, not v1's.** This section is the capture's provenance: a
+    # summary that prints one world's expressions beside another world's numbers would misstate
+    # what was measured, and the span-metric names differ between the two (T7.1).
+    report += ["", f"## Queries (world `{world}`)", ""]
+    for name, promql in metric_queries(names).items():
         report += [f"### {name}", "", "```promql", promql, "```", ""]
     (out / "summary.md").write_text("\n".join(report) + "\n")
 
@@ -252,13 +265,19 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Measure the world with nothing injected.")
     parser.add_argument("--minutes", type=int, default=45, help="window length (default: 45)")
     parser.add_argument("--step", type=int, default=15, help="query step seconds (default: 15)")
+    parser.add_argument(
+        "--world",
+        default="v1",
+        choices=sorted(BY_WORLD),
+        help="which demo generation is being measured; selects the span-metric names (default: v1)",
+    )
     args = parser.parse_args(argv)
     # Line-buffered: these runs are ten minutes long and are almost always watched
     # through a redirect, where block buffering makes a working recorder look hung.
     if isinstance(sys.stdout, io.TextIOWrapper):
         sys.stdout.reconfigure(line_buffering=True)
     try:
-        return capture(args.minutes, args.step, BASELINE_ROOT)
+        return capture(args.minutes, args.step, BASELINE_ROOT, args.world)
     except BaselineError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
