@@ -193,3 +193,52 @@ def test_the_baseline_recorder_cannot_capture_one_worlds_queries_against_another
         "so that the expressions it runs and the ones it writes into summary.md are one object - "
         "metric names and rate window together, which is why they live on one dataclass."
     )
+
+
+# --- the recorded evidence, which is the expensive place to get this wrong -------------------
+
+
+def _source(relative: str) -> str:
+    """A module's code with comment lines removed, so a guard reads what runs."""
+    from pathlib import Path
+
+    text = (Path(__file__).resolve().parents[1] / relative).read_text()
+    return "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
+
+
+def test_the_scenario_bundle_captures_the_world_it_was_recorded_on() -> None:
+    """**The most expensive version of the empty-series failure** (2026-09-22).
+
+    `evalharness.rehearse` built a scenario bundle's four captures from the module-level
+    `METRIC_QUERIES` - v1's names, hard-coded. A bundle recorded on the v2 world would have held
+    four empty series, because `calls_total` and `latency_bucket` do not exist there and PromQL
+    over a missing metric is an empty result rather than an error.
+
+    **The bundle is what a run is scored against and what the agent reads.** The run would have
+    completed, the agent would have found nothing because it was shown nothing, and the miss would
+    have been recorded as a fact about the agent. Unlike the gate - which refuses, and whose
+    blindness cost only that refusal - this one writes a wrong answer into the corpus.
+    """
+    body = _source("src/evalharness/rehearse.py")
+
+    assert "**METRIC_QUERIES" not in body, (
+        "rehearse builds a bundle's captures from the v1 constant. On any other world that is "
+        "four empty series in a recorded bundle, which reads as a quiet world rather than as an "
+        "error, and the run scores a miss the agent did not make."
+    )
+    assert "metric_queries(world_metrics)" in body
+    assert "metrics_for(ToolSettings().world)" in body
+
+
+def test_the_b0_baseline_asks_its_own_world_rather_than_the_default() -> None:
+    """`render_query` defaults to v1 so the frozen expressions stay frozen - which means **a
+    caller that forgets to say which world it is on silently asks v1's question.** B0's
+    error-ratio delta is its only metric signal, and an empty one reads as "no service moved",
+    which B0 would then report as its finding."""
+    body = _source("src/evalharness/baselines.py")
+
+    assert "render_query(MetricTemplate.ERROR_RATIO, service)" not in body, (
+        "B0 renders its error-ratio query without a world, so it asks v1's names everywhere. "
+        "On v2 that is an empty result, and an empty delta is a finding B0 will report."
+    )
+    assert "metrics_for(ToolSettings().world)" in body

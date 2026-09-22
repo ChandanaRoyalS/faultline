@@ -42,7 +42,6 @@ from typing import Any
 from evalharness import reachability
 from evalharness.prom import (
     LOKI,
-    METRIC_QUERIES,
     POLL_SECONDS,
     PROMETHEUS,
     RUNTIME_CAPTURE,
@@ -50,6 +49,7 @@ from evalharness.prom import (
     alert_intervals,
     firing_alerts,
     get_json,
+    metric_queries,
     now,
     query_range,
     runtime_query,
@@ -63,6 +63,8 @@ from evalharness.provenance import (
     world_provenance,
 )
 from evalharness.scenario import Scenario
+from faultline.tools.settings import ToolSettings
+from faultline.tools.spanmetrics import metrics_for
 from injector.catalog import by_id as fault_by_id
 from injector.settings import InjectorSettings
 from injector.world import SERVICE_CONTAINERS, canonical_service, same_service
@@ -1208,8 +1210,18 @@ def _rehearse_locked(
     #
     # The fifth capture is scenario-scoped, so the query map is built per run rather than
     # taken from the module constant: it names the target service under `exported_job`.
+    #
+    # **The other four are built from the world too, since 2026-09-22.** They came from the
+    # module-level `METRIC_QUERIES` - v1's names, hard-coded - and a bundle recorded on the v2
+    # world would have held four empty series: `calls_total` and `latency_bucket` do not exist
+    # there, and PromQL over a missing metric is an empty result rather than an error. **The
+    # bundle is the evidence a run is scored against and the thing the agent reads**, so the run
+    # would have completed, scored a miss, and read as the agent failing to find a fault it was
+    # never shown. Found in the same survey as the gate's blindness
+    # (`docs/evidence/world-v2-trial/2026-09-22-the-harness-still-speaks-v1.md`).
+    world_metrics = metrics_for(ToolSettings().world)
     queries = {
-        **METRIC_QUERIES,
+        **metric_queries(world_metrics),
         RUNTIME_CAPTURE: runtime_query(canonical_service(scenario.injection.target)),
     }
     captured: dict[str, dict[str, Any]] = {}
@@ -1223,6 +1235,9 @@ def _rehearse_locked(
 
     facts: dict[str, Any] = {
         "world_lock": lock_info,
+        # Which world's metric names and span filter the four captures above were taken with.
+        # An empty series means "quiet" or "asked in the wrong language" depending only on this.
+        "world": ToolSettings().world,
         # Evidence that the world was quiet when this started, rather than an assumption.
         "baseline_clear_at": stamp(baseline_clear_at),
         "t_inject": stamp(t_inject),

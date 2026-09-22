@@ -426,6 +426,8 @@ def signals_from_tools(
     metric_window = window if metric_window is None else metric_window
     from faultline.tools.envelope import render
     from faultline.tools.metrics import MetricTemplate, render_query
+    from faultline.tools.settings import ToolSettings
+    from faultline.tools.spanmetrics import metrics_for
 
     changes: list[Change] = []
     deltas: dict[str, float] = {}
@@ -443,7 +445,13 @@ def signals_from_tools(
             )
         )
 
-        query = render_query(MetricTemplate.ERROR_RATIO, service)
+        # **The world, not the default.** `render_query` defaults to v1 so that every
+        # published figure renders byte for byte, which means a caller that forgets to say
+        # which world it is on silently asks v1's question - and on v2 gets an empty result
+        # rather than an error. B0's error-ratio delta is its only metric signal; an empty one
+        # reads as "no services moved", which is a finding it would then report (Q34 again, in
+        # a new place).
+        query = render_query(MetricTemplate.ERROR_RATIO, service, metrics_for(ToolSettings().world))
         result = tools.promql_query(query, metric_window.start, metric_window.end)
         delta = error_delta(result)
         if delta is not None:
