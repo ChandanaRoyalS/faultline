@@ -31,7 +31,7 @@ from faultline.telemetry import (
     query_range,
     stamp,
 )
-from faultline.tools.spanmetrics import V1, SpanMetricNames
+from faultline.tools.spanmetrics import V1, WorldMetrics
 
 __all__ = [
     "HTTP_TIMEOUT",
@@ -56,7 +56,7 @@ __all__ = [
 POLL_SECONDS = 15
 
 
-def metric_queries(names: SpanMetricNames = V1) -> dict[str, str]:
+def metric_queries(world: WorldMetrics = V1) -> dict[str, str]:
     """The four series every capture takes, in one world's spelling. Keys become filenames.
 
     **Parameterised at T7.1 and defaulting to v1**, because the collector's `spanmetrics` is a
@@ -67,13 +67,14 @@ def metric_queries(names: SpanMetricNames = V1) -> dict[str, str]:
     """
     return {
         "error-ratio": (
-            f'sum by(service_name) (rate({names.calls}{{status_code="STATUS_CODE_ERROR"}}[2m]))'
-            f" / sum by(service_name) (rate({names.calls}[2m]))"
+            f"sum by(service_name) "
+            f'(rate({world.calls}{{status_code="STATUS_CODE_ERROR"}}[{world.rate_window}]))'
+            f" / sum by(service_name) (rate({world.calls}[{world.rate_window}]))"
         ),
-        "call-rate": f"sum by(service_name) (rate({names.calls}[2m]))",
+        "call-rate": f"sum by(service_name) (rate({world.calls}[{world.rate_window}]))",
         "latency-p95": (
             "histogram_quantile(0.95, sum by(service_name, le) "
-            f"(rate({names.duration_bucket}[2m])))"
+            f"(rate({world.duration_bucket}[{world.rate_window}])))"
         ),
         "alerts-firing": 'ALERTS{alertstate="firing"}',
     }

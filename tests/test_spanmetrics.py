@@ -1,9 +1,11 @@
-"""The span-metric names, and the freeze that makes parameterising them safe (T7.1).
+"""One world's metric spelling and window, and the freeze that makes both safe to vary (T7.1).
 
 `faultline.tools.spanmetrics` exists because v1 wires the collector's `spanmetrics` as a processor
-and v2 as a connector, so the two worlds emit different series names for the same quantity. Making
-every PromQL site take a name set is only safe if **the v1 rendering does not move**, because every
-published figure was measured through those exact expressions.
+and v2 as a connector, so the two worlds emit different series names for the same quantity. It also
+carries the `rate()` window, added 2026-09-22 after the v2 alert rules widened to `[5m]` and the
+capture queries silently stayed on `[2m]`. Making every PromQL site take that object is only safe
+if **the v1 rendering does not move**, because every published figure was measured through those
+exact expressions.
 
 So the strings below are frozen verbatim. They are what the tree produced before this module
 existed, copied from the v1 source rather than regenerated from it — a test that asks the code what
@@ -17,7 +19,7 @@ import pytest
 from evalharness.prom import METRIC_QUERIES, metric_queries
 from faultline.tools.metrics import MetricTemplate, render_query
 from faultline.tools.settings import ToolSettings
-from faultline.tools.spanmetrics import BY_WORLD, V1, V2, names_for
+from faultline.tools.spanmetrics import BY_WORLD, V1, V2, metrics_for
 
 # --- the freeze ---------------------------------------------------------------------------
 
@@ -71,7 +73,7 @@ def test_v1_is_the_default_everywhere_it_could_be_defaulted() -> None:
     run at a series that does not exist, and PromQL over a missing metric is an empty result rather
     than an error - so the run would succeed, report no data and look like a quiet world."""
     assert ToolSettings().world == "v1"
-    assert names_for(ToolSettings().world) is V1
+    assert metrics_for(ToolSettings().world) is V1
 
 
 # --- the v2 set ---------------------------------------------------------------------------
@@ -95,12 +97,35 @@ def test_every_v2_query_names_only_v2_metrics() -> None:
     assert "calls_total" not in joined.replace(V2.calls, "")
 
 
+def test_the_v2_queries_smooth_over_v2s_window_and_never_v1s() -> None:
+    """**The window is part of a world's identity, not a constant** (2026-09-22).
+
+    v1 smooths over `[2m]`, which its own baseline validated. v2 needs `[5m]`: at 25 users most of
+    the world still runs at 0.1-0.3 req/s, and `image-provider` does not respond to load at all, so
+    a `[2m]` window holds six to eight samples and a p95 over six spans is the maximum of six spans.
+
+    A v2 query left on `[2m]` does not fail. It reports 15000 ms p95s and error ratios to 100% on a
+    healthy world - and it did, twice, in captures that were read as findings about the world.
+    """
+    assert V1.rate_window == "2m"
+    assert V2.rate_window == "5m"
+
+    v2 = " ".join(metric_queries(V2).values())
+    assert "[5m]" in v2
+    assert "[2m]" not in v2
+
+    agent_v2 = " ".join(render_query(t, "cart", V2) for t in MetricTemplate)
+    assert "[2m]" not in agent_v2, (
+        "the agent's own metric tool still smooths a v2 query over v1's window"
+    )
+
+
 def test_an_unknown_world_raises_rather_than_falling_back() -> None:
     """**The one place that could reintroduce a silent failure is a lenient lookup.** Falling back
     to v1 for an unrecognised world is exactly the empty-result-not-an-error mode this module was
     written to prevent."""
     with pytest.raises(ValueError, match="unknown world"):
-        names_for("v3")
+        metrics_for("v3")
 
     assert set(BY_WORLD) == {"v1", "v2"}
 
@@ -124,8 +149,13 @@ def test_the_baseline_recorder_cannot_capture_one_worlds_queries_against_another
 
     assert "METRIC_QUERIES" not in body, (
         "evalharness/baseline.py references the v1 METRIC_QUERIES constant. It takes --world, so "
-        "every query and the summary that documents them must come from metric_queries(names)."
+        "every query and the summary that documents them must come from metric_queries(metrics)."
     )
-    assert "metric_queries(names)" in body, (
-        "the baseline recorder should build its queries from the world it was asked to measure"
+    assert "metrics_for(world)" in body, (
+        "the baseline recorder should resolve the world it was asked to measure"
+    )
+    assert "metric_queries(metrics)" in body, (
+        "the baseline recorder should build its queries from the world it was asked to measure, "
+        "so that the expressions it runs and the ones it writes into summary.md are one object - "
+        "metric names and rate window together, which is why they live on one dataclass."
     )
