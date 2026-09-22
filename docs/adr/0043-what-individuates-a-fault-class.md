@@ -118,3 +118,39 @@ they are one class for every purpose the benchmark has, whatever the injector di
 topology finding says this is the live risk in this world, and **distinctness of alert shape is a
 pre-registered acceptance criterion for the new catalog** (ADR-0042). A class that fails it is
 merged, and the merge is recorded.
+
+---
+
+## Addendum, 2026-09-22 — "nearly free" is withdrawn, and one flag mechanism is one class
+
+**The decision stands. One sentence of its reasoning does not.**
+
+This ADR says the mechanism criterion *"makes [eight classes] reachable"*, citing
+[`t7.1-v2-mechanisms-assessed.md`](../design/t7.1-v2-mechanisms-assessed.md) §3 — which says a
+`FeatureFlagFault` **"(or one class per flag family)"** would reach eight *"without difficulty"*.
+**That parenthesis was never resolved and the two readings differ by ten classes.** The re-read this
+ADR called for ([`t7.1-the-candidate-re-read.md`](../design/t7.1-the-candidate-re-read.md)) settles
+it, and settles it against the optimistic reading.
+
+**One `FeatureFlagFault`, one class**, on this table's own precedent: `ResourceExhaustionFault`
+covers **memory and CPU** — two physically different faults with different symptoms — because they
+are one field-kind reached by one tool. Fifteen flags in one JSON file read through one OpenFeature
+client are one field-kind reached by one tool by exactly that standard. Splitting them while memory
+and CPU stay married would be special pleading to reach a number.
+
+**And splitting them anyway does not survive this ADR's own distinctness test.** Split by effect,
+the pieces collide on *evidence* with classes that already exist: `imageSlowLoad` and
+`kafkaQueueProblems` page as `dependency_latency`; `adHighCpu`, `emailMemoryLeak` and
+`recommendationCacheFailure` page as `resource_exhaustion`. *What would change it* already says
+such classes are merged.
+
+**So v2's fifteen flags deliver one new class, not four and not eleven: four plus one is five.**
+
+**Eight remains reachable, by a route that is not v2's.** Three further (tool, surface) pairs the
+world supports — `docker exec` into a datastore, `docker pause`, `docker network disconnect` —
+were all available on v1.2.1 and were never assessed as *mechanisms* because ADR-0029 was asking
+the fix question. Each still has to page, and page distinctly, and that needs world time.
+
+**What this changes in practice**: the forecast becomes **five guaranteed, eight contingent on
+three measurements that can fail**, and `feature_flag` is built first because it is the only
+candidate with nothing left to establish.
