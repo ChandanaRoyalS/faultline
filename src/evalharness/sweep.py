@@ -696,24 +696,46 @@ immediately by a run trades one refusal for another."""
 
 
 def _recycle_world() -> None:  # pragma: no cover - the subprocess path
-    """kafka and the three consumers that never reconnect without it, then the settle.
+    """kafka and the consumers that never reconnect without it, then the settle.
 
     **Not a workaround - the documented remedy, run rather than printed.** T7.27 measured that
-    kafka's consumers do not reconnect on their own, T7.30 measured the recycle clearing 99.87% to
-    26.27%, and ADR-0005's T7.30 addendum records why raising the limit is not the answer: the
-    growth is Rosetta translation cache, driven by work and not bounded by a ceiling. The gate has
-    printed these exact two commands at every refusal since T7.29; `PREREGISTRATION-T6.1.md`
-    section 4 registered them as a continuity event between passes. This is that, executed.
-    """
-    from evalharness.rehearse import DOCKER_TIMEOUT_SECONDS
+    kafka's consumers do not reconnect on their own; the gate has printed these two commands at
+    every refusal since T7.29, and `PREREGISTRATION-T6.1.md` section 4 registered them as a
+    continuity event between passes. This is that, executed.
 
+    **The container names are per world, and until 2026-09-22 they were v1's everywhere.** On v2
+    `accounting-service` and its two siblings do not exist, `check=False` swallowed the
+    `No such container`, and nothing reported it - the recycle looked like it had happened while
+    the consumers were never restarted at all. Now the exit status is read and said out loud.
+
+    **On v2 this remedy does not do what it does on v1**, which is why `recycle_effect` carries a
+    per-world sentence. v2 commits kafka's whole heap at startup (`-Xms400m` = `-Xmx400m`), so a
+    restart measured 92.08% -> 88.81% against v1's 99.87% -> 26.27%. Recycling a v2 world that is
+    over the guard will not bring it under; the limit in `compose/world-v2.override.yml` is what
+    does that, and Q88 is what decides whether a limit is even the right kind of fix.
+    """
+    from evalharness.rehearse import DOCKER_TIMEOUT_SECONDS, kafka_consumers
+    from faultline.tools.settings import ToolSettings
+
+    world = ToolSettings().world
     subprocess.run(["docker", "restart", "kafka"], check=False, timeout=DOCKER_TIMEOUT_SECONDS)
     time.sleep(20)
-    subprocess.run(
-        ["docker", "restart", "accounting-service", "frauddetection-service", "checkout-service"],
+    consumers = list(kafka_consumers(world))
+    done = subprocess.run(
+        ["docker", "restart", *consumers],
         check=False,
         timeout=DOCKER_TIMEOUT_SECONDS,
+        capture_output=True,
+        text=True,
     )
+    if done.returncode != 0:
+        # Said rather than swallowed. A recycle whose consumers were not restarted leaves the
+        # world quietly broken in the exact way T7.27 measured, and the sweep would carry on.
+        print(
+            f"--- WARNING: restarting kafka's consumers on world {world!r} failed "
+            f"({' '.join(consumers)}): {done.stderr.strip() or done.stdout.strip()}",
+            flush=True,
+        )
     print("--- recycled; waiting for the world to settle before the next pass", flush=True)
     wait_until_settled()
 

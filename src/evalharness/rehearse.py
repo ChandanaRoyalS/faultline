@@ -74,6 +74,48 @@ REPO_ROOT = Path(__file__).resolve().parents[2]
 SCENARIO_DIR = REPO_ROOT / "evals" / "scenarios"
 ARTIFACT_ROOT = SCENARIO_DIR / "artifacts"
 
+KAFKA_CONSUMERS_BY_WORLD: dict[str, tuple[str, ...]] = {
+    "v1": ("accounting-service", "frauddetection-service", "checkout-service"),
+    "v2": ("accounting", "fraud-detection", "checkout"),
+}
+"""kafka's consumers, which T7.27 measured do not reconnect on their own after a restart.
+
+**Per world because the container names differ and the old ones fail silently.** `sweep` runs
+`docker restart` on these with `check=False`, so on v2 the v1 names produced `No such container`
+and nothing anywhere reported it - the recycle looked like it had happened.
+"""
+
+RECYCLE_EFFECT_BY_WORLD: dict[str, str] = {
+    "v1": (
+        "A restart clears this completely - T7.30 measured 99.87% -> 26.27%. Raising the limit "
+        "is not the remedy: the growth is Rosetta translation cache, driven by work and not "
+        "bounded by a ceiling (ADR-0005's T7.30 addendum)."
+    ),
+    "v2": (
+        "A restart does NOT clear this - 2026-09-22 measured 92.08% -> 88.81%, three points. "
+        "v2 ships kafka with -Xms400m equal to -Xmx400m, so the JVM commits its whole heap at "
+        "startup and a restart re-commits it instantly; there is no Rosetta on this native "
+        "arm64 world and no accumulated cache to free. A FRESHLY RESTARTED kafka sits at 88.8%. "
+        "If this is still firing after the limit raise in compose/world-v2.override.yml, the "
+        "non-heap growth has not plateaued and recycling will not help - see Q88."
+    ),
+}
+"""What a recycle actually achieves, measured per world rather than assumed across the boundary.
+
+**The v1 entry was printed at v2 operators until 2026-09-22**, recommending a remedy that buys
+three percentage points on a container that starts at 88.8%."""
+
+
+def kafka_consumers(world: str) -> tuple[str, ...]:
+    """kafka's consumers on one world. Unknown worlds get v1's, which fail loudly rather than
+    silently - an empty tuple would make `docker restart` a no-op that reports success."""
+    return KAFKA_CONSUMERS_BY_WORLD.get(world, KAFKA_CONSUMERS_BY_WORLD["v1"])
+
+
+def recycle_effect(world: str) -> str:
+    return RECYCLE_EFFECT_BY_WORLD.get(world, RECYCLE_EFFECT_BY_WORLD["v1"])
+
+
 STUB_IMAGE = "ffs-stub:1"
 """The world's flag service (ADR-0006). Its digest is part of what "the same world" means."""
 
@@ -410,9 +452,10 @@ def require_memory_headroom(threshold: float = MEMORY_HEADROOM_PERCENT) -> list[
     if hot:
         detail = "\n".join(f"  {n}: {h} ({pct:.1f}% of its limit)" for n, pct, h in sorted(hot))
         cycle = " ".join(sorted(n for n, _, _ in hot))
+        consumers = " ".join(kafka_consumers(ToolSettings().world))
         kafka_note = (
             "\n  kafka needs its consumers restarted too, or they never reconnect:\n"
-            "    docker restart accounting-service frauddetection-service checkout-service"
+            f"    docker restart {consumers}"
             if any(n == "kafka" for n, _, _ in hot)
             else ""
         )

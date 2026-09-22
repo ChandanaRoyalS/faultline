@@ -28,6 +28,8 @@
 # *heap cap* rather than a raise (T7.27), and doing that here before this world has a measured
 # growth trajectory would be copying a fix across a world boundary. If either trips the gate under
 # load, that is a measurement and it gets its own row.
+#
+# **kafka tripped the gate on 2026-09-22 and this is that row.** opensearch has not and stays out.
 services:
   llm:
     deploy: { resources: { limits: { memory: 150M } } }
@@ -71,3 +73,43 @@ services:
   load-generator:
     environment:
       LOCUST_USERS: 25
+
+  # **kafka: 620M -> 1024M, and v1's remedy is falsified here rather than inherited**
+  # (`docs/evidence/world-v2-trial/2026-09-22-the-recycle-that-does-not-recycle.md`).
+  #
+  # The gate refused a v2 sweep with kafka at 92.08%. v1's documented answer is a recycle - T7.30
+  # measured 99.87% -> 26.27% - and `evalharness.sweep` runs it automatically. **Measured here it
+  # bought three points: 92.08% -> 88.81%.**
+  #
+  # **Because it is not the same phenomenon.** v2 ships `-Xms400m` equal to `-Xmx400m`, so the JVM
+  # commits its entire heap at startup and a restart re-commits it immediately. v1's growth was
+  # Rosetta translation cache, which accumulates and is genuinely freed by a restart; this world
+  # is native arm64 and has no Rosetta at all. Measured, 30 seconds after `docker restart kafka`:
+  #
+  #   anon 482.1 MiB  =  400 MiB committed heap  +  82 MiB non-heap
+  #
+  # **A freshly restarted kafka sits at 88.8% of 620M**, and the gate's guard is 90%. The
+  # container is not near its limit because it grew - **it starts there.** No recycle cadence
+  # fixes that, and on this world the gate would refuse nearly every sweep.
+  #
+  # **The number, reasoned rather than picked.** 400 MiB of committed heap is an irreducible
+  # floor. Non-heap measured 82 MiB fresh and 164 MiB after five hours. 1024M puts a fresh
+  # container at 54% and a five-hour-old one at ~58%, leaving ~330 MiB under the gate's 90% guard
+  # - about twenty hours at the observed growth, which covers any sweep - while still catching
+  # genuine runaway. It matches opensearch's existing ceiling and costs ~400 MiB on a machine
+  # measured with 11 GB free.
+  #
+  # **Raised now specifically because it is free now and will not be later.** `rehearse` says in
+  # as many words that raising a limit is the remedy that must not be taken, because the file
+  # holding it feeds `world.compose_digest` and editing it invalidates every recorded bundle
+  # (ADR-0014). That argument is exactly right for v1 and does not yet bind here: **no v2 bundle
+  # exists**, and `InjectorSettings.compose_files` still names v1's three files, so nothing
+  # currently digests this file at all. The second half of that is its own gap and is recorded in
+  # the note rather than fixed here. The window closes the moment the injector is migrated.
+  #
+  # **Provisional, and Q88 is what settles it.** A ceiling only helps if the non-heap growth
+  # plateaus. 82 -> 164 MiB in five hours is a doubling, and if it is linear rather than
+  # asymptotic then no limit is sufficient and the answer is a heap or direct-buffer cap instead.
+  # A sampler is collecting `anon` every five minutes; this figure moves if the curve says so.
+  kafka:
+    deploy: { resources: { limits: { memory: 1024M } } }
