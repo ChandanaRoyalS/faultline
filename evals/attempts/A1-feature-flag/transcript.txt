@@ -1,0 +1,112 @@
+# A1 - feature flag productCatalogFailure. 2026-09-22, second run (the first was void).
+# Pasted verbatim from the operator's terminal.
+
+❯ python3 evals/attempts/shape.py
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       91   0.438
+  ad                      1.27        2   0.329
+  cart                    0.00        2   4.379
+  checkout                0.00       21   2.092
+  currency                0.00        2   0.471
+  email                   0.00        4   0.567
+  flagd                   0.24        2   1.738
+  fraud-detection         0.00       92   0.283
+  frontend                0.00       29  11.779
+  frontend-proxy          0.00       35   5.479
+  image-provider          0.00        2   0.100
+  load-generator          0.00       38   5.054
+  payment                 0.00        2   0.275
+  product-catalog         0.00        3   5.225
+  product-reviews         0.54       36   0.767
+  quote                   0.00        2   0.450
+  recommendation          0.87        7   0.479
+  shipping                0.00        2   0.438
+
+❯ date -u +%T && python3 evals/attempts/flag.py productCatalogFailure on
+13:51:45
+productCatalogFailure: off -> on  (world-v2/src/flagd/demo.flagd.json)
+
+❯ python3 evals/attempts/watch.py 12
+13:51:52  quiet
+13:52:22  quiet
+13:52:52  quiet
+13:53:22  quiet
+13:53:52  quiet
+13:54:22  quiet
+13:54:52  quiet
+13:55:22  quiet
+13:55:52  quiet
+13:56:22  quiet
+13:56:52  quiet
+13:57:22  ServiceHighErrorRate/frontend-proxy
+13:57:52  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+13:58:22  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+13:58:52  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+13:59:22  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+13:59:52  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+14:00:22  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+14:00:52  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+14:01:22  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+14:01:52  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+14:02:22  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+14:02:52  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+14:03:22  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+
+❯ python3 evals/attempts/shape.py product-catalog
+== firing ==
+  ServiceHighErrorRate/frontend-proxy
+  ServiceHighErrorRate/frontend
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       91   0.337
+  ad                      1.22        2   0.342
+  cart                    0.00        2   3.362
+  checkout                2.07       16   1.608
+  currency                0.00        2   0.308
+  email                   0.00        5   0.450
+  flagd                   0.56        2   1.475
+  fraud-detection         1.82       95   0.229
+  frontend                8.00       34  11.041
+  frontend-proxy          8.52       37   4.987
+  image-provider          0.00        2   0.100
+  load-generator          4.60       40   4.525
+  payment                 0.00        2   0.233
+  product-catalog         4.63        4   4.675
+  product-reviews         0.35       39   1.179
+  quote                   0.00        2   0.325
+  recommendation          0.65        4   0.642
+  shipping                0.00        3   0.337
+
+== last 8 log lines: product-catalog ==
+(empty)
+
+❯ date -u +%T && python3 evals/attempts/flag.py productCatalogFailure off
+14:05:04
+productCatalogFailure: on -> off  (world-v2/src/flagd/demo.flagd.json)
+
+❯ python3 evals/attempts/watch.py 10
+14:05:11  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+14:05:41  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+14:06:11  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+14:06:41  ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+14:07:11  quiet
+14:07:41  quiet
+14:08:11  quiet
+14:08:41  quiet
+14:09:11  quiet
+14:09:41  quiet
+14:10:11  quiet
+14:10:41  quiet
+14:11:11  quiet
+14:11:41  quiet
+14:12:11  quiet
+14:12:41  quiet
+14:13:11  quiet
+14:13:41  quiet
+14:14:11  quiet
+14:14:41  quiet
