@@ -3,6 +3,11 @@
     python3 evals/attempts/watch.py 12
 
 Stdlib only, no quoting to get wrong, and it prints the clock so the transcript is the timeline.
+
+**Runs on the system `python3`, which on a Mac is 3.9.** The first A1 attempt (2026-09-22 13:46)
+died on `from datetime import UTC` - 3.11+ - before its first poll, and the attempt was void by
+the protocol's own rule. These helpers deliberately need nothing newer than 3.9 so that the
+observation loop cannot depend on which interpreter happened to be first on the PATH.
 """
 
 from __future__ import annotations
@@ -12,7 +17,7 @@ import sys
 import time
 import urllib.parse
 import urllib.request
-from datetime import UTC, datetime
+from datetime import datetime, timezone
 
 PROM = "http://localhost:9090"
 
@@ -30,7 +35,7 @@ def main() -> None:
     minutes = float(sys.argv[1]) if len(sys.argv) > 1 else 12.0
     ticks = int(minutes * 2)
     for i in range(ticks):
-        stamp = datetime.now(UTC).strftime("%H:%M:%S")
+        stamp = datetime.now(timezone.utc).strftime("%H:%M:%S")  # noqa: UP017
         try:
             names = firing()
             print(f"{stamp}  {', '.join(names) if names else 'quiet'}", flush=True)

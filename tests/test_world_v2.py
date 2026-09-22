@@ -467,3 +467,31 @@ def test_kafkas_tmpfs_is_the_size_the_preregistration_says_and_under_its_ceiling
         "committed heap + measured non-heap peak + a full tmpfs must stay under the gate's 90% "
         "guard, or filling the disk on purpose becomes an OOM on purpose"
     )
+
+
+def test_the_attempt_helpers_need_nothing_newer_than_python_3_9() -> None:
+    """**The observation loop must not depend on which `python3` is first on the PATH.**
+
+    A1's first run (2026-09-22 13:46) died before its first poll on `from datetime import UTC`,
+    which is 3.11+, because the Mac's system `python3` is 3.9. The attempt was void by the
+    protocol's own rule and had to be repeated. The helpers are stdlib-only and are held to 3.9
+    here: the syntax by `ast.parse` with a `feature_version`, and the one runtime name that bit
+    by walking the imports and attribute accesses rather than grepping - a docstring is allowed
+    to say what went wrong.
+
+    Ruff's UP017 will rewrite `timezone.utc` to `UTC` on a 3.12 target, which is how the fix was
+    undone once; the helper carries `noqa` for it, and this is the guard behind the `noqa`.
+    """
+    import ast
+
+    for path in sorted((REPO_ROOT / "evals" / "attempts").glob("*.py")):
+        tree = ast.parse(path.read_text(), feature_version=(3, 9))
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ImportFrom) and node.module == "datetime":
+                names = {alias.name for alias in node.names}
+                assert "UTC" not in names, f"{path.name}: datetime.UTC is 3.11+"
+            if isinstance(node, ast.Attribute) and node.attr == "UTC":
+                base = node.value
+                assert not (isinstance(base, ast.Name) and base.id == "datetime"), (
+                    f"{path.name}: datetime.UTC is 3.11+"
+                )
