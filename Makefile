@@ -1,5 +1,6 @@
 .PHONY: help install lint format type test check up down eval-up eval-down eval demo ui \
-        ffs-stub world-up world-down world-ps world-logs dashboards deploy-snapshot
+        ffs-stub world-up world-down world-ps world-logs dashboards deploy-snapshot \
+        world-v2-up world-v2-down world-v2-ps
 
 help:
 	@grep -E '^[a-z][a-z0-9-]*:' Makefile | sed 's/:.*//' | tr '\n' ' '; echo
@@ -222,6 +223,40 @@ dashboards:
 
 world-down:
 	cd world && $(COMPOSE_WORLD) down
+
+# --- the v2 world (T7.1) -------------------------------------------------------------------
+#
+# **A parallel path, and v1 is untouched by design.** The migration is a re-founding: it moves
+# compose_digest, observability_digest and - once FaultClass grows - prompt_digest, orphaning
+# every recorded figure (ADR-0042). Doing that by editing `world-up` would break the v1 world on
+# the same commit that first tries the v2 one, and there would be no way back to a comparable
+# measurement while the new catalog is unauthored. So both exist until the new world has a
+# baseline, a catalog and a record of its own.
+#
+# **DEMO_VERSION is passed on the command line and that is not a style choice.** The demo's own
+# committed `.env` at tag 2.2.0 sets `DEMO_VERSION=latest`, and its compose uses that variable for
+# every service image (`IMAGE_VERSION=2.2.0` is only a build-cache tag). A plain `up` in that
+# checkout therefore pulls `:latest` - an unpinned, unreproducible world, which is precisely what
+# ADR-0026 exists to prevent. Found by running it, 2026-09-22.
+OTEL_DEMO_V2_VERSION := 2.2.0
+
+world-v2/.cloned:
+	git clone --depth 1 --branch $(OTEL_DEMO_V2_VERSION) $(OTEL_DEMO_REPO) world-v2
+	touch world-v2/.cloned
+
+COMPOSE_WORLD_V2_FILES := -f docker-compose.yml -f ../compose/world-v2.override.yml -f ../compose/telemetry-v2.yml
+COMPOSE_WORLD_V2 := DEMO_VERSION=$(OTEL_DEMO_V2_VERSION) docker compose --progress plain $(COMPOSE_WORLD_V2_FILES)
+
+# No `--no-build`: v2's `opensearch` has no published image and `otel-collector` requires it
+# healthy, so a --no-build bring-up creates nothing at all. It builds in about 30 seconds.
+world-v2-up: world-v2/.cloned
+	cd world-v2 && $(COMPOSE_WORLD_V2) up -d
+
+world-v2-down:
+	cd world-v2 && $(COMPOSE_WORLD_V2) down
+
+world-v2-ps:
+	cd world-v2 && $(COMPOSE_WORLD_V2) ps
 
 world-ps:
 	cd world && $(COMPOSE_WORLD) ps

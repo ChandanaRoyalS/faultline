@@ -1,0 +1,76 @@
+# T7.1 - the alert rules, ported to the v2 world.
+#
+# **The logic is unchanged and that is the finding.** All three rules aggregate
+# `sum by (service_name)` over span metrics and name no service except the one exclusion, so the
+# v1 -> v2 service renaming (`cartservice` -> `cart`, `adservice` -> `ad`, and the rest) costs
+# nothing here. `frontend-proxy` is spelled identically in both worlds, so the exclusion ports
+# verbatim.
+#
+# **What does change is the metric names, because v2 runs `spanmetrics` as a CONNECTOR.**
+# v1's collector runs it as a processor in the traces pipeline
+# (`processors: [memory_limiter, spanmetrics, batch]`) and emits `calls_total` / `latency_bucket`.
+# v2 wires it as an exporter on traces and a receiver on metrics
+# (`exporters: [otlp, debug, spanmetrics]`, `receivers: [..., spanmetrics]`), which emits under a
+# `traces_span_metrics_` namespace with the histogram in milliseconds:
+#
+#   calls_total     ->  traces_span_metrics_calls_total
+#   latency_bucket  ->  traces_span_metrics_duration_milliseconds_bucket
+#
+# **Read off v2's own Grafana dashboards rather than inferred from the connector's defaults**
+# (`src/grafana/provisioning/dashboards/demo/*.json` at tag 2.2.0 query these names directly), so
+# this is what the world actually emits and not what the documentation says it should.
+#
+# **The thresholds are v1's and are provisional here.** 5% errors, 250 ms p95 and the traffic
+# guards were grounded in a measured baseline on the v1 world (T1.3, re-measured T7.x). This world
+# has no baseline yet. The numbers are carried over so the rules are runnable, and **they are not
+# evidence until a quiet-world baseline is measured on v2 and this header is rewritten with it.**
+# A threshold inherited across a world boundary is exactly the kind of number this project does not
+# publish, and nothing should be scored against these until that measurement exists.
+groups:
+  - name: faultline-slo
+    interval: 15s
+    rules:
+      - alert: ServiceHighErrorRate
+        expr: |
+          sum by (service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[2m]))
+          /
+          sum by (service_name) (rate(traces_span_metrics_calls_total[2m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+          signal: errors
+        annotations:
+          summary: "{{ $labels.service_name }} error rate above 5%"
+          description: "{{ $labels.service_name }} is failing {{ $value | humanizePercentage }} of calls. NOTE: the 5% threshold is inherited from the v1 world and has no measured baseline here yet."
+
+      - alert: ServiceHighLatency
+        expr: |
+          histogram_quantile(0.95,
+            sum by (service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket[2m]))
+          ) > 250
+        for: 3m
+        labels:
+          severity: warning
+          signal: latency
+        annotations:
+          summary: "{{ $labels.service_name }} p95 latency above 250ms"
+          description: "p95 is {{ $value | printf \"%.0f\" }}ms. NOTE: the 250ms threshold is inherited from the v1 world, where it was grounded in a measured baseline; v2 has no baseline yet. A container recreated in the last few minutes is still warming up and is not a baseline reading."
+
+      - alert: ServiceNoTraffic
+        # Both guards are v1's and both still apply, for reasons that survive the world move:
+        #   1. Fires only for services that WERE serving and then stopped.
+        #   2. Excludes frontend-proxy - Envoy, which emits a few spans at startup and none
+        #      after, so "no traffic" is its healthy steady state. v2 spells the service
+        #      `frontend-proxy` exactly as v1's container was named, so this ports verbatim.
+        # An alert that fires on a healthy system trains its reader to ignore it.
+        expr: |
+          sum by (service_name) (rate(traces_span_metrics_calls_total{service_name!="frontend-proxy"}[3m])) == 0
+          and
+          sum by (service_name) (rate(traces_span_metrics_calls_total{service_name!="frontend-proxy"}[30m] offset 10m)) > 0
+        for: 3m
+        labels:
+          severity: critical
+          signal: availability
+        annotations:
+          summary: "{{ $labels.service_name }} is serving no traffic"
+          description: "No calls recorded for 3 minutes on a service that normally serves continuously."
