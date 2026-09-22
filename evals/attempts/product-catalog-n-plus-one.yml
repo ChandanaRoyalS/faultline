@@ -1,0 +1,14 @@
+# T7.0 attempt A7 - swap product-catalog for the locally built N+1 image.
+#
+# **This is an image swap, which is `BadDeployFault`'s exact mechanism.** Like A6 it cannot
+# produce a new class and is attempted because rule 7 requires the attempt. Its open question is
+# only whether it pages, and on which rule - the prediction is `ServiceHighLatency`, which would
+# make it the catalog's first latency-shaped bad deploy, a variety of alert shape ADR-0029 §4
+# said this world could not offer.
+#
+# Build first (from world-v2/, with the patch applied):
+#   docker build -f src/product-catalog/Dockerfile -t faultline-attempt/product-catalog:n-plus-one .
+# then layer this as a fourth -f and recreate the one service.
+services:
+  product-catalog:
+    image: faultline-attempt/product-catalog:n-plus-one
