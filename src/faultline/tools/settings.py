@@ -18,6 +18,23 @@ class ToolSettings(BaseSettings):
         env_prefix="FAULTLINE_TOOLS_", env_file=".env", extra="ignore"
     )
 
+    world: str = "v1"
+    """Which demo generation the tools are pointed at - `v1` or `v2` (T7.1, ADR-0042).
+
+    **It selects the span-metric names and nothing else** (`faultline.tools.spanmetrics`): v1 wires
+    the collector's `spanmetrics` as a processor and v2 as a connector, and the two emit different
+    series names for the same quantity.
+
+    **It belongs here for the reason the endpoints do.** ADR-0004's runtime contract requires the
+    runtime to take what it observes from configuration rather than assuming a compose network;
+    which world it observes is that kind of fact, and an agent must no more be able to name it than
+    it can name a host.
+
+    **Defaults to `v1`, and a world is opted into rather than defaulted into.** Every published
+    figure was measured on v1 (ADR-0026), and a wrong value here is an empty PromQL result rather
+    than an error - the query succeeds, the agent reads *no data*, and nothing fails loudly.
+    """
+
     prometheus_url: str = "http://localhost:9090"
     loki_url: str = "http://localhost:3100"
     tempo_url: str = "http://localhost:3200"

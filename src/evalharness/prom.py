@@ -31,6 +31,7 @@ from faultline.telemetry import (
     query_range,
     stamp,
 )
+from faultline.tools.spanmetrics import V1, SpanMetricNames
 
 __all__ = [
     "HTTP_TIMEOUT",
@@ -44,6 +45,7 @@ __all__ = [
     "alert_intervals",
     "firing_alerts",
     "get_json",
+    "metric_queries",
     "now",
     "query_range",
     "runtime_query",
@@ -53,18 +55,33 @@ __all__ = [
 
 POLL_SECONDS = 15
 
-# The four series every capture takes. Keys become filenames under metrics/.
-METRIC_QUERIES: dict[str, str] = {
-    "error-ratio": (
-        'sum by(service_name) (rate(calls_total{status_code="STATUS_CODE_ERROR"}[2m]))'
-        " / sum by(service_name) (rate(calls_total[2m]))"
-    ),
-    "call-rate": "sum by(service_name) (rate(calls_total[2m]))",
-    "latency-p95": (
-        "histogram_quantile(0.95, sum by(service_name, le) (rate(latency_bucket[2m])))"
-    ),
-    "alerts-firing": 'ALERTS{alertstate="firing"}',
-}
+
+def metric_queries(names: SpanMetricNames = V1) -> dict[str, str]:
+    """The four series every capture takes, in one world's spelling. Keys become filenames.
+
+    **Parameterised at T7.1 and defaulting to v1**, because the collector's `spanmetrics` is a
+    processor in the v1 world and a connector in the v2 one, and the two emit different series
+    names for the same quantity (`faultline.tools.spanmetrics`). The v1 rendering is frozen by
+    `tests/test_spanmetrics.py` against what this dict held before it became a function, so no
+    recorded capture changes.
+    """
+    return {
+        "error-ratio": (
+            f'sum by(service_name) (rate({names.calls}{{status_code="STATUS_CODE_ERROR"}}[2m]))'
+            f" / sum by(service_name) (rate({names.calls}[2m]))"
+        ),
+        "call-rate": f"sum by(service_name) (rate({names.calls}[2m]))",
+        "latency-p95": (
+            "histogram_quantile(0.95, sum by(service_name, le) "
+            f"(rate({names.duration_bucket}[2m])))"
+        ),
+        "alerts-firing": 'ALERTS{alertstate="firing"}',
+    }
+
+
+METRIC_QUERIES: dict[str, str] = metric_queries()
+"""The v1 capture set, kept as a module constant because the gate, the rehearsal and the capture
+all read it by name. A v2 caller asks `metric_queries(V2)` explicitly."""
 
 RUNTIME_CAPTURE = "runtime"
 """Filename stem of the fifth capture. Scenario bundles only - see `runtime_query`."""

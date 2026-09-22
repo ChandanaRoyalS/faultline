@@ -52,6 +52,8 @@ from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from enum import StrEnum
 
+from faultline.tools.spanmetrics import V1, SpanMetricNames
+
 PERSIST = 3
 """Consecutive samples beyond the threshold before a departure is a change point."""
 
@@ -90,8 +92,13 @@ and say so, and a floor invented here would be a number nobody could defend.
 """
 
 
-def render_query(template: MetricTemplate, service: str) -> str:
+def render_query(template: MetricTemplate, service: str, names: SpanMetricNames = V1) -> str:
     """One template, scoped to one service. The only PromQL this layer sends.
+
+    `names` selects the world's span-metric spelling (`faultline.tools.spanmetrics`) and
+    **defaults to v1, so every existing caller renders byte for byte what it always did** -
+    `tests/test_spanmetrics.py` freezes those strings. `Tools` passes the set its `ToolSettings`
+    names; the harness passes one explicitly.
 
     Expressions match `evalharness.prom.METRIC_QUERIES` so a live comparison and a recorded
     bundle describe the same series. `service_name` is the span-metrics label; the runtime
@@ -101,16 +108,16 @@ def render_query(template: MetricTemplate, service: str) -> str:
     """
     if template is MetricTemplate.ERROR_RATIO:
         return (
-            f'sum by(service_name) (rate(calls_total{{service_name="{service}",'
+            f'sum by(service_name) (rate({names.calls}{{service_name="{service}",'
             'status_code="STATUS_CODE_ERROR"}[2m])) '
-            f'/ sum by(service_name) (rate(calls_total{{service_name="{service}"}}[2m]))'
+            f'/ sum by(service_name) (rate({names.calls}{{service_name="{service}"}}[2m]))'
         )
     if template is MetricTemplate.CALL_RATE:
-        return f'sum by(service_name) (rate(calls_total{{service_name="{service}"}}[2m]))'
+        return f'sum by(service_name) (rate({names.calls}{{service_name="{service}"}}[2m]))'
     if template is MetricTemplate.LATENCY_P95:
         return (
             "histogram_quantile(0.95, sum by(service_name, le) "
-            f'(rate(latency_bucket{{service_name="{service}"}}[2m])))'
+            f'(rate({names.duration_bucket}{{service_name="{service}"}}[2m])))'
         )
     return (
         "sum by(exported_job) "

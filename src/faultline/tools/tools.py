@@ -50,6 +50,7 @@ from faultline.tools.results import (
     Window,
 )
 from faultline.tools.settings import ToolSettings
+from faultline.tools.spanmetrics import names_for
 from faultline.tools.window import CHANGE_TOOL, WindowPolicy
 from injector.world import SERVICE_CONTAINERS, canonical_service
 
@@ -246,7 +247,9 @@ class Tools:
         window, so a request near the ceiling is refused here rather than half-answered.
         """
         canonical = canonical_service(service)
-        query = render_query(template, canonical)
+        # The world's own spelling of the span metrics (T7.1). `ToolSettings.world` selects
+        # it; v1 renders exactly what it always did, so no recorded run's query changes.
+        query = render_query(template, canonical, names_for(self._settings.world))
         window = Window(start=start, end=end)
         span = end - start
         before = Window(start=start - span, end=start)
