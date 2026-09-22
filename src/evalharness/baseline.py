@@ -35,7 +35,7 @@ from evalharness.prom import (
     series_points,
     stamp,
 )
-from faultline.tools.spanmetrics import BY_WORLD, names_for
+from faultline.tools.spanmetrics import BY_WORLD, metrics_for
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
 BASELINE_ROOT = REPO_ROOT / "evals" / "baselines"
@@ -125,7 +125,7 @@ def markdown_table(title: str, rows: dict[str, dict[str, float]], unit: str) -> 
 
 def capture(minutes: int, step: int, out_root: Path, world: str = "v1") -> int:
     require_quiet_world("before measuring")
-    names = names_for(world)
+    metrics = metrics_for(world)
 
     start = now()
     out = out_root / start.strftime("%Y%m%dT%H%M%SZ")
@@ -167,7 +167,7 @@ def capture(minutes: int, step: int, out_root: Path, world: str = "v1") -> int:
     valid = not injections
 
     captured: dict[str, dict[str, Any]] = {}
-    for name, promql in metric_queries(names).items():
+    for name, promql in metric_queries(metrics).items():
         payload = query_range(promql, start, end, step=step, base=PROMETHEUS)
         (out / "metrics" / f"{name}.json").write_text(json.dumps(payload, indent=2) + "\n")
         captured[name] = payload
@@ -186,6 +186,13 @@ def capture(minutes: int, step: int, out_root: Path, world: str = "v1") -> int:
         "injections_during_window": injections,
         "recorded_by": "evalharness.baseline",
         "world": world,
+        # **The rate window the tables below were smoothed over.** Recorded because on
+        # 2026-09-22 it silently disagreed with the window the alert rules were evaluating: the
+        # v2 rules widened to [5m] and these capture queries stayed hard-coded at [2m], so one
+        # capture's statistics and its own `alerts-firing` series would have described two
+        # different instruments, and the tables would have looked noisy while the alerts stayed
+        # quiet. A reader of an old capture needs to know which window produced it.
+        "rate_window": metrics.rate_window,
         # **What `injector_status` does and does not cover on v2.** `faultline-inject status`
         # reports the injector's own state, which is the whole of the fault plane on v1. On v2 the
         # demo carries fifteen built-in failure flags served by flagd, and the injector cannot see
@@ -240,8 +247,17 @@ def capture(minutes: int, step: int, out_root: Path, world: str = "v1") -> int:
     # **The queries actually sent, not v1's.** This section is the capture's provenance: a
     # summary that prints one world's expressions beside another world's numbers would misstate
     # what was measured, and the span-metric names differ between the two (T7.1).
-    report += ["", f"## Queries (world `{world}`)", ""]
-    for name, promql in metric_queries(names).items():
+    report += [
+        "",
+        f"## Queries (world `{world}`, rate window `[{metrics.rate_window}]`)",
+        "",
+        f"Every table above is smoothed over `[{metrics.rate_window}]`, which is the window this "
+        "world's alert rules evaluate. **The two are the same quantity and a capture in which "
+        "they differ is unreadable**: the tables describe one instrument and `alerts-firing` "
+        "describes another. See `faultline.tools.spanmetrics.WorldMetrics.rate_window`.",
+        "",
+    ]
+    for name, promql in metric_queries(metrics).items():
         report += [f"### {name}", "", "```promql", promql, "```", ""]
     (out / "summary.md").write_text("\n".join(report) + "\n")
 

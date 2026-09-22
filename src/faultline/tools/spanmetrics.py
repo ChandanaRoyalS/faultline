@@ -1,4 +1,4 @@
-"""The span-metric names, in one place, because two worlds spell them differently (T7.1).
+"""What one world's span metrics are called and how widely they are smoothed (T7.1).
 
 **Why this module exists.** Every PromQL this project sends about a service's health reads two
 series produced by the collector's `spanmetrics`: a call counter and a duration histogram. Their
@@ -14,8 +14,14 @@ world being observed**, and the two worlds wire it differently:
 **The names were read off v2's own Grafana dashboards** at tag 2.2.0, which query them directly,
 rather than inferred from the connector's documented defaults.
 
-**Why a name set and not a rename.** The same expressions are sent from three places - the agent's
-own metric tool (`faultline.tools.metrics.render_query`), the harness's capture and baseline
+**The rate window is here for the same reason and was added later, at a cost.** It was hard-coded
+`[2m]` in both query builders. When the v2 alert rules widened to `[5m]` (2026-09-22) the capture
+did not follow, and a capture in that state writes `[2m]` statistics beside a `[5m]` alert series -
+two instruments in one summary, contradicting each other, with nothing to say which is which. One
+object per world is what makes the pairing unrepresentable.
+
+**Why a world object and not a rename.** The same expressions are sent from three places - the
+agent's own metric tool (`faultline.tools.metrics.render_query`), the harness's capture and baseline
 (`evalharness.prom.METRIC_QUERIES`), and the pre-flight gate - and the alert rules say the same
 thing again in YAML. A migration that renamed them in some and not others would leave the rest
 querying a series that does not exist, and **PromQL over a missing metric is an empty result, not
@@ -34,8 +40,13 @@ from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
-class SpanMetricNames:
-    """What the collector in a given world calls its two span-metric series."""
+class WorldMetrics:
+    """How one world's span metrics are spelled and smoothed.
+
+    **Named for the world rather than for the names** since 2026-09-22, when the rate window
+    joined them. It was `SpanMetricNames`, and a type holding a window under that name would have
+    been a lie of exactly the kind this module exists to prevent.
+    """
 
     calls: str
     """The request counter. Carries `service_name` and `status_code` labels in both worlds."""
@@ -48,24 +59,41 @@ class SpanMetricNames:
     marked as unbaselined on v2 until measured there.
     """
 
+    rate_window: str
+    """The PromQL `rate()` window every query about this world uses, as `2m` / `5m`.
 
-V1 = SpanMetricNames(calls="calls_total", duration_bucket="latency_bucket")
+    **It lives here so that it cannot disagree with the world it describes**, which it did for
+    four hours on 2026-09-22. The v2 alert rules widened to `[5m]` after the first baseline
+    measured most of the world at 0.05-0.15 req/s; the capture queries kept a hard-coded `[2m]`
+    because T7.1 parameterised the *names* and not the window. Nothing failed. A capture taken in
+    that state reports `[2m]` statistics in its tables - 15000 ms p95s, error ratios to 100% - and
+    a `[5m]` alert series beside them that is empty, and the two halves of one summary contradict
+    each other with no indication which is the instrument.
+
+    **Not `WindowPolicy`, which is a different quantity.** That class bounds which *timestamps* a
+    range query fetches; this is the smoothing interval inside the expression. They are both
+    called windows and they are not the same thing.
+    """
+
+
+V1 = WorldMetrics(calls="calls_total", duration_bucket="latency_bucket", rate_window="2m")
 """OTel Demo v1.2.1: `spanmetrics` as a processor. The world every published figure was measured
 on (ADR-0026)."""
 
-V2 = SpanMetricNames(
+V2 = WorldMetrics(
     calls="traces_span_metrics_calls_total",
     duration_bucket="traces_span_metrics_duration_milliseconds_bucket",
+    rate_window="5m",
 )
 """OTel Demo v2.x: `spanmetrics` as a connector (ADR-0042)."""
 
-BY_WORLD: dict[str, SpanMetricNames] = {"v1": V1, "v2": V2}
+BY_WORLD: dict[str, WorldMetrics] = {"v1": V1, "v2": V2}
 """Selected by `ToolSettings.world`. An unknown key raises rather than falling back to V1: a
 silent fallback here produces exactly the empty-result failure this module exists to prevent."""
 
 
-def names_for(world: str) -> SpanMetricNames:
-    """The name set for a world, or a loud failure.
+def metrics_for(world: str) -> WorldMetrics:
+    """One world's metric spelling and window, or a loud failure.
 
     **No default and no fallback**, deliberately. Every failure mode this module guards against is
     silent, so the one place that could reintroduce one is a lenient lookup.
@@ -75,7 +103,7 @@ def names_for(world: str) -> SpanMetricNames:
     except KeyError:
         known = ", ".join(sorted(BY_WORLD))
         raise ValueError(
-            f"unknown world {world!r} for span-metric names; known worlds are {known}. "
+            f"unknown world {world!r} for span metrics; known worlds are {known}. "
             "A wrong name here is an empty PromQL result rather than an error, so this refuses "
             "rather than guessing."
         ) from None

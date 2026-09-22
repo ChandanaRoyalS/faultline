@@ -8,6 +8,7 @@ do not.
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -161,8 +162,6 @@ def test_every_v2_rule_uses_the_measured_rate_window() -> None:
     A rule left behind on `[2m]` would not fail: it would fire on noise, on a healthy world,
     intermittently, and look like a fault the agent failed to explain.
     """
-    import re
-
     text = (COMPOSE / "prometheus" / "alert-rules-v2.yml").read_text()
     expressions = "\n".join(line for line in text.splitlines() if "traces_span_metrics_" in line)
     windows = set(re.findall(r"\[(\d+m)\](?:\s+offset)?", expressions))
@@ -175,6 +174,38 @@ def test_every_v2_rule_uses_the_measured_rate_window() -> None:
         f"the v2 rules use rate windows {sorted(detection)}; the baseline measured [5m] as the "
         "window at which every service, image-provider included, clears thirty samples. A rule "
         "left on a narrower window fires on sampling noise rather than on faults."
+    )
+
+
+def test_the_v2_capture_window_is_the_window_the_v2_rules_evaluate() -> None:
+    """**The capture and the rules are two views of one instrument, and they disagreed** (T7.1,
+    2026-09-22).
+
+    The alert rules widened to `[5m]` after the first baseline measured most of the world at
+    0.05-0.15 req/s. The capture queries did not: T7.1 had parameterised the metric *names* for v2
+    and left the rate window hard-coded at `[2m]` in `evalharness.prom.metric_queries` and
+    `faultline.tools.metrics.render_query`.
+
+    **Nothing failed, and the result would have been read backwards.** A capture in that state
+    writes `[2m]` statistics into its tables - the same 15000 ms p95s and 100% error ratios the
+    first baseline reported, because that is what six samples produce - and a `[5m]` `alerts-firing`
+    series beside them which, if the widening worked, is empty. The obvious reading of that summary
+    is "the world is still too noisy". The correct reading is that the tables and the alerts are
+    measuring with different instruments.
+
+    So the window lives on `WorldMetrics` beside the names, and this pins it to the rules.
+    """
+    from faultline.tools.spanmetrics import V2
+
+    text = (COMPOSE / "prometheus" / "alert-rules-v2.yml").read_text()
+    expressions = "\n".join(line for line in text.splitlines() if "traces_span_metrics_" in line)
+    windows = set(re.findall(r"\[(\d+m)\](?:\s+offset)?", expressions)) - {"30m"}
+
+    assert windows == {V2.rate_window}, (
+        f"the v2 alert rules evaluate {sorted(windows)} and the v2 capture queries smooth over "
+        f"[{V2.rate_window}]. A capture taken in that state reports one instrument's statistics "
+        "beside the other's alerts, and the two contradict each other with nothing to say which "
+        "is which."
     )
 
 

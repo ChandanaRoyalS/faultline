@@ -52,7 +52,7 @@ from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from enum import StrEnum
 
-from faultline.tools.spanmetrics import V1, SpanMetricNames
+from faultline.tools.spanmetrics import V1, WorldMetrics
 
 PERSIST = 3
 """Consecutive samples beyond the threshold before a departure is a change point."""
@@ -92,13 +92,14 @@ and say so, and a floor invented here would be a number nobody could defend.
 """
 
 
-def render_query(template: MetricTemplate, service: str, names: SpanMetricNames = V1) -> str:
+def render_query(template: MetricTemplate, service: str, world: WorldMetrics = V1) -> str:
     """One template, scoped to one service. The only PromQL this layer sends.
 
-    `names` selects the world's span-metric spelling (`faultline.tools.spanmetrics`) and
-    **defaults to v1, so every existing caller renders byte for byte what it always did** -
-    `tests/test_spanmetrics.py` freezes those strings. `Tools` passes the set its `ToolSettings`
-    names; the harness passes one explicitly.
+    `world` carries both the span-metric spelling and the `rate()` window
+    (`faultline.tools.spanmetrics`), which is one object precisely so a caller cannot pair v2's
+    names with v1's window. It **defaults to v1, so every existing caller renders byte for byte
+    what it always did** - `tests/test_spanmetrics.py` freezes those strings. `Tools` passes what
+    its `ToolSettings` names; the harness passes one explicitly.
 
     Expressions match `evalharness.prom.METRIC_QUERIES` so a live comparison and a recorded
     bundle describe the same series. `service_name` is the span-metrics label; the runtime
@@ -108,16 +109,20 @@ def render_query(template: MetricTemplate, service: str, names: SpanMetricNames 
     """
     if template is MetricTemplate.ERROR_RATIO:
         return (
-            f'sum by(service_name) (rate({names.calls}{{service_name="{service}",'
-            'status_code="STATUS_CODE_ERROR"}[2m])) '
-            f'/ sum by(service_name) (rate({names.calls}{{service_name="{service}"}}[2m]))'
+            f'sum by(service_name) (rate({world.calls}{{service_name="{service}",'
+            f'status_code="STATUS_CODE_ERROR"}}[{world.rate_window}])) '
+            f"/ sum by(service_name) "
+            f'(rate({world.calls}{{service_name="{service}"}}[{world.rate_window}]))'
         )
     if template is MetricTemplate.CALL_RATE:
-        return f'sum by(service_name) (rate({names.calls}{{service_name="{service}"}}[2m]))'
+        return (
+            f"sum by(service_name) "
+            f'(rate({world.calls}{{service_name="{service}"}}[{world.rate_window}]))'
+        )
     if template is MetricTemplate.LATENCY_P95:
         return (
             "histogram_quantile(0.95, sum by(service_name, le) "
-            f'(rate({names.duration_bucket}{{service_name="{service}"}}[2m])))'
+            f'(rate({world.duration_bucket}{{service_name="{service}"}}[{world.rate_window}])))'
         )
     return (
         "sum by(exported_job) "
