@@ -120,6 +120,40 @@ def test_the_v2_queries_smooth_over_v2s_window_and_never_v1s() -> None:
     )
 
 
+def test_v1s_latency_selector_adds_nothing_and_v2s_adds_exactly_one_matcher() -> None:
+    """**The freeze above already proves v1 is unchanged; this says why it is allowed to be.**
+
+    `latency_selector` is the one place a world's span filter is applied, so that it cannot be
+    applied to one query and forgotten at another. For v1 it must collapse to nothing at all -
+    not to `{}`, which is a parse error, and not to a matcher - or every published figure's
+    expression moves.
+    """
+    assert V1.latency_span_filter == ""
+    assert V1.latency_selector() == ""
+    assert V1.latency_selector('service_name="cartservice"') == '{service_name="cartservice"}'
+
+    assert V2.latency_span_filter == 'span_kind!="SPAN_KIND_INTERNAL"'
+    assert V2.latency_selector() == '{span_kind!="SPAN_KIND_INTERNAL"}'
+    assert V2.latency_selector('service_name="cart"') == (
+        '{service_name="cart",span_kind!="SPAN_KIND_INTERNAL"}'
+    )
+
+
+def test_the_v2_latency_queries_exclude_internal_spans_and_the_others_do_not() -> None:
+    """**Scoped to duration, because that is where it was measured.** `order-consumed` inflated a
+    p95; it produced no errors and it is not what keeps `accounting` looking alive. Filtering the
+    call counter too would cost error visibility for symmetry."""
+    v2 = metric_queries(V2)
+
+    assert V2.latency_span_filter in v2["latency-p95"]
+    assert V2.latency_span_filter not in v2["error-ratio"]
+    assert V2.latency_span_filter not in v2["call-rate"]
+
+    agent = render_query(MetricTemplate.LATENCY_P95, "accounting", V2)
+    assert V2.latency_span_filter in agent
+    assert V2.latency_span_filter not in render_query(MetricTemplate.CALL_RATE, "accounting", V2)
+
+
 def test_an_unknown_world_raises_rather_than_falling_back() -> None:
     """**The one place that could reintroduce a silent failure is a lenient lookup.** Falling back
     to v1 for an unrecognised world is exactly the empty-result-not-an-error mode this module was

@@ -122,7 +122,9 @@ def render_query(template: MetricTemplate, service: str, world: WorldMetrics = V
     if template is MetricTemplate.LATENCY_P95:
         return (
             "histogram_quantile(0.95, sum by(service_name, le) "
-            f'(rate({world.duration_bucket}{{service_name="{service}"}}[{world.rate_window}])))'
+            f"(rate({world.duration_bucket}"
+            f"{world.latency_selector(f'service_name="{service}"')}"
+            f"[{world.rate_window}])))"
         )
     return (
         "sum by(exported_job) "

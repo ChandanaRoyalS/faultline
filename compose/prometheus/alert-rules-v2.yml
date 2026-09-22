@@ -1,10 +1,14 @@
 # T7.1 - the alert rules, ported to the v2 world.
 #
-# **The logic is unchanged and that is the finding.** All three rules aggregate
+# **The service renaming costs nothing, and that was the finding.** All three rules aggregate
 # `sum by (service_name)` over span metrics and name no service except the one exclusion, so the
-# v1 -> v2 service renaming (`cartservice` -> `cart`, `adservice` -> `ad`, and the rest) costs
-# nothing here. `frontend-proxy` is spelled identically in both worlds, so the exclusion ports
-# verbatim.
+# v1 -> v2 renaming (`cartservice` -> `cart`, `adservice` -> `ad`, and the rest) does not reach
+# them. `frontend-proxy` is spelled identically in both worlds, so that exclusion ports verbatim.
+#
+# **One rule's logic did have to change: `ServiceHighLatency` now excludes `SPAN_KIND_INTERNAL`**
+# (2026-09-22, `docs/evidence/world-v2-trial/2026-09-22-the-span-that-was-not-latency.md`). The
+# argument is written out at the rule itself. An earlier version of this header said the logic was
+# unchanged; it was true when written and is not now.
 #
 # **What does change is the metric names, because v2 runs `spanmetrics` as a CONNECTOR.**
 # v1's collector runs it as a processor in the traces pipeline
@@ -20,9 +24,18 @@
 # (`src/grafana/provisioning/dashboards/demo/*.json` at tag 2.2.0 query these names directly), so
 # this is what the world actually emits and not what the documentation says it should.
 #
-# **The thresholds are v1's and are still provisional.** 5% errors and 250 ms p95 were grounded in
-# a measured baseline on the v1 world (T1.3). **They are not evidence here** until a quiet v2 world
-# is measured against them, and nothing may be scored on them until it is.
+# **The thresholds came from v1 and are now measured here** (2026-09-22,
+# `evals/baselines/20260922T071933Z/`, 45 quiet minutes). They hold, with less room than on v1:
+#
+#   error ratio   healthy max  2.22%  (fraud-detection)  vs 5%    -> 2.25x
+#   p95 latency   healthy max  93 ms  (fraud-detection)  vs 250ms -> 2.68x
+#
+# v1's equivalents were 0.000% and 1.9-9.6 ms, so v2 is a noisier world at the same thresholds.
+# **The consequence is a detection floor and it should be read as one**: a fault that lifts a
+# service's error ratio to 4%, or its p95 to 200 ms, does not fire here and never will. That is a
+# statement about what this benchmark can see, not a defect to tune away - moving the thresholds
+# down to catch it would trade a detection floor for a false-positive rate on a world whose quiet
+# state already reaches 2.22%.
 #
 # **The rate windows, however, are v2's and are measured** (2026-09-22,
 # `docs/evidence/world-v2-trial/2026-09-22-the-first-baseline.md`). The first quiet baseline
@@ -69,10 +82,48 @@ groups:
           summary: "{{ $labels.service_name }} error rate above 5%"
           description: "{{ $labels.service_name }} is failing {{ $value | humanizePercentage }} of calls. NOTE: the 5% threshold is inherited from the v1 world and has no measured baseline here yet."
 
+      # **`SPAN_KIND_INTERNAL` is excluded, and it is the one place a v2 rule's logic differs from
+      # v1's.** Measured, not preferred: on a quiet world `accounting` reported a p95 of 15000 ms,
+      # which is not a value - it is the spanmetrics connector's top bucket boundary, so it means
+      # "above 15 s, unknown". The cause is in the demo's own `src/accounting/Consumer.cs`:
+      #
+      #     using var activity = MyActivitySource.StartActivity("order-consumed", Internal);
+      #     var consumeResult = _consumer.Consume();   // blocks until a message arrives
+      #     ProcessMessage(consumeResult.Message);
+      #
+      # The span opens before a blocking consume, so it measures the wait for the next order.
+      # Arrivals are near-Poisson, so the p95 gap is ~3x the mean: 19.4 s at the measured 0.154
+      # orders/s and 38 s at the 5-user rate - both off the top of the histogram, which is why one
+      # capture was pinned flat and the next only dipped below.
+      #
+      # **An internal span is bookkeeping or a background loop** - already inside an enclosing
+      # request span, or not request work at all. Excluding the kind rather than naming
+      # `order-consumed` keeps this rule free of service-specific names, which is the property the
+      # header claims for it, and covers the next service that does the same thing.
+      #
+      # **Two alternatives were measured and both cost more** (quiet world, same moment):
+      #
+      #   all spans                       accounting 15000 ms   18 services
+      #   SERVER|CONSUMER only            accounting    95 ms   17 services - load-generator lost
+      #   span_kind != INTERNAL           accounting    90 ms   18 services - nothing lost
+      #
+      # The middle one also drops `SPAN_KIND_CLIENT`, which would make a slow database in
+      # `accounting` undetectable: its inbound span is the Kafka delivery and its real work happens
+      # after that span closes, visible only through its `postgresql` client span.
+      #
+      # **What this costs**: a fault that slows only an internal span is invisible to this rule.
+      # No fault class in ADR-0029 has that shape, and a service made slow by one would still show
+      # it on whichever request span encloses the work.
+      #
+      # `evalharness.prom.metric_queries` applies the same filter to the capture, and
+      # `tests/test_world_v2.py` pins the two together - a capture smoothed differently from the
+      # rule produces a summary whose tables and alerts describe different instruments.
       - alert: ServiceHighLatency
         expr: |
           histogram_quantile(0.95,
-            sum by (service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket[5m]))
+            sum by (service_name, le) (
+              rate(traces_span_metrics_duration_milliseconds_bucket{span_kind!="SPAN_KIND_INTERNAL"}[5m])
+            )
           ) > 250
         for: 3m
         labels:
