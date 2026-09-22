@@ -74,7 +74,8 @@ def metric_queries(world: WorldMetrics = V1) -> dict[str, str]:
         "call-rate": f"sum by(service_name) (rate({world.calls}[{world.rate_window}]))",
         "latency-p95": (
             "histogram_quantile(0.95, sum by(service_name, le) "
-            f"(rate({world.duration_bucket}[{world.rate_window}])))"
+            f"(rate({world.duration_bucket}{world.latency_selector()}"
+            f"[{world.rate_window}])))"
         ),
         "alerts-firing": 'ALERTS{alertstate="firing"}',
     }

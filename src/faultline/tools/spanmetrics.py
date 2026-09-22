@@ -59,6 +59,43 @@ class WorldMetrics:
     marked as unbaselined on v2 until measured there.
     """
 
+    latency_span_filter: str
+    """A label matcher narrowing which spans count as this world's latency, or `""` for all.
+
+    **v2 excludes `SPAN_KIND_INTERNAL` and that is measured** (2026-09-22). `accounting` reported a
+    p95 of 15000 ms on a healthy world, which is the histogram's top bucket boundary and therefore
+    means "off the top of the scale, value unknown". The cause is in the demo's own
+    `src/accounting/Consumer.cs`:
+
+        using var activity = MyActivitySource.StartActivity(
+            "order-consumed", ActivityKind.Internal);
+        var consumeResult = _consumer.Consume();   // blocks until a message arrives
+        ProcessMessage(consumeResult.Message);
+
+    The span opens before a blocking consume, so its duration is the wait for the next order. Order
+    arrivals are near-Poisson, so the p95 gap is about three times the mean: at the measured 0.154
+    orders/s that is **19.4 s**, and at the 5-user rate of 0.078/s it is **38 s** - both above the
+    15 s ceiling, which is why the first capture was pinned flat and the second only dipped below.
+
+    **An internal span is bookkeeping or a background loop.** It is either already inside an
+    enclosing request span, or it is not request work at all. Excluding the kind rather than naming
+    `order-consumed` keeps the rule free of service-specific names and covers the next service that
+    does this.
+
+    **Measured against the alternatives rather than chosen** (2026-09-22, quiet world):
+
+        all spans                          accounting 15000 ms   18
+        SPAN_KIND_SERVER|CONSUMER only     accounting    95 ms   17 - load-generator VANISHES
+        span_kind != INTERNAL              accounting    90 ms   18 - nothing lost
+
+    The middle one also drops `SPAN_KIND_CLIENT`, which would have made a slow database in
+    `accounting` undetectable: its inbound span is the Kafka delivery, and its actual work happens
+    after that span closes, visible only through its `postgresql` client span.
+
+    **v1 is `""` and stays there.** Every published figure was measured over all spans, and the
+    freeze in `tests/test_spanmetrics.py` renders that byte for byte.
+    """
+
     rate_window: str
     """The PromQL `rate()` window every query about this world uses, as `2m` / `5m`.
 
@@ -75,8 +112,23 @@ class WorldMetrics:
     called windows and they are not the same thing.
     """
 
+    def latency_selector(self, *matchers: str) -> str:
+        """The `{...}` for this world's duration histogram, or `""` when nothing narrows it.
 
-V1 = WorldMetrics(calls="calls_total", duration_bucket="latency_bucket", rate_window="2m")
+        Built here rather than at each call site so that **a world's span filter cannot be applied
+        to one query and forgotten at another** - the failure this module exists to prevent, in its
+        third variation. `matchers` come first so v1 renders byte for byte what it always did.
+        """
+        parts = [m for m in (*matchers, self.latency_span_filter) if m]
+        return "{" + ",".join(parts) + "}" if parts else ""
+
+
+V1 = WorldMetrics(
+    calls="calls_total",
+    duration_bucket="latency_bucket",
+    rate_window="2m",
+    latency_span_filter="",
+)
 """OTel Demo v1.2.1: `spanmetrics` as a processor. The world every published figure was measured
 on (ADR-0026)."""
 
@@ -84,6 +136,7 @@ V2 = WorldMetrics(
     calls="traces_span_metrics_calls_total",
     duration_bucket="traces_span_metrics_duration_milliseconds_bucket",
     rate_window="5m",
+    latency_span_filter='span_kind!="SPAN_KIND_INTERNAL"',
 )
 """OTel Demo v2.x: `spanmetrics` as a connector (ADR-0042)."""
 

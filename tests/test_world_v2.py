@@ -209,6 +209,53 @@ def test_the_v2_capture_window_is_the_window_the_v2_rules_evaluate() -> None:
     )
 
 
+def test_the_v2_latency_rule_and_the_v2_capture_exclude_the_same_spans() -> None:
+    """**The second half of "the capture and the rule are one instrument"** (T7.1, 2026-09-22).
+
+    `ServiceHighLatency` excludes `SPAN_KIND_INTERNAL` because `accounting`'s `order-consumed` span
+    wraps a blocking Kafka consume and measures the wait for the next order rather than any
+    latency. A capture that did not exclude the same spans would report `accounting` at 15000 ms -
+    the histogram's top boundary, meaning "above 15 s, unknown" - beside an alert series that never
+    fires on it, which is the tables-contradict-the-alerts failure the rate window already taught
+    us once.
+    """
+    from evalharness.prom import metric_queries
+    from faultline.tools.spanmetrics import V2
+
+    rules = yaml.safe_load((COMPOSE / "prometheus" / "alert-rules-v2.yml").read_text())
+    by_name = {r["alert"]: r["expr"] for g in rules["groups"] for r in g["rules"]}
+
+    assert V2.latency_span_filter, "v2 is expected to narrow which spans count as latency"
+    assert V2.latency_span_filter in by_name["ServiceHighLatency"], (
+        f"ServiceHighLatency does not carry {V2.latency_span_filter!r}. The capture applies it, so "
+        "the summary's latency table would describe a different set of spans from the alerts."
+    )
+    assert V2.latency_span_filter in metric_queries(V2)["latency-p95"], (
+        "the v2 capture does not apply the span filter its alert rule applies"
+    )
+
+
+def test_the_other_two_v2_rules_deliberately_see_every_span() -> None:
+    """**The filter is scoped to latency on purpose, and this pins the decision.**
+
+    An error on an internal span is a real failure and should count, and no internal span produced
+    a false *error*; the defect was specific to duration. Narrowing `ServiceHighErrorRate` or
+    `ServiceNoTraffic` for symmetry would reduce what the benchmark can see in exchange for
+    tidiness, so a future change that does it has to come here and argue.
+    """
+    from faultline.tools.spanmetrics import V2
+
+    rules = yaml.safe_load((COMPOSE / "prometheus" / "alert-rules-v2.yml").read_text())
+    by_name = {r["alert"]: r["expr"] for g in rules["groups"] for r in g["rules"]}
+
+    for alert in ("ServiceHighErrorRate", "ServiceNoTraffic"):
+        assert "span_kind" not in by_name[alert], (
+            f"{alert} has grown a span_kind matcher. Only ServiceHighLatency was measured to need "
+            f"one ({V2.latency_span_filter}); an error on an internal span is still an error, and "
+            "a service kept alive only by internal spans is still one this benchmark wants to see."
+        )
+
+
 @pytest.mark.parametrize("service", ["prometheus", "alertmanager"])
 def test_the_reloadable_services_mount_a_directory_not_a_file(service: str) -> None:
     """**A single-file bind mount binds the inode, and `git am` replaces the inode** (2026-09-22,
