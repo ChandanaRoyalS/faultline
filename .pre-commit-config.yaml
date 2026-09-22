@@ -34,6 +34,14 @@ repos:
       # Only the rewriting hooks are excluded. check-yaml, check-json,
       # check-added-large-files and detect-private-key still apply to all four: they read
       # and never write, and they are exactly the guards captures should keep.
+      #
+      # A fifth exclusion is a file type rather than a directory: `*.patch`. A unified diff
+      # marks an unchanged blank line with a single space, and that space is load-bearing -
+      # strip it and `git apply` reports "corrupt patch". The first one committed
+      # (evals/attempts/product-catalog-n-plus-one.patch, 2026-09-22) was "fixed" by this
+      # hook at push time, which failed the push and left the working tree dirty. A diff is
+      # a capture of what a tool produced, not a document anyone authored, so it belongs on
+      # this side of the line for the same reason the four directories do.
       - id: trailing-whitespace
         exclude: &captured_evidence |
           (?x)
@@ -43,6 +51,7 @@ repos:
             | docs/evidence               # webhook payloads, service logs, psql dumps
             | evals/runs                  # run artifacts: narratives, verdicts, transcripts
           ) /
+          | \.patch$                      # unified diffs: a lone space is a blank context line
       - id: end-of-file-fixer
         exclude: *captured_evidence
       - id: check-yaml
