@@ -1,0 +1,392 @@
+{
+  "alerts_during_window": [
+    {
+      "alert": "ServiceHighLatency",
+      "first_seen": "2026-09-22T08:22:25+00:00",
+      "last_seen": "2026-09-22T08:22:25+00:00",
+      "minutes_firing": 0.2,
+      "service": "accounting"
+    }
+  ],
+  "call_rate": {
+    "accounting": {
+      "max": 0.499993750078124,
+      "mean": 0.38369597563387386,
+      "min": 0.22916284728587855,
+      "p95": 0.47916067715820204,
+      "samples": 181.0
+    },
+    "ad": {
+      "max": 0.5666595834218738,
+      "mean": 0.43579050115928036,
+      "min": 0.3416140011748189,
+      "p95": 0.5541597396699208,
+      "samples": 181.0
+    },
+    "cart": {
+      "max": 4.383278542351554,
+      "mean": 3.658599568871396,
+      "min": 2.616655763934317,
+      "p95": 4.2166315280706,
+      "samples": 181.0
+    },
+    "checkout": {
+      "max": 2.2083057295117143,
+      "mean": 1.7330772955259521,
+      "min": 1.0749820836319395,
+      "p95": 2.1333244444814814,
+      "samples": 181.0
+    },
+    "currency": {
+      "max": 0.4541647743134404,
+      "mean": 0.3594097515953938,
+      "min": 0.23749604173263777,
+      "p95": 0.4416648263965567,
+      "samples": 181.0
+    },
+    "email": {
+      "max": 0.6499972916779514,
+      "mean": 0.5069906294120241,
+      "min": 0.2999950000833319,
+      "p95": 0.6333306944554398,
+      "samples": 181.0
+    },
+    "flagd": {
+      "max": 1.7833110419453089,
+      "mean": 1.5464772433413434,
+      "min": 1.17498041699305,
+      "p95": 1.7166666666666668,
+      "samples": 181.0
+    },
+    "fraud-detection": {
+      "max": 0.3208293229667962,
+      "mean": 0.2548535871252694,
+      "min": 0.15416409726504557,
+      "p95": 0.3166627083828118,
+      "samples": 181.0
+    },
+    "frontend": {
+      "max": 12.570676199880834,
+      "mean": 11.631501557216675,
+      "min": 10.69148847519208,
+      "p95": 12.45401099152927,
+      "samples": 181.0
+    },
+    "frontend-proxy": {
+      "max": 5.845808975795935,
+      "mean": 5.39299031433621,
+      "min": 4.982565187866871,
+      "p95": 5.770761198818348,
+      "samples": 181.0
+    },
+    "image-provider": {
+      "max": 0.10000541696008534,
+      "mean": 0.09999846014808146,
+      "min": 0.09998458570970309,
+      "p95": 0.10000375014063029,
+      "samples": 181.0
+    },
+    "load-generator": {
+      "max": 5.212456562861978,
+      "mean": 4.906394911653949,
+      "min": 4.570757154047432,
+      "p95": 5.104124132298898,
+      "samples": 181.0
+    },
+    "payment": {
+      "max": 0.3166653472277199,
+      "mean": 0.2534493219590519,
+      "min": 0.14999750004166595,
+      "p95": 0.31666270838281185,
+      "samples": 181.0
+    },
+    "product-catalog": {
+      "max": 5.774927813402332,
+      "mean": 5.152180238014174,
+      "min": 4.441278054836868,
+      "p95": 5.608286597611687,
+      "samples": 181.0
+    },
+    "product-reviews": {
+      "max": 1.287494635439019,
+      "mean": 0.9267801175357416,
+      "min": 0.6083257292617176,
+      "p95": 1.1958283507152054,
+      "samples": 181.0
+    },
+    "quote": {
+      "max": 0.499993750078124,
+      "mean": 0.38045016502671175,
+      "min": 0.22499625006249893,
+      "p95": 0.4749940625742177,
+      "samples": 181.0
+    },
+    "recommendation": {
+      "max": 0.7666570834531234,
+      "mean": 0.6288582963854454,
+      "min": 0.4874979687584635,
+      "p95": 0.7166606944942125,
+      "samples": 181.0
+    },
+    "shipping": {
+      "max": 0.4874939063261709,
+      "mean": 0.3798977421386248,
+      "min": 0.22499625006249893,
+      "p95": 0.4749940625742178,
+      "samples": 181.0
+    }
+  },
+  "disturbances_observed": [],
+  "error_ratio": {
+    "accounting": {
+      "fraction_over_threshold": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "min": 0.0,
+      "minutes_over_threshold": 0.0,
+      "p95": 0.0,
+      "samples": 181.0
+    },
+    "ad": {
+      "fraction_over_threshold": 0.0,
+      "max": 0.01098901098901099,
+      "mean": 0.0035603893075561804,
+      "min": 0.0,
+      "minutes_over_threshold": 0.0,
+      "p95": 0.010309278350515464,
+      "samples": 181.0
+    },
+    "flagd": {
+      "fraction_over_threshold": 0.0,
+      "max": 0.008064516129032258,
+      "mean": 0.0023217119531020913,
+      "min": 0.0,
+      "minutes_over_threshold": 0.0,
+      "p95": 0.007653061224489796,
+      "samples": 181.0
+    },
+    "fraud-detection": {
+      "fraction_over_threshold": 0.0,
+      "max": 0.02702702702702703,
+      "mean": 0.006702860203243268,
+      "min": 0.0,
+      "minutes_over_threshold": 0.0,
+      "p95": 0.022222222222222223,
+      "samples": 181.0
+    },
+    "frontend-proxy": {
+      "fraction_over_threshold": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "min": 0.0,
+      "minutes_over_threshold": 0.0,
+      "p95": 0.0,
+      "samples": 181.0
+    },
+    "load-generator": {
+      "fraction_over_threshold": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "min": 0.0,
+      "minutes_over_threshold": 0.0,
+      "p95": 0.0,
+      "samples": 181.0
+    },
+    "product-reviews": {
+      "fraction_over_threshold": 0.0,
+      "max": 0.00684931506849315,
+      "mean": 0.001855585579914499,
+      "min": 0.0,
+      "minutes_over_threshold": 0.0,
+      "p95": 0.005780346820809248,
+      "samples": 181.0
+    },
+    "recommendation": {
+      "fraction_over_threshold": 0.0,
+      "max": 0.008064516129032258,
+      "mean": 0.002496697460683294,
+      "min": 0.0,
+      "minutes_over_threshold": 0.0,
+      "p95": 0.007352941176470588,
+      "samples": 181.0
+    }
+  },
+  "injections_during_window": [],
+  "injector_status": "no active injections",
+  "kind": "baseline",
+  "latency_p95_ms": {
+    "accounting": {
+      "fraction_over_threshold": 0.0,
+      "max": 95.45454545454545,
+      "mean": 90.51857969945905,
+      "min": 83.6111111111111,
+      "minutes_over_threshold": 0.0,
+      "p95": 94.30555555555554,
+      "samples": 181.0
+    },
+    "ad": {
+      "fraction_over_threshold": 0.0,
+      "max": 3.9499999999999917,
+      "mean": 2.3017883693766588,
+      "min": 1.9,
+      "minutes_over_threshold": 0.0,
+      "p95": 3.3600000000000003,
+      "samples": 181.0
+    },
+    "cart": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.953113087674714,
+      "mean": 1.92916310458536,
+      "min": 1.909674134419552,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9423566878980891,
+      "samples": 181.0
+    },
+    "checkout": {
+      "fraction_over_threshold": 0.0,
+      "max": 23.750000000000007,
+      "mean": 18.412360873643674,
+      "min": 9.999999999999996,
+      "minutes_over_threshold": 0.0,
+      "p95": 23.263157894736782,
+      "samples": 181.0
+    },
+    "currency": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.9926829268292683,
+      "mean": 1.9242233134313558,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.992682926829268,
+      "samples": 181.0
+    },
+    "email": {
+      "fraction_over_threshold": 0.0,
+      "max": 7.799999999999995,
+      "mean": 4.354592868764138,
+      "min": 3.3833333333333333,
+      "minutes_over_threshold": 0.0,
+      "p95": 6.399999999999998,
+      "samples": 181.0
+    },
+    "flagd": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.97125,
+      "mean": 1.9224179889859114,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9670588235294117,
+      "samples": 181.0
+    },
+    "fraud-detection": {
+      "fraction_over_threshold": 0.0,
+      "max": 98.75,
+      "mean": 91.94383208388005,
+      "min": 87.30769230769229,
+      "minutes_over_threshold": 0.0,
+      "p95": 98.08823529411762,
+      "samples": 181.0
+    },
+    "frontend": {
+      "fraction_over_threshold": 0.0,
+      "max": 34.66440677966099,
+      "mean": 31.851712506506523,
+      "min": 27.946808510638277,
+      "minutes_over_threshold": 0.0,
+      "p95": 33.91637630662018,
+      "samples": 181.0
+    },
+    "frontend-proxy": {
+      "fraction_over_threshold": 0.0,
+      "max": 38.465753424657485,
+      "mean": 36.63351455830152,
+      "min": 34.92857142857141,
+      "minutes_over_threshold": 0.0,
+      "p95": 37.846153846153825,
+      "samples": 181.0
+    },
+    "image-provider": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.9000000000000001,
+      "mean": 1.9,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9,
+      "samples": 181.0
+    },
+    "load-generator": {
+      "fraction_over_threshold": 0.0,
+      "max": 40.28571428571428,
+      "mean": 38.93292511601443,
+      "min": 37.150943396226445,
+      "minutes_over_threshold": 0.0,
+      "p95": 40.09230769230769,
+      "samples": 181.0
+    },
+    "payment": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.9000000000000001,
+      "mean": 1.9,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9000000000000001,
+      "samples": 181.0
+    },
+    "product-catalog": {
+      "fraction_over_threshold": 0.0,
+      "max": 4.383333333333329,
+      "mean": 3.8163294167205546,
+      "min": 3.43333333333333,
+      "minutes_over_threshold": 0.0,
+      "p95": 4.178181818181816,
+      "samples": 181.0
+    },
+    "product-reviews": {
+      "fraction_over_threshold": 0.0,
+      "max": 40.96551724137929,
+      "mean": 37.95895786174385,
+      "min": 35.04347826086955,
+      "minutes_over_threshold": 0.0,
+      "p95": 40.36363636363633,
+      "samples": 181.0
+    },
+    "quote": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.9000000000000001,
+      "mean": 1.9,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9000000000000001,
+      "samples": 181.0
+    },
+    "recommendation": {
+      "fraction_over_threshold": 0.0,
+      "max": 3.865624999999999,
+      "mean": 3.6382626518697987,
+      "min": 3.342857142857143,
+      "minutes_over_threshold": 0.0,
+      "p95": 3.820833333333332,
+      "samples": 181.0
+    },
+    "shipping": {
+      "fraction_over_threshold": 0.0,
+      "max": 2.4599999999999977,
+      "mean": 1.9487569203702384,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9896226415094336,
+      "samples": 181.0
+    }
+  },
+  "quiet_check_covers_flagd": false,
+  "rate_window": "5m",
+  "recorded_by": "evalharness.baseline",
+  "valid": true,
+  "window": {
+    "end": "2026-09-22T09:07:26+00:00",
+    "minutes": 45,
+    "start": "2026-09-22T08:22:25+00:00",
+    "step": 15
+  },
+  "world": "v2"
+}

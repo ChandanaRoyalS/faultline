@@ -1,0 +1,24 @@
+# A1 first run, 2026-09-22 13:46 UTC - VOID. watch.py died on `from datetime import UTC` (3.11+)
+# under the Mac's system python3 (3.9) before its first poll; the flag was on for 27 seconds and
+# nothing was observed. Kept beside the second run per the pre-registration.
+
+❯ date -u +%T && python3 evals/attempts/flag.py productCatalogFailure on
+13:46:03
+productCatalogFailure: off -> on  (world-v2/src/flagd/demo.flagd.json)
+
+❯ python3 evals/attempts/watch.py 12
+Traceback (most recent call last):
+  File "/Users/chandana/dev/faultline/evals/attempts/watch.py", line 15, in <module>
+    from datetime import UTC, datetime
+ImportError: cannot import name 'UTC' from 'datetime' (/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/datetime.py)
+
+❯ python3 evals/attempts/shape.py product-catalog
+== firing ==
+  none
+(per-service table identical to pre-state; product-catalog 0.00% err, 4 ms, 5.183 req/s)
+== last 8 log lines: product-catalog ==
+(empty)
+
+❯ date -u +%T && python3 evals/attempts/flag.py productCatalogFailure off
+13:46:30
+productCatalogFailure: on -> off  (world-v2/src/flagd/demo.flagd.json)
