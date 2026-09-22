@@ -1,0 +1,561 @@
+{
+  "alerts_during_window": [
+    {
+      "alert": "ServiceHighLatency",
+      "first_seen": "2026-09-22T04:50:53+00:00",
+      "last_seen": "2026-09-22T05:18:38+00:00",
+      "minutes_firing": 28.0,
+      "service": "accounting"
+    },
+    {
+      "alert": "ServiceHighLatency",
+      "first_seen": "2026-09-22T05:22:53+00:00",
+      "last_seen": "2026-09-22T05:24:38+00:00",
+      "minutes_firing": 2.0,
+      "service": "accounting"
+    }
+  ],
+  "call_rate": {
+    "accounting": {
+      "max": 0.2166666666666667,
+      "mean": 0.07845361581789898,
+      "min": 0.0,
+      "p95": 0.1666694444907415,
+      "samples": 181.0
+    },
+    "ad": {
+      "max": 0.23333333333333334,
+      "mean": 0.06979805719466435,
+      "min": 0.0,
+      "p95": 0.13334444537044757,
+      "samples": 181.0
+    },
+    "cart": {
+      "max": 1.75,
+      "mean": 0.7538723965975143,
+      "min": 0.21666666666666667,
+      "p95": 1.4166666666666667,
+      "samples": 181.0
+    },
+    "checkout": {
+      "max": 0.9666666666666668,
+      "mean": 0.34622715821082733,
+      "min": 0.0,
+      "p95": 0.8666666666666667,
+      "samples": 181.0
+    },
+    "currency": {
+      "max": 0.2833333333333333,
+      "mean": 0.07292861885267855,
+      "min": 0.0,
+      "p95": 0.1666694444907415,
+      "samples": 181.0
+    },
+    "email": {
+      "max": 0.2666666666666667,
+      "mean": 0.10018494795663935,
+      "min": 0.0,
+      "p95": 0.2000033333888898,
+      "samples": 181.0
+    },
+    "flagd": {
+      "max": 0.8666666666666667,
+      "mean": 0.3732988739490528,
+      "min": 0.13333333333333333,
+      "p95": 0.5666666666666667,
+      "samples": 181.0
+    },
+    "fraud-detection": {
+      "max": 0.13333333333333336,
+      "mean": 0.051565782756915944,
+      "min": 0.0,
+      "p95": 0.1000016666944449,
+      "samples": 181.0
+    },
+    "frontend": {
+      "max": 3.4833333333333334,
+      "mean": 2.106551152005651,
+      "min": 1.2666877781296353,
+      "p95": 3.016716945282421,
+      "samples": 181.0
+    },
+    "frontend-proxy": {
+      "max": 1.7333333333333334,
+      "mean": 0.9769857499872008,
+      "min": 0.6333333333333333,
+      "p95": 1.3000216670277835,
+      "samples": 181.0
+    },
+    "image-provider": {
+      "max": 0.10001833669506077,
+      "mean": 0.10000056180158015,
+      "min": 0.09999666677777405,
+      "p95": 0.10000166669444491,
+      "samples": 181.0
+    },
+    "load-generator": {
+      "max": 1.2666666666666666,
+      "mean": 0.8604101298292616,
+      "min": 0.6333333333333333,
+      "p95": 1.133352222537042,
+      "samples": 181.0
+    },
+    "payment": {
+      "max": 0.13333333333333336,
+      "mean": 0.05009244942337798,
+      "min": 0.0,
+      "p95": 0.1000016666944449,
+      "samples": 181.0
+    },
+    "product-catalog": {
+      "max": 1.6999716671388814,
+      "mean": 0.9073715571191642,
+      "min": 0.3,
+      "p95": 1.6333333333333333,
+      "samples": 181.0
+    },
+    "product-reviews": {
+      "max": 0.4,
+      "mean": 0.1525795137975961,
+      "min": 0.0,
+      "p95": 0.33339445565020254,
+      "samples": 181.0
+    },
+    "quote": {
+      "max": 0.20000000000000004,
+      "mean": 0.07513869255158018,
+      "min": 0.0,
+      "p95": 0.15000250004166735,
+      "samples": 181.0
+    },
+    "recommendation": {
+      "max": 0.299995000083332,
+      "mean": 0.09843525641404818,
+      "min": 0.0,
+      "p95": 0.20001666805567136,
+      "samples": 181.0
+    },
+    "shipping": {
+      "max": 0.20000000000000004,
+      "mean": 0.07513869255158018,
+      "min": 0.0,
+      "p95": 0.15000250004166735,
+      "samples": 181.0
+    }
+  },
+  "disturbances_observed": [
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T04:50:56+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T04:51:57+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T04:52:57+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T04:53:57+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T04:54:58+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T04:55:58+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T04:56:58+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T04:57:59+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T04:58:59+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:00:00+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:01:00+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:02:00+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:03:01+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:04:01+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:05:02+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:06:02+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:07:02+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:08:03+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:09:03+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:10:04+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:11:04+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:12:04+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:13:05+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:14:05+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:15:05+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:16:06+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:17:06+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:18:06+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:23:08+00:00"
+    },
+    {
+      "alerts": [
+        "ServiceHighLatency/accounting"
+      ],
+      "at": "2026-09-22T05:24:09+00:00"
+    }
+  ],
+  "error_ratio": {
+    "accounting": {
+      "fraction_over_threshold": 0.0,
+      "max": 0.0,
+      "mean": 0.0,
+      "min": 0.0,
+      "minutes_over_threshold": 0.0,
+      "p95": 0.0,
+      "samples": 160.0
+    },
+    "ad": {
+      "fraction_over_threshold": 0.1032258064516129,
+      "max": 0.3333333333333333,
+      "mean": 0.03096774193548387,
+      "min": 0.0,
+      "minutes_over_threshold": 4.0,
+      "p95": 0.3333333333333333,
+      "samples": 155.0
+    },
+    "flagd": {
+      "fraction_over_threshold": 0.13259668508287292,
+      "max": 0.09999999999999999,
+      "mean": 0.010859827710656439,
+      "min": 0.0,
+      "minutes_over_threshold": 6.0,
+      "p95": 0.07692307692307691,
+      "samples": 181.0
+    },
+    "fraud-detection": {
+      "fraction_over_threshold": 0.1,
+      "max": 0.3333333333333333,
+      "mean": 0.03333333333333333,
+      "min": 0.0,
+      "minutes_over_threshold": 4.0,
+      "p95": 0.3333333333333333,
+      "samples": 160.0
+    },
+    "product-reviews": {
+      "fraction_over_threshold": 0.09696969696969697,
+      "max": 1.0,
+      "mean": 0.03035113035113035,
+      "min": 0.0,
+      "minutes_over_threshold": 4.0,
+      "p95": 0.07142857142857144,
+      "samples": 165.0
+    },
+    "recommendation": {
+      "fraction_over_threshold": 0.10191082802547771,
+      "max": 1.0,
+      "mean": 0.0374466298033177,
+      "min": 0.0,
+      "minutes_over_threshold": 4.0,
+      "p95": 0.14285714285714285,
+      "samples": 157.0
+    }
+  },
+  "injections_during_window": [],
+  "injector_status": "no active injections",
+  "kind": "baseline",
+  "latency_p95_ms": {
+    "accounting": {
+      "fraction_over_threshold": 1.0,
+      "max": 15000.0,
+      "mean": 15000.0,
+      "min": 15000.0,
+      "minutes_over_threshold": 40.0,
+      "p95": 15000.0,
+      "samples": 160.0
+    },
+    "ad": {
+      "fraction_over_threshold": 0.1032258064516129,
+      "max": 15000.0,
+      "mean": 1552.0051612903226,
+      "min": 1.9,
+      "minutes_over_threshold": 4.0,
+      "p95": 15000.0,
+      "samples": 155.0
+    },
+    "cart": {
+      "fraction_over_threshold": 0.0,
+      "max": 6.199999999999999,
+      "mean": 2.3054040063132835,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 3.2999999999999994,
+      "samples": 181.0
+    },
+    "checkout": {
+      "fraction_over_threshold": 0.0,
+      "max": 37.999999999999986,
+      "mean": 25.280113229370365,
+      "min": 13.999999999999954,
+      "minutes_over_threshold": 0.0,
+      "p95": 35.999999999999986,
+      "samples": 160.0
+    },
+    "currency": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.9000000000000001,
+      "mean": 1.9,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9000000000000001,
+      "samples": 160.0
+    },
+    "email": {
+      "fraction_over_threshold": 0.0,
+      "max": 6.799999999999999,
+      "mean": 3.306666666666666,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 5.3999999999999995,
+      "samples": 160.0
+    },
+    "flagd": {
+      "fraction_over_threshold": 0.17679558011049723,
+      "max": 15000.0,
+      "mean": 2653.4977900552485,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 8.0,
+      "p95": 15000.0,
+      "samples": 181.0
+    },
+    "fraud-detection": {
+      "fraction_over_threshold": 0.1,
+      "max": 15000.0,
+      "mean": 1568.9133333333334,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 4.0,
+      "p95": 15000.0,
+      "samples": 160.0
+    },
+    "frontend": {
+      "fraction_over_threshold": 0.0,
+      "max": 41.699999999999996,
+      "mean": 34.72659791949945,
+      "min": 11.99999999999992,
+      "minutes_over_threshold": 0.0,
+      "p95": 41.23076923076922,
+      "samples": 181.0
+    },
+    "frontend-proxy": {
+      "fraction_over_threshold": 0.0,
+      "max": 44.133333333333326,
+      "mean": 37.75533148315933,
+      "min": 7.91111111111111,
+      "minutes_over_threshold": 0.0,
+      "p95": 43.368421052631575,
+      "samples": 181.0
+    },
+    "image-provider": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.9,
+      "mean": 1.9,
+      "min": 1.9,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9,
+      "samples": 181.0
+    },
+    "load-generator": {
+      "fraction_over_threshold": 0.0,
+      "max": 47.92592592592592,
+      "mean": 45.11061123752746,
+      "min": 39.142857142857125,
+      "minutes_over_threshold": 0.0,
+      "p95": 47.407407407407405,
+      "samples": 181.0
+    },
+    "payment": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.9000000000000001,
+      "mean": 1.9,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9,
+      "samples": 156.0
+    },
+    "product-catalog": {
+      "fraction_over_threshold": 0.0,
+      "max": 7.133333333333332,
+      "mean": 4.100333370917427,
+      "min": 1.9,
+      "minutes_over_threshold": 0.0,
+      "p95": 6.1000000000000005,
+      "samples": 181.0
+    },
+    "product-reviews": {
+      "fraction_over_threshold": 0.09696969696969697,
+      "max": 15000.0,
+      "mean": 1493.8736507936508,
+      "min": 5.85,
+      "minutes_over_threshold": 4.0,
+      "p95": 15000.0,
+      "samples": 165.0
+    },
+    "quote": {
+      "fraction_over_threshold": 0.0,
+      "max": 1.9000000000000001,
+      "mean": 1.9,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 1.9,
+      "samples": 160.0
+    },
+    "recommendation": {
+      "fraction_over_threshold": 0.10191082802547771,
+      "max": 15000.0,
+      "mean": 1531.9814376706097,
+      "min": 1.9,
+      "minutes_over_threshold": 4.0,
+      "p95": 15000.0,
+      "samples": 157.0
+    },
+    "shipping": {
+      "fraction_over_threshold": 0.0,
+      "max": 3.6999999999999997,
+      "mean": 2.1175,
+      "min": 1.8999999999999997,
+      "minutes_over_threshold": 0.0,
+      "p95": 3.6999999999999997,
+      "samples": 160.0
+    }
+  },
+  "quiet_check_covers_flagd": false,
+  "recorded_by": "evalharness.baseline",
+  "valid": true,
+  "window": {
+    "end": "2026-09-22T05:26:54+00:00",
+    "minutes": 45,
+    "start": "2026-09-22T04:41:53+00:00",
+    "step": 15
+  },
+  "world": "v2"
+}
