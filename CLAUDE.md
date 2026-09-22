@@ -34,6 +34,20 @@ applies here too. This file covers what is specific to an agent working in this 
    scenarios the catalog does not contain, which is a fact about measuring it rather than about
    building it. Both are open work with routes named. A rule whose first application costs
    nothing is a rule that was not needed.
+
+   **Amended 2026-09-22, on the owner's instruction, and it reopened two more on arrival.** The
+   rule now admits an alternative on **either** of two grounds: an attempt was made and failed,
+   **or** the alternative is argued to be *better than what the specification asks for* — the case
+   made explicitly, and the burden on whoever proposes it. Difficulty, desk reasoning and silence
+   remain insufficient on their own. **T7.0 and T7.1 were closed on 2026-09-20 as *unachievable*
+   with no attempt at all**:
+   [ADR-0029](docs/adr/0029-four-fault-classes-and-why-there-is-no-fifth.md) is a desk argument,
+   no injector was extended and no scenario was authored against any candidate. It is a careful
+   document and it is not an attempt, which is what this rule asks for. Both are reopened
+   ([ADR-0042](docs/adr/0042-the-world-moves-to-opentelemetry-demo-v2.md)). **The standing
+   reading: build what the execution plan specifies; deviate only when building it has been tried
+   and failed, or when a better alternative has been argued and accepted — and record which of the
+   two it was.**
 8. **Price the blocker, never just name it** — when a task cannot finish without API spend, say
    **how much**, what it buys, and what the estimate is measured from, in the same message that
    reports the blocker. Never "this needs credits" on its own. Mark an unmeasured estimate as
