@@ -1,0 +1,36 @@
+# T7.1 - Faultline's Prometheus config for the v2 world. Replaces the demo's via --config.file
+# so rules and Alertmanager can be added without editing the pinned clone, exactly as the v1 file
+# does (ADR-0026: the clone is somebody else's repository).
+#
+# **The scrape jobs are gone, and that is not an omission.** v1's collector exposes a Prometheus
+# exporter and this file scrapes `otelcol:9464` and `otelcol:8888`. v2's collector **pushes**
+# instead: its metrics pipeline ends `exporters: [otlphttp/prometheus, debug]`, aimed at
+# `http://prometheus:9090/api/v1/otlp`, and v2's Prometheus runs with `--web.enable-otlp-receiver`
+# to accept it. Metrics arrive without anybody scraping anything.
+#
+# **The consequence is a trap and it is handled in `telemetry-v2.yml`, not here.** Faultline's
+# overlay replaces Prometheus's `command:` wholesale, so an overlay that forgets
+# `--web.enable-otlp-receiver` leaves a Prometheus that starts cleanly, scrapes nothing, receives
+# nothing, and reports no error - every metric silently absent with no failing container to show
+# for it. The v2 overlay restates that flag for this reason and says so.
+#
+# Retention is 15d rather than v2's own 7d, for the reason T7.1 gave on the v1 world: six hours
+# once cost a backfill outright, because a bundle's window was gone before the question was asked.
+global:
+  evaluation_interval: 15s
+  scrape_interval: 5s
+
+rule_files:
+  - /etc/prometheus/alert-rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets: ["alertmanager:9093"]
+
+# Prometheus's own metrics, which no push covers. The collector's internal telemetry reaches this
+# server over OTLP with everything else, so it needs no job of its own here.
+scrape_configs:
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]

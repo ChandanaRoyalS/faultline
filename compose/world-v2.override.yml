@@ -1,0 +1,36 @@
+# T7.1 - the v2 world's headroom override, and it is NOT `world-arm64.override.yml` ported.
+#
+# **The arm64 file's stated reason does not apply here.** Its header says the demo's limits are
+# "tuned for native x86" and that "under emulation on Apple Silicon the same workloads use more
+# memory and sit at their ceilings". The 2026-09-22 trial measured v2 at `arm64/linux` **native**
+# on the development machine - every image multi-arch, nothing emulated, 28 of 28 containers up on
+# the first attempt with no override at all
+# (`docs/evidence/world-v2-trial/2026-09-22-the-first-bring-up.md`). v1 by contrast logs
+# "The requested image's platform (linux/amd64) does not match the detected host platform
+# (linux/arm64/v8)" for sixteen services, which is the condition ADR-0005 described and v2 ends.
+#
+# **So this file exists for a different reason, and only for the containers that need it.**
+# Two services sat at their ceilings *while idle* in that trial, which is the state the pre-flight
+# gate refuses (`evalharness.gate`, 90% of limit):
+#
+#   llm       49.68 MiB / 50 MiB   = 99.4%
+#   flagd-ui  187.1  MiB / 200 MiB = 93.5%
+#
+# Raised, not removed, so genuine runaway memory is still caught - the same discipline the arm64
+# file states and the reason it was never a `mem_limit: 0`.
+#
+# **Measured, not guessed**: each new limit puts the observed idle figure near a third of the
+# ceiling, which is where the rest of this world's services already sit and comfortably under the
+# gate's 90%.
+#
+# **Two more were watched and deliberately left alone.** kafka at 485.9/620 (78%) and opensearch
+# at 786/1024 (77%) are under the gate and are not raised on one idle reading; v1's kafka needed a
+# *heap cap* rather than a raise (T7.27), and doing that here before this world has a measured
+# growth trajectory would be copying a fix across a world boundary. If either trips the gate under
+# load, that is a measurement and it gets its own row.
+services:
+  llm:
+    deploy: { resources: { limits: { memory: 150M } } }
+
+  flagd-ui:
+    deploy: { resources: { limits: { memory: 400M } } }

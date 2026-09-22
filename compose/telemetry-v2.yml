@@ -1,0 +1,116 @@
+# T7.1 - Faultline's telemetry stack, overlaid on the v2 world.
+#
+# The same job `telemetry.yml` does for v1: the demo ships metrics, traces and Grafana but no log
+# store Faultline's log analyst can read and no Alertmanager, so this adds Loki, Promtail, Tempo
+# and Alertmanager, and points the demo's own Prometheus, Grafana and collector at Faultline's
+# configuration. Everything is version-pinned for the same reason.
+#
+# **Four differences from the v1 file, every one forced by v2 rather than chosen:**
+#
+#   1. The collector's service key is `otel-collector`, not `otelcol`.
+#   2. Prometheus must keep `--web.enable-otlp-receiver`. See the block on that service - it is
+#      the one change here that fails silently.
+#   3. v2 ships OpenSearch as its log store and its collector has a `logs` pipeline aimed at it.
+#      Loki and Promtail are added beside that rather than replacing it, because Promtail reads
+#      container stdout through the Docker socket and does not care what else is collecting.
+#      Whether OpenSearch survives into the world proper is a separate decision; it is left alone
+#      here so this overlay changes as little as possible.
+#   4. v2's Grafana already provisions its own datasources; Faultline's Loki and Tempo files are
+#      mounted alongside them under the same provisioning directory, not over it.
+services:
+  loki:
+    image: grafana/loki:2.9.8
+    container_name: loki
+    command: -config.file=/etc/loki/local-config.yaml
+    ports:
+      - "3100:3100"
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+
+  promtail:
+    image: grafana/promtail:2.9.8
+    container_name: promtail
+    command: -config.file=/etc/promtail/config.yml
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ../compose/promtail-config.yml:/etc/promtail/config.yml:ro
+    depends_on:
+      - loki
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+
+  # The trace store the trace tool reads, beside the demo's own Jaeger, which stays as the demo's
+  # UI. GOMEMLIMIT is v1's, and unlike the alert thresholds it is a property of Tempo's own Go
+  # runtime against this container limit rather than of the world being observed, so it carries.
+  tempo:
+    image: grafana/tempo:2.4.2
+    container_name: tempo
+    command: -config.file=/etc/tempo/tempo.yaml
+    environment:
+      GOMEMLIMIT: 320MiB
+    volumes:
+      - ../compose/tempo.yaml:/etc/tempo/tempo.yaml:ro
+    ports:
+      - "3200:3200"
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+
+  grafana:
+    volumes:
+      - ../compose/grafana-loki-datasource.yml:/etc/grafana/provisioning/datasources/loki.yml:ro
+      - ../compose/grafana-tempo-datasource.yml:/etc/grafana/provisioning/datasources/tempo.yml:ro
+
+  alertmanager:
+    image: prom/alertmanager:v0.27.0
+    container_name: alertmanager
+    command:
+      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --web.listen-address=:9093
+    volumes:
+      - ../compose/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    ports:
+      - "9093:9093"
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+
+  otel-collector:
+    volumes:
+      - ../compose/otelcol-extras-v2.yml:/etc/otelcol-config-extras.yml:ro
+    depends_on:
+      tempo:
+        condition: service_started
+
+  # **`--web.enable-otlp-receiver` is load-bearing and this overlay is why it could go missing.**
+  # Replacing `command:` replaces it wholesale, and v2's collector does not expose a scrape
+  # endpoint - it PUSHES to http://prometheus:9090/api/v1/otlp. Drop that flag and Prometheus
+  # starts cleanly, stays healthy, scrapes its one job, and receives no application metrics at
+  # all: no failing container, no error in any log, every alert rule evaluating against an empty
+  # series. Restated here with the rest of v2's command for exactly that reason.
+  #
+  # `--enable-feature=exemplar-storage` is carried over for the same reason: it is v2's, and
+  # dropping it silently loses exemplars rather than failing.
+  #
+  # Retention is 15d against v2's own 7d - T7.1's argument on the v1 world, where six hours once
+  # cost a backfill that could never be taken again.
+  prometheus:
+    volumes:
+      - ../compose/prometheus/prometheus-config-v2.yaml:/etc/prometheus/faultline-prometheus.yaml:ro
+      - ../compose/prometheus/alert-rules-v2.yml:/etc/prometheus/alert-rules.yml:ro
+    command:
+      - --config.file=/etc/prometheus/faultline-prometheus.yaml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=15d
+      - --web.console.templates=/etc/prometheus/consoles
+      - --web.console.libraries=/etc/prometheus/console_libraries
+      - --web.enable-lifecycle
+      - --web.route-prefix=/
+      - --web.enable-otlp-receiver
+      - --enable-feature=exemplar-storage

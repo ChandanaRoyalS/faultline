@@ -1,0 +1,33 @@
+# T7.1 - the collector's second `--config` on the v2 world.
+#
+# v2 keeps v1's merge point: its command is
+# `[ "--config=/etc/otelcol-config.yml", "--config=/etc/otelcol-config-extras.yml" ]` and the
+# extras path is a mount, so Faultline's file goes over it from this repository rather than into
+# the gitignored clone - the same argument `otelcol-extras.yml` makes for v1.
+#
+# **The exporter list is restated on purpose and the reason is unchanged from v1**: the collector
+# merges configs by *replacing* lists, not appending to them. A list naming only `otlp/tempo`
+# would silently stop Jaeger and `spanmetrics` receiving anything - and stopping `spanmetrics`
+# would take every alert rule with it, since all three read `traces_span_metrics_*`. v2's own list
+# is `exporters: [otlp, debug, spanmetrics]`, read from `src/otel-collector/otelcol-config.yml` at
+# tag 2.2.0.
+#
+# **Two differences from the v1 extras file, both from v2's own pipeline:**
+#   - `debug` replaces v1's `logging` exporter, which v2 no longer defines.
+#   - `spanmetrics` is in the *exporter* list because v2 runs it as a connector; v1 has it as a
+#     processor in `processors:`. Dropping it here is the silent failure described above.
+#
+# The `memory_limiter` values are v1's and are deliberately not copied: v2 sets its own limits in
+# `src/otel-collector/otelcol-config.yml` against a 200M container, where v1's were tuned to a
+# 600M one. Overriding them on an unmeasured world would be carrying a number across a world
+# boundary, which is the mistake `alert-rules-v2.yml` also refuses to make.
+exporters:
+  otlp/tempo:
+    endpoint: "tempo:4317"
+    tls:
+      insecure: true
+
+service:
+  pipelines:
+    traces:
+      exporters: [otlp, debug, spanmetrics, otlp/tempo]
