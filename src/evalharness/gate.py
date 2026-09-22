@@ -68,6 +68,8 @@ from evalharness.rehearse import (
     RehearsalError,
     container_memory_usage,
     container_uptimes,
+    kafka_consumers,
+    recycle_effect,
     require_settled_containers,
 )
 from faultline.tools.settings import ToolSettings
@@ -798,11 +800,9 @@ def read(
             f"({HEADROOM_GROWTH_MB_PER_HOUR:.0f}MB/h x {h.expected_run_hours:.2f}h / "
             f"{h.limit_mb:.0f}MB), growth measured under load at T7.29.\n"
             f"    Recycle it first, and its consumers with it or they never reconnect (T7.27):\n"
-            f"      docker restart {HEADROOM_CONTAINER} && docker restart accounting-service "
-            f"frauddetection-service checkout-service\n"
-            f"    A restart clears this completely - T7.30 measured 99.87% -> 26.27%. Raising the "
-            f"limit is not the remedy: the growth is Rosetta translation cache and is driven by "
-            f"work, not bounded by a ceiling (ADR-0005's T7.30 addendum).\n"
+            f"      docker restart {HEADROOM_CONTAINER} && docker restart "
+            f"{' '.join(kafka_consumers(world))}\n"
+            f"    {recycle_effect(world)}\n"
             f"    THIS IS A PAUSE, NOT A DISCARD - nothing was injected and this scenario has "
             f"not been attempted. Recycle, then start again from here."
         )

@@ -350,3 +350,67 @@ def test_the_v2_prometheus_does_not_mount_over_its_own_image_directories() -> No
                 f"telemetry-v2.yml mounts {target} over {path}, which the image provides and "
                 f"--web.console.* still points at."
             )
+
+
+def test_kafkas_v2_ceiling_clears_its_committed_heap_with_room_to_grow() -> None:
+    """**A freshly restarted kafka must not start above the gate's guard** (2026-09-22).
+
+    v2 ships `-Xms400m` equal to `-Xmx400m`, so the JVM commits 400 MiB at startup and a restart
+    re-commits it immediately - v1's recycle remedy measured 92.08% -> 88.81% here against
+    99.87% -> 26.27% there. At the shipped 620M ceiling a *fresh* container sat at 88.8% and the
+    gate refuses at 90%, so the world was unable to pass its own pre-flight however often it was
+    recycled.
+
+    The ceiling has to clear the committed heap plus the measured non-heap peak with enough room
+    that the gate's projection does not refuse on the first run.
+    """
+    limits = yaml.safe_load((COMPOSE / "world-v2.override.yml").read_text())
+    memory = limits["services"]["kafka"]["deploy"]["resources"]["limits"]["memory"]
+    ceiling_mb = float(memory.rstrip("M"))
+
+    committed_heap_mb = 400.0  # -Xms400m, v2's own setting
+    measured_non_heap_peak_mb = 164.0  # 2026-09-22, five hours after a restart
+
+    aged_percent = (committed_heap_mb + measured_non_heap_peak_mb) / ceiling_mb * 100
+    assert aged_percent < 70.0, (
+        f"kafka's v2 ceiling of {ceiling_mb:.0f}M leaves a five-hour-old container at "
+        f"{aged_percent:.1f}%, which gives the gate's 90% guard almost nothing to project into. "
+        "The committed heap alone is 400 MiB and a restart cannot reclaim it."
+    )
+
+
+def test_kafkas_consumers_are_named_per_world() -> None:
+    """**`sweep` restarts these with `check=False`**, so v1's names on v2 produced
+    `No such container` and nothing reported it - the recycle looked like it had happened while
+    the consumers were never restarted at all, which is the state T7.27 measured as leaving the
+    world quietly broken."""
+    from evalharness.rehearse import KAFKA_CONSUMERS_BY_WORLD, kafka_consumers
+
+    assert kafka_consumers("v2") == ("accounting", "fraud-detection", "checkout")
+    assert kafka_consumers("v1") == (
+        "accounting-service",
+        "frauddetection-service",
+        "checkout-service",
+    )
+    assert set(KAFKA_CONSUMERS_BY_WORLD) == {"v1", "v2"}
+
+    # An unknown world gets v1's names, which fail loudly. An empty tuple would make
+    # `docker restart` a no-op that reports success - the failure this whole patch is about.
+    assert kafka_consumers("v3") == kafka_consumers("v1")
+
+
+def test_the_recycle_does_not_promise_on_v2_what_it_delivers_on_v1() -> None:
+    """The gate printed v1's *"A restart clears this completely"* at v2 operators, recommending a
+    remedy measured at three percentage points on a container that starts at 88.8%."""
+    from evalharness.rehearse import recycle_effect
+
+    assert "clears this completely" in recycle_effect("v1")
+    assert "does NOT clear this" in recycle_effect("v2")
+    assert "92.08% -> 88.81%" in recycle_effect("v2"), (
+        "the v2 sentence should carry the measurement that falsified v1's remedy, not just deny it"
+    )
+    assert "no Rosetta" in recycle_effect("v2"), (
+        "v2 is native arm64 - measured, 28/28 containers. The text should say Rosetta does not "
+        "apply rather than omit it, because a reader arriving from v1's documentation and "
+        "ADR-0005 will be looking for exactly that word."
+    )
