@@ -154,3 +154,39 @@ the catalog is authored rather than after.
 **And a `RemediationClass` that stays at four.** ADR-0029 §1's criterion is the gate: a class needs
 a fix that works and that the others' fixes do not. v2 supplying a mechanism is necessary and not
 sufficient, and no part of this decision assumes otherwise.
+
+---
+
+## Addendum, 2026-09-22 — the acceptance gate was run and this ADR's framing overstates
+
+**Run the same day, at desk, \$0**
+([`t7.1-v2-mechanisms-assessed.md`](../design/t7.1-v2-mechanisms-assessed.md)). §*What would change
+it* named the risk: *"if every new mechanism's working fix is `config_revert`, the class count does
+not move."* **It is. It does not.**
+
+All fifteen flags are flagd configuration read per request; the injection is *set a flag* and the
+revert is *unset it*. Every working fix is `config_revert`, or `{restart, config_revert}` for
+`recommendationCacheFailure`, which leaves an unbounded in-process list behind. **Both profiles are
+already taken** — the second is exactly what ADR-0027 measured 3/3 for `dependency_latency`. v2's
+compose declares **no named volumes** either, so disk fill stays dead for ADR-0029's original
+reason.
+
+**So §*Three of ADR-0029 §5's deaths are overturned by the version* is wrong as a heading and right
+only in a narrow sense.** `llmRateLimitError` and `kafkaQueueProblems` refute the specific claim
+that the demo exposes no such knob — false of v2, and unchecked until now. But the candidates die
+one gate later, at ADR-0029 §3's second conjunct: *a mechanism **whose working fix is not already
+taken***. **Net new fault classes under ADR-0022 §1.2: zero.** A reader of that table would
+conclude eight classes are now reachable, and under the criterion the table cites they are not.
+
+**The decision to move stands; one of its promises does not.** The count is correct, the world's
+surface really was the binding constraint on *scenarios*, and T7.1's stated rationale is the
+statistical one — *"over 10 is an anecdote; over 30+, a measurement"* — which v2 delivers. What is
+withdrawn is that the move buys ~8 fault classes as a consequence of the version.
+
+**And it surfaced something larger.** This repository holds **two criteria for individuating a
+class** — ADR-0022 §1.2's fix test and ADR-0029 §3's mechanism binding — and they disagree about
+v2. Under the fix test the *existing four* are not individuated either, which ADR-0029 §1 states
+outright. **T7.1's "~8 classes" is impossible under one criterion and nearly free under the other,
+and which governs has never been decided.** It is decided before the re-record, in its own ADR, and
+not by implication: `fault_class` is a `Literal` in a contract, every value is inside the prompt
+digest, and a taxonomy adopted by accident is carried forever.
