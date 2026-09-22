@@ -414,3 +414,56 @@ def test_the_recycle_does_not_promise_on_v2_what_it_delivers_on_v1() -> None:
         "apply rather than omit it, because a reader arriving from v1's documentation and "
         "ADR-0005 will be looking for exactly that word."
     )
+
+
+def test_no_v2_overlay_repeats_a_service_key() -> None:
+    """**A duplicated mapping key is not an error to PyYAML - it keeps the last one, silently.**
+
+    Caught 2026-09-22 while adding kafka's tmpfs: a second `kafka:` block appended to the end of
+    `world-v2.override.yml` parsed cleanly and **dropped the 1024M memory limit** two hundred
+    lines above it. `yaml.safe_load` returned a world with the tmpfs and no ceiling, every other
+    guard in this file passed, and Compose would have brought that world up. A strict loader is
+    the only thing that notices.
+    """
+    import yaml as _yaml
+
+    class Strict(_yaml.SafeLoader):
+        pass
+
+    def no_duplicates(loader: _yaml.SafeLoader, node: _yaml.MappingNode) -> dict:
+        seen: set[object] = set()
+        for key_node, _ in node.value:
+            key = loader.construct_object(key_node)
+            assert key not in seen, f"duplicate key {key!r} - PyYAML would silently keep the last"
+            seen.add(key)
+        return loader.construct_mapping(node, deep=True)
+
+    Strict.add_constructor(_yaml.resolver.BaseResolver.DEFAULT_MAPPING_TAG, no_duplicates)
+
+    for name in ("world-v2.override.yml", "telemetry-v2.yml", "otelcol-extras-v2.yml"):
+        _yaml.load((COMPOSE / name).read_text(), Loader=Strict)
+
+    for name in ("accounting-bad-credential.yml", "product-catalog-n-plus-one.yml"):
+        _yaml.load((REPO_ROOT / "evals" / "attempts" / name).read_text(), Loader=Strict)
+
+
+def test_kafkas_tmpfs_is_the_size_the_preregistration_says_and_under_its_ceiling() -> None:
+    """The disk-fill attempt's whole safety argument is that a filled tmpfs costs kafka's cgroup
+    at most its capped size, under the 1024M ceiling. Both numbers live in this file; pin the
+    relationship so one cannot be edited without the other."""
+    limits = yaml.safe_load((COMPOSE / "world-v2.override.yml").read_text())
+    kafka = limits["services"]["kafka"]
+    mounts = [
+        v for v in kafka.get("volumes", []) if isinstance(v, dict) and v.get("type") == "tmpfs"
+    ]
+
+    assert len(mounts) == 1, "kafka should carry exactly one tmpfs: its log directory"
+    assert mounts[0]["target"] == "/tmp/kraft-combined-logs"
+    size_mib = mounts[0]["tmpfs"]["size"] / (1024 * 1024)
+    ceiling_mib = float(kafka["deploy"]["resources"]["limits"]["memory"].rstrip("M"))
+
+    assert size_mib == 256
+    assert 400 + 164 + size_mib < ceiling_mib * 0.9, (
+        "committed heap + measured non-heap peak + a full tmpfs must stay under the gate's 90% "
+        "guard, or filling the disk on purpose becomes an OOM on purpose"
+    )

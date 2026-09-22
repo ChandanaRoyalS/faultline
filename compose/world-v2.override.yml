@@ -111,5 +111,38 @@ services:
   # plateaus. 82 -> 164 MiB in five hours is a doubling, and if it is linear rather than
   # asymptotic then no limit is sufficient and the answer is a heap or direct-buffer cap instead.
   # A sampler is collecting `anon` every five minutes; this figure moves if the curve says so.
+  # **kafka's log directory is a size-capped tmpfs, so that a disk can be filled on purpose**
+  # (T7.0 attempt A8, `evals/runs/PREREGISTRATION-T7.0.md`).
+  #
+  # The plan names disk fill as a fault class. ADR-0029's T7.0 addendum killed it because the
+  # world declares no volumes: every container writes to its own overlay layer, which is the
+  # host's disk, so a fill cannot be aimed at one service without taking the platform down with
+  # it. That was a fact about the world as shipped. **The world is being re-founded, and giving
+  # one service a bounded disk is a one-line change that is free right now** - no v2 bundle exists
+  # and nothing digests this file yet - and will not be free once the injector is migrated.
+  #
+  # kafka's data lives at `/tmp/kraft-combined-logs` (apache/kafka:3.9.1's `log.dirs` default,
+  # confirmed 2026-09-22 when `/var/lib/kafka/data` was 4.0K). A 256 MiB tmpfs there is enough for
+  # the demo's traffic - ~1 KiB per order at 0.15 orders/s is ~13 MiB a day - and small enough to
+  # fill in seconds. A Kafka broker whose only log dir cannot be written **halts**, which is what
+  # a real disk-full outage does to a real broker, and `restart: unless-stopped` then crashloops
+  # it against the still-full directory until the fill is removed or the container is recreated.
+  #
+  # **Why tmpfs and not a volume**: Docker Desktop cannot size-cap a disk volume. tmpfs can, and
+  # its pages are charged to the cgroup of the process that writes them - `docker exec kafka dd`
+  # runs inside kafka's cgroup, so the fill costs kafka up to 256 MiB of the 1024M ceiling above,
+  # and cannot cost anything else on the machine. That is the whole blast radius, and it is why
+  # this could not have been done at the shipped 620M.
+  #
+  # **The cost stated**: kafka's data is ephemeral across container recreation. It already was in
+  # practice - the demo declares no volume for it - and orders are the only topic.
+  #
+  # If disk fill is measured not to page, this mount is removed in the same patch that records
+  # why. If it pages, it stays and becomes the mechanism's precondition.
   kafka:
     deploy: { resources: { limits: { memory: 1024M } } }
+    volumes:
+      - type: tmpfs
+        target: /tmp/kraft-combined-logs
+        tmpfs:
+          size: 268435456

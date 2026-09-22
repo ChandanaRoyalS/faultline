@@ -1,0 +1,32 @@
+T7.0 attempt A7 - "N+1 regression", as a code change to product-catalog. Apply inside world-v2/:
+
+    cd world-v2 && git apply ../evals/attempts/product-catalog-n-plus-one.patch
+
+ListProducts loads every product in one query. This makes it re-fetch each product individually
+afterwards - the N+1 shape - thirty times per product, so ten products cost ~300 one-millisecond
+queries and the p95 crosses the 250 ms rule. The multiplier is chosen to cross the threshold and
+is stated as such; what is under test is the MECHANISM (a deployed code change reaches the world
+only by swapping the image), not the number.
+
+diff --git a/src/product-catalog/main.go b/src/product-catalog/main.go
+index 05ad597..7fb24ab 100644
+--- a/src/product-catalog/main.go
++++ b/src/product-catalog/main.go
+@@ -423,6 +423,17 @@ func (p *productCatalog) ListProducts(ctx context.Context, req *pb.Empty) (*pb.L
+ 		return nil, status.Errorf(codes.Internal, "failed to load products: %v", err)
+ 	}
+ 
++	// T7.0 attempt A7: the N+1 regression. Re-read every product one at a time after the list
++	// query that already returned them, thirty times each, so the cost is visible at p95.
++	for _, product := range products {
++		for i := 0; i < 30; i++ {
++			if _, err := getProductFromDB(ctx, product.Id); err != nil {
++				span.SetStatus(otelcodes.Error, err.Error())
++				return nil, status.Errorf(codes.Internal, "failed to re-read product %s: %v", product.Id, err)
++			}
++		}
++	}
++
+ 	span.SetAttributes(
+ 		attribute.Int("app.products.count", len(products)),
+ 	)
