@@ -116,3 +116,32 @@ def test_the_v1_world_is_untouched_by_the_v2_overlay() -> None:
             assert v1_only not in text.split("# ")[0] + "".join(
                 line for line in text.splitlines(keepends=True) if not line.lstrip().startswith("#")
             ), f"{path.name} references the v1 file {v1_only} outside a comment"
+
+
+def test_every_v2_rule_uses_the_measured_rate_window() -> None:
+    """**The window is a measured value on v2, not a default** (2026-09-22).
+
+    The first quiet baseline found most of the world at 0.05-0.15 req/s, so a `[2m]` window held
+    six to eight samples on the quietest services and the rules reported 15000 ms p95s and 100%
+    error ratios on a world with nothing injected. Raising the load bought 2.6-4.5x and **could
+    not reach `image-provider` at all** - 0.100 req/s before and after - so the windows widened to
+    `[5m]`, which clears thirty samples everywhere at 25 users.
+
+    A rule left behind on `[2m]` would not fail: it would fire on noise, on a healthy world,
+    intermittently, and look like a fault the agent failed to explain.
+    """
+    import re
+
+    text = (COMPOSE / "prometheus" / "alert-rules-v2.yml").read_text()
+    expressions = "\n".join(line for line in text.splitlines() if "traces_span_metrics_" in line)
+    windows = set(re.findall(r"\[(\d+m)\](?:\s+offset)?", expressions))
+
+    # `[30m] offset 10m` is ServiceNoTraffic's "was it serving before" lookback, a different
+    # quantity from the detection window and deliberately long.
+    detection = windows - {"30m"}
+
+    assert detection == {"5m"}, (
+        f"the v2 rules use rate windows {sorted(detection)}; the baseline measured [5m] as the "
+        "window at which every service, image-provider included, clears thirty samples. A rule "
+        "left on a narrower window fires on sampling noise rather than on faults."
+    )

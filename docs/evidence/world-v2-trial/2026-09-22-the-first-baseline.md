@@ -113,3 +113,49 @@ blocking Kafka consume (`Consumer.cs`), so its duration is time spent waiting fo
 not move it. It needs an exclusion on the same argument that excludes `frontend-proxy` from
 `ServiceNoTraffic` — but that is decided **after** the re-baseline, when it can be told apart from
 everything else that is currently at 15000 ms for a different reason.
+
+
+---
+
+## Addendum — the load hypothesis, measured: sublinear, and one service does not move at all
+
+**Ten minutes after the raise, \$0.** §*The fix* proposed `LOCUST_USERS` 5 → 25 on a linear
+assumption and said in as many words that the assumption was a hypothesis to be verified rather
+than a result. **It is falsified in the useful direction, and it found something the arithmetic
+could not have.**
+
+| service | before | after | factor | samples per `[2m]` |
+|---|---:|---:|---:|---:|
+| `image-provider` | 0.100 | **0.100** | **1.0×** | 12 |
+| `payment` | 0.050 | 0.133 | 2.7× | 16 |
+| `accounting` | 0.078 | 0.200 | 2.6× | 24 |
+| `fraud-detection` | 0.052 | 0.233 | 4.5× | 28 |
+| `quote`, `shipping` | 0.075 | 0.250 | 3.3× | 30 |
+| `email` | 0.100 | 0.267 | 2.7× | 32 |
+| `currency` | 0.073 | 0.317 | 4.3× | 38 |
+
+**Five times the load bought 2.6–4.5×**, so Locust users are not request generators — which the
+note predicted. **`image-provider` did not move at all.** Its rate is not a function of user count,
+so **no raise reaches it**, and the lever this note recommended cannot on its own do the job it was
+recommended for.
+
+**So the recommendation changes, and the measurement is what changes it.** §*The fix* argued
+against widening the rate windows on the grounds that load was the better lever. Load was *a*
+lever and a real one; it is not a sufficient one. **Both are applied**: 25 users stays, and the
+rules widen from `[2m]` to `[5m]`, which clears thirty samples on every service including
+`image-provider`.
+
+**The cost, and why it is affordable here rather than in general.** First fire moves from roughly
+four minutes to roughly seven. That is the wrong trade for spike detection. It is the right one
+here because **every fault this benchmark injects is sustained** — a wrong image, a reverted
+config, a flag left on — and persists until the harness reverts it. A wider window delays the
+detection of a sustained fault; it does not miss it.
+
+**Considered and rejected: a minimum-traffic guard** on each rule, which would be idiomatic —
+`ServiceNoTraffic` already carries two guards of exactly that shape. It would make a fault on a
+quiet service undetectable by construction, and `payment`, at 0.133 req/s one of the quietest
+services in the world, is on the checkout path.
+
+**Still unsettled, and the re-baseline is what settles it.** Thirty samples is a rule of thumb and
+a histogram p95 over thirty observations is still thin. **The test is not the sample count — it is
+whether a healthy world stays quiet**, and that is a 45-minute measurement rather than an argument.

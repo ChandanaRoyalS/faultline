@@ -20,21 +20,47 @@
 # (`src/grafana/provisioning/dashboards/demo/*.json` at tag 2.2.0 query these names directly), so
 # this is what the world actually emits and not what the documentation says it should.
 #
-# **The thresholds are v1's and are provisional here.** 5% errors, 250 ms p95 and the traffic
-# guards were grounded in a measured baseline on the v1 world (T1.3, re-measured T7.x). This world
-# has no baseline yet. The numbers are carried over so the rules are runnable, and **they are not
-# evidence until a quiet-world baseline is measured on v2 and this header is rewritten with it.**
-# A threshold inherited across a world boundary is exactly the kind of number this project does not
-# publish, and nothing should be scored against these until that measurement exists.
+# **The thresholds are v1's and are still provisional.** 5% errors and 250 ms p95 were grounded in
+# a measured baseline on the v1 world (T1.3). **They are not evidence here** until a quiet v2 world
+# is measured against them, and nothing may be scored on them until it is.
+#
+# **The rate windows, however, are v2's and are measured** (2026-09-22,
+# `docs/evidence/world-v2-trial/2026-09-22-the-first-baseline.md`). The first quiet baseline
+# reported p95s of 15000 ms on six services and error ratios reaching 100% on a world with nothing
+# injected. None of it was behaviour: most of v2 ran at 0.05-0.15 req/s, so a `[2m]` window held
+# **six to eight samples**, a p95 over six spans is the maximum, and one failed call in six is
+# 16.7%.
+#
+# **Two levers were tried and only the pair works.**
+#
+# Raising `LOCUST_USERS` 5 -> 25 (`world-v2.override.yml`) bought a real **2.6-4.5x**, which is
+# **sublinear** - the note that proposed it called the linear assumption a hypothesis and the
+# hypothesis is falsified. More importantly it **cannot reach every service**: `image-provider`
+# measured **0.100 req/s before and 0.100 after**, unmoved by five times the load, so no amount of
+# load makes it measurable.
+#
+# So the windows widen from `[2m]` to `[5m]`. At 25 users that puts every service, `image-provider`
+# included, over thirty samples per window.
+#
+# **What it costs, and why that is affordable here specifically.** First fire moves from about four
+# minutes to about seven. That would be the wrong trade for spike detection and is the right one
+# here, because **every fault this benchmark injects is sustained** - a wrong image, a reverted
+# config, a flag left on - and persists until the harness reverts it. A longer window delays the
+# detection of a sustained fault; it does not miss it.
+#
+# **What was considered and rejected**: a minimum-traffic guard on each rule, which is idiomatic
+# here (`ServiceNoTraffic` already carries two guards). It would make a fault on a quiet service
+# undetectable by construction, and `payment` - at 0.133 req/s, one of the quietest - is on the
+# checkout path.
 groups:
   - name: faultline-slo
     interval: 15s
     rules:
       - alert: ServiceHighErrorRate
         expr: |
-          sum by (service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[2m]))
+          sum by (service_name) (rate(traces_span_metrics_calls_total{status_code="STATUS_CODE_ERROR"}[5m]))
           /
-          sum by (service_name) (rate(traces_span_metrics_calls_total[2m])) > 0.05
+          sum by (service_name) (rate(traces_span_metrics_calls_total[5m])) > 0.05
         for: 2m
         labels:
           severity: critical
@@ -46,7 +72,7 @@ groups:
       - alert: ServiceHighLatency
         expr: |
           histogram_quantile(0.95,
-            sum by (service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket[2m]))
+            sum by (service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket[5m]))
           ) > 250
         for: 3m
         labels:
@@ -64,7 +90,7 @@ groups:
         #      `frontend-proxy` exactly as v1's container was named, so this ports verbatim.
         # An alert that fires on a healthy system trains its reader to ignore it.
         expr: |
-          sum by (service_name) (rate(traces_span_metrics_calls_total{service_name!="frontend-proxy"}[3m])) == 0
+          sum by (service_name) (rate(traces_span_metrics_calls_total{service_name!="frontend-proxy"}[5m])) == 0
           and
           sum by (service_name) (rate(traces_span_metrics_calls_total{service_name!="frontend-proxy"}[30m] offset 10m)) > 0
         for: 3m
