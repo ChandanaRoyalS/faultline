@@ -268,3 +268,31 @@ so the behaviour does not have to be re-established.
 **The decision above is unchanged and is now better supported.** Seven candidates, seven deaths,
 three of them measured in this addendum. The limit is structural: **a world with no volumes, no
 scalable services, one topology and four remediations.**
+
+---
+
+## Addendum, 2026-09-22 — condition 1 was met, and the limit was a property of v1.2.1
+
+**This ADR is superseded in part by [ADR-0042](0042-the-world-moves-to-opentelemetry-demo-v2.md),
+which supplies §*What would change it*'s first condition rather than disputing anything above.**
+
+**The finding that reopened it is a count nobody had taken.** §5 kills seven candidates, and four
+die on one sentence — *the world has no mechanism*. That sentence is true of **OpenTelemetry Demo
+v1.2.1**, which ships **two** failure flags its services actually read (`productCatalogFailure` and
+`recommendationCache`). **v2.2.0 ships fifteen**, and three of them are the mechanisms §5 said did
+not exist: `llmRateLimitError` against *"nothing in the demo rate-limits"*, `kafkaQueueProblems`
+against *"the demo exposes no pool-size or queue-depth knob"*, and `llmInaccurateResponse` against
+a *downstream returns wrong data* candidate that died only because its sole v1 form was an image
+swap.
+
+**Everything above remains correct about the world it assessed**, and ADR-0042 relies on it: §1's
+fix-test criterion is the gate the new mechanisms must still pass, §4's topology finding becomes a
+pre-registered acceptance criterion for the new catalog, and §6's stamp arithmetic is why the world
+move and the class extension land together.
+
+**One thing this addendum does change.** §6 reasons that *"the reason to want a fifth class was to
+extend the holdout set"*. That was this ADR's motivation; it was never T7.1's, whose stated purpose
+is statistical — *"accuracy claims over 10 scenarios are an anecdote; over 30+, a measurement."*
+The closure of T7.1 on 2026-09-20 imported an argument about **classes**, motivated by **holdout
+extension**, into a task about **n**. The conclusion was right for this world; the reasoning did
+not engage the task's own rationale, and ADR-0042 does.

@@ -355,3 +355,4 @@ Thirty-six ADRs. The ones to read first are marked ★.
 | [0039](adr/0039-the-approval-surface-and-the-rejection-loop.md) | The approval surface, the rejection loop, and what the measurement changed |
 | [0040](adr/0040-which-k-decides-a-retrieval-measurement.md) | Which `k` decides a retrieval measurement, and why no `k = 3` floor is set |
 | [0041](adr/0041-deciding-a-change-to-the-retrieval-depth.md) | Deciding a change to the retrieval depth itself, when the rule names the thing being changed |
+| [0042](adr/0042-the-world-moves-to-opentelemetry-demo-v2.md) | The world moves to OpenTelemetry Demo v2, and ADR-0029's limit was a property of v1.2.1 |
