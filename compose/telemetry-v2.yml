@@ -17,6 +17,12 @@
 #      here so this overlay changes as little as possible.
 #   4. v2's Grafana already provisions its own datasources; Faultline's Loki and Tempo files are
 #      mounted alongside them under the same provisioning directory, not over it.
+#
+# **A fifth difference is NOT forced by v2 and is a defect fix v1 has not received**: Prometheus and
+# Alertmanager take their config from a mounted *directory* rather than from individual files. The
+# measurement that produced it is on the `prometheus` service below. v1 is left as it is on purpose
+# - every published figure was measured on that world, and it is not changed for tidiness while it
+# is still the reference.
 services:
   loki:
     image: grafana/loki:2.9.8
@@ -70,10 +76,12 @@ services:
     image: prom/alertmanager:v0.27.0
     container_name: alertmanager
     command:
-      - --config.file=/etc/alertmanager/alertmanager.yml
+      - --config.file=/etc/faultline/alertmanager.yml
       - --web.listen-address=:9093
+    # Mounted as a directory for the reason given on `prometheus` below. Alertmanager also has a
+    # reload endpoint, and its config is the one most likely to be edited while the world is up.
     volumes:
-      - ../compose/prometheus/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+      - ../compose/prometheus:/etc/faultline:ro
     ports:
       - "9093:9093"
     deploy:
@@ -100,12 +108,37 @@ services:
   #
   # Retention is 15d against v2's own 7d - T7.1's argument on the v1 world, where six hours once
   # cost a backfill that could never be taken again.
+  #
+  # **The config is mounted as a DIRECTORY, and that is a measured fix rather than a style choice**
+  # (2026-09-22, `docs/evidence/world-v2-trial/2026-09-22-the-mount-that-detached.md`).
+  #
+  # These two files were mounted individually, which is what every config in this repo does and
+  # what the v1 file still does. A single-file bind mount binds the host **inode**, not the path.
+  # `git am` and `git checkout` do not edit a file in place - they write a new one and rename it
+  # over the old - so the moment a merge touched `alert-rules-v2.yml`, the running container's
+  # mount pointed at an inode the host directory no longer named, and the path inside the container
+  # became `ENOENT`. Measured, in Prometheus's own words:
+  #
+  #   loading groups failed ... open /etc/prometheus/alert-rules.yml: no such file or directory
+  #   Failed to apply configuration ... error loading rules, PREVIOUS RULE SET RESTORED
+  #
+  # **The last clause is the whole danger.** Prometheus kept serving the rules it already had, the
+  # containers all reported `Running`, `docker compose up -d` recreated nothing because no compose
+  # *path* had changed, and `/api/v1/rules` answered - with the old windows. A 45-minute baseline
+  # was taken against rules that had been silently frozen for two hours, and it looked like a
+  # result. A directory mount resolves the name on every lookup, so a renamed-over file is seen.
+  #
+  # `/etc/faultline`, not `/etc/prometheus`: mounting over `/etc/prometheus` would shadow the
+  # image's own `consoles/` and `console_libraries/`, which two flags below point at. The new path
+  # also means the file is called `alert-rules-v2.yml` inside the container, so a shell in there
+  # can no longer confuse the two worlds' rules. v1's `alert-rules.yml` and `prometheus-config.yaml`
+  # are visible in that directory and referenced by nothing here; they are the v1 world's and this
+  # container never opens them.
   prometheus:
     volumes:
-      - ../compose/prometheus/prometheus-config-v2.yaml:/etc/prometheus/faultline-prometheus.yaml:ro
-      - ../compose/prometheus/alert-rules-v2.yml:/etc/prometheus/alert-rules.yml:ro
+      - ../compose/prometheus:/etc/faultline:ro
     command:
-      - --config.file=/etc/prometheus/faultline-prometheus.yaml
+      - --config.file=/etc/faultline/prometheus-config-v2.yaml
       - --storage.tsdb.path=/prometheus
       - --storage.tsdb.retention.time=15d
       - --web.console.templates=/etc/prometheus/consoles

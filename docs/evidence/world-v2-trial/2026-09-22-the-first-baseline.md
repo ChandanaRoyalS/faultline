@@ -159,3 +159,32 @@ services in the world, is on the checkout path.
 **Still unsettled, and the re-baseline is what settles it.** Thirty samples is a rule of thumb and
 a histogram p95 over thirty observations is still thin. **The test is not the sample count — it is
 whether a healthy world stays quiet**, and that is a 45-minute measurement rather than an argument.
+
+---
+
+## Addendum — the re-baseline was taken, and it is void
+
+**`evals/baselines/20260922T060414Z/` must not be cited as evidence about `[5m]`, and nothing may
+be scored against it.** It is kept rather than deleted, because a capture that was read wrongly is
+part of the record.
+
+It was taken to test the widening above and **it did not test it.** The `[5m]` rules never reached
+the running Prometheus: `git am` replaced `alert-rules-v2.yml` by rename, which detached the
+container's single-file bind mount, and Prometheus answered the failed reload by doing what it
+documents — `error loading rules, previous rule set restored`. The rules it evaluated for all 45
+minutes were the `[2m]` ones loaded at container start, **two hours before the widening merged**.
+
+So the capture's headline finding — `ServiceHighLatency/accounting` firing continuously for the
+full 45 minutes — is **not** evidence that widening the windows failed. It is the `[2m]` rules
+behaving exactly as the body of this note predicted they would.
+
+**The mechanism, what it cost, and the fix are in
+[`2026-09-22-the-mount-that-detached.md`](2026-09-22-the-mount-that-detached.md).** The short
+version: four independent signals all reported a healthy world, and each was accurate about
+something other than the question being asked.
+
+**What this changes about the conclusions above: nothing.** The load measurements, the sublinear
+factors, and `image-provider`'s 0.100 → 0.100 were taken by querying Prometheus directly and are
+untouched by which rules were loaded. **The one open claim remains open** — whether a healthy v2
+world stays quiet under `[5m]` at 25 users is still unmeasured, and the re-run described at the end
+of the mount note is what measures it.

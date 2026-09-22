@@ -15,11 +15,42 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 COMPOSE = REPO_ROOT / "compose"
 
+# `world-v2-up` runs `cd world-v2 && docker compose -f docker-compose.yml -f ../compose/...`, so
+# every relative volume source in the overlay is resolved against the clone directory.
+COMPOSE_PROJECT_DIR = REPO_ROOT / "world-v2"
+
 yaml = pytest.importorskip("yaml", reason="pyyaml is a dev dependency; the guards need a parser")
 
 
 def telemetry_v2() -> dict:
     return yaml.safe_load((COMPOSE / "telemetry-v2.yml").read_text())
+
+
+def mounts(service: str) -> list[tuple[Path, str]]:
+    """Every bind mount on `service` as `(host path, container path)`, relative sources resolved."""
+    out: list[tuple[Path, str]] = []
+    for spec in telemetry_v2()["services"][service].get("volumes", []):
+        source, target = spec.split(":")[:2]
+        if source.startswith("/"):  # /var/run/docker.sock and friends: not ours to resolve
+            continue
+        out.append(((COMPOSE_PROJECT_DIR / source).resolve(), target))
+    return out
+
+
+def host_path_for(service: str, container_path: str) -> Path | None:
+    """Where a path inside `service` comes from on the host, or None if nothing mounts it."""
+    for source, target in mounts(service):
+        if container_path == target:
+            return source
+        if container_path.startswith(target.rstrip("/") + "/"):
+            return source / container_path[len(target.rstrip("/")) + 1 :]
+    return None
+
+
+def config_file_flag(service: str) -> str:
+    flags = [c for c in telemetry_v2()["services"][service]["command"] if "--config.file=" in c]
+    assert len(flags) == 1, f"{service} should name exactly one --config.file, got {flags!r}"
+    return flags[0].split("=", 1)[1]
 
 
 def test_the_v2_prometheus_overlay_keeps_the_otlp_receiver() -> None:
@@ -145,3 +176,99 @@ def test_every_v2_rule_uses_the_measured_rate_window() -> None:
         "window at which every service, image-provider included, clears thirty samples. A rule "
         "left on a narrower window fires on sampling noise rather than on faults."
     )
+
+
+@pytest.mark.parametrize("service", ["prometheus", "alertmanager"])
+def test_the_reloadable_services_mount_a_directory_not_a_file(service: str) -> None:
+    """**A single-file bind mount binds the inode, and `git am` replaces the inode** (2026-09-22,
+    `docs/evidence/world-v2-trial/2026-09-22-the-mount-that-detached.md`).
+
+    Both of these services have a reload endpoint, so both are expected to pick up a config the
+    repository has changed underneath them. Neither can, if its config is mounted file-by-file:
+    `git am` writes a new file and renames it over the old, the running container's mount is left
+    pointing at an inode the host directory no longer names, and the path inside the container
+    becomes `ENOENT`.
+
+    **Prometheus's response to that is to keep the rules it already has** - `error loading rules,
+    previous rule set restored` - while every container reports `Running`, `docker compose up -d`
+    recreates nothing (no compose *path* changed), and `/api/v1/rules` answers with the stale
+    windows. It cost a 45-minute baseline that looked like a result.
+    """
+    binds = mounts(service)
+    assert binds, f"{service} mounts nothing; its config has to come from somewhere"
+
+    for source, target in binds:
+        assert not source.is_file(), (
+            f"compose/telemetry-v2.yml mounts {source.name} into {service} as a single file "
+            f"({target}). A merge that rewrites that file detaches the mount from a running "
+            "container, and Prometheus answers a failed reload by keeping its previous rules. "
+            "Mount the containing directory instead."
+        )
+
+
+@pytest.mark.parametrize("service", ["prometheus", "alertmanager"])
+def test_every_config_path_named_inside_the_v2_containers_is_a_file_we_ship(service: str) -> None:
+    """**This guard protects the fix, and it would not have caught the bug.** Said plainly because
+    the distinction is easy to blur and the record should not.
+
+    The 2026-09-22 failure was a *runtime* detachment: the compose file and the config agreed
+    perfectly, and the inode behind the mount was replaced while the container ran. No static check
+    can see that. `test_the_reloadable_services_mount_a_directory_not_a_file` is what catches it,
+    by removing the shape that permits it.
+
+    What this guard catches is the hazard the fix *introduces*. The rule file's location is now
+    spelled in two places - `--config.file` in `telemetry-v2.yml` and `rule_files` in the config it
+    points at - and both are container paths, which no tool in `make check` can resolve.
+    `promtool check config` cannot: run on a host, it reports `SUCCESS: 1 rule files found` for a
+    path that does not exist inside the container, which is exactly what it reported while the
+    world was broken. So this walks the bind mounts by hand and resolves every named container path
+    back to a file this repository actually contains.
+
+    It matters because Prometheus does not fail loudly when a rule file goes missing. It logs
+    `loading groups failed`, restores its previous rule set, and keeps answering `/api/v1/rules`.
+    """
+    config_path = config_file_flag(service)
+    config_source = host_path_for(service, config_path)
+
+    assert config_source is not None, (
+        f"{service}'s --config.file is {config_path}, which no bind mount in telemetry-v2.yml "
+        "provides. The container would start against a path that does not exist."
+    )
+    assert config_source.is_file(), (
+        f"{service}'s --config.file {config_path} resolves to {config_source}, which this "
+        "repository does not contain."
+    )
+
+    if service != "prometheus":
+        return
+
+    for rule_path in yaml.safe_load(config_source.read_text())["rule_files"]:
+        rule_source = host_path_for(service, rule_path)
+        assert rule_source is not None, (
+            f"{config_source.name} lists rule file {rule_path}, which no bind mount provides. "
+            "Prometheus logs 'loading groups failed' and RESTORES ITS PREVIOUS RULE SET, so the "
+            "world keeps alerting on whatever it happened to load at startup."
+        )
+        assert rule_source.is_file(), (
+            f"{config_source.name} lists rule file {rule_path}, which resolves to {rule_source}, "
+            "and this repository does not contain it."
+        )
+
+
+def test_the_v2_prometheus_does_not_mount_over_its_own_image_directories() -> None:
+    """**Why the mount target is `/etc/faultline` and not `/etc/prometheus`.**
+
+    The obvious directory mount - `compose/prometheus` over `/etc/prometheus` - would hide the
+    image's own `consoles/` and `console_libraries/`, which two flags in the same `command:` point
+    at. Fixing one silent breakage by introducing another is not a fix.
+    """
+    command = telemetry_v2()["services"]["prometheus"]["command"]
+    referenced = [c.split("=", 1)[1] for c in command if c.startswith("--web.console.")]
+    assert referenced, "the console flags were dropped; this guard has nothing left to protect"
+
+    for _, target in mounts("prometheus"):
+        for path in referenced:
+            assert not path.startswith(target.rstrip("/") + "/"), (
+                f"telemetry-v2.yml mounts {target} over {path}, which the image provides and "
+                f"--web.console.* still points at."
+            )
