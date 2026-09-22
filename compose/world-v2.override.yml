@@ -53,11 +53,21 @@ services:
   # - fixing the instrument to fit a thin world rather than the world. And rather than raising the
   # thresholds, which would fit these numbers by making them unable to detect a real fault either.
   #
-  # **25 is a hypothesis with its arithmetic attached, not a result.** A stable p95 wants ~30
-  # samples per 2m window, so >= 0.25 req/s; the quietest service measured 0.050, which is 5x, and
-  # 5 x 5 = 25 *if* load scales linearly. It does not necessarily: Locust users are concurrent
-  # sessions, and `payment` is touched once per checkout where `frontend` is touched on every page.
-  # **Verified by re-baselining, and the number moves if the quietest services still fall short.**
+  # **25 was a hypothesis with its arithmetic attached, and the measurement falsified part of it**
+  # (2026-09-22, ten minutes after the raise). The reasoning was: a stable p95 wants ~30 samples per
+  # 2m window, so >= 0.25 req/s; the quietest measured 0.050, which is 5x, and 5 x 5 = 25 *if* load
+  # scales linearly. **It does not.** Measured after the raise:
+  #
+  #   payment          0.050 -> 0.133  (2.7x)     fraud-detection  0.052 -> 0.233  (4.5x)
+  #   accounting       0.078 -> 0.200  (2.6x)     currency         0.073 -> 0.317  (4.3x)
+  #   quote / shipping 0.075 -> 0.250  (3.3x)     email            0.100 -> 0.267  (2.7x)
+  #   **image-provider 0.100 -> 0.100  (1.0x)**
+  #
+  # **`image-provider` did not move at all under five times the load**, so its rate is not a
+  # function of user count and no raise reaches it. That is why the alert rules' windows widened to
+  # `[5m]` rather than the load rising further - see `prometheus/alert-rules-v2.yml`, which carries
+  # the argument. **25 stays** because 2.6-4.5x is a real gain and the pair is what works; it is
+  # kept as a measured figure now rather than a hypothesis.
   load-generator:
     environment:
       LOCUST_USERS: 25
