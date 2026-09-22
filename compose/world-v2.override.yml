@@ -34,3 +34,30 @@ services:
 
   flagd-ui:
     deploy: { resources: { limits: { memory: 400M } } }
+
+  # **The world is too quiet to measure, and this is the measured reason**
+  # (`docs/evidence/world-v2-trial/2026-09-22-the-first-baseline.md`).
+  #
+  # v2's own `.env` ships `LOCUST_USERS=5` where v1 ships **10**, and spreads it across roughly
+  # twice as many span-emitting services. The first 45-minute quiet baseline measured most of the
+  # world at **0.05-0.15 req/s** - one request every ten to twenty seconds - so a `[2m]` rate
+  # window sees **six to eight samples** on `payment`, `fraud-detection` and `ad`.
+  #
+  # At that density a p95 is the maximum of a handful of spans and lands in the histogram's top
+  # bucket, and a single failed call is a 16.7% error ratio. The baseline duly reported **15000 ms
+  # p95 on six services and error ratios to 100%** on a world with nothing injected, and fired
+  # `ServiceHighLatency` twice. **None of that is behaviour; all of it is sampling noise.**
+  #
+  # **Raised rather than widening the rule windows**, which would buy the same sample count by
+  # slowing first-fire from four minutes to thirteen on a loop that already carries a 300 s settle
+  # - fixing the instrument to fit a thin world rather than the world. And rather than raising the
+  # thresholds, which would fit these numbers by making them unable to detect a real fault either.
+  #
+  # **25 is a hypothesis with its arithmetic attached, not a result.** A stable p95 wants ~30
+  # samples per 2m window, so >= 0.25 req/s; the quietest service measured 0.050, which is 5x, and
+  # 5 x 5 = 25 *if* load scales linearly. It does not necessarily: Locust users are concurrent
+  # sessions, and `payment` is touched once per checkout where `frontend` is touched on every page.
+  # **Verified by re-baselining, and the number moves if the quietest services still fall short.**
+  load-generator:
+    environment:
+      LOCUST_USERS: 25
