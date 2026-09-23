@@ -80,3 +80,16 @@ that cites a span message should have seen the span.
 | 14:05:04 | flag off |
 | 14:07:11 | both alerts cleared (+2:07) — **REVERTS** |
 | 14:14:41 | recovery window ends, quiet throughout |
+
+---
+
+## Addendum — the (d) read-back, 2026-09-23: still owed, and deprioritised
+
+Two attempts to read the span back through Jaeger's HTTP API both returned an empty body — the
+first against the container port, the second against the published host port 51599, so it is not
+the port. The demo runs Jaeger v2 and its query surface differs from the v1 `/api/traces` shape
+this used; the store the agent actually reads is Tempo, not Jaeger, and that is where the read-back
+belongs. **It is deferred to the point where `feature_flag` exists as injector code and the trace
+tool is run against it as part of the class's end-to-end rehearsal** — which is when a span read
+through the agent's own `trace_query` is the evidence that counts. The verdict does not depend on
+it: A1's distinctness rests on (b) and is unchanged.

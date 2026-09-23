@@ -91,3 +91,19 @@ query returned nothing. Re-run against `localhost:51599`.
 | 01:26:59 | second wave: error rate on the target and three others (thundering herd) |
 | 01:28:59 | all clear (+5:57) — **REVERTS** |
 | 01:33:30 | recovery window ends; 4.5 min quiet observed |
+
+---
+
+## Addendum — the Loki read-back, 2026-09-23
+
+Run after the result above was written:
+
+```
+{service="product-catalog"} |= "failed to upload"   over 01:11:14–01:23:02, limit 3
+→ 3 lines; 2026/09/23 01:22:12 failed to upload metrics: context deadline exceeded: rpc error: code =
+```
+
+The line reached Loki under the label the agent's `logql_query` selects on. **The (c) distinction
+is reachable by the agent, the registration's condition is met, and A3 stands as a class distinct
+from A2.** Seven classes measured: the four existing, `feature_flag`, `process_freeze`,
+`network_partition`.
