@@ -1,0 +1,119 @@
+# A3 - network partition, `docker network disconnect opentelemetry-demo product-catalog`.
+# 2026-09-23 01:11:14 -> 01:33:30 UTC. Pasted verbatim from the operator's terminal.
+# The pre-state, ~11 h after A2's revert, was quiet: it supplies A2's fifth quiet minute.
+
+❯ docker port jaeger
+4317/tcp -> 0.0.0.0:51600
+16686/tcp -> 0.0.0.0:51599
+
+❯ python3 evals/attempts/shape.py
+== firing ==
+  none
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       90   0.275
+  ad                      0.00        5   0.517
+  cart                    0.00        6   2.896
+  checkout                0.00       32   1.208
+  currency                0.00       10   0.237
+  email                   0.00        8   0.367
+  flagd                   0.00        2   1.383
+  fraud-detection         0.00       90   0.183
+  frontend                0.00       44  10.257
+  frontend-proxy          0.00       46   4.995
+  image-provider          0.00        2   0.100
+  load-generator          0.00       48   4.550
+  payment                 0.00        2   0.183
+  product-catalog         0.00        8   4.033
+  product-reviews         0.00       45   0.854
+  quote                   0.00        2   0.275
+  recommendation          0.00        6   0.437
+  shipping                0.00        6   0.275
+
+❯ date -u +%T && docker network disconnect opentelemetry-demo product-catalog
+01:11:14
+
+❯ python3 evals/attempts/watch.py 12
+01:11:20  quiet
+01:11:50  quiet
+01:12:20  quiet
+01:12:50  quiet
+01:13:20  quiet
+01:13:50  quiet
+01:14:20  quiet
+01:14:50  quiet
+01:15:20  quiet
+01:15:50  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator
+01:16:20  (same)
+01:16:50  + ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+01:17:20  (same)
+01:17:50  + ServiceHighErrorRate/recommendation, ServiceHighLatency/frontend
+01:18:20  (same)
+01:18:50  + ServiceHighLatency/flagd, ServiceHighLatency/recommendation
+01:19:20  (same)
+01:19:50  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+01:20:20  (same)
+01:20:50  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/fraud-detection, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+01:21:20  (same)
+01:21:50  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+01:22:20  (same)
+01:22:50  (same) + ServiceNoTraffic/recommendation
+
+❯ python3 evals/attempts/shape.py product-catalog
+== firing ==  (13: the two error-rate, three latency, eight no-traffic)
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting               nan      nan   0.000
+  ad                      0.00        7   0.229
+  cart                    0.00        9   1.229
+  checkout                0.00        6   0.037
+  currency                0.00      nan   0.000
+  email                   0.00      nan   0.000
+  flagd                   0.00        2   0.408
+  fraud-detection          nan      nan   0.000
+  frontend                0.00    15000   2.558
+  frontend-proxy         24.22    15000   2.133
+  image-provider          0.00        2   0.100
+  load-generator         27.37    15000   1.887
+  payment                 0.00      nan   0.000
+  product-catalog          nan      nan   0.000
+  product-reviews         0.00       47   0.346
+  quote                   0.00      nan   0.000
+  recommendation           nan      nan   0.000
+  shipping                0.00      nan   0.000
+== docker state (not agent-visible) ==
+  (product-catalog is "running" - a disconnect does not change docker state)
+== last 8 log lines: product-catalog ==
+  2026/09/23 01:15:12 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/23 01:16:12 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/23 01:17:12 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/23 01:18:12 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/23 01:19:12 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/23 01:20:12 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/23 01:21:12 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/23 01:22:12 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+
+❯ date -u +%T && docker network connect opentelemetry-demo product-catalog
+01:23:02
+
+❯ python3 evals/attempts/watch.py 10
+01:23:59  (all 13 still firing)
+01:24:29  (same)
+01:24:59  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+01:25:29  (same)
+01:25:59  (same)
+01:26:29  (same)
+01:26:59  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+01:27:29  (same)
+01:27:59  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceHighLatency/checkout, ServiceHighLatency/frontend, ServiceHighLatency/recommendation
+01:28:29  (same)
+01:28:59  quiet
+01:29:29  quiet
+01:29:59  quiet
+01:30:29  quiet
+01:30:59  quiet
+01:31:29  quiet
+01:32:00  quiet
+01:32:30  quiet
+01:33:00  quiet
+01:33:30  quiet
