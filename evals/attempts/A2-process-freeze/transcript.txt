@@ -1,0 +1,126 @@
+# A2 - process freeze, `docker pause product-catalog`. 2026-09-22 14:20:23 -> 14:42:02 UTC.
+# Pasted verbatim from the operator's terminal.
+
+❯ python3 evals/attempts/shape.py
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       90   0.404
+  ad                      0.00        2   0.396
+  cart                    0.00        2   3.800
+  checkout                0.00       16   1.783
+  currency                0.00        2   0.383
+  email                   0.00        4   0.550
+  flagd                   0.00        2   1.675
+  fraud-detection         0.00       90   0.275
+  frontend                0.00       30  11.312
+  frontend-proxy          0.00       36   5.404
+  image-provider          0.00        2   0.100
+  load-generator          0.00       38   4.883
+  payment                 0.00        2   0.267
+  product-catalog         0.00        3   5.033
+  product-reviews         0.00       37   0.717
+  quote                   0.00        2   0.425
+  recommendation          0.00        4   0.575
+  shipping                0.00        2   0.400
+
+❯ date -u +%T && docker pause product-catalog
+14:20:23
+product-catalog
+
+❯ python3 evals/attempts/watch.py 12
+14:20:29  quiet
+14:20:59  quiet
+14:21:29  quiet
+14:21:59  quiet
+14:22:29  quiet
+14:22:59  quiet
+14:23:29  quiet
+14:23:59  quiet
+14:24:29  quiet
+14:24:59  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy
+14:25:29  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy
+14:25:59  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+14:26:29  (same)
+14:26:59  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+14:27:29  (same)
+14:27:59  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/recommendation, ServiceNoTraffic/shipping
+14:28:29  (same)
+14:28:59  (same)
+14:29:29  (same)
+14:29:59  (same) + ServiceNoTraffic/fraud-detection
+14:30:29  (same)
+14:30:59  (same) - ServiceNoTraffic/recommendation
+14:31:29  (same)
+14:31:59  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+
+❯ python3 evals/attempts/shape.py product-catalog
+== firing ==
+  ServiceNoTraffic/accounting
+  ServiceHighErrorRate/frontend-proxy
+  ServiceHighErrorRate/load-generator
+  ServiceHighLatency/frontend-proxy
+  ServiceHighLatency/load-generator
+  ServiceHighLatency/frontend
+  ServiceNoTraffic/product-catalog
+  ServiceNoTraffic/email
+  ServiceNoTraffic/payment
+  ServiceNoTraffic/currency
+  ServiceNoTraffic/shipping
+  ServiceNoTraffic/quote
+  ServiceNoTraffic/fraud-detection
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting               nan      nan   0.000
+  ad                      2.78    15000   0.150
+  cart                    0.00        3   1.262
+  checkout                0.00        3   0.058
+  currency                0.00      nan   0.000
+  email                   0.00      nan   0.000
+  flagd                   1.83    15000   0.454
+  fraud-detection          nan      nan   0.000
+  frontend                0.00    15000   2.308
+  frontend-proxy         26.17    15000   1.958
+  image-provider          0.00        2   0.100
+  load-generator         28.71    15000   1.771
+  payment                 0.00      nan   0.000
+  product-catalog          nan      nan   0.000
+  product-reviews         1.49       46   0.279
+  quote                   0.00      nan   0.000
+  recommendation        100.00    15000   0.004
+  shipping                0.00      nan   0.000
+
+== docker state (not agent-visible) ==
+  product-catalog      paused     Up 10 hours (Paused)
+
+== last 8 log lines: product-catalog ==
+(empty)
+
+❯ date -u +%T && docker unpause product-catalog
+14:32:26
+product-catalog
+
+❯ python3 evals/attempts/watch.py 10
+14:32:32  (all 13 still firing)
+14:33:02  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+14:33:32  (same)
+14:34:02  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceHighLatency/recommendation
+14:34:32  (same)
+14:35:02  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceHighLatency/recommendation
+14:35:32  (same)
+14:36:02  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceHighLatency/checkout, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceHighLatency/recommendation
+14:36:32  (same)
+14:37:02  ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation
+14:37:32  (same)
+14:38:02  quiet
+14:38:32  quiet
+14:39:02  quiet
+14:39:32  quiet
+14:40:02  quiet
+14:40:32  quiet
+14:41:02  quiet
+14:41:32  quiet
+14:42:02  quiet
