@@ -1,0 +1,31 @@
+# A4 first run, 2026-09-23 01:42:25 -> 02:05:01 UTC - VOID. The inject loop used SET, which
+# replaces a hash key with a string; the cart reads with HGET and would have thrown WRONGTYPE on
+# every access, and there were zero errors in twelve minutes - so the EVAL never modified anything,
+# and its output was sent to /dev/null, hiding whatever it said. The injection was never verified
+# to have happened. Kept beside the second run per the pre-registration.
+
+# terminal 2
+❯ date -u +%T; for i in $(seq 1 144); do docker exec valkey-cart valkey-cli EVAL "for _,k in ipairs(redis.call('KEYS','*')) do redis.call('SET',k,'t70-corrupt') end return 1" 0 >/dev/null; sleep 5; done; echo "loop done at $(date -u +%T)"
+01:42:25
+loop done at 01:54:40
+
+# terminal 1
+❯ python3 evals/attempts/shape.py            (pre-state: quiet; cart 0.00% / 8 ms / 3.100 req/s)
+❯ python3 evals/attempts/watch.py 12
+01:43:11  quiet
+  ... 24 polls, every one quiet ...
+01:54:41  quiet
+❯ python3 evals/attempts/shape.py cart
+== firing ==
+  none
+  cart                    0.00        5   3.646
+== last 8 log lines: cart ==
+  info: cart.cartstore.ValkeyCartStore[0]  AddItemAsync called with userId=bd3a79fc-..., productId=HQTGWGPNH4, quantity=10
+  info: cart.cartstore.ValkeyCartStore[0]  GetCartAsync called with userId=bd3a79fc-...
+  info: cart.cartstore.ValkeyCartStore[0]  AddItemAsync called with userId=bde35ebe-..., productId=1YMWWN1N4O, quantity=5
+  info: cart.cartstore.ValkeyCartStore[0]  GetCartAsync called with userId=bde35ebe-...
+❯ date -u +%T && docker exec valkey-cart valkey-cli FLUSHALL
+01:55:24
+OK
+❯ python3 evals/attempts/watch.py 10
+01:55:31  quiet  ... 20 polls, every one quiet ...  02:05:01  quiet
