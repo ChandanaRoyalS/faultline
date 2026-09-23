@@ -1,0 +1,162 @@
+A4b — datastore corruption at 50 ms cadence (evals/attempts/a4b-corrupt-loop.sh) — one run, scored.
+Run 2026-09-23, times UTC. Terminal 1 pasted verbatim from Chandana's Mac. Terminal 2 (the loop's
+own output: the `date` before it, its `iter=… corrupted=…` lines, `a4b loop end`, the `date`
+before FLUSHALL and its OK) was not pasted at the time and is owed as an addendum; what it would
+have fixed is inferred below from terminal 1 and marked as inferred.
+
+=== pre-state (terminal 1): shape.py ===
+
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       90   0.442
+  ad                      0.00       26   0.425
+  cart                    0.00        6   4.200
+  checkout                0.00       46   2.058
+  currency                0.00       11   0.408
+  email                   0.00       46   0.583
+  flagd                   0.19        2   2.246
+  fraud-detection         0.00       91   0.292
+  frontend                0.00       50  11.796
+  frontend-proxy          0.00       60   5.442
+  image-provider          0.00        2   0.100
+  load-generator          0.00       74   4.854
+  payment                 0.00        2   0.300
+  product-catalog         0.00       21   5.425
+  product-reviews         0.00       50   0.804
+  quote                   0.00        2   0.437
+  recommendation          0.00        8   0.662
+  shipping                0.00        8   0.437
+
+== docker state (not agent-visible) ==
+  faultline-minio-1    exited     Exited (255) 37 hours ago
+  faultline-postgres-1 exited     Exited (255) 37 hours ago
+  faultline-prometheus-self-1 exited     Exited (255) 2 days ago
+  faultline-redis-1    exited     Exited (255) 37 hours ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+
+=== inject (terminal 2) ===
+
+  docker exec -i valkey-cart sh < evals/attempts/a4b-corrupt-loop.sh
+  # output not pasted. Inferred: started between the pre-state above and 02:56:25, the first
+  # watch poll, because the HGET read-back below — run after the loop was started — already
+  # showed the four 0xFF bytes.
+
+=== verify once, then observe (terminal 1) ===
+
+$ K=$(docker exec valkey-cart valkey-cli --scan | head -1); echo $K; docker exec valkey-cart valkey-cli HGET $K cart
+95051578-b6f6-11f1-8780-328bee022e74
+????
+
+$ python3 evals/attempts/watch.py 12
+02:56:25  quiet
+02:56:55  quiet
+02:57:25  quiet
+02:57:55  quiet
+02:58:25  quiet
+02:58:55  quiet
+02:59:25  quiet
+02:59:55  quiet
+03:00:25  quiet
+03:00:55  ServiceHighErrorRate/checkout
+03:01:25  ServiceHighErrorRate/checkout
+03:01:55  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend-proxy
+03:02:25  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:02:55  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:03:25  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:03:55  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:04:25  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:04:55  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:05:25  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:05:55  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:06:25  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:06:55  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:07:25  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:07:55  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+
+$ python3 evals/attempts/shape.py cart
+== firing ==
+  ServiceHighErrorRate/frontend-proxy
+  ServiceHighErrorRate/checkout
+  ServiceHighErrorRate/frontend
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       95   0.192
+  ad                      0.93        6   0.450
+  cart                    6.96        7   3.833
+  checkout               19.05       41   1.050
+  currency                0.00       14   0.150
+  email                   0.00       20   0.250
+  flagd                   0.71        2   1.758
+  fraud-detection         3.23       96   0.129
+  frontend                8.05       45  12.842
+  frontend-proxy          8.47       47   6.100
+  image-provider          0.00        2   0.100
+  load-generator          4.75       49   5.437
+  payment                 0.00        2   0.117
+  product-catalog         0.00       10   4.833
+  product-reviews         0.54       47   0.767
+  quote                   0.00        2   0.187
+  recommendation          0.70        8   0.592
+  shipping                0.00        6   0.187
+
+== docker state (not agent-visible) ==
+  faultline-minio-1    exited     Exited (255) 38 hours ago
+  faultline-postgres-1 exited     Exited (255) 38 hours ago
+  faultline-prometheus-self-1 exited     Exited (255) 2 days ago
+  faultline-redis-1    exited     Exited (255) 38 hours ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+
+== last 8 log lines: cart ==
+  info: cart.cartstore.ValkeyCartStore[0]
+        AddItemAsync called with userId=f4b02350-b6fb-11f1-8780-328bee022e74, productId=0PUK6V6EV0, quantity=3
+  info: cart.cartstore.ValkeyCartStore[0]
+        GetCartAsync called with userId=f4b02350-b6fb-11f1-8780-328bee022e74
+  info: cart.cartstore.ValkeyCartStore[0]
+        GetCartAsync called with userId=
+  info: cart.cartstore.ValkeyCartStore[0]
+        GetCartAsync called with userId=
+
+=== revert (terminal 2) ===
+
+  docker exec valkey-cart valkey-cli FLUSHALL
+  # output not pasted. Inferred: between 03:08:05 (four alerts still firing at the first
+  # recovery poll) and 03:10:35 (three of the four cleared), i.e. after the loop's ~12-minute
+  # self-termination.
+
+=== recovery (terminal 1): watch.py 10 ===
+
+03:08:05  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:08:35  ServiceHighErrorRate/cart, ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:09:05  ServiceHighErrorRate/cart, ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:09:35  ServiceHighErrorRate/cart, ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:10:05  ServiceHighErrorRate/cart, ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy
+03:10:35  ServiceHighErrorRate/checkout
+03:11:05  ServiceHighErrorRate/checkout
+03:11:35  quiet
+03:12:05  quiet
+03:12:35  quiet
+03:13:05  quiet
+03:13:35  quiet
+03:14:05  quiet
+03:14:35  quiet
+03:15:05  quiet
+03:15:35  quiet
+03:16:05  quiet
+03:16:35  quiet
+03:17:05  quiet
+03:17:35  quiet
+
+=== the (c) read-back, run after the recovery window (terminal 1) ===
+
+$ python3 evals/attempts/logs.py cart "Can't access cart storage" 40
+{service="cart"} |= "Can't access cart storage"  over the last 40 min
+  154 lines
+        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. Google.Protobuf.InvalidProtocolBufferException: While parsing a protocol message, the input ended unexpectedly in the middle of a field
+        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. Google.Protobuf.InvalidProtocolBufferException: While parsing a protocol message, the input ended unexpectedly in the middle of a field
+        Error status code 'FailedPrecondition' with detail 'Can't access cart storage. Google.Protobuf.InvalidProtocolBufferException: While parsing a protocol message, the input ended unexpectedly in the middle of a field
