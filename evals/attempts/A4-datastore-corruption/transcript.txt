@@ -1,0 +1,72 @@
+A4 — datastore corruption via docker exec into valkey-cart — second run, scored.
+Run 2026-09-23, times UTC. Pasted from Chandana's Mac terminal (VM: v2 world up, kafka 1024M).
+This file is the record of steps 2–5 of the protocol. It is not rewritten; the RESULT.md verdicts
+are read off it.
+
+=== injection verified before the loop ===
+
+$ docker exec valkey-cart valkey-cli DBSIZE
+(integer) 222
+
+$ docker exec valkey-cart valkey-cli --scan | head -1
+e5734156-...                # a real cart key (uuid1)
+
+$ docker exec valkey-cart valkey-cli TYPE e5734156-...
+hash
+
+# one corrupting EVAL, return value VISIBLE (this is the fix from the void run):
+# SCAN every key; for each hash, overwrite the `cart` field with four 0xFF bytes
+# (an unparseable varint). Return the number of hashes rewritten.
+$ docker exec valkey-cart valkey-cli EVAL \
+  "local c='0' local n=0 repeat local r=redis.call('SCAN',c,'COUNT',1000) c=r[1] for _,k in ipairs(r[2]) do if redis.call('TYPE',k).ok=='hash' then redis.call('HSET',k,'cart','\xff\xff\xff\xff') n=n+1 end end until c=='0' return n" 0
+(integer) 225
+
+$ docker exec valkey-cart valkey-cli HGET e5734156-... cart
+"\xff\xff\xff\xff"
+
+# corruption confirmed: 225 hashes rewritten, the sampled key's `cart` field is the 0xFF bytes.
+
+=== the loop (144 iterations, one every 5 s) ===
+
+02:10:12  corrupted=231
+02:10:17  corrupted=233
+02:10:22  corrupted=236
+...        (one line every 5 s; the count rises as the load generator writes new carts)
+02:22:28  corrupted=431
+02:22:33  corrupted=433
+# loop ends after 144 iterations.
+
+=== observation: watch.py 12 (02:14:00 → 02:25:30) ===
+
+02:14:00  quiet
+02:14:30  quiet
+02:15:00  quiet
+...        (every 30 s)
+02:25:00  quiet
+02:25:30  quiet
+# not one poll showed a pending or firing alert.
+
+=== shape at minute twelve: shape.py cart ===
+
+firing: (none)
+cart          err 0.00%   p95 6 ms    3.479 req/s
+frontend      err 0.00%   p95 ...     ... req/s     (nominal)
+checkout      err 0.00%   ...                       (nominal)
+# cart docker state: running. Last cart log lines: ordinary
+#   GetCartAsync called with userId=...
+#   AddItemAsync called with userId=...
+#   EmptyCartAsync called with userId=...
+# no "Can't access cart storage", no parse-failure lines.
+
+=== revert ===
+
+02:25:57  $ docker exec valkey-cart valkey-cli FLUSHALL
+          OK
+# every corrupted cart discarded; the load generator makes fresh ones.
+
+=== recovery: watch.py 10 (02:25:38 → 02:35:38) ===
+
+02:25:38  quiet
+...        (every 30 s)
+02:35:38  quiet
+# quiet throughout; nothing to clear because nothing had fired.
