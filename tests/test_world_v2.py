@@ -458,7 +458,10 @@ def test_kafkas_tmpfs_is_the_size_the_preregistration_says_and_under_its_ceiling
     ]
 
     assert len(mounts) == 1, "kafka should carry exactly one tmpfs: its log directory"
-    assert mounts[0]["target"] == "/tmp/kraft-combined-logs"
+    # `/tmp/kafka-logs`, not the image's documented default: with `KAFKA_*` env configuration the
+    # image generates its properties and logs there. A8 (2026-09-23) filled the default path to the
+    # byte while kafka wrote elsewhere and nothing paged; the path is read off the running broker.
+    assert mounts[0]["target"] == "/tmp/kafka-logs"
     size_mib = mounts[0]["tmpfs"]["size"] / (1024 * 1024)
     ceiling_mib = float(kafka["deploy"]["resources"]["limits"]["memory"].rstrip("M"))
 

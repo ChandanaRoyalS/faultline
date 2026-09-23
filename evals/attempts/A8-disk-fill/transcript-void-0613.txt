@@ -1,0 +1,82 @@
+A8 — disk fill on kafka's log directory — FIRST RUN, VOID.
+Run 2026-09-23 06:13:04 → 06:40:09 UTC. Pasted verbatim from Chandana's Mac terminal, zsh.
+
+Why void: the tmpfs, the precondition and the fill were all at `/tmp/kraft-combined-logs`;
+kafka on this image writes to `/tmp/kafka-logs` (its own log says `dir=/tmp/kafka-logs` on every
+line). The fill succeeded to the byte on a directory kafka never touches. The precondition proved
+the mount existed, not that the broker used it. The path and the precondition are corrected for
+A8b (`PREREGISTRATION-T7.0-A8b.md`).
+
+=== precondition (passed, and tested the wrong thing) ===
+
+$ docker exec kafka df -h /tmp/kraft-combined-logs
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs           256M     0  256M   0% /tmp/kraft-combined-logs
+
+=== pre-state: shape.py ===
+
+== firing ==
+  none
+  accounting              0.00       94   0.412
+  checkout                0.00       37   1.892
+  fraud-detection         0.00       92   0.275
+  … every service nominal (full table as in every pre-state)
+
+=== inject, observe ===
+
+$ date -u +%H:%M:%S; docker exec kafka dd if=/dev/zero of=/tmp/kraft-combined-logs/t70-fill bs=1M count=300
+06:13:04
+dd: error writing '/tmp/kraft-combined-logs/t70-fill': No space left on device
+257+0 records in
+256+0 records out
+268435456 bytes (268 MB, 256 MiB) copied, 0.153641 s, 1.7 GB/s
+
+$ python3 evals/attempts/watch.py 12
+06:13:05  quiet
+…  (24 polls, every one quiet)
+06:24:35  quiet
+
+$ python3 evals/attempts/shape.py kafka
+== firing ==
+  none
+  accounting              0.00       83   0.454
+  checkout                0.00       34   2.058
+  fraud-detection         0.00       90   0.300
+  … every service nominal
+
+== last 8 log lines: kafka ==
+  [2026-09-23 06:24:24,468] INFO Deleted offset index /tmp/kafka-logs/__cluster_metadata-0/00000000000000046347.index.deleted. (org.apache.kafka.storage.internals.log.LogSegment)
+  …
+  [2026-09-23 06:24:34,316] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Rolled new log segment at offset 46647 in 2 ms. (kafka.log.LocalLog)
+  [2026-09-23 06:24:34,317] INFO [ProducerStateManager partition=__cluster_metadata-0] Wrote producer snapshot at offset 46647 with 0 producer ids in 0 ms. (org.apache.kafka.storage.internals.log.Produc
+
+$ docker logs --tail 15 kafka 2>&1 | cut -c1-200
+  … the same: metadata log segments rolling, snapshots written, all under /tmp/kafka-logs.
+  → the broker was writing normally, to a different directory. Nothing was filled that mattered.
+
+=== revert, recover ===
+
+$ V2=(-f docker-compose.yml -f ../compose/world-v2.override.yml -f ../compose/telemetry-v2.yml)
+$ date -u +%H:%M:%S; docker exec kafka rm /tmp/kraft-combined-logs/t70-fill || (cd world-v2 && DEMO_VERSION=2.2.0 docker compose $V2 up -d --force-recreate kafka)
+docker restart accounting fraud-detection checkout
+python3 evals/attempts/watch.py 10
+python3 evals/attempts/shape.py
+06:30:37
+accounting
+fraud-detection
+checkout
+06:30:39  quiet
+…  (quiet to 06:34:39)
+06:35:09  ServiceHighErrorRate/accounting
+…  (every poll to 06:40:09)
+06:40:09  ServiceHighErrorRate/accounting
+== firing ==
+  ServiceHighErrorRate/accounting
+
+== per service, [5m] ==
+  accounting             32.84       94   0.279
+  checkout                0.00       32   1.250
+  fraud-detection         0.00       95   0.183
+  … others nominal
+  → NOT the fault's doing (nothing was injected): the effect of `docker restart` on the three
+    consumers. Recorded; diagnosed before A8b.
