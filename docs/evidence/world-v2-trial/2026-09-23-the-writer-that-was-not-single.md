@@ -88,3 +88,41 @@ second accounting.
 - **Q89**: the injector's restore for compose-mechanism classes on v2 should verify that the
   target's `service_name` sum is rising *on a fresh series*, not merely that the container is
   running; and `recycle_effect(world)` for v2 should say that a restart adds a series.
+
+---
+
+## Addendum, 2026-09-23 05:25 — the first fix was not the fix
+
+The `otlp:` block was landed (#458) and Prometheus reloaded at 05:15:32. `ServiceNoTraffic/accounting`
+cleared at 05:17:32 — and `accounting` still read `0.000 req/s` at 05:23. The alert had cleared
+because the series changed label sets under the rule, not because anything moved. The raw series
+after the reload:
+
+```
+4748 {'host_name': 'docker-desktop', 'job': 'opentelemetry-demo/accounting',
+      'service_namespace': 'opentelemetry-demo', 'service_version': '2.2.0'}
+changes over 6m: 0
+docker inspect accounting Hostname: a51b6f0a7ded
+```
+
+**One series still, and its `host_name` is the collector host's, not the container's.** The demo's
+traces pipeline runs `resourcedetection` (`detectors: [env, docker, system]`, override on) *before*
+the spanmetrics connector, so every span's resource arrives at the connector already carrying
+`host.name=docker-desktop`. The app's own `a51b6f0a7ded` never reaches Prometheus. Promotion can
+only separate what the collector has left distinct, and the collector had made them the same.
+The section above titled "The fix, and why it is the demo's" was wrong about the mechanism's
+last step; the diagnosis of the two writers stands, and this is where the measurement said so.
+
+**The fix is at the connector, and it is the README's own remedy for exactly this case** —
+*"`resource_metrics_key_attributes`: … use this in case changing resource attributes (e.g. process
+id) are breaking counter metrics"* — keyed on `service.name`, `telemetry.sdk.language`,
+`telemetry.sdk.name`, the README's recommended list at the pinned 0.142.0. Every container that
+has ever run as `accounting` becomes one resource in the connector, one counter, one writer; a
+recreate continues the count. Validated by running the pinned `otelcol-contrib` binary's
+`validate` over the demo's config merged with ours (and a misspelt key fails it, so the check is
+real). The extras file is a single-file bind mount, so the change takes effect on
+`up -d --force-recreate otel-collector`, not on a restart; the collector's counters restart from
+zero, which `rate()` reads as one reset.
+
+The Prometheus block stays: it is the demo's, it is harmless, and its comment now says it was not
+the fix.

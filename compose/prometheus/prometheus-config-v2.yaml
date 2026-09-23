@@ -34,14 +34,16 @@ global:
 # error series were visible - new label sets, no collision - which is why A6 read "100 % errors at
 # 0.137 req/s" and a restart could not fix it.
 #
-# The demo handles this the way its comment says - the spanmetrics connector's README calls it
-# the single-writer limitation - by promoting the identifying resource attributes onto the
-# series, so each container's `host.name` and `container.name` makes it a series of its own that
-# `sum by (service_name)` still folds together. Every rule and capture query in this repository
-# aggregates by `service_name`, so the promoted labels change no rule's arithmetic; the dead
-# container's series goes flat and contributes zero to the sum instead of hiding the live one.
-# The list is the demo's at tag 2.2.0, verbatim, including the entries this world does not use,
-# so that a diff against `src/prometheus/prometheus-config.yaml` shows nothing but the comments.
+# **This block was restored first, and it was not the fix.** It is the demo's own ingestion
+# setting and it stays for parity with `src/prometheus/prometheus-config.yaml` at tag 2.2.0 -
+# the list is verbatim, unused entries included, so a diff shows nothing but the comments - but
+# measured after the reload, every accounting series carried `host_name="docker-desktop"`: the
+# demo's `resourcedetection` processor stamps the collector host's name over the app's before the
+# connector ever sees the span, so old container and new were still one series and the live
+# one was still refused. **The fix is upstream, in `otelcol-extras-v2.yml`**: the connector is
+# keyed on the service rather than on every resource attribute, so a recreated container
+# continues its service's counters instead of starting a rival copy. Every rule and capture
+# query aggregates by `service_name`, so nothing promoted here changes any rule's arithmetic.
 otlp:
   keep_identifying_resource_attributes: true
   promote_resource_attributes:
