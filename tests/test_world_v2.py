@@ -531,3 +531,41 @@ def test_the_v2_prometheus_config_promotes_the_identifying_resource_attributes()
         "prometheus-config-v2.yaml has lost the demo's 30m out-of-order window; two writers "
         "stamping samples inside one flush need it, or the second is refused as out of order."
     )
+
+
+def test_the_v2_spanmetrics_connector_keys_resources_on_the_service_not_the_container() -> None:
+    """**One service, one counter, one writer - across container recreates** (A6, 2026-09-23).
+
+    By default the spanmetrics connector keys its per-resource metrics on every resource
+    attribute, so a container recreated by `compose up -d` (new `container.id`, new
+    `process.pid`) is a new resource. The connector never expires the old one and emits it
+    first on every flush; Prometheus, which names the series by `service.name` alone on this
+    world, keeps the first sample and refuses the live container's. `accounting` consumed,
+    wrote and exported every order while reading `0.000 req/s`. Promoting attributes on the
+    Prometheus side could not separate the two, because the demo's `resourcedetection`
+    processor stamps every resource with the collector host's `host.name`.
+
+    The README's remedy - *"use this in case changing resource attributes (e.g. process id) are
+    breaking counter metrics"* - is to key on the service and its SDK. The guard pins that the
+    key is set, contains `service.name`, and contains nothing that changes per container.
+    """
+    import yaml
+
+    extras = yaml.safe_load((COMPOSE / "otelcol-extras-v2.yml").read_text())
+    key = (
+        (extras.get("connectors") or {})
+        .get("spanmetrics", {})
+        .get("resource_metrics_key_attributes")
+    )
+
+    assert key, (
+        "otelcol-extras-v2.yml no longer sets connectors.spanmetrics.resource_metrics_key_"
+        "attributes: a recreated container then becomes a second writer to its service's "
+        "series and the live one's samples are refused - the service reads 0 req/s while healthy."
+    )
+    assert "service.name" in key
+    per_container = {"container.id", "host.name", "process.pid", "service.instance.id", "host.id"}
+    assert not per_container & set(key), (
+        f"resource_metrics_key_attributes includes {per_container & set(key)}, which changes "
+        "on every recreate and reintroduces the second writer."
+    )

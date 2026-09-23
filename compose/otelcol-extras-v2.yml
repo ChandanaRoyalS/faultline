@@ -27,6 +27,37 @@ exporters:
     tls:
       insecure: true
 
+# **A recreated container must continue its service's counters, not start a second copy of
+# them.** Measured 2026-09-23 during T7.0's A6 (`2026-09-23-the-writer-that-was-not-single.md`):
+# the connector keys its per-resource metrics on *every* resource attribute by default, so a
+# container recreated by `compose up -d` - new `container.id`, new `process.pid` - is a new
+# resource, and the connector goes on emitting the dead one's flat counters, first, on every
+# flush, for ever (`metrics_expiration` defaults to never). Prometheus names the series by
+# `service.name` alone (the .NET SDK sets no `service.instance.id`), keeps the first sample per
+# timestamp, and refuses the live container's as a duplicate: a healthy, exporting `accounting`
+# read `0.000 req/s` and `ServiceNoTraffic` fired on it. Promoting resource attributes on the
+# Prometheus side (the demo's `otlp:` block, restored in `prometheus-config-v2.yaml`) could not
+# separate them on this world, because the `resourcedetection` processor two lines up the demo's
+# traces pipeline stamps every resource's `host.name` with the collector host's - `docker-desktop`
+# on every series, old container and new alike.
+#
+# This is the connector README's own remedy, in its own words: *"Use this in case changing
+# resource attributes (e.g. process id) are breaking counter metrics."* Keyed on the service and
+# its SDK, every container that has ever run as `accounting` is one resource, one counter, one
+# writer; a recreate is a continuation rather than a rival. The list is the README's recommended
+# one at the pinned 0.142.0. It changes no metric name, no dimension and no rule.
+#
+# **The file is a single-file bind mount, so a change here needs `up -d --force-recreate
+# otel-collector`, not a restart** - the mount binds the inode, and `git am` replaces the file
+# (`2026-09-22-the-mount-that-detached.md`). The collector has no reload, so a recreate is the
+# only path anyway; its counters restart from zero, which `rate()` reads as one reset.
+connectors:
+  spanmetrics:
+    resource_metrics_key_attributes:
+      - service.name
+      - telemetry.sdk.language
+      - telemetry.sdk.name
+
 service:
   pipelines:
     traces:
