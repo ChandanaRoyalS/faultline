@@ -15,6 +15,8 @@ import sys
 import urllib.parse
 import urllib.request
 
+from paint import dim, green, red, yellow
+
 PROM = "http://localhost:9090"
 QUERIES = {
     "error ratio": (
@@ -51,20 +53,21 @@ def main() -> None:
         rows = json.load(resp)["data"]["result"]
     print("== firing ==")
     for r in rows:
-        print(f"  {r['metric'].get('alertname', '?')}/{r['metric'].get('service_name', '?')}")
+        print(red(f"  {r['metric'].get('alertname', '?')}/{r['metric'].get('service_name', '?')}"))
     if not rows:
-        print("  none")
+        print(green("  none"))
 
     errors, p95, rate = (query(q) for q in QUERIES.values())
     services = sorted(set(errors) | set(p95) | set(rate))
     print("\n== per service, [5m] ==")
     print(f"  {'service':20s} {'err%':>7s} {'p95ms':>8s} {'req/s':>7s}")
     for s in services:
-        e = errors.get(s)
-        print(
-            f"  {s:20s} {(e * 100 if e is not None else 0):7.2f} "
-            f"{p95.get(s, 0):8.0f} {rate.get(s, 0):7.3f}"
-        )
+        e = (errors.get(s) or 0.0) * 100
+        p = p95.get(s, 0)
+        # The two rules' thresholds, painted at the number so the eye lands where the rule would.
+        err_col = red(f"{e:7.2f}") if e >= 5 else f"{e:7.2f}"
+        p95_col = red(f"{p:8.0f}") if p >= 250 else f"{p:8.0f}"
+        print(f"  {s:20s} {err_col} {p95_col} {rate.get(s, 0):7.3f}")
 
     print("\n== docker state (not agent-visible) ==")
     ps = subprocess.run(
@@ -76,8 +79,8 @@ def main() -> None:
     for line in sorted(ps.stdout.splitlines()):
         name, state, status = [*line.split("\t"), "", ""][:3]
         if state != "running" or "unhealthy" in status or "Paused" in status:
-            print(f"  {name:20s} {state:10s} {status}")
-    print("  (only containers not plainly running are listed)")
+            print(yellow(f"  {name:20s} {state:10s} {status}"))
+    print(dim("  (only containers not plainly running are listed)"))
 
     if target:
         print(f"\n== last 8 log lines: {target} ==")

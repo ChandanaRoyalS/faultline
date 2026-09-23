@@ -19,6 +19,8 @@ import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
 
+from paint import green, red, yellow
+
 PROM = "http://localhost:9090"
 
 
@@ -38,9 +40,9 @@ def main() -> None:
         stamp = datetime.now(timezone.utc).strftime("%H:%M:%S")  # noqa: UP017
         try:
             names = firing()
-            print(f"{stamp}  {', '.join(names) if names else 'quiet'}", flush=True)
+            print(f"{stamp}  {red(', '.join(names)) if names else green('quiet')}", flush=True)
         except Exception as exc:  # a poll must never end the observation
-            print(f"{stamp}  (query failed: {exc})", flush=True)
+            print(f"{stamp}  {yellow(f'(query failed: {exc})')}", flush=True)
         if i < ticks - 1:
             time.sleep(30)
 
