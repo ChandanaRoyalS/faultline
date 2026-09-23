@@ -21,3 +21,15 @@ design and nearly read as a result.
 **The re-run verifies before it observes**: it shows a key's type and contents, runs one corrupting
 `EVAL` with its return value visible, reads the key back, and only then starts the loop — which
 prints the number of keys it corrupted on every iteration.
+
+---
+
+## Addendum, 2026-09-23 — the reasoning above was too strong
+
+The verdict stands: a run whose injection was never shown to have happened is void. But *"the only
+reading consistent with [zero errors] is that the `EVAL` did nothing"* was wrong. The second run
+(`RESULT.md`) verified its injection and still produced zero errors, and the reason is the load
+generator's access pattern — a cart is written and read within milliseconds and never read again,
+so a sweep of the keys that exist at any instant almost never touches a cart that will be read.
+Zero errors was the expected outcome of the first run whether or not its loop ran. What made the
+first run void was not the zero; it was that nothing in its transcript could say what happened.
