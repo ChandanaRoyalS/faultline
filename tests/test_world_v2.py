@@ -495,3 +495,39 @@ def test_the_attempt_helpers_need_nothing_newer_than_python_3_9() -> None:
                 assert not (isinstance(base, ast.Name) and base.id == "datetime"), (
                     f"{path.name}: datetime.UTC is 3.11+"
                 )
+
+
+def test_the_v2_prometheus_config_promotes_the_identifying_resource_attributes() -> None:
+    """**A recreated container must not vanish from the rules** (T7.0's A6, 2026-09-23).
+
+    The .NET SDK sets no `service.instance.id`, so with nothing promoted every container that has
+    ever run under a service name writes `traces_span_metrics_*` to one series - and the
+    spanmetrics connector keeps emitting the dead container's counters, never expiring them, in
+    front of the live one's. `docker compose up -d accounting` left a healthy, consuming, exporting
+    service reading `0.000 req/s` and `ServiceNoTraffic` firing on it; Tempo had every span. The
+    demo's own config promotes `host.name` and `container.name` onto the series for exactly this
+    reason (its comment cites the connector's single-writer limitation) and keeps a 30-minute
+    out-of-order window; this file replaced the demo's and had dropped both.
+
+    The guard pins the block to what the demo ships rather than to a hand-picked subset, so that
+    the file stays a superset of the demo's ingestion settings and not a reinterpretation of them.
+    """
+    import yaml
+
+    config = yaml.safe_load((COMPOSE / "prometheus" / "prometheus-config-v2.yaml").read_text())
+
+    otlp = config.get("otlp") or {}
+    promoted = set(otlp.get("promote_resource_attributes") or [])
+    for attribute in ("service.instance.id", "host.name", "container.name", "service.name"):
+        assert attribute in promoted, (
+            f"prometheus-config-v2.yaml no longer promotes {attribute}: a recreated container "
+            "then shares a series with every container before it, and the live one's samples "
+            "are refused as duplicates - the service reads 0 req/s while healthy."
+        )
+    assert otlp.get("keep_identifying_resource_attributes") is True
+
+    window = ((config.get("storage") or {}).get("tsdb") or {}).get("out_of_order_time_window")
+    assert window == "30m", (
+        "prometheus-config-v2.yaml has lost the demo's 30m out-of-order window; two writers "
+        "stamping samples inside one flush need it, or the second is refused as out of order."
+    )

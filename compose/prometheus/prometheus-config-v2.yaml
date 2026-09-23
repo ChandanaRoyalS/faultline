@@ -20,6 +20,64 @@ global:
   evaluation_interval: 15s
   scrape_interval: 5s
 
+# **The `otlp:` block below is the demo's own, and this file dropped it once.** Measured on
+# 2026-09-23 during T7.0's A6 (`2026-09-23-the-writer-that-was-not-single.md`): after
+# `docker compose up -d accounting` recreated the container, the service consumed and wrote every
+# order and its exporter logged `Export succeeded` for traces every five seconds - Tempo had them -
+# yet `traces_span_metrics_calls_total{service_name="accounting"}` stayed flat at 4748 and
+# `ServiceNoTraffic/accounting` fired on a healthy service. The one series it had carried
+# `{job="opentelemetry-demo/accounting"}` and no `instance` label at all: the .NET SDK sets no
+# `service.instance.id`, so every container that has ever run under that service name writes to
+# the same series, and the spanmetrics connector keeps emitting the dead container's counters
+# (it never expires them) in front of the live container's. Two writers, one series; Prometheus
+# keeps the first sample per timestamp and the live one is the second. During the fault only the
+# error series were visible - new label sets, no collision - which is why A6 read "100 % errors at
+# 0.137 req/s" and a restart could not fix it.
+#
+# The demo handles this the way its comment says - the spanmetrics connector's README calls it
+# the single-writer limitation - by promoting the identifying resource attributes onto the
+# series, so each container's `host.name` and `container.name` makes it a series of its own that
+# `sum by (service_name)` still folds together. Every rule and capture query in this repository
+# aggregates by `service_name`, so the promoted labels change no rule's arithmetic; the dead
+# container's series goes flat and contributes zero to the sum instead of hiding the live one.
+# The list is the demo's at tag 2.2.0, verbatim, including the entries this world does not use,
+# so that a diff against `src/prometheus/prometheus-config.yaml` shows nothing but the comments.
+otlp:
+  keep_identifying_resource_attributes: true
+  promote_resource_attributes:
+    - service.instance.id
+    - service.name
+    - service.namespace
+    - service.version
+    - cloud.availability_zone
+    - cloud.region
+    - deployment.environment.name
+    - k8s.cluster.name
+    - k8s.container.name
+    - k8s.cronjob.name
+    - k8s.daemonset.name
+    - k8s.deployment.name
+    - k8s.job.name
+    - k8s.namespace.name
+    - k8s.node.name
+    - k8s.pod.name
+    - k8s.replicaset.name
+    - k8s.statefulset.name
+    - container.name
+    - host.name
+    - postgresql.database.name
+    - postgresql.schema.name
+    - postgresql.table.name
+    - postgresql.index.name
+    - kafka.cluster.alias
+    - collector.instance.id
+
+# Also the demo's: the two writers stamp their samples inside the same flush, and without an
+# out-of-order window the second is refused as out of order rather than merely as a duplicate.
+storage:
+  tsdb:
+    out_of_order_time_window: 30m
+
 # `/etc/faultline` is `compose/prometheus/` mounted as a DIRECTORY rather than as two individual
 # files, so that a rule file replaced by `git am` is actually seen by a container that is already
 # running - see the block on `prometheus` in `compose/telemetry-v2.yml`, which carries the
