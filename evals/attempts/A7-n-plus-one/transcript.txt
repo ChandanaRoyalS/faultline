@@ -1,0 +1,149 @@
+A7 — N+1 regression in product-catalog, as a locally built image — one run, scored.
+Run 2026-09-23 05:46:16 → 06:08:12 UTC. Pasted verbatim from Chandana's Mac terminal, zsh.
+First attempt run on the pipeline fixed by #459 (spanmetrics keyed on the service).
+
+=== build once (world-v2/) ===
+
+$ cd world-v2 && git apply ../evals/attempts/product-catalog-n-plus-one.patch && docker build -f src/product-catalog/Dockerfile -t faultline-attempt/product-catalog:n-plus-one . && git checkout -- src/product-catalog/main.go && git status --short && cd ..
+[+] Building 43.6s (17/17) FINISHED                                              docker:desktop-linux
+ … golang:1.24-bookworm builder, distroless/static-debian12:nonroot runtime …
+ => [builder 8/8] RUN CGO_ENABLED=0 GOOS=linux GO111MODULE=on go build -ldflags "-s -w" -o pro  16.2s
+ => => naming to docker.io/faultline-attempt/product-catalog:n-plus-one                          0.0s
+ M src/flagd/demo.flagd.json                        (pre-existing: A1/A5 flag edits, both currently off)
+?? .cloned
+?? src/grafana/provisioning/datasources/loki.yml    (pre-existing: Faultline's datasource files)
+?? src/grafana/provisioning/datasources/tempo.yml
+  → main.go restored; the clone carries no A7 change.
+
+$ docker image ls faultline-attempt/product-catalog
+IMAGE                                          ID             DISK USAGE   CONTENT SIZE   EXTRA
+faultline-attempt/product-catalog:n-plus-one   469353bc0e6c       30.7MB         7.16MB
+
+=== pre-state: shape.py ===
+
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       84   0.442
+  ad                      0.88        4   0.471
+  cart                    0.00        6   3.971
+  checkout                0.00       34   2.000
+  currency                0.00       12   0.400
+  email                   0.00        8   0.600
+  flagd                   0.17        2   2.396
+  fraud-detection         0.00       92   0.300
+  frontend                0.00       44  12.162
+  frontend-proxy          0.00       46   5.487
+  image-provider          0.00        2   0.100
+  load-generator          0.00       47   5.037
+  payment                 0.00        2   0.300
+  product-catalog         0.00        9   5.791
+  product-reviews         0.48       43   0.871
+  quote                   0.00        2   0.425
+  recommendation          0.55       10   0.754
+  shipping                0.00        7   0.462
+
+=== inject, observe ===
+
+$ V2=(-f docker-compose.yml -f ../compose/world-v2.override.yml -f ../compose/telemetry-v2.yml)
+$ date -u +%H:%M:%S; (cd world-v2 && DEMO_VERSION=2.2.0 docker compose $V2 -f ../evals/attempts/product-catalog-n-plus-one.yml up -d product-catalog)
+python3 evals/attempts/watch.py 12
+python3 evals/attempts/shape.py product-catalog
+05:46:16
+[+] up 7/7
+ ✔ Container postgresql      Running                                                              0.0s
+ ✔ Container jaeger          Running                                                              0.0s
+ ✔ Container flagd           Running                                                              0.0s
+ ✔ Container tempo           Running                                                              0.0s
+ ✔ Container opensearch      Healthy                                                              1.3s
+ ✔ Container otel-collector  Running                                                              0.0s
+ ✔ Container product-catalog Started                                                              1.5s
+05:46:18  quiet
+05:46:48  quiet
+05:47:18  quiet
+05:47:48  quiet
+05:48:18  quiet
+05:48:48  quiet
+05:49:18  quiet
+05:49:48  quiet
+05:50:18  quiet
+05:50:48  quiet
+05:51:18  quiet
+05:51:48  quiet
+05:52:18  quiet
+05:52:48  quiet
+05:53:18  quiet
+05:53:48  quiet
+05:54:18  quiet
+05:54:48  quiet
+05:55:18  quiet
+05:55:48  quiet
+05:56:18  quiet
+05:56:48  quiet
+05:57:18  quiet
+05:57:48  quiet
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       88   0.400
+  ad                      0.85        4   0.487
+  cart                    0.00        5   3.433
+  checkout                0.00       34   1.783
+  currency                0.00        8   0.358
+  email                   0.00        7   0.517
+  flagd                   0.51        2   1.641
+  fraud-detection         1.59       95   0.262
+  frontend                0.00       48  11.482
+  frontend-proxy          0.00       57   5.474
+  image-provider          0.00        2   0.100
+  load-generator          0.00       61   4.912
+  payment                 0.00        2   0.258
+  product-catalog         0.00        2  54.301
+  product-reviews         0.42       43   0.983
+  quote                   0.00        2   0.387
+  recommendation          0.77       96   0.542
+  shipping                0.00        6   0.387
+
+== docker state (not agent-visible) ==
+  (the four long-exited v1 platform containers and one Created stub, as in every pre-state)
+
+== last 8 log lines: product-catalog ==
+  (empty - the service logs nothing under load; A1 finding 2)
+
+=== revert, recover ===
+
+$ date -u +%H:%M:%S; (cd world-v2 && DEMO_VERSION=2.2.0 docker compose $V2 up -d product-catalog)
+python3 evals/attempts/watch.py 10
+05:58:40
+[+] up 7/7
+ ✔ Container otel-collector  Running                                                              0.0s
+ ✔ Container tempo           Running                                                              0.0s
+ ✔ Container flagd           Running                                                              0.0s
+ ✔ Container jaeger          Running                                                              0.0s
+ ✔ Container opensearch      Healthy                                                              1.3s
+ ✔ Container postgresql      Running                                                              0.0s
+ ✔ Container product-catalog Started                                                              1.5s
+05:58:42  quiet
+05:59:12  quiet
+05:59:42  quiet
+06:00:12  quiet
+06:00:42  quiet
+06:01:12  quiet
+06:01:42  quiet
+06:02:12  quiet
+06:02:42  quiet
+06:03:12  quiet
+06:03:42  quiet
+06:04:12  quiet
+06:04:42  quiet
+06:05:12  quiet
+06:05:42  quiet
+06:06:12  quiet
+06:06:42  quiet
+06:07:12  quiet
+06:07:42  quiet
+06:08:12  quiet
