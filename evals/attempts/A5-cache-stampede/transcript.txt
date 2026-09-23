@@ -1,0 +1,138 @@
+A5 — cache stampede, in the only form this world offers: the loadGeneratorFloodHomepage flag.
+Run 2026-09-23, times UTC. Pasted verbatim from Chandana's Mac terminal (one terminal).
+
+=== pre-state: shape.py ===
+
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       90   0.442
+  ad                      0.00        4   0.487
+  cart                    0.00        6   4.396
+  checkout                0.00       38   2.058
+  currency                0.00       16   0.425
+  email                   0.00       16   0.567
+  flagd                   0.18        2   2.350
+  fraud-detection         1.45       94   0.287
+  frontend                0.00       48  12.133
+  frontend-proxy          0.00       49   5.550
+  image-provider          0.00        2   0.100
+  load-generator          0.00       57   4.871
+  payment                 0.00        2   0.292
+  product-catalog         0.00        8   4.967
+  product-reviews         0.00       47   0.650
+  quote                   0.00        2   0.425
+  recommendation          0.00       16   0.462
+  shipping                0.00        5   0.425
+
+== docker state (not agent-visible) ==
+  faultline-minio-1    exited     Exited (255) 38 hours ago
+  faultline-postgres-1 exited     Exited (255) 38 hours ago
+  faultline-prometheus-self-1 exited     Exited (255) 2 days ago
+  faultline-redis-1    exited     Exited (255) 38 hours ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+
+=== inject, observe ===
+
+$ date -u +%H:%M:%S; python3 evals/attempts/flag.py loadGeneratorFloodHomepage on
+python3 evals/attempts/watch.py 12
+python3 evals/attempts/shape.py frontend
+03:30:50
+loadGeneratorFloodHomepage: off -> on  (world-v2/src/flagd/demo.flagd.json)
+03:30:50  quiet
+03:31:20  quiet
+03:31:50  quiet
+03:32:20  quiet
+03:32:50  quiet
+03:33:20  quiet
+03:33:50  quiet
+03:34:20  quiet
+03:34:50  quiet
+03:35:20  quiet
+03:35:50  quiet
+03:36:20  quiet
+03:36:50  quiet
+03:37:20  quiet
+03:37:50  quiet
+03:38:20  quiet
+03:38:50  quiet
+03:39:20  quiet
+03:39:50  quiet
+03:40:20  quiet
+03:40:50  quiet
+03:41:20  quiet
+03:41:50  quiet
+03:42:20  quiet
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       90   0.529
+  ad                      0.00        7   0.562
+  cart                    0.00        6   4.646
+  checkout                0.00       36   2.458
+  currency                0.00        8   0.467
+  email                   0.00       10   0.700
+  flagd                   0.00        2   2.604
+  fraud-detection         0.00       92   0.367
+  frontend                0.00       23 149.733
+  frontend-proxy          0.00       35  74.191
+  image-provider          0.00        2   0.100
+  load-generator          0.00       43  41.471
+  payment                 0.00        2   0.350
+  product-catalog         0.00        9   5.333
+  product-reviews         0.00       44   0.800
+  quote                   0.00        2   0.525
+  recommendation          0.00        6   0.575
+  shipping                0.00        8   0.537
+
+== docker state (not agent-visible) ==
+  faultline-minio-1    exited     Exited (255) 38 hours ago
+  faultline-postgres-1 exited     Exited (255) 38 hours ago
+  faultline-prometheus-self-1 exited     Exited (255) 2 days ago
+  faultline-redis-1    exited     Exited (255) 38 hours ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+
+== last 8 log lines: frontend ==
+    details: "cart failure: failed to get user cart during checkout: rpc error: code = FailedPrecondition desc = Can't access cart storage. Google.Protobuf.InvalidProtocolBufferException: While parsing
+      '   at Google.Protobuf.SegmentedBufferHelper.RefillBuffer(ReadOnlySpan`1& buffer, ParserInternalState& state, Boolean mustSucceed)\n' +
+      '   at Google.Protobuf.ParsingPrimitives.ReadRawByte(ReadOnlySpan`1& buffer, ParserInternalState& state)\n' +
+      '   at Google.Protobuf.ParsingPrimitives.ParseRawVarint32SlowPath(ReadOnlySpan`1& buffer, ParserInternalState& state)\n' +
+      '   at Oteldemo.Cart.MergeFrom(CodedInputStream input) in /usr/src/app/src/obj/Release/net10.0/linux-musl-arm64/Demo.cs:line 1247\n' +
+      '   at cart.cartstore.ValkeyCartStore.GetCartAsync(String userId) in /usr/src/app/src/cartstore/ValkeyCartStore.cs:line 227',
+    metadata: [Metadata]
+  }
+  # NOTE: these eight lines are the tail of ONE multi-line error object the frontend logged
+  # during A4b (03:00-03:10) - the frontend logs errors only, and wrote nothing during A5.
+
+=== revert, recover ===
+
+$ date -u +%H:%M:%S; python3 evals/attempts/flag.py loadGeneratorFloodHomepage off
+python3 evals/attempts/watch.py 10
+03:46:25
+loadGeneratorFloodHomepage: on -> off  (world-v2/src/flagd/demo.flagd.json)
+03:46:25  quiet
+03:46:55  quiet
+03:47:25  quiet
+03:47:55  quiet
+03:48:25  quiet
+03:48:55  quiet
+03:49:25  quiet
+03:49:55  quiet
+03:50:25  quiet
+03:50:55  quiet
+03:51:25  quiet
+03:51:55  quiet
+03:52:25  quiet
+03:52:55  quiet
+03:53:25  quiet
+03:53:55  quiet
+03:54:25  quiet
+03:54:55  quiet
+03:55:25  quiet
+03:55:55  quiet
