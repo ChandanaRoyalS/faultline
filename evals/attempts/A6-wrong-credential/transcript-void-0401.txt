@@ -1,0 +1,62 @@
+A6 — wrong database credential on accounting — FIRST RUN, VOID.
+Run 2026-09-23 04:01:09 → 04:23:37 UTC. Pasted verbatim from Chandana's Mac terminal (zsh).
+
+Why void: the compose triple was given as a bash-style string `V2="-f docker-compose.yml -f …"`.
+zsh does not word-split an unquoted `$V2`, so compose received ONE argument and failed on the
+spot; neither `up -d` ran; accounting was never touched. The 22 quiet minutes are a healthy world.
+The mistake was mine (a bash idiom handed to a zsh user); the second run uses a zsh array.
+
+=== pre-state: shape.py ===
+
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       95   0.505
+  ad                      0.00        8   0.533
+  cart                    0.00        6   4.183
+  checkout                0.00       36   2.089
+  currency                0.00        8   0.400
+  email                   0.00       10   0.689
+  flagd                   0.00        2   2.450
+  fraud-detection         0.00       89   0.322
+  frontend                0.00       45  11.870
+  frontend-proxy          0.00       48   5.677
+  image-provider          0.00        2   0.100
+  load-generator          0.00       49   5.155
+  payment                 0.00        2   0.322
+  product-catalog         0.00        9   5.033
+  product-reviews         0.00       43   0.961
+  quote                   0.00        2   0.483
+  recommendation          0.00       29   0.517
+  shipping                0.00        7   0.517
+
+=== inject (FAILED) ===
+
+$ V2="-f docker-compose.yml -f ../compose/world-v2.override.yml -f ../compose/telemetry-v2.yml"
+$ date -u +%H:%M:%S; (cd world-v2 && DEMO_VERSION=2.2.0 docker compose $V2 -f ../evals/attempts/accounting-bad-credential.yml up -d accounting)
+04:01:09
+open /Users/chandana/dev/faultline/world-v2/ docker-compose.yml -f ../compose/world-v2.override.yml -f ../compose/telemetry-v2.yml: no such file or directory
+
+$ python3 evals/attempts/watch.py 12
+04:01:10  quiet
+…  (24 polls, every one quiet)
+04:12:40  quiet
+
+$ python3 evals/attempts/shape.py accounting
+== firing ==
+  none
+  accounting              0.00       91   0.538      (healthy; nothing had been injected)
+  … last 8 log lines: ordinary "Order details" lines
+
+=== revert (FAILED the same way) ===
+
+$ date -u +%H:%M:%S; (cd world-v2 && DEMO_VERSION=2.2.0 docker compose $V2 up -d accounting)
+04:14:07
+open /Users/chandana/dev/faultline/world-v2/ docker-compose.yml -f ../compose/world-v2.override.yml -f ../compose/telemetry-v2.yml: no such file or directory
+
+$ python3 evals/attempts/watch.py 10
+04:14:07  quiet
+…  (20 polls, every one quiet)
+04:23:37  quiet

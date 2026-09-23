@@ -1,0 +1,256 @@
+A6 — wrong database credential on accounting (compose override) — second run, scored.
+Run 2026-09-23 04:25:31 → 05:37:10 UTC. Pasted verbatim from Chandana's Mac terminal, one
+terminal, zsh. Long repeated log lines are cut at the column where the terminal cut them; runs of
+identical lines are elided and marked. Everything after "=== the recovery that would not come ===" is
+the diagnosis of the monitoring defect the revert exposed, and the verification after its fix.
+
+=== pre-state ===
+
+The void run's recovery window (transcript-void-0401.txt) ended 04:23:37 quiet; nothing had been
+injected. World quiet.
+
+=== inject, observe ===
+
+$ V2=(-f docker-compose.yml -f ../compose/world-v2.override.yml -f ../compose/telemetry-v2.yml)
+$ date -u +%H:%M:%S; (cd world-v2 && DEMO_VERSION=2.2.0 docker compose $V2 -f ../evals/attempts/accounting-bad-credential.yml up -d accounting)
+python3 evals/attempts/watch.py 12
+python3 evals/attempts/shape.py accounting
+04:25:31
+[+] up 6/6
+ ✔ Container tempo          Running                                                               0.0s
+ ✔ Container kafka          Healthy                                                               2.4s
+ ✔ Container opensearch     Healthy                                                               1.9s
+ ✔ Container jaeger         Running                                                               0.0s
+ ✔ Container otel-collector Running                                                               0.0s
+ ✔ Container accounting     Started                                                               2.7s
+04:25:34  quiet
+04:26:04  quiet
+04:26:34  quiet
+04:27:04  quiet
+04:27:34  quiet
+04:28:04  quiet
+04:28:34  quiet
+04:29:04  quiet
+04:29:34  quiet
+04:30:04  quiet
+04:30:34  ServiceHighErrorRate/accounting
+04:31:04  ServiceHighErrorRate/accounting
+…  (same, every 30 s)
+04:37:04  ServiceHighErrorRate/accounting
+== firing ==
+  ServiceHighErrorRate/accounting
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting            100.00       43   0.137
+  ad                      1.02        5   0.408
+  cart                    0.00        6   3.954
+  checkout                0.00       36   1.875
+  currency                0.00        4   0.379
+  email                   0.00        8   0.550
+  flagd                   0.37        2   2.233
+  fraud-detection         1.54       93   0.271
+  frontend                0.00       45  11.825
+  frontend-proxy          0.00       46   5.342
+  image-provider          0.00        2   0.100
+  load-generator          0.00       47   4.912
+  payment                 0.00        2   0.275
+  product-catalog         0.00        8   5.400
+  product-reviews         0.46       43   0.904
+  quote                   0.00        2   0.400
+  recommendation          0.59        7   0.704
+  shipping                0.00       10   0.425
+
+== docker state (not agent-visible) ==
+  (only the four long-exited v1 platform containers and one Created stub, as in every pre-state)
+
+== last 8 log lines: accounting ==
+           at Accounting.Consumer.ProcessMessage(Message`2 message) in /src/Accounting/Consumer.cs:line 90
+          Exception data:
+            Severity: FATAL
+            SqlState: 28P01
+            MessageText: password authentication failed for user "otelu"
+            File: auth.c
+            Line: 329
+            Routine: auth_failed
+
+=== revert, recover ===
+
+$ date -u +%H:%M:%S; (cd world-v2 && DEMO_VERSION=2.2.0 docker compose $V2 up -d accounting)
+python3 evals/attempts/watch.py 10
+04:37:20
+[+] up 6/6
+ ✔ Container kafka          Healthy                                                               1.8s
+ ✔ Container jaeger         Running                                                               0.0s
+ ✔ Container tempo          Running                                                               0.0s
+ ✔ Container opensearch     Healthy                                                               1.3s
+ ✔ Container otel-collector Running                                                               0.0s
+ ✔ Container accounting     Started                                                               2.1s
+04:37:22  ServiceHighErrorRate/accounting
+…  (same, every 30 s)
+04:42:22  ServiceHighErrorRate/accounting
+04:42:53  quiet
+04:43:23  quiet
+04:43:53  quiet
+04:44:23  quiet
+04:44:53  quiet
+04:45:23  quiet
+04:45:53  ServiceNoTraffic/accounting
+04:46:23  ServiceNoTraffic/accounting
+04:46:53  ServiceNoTraffic/accounting
+
+=== the recovery that would not come: diagnosis ===
+
+$ docker ps --filter name=accounting --format '{{.Names}}  {{.State}}  {{.Status}}'
+accounting  running  Up 11 minutes
+
+$ docker logs --since 2026-09-23T04:37:00Z accounting 2>&1 | tail -30
+info: Accounting.Consumer[174880625]
+      Order details: { "orderId": "d49ae73b-b709-11f1-83ae-aec6e80948a5", … }
+…  (fifteen processed orders, the last "15035bad-b70a-…" - the service is consuming and writing)
+
+$ docker exec kafka /opt/kafka/bin/kafka-consumer-groups.sh --bootstrap-server localhost:9092 --describe --group accounting
+Caused by: org.apache.kafka.common.errors.TimeoutException: Timed out waiting for a node assignment. Call: describeConsumerGroups(api=FIND_COORDINATOR)
+  (the in-container tool cannot reach the listener on localhost; not pursued - the log already showed consumption)
+
+$ python3 evals/attempts/shape.py accounting
+== firing ==
+  ServiceNoTraffic/accounting
+  accounting               nan      nan   0.000
+  … last 8 log lines: ordinary "Order details" lines, current
+
+$ docker logs --since 2026-09-23T04:37:00Z accounting 2>&1 | head -12
+Accounting service started
+[CORECLR_ENABLE_PROFILING, 1]
+[CORECLR_PROFILER, {918728DD-259F-4A6A-AC2B-B85E1B658318}]
+[CORECLR_PROFILER_PATH, /app/OpenTelemetry.AutoInstrumentation.Native.so]
+[DOTNET_RUNNING_IN_CONTAINER, true]
+[DOTNET_STARTUP_HOOKS, /app/OpenTelemetry.AutoInstrumentation.StartupHook.dll]
+[DOTNET_VERSION, 10.0.1]
+[KAFKA_ADDR, kafka:9092]
+[OTEL_DOTNET_AUTO_HOME, /app]
+[OTEL_DOTNET_AUTO_RULE_ENGINE_ENABLED, false]
+[OTEL_DOTNET_AUTO_TRACES_ADDITIONAL_SOURCES, Accounting.Consumer]
+[OTEL_DOTNET_AUTO_TRACES_ENTITYFRAMEWORKCORE_INSTRUMENTATION_ENABLED, false]
+
+$ docker exec accounting sh -c 'ls /var/log/opentelemetry/dotnet/'
+otel-dotnet-auto-1-Accounting-Loader-20260923.log
+otel-dotnet-auto-1-Accounting-Managed-20260923.log
+otel-dotnet-auto-1-Accounting-StartupHook-20260923.log
+otel-dotnet-auto-1-dotnet-Native.log
+
+$ date -u +%H:%M:%S; docker restart accounting
+python3 evals/attempts/watch.py 10
+python3 evals/attempts/shape.py accounting
+04:50:44
+accounting
+04:50:45  ServiceNoTraffic/accounting
+…  (same, every 30 s)
+05:00:15  ServiceNoTraffic/accounting
+  accounting               nan      nan   0.000
+  … last 8 log lines: ordinary "Order details" lines, current  (a restart changed nothing)
+
+$ docker exec accounting sh -c 'tail -n 25 /var/log/opentelemetry/dotnet/otel-dotnet-auto-1-Accounting-Managed-*.log'
+[2026-09-23T05:03:06.5331144Z] [Information] EventSource=OpenTelemetry-Exporter-OpenTelemetryProtocol, Message=Export succeeded for http://otel-collector:4318/v1/logs. Message: Export completed successfully.
+[2026-09-23T05:03:11.2718911Z] [Information] EventSource=OpenTelemetry-Exporter-OpenTelemetryProtocol, Message=Export succeeded for http://otel-collector:4318/v1/traces. Message: Export completed successfully.
+…  (traces every 5 s, logs every 5 s, metrics every 60 s, every one "Export succeeded", through 05:04:45)
+
+$ docker inspect accounting --format '{{range .Config.Env}}{{println .}}{{end}}' | grep OTEL
+OTEL_DOTNET_AUTO_TRACES_ENTITYFRAMEWORKCORE_INSTRUMENTATION_ENABLED=false
+OTEL_EXPORTER_OTLP_ENDPOINT=http://otel-collector:4318
+OTEL_EXPORTER_OTLP_METRICS_TEMPORALITY_PREFERENCE=cumulative
+OTEL_RESOURCE_ATTRIBUTES=service.namespace=opentelemetry-demo,service.version=2.2.0
+OTEL_SERVICE_NAME=accounting
+OTEL_DOTNET_AUTO_TRACES_ADDITIONAL_SOURCES=Accounting.Consumer
+
+$ curl -s -G 'http://localhost:3200/api/search' --data-urlencode 'q={resource.service.name="accounting"}' --data-urlencode "start=$(( $(date +%s) - 900 ))" --data-urlencode "end=$(date +%s)" --data-urlencode limit=3
+{"traces":[{"traceID":"981cc1848d7db8f6bbb042f0a7d87ce2","rootServiceName":"accounting","rootTraceName":"order-consumed","startTimeUnixNano":"1790139874365607900","durationMs":1282, … 3 spans …},
+           {"traceID":"d39aab22a57bfb0db8dc7878f73415d8","rootServiceName":"accounting","rootTraceName":"order-consumed", … },
+           {"traceID":"24a2c9c788ea778f7f0ec2bb78ef398e","rootServiceName":"accounting","rootTraceName":"order-consumed", … }], …}
+  (startTimeUnixNano 1790139874 = 05:04:34 UTC: the spans exist and reached Tempo through the collector)
+
+$ curl -s -G http://localhost:9090/api/v1/query --data-urlencode 'query=traces_span_metrics_calls_total{service_name="accounting",span_name="order-consumed"}' | python3 -c '…print value and labels…'
+4748 {'job': 'opentelemetry-demo/accounting', 'span_kind': 'SPAN_KIND_INTERNAL', 'status_code': 'STATUS_CODE_UNSET'}
+
+$ curl -s -G http://localhost:9090/api/v1/query --data-urlencode 'query=target_info{job="accounting"}' | …
+  (nothing)
+
+  → ONE series, no `instance` label, flat at 4748. Diagnosis and fix: see
+    docs/evidence/world-v2-trial/2026-09-23-the-writer-that-was-not-single.md
+
+=== first fix (#458, the demo's otlp block in Prometheus) — landed, reloaded, NOT the fix ===
+
+$ date -u +%H:%M:%S; curl -s -X POST http://localhost:9090/-/reload && echo reloaded
+python3 evals/attempts/watch.py 8
+python3 evals/attempts/shape.py accounting
+05:15:32
+reloaded
+05:15:32  ServiceNoTraffic/accounting
+05:16:02  ServiceNoTraffic/accounting
+05:16:32  ServiceNoTraffic/accounting
+05:17:02  ServiceNoTraffic/accounting
+05:17:32  quiet
+…  (quiet to 05:23:03)
+== firing ==
+  none
+  accounting               nan      nan   0.000      (the alert cleared; the number did not move)
+
+$ curl … 'query=traces_span_metrics_calls_total{service_name="accounting",span_name="order-consumed",status_code="STATUS_CODE_UNSET"}' | …
+4748 {'host_name': 'docker-desktop', 'job': 'opentelemetry-demo/accounting', 'service_namespace': 'opentelemetry-demo', 'service_version': '2.2.0'}
+$ curl … 'query=changes(…[6m])' | …
+changes: 0 docker-desktop None
+$ docker inspect accounting --format '{{.Config.Hostname}}'
+a51b6f0a7ded
+  → still one series; host_name is the collector host's, not the container's.
+
+=== second fix (#459, spanmetrics connector keyed on the service) — landed, collector recreated ===
+
+$ date -u +%H:%M:%S; (cd world-v2 && DEMO_VERSION=2.2.0 docker compose $V2 up -d --force-recreate otel-collector)
+python3 evals/attempts/watch.py 6
+python3 evals/attempts/shape.py accounting
+05:31:28
+[+] up 4/4
+ ✔ Container tempo          Running                                                               0.0s
+ ✔ Container jaeger         Running                                                               0.0s
+ ✔ Container opensearch     Healthy                                                               4.0s
+ ✔ Container otel-collector Started                                                               4.3s
+05:31:33  quiet
+05:32:03  quiet
+05:32:33  quiet
+05:33:03  quiet
+05:33:33  quiet
+05:34:03  quiet
+05:34:33  quiet
+05:35:03  quiet
+05:35:33  quiet
+05:36:03  quiet
+05:36:33  quiet
+05:37:03  quiet
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       92   0.589
+  ad                      0.87        6   0.481
+  cart                    0.00        4   5.289
+  checkout                0.00       32   2.746
+  currency                0.00        7   0.593
+  email                   0.00        8   0.780
+  flagd                   0.41        2   3.064
+  fraud-detection         0.00       89   0.390
+  frontend                0.00       43  14.630
+  frontend-proxy          0.00       46   6.798
+  image-provider          0.00        2   0.113
+  load-generator          0.00       47   6.111
+  payment                 0.00        2   0.390
+  product-catalog         0.00        7   6.595
+  product-reviews         0.36       42   1.148
+  quote                   0.00        2   0.585
+  recommendation          0.66        8   0.634
+  shipping                0.00        6   0.585
+
+== last 8 log lines: accounting ==
+  info: Accounting.Consumer[174880625]
+        Order details: { "orderId": "c9129fdd-b710-11f1-83ae-aec6e80948a5", … }
+  …  (ordinary, current)
