@@ -465,6 +465,77 @@ CATALOG: tuple[FaultDefinition, ...] = _validated(
             # than from a rebuilt image.
             params={"env_var": "FAULTLINE_ENABLED_FLAGS", "value": "productCatalogFailure"},
         ),
+        # --- v2 (T7.0 #5): one definition per new class, each the mechanism its attempt ran ---
+        # These are the rehearsal set - the injector-code form of A1, A2, A3, A4b and A8b, with the
+        # targets and parameters those attempts measured. T7.1 grows the v2 catalog around them.
+        # `world="v2"`: validated against v2's names, refused by the engine on any other world.
+        FaultDefinition(
+            id="v2-product-catalog-flag-failure",
+            fault_class=FaultClass.FEATURE_FLAG,
+            target="product-catalog",
+            world="v2",
+            description=(
+                "Flip flagd's productCatalogFailure to on. GetProduct fails for one product, the "
+                "catalog's own error ratio stays under the rule and the page lands on frontend "
+                "(A1: +6:07). Nothing recorded in change history."
+            ),
+            params={"flag": "productCatalogFailure", "variant": "on"},
+        ),
+        FaultDefinition(
+            id="v2-product-catalog-freeze",
+            fault_class=FaultClass.PROCESS_FREEZE,
+            target="product-catalog",
+            world="v2",
+            description=(
+                "docker pause the catalog. Its socket accepts and nothing answers; frontend hangs "
+                "to its deadline, seven services behind it go silent, thirteen alerts on ten "
+                "services (A2: ServiceNoTraffic on the target +7:36; ~6 min to quiet after the "
+                "unpause)."
+            ),
+        ),
+        FaultDefinition(
+            id="v2-product-catalog-partition",
+            fault_class=FaultClass.NETWORK_PARTITION,
+            target="product-catalog",
+            world="v2",
+            description=(
+                "Cut the catalog from the demo network. The same hang-and-cascade as a freeze, "
+                "told apart by the target's own once-a-minute export failure in its log "
+                "(A3: ServiceNoTraffic +9:36; reconnect restores the compose aliases)."
+            ),
+            params={"network": "opentelemetry-demo"},
+        ),
+        FaultDefinition(
+            id="v2-cart-store-corruption",
+            fault_class=FaultClass.DATASTORE_CORRUPTION,
+            target="valkey-cart",
+            world="v2",
+            description=(
+                "Overwrite every cart's hash field with unparseable bytes, swept every 50 ms - "
+                "faster than a checkout reads its cart back. checkout pages first at 19%, cart's "
+                "own ratio crosses late (A4b: +4:45); the cart's log names the parse failure. "
+                "A 5 s sweep pages nothing (A4)."
+            ),
+            params={"cli": "valkey-cli", "field": "cart", "interval": "0.05"},
+        ),
+        FaultDefinition(
+            id="v2-kafka-disk-fill",
+            fault_class=FaultClass.DISK_FILL,
+            target="kafka",
+            world="v2",
+            description=(
+                "Fill kafka's log directory - the 256 MiB tmpfs world-v2.override.yml gives it at "
+                "the path the broker itself names. The broker halts in two seconds and crashloops; "
+                "checkout's produce hangs then fails, both consumers starve (A8b: +6:31 / +7:01 / "
+                "+8:31). Restore recreates the broker if the file cannot be reached, then restarts "
+                "the consumers, which do not reconnect on their own."
+            ),
+            params={
+                "service": "kafka",
+                "directory": "/tmp/kafka-logs",
+                "restart_after": "accounting,fraud-detection,checkout",
+            },
+        ),
     )
 )
 
