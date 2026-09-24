@@ -110,3 +110,37 @@ defects fixed the same hour (the corruption loop's variables; its heartbeat dead
 `readback` defect (a bare ISO timestamp read as local time), and two tool properties added to Q94
 (the culprit's span below the depth limit; the onset lines below the head/tail keep). **T7.0 #5 is
 complete**; T7.0's deliverable - *inject/restore verified* for every class - is met.
+
+## Addendum 2026-09-24, Q98 — the pre-state has a fifth line: `quote`'s clock
+
+**Carried to every T7.1 recording on v2, as the silent list was.** `quote` runs the PHP
+OpenTelemetry SDK, and the SDK stamps its telemetry from a clock anchored when the process
+started. That clock does not advance while the Docker VM is suspended, so each time the Mac sleeps
+`quote` falls further behind: **26.6 h** at 08:45 (R5), **29.8 h** at 18:21 and **34.6 h** at
+23:30. The two readings in between bracket a ~3 h hole in Prometheus's history (13:26 → 16:26).
+The container's own clock is right throughout.
+
+**What it costs.**
+
+- Past Prometheus's 30-minute out-of-order window, every push of `quote`'s own metrics is refused
+  as `too old sample`. That is the once-a-minute push of 7 metrics and 52 points that Q95's notes
+  recorded since the world came up. A collector debug pipeline filtered to `quote`, run for 150 s
+  and then reverted, read 14 metrics and 104 points in two pushes, stamped `2026-09-23 12:32:01`
+  at `18:21:42` on 09-24.
+- Its spans sit a day and more out of place in every checkout trace.
+- Its traffic series, derived from its traces by the collector, and so every alert rule on it,
+  are unaffected.
+
+**The fix, measured.** `docker restart quote` re-anchors the clock. Before the restart: 0 of
+`quote`'s own series in Prometheus, and its spans −34.57 h from their traces' roots. 150 s after
+it: 7 series, and 0.00 h.
+
+**So `shape.py` prints `quote's clock (Q98)`.**
+
+- `current` when `quote`'s own series are landing. That is the pre-state a recording needs.
+- `lagging` when none are. The pre-state is then not clean: `docker restart quote`, wait five
+  minutes for the recorder's settle gate, and read again.
+
+The world config is unchanged: no digest moves, and neither existing v2 bundle is re-recorded.
+Both were recorded with `quote` lagging. Neither narrative cites `quote`'s own metrics or its spans
+(the freeze's `ServiceNoTraffic/quote` is its derived traffic series, which was never affected).
