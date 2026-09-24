@@ -36,7 +36,11 @@ def test_the_smoke_subset_covers_every_fault_class() -> None:
     class - and would be blind silently."""
     from evalharness.scenario import load_catalog
 
-    catalog = [s for s in load_catalog(SCENARIOS) if "examples" not in str(s.id)]
+    # v1's catalog: the smoke suite gates the v1 benchmark. v2 scenarios live in
+    # evals/scenarios/v2/ and get their own suite when the v2 benchmark exists (T7.1).
+    catalog = [
+        s for s in load_catalog(SCENARIOS) if "examples" not in str(s.id) and s.world == "v1"
+    ]
     classes = {s.fault_class for s in catalog}
 
     assert smoke.classes_covered() == classes, (

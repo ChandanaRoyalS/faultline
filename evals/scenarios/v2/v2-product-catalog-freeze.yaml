@@ -1,0 +1,45 @@
+# v2/process_freeze-1 (dev) - see SPLIT-V2.md. Slot allocated before authoring; do not move.
+# Candidate order and eligibility: docs/design/t7.1-candidates.md (dev-only: A2, R2b are published).
+# The first scenario authored on the v2 world, and the first v2 bundle the recorder writes.
+id: v2-product-catalog-freeze
+title: The product catalog process is frozen - its socket accepts and nothing answers
+fault_class: process_freeze
+split: dev
+slot: v2/process_freeze-1
+world: v2
+injection:
+  target: product-catalog
+  method: v2-product-catalog-freeze
+  params: {}
+ground_truth:
+  root_cause: >
+    The product-catalog container was paused (docker pause): the process exists and holds its
+    port, the kernel accepts connections into the backlog, and nothing answers them. Every
+    caller hangs to its own deadline, so the browse path and everything behind it stall; the
+    catalog itself neither errors nor logs, because it is not running.
+  category: process_freeze
+expected_evidence:
+  # From A2 (by hand) and R2b (through the injector, whole world), 2026-09-22 and 2026-09-24.
+  # R2b reproduced A2 to within a second on every alert; both are dev-only evidence.
+  - alerts: the caller pages before the culprit - ServiceHighErrorRate and ServiceHighLatency on
+      frontend-proxy and load-generator at ~+4:35, ServiceHighLatency/frontend at ~+6:35,
+      ServiceNoTraffic on product-catalog at ~+7:35 with seven starved services beside it -
+      thirteen alerts on ten services by minute twelve
+  - metrics: frontend's p95 goes to the histogram's ceiling (15000ms) with its error ratio at
+      zero and its request rate collapsing ~80 %; the errors surface one hop up, at
+      frontend-proxy (~26 %), as Envoy's upstream timeouts
+  - metrics: product-catalog's request rate goes to zero and stays there - no errors, no
+      latency, no samples
+  - logs: product-catalog writes nothing for the whole fault - not an error, not a line
+  - traces: callers' spans end at their deadline with the time in the caller's own self-time
+      (frontend/GET ~15000ms, self ~15000ms); no product-catalog span exists in the window
+  - change: nothing recorded - no deploy, no config, no flag
+  - discriminator: a partition of the same service looks identical on alerts, metrics and
+      traces; the freeze is the one whose target logs nothing at all, where a partitioned
+      target logs its export failures once a minute (R3)
+expected_remediation_class: restart
+# The freeze resolves when the process is unfrozen; where an operator cannot `unpause`, a restart
+# is what does it (knowledge/runbooks/class-process-freeze.md). Nothing was changed, so nothing
+# is reverted.
+rehearsed: false
+answers_idle_or_absent: [logs]

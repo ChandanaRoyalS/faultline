@@ -67,7 +67,7 @@ from faultline.tools.settings import ToolSettings
 from faultline.tools.spanmetrics import metrics_for
 from injector.catalog import by_id as fault_by_id
 from injector.settings import InjectorSettings
-from injector.world import SERVICE_CONTAINERS, canonical_service, same_service
+from injector.world import canonical_service, same_service, service_containers
 from injector.worldlock import WorldLock, WorldLockError
 
 REPO_ROOT = Path(__file__).resolve().parents[2]
@@ -118,6 +118,10 @@ def recycle_effect(world: str) -> str:
 
 STUB_IMAGE = "ffs-stub:1"
 """The world's flag service (ADR-0006). Its digest is part of what "the same world" means."""
+
+REFERENCE_CONTAINER_BY_WORLD: dict[str, str] = {"v1": "cart-service", "v2": "cart"}
+"""The container whose image names the demo release a bundle was recorded against. v2's names
+are the service names; asking v2's docker for `cart-service` returns nothing and records `None`."""
 
 
 class RehearsalError(RuntimeError):
@@ -592,7 +596,7 @@ def container_for(target: str) -> str:
     the container (`cart-service`). Logs are labelled by container either way, so the
     service names have to be translated or the selector matches nothing at all.
     """
-    return SERVICE_CONTAINERS.get(target, target)
+    return service_containers().get(target, target)
 
 
 def loki_label_names() -> list[str]:
@@ -939,7 +943,10 @@ def write_bundle(
         "world_lock": facts.get("world_lock"),
         "recorded_by": "evalharness.rehearse",
         "recorder": recorder_provenance("evalharness.rehearse", REPO_ROOT),
-        "world": world_provenance(reference_container="cart-service", stub_image=STUB_IMAGE),
+        "world": world_provenance(
+            reference_container=REFERENCE_CONTAINER_BY_WORLD[ToolSettings().world],
+            stub_image=STUB_IMAGE,
+        ),
         **facts,
     }
     # Derived last, because it reads the captures this run has just written. Additive and
