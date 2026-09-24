@@ -49,6 +49,7 @@ ALIVE = {"{{.State.Running}}": "true\n"}
 def instant_sidecar_check(monkeypatch: pytest.MonkeyPatch) -> None:
     """The recorder waits 4s for the sidecar to settle; the tests must not."""
     monkeypatch.setattr(faults, "SIDECAR_SETTLE_SECONDS", 0)
+    monkeypatch.setattr(faults, "LOOP_SETTLE_SECONDS", 0)
 
 
 @pytest.fixture
@@ -861,15 +862,83 @@ def test_network_partition_restore_is_a_no_op_when_gone(settings: InjectorSettin
 
 
 def test_corruption_verifies_one_sweep_then_starts_the_loop(settings: InjectorSettings) -> None:
-    runner = FakeRunner(stdout={"{{.State.Running}}": "true\n", "EVAL": "225\n"})
+    runner = FakeRunner(
+        stdout={"{{.State.Running}}": "true\n", "cat /tmp": "7\n", "EVAL": "225\n"},
+    )
     outcome = DatastoreCorruptionFault(DockerCli(runner)).inject(
         _def("cart-corrupt", FaultClass.DATASTORE_CORRUPTION, "valkey-cart")
     )
-    # the probe (a single EVAL, not detached) and the loop (sh -c, detached) both ran
+    # the probe (a single EVAL, not detached), the loop (sh -c, detached), and the heartbeat read
     assert runner.called("exec", "valkey-cart", "valkey-cli", "EVAL")
-    assert runner.called("exec", "--detach", "valkey-cart", "sh", "-c")
+    loop = runner.argv("--detach", "sh", "-c")
+    # positional inputs in the order the script reads them: $1 lua, $2 field, $3 hex, $4 stop
+    stop = "/tmp/faultline-cart-corrupt.stop"
+    assert loop[-4:] == (faults.CORRUPTION_SWEEP, "cart", "ffffffff", stop)
+    assert runner.called("exec", "valkey-cart", "cat", "/tmp/faultline-cart-corrupt.stop.beat")
     assert isinstance(outcome.restore, CorruptionRestore)
     assert outcome.restore.flush is True
+    assert "7 sweeps" in outcome.changes[0] and "0xffffffff" in outcome.changes[0]
+
+
+def test_corruption_fails_and_places_the_stop_file_if_the_loop_has_no_heartbeat(
+    settings: InjectorSettings,
+) -> None:
+    """R4 (2026-09-24): a loop that never ran its EVAL reported success for twelve minutes."""
+    runner = FakeRunner(
+        stdout={"{{.State.Running}}": "true\n", "EVAL": "225\n"},
+        returncodes={"cat /tmp/faultline-cart-corrupt.stop.beat": 1},
+    )
+    with pytest.raises(FaultUsageError, match="no heartbeat"):
+        DatastoreCorruptionFault(DockerCli(runner)).inject(
+            _def("cart-corrupt", FaultClass.DATASTORE_CORRUPTION, "valkey-cart")
+        )
+    assert runner.called("exec", "valkey-cart", "touch", "/tmp/faultline-cart-corrupt.stop")
+
+
+def test_corruption_refuses_a_payload_that_is_not_hex(settings: InjectorSettings) -> None:
+    runner = FakeRunner(stdout={"{{.State.Running}}": "true\n"})
+    with pytest.raises(FaultUsageError, match="as hex"):
+        DatastoreCorruptionFault(DockerCli(runner)).inject(
+            _def("cart-corrupt", FaultClass.DATASTORE_CORRUPTION, "valkey-cart", payload=r"\xff")
+        )
+    assert not runner.called("EVAL")
+
+
+def test_corruption_loop_runs_under_a_real_sh(tmp_path: Path) -> None:
+    """The loop's contract with `sh -c`, executed rather than inspected.
+
+    R4 (2026-09-24) ran a loop whose script read `$SCRIPT`/`$FIELD`/`$BYTES`/`$STOP` while `sh -c`
+    supplied `$1`..`$4`; every fake-runner test passed. Here a stand-in CLI records its argv, the
+    loop runs for a few iterations, the stop file ends it, and the record shows the Lua, the field,
+    the hex payload and the heartbeat exactly as `inject` and `restore` rely on them.
+    """
+    import subprocess
+    import time
+
+    cli = tmp_path / "fakecli"
+    log = tmp_path / "calls.log"
+    cli.write_text(f'#!/bin/sh\nprintf "%s\\n" "$*" >> "{log}"\n')
+    cli.chmod(0o755)
+    stop = tmp_path / "loop.stop"
+    script = faults.CORRUPTION_LOOP.format(cli=str(cli), interval="0.01")
+
+    proc = subprocess.Popen(
+        ["sh", "-c", script, "faultline", faults.CORRUPTION_SWEEP, "cart", "ffffffff", str(stop)],
+        stdout=subprocess.PIPE,
+        text=True,
+    )
+    deadline = time.monotonic() + 5
+    while not log.exists() and time.monotonic() < deadline:
+        time.sleep(0.01)
+    stop.touch()
+    out, _ = proc.communicate(timeout=5)
+
+    calls = log.read_text().splitlines()
+    assert calls, "the loop never ran its CLI"
+    assert calls[0] == f"EVAL {faults.CORRUPTION_SWEEP} 0 cart ffffffff"
+    beats = int((tmp_path / "loop.stop.beat").read_text())
+    assert beats == len(calls) >= 1
+    assert out.strip() == f"swept {beats} times"
 
 
 def test_corruption_fails_if_the_probe_sweep_errors(settings: InjectorSettings) -> None:
@@ -881,7 +950,7 @@ def test_corruption_fails_if_the_probe_sweep_errors(settings: InjectorSettings) 
 
 
 def test_corruption_restore_stops_the_loop_then_flushes(settings: InjectorSettings) -> None:
-    runner = FakeRunner(stdout={"{{.Id}}": "abc\n"})
+    runner = FakeRunner(stdout={"{{.Id}}": "abc\n", "cat /tmp": "14400\n"})
     changes = DatastoreCorruptionFault(DockerCli(runner)).restore(
         CorruptionRestore(
             container="valkey-cart",
@@ -893,6 +962,7 @@ def test_corruption_restore_stops_the_loop_then_flushes(settings: InjectorSettin
     assert runner.called("exec", "valkey-cart", "touch", "/tmp/faultline-cart-corrupt.stop")
     assert runner.called("exec", "valkey-cart", "valkey-cli", "FLUSHALL")
     assert any("FLUSHALL" in c for c in changes)
+    assert "14400 sweeps" in changes[0]
 
 
 def test_corruption_restore_is_a_no_op_when_gone(settings: InjectorSettings) -> None:
