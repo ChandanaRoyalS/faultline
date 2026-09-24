@@ -126,10 +126,7 @@ def render_query(template: MetricTemplate, service: str, world: WorldMetrics = V
             f"{world.latency_selector(f'service_name="{service}"')}"
             f"[{world.rate_window}])))"
         )
-    return (
-        "sum by(exported_job) "
-        f'({{__name__=~"process_runtime_.*|runtime_.*|system_memory_.*",exported_job="{service}"}})'
-    )
+    return f"sum by({world.runtime_label}) ({world.runtime_selector(service)})"
 
 
 @dataclass(frozen=True, slots=True)

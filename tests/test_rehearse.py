@@ -637,6 +637,40 @@ def test_the_runtime_capture_covers_every_runtime_the_demo_uses() -> None:
         assert family in query, f"{family}* would not be captured"
 
 
+def test_the_v1_runtime_query_is_unchanged_byte_for_byte() -> None:
+    """Every recorded v1 bundle's `queries.md` states this string. Making the capture per world
+    must not move it, or a re-derivation from a v1 bundle would describe a different query."""
+    from faultline.tools.metrics import MetricTemplate, render_query
+    from faultline.tools.spanmetrics import V1
+
+    expected = (
+        '{exported_job="cartservice", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}'
+    )
+    assert rehearse.runtime_query("cartservice") == expected
+    assert rehearse.runtime_query("cartservice", world=V1) == expected
+    assert render_query(MetricTemplate.RUNTIME_MEMORY, "cartservice", V1) == (
+        "sum by(exported_job) "
+        '({__name__=~"process_runtime_.*|runtime_.*|system_memory_.*",exported_job="cartservice"})'
+    )
+
+
+def test_the_v2_runtime_query_asks_in_v2s_label_and_families() -> None:
+    """The first v2 bundle (`v2-product-catalog-freeze`, 2026-09-24) captured an empty
+    `runtime.json`: it asked `exported_job` for `process_runtime_*`, and v2 has neither. On v2 a
+    service's own series carry `service_name` and each runtime's semantic-convention names."""
+    from faultline.tools.metrics import MetricTemplate, render_query
+    from faultline.tools.spanmetrics import V2
+
+    selector = (
+        '{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",'
+        'service_name="product-catalog"}'
+    )
+    assert rehearse.runtime_query("product-catalog", world=V2) == selector
+    assert render_query(MetricTemplate.RUNTIME_MEMORY, "product-catalog", V2) == (
+        f"sum by(service_name) ({selector})"
+    )
+
+
 def test_the_recorder_says_so_when_the_narrative_predates_the_capability_set(
     tmp_path: Path,
 ) -> None:
@@ -664,3 +698,51 @@ def test_the_recorder_says_so_when_the_narrative_predates_the_capability_set(
 
     (bundle / "incident.md").unlink()
     assert warn_if_narrative_is_stale(bundle) is False, "no narrative is not a stale narrative"
+
+
+def _v2_scenario() -> object:
+    from evalharness.scenario import Scenario
+
+    root = Path(__file__).resolve().parents[1]
+    return Scenario.from_yaml(root / "evals/scenarios/v2/v2-product-catalog-freeze.yaml")
+
+
+def _quiet_provenance(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        rehearse,
+        "world_provenance",
+        lambda **_: {"world_name": "v2", "compose_digest": "c0ffee", "observability_digest": "d1"},
+    )
+    monkeypatch.setattr(rehearse, "recorder_provenance", lambda *_: {"git_sha": "deadbeef"})
+    monkeypatch.setattr(rehearse.reachability, "derive", lambda _out: {})
+
+
+def test_the_manifest_keeps_its_world_provenance_block(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The first v2 bundle (2026-09-24) recorded `"world": "v2"` where its digests belonged: a
+    `world` *fact* merged over the `world` *provenance*. The block must survive the merge."""
+    import json
+
+    _quiet_provenance(monkeypatch)
+    facts = {"world_lock": {"acquired": True}, "t_inject": "2026-09-24T10:35:25+00:00"}
+    (tmp_path / "incident.md").write_text("hand-written\n")  # the template is not under test
+    rehearse.write_bundle(_v2_scenario(), facts, tmp_path, {})  # type: ignore[arg-type]
+    manifest = json.loads((tmp_path / "manifest.json").read_text())
+    assert manifest["world"] == {
+        "world_name": "v2",
+        "compose_digest": "c0ffee",
+        "observability_digest": "d1",
+    }
+    assert manifest["world_lock"] == {"acquired": True}
+
+
+def test_a_fact_that_would_overwrite_provenance_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _quiet_provenance(monkeypatch)
+    with pytest.raises(rehearse.RehearsalError, match="collide"):
+        rehearse.write_bundle(  # type: ignore[arg-type]
+            _v2_scenario(), {"world": "v2", "world_lock": None}, tmp_path, {}
+        )
+    assert not (tmp_path / "manifest.json").exists(), "nothing is written when it refuses"
