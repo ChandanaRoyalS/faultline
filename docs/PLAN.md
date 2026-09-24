@@ -4617,6 +4617,29 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-24: Q94 closed - the trace tool on v2, and the narrative review its stamp move
+required.*** `TOOL_BEHAVIOUR_REVISION` 3 → 4, `cap:dd651ccc` → `cap:d2b243e0`, decided with the
+first v2 scenario as the row said. Three changes in `faultline.tools.spantree`:
+
+- **Depth per world.** v1 stays at 6. v2 is 16: the deepest span measured on the running world
+  was 15, a flag check at the bottom of a checkout request, plus one. The freeze's own trace had
+  suggested about 9.
+- **ERROR spans print their status message.**
+- **Rule 0.** When an erroring span gave up on a call still running, the hop names that call,
+  not the timeout. The freeze's trace showed this: rule 1 named the proxy's 15 s deadline while
+  frontend's call into the frozen catalog stayed open 531.8 s.
+
+**Replayed over every recorded window Tempo still held** (`docs/evidence/q94-trace-tool/`). The
+first cut regressed R3 and R5 by skipping calls that waited and then errored. It was corrected on
+the branch. The landed rule moved the callee only in the hang windows, and nothing on R4b or a
+healthy control.
+
+**Sixteen narratives reviewed** (`docs/design/q94-capability-review.md`). Two were rewritten
+where the change falsified them: the freeze's trace passages, and `product-catalog-flag-failure`'s
+"not a trace attribute", since the catalog's error text names the flag. The rest were re-stamped.
+The log half of Q94 did not land here; it moves to **Q100**, because it changes the agent's
+surface and the prompt stamp.
+
 ***2026-09-24: the first v2 scenario, `v2-product-catalog-freeze`, rehearsed and labeled - slot
 `v2/process_freeze-1` (dev). It took three recordings, because each one found a problem in the recorder or the world.***
 

@@ -3,7 +3,7 @@ origin: scenario:cart-bad-image-tag
 split: dev
 fault_class: bad_deploy
 recorded_from: 2026-09-09T03:13:22+00:00
-capability: cap:dd651ccc
+capability: cap:d2b243e0
 onset_to_page: 4m46s
 page_to_fix: 5m00s
 fix_to_all_clear: 2m31s

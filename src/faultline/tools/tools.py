@@ -90,8 +90,17 @@ def two_ended_split(cap: int) -> tuple[int, int]:
     return oldest, cap - oldest
 
 
-TOOL_BEHAVIOUR_REVISION = 3
+TOOL_BEHAVIOUR_REVISION = 4
 """Bumped when a tool returns materially different evidence without changing the tool set.
+
+**Bumped to 4 at Q94 (T7.1)**: `trace_query` renders to the world's depth (v1 6, v2 16) and
+prints an ERROR span's status message. The degrading hop gains rule 0: the call still waiting
+when an erroring ancestor gave up is named instead of the timeout. On
+`v2-product-catalog-freeze` the hop moved from the proxy's 15 s deadline to frontend's call into
+the frozen catalog. A responder can now conclude *what was being waited on* and *what reason a
+failing service gave*. `docs/design/q94-capability-review.md` is the narrative review this bump
+required, and `docs/evidence/q94-trace-tool/` is the replay over every recorded window Tempo
+still held.
 
 **Bumped to 3 at T6.1**: `trace_query` re-sourced to Tempo and re-shaped from a span list to
 span trees with the degrading hop named - a responder can now conclude *which hop* from the same

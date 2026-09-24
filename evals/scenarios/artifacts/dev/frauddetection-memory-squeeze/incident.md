@@ -3,7 +3,7 @@ origin: scenario:frauddetection-memory-squeeze
 split: dev
 fault_class: resource_exhaustion
 recorded_from: 2026-09-09T04:04:08+00:00
-capability: cap:dd651ccc
+capability: cap:d2b243e0
 onset_to_page: 6m15s
 page_to_fix: 5m00s
 fix_to_all_clear: 31s

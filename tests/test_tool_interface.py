@@ -22,7 +22,12 @@ from faultline.tools.window import WindowPolicy
 
 CAPABILITY_AT_EXTRACTION = "cap:dd651ccc"
 """The stamp before `ToolSet` existed, recorded here so the guard below can be read without
-running git. Every narrative stamp and every recorded run is against this value."""
+running git. Every narrative stamp and every recorded run up to Q94 is against this value."""
+
+CAPABILITY_CURRENT = "cap:d2b243e0"
+"""The stamp since Q94 (T7.1): `TOOL_BEHAVIOUR_REVISION` 3 -> 4, the trace tool's depth per world,
+status messages and rule 0. The tool *surface* did not move. The review the move required is
+`docs/design/q94-capability-review.md`."""
 
 
 def protocol_methods() -> list[str]:
@@ -68,8 +73,8 @@ def test_the_extraction_did_not_move_the_capability_stamp() -> None:
     Both halves are asserted: the stamp is where it was, and `Tools` satisfies the protocol
     without a base class.
     """
-    assert capability_version() == CAPABILITY_AT_EXTRACTION, (
-        f"the capability stamp moved to {capability_version()} from {CAPABILITY_AT_EXTRACTION}. "
+    assert capability_version() == CAPABILITY_CURRENT, (
+        f"the capability stamp moved to {capability_version()} from {CAPABILITY_CURRENT}. "
         "If ToolSet became a base class of Tools, make it structural again; if a tool was really "
         "added or removed, this constant and the narrative stamps move together, deliberately."
     )
