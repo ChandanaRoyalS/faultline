@@ -93,3 +93,17 @@ belongs. **It is deferred to the point where `feature_flag` exists as injector c
 tool is run against it as part of the class's end-to-end rehearsal** — which is when a span read
 through the agent's own `trace_query` is the evidence that counts. The verdict does not depend on
 it: A1's distinctness rests on (b) and is unchanged.
+
+## Addendum — the (d) read-back, 2026-09-24: read, through `trace_query`, on a live flag
+
+Done where the previous addendum said it would be: during the class's rehearsal (R1, #471) and
+its follow-up, `evals/attempts/R1-feature-flag/` §4. Ninety seconds of the flag through the
+injector; `trace_query product-catalog --errors` returned ten error traces, and the rendered
+one names `product-catalog/oteldemo.ProductCatalogService/GetProduct 0.1ms (error)` as the
+degrading hop — the error span this file said `main.go:492-497` would produce, seen. **What was
+not seen is the message.** The tool renders no span status message, and the culprit's span sits
+one level below its depth limit on v2's path, so it is named in the hop line and elided from the
+tree (Q94). The distinctness argument above cited the message; the message reaches the agent
+through `frontend`'s log line (R1 §2, `Error: 13 INTERNAL: Error: Product Catalog Fail Feature
+Flag Enabled`), not through the span. (b) carried the verdict and still does; (d) is now *an
+error span on the culprit, read*, and (c) on the caller is where the words are.
