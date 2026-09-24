@@ -45,6 +45,16 @@ INSTRUMENTED = (
     "recommendation",
     "shipping",
 )
+QUOTE_OWN_METRICS = 'count({service_name="quote", __name__!~"traces_span_metrics_.*|target_info"})'
+"""`quote`'s own metrics, the ones its PHP SDK pushes rather than the ones the collector derives
+from its traces (Q98). The SDK stamps them from a clock anchored at process start that does not
+advance while the Docker VM is suspended, so every sleep of the Mac leaves `quote` further behind:
+26.6 h at 08:45, 29.8 h at 18:21 and 34.6 h at 23:30 on 2026-09-24. Once the lag passes
+Prometheus's 30-minute out-of-order window, every push is refused as `too old sample` and none of
+these series exist. A restart re-anchors the clock: 0 series and -34.57 h before, 7 series and
+0.00 h 150 s after. **Present means `quote`'s clock is within the window; absent means restart
+it.**"""
+
 QUERIES = {
     "error ratio": (
         "sum by(service_name) "
@@ -111,6 +121,18 @@ def main() -> None:
         print(yellow("  a running service the rules cannot see: the world is not clean (Q95)"))
     else:
         print(green("  none"))
+
+    print("\n== quote's clock (Q98) ==")
+    url = PROM + "/api/v1/query?" + urllib.parse.urlencode({"query": QUOTE_OWN_METRICS})
+    with urllib.request.urlopen(url, timeout=10) as resp:
+        own = json.load(resp)["data"]["result"]
+    if own:
+        print(green(f"  current: {own[0]['value'][1]} of quote's own series are landing"))
+    elif "quote" in running:
+        print(red("  lagging: none of quote's own metrics are landing"))
+        print(yellow("  docker restart quote, then wait five minutes before recording (Q98)"))
+    else:
+        print(yellow("  quote is not running"))
 
     print("\n== docker state (not agent-visible) ==")
     for line in sorted(ps.stdout.splitlines()):
