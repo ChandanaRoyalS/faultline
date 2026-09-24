@@ -97,7 +97,7 @@ RUNTIME_FAMILIES = ("process_runtime_.*", "runtime_.*", "system_memory_.*")
 """
 
 
-def runtime_query(service: str) -> str:
+def runtime_query(service: str, world: WorldMetrics | None = None) -> str:
     """The target service's own runtime metrics, over the incident window.
 
     Measured on `ad-memory-squeeze` and `recommendation-memory-squeeze`: these series
@@ -113,8 +113,18 @@ def runtime_query(service: str) -> str:
     - silently matches nothing here. `service` is the compose service name, which is what
     `exported_job` holds: use `injector.world.canonical_service` to get there from a fault
     target, since a target may name either a container or a service.
+
+    **That paragraph is v1's.** v2 (OTLP push, ADR-0042) keeps `job` as
+    `opentelemetry-demo/<service>` and carries the plain name as `service_name` on every runtime
+    series, under each runtime's semantic-convention names rather than `process_runtime_*`
+    (`WorldMetrics.runtime_label` and `runtime_families`). The first v2 bundle asked v1's
+    question and captured nothing; `world` selects the language. It is still capture set 2 - the
+    same five files - and `queries.md` states the query a bundle was taken with.
     """
-    return f'{{exported_job="{service}", __name__=~"{"|".join(RUNTIME_FAMILIES)}"}}'
+    if world is None or world.runtime_label == "exported_job":
+        # v1, byte for byte what every recorded bundle's queries.md says.
+        return f'{{exported_job="{service}", __name__=~"{"|".join(RUNTIME_FAMILIES)}"}}'
+    return world.runtime_selector(service)
 
 
 def firing_alerts() -> list[str]:
