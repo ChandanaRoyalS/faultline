@@ -23,7 +23,9 @@
 # boundary, which is the mistake `alert-rules-v2.yml` also refuses to make.
 exporters:
   otlp/tempo:
-    endpoint: "tempo:4317"
+    # 4417, not 4317: Tempo's receiver is kept off the port every SDK targets, so a client that
+    # reconnects to a stale address never mistakes Tempo for the collector (Q95, `tempo-v2.yaml`).
+    endpoint: "tempo:4417"
     tls:
       insecure: true
     # **A Tempo outage must cost traces, not alerts** (Q93, measured 2026-09-24). With the
