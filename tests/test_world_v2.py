@@ -602,3 +602,42 @@ def test_the_v2_tempo_has_its_own_config_with_compaction_bounded() -> None:
     assert config["ingester"]["max_block_duration"] == "30s", "ADR-0037's cut is kept"
     v1 = yaml.safe_load((COMPOSE / "tempo.yaml").read_text())
     assert "block" not in v1["storage"]["trace"], "v1's tempo.yaml is untouched by Q91"
+
+
+def test_the_v2_tempo_exporter_does_not_back_pressure_the_pipeline() -> None:
+    """**A Tempo outage must cost traces, not alerts** (Q93, 2026-09-24).
+
+    With the exporter's defaults, Tempo going down made `otlp/tempo` queue and retry until the
+    collector's memory limiter refused every service's spans - `Memory usage is above soft limit.
+    Refusing data.`, and `product-catalog` logging `data refused due to high memory usage` - so
+    the spanmetrics connector saw nothing and the rules read a quiet world. No retries: a failed
+    send is dropped and the receiver keeps accepting.
+    """
+    import yaml
+
+    extras = yaml.safe_load((COMPOSE / "otelcol-extras-v2.yml").read_text())
+    tempo = extras["exporters"]["otlp/tempo"]
+    assert tempo.get("retry_on_failure", {}).get("enabled") is False, (
+        "otlp/tempo retries again: a Tempo outage will fill its queue, trip the memory limiter "
+        "and blind the alert rules"
+    )
+    assert tempo.get("sending_queue", {}).get("queue_size", 1000) <= 500
+
+
+def test_the_v2_tempo_limit_is_at_least_twice_its_measured_peak() -> None:
+    """**Measured on this world, not carried from v1** (Q91, 2026-09-24).
+
+    `container_memory_usage_total_bytes{container_name="tempo"}` over a 51-minute life that ended
+    in an OOM kill: idle 150 MiB, sampled peak 374 MiB, a ~220 MiB sawtooth as blocks complete
+    and compact. The limit is sized for the peak plus two swings coinciding; this guard pins the
+    weaker, exact claim - at least twice the sampled peak - and GOMEMLIMIT under the limit.
+    """
+    tempo = telemetry_v2()["services"]["tempo"]
+    limit_mib = float(tempo["deploy"]["resources"]["limits"]["memory"].rstrip("M"))
+    assert limit_mib >= 2 * 374, f"tempo's limit ({limit_mib}M) is under twice the measured peak"
+    go_limit = tempo["environment"]["GOMEMLIMIT"]
+    assert go_limit.endswith("MiB")
+    assert 0.6 * limit_mib <= float(go_limit[:-3]) <= 0.85 * limit_mib, (
+        "GOMEMLIMIT should sit at 60-85% of the container limit, so the runtime sees the ceiling "
+        "before the kernel does"
+    )
