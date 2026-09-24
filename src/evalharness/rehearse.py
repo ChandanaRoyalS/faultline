@@ -119,6 +119,22 @@ def recycle_effect(world: str) -> str:
 STUB_IMAGE = "ffs-stub:1"
 """The world's flag service (ADR-0006). Its digest is part of what "the same world" means."""
 
+HEADROOM_ADVICE_BY_WORLD: dict[str, str] = {
+    "v1": (
+        "Do NOT raise the limit: compose/world-arm64.override.yml is a compose_digest "
+        "input, so editing it invalidates every recorded bundle. Limit raises are "
+        "digest-locked until T7.1 - see evals/scenarios/CATALOG.md, world hazards."
+    ),
+    "v2": (
+        "If a container re-occupies this after a restart, a recycle will not help (kafka, "
+        "accounting, checkout on 2026-09-22/24). A raise goes in compose/world-v2.override.yml as "
+        "its own measured row - and moves compose_digest, so once v2 bundles exist it "
+        "invalidates them (ADR-0014)."
+    ),
+}
+"""What the headroom refusal tells the operator to do, per world. **v1's advice was printed at v2
+until 2026-09-24**, naming v1's override file and a lock that described v1's recorded bundles."""
+
 REFERENCE_CONTAINER_BY_WORLD: dict[str, str] = {"v1": "cart-service", "v2": "cart"}
 """The container whose image names the demo release a bundle was recorded against. v2's names
 are the service names; asking v2's docker for `cart-service` returns nothing and records `None`."""
@@ -469,9 +485,7 @@ def require_memory_headroom(threshold: float = MEMORY_HEADROOM_PERCENT) -> list[
             "An OOM mid-run is recorded as if it were part of the injected fault.\n"
             f"Cycle them, between batches and never during one:\n"
             f"    docker restart {cycle}{kafka_note}\n"
-            "Do NOT raise the limit: compose/world-arm64.override.yml is a compose_digest "
-            "input, so editing it invalidates every recorded bundle. Limit raises are "
-            "digest-locked until T7.1 - see evals/scenarios/CATALOG.md, world hazards."
+            + HEADROOM_ADVICE_BY_WORLD.get(ToolSettings().world, HEADROOM_ADVICE_BY_WORLD["v1"])
         )
     return [f"{n}: {pct:.1f}%" for n, pct, _ in container_memory_usage()]
 

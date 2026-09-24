@@ -73,6 +73,9 @@ services:
   load-generator:
     environment:
       LOCUST_USERS: 25
+    # 1500M -> 3000M: the generator 25 users need, measured clipped at its ceiling with
+    # OOMKilled=true (the T7.1 rows at the end of this file carry the measurement).
+    deploy: { resources: { limits: { memory: 3000M } } }
 
   # **kafka: 620M -> 1024M, and v1's remedy is falsified here rather than inherited**
   # (`docs/evidence/world-v2-trial/2026-09-22-the-recycle-that-does-not-recycle.md`).
@@ -154,3 +157,36 @@ services:
         target: /tmp/kafka-logs
         tmpfs:
           size: 268435456
+
+  # **Three rows from the first v2 bundle's pre-flight (T7.1, 2026-09-24), the kafka row's method.**
+  #
+  # `evalharness.rehearse v2-product-catalog-freeze` refused before injecting: accounting 94.8%,
+  # checkout 95.2%, load-generator 99.8% of their limits. Its printed remedy is v1's - recycle, and
+  # never raise because the file is digest-locked - and six hours of
+  # `container_memory_usage_total_bytes` (30-minute steps) falsify the recycle for all three, as the
+  # kafka row above falsified it for kafka:
+  #
+  #   accounting      133 133 134 135 136 139 139 147 145 | 119 148 151 152   (restart at 08:46)
+  #   checkout         17  17  17  17  17  17  17  17  17 |  16  18  19  19   (restart at 08:47)
+  #   load-generator 1386 1477 1389 1465 1494 1472 1471 1399 1498 1463 1498 1486 1469  (OOMKilled=true)
+  #
+  # **accounting** re-occupies 148 MiB within half an hour of a restart - 92.5% of 160M, over the
+  # gate before it has done anything - and grows ~2 MiB per half hour from there. **checkout** rests
+  # at 17 MiB of the demo's 20M (85%) and at 18-19 after a restart, on the gate's edge at rest.
+  # **load-generator** is a sawtooth against its ceiling for six hours with `OOMKilled=true`: the
+  # kernel is killing locust processes inside it, so the world's load dips whenever it does - and a
+  # load dip during a recording reads as a fault. That one is ours: `LOCUST_USERS: 25` above is what
+  # put a generator sized for the demo's 5 users against its 1500M.
+  #
+  # **The numbers, by the rule this file states** (the observed figure well under the gate, with
+  # room for the measured growth): accounting 160M -> 320M puts a fresh container at 46% and a day
+  # of the observed growth near 62%; checkout 20M -> 40M puts it at 48%; load-generator 1500M ->
+  # 3000M leaves its clipped sawtooth at ~50% - **provisional**, because a clipped series hides its
+  # true demand, and the next reading after the recreate is what confirms or moves it.
+  #
+  # **Free now, as kafka's was.** No v2 bundle exists; the first one is what these rows are for.
+  accounting:
+    deploy: { resources: { limits: { memory: 320M } } }
+
+  checkout:
+    deploy: { resources: { limits: { memory: 40M } } }
