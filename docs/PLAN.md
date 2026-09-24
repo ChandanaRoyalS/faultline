@@ -4617,6 +4617,21 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-24: the v2 allocation committed - piece one of T7.1, with no scenario in existence.***
+`evals/scenarios/SPLIT-V2.md`: nine class rows plus an `injection` row, **forty-four slots, 32 dev
+/ 12 holdout**, by T7.21's principles (`bad_config` and `feature_flag` six each on their measured
+paths, every other row four; holdout `round(0.3 × slots)` min 1; three dev the floor; slots are
+capacity for thirty-plus *valid* scenarios at the record's failure rate). Two readings of the
+plan's own row decided the shape: *"including the injection and storm cases from P6"* - injection
+cases become slot-holding scenarios of `kind: injection` (T6.8's variants stay as they were), and
+storms are a measured label on the hang classes rather than a row that would count them twice.
+`Scenario` gains `world` and `kind`, both outside the fingerprint; the contamination guards run
+per world (`ALLOCATION_V2`, `v2/<row>-<n>` slots, holdout at the highest numbers); a v2 scenario
+must cite a v2 injector definition. ADR-0008 T7.1 addendum. **What is left**: the scenarios (v1
+designs re-authored where the mechanism transfers, new for the rest), their rehearsals against
+ADR-0042's distinctness criterion, the P6 cases on v2, the corpus and baseline stamps (Q92), and
+only then the count.
+
 ***2026-09-22: REOPENED, and being built as the plan promises it.***
 [ADR-0042](adr/0042-the-world-moves-to-opentelemetry-demo-v2.md) supplies ADR-0029's own
 reopening condition 1 — *a different demo world* — rather than disputing it. **The count that

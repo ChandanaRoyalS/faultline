@@ -371,3 +371,42 @@ reasoning is in front of us, rather than when someone is under pressure to ship 
 system*. Its arrival is a new pre-registration and its own scoring, because a propose→observe→
 re-propose loop measures a different capability and would make every prior number incomparable.
 ADR-0028 §2 holds the approval boundary; this row holds the measurement one.
+
+## Addendum (T7.1, 2026-09-24): the v2 allocation - nine rows, forty-four slots, one kind
+
+ADR-0042 made *a fresh dev/holdout allocation committed before authoring* the condition for T7.1
+on the v2 world. `SPLIT.md` is v1's and is never edited; `evals/scenarios/SPLIT-V2.md` is the
+allocation for v2, committed with no v2 scenario in existence and argued from classes and the T7.0
+record alone, as the T7.21 addendum required of the last extension.
+
+**Same principles, nine classes.** Diagnosis paths, not equal shares: `bad_config` (four measured
+shapes, A6 adding a wrong credential) and `feature_flag` (fifteen flags, several distinct pages)
+take six slots; every other class four. Per-row holdout `round(0.3 × slots)`, minimum one.
+Three dev per row, the floor. Slots are capacity: forty-four is what makes thirty-plus *valid*
+scenarios reachable at the 23-35 % candidate failure rate the record shows.
+
+**Two things are new, and both come from the execution plan's own T7.1 row** - *"30+ across ~8
+classes, including the injection and storm cases from P6 … each rehearsed and labeled like the
+first ten, and assigned to the dev or holdout split at creation."*
+
+- **Injection cases hold slots.** T6.8 built prompt-injection cases as *variants* of dev scenarios
+  - no slot, no bundle, counting toward no figure (`evalharness.adversarial`). That was the right
+  shape for what T6.8 measured. T7.1 counts them inside the catalog, so on v2 a scenario of
+  `kind: injection` is authored, rehearsed and split-assigned like any other, in an `injection`
+  row of its own (three dev, one holdout): robustness is tuned against the dev three, and a claim
+  about injection resistance needs the one the tuning never saw. Its `fault_class` and
+  `ground_truth` are the base fault's; the decoy is what a correct verdict does not say. The four
+  v1 variants stay as T6.8 left them.
+- **Storms are a measured label, not a row.** On v2 the freeze, the partition and the disk fill
+  *are* storms (thirteen, sixteen and six alerts in R2b, R3, R5); a storm row would count those
+  classes twice. A scenario whose rehearsal pages ten or more alerts is labeled `storm` on its
+  record.
+
+**The `world` field partitions everything.** v1 scenarios fill `SPLIT.md`, v2 scenarios fill
+`SPLIT-V2.md`, a v2 scenario must cite a v2 injector definition, and neither table counts the
+other's files. Both fields (`world`, `kind`) are outside `scenario_fingerprint`, so no recorded
+bundle moved when they were added.
+
+**Distinctness is applied at rehearsal, per scenario, not here.** ADR-0042 made it an acceptance
+criterion; a slot is filled by a rehearsal whose page and evidence differ from its class-mates' on
+one of ADR-0043's dimensions, and one that cannot show that is `blocked` and releases the slot.

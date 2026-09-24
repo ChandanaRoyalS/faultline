@@ -82,6 +82,11 @@ def test_scenario_injections_match_the_fault_they_cite() -> None:
             f"{scenario.id}: declared {scenario.fault_class}, but fault {fault.id} is "
             f"{fault.fault_class}"
         )
+        assert scenario.world == fault.world, (
+            f"{scenario.id}: authored for world {scenario.world!r} but cites {fault.id}, a "
+            f"{fault.world!r} definition. The injector refuses a cross-world start; the "
+            "scenario must say which world it is for (SPLIT.md or SPLIT-V2.md)."
+        )
 
 
 def test_ground_truth_category_matches_the_scenario_fault_class() -> None:

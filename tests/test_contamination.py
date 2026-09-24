@@ -41,6 +41,40 @@ CAPACITY_HEADING = "### Current capacity"
 """Where the drift check reads from. SPLIT.md keeps the n=10 table above it as committed history,
 so the check has to be anchored rather than matching the first table it finds."""
 
+SPLIT_DOC_V2 = SCENARIO_DIR / "SPLIT-V2.md"
+
+INJECTION_ROW = "injection"
+"""The one allocation row that is a *kind* rather than a fault class: a scenario of
+`kind: injection` takes an `injection` slot whatever its `fault_class` (SPLIT-V2.md)."""
+
+ALLOCATION_V2: dict[str, tuple[int, int]] = {
+    FaultClass.BAD_CONFIG.value: (4, 2),
+    FaultClass.FEATURE_FLAG.value: (4, 2),
+    FaultClass.BAD_DEPLOY.value: (3, 1),
+    FaultClass.DEPENDENCY_LATENCY.value: (3, 1),
+    FaultClass.RESOURCE_EXHAUSTION.value: (3, 1),
+    FaultClass.PROCESS_FREEZE.value: (3, 1),
+    FaultClass.NETWORK_PARTITION.value: (3, 1),
+    FaultClass.DATASTORE_CORRUPTION.value: (3, 1),
+    FaultClass.DISK_FILL.value: (3, 1),
+    INJECTION_ROW: (3, 1),
+}
+"""**The v2 world's allocation, n=44 (T7.1, 2026-09-24)**, committed before any v2 scenario and
+argued without one in view - SPLIT-V2.md carries the reasoning. Keyed by row name rather than
+`FaultClass` because of the `injection` row. v1 scenarios never count against it and v2 scenarios
+never count against `ALLOCATION`: `world` partitions the catalog."""
+
+
+def row_of(scenario: Scenario) -> str:
+    """The allocation row a scenario fills: its kind when that is `injection`, else its class."""
+    return INJECTION_ROW if scenario.kind == INJECTION_ROW else scenario.fault_class.value
+
+
+def slot_splits_v2(row: str) -> tuple[Split, ...]:
+    """Holdout takes the highest-numbered slots in each row (SPLIT-V2.md)."""
+    dev, holdout = ALLOCATION_V2[row]
+    return (Split.DEV,) * dev + (Split.HOLDOUT,) * holdout
+
 
 def scenario_paths() -> list[Path]:
     """Every scored scenario file. The examples/ tree illustrates the schema and is excluded."""
@@ -55,8 +89,10 @@ def catalog() -> list[Scenario]:
     return [Scenario.from_yaml(p) for p in scenario_paths()]
 
 
-def allocated() -> list[Scenario]:
-    """Scenarios that occupy a slot. **Use this for anything about the allocation.**
+def allocated(world: str = "v1") -> list[Scenario]:
+    """Scenarios that occupy a slot in one world's allocation. **Use this for anything about
+    the allocation.** v1 is the default because every guard below was written for it; the v2
+    guards pass `"v2"` explicitly.
 
     A `blocked: true` scenario cannot be rehearsed or scored, so it is not filling the slot
     it was written into - its replacement has to be allowed in without widening SPLIT.md,
@@ -65,7 +101,7 @@ def allocated() -> list[Scenario]:
     Use `catalog()` for checks about the files themselves: that they validate, that ids are
     unique, that artifacts are filed under the right split.
     """
-    return [s for s in catalog() if not s.blocked]
+    return [s for s in catalog() if not s.blocked and s.world == world]
 
 
 def test_every_scenario_validates() -> None:
@@ -235,6 +271,79 @@ def test_split_doc_matches_allocation() -> None:
             dev_slots,
             holdout_slots,
         ), f"SPLIT.md and ALLOCATION disagree on {fault_class.value}"
+
+
+# --- T7.1: the v2 allocation ---------------------------------------------------------------
+
+
+def test_split_v2_doc_matches_allocation() -> None:
+    """SPLIT-V2.md is the human-readable copy. Drift between it and ALLOCATION_V2 is a bug."""
+    whole = SPLIT_DOC_V2.read_text()
+    assert CAPACITY_HEADING in whole, "SPLIT-V2.md has no current-capacity table"
+    text = whole.split(CAPACITY_HEADING, 1)[1]
+    for row, (dev_slots, holdout_slots) in ALLOCATION_V2.items():
+        pattern = rf"^\|\s*`{re.escape(row)}`\s*\|\s*(\d+)\s*\|\s*(\d+)\s*\|\s*$"
+        match = re.search(pattern, text, re.MULTILINE)
+        assert match is not None, f"{row} missing from SPLIT-V2.md's capacity table"
+        assert (int(match.group(1)), int(match.group(2))) == (dev_slots, holdout_slots), (
+            f"SPLIT-V2.md and ALLOCATION_V2 disagree on {row}"
+        )
+    totals = re.search(r"\*\*Totals:\*\* (\d+) dev / (\d+) holdout", text)
+    assert totals is not None
+    assert (int(totals.group(1)), int(totals.group(2))) == (
+        sum(d for d, _ in ALLOCATION_V2.values()),
+        sum(h for _, h in ALLOCATION_V2.values()),
+    )
+
+
+def test_the_v2_allocation_keeps_t721s_principles() -> None:
+    """Every row has at least three dev slots (the floor) and `round(0.3 * slots)`, minimum one,
+    holdout - T7.21's principles, restated so a later edit to the table has to argue with them."""
+    for row, (dev, holdout) in ALLOCATION_V2.items():
+        assert dev >= 3, f"{row}: {dev} dev slots is under the floor of three"
+        assert holdout == max(1, round(0.3 * (dev + holdout))), (
+            f"{row}: {holdout} holdout of {dev + holdout} is not round(0.3 * slots), min 1"
+        )
+    assert set(ALLOCATION_V2) == {c.value for c in FaultClass} | {INJECTION_ROW}, (
+        "every fault class has a row, plus the injection row, and nothing else"
+    )
+
+
+def test_v2_scenarios_fill_v2_slots_and_only_those() -> None:
+    """A v2 scenario records a `v2/<row>-<n>` slot inside its row's allocation, on the split that
+    slot carries, and rows are contiguous prefixes - SPLIT.md's rules, on SPLIT-V2.md's table."""
+    seen: dict[str, str] = {}
+    numbers: dict[str, set[int]] = {}
+    for scenario in allocated("v2"):
+        assert scenario.slot is not None, f"{scenario.id}: no slot recorded (SPLIT-V2.md)"
+        assert scenario.slot.startswith("v2/"), f"{scenario.id}: v2 but in slot {scenario.slot}"
+        row, number = scenario.slot[3:].rsplit("-", 1)
+        assert row == row_of(scenario), (
+            f"{scenario.id}: slot row {row!r} but the scenario fills {row_of(scenario)!r}"
+        )
+        splits = slot_splits_v2(row)
+        index = int(number) - 1
+        assert 0 <= index < len(splits), f"{scenario.id}: {scenario.slot} is outside the row"
+        assert scenario.split is splits[index], (
+            f"{scenario.id} is in {scenario.slot}, a {splits[index].value} slot, but records "
+            f"split={scenario.split.value}. The slot decides the split (ADR-0008)."
+        )
+        assert scenario.slot not in seen, f"{scenario.id} and {seen[scenario.slot]} share a slot"
+        seen[scenario.slot] = scenario.id
+        numbers.setdefault(row, set()).add(int(number))
+    for row, taken in numbers.items():
+        assert taken == set(range(1, len(taken) + 1)), (
+            f"v2/{row} occupies {sorted(taken)}, not a contiguous prefix: a scenario reached "
+            "past a free slot (ADR-0008)"
+        )
+
+
+def test_v1_scenarios_never_carry_v2_slots_or_kinds() -> None:
+    """The eighteen v1 files are frozen: no `v2/` slot, no `injection` kind, no `world: v2`."""
+    for scenario in catalog():
+        if scenario.world == "v1":
+            assert not (scenario.slot or "").startswith("v2/"), scenario.id
+            assert scenario.kind == "fault", f"{scenario.id}: v1 scenarios are faults"
 
 
 # --- T7.35: the slot rule, made executable -------------------------------------------------

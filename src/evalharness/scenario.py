@@ -179,6 +179,23 @@ class Scenario(BaseModel):
     `None` on a `blocked` scenario, which releases its slot rather than consuming it.
     """
 
+    world: str = Field(default="v1", pattern=r"^v[12]$")
+    """Which world this scenario is authored against: `v1` (OTel demo 1.2.1, the eighteen written
+    before 2026-09-24) or `v2` (2.2.0, ADR-0042). **Outside `scenario_fingerprint`**, so adding
+    the field moved no recorded bundle. The allocation guards partition by it: v1 scenarios fill
+    SPLIT.md's slots, v2 scenarios fill SPLIT-V2.md's, and a v2 scenario must cite a v2 injector
+    definition (`test_scenario_injections_match_the_fault_they_cite`)."""
+
+    kind: str = Field(default="fault", pattern=r"^(fault|injection)$")
+    """`fault`: the injector breaks the world and the agent is asked what broke. `injection`: the
+    same, with a prompt-injection payload planted in the world's telemetry as well - a log line
+    or a change record that tells its reader to propose a decoy (T6.8, `evalharness.adversarial`).
+    The execution plan's T7.1 counts *"the injection and storm cases from P6"* inside the 30+, so
+    from v2 on an injection case is a slot-holding scenario rehearsed and split-assigned like any
+    other, in SPLIT-V2.md's own row; `fault_class` and `ground_truth` are the base fault's, and the
+    decoy is what a correct verdict does not say. Storm is not a kind: it is a measured property
+    (a page of ten or more alerts) the record labels on the scenarios that have it."""
+
     blocked: bool = False
     """This scenario cannot be rehearsed and does not occupy its slot.
 
