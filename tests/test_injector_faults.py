@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pytest
@@ -15,20 +16,30 @@ from injector.faults import (
     FAULT_TYPES,
     BadConfigFault,
     BadDeployFault,
+    DatastoreCorruptionFault,
     DependencyLatencyFault,
+    DiskFillFault,
     FaultUsageError,
+    FeatureFlagFault,
+    NetworkPartitionFault,
+    ProcessFreezeFault,
     ResourceExhaustionFault,
     build_handlers,
 )
 from injector.models import (
     ComposeServiceRestore,
+    CorruptionRestore,
     CpuQuotaRestore,
+    DiskFillRestore,
     FaultDefinition,
+    FlagRestore,
     MemoryLimitRestore,
+    NetworkRestore,
+    PauseRestore,
     PumbaRestore,
 )
 from injector.settings import InjectorSettings
-from tests.fakes import FakeRunner
+from tests.fakes import FakeRunner, RecordedCall
 
 ALIVE = {"{{.State.Running}}": "true\n"}
 """FakeRunner stdout making the pumba sidecar look like it survived startup."""
@@ -621,3 +632,366 @@ def test_a_sidecar_that_survives_is_left_alone(settings: InjectorSettings) -> No
 
     assert isinstance(outcome.restore, PumbaRestore)
     assert not runner.called("logs"), "no need to read logs from a healthy sidecar"
+
+
+# --- T7.0's five: feature_flag ---------------------------------------------------------------
+
+
+def _flagd_file(settings: InjectorSettings, flags: dict) -> Path:
+    path = settings.world_dir / "src" / "flagd" / "demo.flagd.json"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps({"flags": flags}, indent=2) + "\n")
+    return path
+
+
+def _flag_def(fault_id: str = "product-catalog-flag", **params: object) -> FaultDefinition:
+    body = {"flag": "productCatalogFailure", "variant": "on", **params}
+    return FaultDefinition(
+        id=fault_id,
+        fault_class=FaultClass.FEATURE_FLAG,
+        target="product-catalog",
+        description="flip a flag",
+        params=body,  # type: ignore[arg-type]
+    )
+
+
+def test_feature_flag_flips_the_default_variant_and_captures_the_old_one(
+    settings: InjectorSettings,
+) -> None:
+    _flagd_file(
+        settings,
+        {
+            "productCatalogFailure": {
+                "defaultVariant": "off",
+                "variants": {"on": True, "off": False},
+            }
+        },
+    )
+    outcome = FeatureFlagFault(settings).inject(_flag_def())
+
+    assert isinstance(outcome.restore, FlagRestore)
+    assert outcome.restore.previous_variant == "off"
+    written = json.loads(Path(outcome.restore.flag_file).read_text())
+    assert written["flags"]["productCatalogFailure"]["defaultVariant"] == "on"
+
+
+def test_feature_flag_restore_puts_the_previous_variant_back(settings: InjectorSettings) -> None:
+    flags = {
+        "productCatalogFailure": {"defaultVariant": "off", "variants": {"on": True, "off": False}}
+    }
+    path = _flagd_file(settings, flags)
+    flag = FeatureFlagFault(settings)
+    outcome = flag.inject(_flag_def())
+    flag.restore(outcome.restore)
+    written = json.loads(path.read_text())
+    assert written["flags"]["productCatalogFailure"]["defaultVariant"] == "off"
+
+
+def test_feature_flag_records_no_change(settings: InjectorSettings) -> None:
+    assert FeatureFlagFault.records_change is False
+
+
+def test_feature_flag_refuses_a_flag_that_is_not_in_the_file(settings: InjectorSettings) -> None:
+    _flagd_file(settings, {"someOtherFlag": {"defaultVariant": "off", "variants": {"off": False}}})
+    with pytest.raises(FaultUsageError):
+        FeatureFlagFault(settings).inject(_flag_def())
+
+
+def test_feature_flag_refuses_to_flip_to_the_value_already_set(settings: InjectorSettings) -> None:
+    _flagd_file(
+        settings,
+        {"productCatalogFailure": {"defaultVariant": "on", "variants": {"on": True, "off": False}}},
+    )
+    with pytest.raises(FaultUsageError):
+        FeatureFlagFault(settings).inject(_flag_def())
+
+
+def test_feature_flag_restore_is_a_no_op_when_the_file_is_gone(settings: InjectorSettings) -> None:
+    changes = FeatureFlagFault(settings).restore(
+        FlagRestore(
+            flag_file=str(settings.world_dir / "gone.json"), flag="x", previous_variant="off"
+        )
+    )
+    assert "nothing to restore" in changes[0]
+
+
+# --- process_freeze ---------------------------------------------------------------------------
+
+
+def _def(fault_id: str, fault_class: FaultClass, target: str, **params: object) -> FaultDefinition:
+    return FaultDefinition(
+        id=fault_id,
+        fault_class=fault_class,
+        target=target,
+        description="t",
+        params=params,  # type: ignore[arg-type]
+    )
+
+
+def test_process_freeze_pauses_the_container_and_verifies_it(settings: InjectorSettings) -> None:
+    runner = FakeRunner(stdout={"{{.State.Running}}": "true\n", "{{.State.Paused}}": "true\n"})
+    outcome = ProcessFreezeFault(DockerCli(runner)).inject(
+        _def("cart-freeze", FaultClass.PROCESS_FREEZE, "cart")
+    )
+    assert runner.argv("pause", "cart") == ("docker", "pause", "cart")
+    assert isinstance(outcome.restore, PauseRestore)
+    assert outcome.restore.container == "cart"
+
+
+def test_process_freeze_fails_if_pause_did_not_take(settings: InjectorSettings) -> None:
+    runner = FakeRunner(stdout={"{{.State.Running}}": "true\n", "{{.State.Paused}}": "false\n"})
+    with pytest.raises(FaultUsageError, match="NOT been injected"):
+        ProcessFreezeFault(DockerCli(runner)).inject(
+            _def("cart-freeze", FaultClass.PROCESS_FREEZE, "cart")
+        )
+
+
+def test_process_freeze_refuses_a_container_that_is_not_running(settings: InjectorSettings) -> None:
+    runner = FakeRunner(stdout={"{{.State.Running}}": "false\n"})
+    with pytest.raises(FaultUsageError):
+        ProcessFreezeFault(DockerCli(runner)).inject(
+            _def("cart-freeze", FaultClass.PROCESS_FREEZE, "cart")
+        )
+
+
+def test_process_freeze_restore_unpauses(settings: InjectorSettings) -> None:
+    runner = FakeRunner(stdout={"{{.Id}}": "abc\n", "{{.State.Paused}}": "true\n"})
+    changes = ProcessFreezeFault(DockerCli(runner)).restore(PauseRestore(container="cart"))
+    assert runner.called("unpause", "cart")
+    assert "resumed" in changes[0]
+
+
+def test_process_freeze_restore_is_a_no_op_when_gone(settings: InjectorSettings) -> None:
+    runner = FakeRunner(returncodes={"inspect": 1})
+    changes = ProcessFreezeFault(DockerCli(runner)).restore(PauseRestore(container="cart"))
+    assert "gone" in changes[0]
+    assert not runner.called("unpause")
+
+
+# --- network_partition ------------------------------------------------------------------------
+
+_ON_NET = {"Networks": '{"opentelemetry-demo": {"Aliases": ["product-catalog", "abc123"]}}\n'}
+_OFF_NET = {"Networks": "{}\n"}
+
+
+class _SequencedNetworks(FakeRunner):
+    """A FakeRunner whose network-inspect answers come from a queue: on the net, then off it.
+
+    The partition handler inspects once to capture aliases and once to verify the disconnect
+    took, and those two reads must differ. Every other command falls through to FakeRunner.
+    """
+
+    def __init__(self, network_bodies: list[str]) -> None:
+        super().__init__(stdout={"{{.Id}}": "abc\n"})
+        self._network_bodies = list(network_bodies)
+
+    def run(self, args, *, cwd=None, check=True):  # type: ignore[no-untyped-def]
+        if "Networks" in " ".join(args) and self._network_bodies:
+            from injector.docker import CommandResult
+
+            self.calls.append(RecordedCall(args=tuple(args), cwd=cwd, check=check))
+            return CommandResult(
+                args=tuple(args), returncode=0, stdout=self._network_bodies.pop(0), stderr=""
+            )
+        return super().run(args, cwd=cwd, check=check)
+
+
+def test_network_partition_disconnects_and_captures_aliases(settings: InjectorSettings) -> None:
+    runner = _SequencedNetworks([_ON_NET["Networks"], _OFF_NET["Networks"]])
+    outcome = NetworkPartitionFault(DockerCli(runner)).inject(
+        _def(
+            "pc-partition",
+            FaultClass.NETWORK_PARTITION,
+            "product-catalog",
+            network="opentelemetry-demo",
+        )
+    )
+    assert runner.called("network", "disconnect", "opentelemetry-demo", "product-catalog")
+    assert isinstance(outcome.restore, NetworkRestore)
+    assert outcome.restore.aliases == ["product-catalog", "abc123"]
+
+
+def test_network_partition_refuses_a_network_the_container_is_not_on(
+    settings: InjectorSettings,
+) -> None:
+    runner = FakeRunner(stdout={"Networks": _OFF_NET["Networks"]})
+    with pytest.raises(FaultUsageError):
+        NetworkPartitionFault(DockerCli(runner)).inject(
+            _def(
+                "pc-partition",
+                FaultClass.NETWORK_PARTITION,
+                "product-catalog",
+                network="opentelemetry-demo",
+            )
+        )
+
+
+def test_network_partition_restore_reconnects_with_the_aliases(settings: InjectorSettings) -> None:
+    runner = FakeRunner(stdout={"{{.Id}}": "abc\n", "Networks": _OFF_NET["Networks"]})
+    NetworkPartitionFault(DockerCli(runner)).restore(
+        NetworkRestore(
+            container="product-catalog", network="opentelemetry-demo", aliases=["product-catalog"]
+        )
+    )
+    assert runner.called("network", "connect", "--alias", "product-catalog")
+
+
+def test_network_partition_restore_is_a_no_op_when_gone(settings: InjectorSettings) -> None:
+    runner = FakeRunner(returncodes={"inspect": 1})
+    changes = NetworkPartitionFault(DockerCli(runner)).restore(
+        NetworkRestore(container="product-catalog", network="opentelemetry-demo", aliases=[])
+    )
+    assert "gone" in changes[0]
+
+
+# --- datastore_corruption ---------------------------------------------------------------------
+
+
+def test_corruption_verifies_one_sweep_then_starts_the_loop(settings: InjectorSettings) -> None:
+    runner = FakeRunner(stdout={"{{.State.Running}}": "true\n", "EVAL": "225\n"})
+    outcome = DatastoreCorruptionFault(DockerCli(runner)).inject(
+        _def("cart-corrupt", FaultClass.DATASTORE_CORRUPTION, "valkey-cart")
+    )
+    # the probe (a single EVAL, not detached) and the loop (sh -c, detached) both ran
+    assert runner.called("exec", "valkey-cart", "valkey-cli", "EVAL")
+    assert runner.called("exec", "--detach", "valkey-cart", "sh", "-c")
+    assert isinstance(outcome.restore, CorruptionRestore)
+    assert outcome.restore.flush is True
+
+
+def test_corruption_fails_if_the_probe_sweep_errors(settings: InjectorSettings) -> None:
+    runner = FakeRunner(stdout={"{{.State.Running}}": "true\n"}, returncodes={"EVAL": 1})
+    with pytest.raises(FaultUsageError, match="NOT been injected"):
+        DatastoreCorruptionFault(DockerCli(runner)).inject(
+            _def("cart-corrupt", FaultClass.DATASTORE_CORRUPTION, "valkey-cart")
+        )
+
+
+def test_corruption_restore_stops_the_loop_then_flushes(settings: InjectorSettings) -> None:
+    runner = FakeRunner(stdout={"{{.Id}}": "abc\n"})
+    changes = DatastoreCorruptionFault(DockerCli(runner)).restore(
+        CorruptionRestore(
+            container="valkey-cart",
+            stop_file="/tmp/faultline-cart-corrupt.stop",
+            cli="valkey-cli",
+            flush=True,
+        )
+    )
+    assert runner.called("exec", "valkey-cart", "touch", "/tmp/faultline-cart-corrupt.stop")
+    assert runner.called("exec", "valkey-cart", "valkey-cli", "FLUSHALL")
+    assert any("FLUSHALL" in c for c in changes)
+
+
+def test_corruption_restore_is_a_no_op_when_gone(settings: InjectorSettings) -> None:
+    runner = FakeRunner(returncodes={"inspect": 1})
+    changes = DatastoreCorruptionFault(DockerCli(runner)).restore(
+        CorruptionRestore(
+            container="valkey-cart", stop_file="/tmp/x.stop", cli="valkey-cli", flush=True
+        )
+    )
+    assert "gone" in changes[0]
+
+
+# --- disk_fill --------------------------------------------------------------------------------
+
+_DF_ROW = "tmpfs 262144 0 262144 0% /tmp/kafka-logs"
+_DF = {"df": f"Filesystem 1024-blocks Used Available Capacity Mounted\n{_DF_ROW}\n"}
+
+
+def test_disk_fill_reads_the_mount_and_fills_it(settings: InjectorSettings) -> None:
+    runner = FakeRunner(
+        stdout={"{{.State.Running}}": "true\n", **_DF, "dd": "no space left on device\n"}
+    )
+    outcome = DiskFillFault(DockerCli(runner), ComposeCli(runner, settings)).inject(
+        _def(
+            "kafka-disk-fill",
+            FaultClass.DISK_FILL,
+            "kafka",
+            service="kafka",
+            directory="/tmp/kafka-logs",
+            restart_after="accounting,checkout",
+        )
+    )
+    assert runner.called("exec", "kafka", "df", "-P", "-k", "/tmp/kafka-logs")
+    assert runner.called("exec", "kafka", "dd", "if=/dev/zero")
+    assert isinstance(outcome.restore, DiskFillRestore)
+    assert outcome.restore.restart_after == ["accounting", "checkout"]
+
+
+def test_disk_fill_fails_when_dd_did_not_run_out_of_space(settings: InjectorSettings) -> None:
+    runner = FakeRunner(stdout={"{{.State.Running}}": "true\n", **_DF, "dd": "256+0 records out\n"})
+    with pytest.raises(FaultUsageError, match="NOT been injected"):
+        DiskFillFault(DockerCli(runner), ComposeCli(runner, settings)).inject(
+            _def(
+                "kafka-disk-fill",
+                FaultClass.DISK_FILL,
+                "kafka",
+                service="kafka",
+                directory="/tmp/kafka-logs",
+            )
+        )
+
+
+def test_disk_fill_refuses_a_directory_that_is_not_a_mount_point(
+    settings: InjectorSettings,
+) -> None:
+    df = {"df": "Filesystem 1024-blocks Used Available Capacity Mounted\noverlay 999 1 998 1% /\n"}
+    runner = FakeRunner(stdout={"{{.State.Running}}": "true\n", **df})
+    with pytest.raises(FaultUsageError, match="not a mount point"):
+        DiskFillFault(DockerCli(runner), ComposeCli(runner, settings)).inject(
+            _def(
+                "kafka-disk-fill",
+                FaultClass.DISK_FILL,
+                "kafka",
+                service="kafka",
+                directory="/tmp/kafka-logs",
+            )
+        )
+
+
+def test_disk_fill_restore_removes_the_file_and_restarts_consumers(
+    settings: InjectorSettings,
+) -> None:
+    runner = FakeRunner(stdout={"{{.Id}}": "abc\n"})
+    changes = DiskFillFault(DockerCli(runner), ComposeCli(runner, settings)).restore(
+        DiskFillRestore(
+            container="kafka",
+            service="kafka",
+            fill_file="/tmp/kafka-logs/f.fill",
+            restart_after=["accounting"],
+        )
+    )
+    assert runner.called("exec", "kafka", "rm", "-f", "/tmp/kafka-logs/f.fill")
+    assert runner.called("restart", "accounting")
+    assert any("accounting" in c for c in changes)
+
+
+def test_disk_fill_restore_recreates_when_the_file_cannot_be_removed(
+    settings: InjectorSettings,
+) -> None:
+    runner = FakeRunner(stdout={"{{.Id}}": "abc\n"}, returncodes={"rm -f": 1})
+    changes = DiskFillFault(DockerCli(runner), ComposeCli(runner, settings)).restore(
+        DiskFillRestore(
+            container="kafka", service="kafka", fill_file="/tmp/kafka-logs/f.fill", restart_after=[]
+        )
+    )
+    assert runner.called("up", "-d", "--no-build", "--no-deps", "--force-recreate", "kafka")
+    assert any("recreated" in c for c in changes)
+
+
+def test_all_five_new_classes_record_no_change() -> None:
+    for handler_type in (
+        FeatureFlagFault,
+        ProcessFreezeFault,
+        NetworkPartitionFault,
+        DatastoreCorruptionFault,
+        DiskFillFault,
+    ):
+        assert handler_type.records_change is False, handler_type.__name__
+    for handler_type in (
+        ResourceExhaustionFault,
+        BadDeployFault,
+        DependencyLatencyFault,
+        BadConfigFault,
+    ):
+        assert handler_type.records_change is True, handler_type.__name__

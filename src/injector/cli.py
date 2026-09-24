@@ -19,9 +19,14 @@ from injector.faults import FaultUsageError
 from injector.models import (
     ActiveInjection,
     ComposeServiceRestore,
+    CorruptionRestore,
     CpuQuotaRestore,
+    DiskFillRestore,
     FaultDefinition,
+    FlagRestore,
     MemoryLimitRestore,
+    NetworkRestore,
+    PauseRestore,
     PumbaRestore,
     RestoreState,
 )
@@ -68,6 +73,16 @@ def _describe_restore(state: RestoreState) -> str:
             )
         case PumbaRestore():
             return f"stop sidecar {state.helper_container}"
+        case FlagRestore():
+            return f"set {state.flag} back to {state.previous_variant!r} in {state.flag_file}"
+        case PauseRestore():
+            return f"unpause {state.container}"
+        case NetworkRestore():
+            return f"reconnect {state.container} to {state.network}"
+        case CorruptionRestore():
+            return f"stop the corruption loop on {state.container} and flush it"
+        case DiskFillRestore():
+            return f"remove the fill on {state.container} (or recreate {state.service})"
 
 
 def _cmd_list(engine: Engine) -> int:

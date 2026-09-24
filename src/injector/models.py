@@ -98,8 +98,88 @@ class PumbaRestore(BaseModel):
     helper_container: str
 
 
+class FlagRestore(BaseModel):
+    """Put a flag's `defaultVariant` back to the value read before it was flipped (T7.0, A1).
+
+    The file is the flag daemon's own, bind-mounted from the world; it reloads on write. The
+    previous variant is captured at inject time because by stop time the file says only what
+    the fault set.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["feature_flag"] = "feature_flag"
+    flag_file: str
+    flag: str
+    previous_variant: str
+
+
+class PauseRestore(BaseModel):
+    """`docker unpause` the container that was paused (T7.0, A2)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["pause"] = "pause"
+    container: str
+
+
+class NetworkRestore(BaseModel):
+    """Re-attach a container to the network it was cut from, with the aliases it had (T7.0, A3).
+
+    The aliases are what compose gave the container - its service name, so its callers can
+    resolve it. `docker network connect` without them would bring the container back under
+    its container name alone, which on a world where the two differ is a second fault.
+    Captured before the disconnect, because afterwards there is nothing to read them from.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["network"] = "network"
+    container: str
+    network: str
+    aliases: list[str]
+
+
+class CorruptionRestore(BaseModel):
+    """Stop the sweep loop inside the datastore container, then flush the store (T7.0, A4b).
+
+    The loop watches for `stop_file`; touching it ends the loop within one iteration. The
+    flush discards every corrupted value; the store's clients make fresh ones.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["corruption"] = "corruption"
+    container: str
+    stop_file: str
+    cli: str
+    flush: bool
+
+
+class DiskFillRestore(BaseModel):
+    """Remove the fill file; if the container is restarting too fast to reach, recreate the
+    service, which discards the filled tmpfs; then restart whatever stopped consuming (T7.0, A8b).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    kind: Literal["disk_fill"] = "disk_fill"
+    container: str
+    service: str
+    fill_file: str
+    restart_after: list[str]
+
+
 RestoreState = Annotated[
-    MemoryLimitRestore | ComposeServiceRestore | CpuQuotaRestore | PumbaRestore,
+    MemoryLimitRestore
+    | ComposeServiceRestore
+    | CpuQuotaRestore
+    | PumbaRestore
+    | FlagRestore
+    | PauseRestore
+    | NetworkRestore
+    | CorruptionRestore
+    | DiskFillRestore,
     Field(discriminator="kind"),
 ]
 
