@@ -97,13 +97,18 @@ def shape(at: datetime) -> None:
 
 
 def main() -> None:
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
-    if len(args) != 2:
+    argv = sys.argv[1:]
+    at = None
+    if "--at" in argv:
+        index = argv.index("--at")
+        at = argv[index + 1] if index + 1 < len(argv) else None
+        del argv[index : index + 2]
+    if len(argv) != 2 or ("--at" in sys.argv and at is None):
         sys.exit(__doc__)
-    start, end = (_clock(a) for a in args)
+    start, end = (_clock(a) for a in argv)
     alerts(start, end)
-    if "--at" in sys.argv:
-        shape(_clock(sys.argv[sys.argv.index("--at") + 1]))
+    if at is not None:
+        shape(_clock(at))
 
 
 if __name__ == "__main__":
