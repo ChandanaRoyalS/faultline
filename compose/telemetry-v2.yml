@@ -52,6 +52,11 @@ services:
   # The trace store the trace tool reads, beside the demo's own Jaeger, which stays as the demo's
   # UI. GOMEMLIMIT is v1's, and unlike the alert thresholds it is a property of Tempo's own Go
   # runtime against this container limit rather than of the world being observed, so it carries.
+  #
+  # **The config is v2's own file** (Q91, 2026-09-24). v1's `tempo.yaml` is in v1's observability
+  # digest; v2 needed compaction bounded (Tempo was OOM-killed compacting parquet blocks under this
+  # limit, twice) and v1 did not, so the tuning lives in `tempo-v2.yaml` and v1's bundles stand.
+  # The 400M is still v1's number and is marked for measurement there.
   tempo:
     image: grafana/tempo:2.4.2
     container_name: tempo
@@ -59,7 +64,7 @@ services:
     environment:
       GOMEMLIMIT: 320MiB
     volumes:
-      - ../compose/tempo.yaml:/etc/tempo/tempo.yaml:ro
+      - ../compose/tempo-v2.yaml:/etc/tempo/tempo.yaml:ro
     ports:
       - "3200:3200"
     deploy:
