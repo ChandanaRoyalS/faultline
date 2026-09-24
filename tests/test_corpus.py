@@ -37,7 +37,7 @@ DEV_DOCUMENTS = 10
 """Ten dev bundles, two marked INVALID. **Pinned so a new narrative is a conscious change**
 to this number - a corpus that silently grows is one nobody has read."""
 
-OTHER_WORLD_NARRATIVES = ["v2-product-catalog-freeze"]
+OTHER_WORLD_NARRATIVES = ["v2-accounting-bad-credential", "v2-product-catalog-freeze"]
 """Dev narratives recorded on v2, which the corpus holds out until T7.1's corpus piece (Q92)
 decides (`seed.CORPUS_WORLDS`). Pinned for `DEV_DOCUMENTS`'s reason: a v2 narrative landing is a
 conscious change here, and the day the corpus takes them this list and that constant move in the

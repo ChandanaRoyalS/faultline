@@ -4617,6 +4617,20 @@ the injector, unused, as the spare for this. Until then, three holdout scenarios
 anecdote and will not be headlined as anything else.
 `docs/adr/0008:74`, `docs/adr/0008:161`, `evals/scenarios/SPLIT.md:50`, `src/injector/catalog.py:282`
 
+***2026-09-24: the second v2 scenario, `v2-accounting-bad-credential`, rehearsed and labeled -
+slot `v2/bad_config-1` (dev), first recording.***
+
+- **The design.** A6's, through the injector: accounting's database password is rotated to
+  `otelp-2026q3`, a rotation-shaped value, because the change record carries it to the agent.
+- **What the recording showed.** One alert, on the culprit itself, at +4:16 (A6 +5:03), and
+  nothing else during the fault or after the fix. Accounting's error ratio sat at exactly one
+  third: one failing `CONNECT otel` span, status `28P01`, of the three spans each order makes, so
+  every order failed. Its traffic, latency and runtime held. So did fraud-detection (the other
+  consumer of the same orders) and Postgres's other clients.
+- **The logs name the cause inside a misleading label** (`Order parsing failed:`). A whole-window
+  `logql_query` showed only healthy lines, a second measurement for **Q100**.
+- **Declared `[runtime, logs]`, derived `[runtime, logs]`.** Two v2 dev slots are now filled.
+
 ***2026-09-24: Q94 closed - the trace tool on v2, and the narrative review its stamp move
 required.*** `TOOL_BEHAVIOUR_REVISION` 3 → 4, `cap:dd651ccc` → `cap:d2b243e0`, decided with the
 first v2 scenario as the row said. Three changes in `faultline.tools.spantree`:
