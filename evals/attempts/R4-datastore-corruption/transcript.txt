@@ -1,0 +1,214 @@
+R4 — datastore_corruption rehearsed through the injector: v2-cart-store-corruption.
+Run 2026-09-24 07:21:39 → 07:38:03 UTC on the Mac, zsh, FAULTLINE_TOOLS_WORLD=v2. Protocol: evals/runs/REHEARSALS-T7.0.md
+with its 2026-09-24 addendum. Pasted verbatim from terminal 1. No page: the injector's loop never ran its sweep
+(section 7). Fixed in the same branch; R4b runs on the fixed injector.
+
+=== 1. pre-state ===
+
+$ python3 evals/attempts/shape.py | sed -n '/== firing/,/== silent/p;/== silent/,+3p' | head -30; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; docker inspect -f '{{.Name}} restarts={{.RestartCount}}' postgresql valkey-cart cart checkout
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       93   0.467
+  ad                      0.00        5   0.383
+  cart                    0.00        6   3.837
+  checkout                0.00       35   1.975
+  currency                0.00        8   0.383
+  email                   0.00        7   0.617
+  flagd                   0.17        2   2.412
+  fraud-detection         1.33       93   0.312
+  frontend                0.00       45  11.317
+  frontend-proxy          0.00       47   5.237
+  image-provider          0.00        2   0.100
+  load-generator          0.00       48   4.746
+  payment                 0.00        2   0.300
+  product-catalog         0.00        8   4.875
+  product-reviews         0.42       44   0.983
+  quote                   0.00        2   0.462
+  recommendation          0.68        6   0.617
+  shipping                0.00        6   0.462
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+no active injections
+/postgresql restarts=6
+/valkey-cart restarts=0
+/cart restarts=0
+/checkout restarts=2
+  → postgresql 5 → 6 since R3's restart-count read at 07:03:56: it restarted at 07:03:59.5, eight seconds
+    after R3's reconnect and three after R3 read it (section 7). checkout's 2 are A8/A8b's `docker restart`s
+    (started 00:56:20). Quiet since 07:09:03 (12 min).
+
+=== 2. inject through the injector ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start v2-cart-store-corruption; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status
+07:21:39
+injected v2-cart-store-corruption (datastore_corruption) on valkey-cart
+  - valkey-cli on valkey-cart: every hash's 'cart' field set to unparseable bytes, swept every 0.05s (first sweep verified: 731 keys)
+  - no change record: the store is healthy and its contents are wrong
+revert with: faultline-inject stop v2-cart-store-corruption
+1 active injection(s)  [state: /Users/chandana/dev/faultline/.faultline/injections.json]
+
+v2-cart-store-corruption
+    class  : datastore_corruption
+    target : valkey-cart
+    started: 2026-09-24T07:21:40.349882+00:00 (0s ago)
+    params : cli=valkey-cli, field=cart, interval=0.05
+    revert : stop the corruption loop on valkey-cart and flush it
+
+=== 3. observe ===
+
+$ python3 evals/attempts/watch.py 12
+07:21:49  quiet
+07:22:19  quiet
+07:22:49  quiet
+07:23:19  quiet
+07:23:49  quiet
+07:24:19  quiet
+07:24:49  quiet
+07:25:19  quiet
+07:25:49  quiet
+07:26:19  quiet
+07:26:49  quiet
+07:27:19  quiet
+07:27:49  quiet
+07:28:19  quiet
+07:28:49  quiet
+07:29:19  quiet
+07:29:49  quiet
+07:30:19  quiet
+07:30:50  quiet
+07:31:20  quiet
+07:31:50  quiet
+07:32:19  quiet
+07:32:49  quiet
+07:33:20  quiet
+
+$ python3 evals/attempts/shape.py cart
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       92   0.392
+  ad                      0.00        3   0.471
+  cart                    0.00        5   4.155
+  checkout                0.00       31   1.892
+  currency                0.00        7   0.413
+  email                   0.00        7   0.517
+  flagd                   0.00        2   2.275
+  fraud-detection         0.00       93   0.258
+  frontend                0.00       42  12.634
+  frontend-proxy          0.00       44   5.863
+  image-provider          0.00        2   0.100
+  load-generator          0.00       46   5.134
+  payment                 0.00        2   0.258
+  product-catalog         0.00        8   5.175
+  product-reviews         0.00       41   0.950
+  quote                   0.00        2   0.388
+  recommendation          0.00        6   0.538
+  shipping                0.00        6   0.400
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+== docker state (not agent-visible) ==
+  faultline-minio-1    exited     Exited (255) 2 days ago
+  faultline-postgres-1 exited     Exited (255) 2 days ago
+  faultline-prometheus-self-1 exited     Exited (255) 3 days ago
+  faultline-redis-1    exited     Exited (255) 2 days ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+
+== last 8 log lines: cart ==
+  info: cart.cartstore.ValkeyCartStore[0]
+        AddItemAsync called with userId=544e4e92-b7ea-11f1-8780-328bee022e74, productId=0PUK6V6EV0, quantity=2
+  info: cart.cartstore.ValkeyCartStore[0]
+        GetCartAsync called with userId=544e4e92-b7ea-11f1-8780-328bee022e74
+  info: cart.cartstore.ValkeyCartStore[0]
+        GetCartAsync called with userId=544e4e92-b7ea-11f1-8780-328bee022e74
+  info: cart.cartstore.ValkeyCartStore[0]
+        EmptyCartAsync called with userId=544e4e92-b7ea-11f1-8780-328bee022e74
+  → a healthy world: cart 0.00 %, checkout 0.00 %, no `Can't access cart storage` anywhere.
+
+=== 4. read back through the tools ===
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback cart 07:21 07:34 --errors 2>&1 | head -24; FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback checkout 07:21 07:34 --errors 2>&1 | sed -n '/logql/,/change_history/p' | head -12
+== cart over 07:21..07:34 UTC, world v2 ==
+
+-- promql_query error-ratio --
+no series matched 'sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="cart",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="cart"}[5m]))' over this window
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="cart",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=cart} min=3.945 max=6.75 n=27
+
+-- logql_query --
+selector: {service="cart"}
+2026-09-24T07:21:01.154255+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T07:21:01.154274+00:00        GetCartAsync called with userId=
+2026-09-24T07:21:01.853262+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T07:21:01.853280+00:00        GetCartAsync called with userId=
+  ... lines between here and the next timestamp were not returned: this result keeps the OLDEST 4 and the NEWEST 16 lines of the window, and nothing in between ...
+2026-09-24T07:33:52.459390+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T07:33:52.459396+00:00        GetCartAsync called with userId=4a6f743c-b7ea-11f1-8780-328bee022e74
+2026-09-24T07:33:52.466811+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T07:33:52.466836+00:00        GetCartAsync called with userId=4a6f743c-b7ea-11f1-8780-328bee022e74
+2026-09-24T07:33:52.481879+00:00  info: cart.cartstore.ValkeyCartStore[0]
+2026-09-24T07:33:52.483416+00:00        EmptyCartAsync called with userId=4a6f743c-b7ea-11f1-8780-328bee022e74
+2026-09-24T07:33:55.733363+00:00  info: cart.cartstore.ValkeyCartStore[0]
+-- logql_query --
+no log lines matched {service="checkout"} over this window
+
+-- trace_query (errors only) --
+no traces for checkout over this window
+
+-- change_history --
+  (the cart read-back was cut by head -24 before its trace_query; the checkout one shows no error traces)
+
+=== 5. restore through the injector; idempotence; what was actually running ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-cart-store-corruption; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-cart-store-corruption; docker top valkey-cart -o pid,args | grep -v "valkey-server\|PID"
+07:38:03
+reverted v2-cart-store-corruption
+  - valkey-cart: stop file placed; the corruption loop will end
+  - valkey-cli FLUSHALL: every corrupted value discarded
+no active injections
+v2-cart-store-corruption is not active; nothing to revert
+99365               sh -c i=0; while [ ! -f "$STOP" ]; do valkey-cli EVAL "$SCRIPT" 0 "$FIELD" "$BYTES" >/dev/null 2>&1; i=$((i+1)); sleep 0.05; done; echo "swept $i times" faultline local c="0" local n=0 repeat local r=redis.call("SCAN",c,"COUNT",1000) c=r[1] for _,k in ipairs(r[2]) do if redis.call("TYPE",k).ok=="hash" then redis.call("HSET",k,ARGV[1],ARGV[2]) n=n+1 end end until c=="0" return n cart \xff\xff\xff\xff /tmp/faultline-v2-cart-store-corruption.stop
+64115               sleep 0.05
+  → the loop is still running after the stop: its script reads $STOP/$SCRIPT/$FIELD/$BYTES, names nothing set,
+    while sh -c supplied them as $1..$4 (visible after "faultline" in the argv above). So every 50 ms it ran
+    `valkey-cli EVAL "" 0 "" ""` with the output discarded, and `[ ! -f "" ]` never became false.
+
+$ P=$(docker top valkey-cart -o pid,args | grep "sh -c" | awk '{print $1}'); echo "loop pid: $P"; [ -n "$P" ] && docker exec valkey-cart kill $P; sleep 1; docker top valkey-cart -o pid,args | grep -c "sh -c"; docker inspect -f '{{.Name}} restarts={{.RestartCount}} started={{.State.StartedAt}}' postgresql checkout; python3 evals/attempts/replay.py 07:09 07:21 | grep -v quiet
+loop pid: 99365
+kill: can't kill pid 99365: No such process
+1
+/postgresql restarts=6 started=2026-09-24T07:03:59.530536835Z
+/checkout restarts=2 started=2026-09-24T00:56:20.331611713Z
+== ALERTS firing, 07:09..07:21 UTC, from Prometheus at 30 s ==
+  → `docker top` prints host PIDs; `kill` inside the container needs its own namespace's. Killed by
+    /proc scan afterwards (section 6). No alert between R3's recovery and R4's start.
+
+=== 6. recover ===
+
+  (nothing fired; the FLUSHALL emptied a store the load generator refills within seconds. The orphan
+   loop's removal and the post-state are recorded with R4b's pre-state.)
+
+=== 7. what the run measured about the injector, not the class ===
+
+The probe sweep (`valkey-cli EVAL <lua> 0 cart \xff\xff\xff\xff`, run once with a correct argv) returned
+731: every hash in the store at 07:21:39 was overwritten once. A4 (2026-09-23) measured that a live cart
+is written and read back within 5-300 ms; a single sweep lands on none of them, which is exactly what
+A4's 5-second sweep measured and why A4b went to 50 ms. R4's loop was meant to be A4b's loop and was a
+loop around a no-op. Two further defects found while reading it: the payload `\xff\xff\xff\xff` reaches
+the CLI as sixteen ASCII characters, not four 0xFF bytes (A4b's shell wrote a Lua literal); and the
+fake-runner tests check what argv the injector builds, not what `sh` does with it - which is the only
+place this could have been caught short of running it. Fixed in 0147: positional inputs, a hex payload
+decoded in Lua, a heartbeat file the injector reads before it reports the loop running, and a test that
+runs the loop under a real `sh`.
