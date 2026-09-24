@@ -1,0 +1,346 @@
+R5 — disk_fill rehearsed through the injector: v2-kafka-disk-fill.
+Run 2026-09-24 08:33:25 → 08:56:46 UTC on the Mac, zsh, FAULTLINE_TOOLS_WORLD=v2. Protocol: evals/runs/REHEARSALS-T7.0.md
+with its 2026-09-24 addendum. Pasted verbatim from terminal 1. Last of the five, because its restore may recreate
+kafka and restarts three consumers.
+
+=== 1. pre-state (with A8b's precondition: the tmpfs at the directory the broker writes to) ===
+
+$ python3 evals/attempts/shape.py | sed -n '/== firing/,/== silent/p;/== silent/,+3p' | head -30; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; docker exec kafka df -h /tmp/kafka-logs; docker inspect -f '{{.Name}} restarts={{.RestartCount}}' kafka accounting fraud-detection checkout postgresql
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       90   0.392
+  ad                      0.00        4   0.508
+  cart                    0.00        6   3.583
+  checkout                0.00       32   1.758
+  currency                0.00        6   0.362
+  email                   0.00        9   0.517
+  flagd                   0.20        2   2.054
+  fraud-detection         1.59       94   0.262
+  frontend                0.00       44  11.287
+  frontend-proxy          0.00       46   5.342
+  image-provider          0.00        2   0.100
+  load-generator          0.00       48   4.821
+  payment                 0.00        2   0.258
+  product-catalog         0.00        8   5.042
+  product-reviews         0.00       43   0.887
+  quote                   0.00        2   0.387
+  recommendation          0.00        7   0.650
+  shipping                0.00        7   0.387
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+no active injections
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs           256M  2.8M  254M   2% /tmp/kafka-logs
+/kafka restarts=0
+/accounting restarts=0
+/fraud-detection restarts=0
+/checkout restarts=2
+/postgresql restarts=6
+  (quiet since 08:22:10 - R4b's recovery - 11 minutes.)
+
+=== 2. inject through the injector ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start v2-kafka-disk-fill; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status
+08:33:25
+injected v2-kafka-disk-fill (disk_fill) on kafka
+  - dd on kafka: /tmp/kafka-logs filled to capacity (no space left on device)
+  - the broker will halt and crashloop against the full directory; no change record
+revert with: faultline-inject stop v2-kafka-disk-fill
+1 active injection(s)  [state: /Users/chandana/dev/faultline/.faultline/injections.json]
+
+v2-kafka-disk-fill
+    class  : disk_fill
+    target : kafka
+    started: 2026-09-24T08:33:26.342028+00:00 (0s ago)
+    params : service=kafka, directory=/tmp/kafka-logs, restart_after=accounting,fraud-detection,checkout
+    revert : remove the fill on kafka (or recreate kafka)
+
+=== 3. observe ===
+
+$ python3 evals/attempts/watch.py 12
+08:33:31  quiet
+08:34:01  quiet
+08:34:31  quiet
+08:35:01  quiet
+08:35:31  quiet
+08:36:01  quiet
+08:36:31  quiet
+08:37:01  quiet
+08:37:31  quiet
+08:38:01  quiet
+08:38:31  quiet
+08:39:01  ServiceHighLatency/checkout
+08:39:31  ServiceHighLatency/checkout
+08:40:01  ServiceHighLatency/checkout
+08:40:31  ServiceHighErrorRate/checkout, ServiceHighLatency/checkout
+08:41:01  ServiceHighErrorRate/checkout, ServiceHighLatency/checkout, ServiceNoTraffic/accounting
+08:41:31  ServiceHighErrorRate/checkout, ServiceHighLatency/checkout, ServiceNoTraffic/accounting
+08:42:01  ServiceHighErrorRate/checkout, ServiceHighErrorRate/fraud-detection, ServiceHighLatency/checkout, ServiceNoTraffic/accounting
+08:42:32  ServiceHighErrorRate/checkout, ServiceHighErrorRate/fraud-detection, ServiceHighLatency/checkout, ServiceNoTraffic/accounting
+08:43:02  ServiceHighErrorRate/checkout, ServiceHighErrorRate/fraud-detection, ServiceHighLatency/checkout, ServiceHighLatency/fraud-detection, ServiceNoTraffic/accounting
+08:43:32  ServiceHighErrorRate/checkout, ServiceHighErrorRate/fraud-detection, ServiceHighLatency/checkout, ServiceHighLatency/fraud-detection, ServiceNoTraffic/accounting
+08:44:02  ServiceHighErrorRate/checkout, ServiceHighLatency/checkout, ServiceNoTraffic/accounting
+08:44:32  ServiceHighErrorRate/checkout, ServiceHighLatency/checkout, ServiceNoTraffic/accounting
+08:45:02  ServiceHighErrorRate/checkout, ServiceHighLatency/checkout, ServiceNoTraffic/accounting
+
+$ python3 evals/attempts/shape.py kafka
+== firing ==
+  ServiceNoTraffic/accounting
+  ServiceHighErrorRate/checkout
+  ServiceHighLatency/checkout
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting               nan      nan   0.000
+  ad                      1.05        6   0.396
+  cart                    0.00        5   3.679
+  checkout                6.42    15000   1.817
+  currency                0.00        9   0.379
+  email                   0.00        7   0.533
+  flagd                   0.22        2   1.900
+  fraud-detection          nan      nan   0.000
+  frontend                0.00       95   9.946
+  frontend-proxy          2.95    14614   4.654
+  image-provider          0.00        2   0.100
+  load-generator          3.42    15000   4.021
+  payment                 0.00        2   0.258
+  product-catalog         0.00        7   4.158
+  product-reviews         0.00       43   0.775
+  quote                   0.00        2   0.387
+  recommendation          0.00        6   0.462
+  shipping                0.00        5   0.400
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+== docker state (not agent-visible) ==
+  faultline-minio-1    exited     Exited (255) 2 days ago
+  faultline-postgres-1 exited     Exited (255) 2 days ago
+  faultline-prometheus-self-1 exited     Exited (255) 3 days ago
+  faultline-redis-1    exited     Exited (255) 2 days ago
+  kafka                restarting Restarting (1) 53 seconds ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+
+== last 8 log lines: kafka ==
+  ===> User
+  uid=1000(appuser) gid=1000(appuser) groups=1000(appuser)
+  ===> Setting default values of environment variables if not already set.
+  ===> Configuring ...
+  Running in KRaft mode...
+  ===> Launching ...
+  ===> Using provided cluster id ckjPoprWQzOf0-FuNkGfFQ ...
+  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended [otel.javaagent 2026-09-24 08:44:39:211 +0000] [main] INFO io.opentele
+  → the broker crashlooping; fraud-detection's rate is 0.000 but ServiceNoTraffic/fraud-detection had not fired
+    by minute twelve (its errors kept its series alive to +9:37; A8b +11:31).
+
+=== 4. read back through the tools: the broker (c), the pager, a consumer - and a tool that died ===
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback kafka 08:33 08:47 --errors 2>&1 | sed -n '/logql/,/trace_query/p' | head -40
+-- logql_query --
+selector: {service="kafka"}
+2026-09-24T08:33:02.054701+00:00  [2026-09-24 08:33:02,054] INFO [LocalLog partition=__cluster_metadata-0, dir=/tmp/kafka-logs] Rolled new log segment at offset 54400 in 0 ms. (kafka.log.LocalLog)
+2026-09-24T08:33:02.054717+00:00  [2026-09-24 08:33:02,054] INFO [ProducerStateManager partition=__cluster_metadata-0] Wrote producer snapshot at offset 54400 with 0 producer ids in 0 ms. (org.apache.kafka.storage.internals.log.ProducerStateManager)
+2026-09-24T08:33:16.587104+00:00  [2026-09-24 08:33:16,585] INFO [SnapshotGenerator id=1] Creating new KRaft snapshot file snapshot 00000000000000054430-0000000001 because we have replayed at least 2800 bytes. (org.apache.kafka.image.publisher.SnapshotGenerator)
+2026-09-24T08:33:16.587134+00:00  [2026-09-24 08:33:16,586] INFO [SnapshotEmitter id=1] Successfully wrote snapshot 00000000000000054430-0000000001 (org.apache.kafka.image.publisher.SnapshotEmitter)
+  ... lines between here and the next timestamp were not returned: this result keeps the OLDEST 4 and the NEWEST 16 lines of the window, and nothing in between ...
+2026-09-24T08:44:38.577729+00:00  ===> User
+2026-09-24T08:44:38.579529+00:00  uid=1000(appuser) gid=1000(appuser) groups=1000(appuser)
+2026-09-24T08:44:38.579912+00:00  ===> Setting default values of environment variables if not already set.
+2026-09-24T08:44:38.579915+00:00  ===> Configuring ...
+2026-09-24T08:44:38.579916+00:00  Running in KRaft mode...
+2026-09-24T08:44:38.580838+00:00  ===> Launching ...
+2026-09-24T08:44:38.584547+00:00  ===> Using provided cluster id ckjPoprWQzOf0-FuNkGfFQ ...
+2026-09-24T08:44:43.204098+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended [otel.javaagent 2026-09-24 08:44:39:211 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 2.23.0 Formatting metadata directory /tmp/kafka-logs with metadata.version 3.9-IV0. Error while writing meta.properties file /tmp/kafka-logs: java.nio.file.AccessDeniedException: /tmp/kafka-logs/bootstrap.checkpoint.tmp
+2026-09-24T08:45:43.456981+00:00  ===> User
+  (… the same banner at 08:45:43, cut …)
+  → over fourteen minutes the tool keeps the oldest 4 and newest 16 lines; the halt at +5 s is in the elided
+    middle and the newest 16 are the crashloop's banners. Storage evidence (AccessDeniedException on the
+    directory, every restart) but not the registered strings. Re-read on a narrower window in section 7.
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback checkout 08:33 08:47 --errors 2>&1 | head -40; FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback accounting 08:33 08:47 2>&1 | sed -n '1,12p'
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "/Users/chandana/dev/faultline/src/evalharness/readback.py", line 65, in <module>
+    main()
+  File "/Users/chandana/dev/faultline/src/evalharness/readback.py", line 57, in main
+    print(tools.trace_query(service, start, end, only_errors=errors_only).body())
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/tools/results.py", line 234, in body
+    lines.extend(render(tree))
+                 ^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/tools/spantree.py", line 227, in render
+    emit(tree.root)
+  File "/Users/chandana/dev/faultline/src/faultline/tools/spantree.py", line 222, in emit
+    emit(child)
+  File "/Users/chandana/dev/faultline/src/faultline/tools/spantree.py", line 222, in emit
+    emit(child)
+  File "/Users/chandana/dev/faultline/src/faultline/tools/spantree.py", line 222, in emit
+    emit(child)
+  [Previous line repeated 989 more times]
+  File "/Users/chandana/dev/faultline/src/faultline/tools/spantree.py", line 215, in emit
+    f"[self {node.self_ms:.1f}ms]{flag}"
+             ^^^^^^^^^^^^
+  File "/Users/chandana/dev/faultline/src/faultline/tools/spantree.py", line 55, in self_ms
+    return max(0.0, self.span.duration_ms - sum(c.span.duration_ms for c in self.children))
+                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+RecursionError: maximum recursion depth exceeded
+== checkout over 08:33..08:47 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="checkout",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="checkout"}[5m]))
+1 series
+  {service_name=checkout} min=0 max=0.07051 n=29
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="checkout",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=checkout} min=31.68 max=1.5e+04 n=29
+
+-- logql_query --
+== accounting over 08:33..08:47 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="accounting",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="accounting"}[5m]))
+1 series
+  {service_name=accounting} min=0 max=0 n=29
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="accounting",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=accounting} min=90.16 max=140 n=29
+  → trace_query checkout --errors died of RecursionError in spantree.render: the checkout traces hold a
+    cycle (spans naming each other, or one naming itself) and the renderer had no guard where the
+    module's other two walkers did. A tool the agent calls raised on the store's data. Fixed in 0152 and
+    re-read in section 7 (the traces are still in Tempo). The traceback printed after the promql sections
+    because stderr and stdout interleave through the pipe.
+
+=== 5. restore through the injector; idempotence; what it did ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-kafka-disk-fill; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-kafka-disk-fill; sleep 5; docker exec kafka df -h /tmp/kafka-logs; docker inspect -f '{{.Name}} restarts={{.RestartCount}} started={{.State.StartedAt}}' kafka accounting fraud-detection checkout postgresql
+08:46:46
+reverted v2-kafka-disk-fill
+  - could not reach kafka to delete the fill; recreated kafka, which discards the filled directory
+  - restarted accounting, fraud-detection, checkout (they do not reconnect on their own); expect ~4 min of duplicate-key errors on any that kept uncommitted offsets
+no active injections
+v2-kafka-disk-fill is not active; nothing to revert
+Filesystem      Size  Used Avail Use% Mounted on
+tmpfs           256M  8.0K  256M   1% /tmp/kafka-logs
+/kafka restarts=0 started=2026-09-24T08:46:48.147187343Z
+/accounting restarts=0 started=2026-09-24T08:46:48.631097343Z
+/fraud-detection restarts=0 started=2026-09-24T08:46:49.567198843Z
+/checkout restarts=0 started=2026-09-24T08:46:50.140006719Z
+/postgresql restarts=6 started=2026-09-24T07:03:59.530536835Z
+  → the registered fallback, as in A8b: exec could not land on the crashlooping container, kafka was recreated
+    (tmpfs empty: 8.0K), the three consumers restarted (their counts reset to 0 by the restart). postgresql untouched.
+
+=== 6. recover ===
+
+$ python3 evals/attempts/watch.py 10
+08:47:16  ServiceHighErrorRate/checkout, ServiceHighLatency/checkout, ServiceNoTraffic/accounting, ServiceNoTraffic/fraud-detection
+08:47:46  ServiceHighErrorRate/checkout, ServiceHighLatency/checkout, ServiceNoTraffic/accounting, ServiceNoTraffic/fraud-detection
+08:48:16  ServiceHighErrorRate/checkout, ServiceHighLatency/checkout, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/fraud-detection
+08:48:46  ServiceHighErrorRate/checkout, ServiceHighLatency/checkout, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/fraud-detection
+08:49:16  ServiceHighLatency/checkout
+08:49:46  ServiceHighLatency/checkout
+08:50:16  ServiceHighLatency/checkout
+08:50:46  ServiceHighLatency/checkout
+08:51:16  quiet
+08:51:46  quiet
+08:52:16  quiet
+08:52:46  quiet
+08:53:16  quiet
+08:53:46  quiet
+08:54:16  quiet
+08:54:46  quiet
+08:55:16  quiet
+08:55:46  quiet
+08:56:16  quiet
+08:56:46  quiet
+  → all clear 08:51:16 (+4:30 after stop); no ServiceHighErrorRate/accounting wave: the recreated broker had
+    nothing to redeliver (Q89, as A8b read it).
+
+=== 7. the two reads owed, on the fixed tools, over R5's own window (data still in the stores) ===
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback checkout 08:33 08:47 --errors 2>&1 | sed -n '/trace_query/,$p' | head -60
+-- trace_query (errors only) --
+service: checkout
+4 trace(s) shown of 10 found, 200 spans; offsets are from each trace's root
+
+trace 4ef675a2980f915d  root load-generator/user_checkout_single  15029.8ms  started 2026-09-24T08:40:44.748794+00:00  49 spans
+  +0.0ms load-generator/user_checkout_single 15029.8ms [self 22.6ms]
+    +22.5ms load-generator/POST 15007.2ms [self 2.5ms]  ERROR
+      +23.8ms frontend-proxy/ingress 15004.7ms [self 0.2ms]  ERROR
+        +24.0ms frontend-proxy/router frontend egress 15004.5ms [self 3.2ms]
+          +23.2ms frontend/POST 15001.3ms [self 0.0ms]
+            +24.2ms frontend/POST /api/checkout 49318.7ms [self 0.5ms]
+              +24.2ms frontend/executing api route (pages) /api/checkout 49318.2ms [self 0.5ms]
+                ... 2 deeper span(s) elided
+  degrading hop: checkout/oteldemo.CheckoutService/PlaceOrder -> checkout/orders publish  49277.5ms, 100% of the trace (error)
+
+trace c4a2b78a84d3efb7  root load-generator/user_checkout_multi  15084.2ms  started 2026-09-24T08:41:12.245227+00:00  73 spans
+  +0.0ms load-generator/user_checkout_multi 15084.2ms [self 82.7ms]
+    +82.5ms load-generator/POST 15001.5ms [self 1.1ms]  ERROR
+      +82.8ms frontend-proxy/ingress 15000.4ms [self 0.1ms]  ERROR
+        +82.9ms frontend-proxy/router frontend egress 15000.2ms [self 0.0ms]
+          +82.8ms frontend/POST 15000.4ms [self 0.0ms]
+            +82.8ms frontend/POST /api/checkout 52078.9ms [self 0.4ms]
+              +82.8ms frontend/executing api route (pages) /api/checkout 52078.5ms [self 0.0ms]
+                ... 5 deeper span(s) elided
+  degrading hop: checkout/oteldemo.CheckoutService/PlaceOrder -> checkout/orders publish  52004.7ms, 100% of the trace (error)
+
+trace d0d12aaa7c4f2407  root load-generator/user_checkout_multi  15054.9ms  started 2026-09-24T08:44:54.154583+00:00  61 spans
+  +0.0ms load-generator/user_checkout_multi 15054.9ms [self 53.2ms]
+    +53.0ms load-generator/POST 15001.6ms [self 2.3ms]  ERROR
+      +53.8ms frontend-proxy/ingress 14999.4ms [self 0.1ms]  ERROR
+        +53.9ms frontend-proxy/router frontend egress 14999.2ms [self 0.0ms]
+          +53.4ms frontend/POST 15001.7ms [self 0.0ms]
+            +53.4ms frontend/POST /api/checkout 78024.4ms [self 0.4ms]
+              +54.4ms frontend/executing api route (pages) /api/checkout 78024.0ms [self 7.8ms]
+                ... 1 deeper span(s) elided
+  degrading hop: checkout/oteldemo.CheckoutService/PlaceOrder -> checkout/orders publish  77985.2ms, 100% of the trace (error)
+
+trace d62917570b8c1f81  root load-generator/user_checkout_single  15034.8ms  started 2026-09-24T08:45:30.160515+00:00  17 spans, 1 unattached
+  +0.0ms load-generator/user_checkout_single 15034.8ms [self 32.2ms]
+    +32.0ms load-generator/POST 15002.4ms [self 1.0ms]  ERROR
+      +32.5ms frontend-proxy/ingress 15001.3ms [self 0.3ms]  ERROR
+        +32.5ms frontend-proxy/router frontend egress 15001.0ms [self 0.0ms]
+          +32.5ms frontend/POST 15001.6ms [self 0.0ms]
+            +32.5ms frontend/POST /api/checkout 71463.9ms [self 0.3ms]
+              +32.5ms frontend/executing api route (pages) /api/checkout 71463.6ms [self 2.6ms]
+                ... 1 deeper span(s) elided
+    +-95793440.6ms quote/POST /getquote 0.2ms [self 0.1ms]
+      +-95793440.6ms quote/{closure} 0.1ms [self 0.1ms]
+        +-95793440.6ms quote/calculate-quote 0.0ms [self 0.0ms]
+  degrading hop: load-generator/POST -> frontend-proxy/ingress  15001.3ms, 100% of the trace (error)
+
+-- change_history --
+query failed: no change log configured, so this window was not observed
+  → the degrading hop names the produce to the halted broker: PlaceOrder -> orders publish, 49-78 s inside a
+    15 s request. The fourth trace's unattached quote spans sit 95,793,440 ms - 26.6 hours - before their
+    trace's root: quote's SDK stamps time a day behind (Q98). The container's clock is right:
+    $ docker exec quote date -u +%Y-%m-%dT%H:%M:%S; date -u +%Y-%m-%dT%H:%M:%S
+    2026-09-24T09:04:58
+    2026-09-24T09:04:58
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback kafka 08:33:20 08:33:50 --errors 2>&1 | sed -n '/logql/,/trace_query/p' | head -30
+-- logql_query --
+selector: {service="kafka"}
+2026-09-24T08:33:31.219725+00:00  [2026-09-24 08:33:31,216] ERROR Error while writing to checkpoint file /tmp/kafka-logs/replication-offset-checkpoint (org.apache.kafka.storage.internals.log.LogDirFailureChannel)
+2026-09-24T08:33:31.219773+00:00  java.io.IOException: No space left on device
+2026-09-24T08:33:31.219778+00:00  at java.base/java.io.FileOutputStream.writeBytes(Native Method)
+2026-09-24T08:33:31.219783+00:00  at java.base/java.io.FileOutputStream.write(Unknown Source)
+  ... lines between here and the next timestamp were not returned: this result keeps the OLDEST 4 and the NEWEST 16 lines of the window, and nothing in between ...
+2026-09-24T08:33:41.609863+00:00  OpenJDK 64-Bit Server VM warning: Sharing is only supported for boot loader classes because bootstrap classpath has been appended [otel.javaagent 2026-09-24 08:33:37:697 +0000] [main] INFO io.opentelemetry.javaagent.tooling.VersionLogger - opentelemetry-javaagent - version: 2.23.0 Formatting metadata directory /tmp/kafka-logs with metadata.version 3.9-IV0. Error while writing meta.properties file /tmp/kafka-logs: java.nio.file.AccessDeniedException: /tmp/kafka-logs/bootstrap.checkpoint.tmp
+2026-09-24T08:33:42.210071+00:00  ===> User
+  (… two restart banners to 08:33:47, cut …)
+  → (c) on the agent's path: the halt at 08:33:31 (+5 s), `No space left on device` on the checkpoint file, and the
+    first restart within ten seconds. It takes a thirty-second window to see: a two-minute one (08:33-08:35,
+    tried first) already buried it under the banners. A first attempt at this read with an ISO timestamp
+    returned nothing - readback took a bare ISO as local time (fixed, 0153).

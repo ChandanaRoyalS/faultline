@@ -4552,6 +4552,30 @@ Extends the injector from four classes to eight, and extends the scenario schema
 `fault_class` enum with it.
 `evals/scenarios/SCHEMA.md:10`, `docs/adr/0010:23`, `src/injector/faults.py:1`
 
+***2026-09-24: BUILT — nine classes, five of them new, each rehearsed end to end through the
+injector and the agent's tools; \$0 across the whole task.*** Nine attempts by hand
+(`evals/attempts/A1`–`A8b`, 2026-09-22 → 24) admitted five mechanisms as classes under
+[ADR-0043](adr/0043-what-individuates-a-fault-class.md)'s criterion — `feature_flag`,
+`process_freeze`, `network_partition`, `datastore_corruption`, `disk_fill` — and refused four
+(A5 cache stampede: no page but rate; A6 wrong credential: `bad_config` by definition; A7 N+1:
+no page, Q90; A8: wrong path, re-run as A8b). The class list moved the prompt digest once
+(`06f24e827915` → `8dda4a19da2f`); the five `Fault` subclasses, the world-aware injector
+(`FAULTLINE_TOOLS_WORLD`), and one v2 definition per class landed as their own patches. **The
+rehearsals (`evals/runs/REHEARSALS-T7.0.md`, `evals/attempts/R1`–`R5`)**: seven runs for five
+classes, every one injecting its attempt's page shape through the injector — R2b and R3 reproduce
+A2 and A3 to within three seconds on every alert — every one restoring and idempotent, and the
+evidence each class was admitted on reachable through `faultline.tools` (R1's flag message
+through `logql_query`; R3's once-a-minute line where the freeze has none; R4b's protobuf stack and
+the culprit's span in the hop line; R5's `No space left on device` on a thirty-second window).
+Two second runs followed the A4b/A8b convention: R2 ran on a world whose rules could not see four
+services (**Q95**: Tempo recreated onto the collector's old address, SDKs pinned to it — fixed,
+Tempo's receiver off 4317); R4's corruption loop never swept (read `$STOP` where `sh -c` gave
+`$4` — fixed, with a heartbeat the injector verifies and a test under a real `sh`). The rehearsals
+also found and fixed a tool crash the agent would have met on its first `disk_fill` scenario
+(**Q97**, a cycle in a trace's spans), and opened **Q96** (the catalog's restore restarts Postgres,
+2/2 unpauses and 1/1 reconnect) and **Q98** (`quote` stamps time a day behind). What remains is
+T7.1's: scenarios against nine classes on a world whose stamp has no runs yet.
+
 ***2026-09-22: REOPENED, and being built as the plan promises it.***
 [ADR-0042](adr/0042-the-world-moves-to-opentelemetry-demo-v2.md) supplies ADR-0029's own
 reopening condition 1 — *a different demo world* — rather than disputing it. **The count that

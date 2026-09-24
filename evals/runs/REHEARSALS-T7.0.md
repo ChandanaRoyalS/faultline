@@ -89,3 +89,24 @@ run because the first could not observe what it was registered to observe, never
 improve a number. The order becomes flag → freeze → freeze again → partition → corruption →
 disk fill.
 
+---
+
+## Addendum 2026-09-24, after R5 — all five rehearsed
+
+| class | run(s) | injects | visible through the tools | restores | scenario may be authored |
+|---|---|---|---|---|---|
+| `feature_flag` | R1 (+ live-flag read) | yes | (a)(c); (d) read on a live flag, the message not carried (Q94) | yes | yes |
+| `process_freeze` | R2 (split world, Q95), **R2b** | yes, A2 to the second | (a)(c)(d) | yes; restarts Postgres (Q96) | yes |
+| `network_partition` | R3 | yes, A3's shape | (c) the once-a-minute line, (a)(d) | yes; restarts Postgres 8 s later (Q96) | yes |
+| `datastore_corruption` | R4 (loop never swept), **R4b** | yes, A4b's shape | (a)(c)(d), culprit in the hop line | yes, ends its own loop | yes |
+| `disk_fill` | R5 | yes, A8b's shape | (a)(c)(d); (c) on a 30 s window, (d) after a tool fix (Q97) | yes, by the registered fallback | yes |
+
+Seven runs for five classes. Two second runs (R2b, R4b) followed the convention A4b and A8b set: a
+first run that could not observe what it was registered to observe gets its own record and a second
+run, never a replacement. What the rehearsals found beyond their verdicts: Q95 (Tempo on the
+collector's old address, fixed), Q96 (the catalog's restore restarts Postgres, open), Q97 (the
+trace tool crashed on a cycle, fixed), Q98 (`quote` stamps time a day behind, open), two injector
+defects fixed the same hour (the corruption loop's variables; its heartbeat deadline), one
+`readback` defect (a bare ISO timestamp read as local time), and two tool properties added to Q94
+(the culprit's span below the depth limit; the onset lines below the head/tail keep). **T7.0 #5 is
+complete**; T7.0's deliverable - *inject/restore verified* for every class - is met.
