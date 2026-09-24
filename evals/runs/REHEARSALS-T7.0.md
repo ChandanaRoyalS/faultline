@@ -71,3 +71,21 @@ was emitted since. That is enough: every rehearsal's window is after it.
 
 Least disruptive first, as the attempts ran: flag, freeze, partition, corruption, disk fill. The
 disk fill is last because its restore may recreate kafka and restarts three consumers.
+
+---
+
+## Addendum 2026-09-24, after R2 — the pre-state has a fourth line, and a rehearsal on a split world gets a second run
+
+R2 ran on a world whose rules could not see four services (Q95: since the 03:31 recreate their
+traces had been reaching Tempo's receiver instead of the collector's, so they had no spanmetrics
+series and nothing could page on them). The pre-state check above — nothing firing, no active
+injection — was satisfied and was not enough. From R3 on, step 1 also requires `shape.py`'s
+**silent** list to be empty: every running instrumented service has a spanmetrics series in the
+last five minutes. A silent service is a world that is not clean, and the rehearsal waits.
+
+R2 is recorded as measured (`R2-process-freeze/`), with the hole named. The freeze is run again
+as **R2b** under the fixed world, with its own record — the convention A4b and A8b set: a second
+run because the first could not observe what it was registered to observe, never a re-run to
+improve a number. The order becomes flag → freeze → freeze again → partition → corruption →
+disk fill.
+

@@ -18,6 +18,33 @@ import urllib.request
 from paint import dim, green, red, yellow
 
 PROM = "http://localhost:9090"
+
+# The v2 services that emit spans whenever the load generator runs, so each one should have a
+# spanmetrics series in every [5m] window the world is up. A running container missing from the
+# table is a service the rules cannot page on - measured 2026-09-24 (Q95): four of these sent
+# their traces to Tempo's receiver instead of the collector's for 2.5 hours, and R2 ran on a
+# world where the freeze's caller could not fire. `kafka` is left out: its spans come only with
+# orders and a quiet minute is normal.
+INSTRUMENTED = (
+    "accounting",
+    "ad",
+    "cart",
+    "checkout",
+    "currency",
+    "email",
+    "flagd",
+    "fraud-detection",
+    "frontend",
+    "frontend-proxy",
+    "image-provider",
+    "load-generator",
+    "payment",
+    "product-catalog",
+    "product-reviews",
+    "quote",
+    "recommendation",
+    "shipping",
+)
 QUERIES = {
     "error ratio": (
         "sum by(service_name) "
@@ -69,13 +96,23 @@ def main() -> None:
         p95_col = red(f"{p:8.0f}") if p >= 250 else f"{p:8.0f}"
         print(f"  {s:20s} {err_col} {p95_col} {rate.get(s, 0):7.3f}")
 
-    print("\n== docker state (not agent-visible) ==")
     ps = subprocess.run(
         ["docker", "ps", "-a", "--format", "{{.Names}}\t{{.State}}\t{{.Status}}"],
         capture_output=True,
         text=True,
         check=False,
     )
+    running = {line.split("\t")[0] for line in ps.stdout.splitlines() if "\trunning\t" in line}
+    silent = sorted(name for name in INSTRUMENTED if name in running and name not in rate)
+    print("\n== silent: running, and no span metrics in [5m] ==")
+    if silent:
+        for name in silent:
+            print(red(f"  {name}"))
+        print(yellow("  a running service the rules cannot see: the world is not clean (Q95)"))
+    else:
+        print(green("  none"))
+
+    print("\n== docker state (not agent-visible) ==")
     for line in sorted(ps.stdout.splitlines()):
         name, state, status = [*line.split("\t"), "", ""][:3]
         if state != "running" or "unhealthy" in status or "Paused" in status:

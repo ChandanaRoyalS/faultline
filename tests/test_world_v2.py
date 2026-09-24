@@ -624,6 +624,30 @@ def test_the_v2_tempo_exporter_does_not_back_pressure_the_pipeline() -> None:
     assert tempo.get("sending_queue", {}).get("queue_size", 1000) <= 500
 
 
+def test_the_v2_tempo_receiver_is_not_on_the_collector_port() -> None:
+    """**Tempo must not answer on 4317** (Q95, 2026-09-24).
+
+    Every SDK targets `otel-collector:4317` and a gRPC client re-resolves that name only after a
+    connection *fails*. Recreating `tempo` with the collector put Tempo on the collector's old
+    address, and four services' trace channels reconnected to it and stayed: their spans reached
+    Tempo, never the spanmetrics connector, and the rules could not page on them for 2.5 hours.
+    On a port no SDK targets, the stale reconnect is refused and the client re-resolves.
+    """
+    import yaml
+
+    tempo = yaml.safe_load((COMPOSE / "tempo-v2.yaml").read_text())
+    endpoint = tempo["distributor"]["receivers"]["otlp"]["protocols"]["grpc"]["endpoint"]
+    port = int(endpoint.rsplit(":", 1)[1])
+    assert port not in (4317, 4318), (
+        f"tempo-v2.yaml's OTLP receiver is on {port}, the port every SDK targets for the "
+        "collector: a client reconnecting to a stale address will find Tempo there and stay"
+    )
+    extras = yaml.safe_load((COMPOSE / "otelcol-extras-v2.yml").read_text())
+    assert extras["exporters"]["otlp/tempo"]["endpoint"] == f"tempo:{port}", (
+        "otlp/tempo's endpoint must follow tempo-v2.yaml's receiver port"
+    )
+
+
 def test_the_v2_tempo_limit_is_at_least_twice_its_measured_peak() -> None:
     """**Measured on this world, not carried from v1** (Q91, 2026-09-24).
 

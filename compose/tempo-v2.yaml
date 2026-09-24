@@ -25,12 +25,23 @@
 server:
   http_listen_port: 3200
 
+# **The receiver is deliberately NOT on 4317** (Q95, measured 2026-09-24). Every SDK in the world
+# is configured with `otel-collector:4317`, and a gRPC client only re-resolves that name after a
+# connection attempt *fails*. When `tempo` and `otel-collector` were recreated together at 03:31,
+# Tempo came up on the collector's former address (172.18.0.15); clients reconnecting to the
+# address they had cached found an OTLP server on 4317 - this receiver - that accepts traces and
+# refuses metrics, and stayed on it: `frontend`, `recommendation`, `product-reviews` and
+# `image-provider` sent their traces here and bypassed the spanmetrics connector for two and a
+# half hours (no series, no page on any of them - R2 measured the freeze without its caller's
+# alert), while `product-catalog`'s metrics channel logged `unknown service MetricsService` once a
+# minute. On a port no SDK targets, a stale address:4317 is refused, the client re-resolves, and
+# the world heals itself at the next recreate instead of silently splitting.
 distributor:
   receivers:
     otlp:
       protocols:
         grpc:
-          endpoint: 0.0.0.0:4317
+          endpoint: 0.0.0.0:4417
 
 ingester:
   # ADR-0037: 30s so the trace tool is never more than a block behind the incident it explains.
