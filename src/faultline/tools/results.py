@@ -201,6 +201,12 @@ class TraceSpan(BaseModel):
     """OTLP status code as text - `UNSET`, `OK`, `ERROR`. `error` is derived from it and kept for
     the callers that read it."""
 
+    status_message: str = ""
+    """OTLP `status.message`: the reason a span's own service gave for its status (Q94, T7.1).
+    Rendered on ERROR spans only. R1's `product-catalog` spans carried *Product Catalog Fail Feature
+    Flag Enabled*, and until Q94 nothing printed it. Defaulted, so a stored envelope from before
+    Q94 still parses and renders as it did."""
+
 
 class TraceResult(ToolResult):
     tool: Literal["trace_query"] = "trace_query"
@@ -210,6 +216,11 @@ class TraceResult(ToolResult):
 
     traces: int = 0
     """How many traces the search returned before the span cap; `len({s.trace_id})` after."""
+
+    max_depth: int = 6
+    """The depth the trees render to - the world's (`spantree.max_depth_for`), fixed when the
+    result is made so a stored envelope re-renders at the depth the specialist read (Q94). The
+    default is v1's six, which every result stored before Q94 was rendered at."""
 
     def body(self) -> str:
         """The span tree per trace, with the degrading hop, from `faultline.tools.spantree`.
@@ -231,7 +242,7 @@ class TraceResult(ToolResult):
         ]
         for tree in trees:
             lines.append("")
-            lines.extend(render(tree))
+            lines.extend(render(tree, self.max_depth))
         return "\n".join(lines)
 
 

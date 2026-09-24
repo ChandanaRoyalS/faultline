@@ -51,6 +51,7 @@ from faultline.tools.results import (
 )
 from faultline.tools.settings import ToolSettings
 from faultline.tools.spanmetrics import metrics_for
+from faultline.tools.spantree import max_depth_for
 from faultline.tools.window import CHANGE_TOOL, WindowPolicy
 from injector.world import canonical_service, service_containers
 
@@ -480,6 +481,7 @@ class Tools:
             window=window,
             spans=spans[: self._settings.max_spans],
             traces=len(summaries),
+            max_depth=max_depth_for(self._settings.world),
             empty=not spans,
             truncated=len(spans) > self._settings.max_spans or kept < len(summaries),
         )
@@ -584,6 +586,7 @@ def _spans_of_otlp(trace_id: str, trace: dict[str, Any], tzinfo: Any) -> list[Tr
                         span_id=str(span.get("spanId") or ""),
                         parent_span_id=str(span.get("parentSpanId") or ""),
                         status=status,
+                        status_message=str((span.get("status") or {}).get("message") or ""),
                     )
                 )
     return spans
