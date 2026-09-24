@@ -228,6 +228,77 @@ class DockerCli:
     def remove(self, name: str) -> None:
         self._runner.run(["docker", "rm", "--force", name], check=False)
 
+    # --- the verbs T7.0's five classes added -------------------------------------------------
+
+    def pause(self, name: str) -> None:
+        self._runner.run(["docker", "pause", name])
+
+    def unpause(self, name: str) -> None:
+        self._runner.run(["docker", "unpause", name])
+
+    def is_paused(self, name: str) -> bool:
+        """Whether the container exists AND is paused; a gone container is not paused."""
+        result = self._runner.run(
+            ["docker", "inspect", "--type", "container", "--format", "{{.State.Paused}}", name],
+            check=False,
+        )
+        return result.returncode == 0 and result.stdout.strip() == "true"
+
+    def restart(self, name: str) -> None:
+        self._runner.run(["docker", "restart", name], check=False)
+
+    def network_aliases(self, container: str) -> dict[str, list[str]]:
+        """Every network the container is attached to, with the DNS aliases it holds there.
+
+        Compose attaches a container under its service name as an alias; the container name
+        is a separate, automatic entry. What is returned is what `docker network connect`
+        has to be handed back, alias by alias, for the container to be reachable as it was.
+        """
+        result = self._runner.run(
+            ["docker", "inspect", "--format", "{{json .NetworkSettings.Networks}}", container]
+        )
+        networks: dict[str, Any] = json.loads(result.stdout or "{}") or {}
+        return {name: list(settings.get("Aliases") or []) for name, settings in networks.items()}
+
+    def network_disconnect(self, network: str, container: str) -> None:
+        self._runner.run(["docker", "network", "disconnect", network, container])
+
+    def network_connect(self, network: str, container: str, aliases: Sequence[str]) -> None:
+        args = ["docker", "network", "connect"]
+        for alias in aliases:
+            args += ["--alias", alias]
+        args += [network, container]
+        self._runner.run(args)
+
+    def exec(
+        self, container: str, command: Sequence[str], *, detach: bool = False, check: bool = True
+    ) -> CommandResult:
+        """`docker exec` with the command as argv - never a shell string assembled here.
+
+        A caller that needs a shell passes `["sh", "-c", script]` and the script travels as one
+        argument, which is how the A4b sweep and the disk fill keep their quoting out of any
+        shell of ours (`2026-09-23`: a bash idiom handed to zsh voided a whole attempt).
+        """
+        args = ["docker", "exec"]
+        if detach:
+            args.append("--detach")
+        args += [container, *command]
+        return self._runner.run(args, check=check)
+
+    def disk_usage(self, container: str, path: str) -> tuple[int, int, str]:
+        """(size KiB, used KiB, mount point) of the filesystem holding `path` inside the container.
+
+        `df -P` for the POSIX single-line layout; the mount point is the last field and it is
+        what a fill has to be aimed at - A8 (2026-09-23) filled a directory the target never
+        wrote to, to the byte, because the path was assumed rather than read.
+        """
+        result = self._runner.run(["docker", "exec", container, "df", "-P", "-k", path])
+        lines = [line for line in result.stdout.splitlines() if line.strip()]
+        if len(lines) < 2:
+            raise CommandError(result)
+        fields = lines[-1].split()
+        return int(fields[1]), int(fields[2]), fields[-1]
+
 
 def _compose_bytes(value: Any) -> int:
     """A compose memory limit as bytes; 0 when there is none. `config --format json` renders

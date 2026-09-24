@@ -1,8 +1,16 @@
-"""The four fault classes T1.4 covers, each with an inject and a restore.
+"""The nine fault classes: T1.4's four and T7.0's five, each with an inject and a restore.
 
-**Four classes, and no fifth** - ADR-0029 (T7.57), on which T7.0 is closed. What a class *may*
-still gain is another mechanism, which costs nothing: ADR-0010 draws that line and
-`resource_exhaustion` already owns two.
+**Nine, measured.** The four are T1.4's. The five were each attempted live on the v2 world under
+`evals/runs/PREREGISTRATION-T7.0.md` and admitted on the registered criteria (ADR-0043 addendum,
+2026-09-24); each handler below does what its attempt did, with the parameters the attempt found
+to matter carried as params rather than assumed. What a class *may* still gain is another
+mechanism, which costs nothing: ADR-0010 draws that line and `resource_exhaustion` owns two.
+
+**Five of the nine leave no change record, on purpose.** ADR-0019 has the injector write the
+record an operator would have written; nobody records a pause, a cable pull, a bad key or a full
+disk, and A1 measured that a flag flip leaves nothing either. Each handler says so with
+`records_change`, and the engine reads it. The registered distinctness of every one of the five
+rests in part on that emptiness - *no change recorded but the world broke* is the signal.
 
 A class may own more than one mechanism - resource_exhaustion squeezes either
 memory or CPU, bad_deploy ships either a bad build or a tag that resolves
@@ -23,6 +31,7 @@ Two rules hold across all of them:
 from __future__ import annotations
 
 import contextlib
+import json
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
@@ -35,9 +44,14 @@ from evalharness.scenario import FaultClass
 from injector.docker import CommandError, ComposeCli, DockerCli
 from injector.models import (
     ComposeServiceRestore,
+    CorruptionRestore,
     CpuQuotaRestore,
+    DiskFillRestore,
     FaultDefinition,
+    FlagRestore,
     MemoryLimitRestore,
+    NetworkRestore,
+    PauseRestore,
     PumbaRestore,
     RestoreState,
     TargetKind,
@@ -87,6 +101,13 @@ class Fault(ABC):
     """One fault class: how to break the world this way, and how to put it back."""
 
     fault_class: ClassVar[FaultClass]
+    records_change: ClassVar[bool] = True
+    """Whether an operator would have written a change record for this mechanism (ADR-0019).
+
+    True for every compose- and sidecar-mechanism class T1.4 built. False for T7.0's five: a
+    pause, a disconnect, a bad key, a full disk and a flag flip leave nothing in this world's
+    change history, and A1-A8b measured their distinctness on that emptiness.
+    """
 
     @classmethod
     @abstractmethod
@@ -503,6 +524,402 @@ class DependencyLatencyFault(Fault):
         return [f"pumba sidecar {state.helper_container} stopped; netem delay reverted"]
 
 
+# --- T7.0's five ----------------------------------------------------------------------------
+
+
+class FeatureFlagFault(Fault):
+    """Flip a flag in the flag daemon's file; it reloads and the flagged path fails (A1).
+
+    The file is bind-mounted from the world into flagd, so a write here is the whole injection.
+    Nothing is recreated and nothing is recorded. The flag and the variant are params; the
+    file is a path relative to the world directory, defaulting to where the demo keeps it.
+    """
+
+    fault_class = FaultClass.FEATURE_FLAG
+    records_change = False
+
+    def __init__(self, settings: InjectorSettings) -> None:
+        self._settings = settings
+
+    @classmethod
+    def target_kind(cls, definition: FaultDefinition) -> TargetKind:
+        # The target names the service the flag breaks - the culprit the scenario is scored
+        # against - and it is a compose service name, not the flag daemon's.
+        return TargetKind.SERVICE
+
+    def inject(self, definition: FaultDefinition) -> InjectionOutcome:
+        flag = _str_param(definition, "flag", "")
+        variant = _str_param(definition, "variant", "on")
+        if not flag:
+            raise FaultUsageError(f"{definition.id}: feature_flag needs a flag param")
+        path = self._settings.world_dir / _str_param(
+            definition, "flag_file", "src/flagd/demo.flagd.json"
+        )
+        previous = _set_default_variant(path, flag, variant)
+        if previous is None:
+            raise FaultUsageError(f"{definition.id}: {path} defines no flag {flag!r}")
+        if variant == previous:
+            raise FaultUsageError(
+                f"{definition.id}: {flag} is already {variant!r}; flipping it would inject nothing"
+            )
+        return InjectionOutcome(
+            restore=FlagRestore(flag_file=str(path), flag=flag, previous_variant=previous),
+            changes=[
+                f"flagd: {flag} defaultVariant {previous!r} -> {variant!r} in {path}",
+                "no compose change and no change record: the flag daemon reloads its own file",
+            ],
+        )
+
+    def restore(self, state: RestoreState) -> list[str]:
+        if not isinstance(state, FlagRestore):
+            raise FaultUsageError(f"feature_flag cannot restore {state.kind}")
+        path = Path(state.flag_file)
+        if not path.is_file():
+            return [f"{path} is gone; nothing to restore"]
+        previous = _set_default_variant(path, state.flag, state.previous_variant)
+        if previous == state.previous_variant:
+            return [f"flagd: {state.flag} already {state.previous_variant!r}"]
+        return [f"flagd: {state.flag} defaultVariant restored to {state.previous_variant!r}"]
+
+
+def _set_default_variant(path: Path, flag: str, variant: str) -> str | None:
+    """Set one flag's `defaultVariant`, returning what it was; None if the flag is not there.
+
+    A whole-document rewrite with the two-space indentation the demo's file uses, so a diff of
+    the file shows exactly one line moved.
+    """
+    document = json.loads(path.read_text())
+    entry = (document.get("flags") or {}).get(flag)
+    if not isinstance(entry, dict):
+        return None
+    previous = str(entry.get("defaultVariant", ""))
+    if variant not in (entry.get("variants") or {}):
+        raise FaultUsageError(f"{flag} has no variant {variant!r} in {path}")
+    entry["defaultVariant"] = variant
+    path.write_text(json.dumps(document, indent=2) + "\n")
+    return previous
+
+
+class ProcessFreezeFault(Fault):
+    """`docker pause` the target: its socket stays open and nothing answers (A2).
+
+    Callers hang to their deadlines rather than fail; everything behind them goes silent. The
+    unpause is instantaneous and the recovery is not - every hung request wakes at once and the
+    world takes about six minutes to go quiet - which is a property of the class and is said in
+    the changes so a scenario's recovery clock allows for it.
+    """
+
+    fault_class = FaultClass.PROCESS_FREEZE
+    records_change = False
+
+    def __init__(self, docker: DockerCli) -> None:
+        self._docker = docker
+
+    @classmethod
+    def target_kind(cls, definition: FaultDefinition) -> TargetKind:
+        return TargetKind.CONTAINER
+
+    def inject(self, definition: FaultDefinition) -> InjectionOutcome:
+        container = definition.target
+        if not self._docker.is_running(container):
+            raise FaultUsageError(f"{definition.id}: {container} is not running; nothing to freeze")
+        self._docker.pause(container)
+        if not self._docker.is_paused(container):
+            raise FaultUsageError(
+                f"{definition.id}: docker pause returned but {container} is not paused. "
+                "The fault has NOT been injected."
+            )
+        return InjectionOutcome(
+            restore=PauseRestore(container=container),
+            changes=[
+                f"docker pause: {container} frozen; its socket accepts and nothing answers",
+                "callers will hang to their deadlines; expect ~6 min from unpause to quiet",
+            ],
+        )
+
+    def restore(self, state: RestoreState) -> list[str]:
+        if not isinstance(state, PauseRestore):
+            raise FaultUsageError(f"process_freeze cannot restore {state.kind}")
+        if not self._docker.container_exists(state.container):
+            return [f"{state.container} is gone; nothing to unpause"]
+        if not self._docker.is_paused(state.container):
+            return [f"{state.container} is not paused; nothing to restore"]
+        self._docker.unpause(state.container)
+        return [
+            f"docker unpause: {state.container} resumed",
+            "the requests that hung will wake together; a second error wave is the recovery",
+        ]
+
+
+class NetworkPartitionFault(Fault):
+    """Cut the target from its network; its process runs and reaches nothing (A3).
+
+    Callers hang exactly as for a freeze - packets on established connections are dropped, not
+    reset. What is captured before the cut is the container's aliases on the network, because
+    `docker network connect` does not restore them on its own, and a container reachable only
+    by its container name is a second fault on a world where service and container names
+    differ. The network is a param: this handler assumes nothing about what a world calls it.
+    """
+
+    fault_class = FaultClass.NETWORK_PARTITION
+    records_change = False
+
+    def __init__(self, docker: DockerCli) -> None:
+        self._docker = docker
+
+    @classmethod
+    def target_kind(cls, definition: FaultDefinition) -> TargetKind:
+        return TargetKind.CONTAINER
+
+    def inject(self, definition: FaultDefinition) -> InjectionOutcome:
+        container = definition.target
+        network = _str_param(definition, "network", "")
+        if not network:
+            raise FaultUsageError(f"{definition.id}: network_partition needs a network param")
+        attached = self._docker.network_aliases(container)
+        if network not in attached:
+            raise FaultUsageError(
+                f"{definition.id}: {container} is not on network {network!r} "
+                f"(it is on {sorted(attached) or 'nothing'})"
+            )
+        aliases = attached[network]
+        self._docker.network_disconnect(network, container)
+        if network in self._docker.network_aliases(container):
+            raise FaultUsageError(
+                f"{definition.id}: docker network disconnect returned but {container} is still "
+                f"on {network}. The fault has NOT been injected."
+            )
+        return InjectionOutcome(
+            restore=NetworkRestore(container=container, network=network, aliases=aliases),
+            changes=[
+                f"docker network disconnect: {container} cut from {network} "
+                f"(aliases captured: {', '.join(aliases) or 'none'})",
+                "callers will hang, not fail; the target keeps running and logs that it cannot "
+                "reach anything; expect ~6 min from reconnect to quiet",
+            ],
+        )
+
+    def restore(self, state: RestoreState) -> list[str]:
+        if not isinstance(state, NetworkRestore):
+            raise FaultUsageError(f"network_partition cannot restore {state.kind}")
+        if not self._docker.container_exists(state.container):
+            return [f"{state.container} is gone; nothing to reconnect"]
+        if state.network in self._docker.network_aliases(state.container):
+            return [f"{state.container} is already on {state.network}; nothing to restore"]
+        self._docker.network_connect(state.network, state.container, state.aliases)
+        return [
+            f"docker network connect: {state.container} back on {state.network} as "
+            f"{', '.join(state.aliases) or state.container}",
+            "the requests that hung will wake together; a second error wave is the recovery",
+        ]
+
+
+CORRUPTION_SWEEP = (
+    'local c="0" local n=0 '
+    'repeat local r=redis.call("SCAN",c,"COUNT",1000) c=r[1] '
+    "for _,k in ipairs(r[2]) do "
+    'if redis.call("TYPE",k).ok=="hash" then redis.call("HSET",k,ARGV[1],ARGV[2]) n=n+1 end '
+    'end until c=="0" return n'
+)
+"""One atomic sweep: set every hash's `ARGV[1]` field to `ARGV[2]`, returning the count.
+
+A4 measured that a store's live values are written and read within milliseconds and then
+abandoned, so a sweep has to repeat faster than the store's clients cycle a key or it corrupts
+only dead ones (A4 at 5s paged nothing; A4b at 50ms paged). The loop below runs this on an
+interval inside the container, so the corruption is continuous rather than a single pass.
+"""
+
+CORRUPTION_LOOP = (
+    'i=0; while [ ! -f "$STOP" ]; do '
+    '{cli} EVAL "$SCRIPT" 0 "$FIELD" "$BYTES" >/dev/null 2>&1; '
+    'i=$((i+1)); sleep {interval}; done; echo "swept $i times"'
+)
+"""The shell that carries the sweep. Fed to `sh -c` as one argument via docker exec, so no
+quoting crosses a shell of ours - the failure that voided an attempt on 2026-09-23. It exits
+when the stop file appears, which restore touches."""
+
+
+class DatastoreCorruptionFault(Fault):
+    """Make the target datastore's contents unparseable while the store stays healthy (A4b).
+
+    The store answers, and what it returns cannot be decoded. A background loop inside the
+    container overwrites a chosen hash field of every key with bytes the client cannot parse,
+    on an interval, because the store's live values turn over in milliseconds. Restore stops the
+    loop and flushes the store; its clients make fresh values.
+    """
+
+    fault_class = FaultClass.DATASTORE_CORRUPTION
+    records_change = False
+
+    def __init__(self, docker: DockerCli) -> None:
+        self._docker = docker
+
+    @classmethod
+    def target_kind(cls, definition: FaultDefinition) -> TargetKind:
+        return TargetKind.CONTAINER
+
+    def inject(self, definition: FaultDefinition) -> InjectionOutcome:
+        container = definition.target
+        cli = _str_param(definition, "cli", "valkey-cli")
+        field = _str_param(definition, "field", "cart")
+        payload = _str_param(definition, "payload", r"\xff\xff\xff\xff")
+        interval = _str_param(definition, "interval", "0.05")
+        stop_file = f"/tmp/faultline-{definition.id}.stop"
+        if not self._docker.is_running(container):
+            raise FaultUsageError(
+                f"{definition.id}: {container} is not running; nothing to corrupt"
+            )
+        # Verify one sweep runs and takes before starting the loop: A4's first run corrupted
+        # nothing and reported success because its command never ran (2026-09-23).
+        probe = self._docker.exec(
+            container,
+            [cli, "EVAL", CORRUPTION_SWEEP, "0", field, payload],
+            check=False,
+        )
+        if probe.returncode != 0:
+            raise FaultUsageError(
+                f"{definition.id}: the corrupting EVAL failed on {container}, so nothing was "
+                f"corrupted. The fault has NOT been injected.\n{probe.stdout}{probe.stderr}"
+            )
+        script = CORRUPTION_LOOP.format(cli=cli, interval=interval)
+        self._docker.exec(
+            container,
+            [
+                "sh",
+                "-c",
+                script,
+                "faultline",
+                CORRUPTION_SWEEP,
+                field,
+                payload,
+                stop_file,
+            ],
+            detach=True,
+        )
+        return InjectionOutcome(
+            restore=CorruptionRestore(
+                container=container, stop_file=stop_file, cli=cli, flush=True
+            ),
+            changes=[
+                f"{cli} on {container}: every hash's {field!r} field set to unparseable bytes, "
+                f"swept every {interval}s (first sweep verified: {probe.stdout.strip()} keys)",
+                "no change record: the store is healthy and its contents are wrong",
+            ],
+        )
+
+    def restore(self, state: RestoreState) -> list[str]:
+        if not isinstance(state, CorruptionRestore):
+            raise FaultUsageError(f"datastore_corruption cannot restore {state.kind}")
+        if not self._docker.container_exists(state.container):
+            return [f"{state.container} is gone; the corruption went with it"]
+        # Stop the loop first, or the flush races it and fresh keys get re-corrupted.
+        self._docker.exec(state.container, ["touch", state.stop_file], check=False)
+        changes = [f"{state.container}: stop file placed; the corruption loop will end"]
+        if state.flush:
+            self._docker.exec(state.container, [state.cli, "FLUSHALL"], check=False)
+            changes.append(f"{state.cli} FLUSHALL: every corrupted value discarded")
+        return changes
+
+
+class DiskFillFault(Fault):
+    """Fill the target's only writable data directory to capacity (A8b).
+
+    A broker whose log directory cannot be written halts and crashloops against it. The
+    directory is read off the running container - A8 filled a path the target never used, to
+    the byte, because the path was assumed - and the fill is a single `dd` that stops at *no
+    space left*. Restore removes the file; if the container is crashlooping too fast for exec
+    to land, the fallback recreates the service (discarding the fill), then restarts whatever
+    stopped consuming, because this world's consumers do not reconnect on their own (T7.27).
+    """
+
+    fault_class = FaultClass.DISK_FILL
+    records_change = False
+
+    def __init__(self, docker: DockerCli, compose: ComposeCli) -> None:
+        self._docker = docker
+        self._compose = compose
+
+    @classmethod
+    def target_kind(cls, definition: FaultDefinition) -> TargetKind:
+        return TargetKind.CONTAINER
+
+    def inject(self, definition: FaultDefinition) -> InjectionOutcome:
+        container = definition.target
+        service = _str_param(definition, "service", "")
+        if not service:
+            raise FaultUsageError(f"{definition.id}: disk_fill needs a service param for recovery")
+        directory = _str_param(definition, "directory", "")
+        if not directory:
+            raise FaultUsageError(
+                f"{definition.id}: disk_fill needs a directory param, read off the running broker "
+                "(e.g. its log.dirs), not assumed"
+            )
+        restart_after = [r for r in _str_param(definition, "restart_after", "").split(",") if r]
+        if not self._docker.is_running(container):
+            raise FaultUsageError(f"{definition.id}: {container} is not running; nothing to fill")
+        size_kib, used_kib, mount = self._docker.disk_usage(container, directory)
+        # The directory must be the mount point, or dd fills a filesystem the broker shares with
+        # the host and the safety argument (a size-capped tmpfs) does not hold.
+        if mount != directory:
+            raise FaultUsageError(
+                f"{definition.id}: {directory} is not a mount point inside {container} "
+                f"(it sits on {mount}); aim the fill at the capped filesystem, not a dir on it"
+            )
+        fill_file = f"{directory.rstrip('/')}/faultline-{definition.id}.fill"
+        count = max(1, (size_kib // 1024) + 8)  # MiB, comfortably over capacity
+        result = self._docker.exec(
+            container,
+            ["dd", "if=/dev/zero", f"of={fill_file}", "bs=1M", f"count={count}"],
+            check=False,
+        )
+        no_space = "no space left" in (result.stdout + result.stderr).lower()
+        if not no_space:
+            self._docker.exec(container, ["rm", "-f", fill_file], check=False)
+            raise FaultUsageError(
+                f"{definition.id}: dd did not run the filesystem out of space "
+                f"({mount} is {size_kib // 1024}MiB, {used_kib // 1024}MiB used). "
+                "The directory is not the capped one, or it has more room than expected. "
+                "The fault has NOT been injected."
+            )
+        return InjectionOutcome(
+            restore=DiskFillRestore(
+                container=container,
+                service=service,
+                fill_file=fill_file,
+                restart_after=restart_after,
+            ),
+            changes=[
+                f"dd on {container}: {mount} filled to capacity (no space left on device)",
+                "the broker will halt and crashloop against the full directory; no change record",
+            ],
+        )
+
+    def restore(self, state: RestoreState) -> list[str]:
+        if not isinstance(state, DiskFillRestore):
+            raise FaultUsageError(f"disk_fill cannot restore {state.kind}")
+        if not self._docker.container_exists(state.container):
+            return [f"{state.container} is gone; the fill went with it"]
+        changes: list[str] = []
+        removed = self._docker.exec(state.container, ["rm", "-f", state.fill_file], check=False)
+        if removed.returncode == 0:
+            changes.append(f"{state.container}: removed {state.fill_file}")
+        else:
+            # Crashlooping too fast for exec to land: recreate the service, discarding the fill.
+            self._compose.recreate(state.service)
+            changes.append(
+                f"could not reach {state.container} to delete the fill; recreated {state.service}, "
+                "which discards the filled directory"
+            )
+        for consumer in state.restart_after:
+            self._docker.restart(consumer)
+        if state.restart_after:
+            changes.append(
+                f"restarted {', '.join(state.restart_after)} (they do not reconnect on their own); "
+                "expect ~4 min of duplicate-key errors on any that kept uncommitted offsets"
+            )
+        return changes
+
+
 def _human_bytes(value: int) -> str:
     if value == 0:
         return "unlimited"
@@ -522,6 +939,11 @@ FAULT_TYPES: tuple[type[Fault], ...] = (
     BadDeployFault,
     DependencyLatencyFault,
     BadConfigFault,
+    FeatureFlagFault,
+    ProcessFreezeFault,
+    NetworkPartitionFault,
+    DatastoreCorruptionFault,
+    DiskFillFault,
 )
 """Every handler class, for the questions that can be answered without a docker layer."""
 
@@ -537,11 +959,16 @@ def target_kind(definition: FaultDefinition) -> TargetKind:
 def build_handlers(
     docker: DockerCli, compose: ComposeCli, settings: InjectorSettings
 ) -> dict[FaultClass, Fault]:
-    """Every fault class T1.4 supports, wired to one docker layer."""
+    """Every fault class, T1.4's four and T7.0's five, wired to one docker layer."""
     handlers: list[Fault] = [
         ResourceExhaustionFault(docker, compose, settings),
         BadDeployFault(docker, compose, settings),
         DependencyLatencyFault(docker, settings),
         BadConfigFault(compose, settings),
+        FeatureFlagFault(settings),
+        ProcessFreezeFault(docker),
+        NetworkPartitionFault(docker),
+        DatastoreCorruptionFault(docker),
+        DiskFillFault(docker, compose),
     ]
     return {handler.fault_class: handler for handler in handlers}
