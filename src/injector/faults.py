@@ -801,6 +801,10 @@ class DatastoreCorruptionFault(Fault):
             raise FaultUsageError(
                 f"{definition.id}: {container} is not running; nothing to corrupt"
             )
+        # A stop file left by an earlier run - a refusal's, or a restore whose loop was already
+        # gone - would end the new loop on its first check (R4b's first start, 2026-09-24, needed
+        # a hand `rm`). Clear it and the heartbeat before anything starts.
+        self._docker.exec(container, ["rm", "-f", stop_file, f"{stop_file}.beat"], check=False)
         # Verify one sweep runs and takes before starting the loop: A4's first run corrupted
         # nothing and reported success because its command never ran (2026-09-23).
         probe = self._docker.exec(

@@ -869,11 +869,13 @@ def test_corruption_verifies_one_sweep_then_starts_the_loop(settings: InjectorSe
     outcome = DatastoreCorruptionFault(DockerCli(runner)).inject(
         _def("cart-corrupt", FaultClass.DATASTORE_CORRUPTION, "valkey-cart")
     )
-    # the probe (a single EVAL, not detached), the loop (sh -c, detached), and the heartbeat read
+    # a stale stop file is cleared first, then the probe (a single EVAL, not detached), the loop
+    # (sh -c, detached), and the heartbeat read
+    stop = "/tmp/faultline-cart-corrupt.stop"
+    assert runner.calls[1].args[-4:] == ("rm", "-f", stop, f"{stop}.beat")
     assert runner.called("exec", "valkey-cart", "valkey-cli", "EVAL")
     loop = runner.argv("--detach", "sh", "-c")
     # positional inputs in the order the script reads them: $1 lua, $2 field, $3 hex, $4 stop
-    stop = "/tmp/faultline-cart-corrupt.stop"
     assert loop[-4:] == (faults.CORRUPTION_SWEEP, "cart", "ffffffff", stop)
     assert runner.called("exec", "valkey-cart", "cat", "/tmp/faultline-cart-corrupt.stop.beat")
     assert isinstance(outcome.restore, CorruptionRestore)
