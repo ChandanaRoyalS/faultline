@@ -1,0 +1,261 @@
+R3 — network_partition rehearsed through the injector: v2-product-catalog-partition.
+Run 2026-09-24 06:50:34 → 07:13:33 UTC on the Mac, zsh, FAULTLINE_TOOLS_WORLD=v2. Protocol: evals/runs/REHEARSALS-T7.0.md
+with its 2026-09-24 addendum. Pasted verbatim from terminal 1.
+
+=== 1. pre-state ===
+
+$ python3 evals/attempts/shape.py | sed -n '/== firing/,/== silent/p;/== silent/,+3p' | head -30; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; docker inspect -f '{{.Name}} restarts={{.RestartCount}}' postgresql product-catalog frontend kafka
+== firing ==
+  none
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00       94   0.342
+  ad                      0.00        5   0.454
+  cart                    0.00        6   3.196
+  checkout                0.00       33   1.458
+  currency                0.00        9   0.267
+  email                   0.00        6   0.450
+  flagd                   0.27        2   1.538
+  fraud-detection         1.82       97   0.229
+  frontend                0.00       43  10.829
+  frontend-proxy          0.00       45   5.033
+  image-provider          0.00        2   0.100
+  load-generator          0.00       47   4.671
+  payment                 0.00        2   0.225
+  product-catalog         0.00        8   4.683
+  product-reviews         0.54       43   0.775
+  quote                   0.00        2   0.338
+  recommendation          0.72        6   0.579
+  shipping                0.00        7   0.338
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+no active injections
+/postgresql restarts=5
+/product-catalog restarts=0
+/frontend restarts=0
+/kafka restarts=0
+  (quiet since 06:39:16 - R2b's recovery - i.e. 11 minutes.)
+
+=== 2. inject through the injector ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject start v2-product-catalog-partition; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status
+06:50:34
+injected v2-product-catalog-partition (network_partition) on product-catalog
+  - docker network disconnect: product-catalog cut from opentelemetry-demo (aliases captured: product-catalog, product-catalog)
+  - callers will hang, not fail; the target keeps running and logs that it cannot reach anything; expect ~6 min from reconnect to quiet
+revert with: faultline-inject stop v2-product-catalog-partition
+1 active injection(s)  [state: /Users/chandana/dev/faultline/.faultline/injections.json]
+
+v2-product-catalog-partition
+    class  : network_partition
+    target : product-catalog
+    started: 2026-09-24T06:50:35.379847+00:00 (0s ago)
+    params : network=opentelemetry-demo
+    revert : reconnect product-catalog to opentelemetry-demo
+
+=== 3. observe ===
+
+$ python3 evals/attempts/watch.py 12
+06:50:43  quiet
+06:51:13  quiet
+06:51:43  quiet
+06:52:13  quiet
+06:52:43  quiet
+06:53:13  quiet
+06:53:43  quiet
+06:54:13  quiet
+06:54:43  quiet
+06:55:13  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator
+06:55:43  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator
+06:56:13  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:56:43  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:57:13  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:57:43  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+06:58:13  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/currency, ServiceNoTraffic/product-catalog, ServiceNoTraffic/recommendation, ServiceNoTraffic/shipping
+06:58:43  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/currency, ServiceNoTraffic/product-catalog, ServiceNoTraffic/recommendation, ServiceNoTraffic/shipping
+06:59:13  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/flagd, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+06:59:43  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/flagd, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/fraud-detection, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+07:00:13  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/flagd, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+07:00:43  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/flagd, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+07:01:13  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/recommendation, ServiceHighLatency/flagd, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+07:01:43  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/recommendation, ServiceHighLatency/flagd, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+07:02:13  ServiceHighErrorRate/fraud-detection, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/recommendation, ServiceHighLatency/flagd, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceHighLatency/recommendation, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+
+$ python3 evals/attempts/shape.py product-catalog
+== firing ==
+  ServiceHighErrorRate/frontend-proxy
+  ServiceHighErrorRate/load-generator
+  ServiceHighErrorRate/fraud-detection
+  ServiceHighLatency/frontend-proxy
+  ServiceHighLatency/load-generator
+  ServiceNoTraffic/shipping
+  ServiceNoTraffic/email
+  ServiceNoTraffic/product-catalog
+  ServiceNoTraffic/quote
+  ServiceNoTraffic/accounting
+  ServiceNoTraffic/currency
+  ServiceNoTraffic/payment
+  ServiceHighLatency/flagd
+  ServiceHighLatency/frontend
+  ServiceHighErrorRate/recommendation
+  ServiceHighLatency/recommendation
+
+== per service, [5m] ==
+  service                 err%    p95ms   req/s
+  accounting              0.00      nan   0.000
+  ad                      0.00        3   0.083
+  cart                    0.00        8   1.404
+  checkout                0.00        8   0.062
+  currency                0.00      nan   0.000
+  email                   0.00      nan   0.000
+  flagd                   1.49        2   0.279
+  fraud-detection       100.00    15000   0.004
+  frontend                0.00    15000   2.292
+  frontend-proxy         27.61    15000   1.917
+  image-provider          0.00        2   0.100
+  load-generator         30.81    15000   1.704
+  payment                 0.00      nan   0.000
+  product-catalog          nan      nan   0.000
+  product-reviews         0.00       41   0.267
+  quote                   0.00      nan   0.000
+  recommendation           nan      nan   0.000
+  shipping                0.00      nan   0.000
+
+== silent: running, and no span metrics in [5m] ==
+  none
+
+== docker state (not agent-visible) ==
+  faultline-minio-1    exited     Exited (255) 2 days ago
+  faultline-postgres-1 exited     Exited (255) 2 days ago
+  faultline-prometheus-self-1 exited     Exited (255) 3 days ago
+  faultline-redis-1    exited     Exited (255) 2 days ago
+  nostalgic_volhard    created    Created
+  (only containers not plainly running are listed)
+  → product-catalog is running: the partition is not a docker state, and nothing here shows it.
+
+== last 8 log lines: product-catalog ==
+  2026/09/24 06:54:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/24 06:55:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/24 06:56:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/24 06:57:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/24 06:58:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/24 06:59:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/24 07:00:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+  2026/09/24 07:01:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+
+=== 4. read back through the tools: culprit and A2/A3's pager ===
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback product-catalog 06:50 07:04 --errors 2>&1 | head -40
+== product-catalog over 06:50..07:04 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="product-catalog",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="product-catalog"}[5m]))
+1 series
+  {service_name=product-catalog} min=0 max=0 n=29
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="product-catalog",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=product-catalog} min=7.917 max=18.86 n=29
+
+-- logql_query --
+selector: {service="product-catalog"}
+2026-09-24T06:50:45.423574+00:00  2026/09/24 06:50:45 context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T06:50:48.196512+00:00  2026/09/24 06:50:48 traces export: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T06:50:58.424008+00:00  2026/09/24 06:50:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T06:51:58.427542+00:00  2026/09/24 06:51:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T06:52:58.424082+00:00  2026/09/24 06:52:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T06:53:58.423487+00:00  2026/09/24 06:53:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T06:54:58.425984+00:00  2026/09/24 06:54:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T06:55:58.432250+00:00  2026/09/24 06:55:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T06:56:58.424963+00:00  2026/09/24 06:56:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T06:57:58.429986+00:00  2026/09/24 06:57:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T06:58:58.425220+00:00  2026/09/24 06:58:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T06:59:58.429285+00:00  2026/09/24 06:59:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T07:00:58.426278+00:00  2026/09/24 07:00:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T07:01:58.425084+00:00  2026/09/24 07:01:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+2026-09-24T07:02:58.426976+00:00  2026/09/24 07:02:58 failed to upload metrics: context deadline exceeded: rpc error: code = DeadlineExceeded desc = context deadline exceeded
+
+-- trace_query (errors only) --
+no traces for product-catalog over this window
+
+-- change_history --
+query failed: no change log configured, so this window was not observed
+
+$ FAULTLINE_TOOLS_WORLD=v2 uv run python -m evalharness.readback frontend 06:50 07:04 --errors 2>&1 | head -30
+== frontend over 06:50..07:04 UTC, world v2 ==
+
+-- promql_query error-ratio --
+query: sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend",status_code="STATUS_CODE_ERROR"}[5m])) / sum by(service_name) (rate(traces_span_metrics_calls_total{service_name="frontend"}[5m]))
+1 series
+  {service_name=frontend} min=0 max=0 n=29
+
+-- promql_query latency-p95 --
+query: histogram_quantile(0.95, sum by(service_name, le) (rate(traces_span_metrics_duration_milliseconds_bucket{service_name="frontend",span_kind!="SPAN_KIND_INTERNAL"}[5m])))
+1 series
+  {service_name=frontend} min=42.98 max=1.5e+04 n=29
+
+-- logql_query --
+no log lines matched {service="frontend"} over this window
+
+-- trace_query (errors only) --
+service: frontend
+7 trace(s) shown of 10 found, 49 spans; offsets are from each trace's root
+
+trace 51bcb495672e9b29  root load-generator/user_add_to_cart  15024.8ms  started 2026-09-24T07:02:46.128709+00:00  19 spans
+  +0.0ms load-generator/user_add_to_cart 15024.8ms [self 0.9ms]
+    +0.4ms load-generator/GET 15007.0ms [self 5.5ms]  ERROR
+      +1.9ms frontend-proxy/ingress 15001.6ms [self 0.2ms]  ERROR
+        +2.0ms frontend-proxy/router frontend egress 15001.4ms [self 0.0ms]
+          +2.3ms frontend/GET 15001.8ms [self 15001.8ms]
+    +15007.8ms load-generator/POST 16.9ms [self 1.3ms]
+      +15008.3ms frontend-proxy/ingress 15.7ms [self 0.2ms]
+        +15008.4ms frontend-proxy/router frontend egress 15.5ms [self 2.7ms]
+          +15009.3ms frontend/POST 12.8ms [self 0.2ms]
+            +15009.3ms frontend/POST /api/cart 12.6ms [self 0.4ms]
+  (cut by head -30)
+
+=== 5. restore through the injector; idempotence; restart counts; the network as reconnected ===
+
+$ date -u +%H:%M:%S; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-product-catalog-partition; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject status; FAULTLINE_TOOLS_WORLD=v2 uv run faultline-inject stop v2-product-catalog-partition; sleep 5; docker inspect -f '{{.Name}} restarts={{.RestartCount}} started={{.State.StartedAt}}' postgresql product-catalog frontend kafka; docker inspect -f '{{range $k,$v := .NetworkSettings.Networks}}{{$k}} {{$v.IPAddress}} aliases={{$v.Aliases}}{{"\n"}}{{end}}' product-catalog
+07:03:51
+reverted v2-product-catalog-partition
+  - docker network connect: product-catalog back on opentelemetry-demo as product-catalog, product-catalog
+  - the requests that hung will wake together; a second error wave is the recovery
+no active injections
+v2-product-catalog-partition is not active; nothing to revert
+/postgresql restarts=5 started=2026-09-24T06:32:33.50646767Z
+/product-catalog restarts=0 started=2026-09-24T06:07:48.262261135Z
+/frontend restarts=0 started=2026-09-24T06:07:40.203402673Z
+/kafka restarts=0 started=2026-09-24T00:55:52.966587006Z
+opentelemetry-demo 172.18.0.21 aliases=[product-catalog product-catalog]
+  → postgresql did NOT restart on the reconnect (5 → 5): Q96 is the unpause's, not every restore's.
+  → product-catalog back on the network with its aliases; a new address (.21), as a reconnect gives.
+
+=== 6. recover ===
+
+$ python3 evals/attempts/watch.py 10
+07:04:03  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+07:04:33  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator, ServiceNoTraffic/accounting, ServiceNoTraffic/currency, ServiceNoTraffic/email, ServiceNoTraffic/payment, ServiceNoTraffic/product-catalog, ServiceNoTraffic/quote, ServiceNoTraffic/shipping
+07:05:03  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+07:05:33  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+07:06:03  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+07:06:33  ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+07:07:03  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+07:07:33  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/frontend-proxy, ServiceHighErrorRate/load-generator, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceHighLatency/frontend, ServiceHighLatency/frontend-proxy, ServiceHighLatency/load-generator
+07:08:03  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceHighLatency/checkout, ServiceHighLatency/frontend, ServiceHighLatency/recommendation
+07:08:33  ServiceHighErrorRate/checkout, ServiceHighErrorRate/frontend, ServiceHighErrorRate/product-catalog, ServiceHighErrorRate/recommendation, ServiceHighLatency/checkout, ServiceHighLatency/frontend, ServiceHighLatency/recommendation
+07:09:03  quiet
+07:09:33  quiet
+07:10:03  quiet
+07:10:33  quiet
+07:11:03  quiet
+07:11:33  quiet
+07:12:03  quiet
+07:12:33  quiet
+07:13:03  quiet
+07:13:33  quiet
+  → quiet 07:09:03 → 07:13:33 in the window (4 min 30 s); R4's pre-state supplies the rest.

@@ -107,3 +107,10 @@ The line reached Loki under the label the agent's `logql_query` selects on. **Th
 is reachable by the agent, the registration's condition is met, and A3 stands as a class distinct
 from A2.** Seven classes measured: the four existing, `feature_flag`, `process_freeze`,
 `network_partition`.
+
+## Addendum — through the agent's tool, 2026-09-24 (R3)
+
+The class's rehearsal through the injector (`evals/attempts/R3-network-partition/`) read the same
+line through `faultline.tools.logql_query` rather than Loki's API: fifteen timestamped lines over
+the fault, `failed to upload metrics: context deadline exceeded` at :58 of every minute, and on
+the same world the freeze (R2b) returned none. The (c) distinction is on the agent's own path.
