@@ -654,23 +654,42 @@ not be possible to add a narrative that quietly falsifies it.
 """
 
 
-def test_the_acceptance_table_covers_every_rehearsed_narrative() -> None:
-    """A narrative not in the table is an investigation nobody checked the tools against."""
-    rehearsed = {
+NARRATIVE_EVIDENCE_V2: dict[str, set[str]] = {
+    # The freeze's page names only the callers. Metrics carry the hang and the target's request
+    # rate going to zero; runtime metrics show the target stopped reporting about itself; its
+    # log's silence is what the partition does not share (R3); traces put the time in the
+    # callers' self-time; change history answers "nothing".
+    "v2-product-catalog-freeze": {"metrics", "runtime_metrics", "logs", "traces", "changes"},
+}
+"""**v2's narratives, apart from v1's (T7.1).** `NARRATIVE_EVIDENCE` and the counts pinned on it
+are ADR-0019's claims about v1's investigations - *change history consulted in 11 of 11* - and
+a v2 narrative joining that table would move a v1 finding. Same rule, same mapping, its own
+table. Read from each narrative's *What was checked* section, by hand."""
+
+
+def _rehearsed_narratives(world: str) -> set[str]:
+    from faultline.context.seed import bundle_world
+
+    return {
         path.parent.name
         for path in ARTIFACTS.glob("*/*/incident.md")
-        if not (path.parent / "INVALID.md").exists()
+        if not (path.parent / "INVALID.md").exists() and bundle_world(path.parent) == world
     }
 
-    assert rehearsed == set(NARRATIVE_EVIDENCE), (
-        "the acceptance table and the rehearsed narratives have diverged: "
-        f"{sorted(rehearsed ^ set(NARRATIVE_EVIDENCE))}"
-    )
+
+def test_the_acceptance_table_covers_every_rehearsed_narrative() -> None:
+    """A narrative not in the table is an investigation nobody checked the tools against."""
+    for world, table in (("v1", NARRATIVE_EVIDENCE), ("v2", NARRATIVE_EVIDENCE_V2)):
+        rehearsed = _rehearsed_narratives(world)
+        assert rehearsed == set(table), (
+            f"the {world} acceptance table and the rehearsed narratives have diverged: "
+            f"{sorted(rehearsed ^ set(table))}"
+        )
 
 
 def test_every_evidence_kind_the_narratives_cite_has_a_tool() -> None:
     """The acceptance claim: each of the nine investigations is reachable through these four."""
-    for scenario, kinds in NARRATIVE_EVIDENCE.items():
+    for scenario, kinds in {**NARRATIVE_EVIDENCE, **NARRATIVE_EVIDENCE_V2}.items():
         for kind in kinds:
             assert kind in EVIDENCE_TO_TOOL, f"{scenario} cites unmapped evidence {kind!r}"
             tool = EVIDENCE_TO_TOOL[kind]

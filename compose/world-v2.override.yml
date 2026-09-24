@@ -190,3 +190,27 @@ services:
 
   checkout:
     deploy: { resources: { limits: { memory: 40M } } }
+
+  # **Postgres, from the kernel's own record (Q96, 2026-09-24).** Restoring `product-catalog` -
+  # unpause or reconnect - restarted `postgresql` in every run that looked (R2, R2b, R3, both
+  # recordings of `v2-product-catalog-freeze`), silently: no postmaster line before the backends'
+  # `unexpected postmaster exit`, `OOMKilled=false`, exit 0. The Docker VM's kernel log is what
+  # names it. Two pairs of `Memory cgroup out of memory: Killed process … (postgres)` kills, both
+  # with `oom_memcg=/docker/9a94a0dc…`, which is `postgresql`, sit 2335.14 s apart, and Postgres's
+  # two pairs of restarts (10:44:57.21/58.66 and 11:23:52.35/53.71) sit 2335.14 s apart as well.
+  # Each unpause brought two kills about 1.3 s apart, and each kill was followed about 0.5 s later
+  # by a restart. The same calibration puts two `java` kills at 09:59:10 and 09:59:22, which is
+  # ad's container at S1's 192m squeeze, a known event, so the mapping checks out. R2's, R2b's
+  # and R3's kills are older than the ring buffer holds: consistent, not proven.
+  #
+  # **Why raise it rather than carry it** (decided on Q96's own terms, and registered, not tuned):
+  # the demo's 80M does not fit the demo's own burst. The catalog's backed-up requests land at once
+  # when it resumes. The restart is then a second incident, which the restore causes and the fault
+  # does not. It puts crash recovery, `Product Not Found` and accounting errors into the recovery of
+  # every `process_freeze` and `network_partition` scenario on the catalog. That is 0159's reason
+  # for accounting and checkout, and Q91's for Tempo. **256M is one value, not a search**: the
+  # re-record that follows reads `memory.peak` after the restore and records the headroom actually
+  # used. If that peak comes near the new limit, it is reported as a finding and the limit is not
+  # retried.
+  postgresql:
+    deploy: { resources: { limits: { memory: 256M } } }
