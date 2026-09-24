@@ -27,5 +27,5 @@ ALERTS{alertstate="firing"}
 ## runtime
 
 ```promql
-{exported_job="product-catalog", __name__=~"process_runtime_.*|runtime_.*|system_memory_.*"}
+{__name__=~"go_.*|dotnet_.*|jvm_.*|process_.*|v8js_.*|nodejs_.*",service_name="product-catalog"}
 ```
