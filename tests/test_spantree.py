@@ -264,14 +264,45 @@ def test_rule_0_leaves_ordinary_errors_to_rule_1() -> None:
         assert spantree.degrading_hop(tree) == spantree.error_or_self_time_hop(tree)
 
 
-def test_an_erroring_descendant_is_not_a_span_still_waiting() -> None:
-    """A deeper span that itself errored is rule 1's to name, not rule 0's."""
+def test_a_call_that_waited_past_the_deadline_and_then_errored_is_still_the_waiting_call() -> None:
+    """**The replay's correction** (R3 and R5, 2026-09-24). checkout's call into the partitioned
+    catalog errored after 560 s, and rule 1 rightly named it. A rule 0 that skipped erroring spans
+    named its non-erroring parent instead, one level further from the fault. The waiting call is
+    the waiting call however it ended: rule 0 keeps rule 1's callee and adds how long it waited."""
+    spans = [
+        span("px", "", "frontend-proxy", "ingress", 0, 15000, error=True),
+        span("po", "px", "checkout", "PlaceOrder", 1, 560640),
+        span("prep", "po", "checkout", "prepareOrderItemsAndShippingQuoteFromCart", 2, 560635),
+        span(
+            "gp",
+            "prep",
+            "checkout",
+            "oteldemo.ProductCatalogService/GetProduct",
+            3,
+            560633,
+            error=True,
+        ),
+    ]
+    (tree,) = spantree.build(spans)
+    old = spantree.error_or_self_time_hop(tree)
+    new = spantree.degrading_hop(tree)
+    assert old is not None and new is not None
+    assert new.callee == old.callee == "checkout/oteldemo.ProductCatalogService/GetProduct"
+    assert new.gave_up == "frontend-proxy/ingress"
+
+
+def test_the_nearest_erroring_ancestor_is_the_one_named_as_giving_up() -> None:
+    """Two deadlines above one waiting call: the proxy's at 15 s, then frontend's own at 60 s. The
+    one that abandoned it last and nearest is frontend's."""
     spans = [
         span("px", "", "frontend-proxy", "ingress", 0, 15000, error=True),
         span("fe", "px", "frontend", "GET", 1, 60000, error=True),
+        span("g", "fe", "frontend", "grpc GetProduct", 2, 500000),
     ]
     (tree,) = spantree.build(spans)
-    assert spantree.hang_hop(tree) is None
+    hop = spantree.degrading_hop(tree)
+    assert hop is not None and hop.callee == "frontend/grpc GetProduct"
+    assert hop.gave_up == "frontend/GET"
 
 
 def test_the_depth_is_the_worlds() -> None:

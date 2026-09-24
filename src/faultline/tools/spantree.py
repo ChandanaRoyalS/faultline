@@ -12,13 +12,18 @@ it and a reader can check it:
 
 0. **If an erroring span gave up on a call that was still running, the degrading hop ends at
    the deepest span still waiting** (added under Q94, T7.1). Precisely: a span below an erroring
-   one that had started before the erroring span ended, did not itself error, and ended at least
-   `HANG_MARGIN_MS` after it. That is a timeout: the caller's deadline fired and turned into the
-   trace's only error, while the call it abandoned went on waiting. On
-   `v2-product-catalog-freeze`'s recording (2026-09-24) rule 1 named the proxy's 15 s timeout
-   (`load-generator/GET -> frontend-proxy/ingress`) while frontend's request below it stayed open
-   531.8 s, until the catalog resumed. The error was the edge of the hang, not its origin. The
-   deepest still-waiting span is the call nearest the thing that stopped answering.
+   one that had started before the erroring span ended and ended at least `HANG_MARGIN_MS` after
+   it, however it ended. That is a timeout: the caller's deadline fired and became the trace's
+   error, while the call it abandoned went on waiting. On `v2-product-catalog-freeze`'s
+   recording (2026-09-24) rule 1 named the proxy's 15 s timeout (`load-generator/GET ->
+   frontend-proxy/ingress`) while frontend's call into the catalog stayed open 531.8 s, until the
+   catalog resumed. The error was the edge of the hang, not its origin. The deepest
+   still-waiting span is the call nearest the thing that stopped answering.
+   **A call that waited past the deadline and then errored is still the waiting call.** The first
+   cut skipped erroring spans, and the replay over the recorded windows showed the cost. On R3's
+   partition and R5's disk fill, rule 1 had rightly named `checkout -> ProductCatalogService/
+   GetProduct` and `PlaceOrder -> orders publish`, both erroring and both long. The first cut
+   moved the hop one level *up*, to their non-erroring parents.
 1. **If any span in the trace carries an error status, the degrading hop ends at the deepest
    erroring span** (ties broken by duration). An error deep in the tree is where the failure
    originated; the errors above it are its propagation.
@@ -282,8 +287,6 @@ def hang_hop(tree: Tree) -> Hop | None:
     for gave_up in (n for n in nodes if n.span.error):
         deadline = _end_ms(gave_up)
         for waiting in _walk(gave_up)[1:]:
-            if waiting.span.error:
-                continue
             if _start_ms(waiting) >= deadline or _end_ms(waiting) < deadline + HANG_MARGIN_MS:
                 continue
             # Deepest waiting span first; of the erroring ancestors that abandoned it, the
